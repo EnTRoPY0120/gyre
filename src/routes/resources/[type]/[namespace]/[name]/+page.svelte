@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
+	import { websocketStore } from '$lib/stores/websocket.svelte';
+	import { onMount } from 'svelte';
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';
 	import ConditionList from '$lib/components/flux/ConditionList.svelte';
@@ -36,6 +38,21 @@
 	}
 
 	let { data }: Props = $props();
+
+	// Real-time updates via SSE
+	onMount(() => {
+		const unsubscribe = websocketStore.onEvent((event) => {
+			if (
+				event.resource &&
+				event.resource.metadata.name === data.name &&
+				event.resource.metadata.namespace === data.namespace &&
+				event.resourceType === data.resource.kind
+			) {
+				invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
+			}
+		});
+		return unsubscribe;
+	});
 
 	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'yaml';
 

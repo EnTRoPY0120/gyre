@@ -1,8 +1,9 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { preferences } from '$lib/stores/preferences';
-	import { getResourceHealth } from '$lib/utils/flux';
+	import { websocketStore } from '$lib/stores/websocket.svelte';
+	import { onMount } from 'svelte';	import { getResourceHealth } from '$lib/utils/flux';
 	import { createAutoRefresh } from '$lib/utils/polling.svelte';
 	import {
 		filterResources,
@@ -41,6 +42,25 @@
 
 	// Auto-refresh setup
 	const autoRefresh = createAutoRefresh();
+
+	// Real-time updates via SSE
+	onMount(() => {
+		const unsubscribe = websocketStore.onEvent((event) => {
+			// Check if event is relevant to current view
+			// Event resourceType is e.g., 'GitRepository'
+			// Page resourceType is e.g., 'gitrepositories'
+			const eventType = event.resourceType?.toLowerCase();
+			const pageType = data.resourceType.toLowerCase();
+			
+			// Simple pluralization check or direct match
+			if (eventType && (pageType === eventType + 's' || pageType === eventType)) {
+				// Invalidate the load function dependency to trigger a background refresh
+				invalidate(`flux:${data.resourceType}`);
+			}
+		});
+
+		return unsubscribe;
+	});
 
 	// Initialize filters from URL
 	const urlFilters = $derived(searchParamsToFilters($page.url.searchParams));

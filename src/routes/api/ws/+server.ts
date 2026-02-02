@@ -1,0 +1,39 @@
+import type { RequestHandler } from '@sveltejs/kit';
+import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+
+// Resource types to watch
+const WATCH_RESOURCES: FluxResourceType[] = [
+	'GitRepository',
+	'HelmRepository',
+	'HelmChart',
+	'Bucket',
+	'OCIRepository',
+	'Kustomization',
+	'HelmRelease',
+	'Alert',
+	'Provider',
+	'Receiver'
+];
+
+export const GET: RequestHandler = async ({ request }) => {
+	// Check if this is a WebSocket upgrade request
+	const upgradeHeader = request.headers.get('upgrade');
+	if (upgradeHeader?.toLowerCase() !== 'websocket') {
+		return new Response('Expected WebSocket upgrade', { status: 426 });
+	}
+
+	// For now, return a message indicating WebSocket is not yet fully implemented
+	return new Response(
+		JSON.stringify({
+			message:
+				'WebSocket endpoint placeholder. Use /api/ws/events for Server-Sent Events fallback.',
+			status: 'not_implemented'
+		}),
+		{
+			status: 501,
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		}
+	);
+};

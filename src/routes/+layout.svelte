@@ -3,6 +3,8 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
+	import { websocketStore } from '$lib/stores/websocket.svelte';
+	import { onMount } from 'svelte';
 
 	interface Props {
 		children: import('svelte').Snippet;
@@ -15,6 +17,18 @@
 	}
 
 	let { children, data }: Props = $props();
+
+	// Connect to SSE on mount
+	onMount(() => {
+		// Only connect if we're connected to the cluster
+		if (data.health.connected) {
+			websocketStore.connect();
+		}
+
+		return () => {
+			websocketStore.disconnect();
+		};
+	});
 </script>
 
 <svelte:head>

@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { getResourceInfo } from '$lib/config/resources';
 	import ThemeToggle from './ThemeToggle.svelte';
+	import NotificationBell from './NotificationBell.svelte';
 
 	interface Props {
 		health?: {
@@ -76,8 +77,11 @@
 		</ol>
 	</nav>
 
-	<!-- Right Side: Theme Toggle, Connection Status & Actions -->
+	<!-- Right Side: Notifications, Theme Toggle, Connection Status & Actions -->
 	<div class="flex items-center gap-4">
+		<!-- Notification Bell -->
+		<NotificationBell />
+
 		<!-- Theme Toggle -->
 		<ThemeToggle />
 

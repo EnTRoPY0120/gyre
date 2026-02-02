@@ -3,8 +3,9 @@ import type { PageServerLoad } from './$types';
 import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
 import type { FluxResource } from '$lib/types/flux';
 
-export const load: PageServerLoad = async ({ params, fetch }) => {
+export const load: PageServerLoad = async ({ params, fetch, depends }) => {
 	const { type, namespace, name } = params;
+	depends(`flux:resource:${type}:${namespace}:${name}`);
 
 	// Validate resource type
 	const validTypes = getAllResourceTypes();
