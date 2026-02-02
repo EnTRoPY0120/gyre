@@ -23,12 +23,12 @@
 	}
 </script>
 
-<div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
-	<table class="min-w-full divide-y divide-gray-200">
-		<thead class="bg-gray-50">
+<div class="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
+	<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+		<thead class="bg-gray-50 dark:bg-gray-800">
 			<tr>
 				<th
-					class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400"
 				>
 					Name
 				</th>
@@ -56,25 +56,25 @@
 				</th>
 			</tr>
 		</thead>
-		<tbody class="divide-y divide-gray-200 bg-white">
+		<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
 			{#if resources.length === 0}
 				<tr>
-					<td colspan={showNamespace ? 5 : 4} class="px-6 py-8 text-center text-sm text-gray-500">
+					<td colspan={showNamespace ? 5 : 4} class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
 						No resources found
 					</td>
 				</tr>
 			{:else}
 				{#each resources as resource}
 					<tr
-						class="cursor-pointer transition-colors hover:bg-gray-50"
+						class="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
 						onclick={() => handleRowClick(resource)}
 					>
 						<td class="whitespace-nowrap px-6 py-4">
-							<div class="text-sm font-medium text-gray-900">{resource.metadata.name}</div>
+							<div class="text-sm font-medium text-gray-900 dark:text-gray-100">{resource.metadata.name}</div>
 						</td>
 						{#if showNamespace}
 							<td class="whitespace-nowrap px-6 py-4">
-								<div class="text-sm text-gray-500">{resource.metadata.namespace || '-'}</div>
+								<div class="text-sm text-gray-500 dark:text-gray-400">{resource.metadata.namespace || '-'}</div>
 							</td>
 						{/if}
 						<td class="whitespace-nowrap px-6 py-4">
@@ -84,12 +84,12 @@
 								/>
 						</td>
 						<td class="whitespace-nowrap px-6 py-4">
-							<div class="text-sm text-gray-500">
+							<div class="text-sm text-gray-500 dark:text-gray-400">
 								{formatTimestamp(resource.metadata.creationTimestamp)}
 							</div>
 						</td>
 						<td class="px-6 py-4">
-							<div class="max-w-md text-sm text-gray-500">
+							<div class="max-w-md text-sm text-gray-500 dark:text-gray-400">
 								{getReadyMessage(resource)}
 							</div>
 						</td>

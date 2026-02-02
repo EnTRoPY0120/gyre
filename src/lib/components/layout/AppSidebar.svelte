@@ -12,16 +12,16 @@
 </script>
 
 {#if isOpen}
-	<aside class="flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
+	<aside class="flex h-screen w-64 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
 		<!-- Logo and Brand -->
-		<div class="flex h-16 items-center justify-between border-b border-gray-200 px-4">
+		<div class="flex h-16 items-center justify-between border-b border-gray-200 px-4 dark:border-gray-700">
 			<a href="/" class="flex items-center gap-2">
 				<span class="text-2xl">🌀</span>
-				<span class="text-xl font-bold text-gray-900">Gyre</span>
+				<span class="text-xl font-bold text-gray-900 dark:text-gray-100">Gyre</span>
 			</a>
 			<button
 				type="button"
-				class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+				class="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 				onclick={() => sidebarOpen.toggle()}
 				aria-label="Close sidebar"
 			>
@@ -44,8 +44,8 @@
 					<a
 						href="/"
 						class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {currentPath === '/'
-							? 'bg-blue-50 text-blue-700'
-							: 'text-gray-700 hover:bg-gray-50'}"
+							? 'bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
+							: 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'}"
 					>
 						<span class="text-lg">📊</span>
 						<span>Dashboard</span>
@@ -55,7 +55,7 @@
 				<!-- Resource Groups -->
 				{#each resourceGroups as group}
 					<div>
-						<h3 class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+						<h3 class="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
 							{group.icon} {group.name}
 						</h3>
 						<div class="space-y-1">
@@ -63,8 +63,8 @@
 								<a
 									href="/resources/{resource.type}"
 									class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors {isActive(resource.type)
-										? 'bg-blue-50 text-blue-700 font-medium'
-										: 'text-gray-700 hover:bg-gray-50'}"
+										? 'bg-blue-50 text-blue-700 font-medium dark:bg-blue-900/50 dark:text-blue-300'
+										: 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'}"
 								>
 									<span>{resource.displayName}</span>
 								</a>
@@ -76,17 +76,17 @@
 		</nav>
 
 		<!-- Footer -->
-		<div class="border-t border-gray-200 p-4">
-			<p class="text-xs text-gray-500">FluxCD WebUI v1.0.0</p>
+		<div class="border-t border-gray-200 p-4 dark:border-gray-700">
+			<p class="text-xs text-gray-500 dark:text-gray-400">FluxCD WebUI v1.0.0</p>
 		</div>
 	</aside>
 {:else}
 	<!-- Collapsed sidebar -->
-	<aside class="flex h-screen w-16 flex-col border-r border-gray-200 bg-white">
-		<div class="flex h-16 items-center justify-center border-b border-gray-200">
+	<aside class="flex h-screen w-16 flex-col border-r border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900">
+		<div class="flex h-16 items-center justify-center border-b border-gray-200 dark:border-gray-700">
 			<button
 				type="button"
-				class="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+				class="rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 				onclick={() => sidebarOpen.toggle()}
 				aria-label="Open sidebar"
 			>

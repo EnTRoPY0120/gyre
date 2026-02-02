@@ -23,7 +23,7 @@
 	<meta name="description" content="A modern web interface for managing FluxCD resources in your Kubernetes cluster" />
 </svelte:head>
 
-<div class="flex h-screen bg-gray-50">
+<div class="flex h-screen bg-gray-50 dark:bg-gray-950">
 	<!-- Sidebar -->
 	<AppSidebar />
 
@@ -33,8 +33,9 @@
 		<AppHeader health={data.health} />
 
 		<!-- Scrollable Content -->
-		<main class="flex-1 overflow-y-auto p-6">
+		<main class="flex-1 overflow-y-auto p-6 dark:bg-gray-900">
 			{@render children()}
 		</main>
 	</div>
 </div>
+

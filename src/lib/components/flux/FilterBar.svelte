@@ -40,10 +40,10 @@
 <div class="flex flex-wrap items-center gap-3">
 	<!-- Namespace Filter -->
 	<div class="flex items-center gap-2">
-		<label for="namespace-filter" class="text-sm font-medium text-gray-500">Namespace:</label>
+		<label for="namespace-filter" class="text-sm font-medium text-gray-500 dark:text-gray-400">Namespace:</label>
 		<select
 			id="namespace-filter"
-			class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
 			value={filters.namespace}
 			onchange={handleNamespaceChange}
 		>
@@ -56,10 +56,10 @@
 
 	<!-- Status Filter -->
 	<div class="flex items-center gap-2">
-		<label for="status-filter" class="text-sm font-medium text-gray-500">Status:</label>
+		<label for="status-filter" class="text-sm font-medium text-gray-500 dark:text-gray-400">Status:</label>
 		<select
 			id="status-filter"
-			class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200"
 			value={filters.status}
 			onchange={handleStatusChange}
 		>
@@ -71,11 +71,11 @@
 
 	<!-- Labels Filter -->
 	<div class="flex items-center gap-2">
-		<label for="labels-filter" class="text-sm font-medium text-gray-500">Labels:</label>
+		<label for="labels-filter" class="text-sm font-medium text-gray-500 dark:text-gray-400">Labels:</label>
 		<input
 			id="labels-filter"
 			type="text"
-			class="w-48 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			class="w-48 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:placeholder-gray-500"
 			placeholder="key=value,..."
 			value={filters.labels}
 			oninput={handleLabelsChange}
@@ -86,7 +86,7 @@
 	{#if hasActiveFilters}
 		<button
 			type="button"
-			class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50"
+			class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 			onclick={onClearFilters}
 		>
 			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

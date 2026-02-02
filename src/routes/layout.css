@@ -1,2 +1,34 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
+
+/* Enable dark mode via class strategy */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Base styles for smooth theme transitions */
+html {
+	transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Dark mode base styles */
+.dark {
+	color-scheme: dark;
+}
+
+/* Custom scrollbar for dark mode */
+.dark ::-webkit-scrollbar {
+	width: 8px;
+	height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+	background: rgb(31, 41, 55);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+	background: rgb(75, 85, 99);
+	border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+	background: rgb(107, 114, 128);
+}

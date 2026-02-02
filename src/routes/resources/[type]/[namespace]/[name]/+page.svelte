@@ -107,7 +107,7 @@
 	<div class="flex items-start gap-4">
 		<button
 			type="button"
-			class="mt-1 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+			class="mt-1 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
 			onclick={goBack}
 			aria-label="Go back"
 		>
@@ -122,28 +122,28 @@
 		</button>
 		<div class="flex-1">
 			<div class="flex items-center gap-3">
-				<h1 class="text-2xl font-bold text-gray-900">{data.name}</h1>
+				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{data.name}</h1>
 				<StatusBadge
 					conditions={data.resource.status?.conditions}
 					suspended={data.resource.spec?.suspend as boolean | undefined}
 				/>
 			</div>
-			<p class="mt-1 text-sm text-gray-500">
+			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
 				{data.resourceInfo.singularName} in {data.namespace}
 			</p>
 		</div>
 	</div>
 
 	<!-- Tabs -->
-	<div class="border-b border-gray-200">
+	<div class="border-b border-gray-200 dark:border-gray-700">
 		<nav class="-mb-px flex space-x-8">
 			{#each tabs as tab}
 				<button
 					type="button"
 					class="whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors {activeTab ===
 					tab.id
-						? 'border-blue-500 text-blue-600'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}"
+						? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
+						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'}"
 					onclick={() => (activeTab = tab.id)}
 				>
 					{tab.label}
@@ -158,14 +158,14 @@
 			<!-- Metadata and Conditions (always shown) -->
 			<div class="grid gap-6 lg:grid-cols-2">
 				<!-- Metadata Card -->
-				<div class="rounded-lg border border-gray-200 bg-white p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">Metadata</h3>
+				<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+					<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Metadata</h3>
 					<ResourceMetadata metadata={data.resource.metadata} />
 				</div>
 
 				<!-- Conditions Card -->
-				<div class="rounded-lg border border-gray-200 bg-white p-6">
-					<h3 class="mb-4 text-lg font-semibold text-gray-900">Conditions</h3>
+				<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+					<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Conditions</h3>
 					<ConditionList {conditions} />
 				</div>
 			</div>
@@ -180,22 +180,22 @@
 					<KustomizationDetail resource={data.resource} />
 				{:else if data.resource.spec}
 					<!-- Generic Configuration Card for other resource types -->
-					<div class="rounded-lg border border-gray-200 bg-white p-6">
-						<h3 class="mb-4 text-lg font-semibold text-gray-900">Configuration</h3>
+					<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+						<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Configuration</h3>
 						<dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 							{#each Object.entries(data.resource.spec).slice(0, 9) as [key, value]}
 								<div>
-									<dt class="text-sm font-medium text-gray-500">{key}</dt>
-									<dd class="mt-1 text-sm text-gray-900">
+									<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{key}</dt>
+									<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
 										{#if typeof value === 'object'}
-											<code class="rounded bg-gray-100 px-1.5 py-0.5 text-xs"
+											<code class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-700"
 												>{JSON.stringify(value)}</code
 											>
 										{:else if typeof value === 'boolean'}
 											<span
 												class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {value
-													? 'bg-green-100 text-green-800'
-													: 'bg-gray-100 text-gray-800'}"
+													? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
+													: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}"
 											>
 												{value ? 'Yes' : 'No'}
 											</span>
@@ -210,32 +210,32 @@
 				{/if}
 			</div>
 		{:else if activeTab === 'spec'}
-			<div class="rounded-lg border border-gray-200 bg-white p-6">
-				<h3 class="mb-4 text-lg font-semibold text-gray-900">Resource Spec</h3>
+			<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+				<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Spec</h3>
 				{#if data.resource.spec}
 					<pre
 						class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code>{JSON.stringify(data.resource.spec, null, 2)}</code></pre>
 				{:else}
-					<p class="text-sm text-gray-500">No spec available</p>
+					<p class="text-sm text-gray-500 dark:text-gray-400">No spec available</p>
 				{/if}
 			</div>
 		{:else if activeTab === 'status'}
-			<div class="rounded-lg border border-gray-200 bg-white p-6">
-				<h3 class="mb-4 text-lg font-semibold text-gray-900">Resource Status</h3>
+			<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+				<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Status</h3>
 				{#if data.resource.status}
 					<pre
 						class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code>{JSON.stringify(data.resource.status, null, 2)}</code></pre>
 				{:else}
-					<p class="text-sm text-gray-500">No status available</p>
+					<p class="text-sm text-gray-500 dark:text-gray-400">No status available</p>
 				{/if}
 			</div>
 		{:else if activeTab === 'events'}
-			<div class="rounded-lg border border-gray-200 bg-white p-6">
+			<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900">Events</h3>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Events</h3>
 					<button
 						type="button"
-						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
+						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 						onclick={() => {
 							eventsFetched = false;
 							fetchEvents();
@@ -261,12 +261,12 @@
 				<EventsList {events} loading={eventsLoading} error={eventsError} />
 			</div>
 		{:else if activeTab === 'yaml'}
-			<div class="rounded-lg border border-gray-200 bg-white p-6">
+			<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900">Full Resource YAML</h3>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Full Resource YAML</h3>
 					<button
 						type="button"
-						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 						onclick={() => {
 							navigator.clipboard.writeText(JSON.stringify(data.resource, null, 2));
 						}}

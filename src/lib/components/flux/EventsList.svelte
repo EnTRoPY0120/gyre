@@ -56,8 +56,8 @@
 		<button
 			type="button"
 			class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {filterType === 'all'
-				? 'bg-gray-900 text-white'
-				: 'bg-gray-100 text-gray-600 hover:bg-gray-200'}"
+				? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+				: 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600'}"
 			onclick={() => (filterType = 'all')}
 		>
 			All ({events.length})
@@ -66,7 +66,7 @@
 			type="button"
 			class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {filterType === 'Warning'
 				? 'bg-red-600 text-white'
-				: 'bg-red-50 text-red-700 hover:bg-red-100'}"
+				: 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50'}"
 			onclick={() => (filterType = 'Warning')}
 		>
 			Warnings ({warningCount})
@@ -75,7 +75,7 @@
 			type="button"
 			class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {filterType === 'Normal'
 				? 'bg-green-600 text-white'
-				: 'bg-green-50 text-green-700 hover:bg-green-100'}"
+				: 'bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-900/30 dark:text-green-400 dark:hover:bg-green-900/50'}"
 			onclick={() => (filterType = 'Normal')}
 		>
 			Normal ({normalCount})
@@ -97,7 +97,7 @@
 		</div>
 	{:else if error}
 		<!-- Error State -->
-		<div class="rounded-lg border border-red-200 bg-red-50 p-4">
+		<div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/30">
 			<div class="flex items-center gap-3">
 				<svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path
@@ -107,13 +107,13 @@
 						d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					/>
 				</svg>
-				<p class="text-sm text-red-700">{error}</p>
+				<p class="text-sm text-red-700 dark:text-red-400">{error}</p>
 			</div>
 		</div>
 	{:else if filteredEvents.length === 0}
 		<!-- Empty State -->
 		<div class="flex flex-col items-center justify-center py-12 text-center">
-			<svg class="h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="h-12 w-12 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -121,7 +121,7 @@
 					d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
 				/>
 			</svg>
-			<p class="mt-4 text-sm text-gray-500">
+			<p class="mt-4 text-sm text-gray-500 dark:text-gray-400">
 				{filterType === 'all' ? 'No events found for this resource' : `No ${filterType.toLowerCase()} events`}
 			</p>
 		</div>
@@ -131,8 +131,8 @@
 			{#each filteredEvents as event}
 				<div
 					class="rounded-lg border p-4 {event.type === 'Warning'
-						? 'border-red-200 bg-red-50'
-						: 'border-gray-200 bg-white'}"
+						? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+						: 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}"
 				>
 					<div class="flex items-start justify-between gap-4">
 						<div class="flex-1">
@@ -141,8 +141,8 @@
 								<span
 									class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {event.type ===
 									'Warning'
-										? 'bg-red-100 text-red-800'
-										: 'bg-green-100 text-green-800'}"
+										? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
+										: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'}"
 								>
 									{#if event.type === 'Warning'}
 										<svg
@@ -177,27 +177,27 @@
 								</span>
 
 								<!-- Reason -->
-								<span class="font-medium text-gray-900">{event.reason}</span>
+								<span class="font-medium text-gray-900 dark:text-gray-100">{event.reason}</span>
 
 								<!-- Count Badge -->
 								{#if event.count > 1}
-									<span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+									<span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">
 										×{event.count}
 									</span>
 								{/if}
 							</div>
 
 							<!-- Message -->
-							<p class="mt-1 text-sm text-gray-600">{event.message}</p>
+							<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{event.message}</p>
 
 							<!-- Source -->
-							<p class="mt-2 text-xs text-gray-400">
+							<p class="mt-2 text-xs text-gray-400 dark:text-gray-500">
 								Source: {event.source.component}
 							</p>
 						</div>
 
 						<!-- Timestamp -->
-						<div class="text-right text-xs text-gray-400">
+						<div class="text-right text-xs text-gray-400 dark:text-gray-500">
 							<p>{formatEventTime(event.lastTimestamp)}</p>
 							{#if event.count > 1 && event.firstTimestamp}
 								<p class="mt-1">First: {formatEventTime(event.firstTimestamp)}</p>

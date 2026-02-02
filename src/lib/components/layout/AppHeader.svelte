@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { getResourceInfo } from '$lib/config/resources';
+	import ThemeToggle from './ThemeToggle.svelte';
 
 	interface Props {
 		health?: {
@@ -43,7 +44,7 @@
 </script>
 
 <header
-	class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white/95 px-6 backdrop-blur-sm"
+	class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white/95 px-6 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/95"
 >
 	<!-- Breadcrumb Navigation -->
 	<nav class="flex items-center" aria-label="Breadcrumb">
@@ -52,7 +53,7 @@
 				{#if i > 0}
 					<li class="flex items-center">
 						<svg
-							class="h-4 w-4 flex-shrink-0 text-gray-400"
+							class="h-4 w-4 flex-shrink-0 text-gray-400 dark:text-gray-500"
 							fill="currentColor"
 							viewBox="0 0 20 20"
 						>
@@ -66,17 +67,20 @@
 				{/if}
 				<li>
 					{#if i === breadcrumbs().length - 1}
-						<span class="text-sm font-medium text-gray-900">{crumb.label}</span>
+						<span class="text-sm font-medium text-gray-900 dark:text-gray-100">{crumb.label}</span>
 					{:else}
-						<a href={crumb.href} class="text-sm text-gray-500 hover:text-gray-700">{crumb.label}</a>
+						<a href={crumb.href} class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">{crumb.label}</a>
 					{/if}
 				</li>
 			{/each}
 		</ol>
 	</nav>
 
-	<!-- Right Side: Connection Status & Actions -->
+	<!-- Right Side: Theme Toggle, Connection Status & Actions -->
 	<div class="flex items-center gap-4">
+		<!-- Theme Toggle -->
+		<ThemeToggle />
+
 		<!-- Cluster Connection Status -->
 		<div class="flex items-center gap-2">
 			{#if health.connected}
@@ -86,21 +90,21 @@
 					></span>
 					<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-green-500"></span>
 				</span>
-				<span class="text-sm text-gray-600">
+				<span class="text-sm text-gray-600 dark:text-gray-300">
 					{health.clusterName || 'Connected'}
 				</span>
 			{:else}
 				<span class="relative flex h-2.5 w-2.5">
 					<span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-red-500"></span>
 				</span>
-				<span class="text-sm text-gray-500">Disconnected</span>
+				<span class="text-sm text-gray-500 dark:text-gray-400">Disconnected</span>
 			{/if}
 		</div>
 
 		<!-- Settings Button -->
 		<button
 			type="button"
-			class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600"
+			class="rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-800 dark:hover:text-gray-300"
 			aria-label="Settings"
 		>
 			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,3 +124,4 @@
 		</button>
 	</div>
 </header>
+
