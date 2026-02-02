@@ -12,7 +12,7 @@ import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
  * GET /api/flux/{resourceType}/{namespace}
  * List all resources of a specific type in a namespace
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	const { resourceType, namespace } = params;
 
 	// Resolve resource type from plural name
@@ -25,7 +25,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	try {
-		const resources = await listFluxResourcesInNamespace(resolvedType, namespace);
+		const resources = await listFluxResourcesInNamespace(resolvedType, namespace, locals.cluster);
 		return json(resources);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);

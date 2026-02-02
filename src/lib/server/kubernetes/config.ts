@@ -10,6 +10,8 @@ export interface KubeConfigResult {
 	config: k8s.KubeConfig;
 	strategy: ConfigLoadStrategy;
 	source: string;
+	contexts: string[];
+	currentContext: string;
 }
 
 /**
@@ -17,31 +19,44 @@ export interface KubeConfigResult {
  * 1. Auto-discover from ~/.kube/config (loadFromDefault)
  * 2. KUBECONFIG environment variable
  * 3. In-cluster config (for running inside K8s)
+ * 
+ * @param contextName Optional name of the context to use. If not provided, the current context is used.
  */
-export function loadKubeConfig(): KubeConfigResult {
+export function loadKubeConfig(contextName?: string): KubeConfigResult {
 	const config = new k8s.KubeConfig();
 
 	try {
-		// Strategy 1: Try default config (~/.kube/config)
+		// Try to load default config first to get available contexts
 		config.loadFromDefault();
+		
+		if (contextName && config.getContexts().some(c => c.name === contextName)) {
+			config.setCurrentContext(contextName);
+		}
+
 		return {
 			config,
 			strategy: ConfigLoadStrategy.DEFAULT,
-			source: config.getCurrentContext() || 'default'
+			source: config.getCurrentContext() || 'default',
+			contexts: config.getContexts().map(c => c.name),
+			currentContext: config.getCurrentContext()
 		};
 	} catch (error) {
 		console.warn('Failed to load default kubeconfig, trying fallbacks...', error);
 	}
 
 	try {
-		// Strategy 2: Try KUBECONFIG environment variable
 		const kubeconfigPath = process.env.KUBECONFIG;
 		if (kubeconfigPath) {
 			config.loadFromFile(kubeconfigPath);
+			if (contextName && config.getContexts().some(c => c.name === contextName)) {
+				config.setCurrentContext(contextName);
+			}
 			return {
 				config,
 				strategy: ConfigLoadStrategy.ENV,
-				source: kubeconfigPath
+				source: kubeconfigPath,
+				contexts: config.getContexts().map(c => c.name),
+				currentContext: config.getCurrentContext()
 			};
 		}
 	} catch (error) {
@@ -49,12 +64,13 @@ export function loadKubeConfig(): KubeConfigResult {
 	}
 
 	try {
-		// Strategy 3: Try in-cluster config
 		config.loadFromCluster();
 		return {
 			config,
 			strategy: ConfigLoadStrategy.IN_CLUSTER,
-			source: 'in-cluster'
+			source: 'in-cluster',
+			contexts: ['in-cluster'],
+			currentContext: 'in-cluster'
 		};
 	} catch {
 		throw new Error(

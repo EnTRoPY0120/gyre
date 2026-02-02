@@ -13,7 +13,8 @@ export const load: LayoutServerLoad = async ({ fetch }) => {
 		return {
 			health: {
 				connected: healthData?.kubernetes?.connected ?? false,
-				clusterName: healthData?.kubernetes?.currentContext ?? undefined
+				clusterName: healthData?.kubernetes?.currentContext ?? undefined,
+				availableClusters: healthData?.kubernetes?.availableContexts ?? []
 			},
 			fluxVersion: versionData.version
 		};

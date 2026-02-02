@@ -10,7 +10,8 @@ export async function toggleSuspendResource(
 	resourceType: string,
 	namespace: string,
 	name: string,
-	suspend: boolean
+	suspend: boolean,
+	context?: string
 ): Promise<void> {
 	let resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -24,7 +25,7 @@ export async function toggleSuspendResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	// JSON Patch to update spec.suspend
 	// Use 'add' which works as 'replace' if exists or creates if missing
@@ -63,7 +64,8 @@ export async function toggleSuspendResource(
 export async function reconcileResource(
 	resourceType: string,
 	namespace: string,
-	name: string
+	name: string,
+	context?: string
 ): Promise<void> {
 	let resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -77,12 +79,12 @@ export async function reconcileResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 	const now = new Date().toISOString();
 
 	try {
 		// Fetch current resource to check if annotations exist
-		const resource = await getFluxResource(resourceDef.kind as FluxResourceType, namespace, name);
+		const resource = await getFluxResource(resourceDef.kind as FluxResourceType, namespace, name, context);
 		const hasAnnotations = !!resource.metadata.annotations;
 
 		let patchBody;

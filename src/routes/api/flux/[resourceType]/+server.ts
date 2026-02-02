@@ -13,7 +13,7 @@ import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
  * List all resources of a specific type across all namespaces
  * Accepts both plural names (e.g., 'gitrepositories') and PascalCase (e.g., 'GitRepository')
  */
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ params, locals }) => {
 	const { resourceType } = params;
 
 	// Try to resolve resource type from plural name first (e.g., 'gitrepositories' -> 'GitRepository')
@@ -28,7 +28,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	try {
-		const resources = await listFluxResources(resolvedType);
+		const resources = await listFluxResources(resolvedType, locals.cluster);
 		return json(resources);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);

@@ -3,36 +3,41 @@ import { loadKubeConfig, type KubeConfigResult } from './config.js';
 import { getResourceDef, type FluxResourceType } from './flux/resources.js';
 import type { FluxResource, FluxResourceList } from './flux/types.js';
 
-let cachedConfig: KubeConfigResult | null = null;
+// Cache for different contexts
+let configCache: Record<string, KubeConfigResult> = {};
 
 /**
- * Get or create cached KubeConfig
+ * Get or create cached KubeConfig for a specific context
  */
-export function getKubeConfig(): KubeConfigResult {
-	if (!cachedConfig) {
-		cachedConfig = loadKubeConfig();
+export function getKubeConfig(context?: string): KubeConfigResult {
+	const cacheKey = context || 'default';
+	if (!configCache[cacheKey]) {
+		configCache[cacheKey] = loadKubeConfig(context);
 	}
-	return cachedConfig;
+	return configCache[cacheKey];
 }
 
 /**
- * Create CustomObjectsApi client
+ * Create CustomObjectsApi client for a specific context
  */
-export function getCustomObjectsApi(): k8s.CustomObjectsApi {
-	const { config } = getKubeConfig();
+export function getCustomObjectsApi(context?: string): k8s.CustomObjectsApi {
+	const { config } = getKubeConfig(context);
 	return config.makeApiClient(k8s.CustomObjectsApi);
 }
 
 /**
  * List FluxCD resources of a specific type across all namespaces
  */
-export async function listFluxResources(resourceType: FluxResourceType): Promise<FluxResourceList> {
+export async function listFluxResources(
+	resourceType: FluxResourceType,
+	context?: string
+): Promise<FluxResourceList> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	try {
 		const response = await api.listClusterCustomObject({
@@ -53,14 +58,15 @@ export async function listFluxResources(resourceType: FluxResourceType): Promise
  */
 export async function listFluxResourcesInNamespace(
 	resourceType: FluxResourceType,
-	namespace: string
+	namespace: string,
+	context?: string
 ): Promise<FluxResourceList> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	try {
 		const response = await api.listNamespacedCustomObject({
@@ -82,14 +88,15 @@ export async function listFluxResourcesInNamespace(
 export async function getFluxResource(
 	resourceType: FluxResourceType,
 	namespace: string,
-	name: string
+	name: string,
+	context?: string
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	try {
 		const response = await api.getNamespacedCustomObject({
@@ -112,14 +119,15 @@ export async function getFluxResource(
 export async function getFluxResourceStatus(
 	resourceType: FluxResourceType,
 	namespace: string,
-	name: string
+	name: string,
+	context?: string
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	try {
 		const response = await api.getNamespacedCustomObjectStatus({

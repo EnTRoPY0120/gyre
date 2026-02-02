@@ -4,6 +4,7 @@
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import { websocketStore } from '$lib/stores/websocket.svelte';
+	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -12,11 +13,22 @@
 			health: {
 				connected: boolean;
 				clusterName?: string;
+				availableClusters: string[];
 			};
 		};
 	}
 
 	let { children, data }: Props = $props();
+
+	// Sync cluster store with layout data
+	$effect(() => {
+		if (data.health.availableClusters) {
+			clusterStore.setAvailable(data.health.availableClusters);
+		}
+		if (data.health.clusterName) {
+			clusterStore.current = data.health.clusterName;
+		}
+	});
 
 	// Connect to SSE on mount
 	onMount(() => {

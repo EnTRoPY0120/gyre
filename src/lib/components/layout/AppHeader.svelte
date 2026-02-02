@@ -3,12 +3,14 @@
 	import { getResourceInfo } from '$lib/config/resources';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import NotificationBell from './NotificationBell.svelte';
+	import ClusterSwitcher from './ClusterSwitcher.svelte';
 	import { ChevronRight, Settings } from 'lucide-svelte';
 
 	interface Props {
 		health?: {
 			connected: boolean;
 			clusterName?: string;
+			availableClusters?: string[];
 		};
 	}
 
@@ -81,24 +83,12 @@
 		<!-- Theme Toggle -->
 		<ThemeToggle />
 
-		<!-- Cluster Connection Status (Hidden on mobile) -->
-		<div class="hidden sm:flex items-center gap-2 rounded-full border border-border bg-muted/50 px-3 py-1.5">
-			{#if health.connected}
-				<span class="relative flex h-2 w-2">
-					<span
-						class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75"
-					></span>
-					<span class="relative inline-flex h-2 w-2 rounded-full bg-green-500"></span>
-				</span>
-				<span class="text-xs font-medium text-foreground">
-					{health.clusterName || 'Connected'}
-				</span>
-			{:else}
-				<span class="relative flex h-2 w-2">
-					<span class="relative inline-flex h-2 w-2 rounded-full bg-destructive"></span>
-				</span>
-				<span class="text-xs font-medium text-muted-foreground">Disconnected</span>
-			{/if}
+		<!-- Cluster Selector (Hidden on mobile) -->
+		<div class="hidden sm:block">
+			<ClusterSwitcher 
+				current={health?.clusterName} 
+				available={health?.availableClusters} 
+			/>
 		</div>
 
 		<!-- Settings Button (Hidden on mobile) -->

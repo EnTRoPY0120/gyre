@@ -3,11 +3,11 @@ import type { RequestHandler } from './$types';
 import { reconcileResource } from '$lib/server/kubernetes/flux/actions';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 
-export const POST: RequestHandler = async ({ params }) => {
+export const POST: RequestHandler = async ({ params, locals }) => {
 	const { type, namespace, name } = params;
 
 	try {
-		await reconcileResource(type as FluxResourceType, namespace, name);
+		await reconcileResource(type as FluxResourceType, namespace, name, locals.cluster);
 		return json({ success: true, message: `Reconciliation triggered for ${name}` });
 	} catch (err) {
 		console.error(`Error reconciling ${name}:`, err);

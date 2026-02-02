@@ -15,7 +15,7 @@ import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
  * Query params:
  * - status=true: Get resource status instead of full object
  */
-export const GET: RequestHandler = async ({ params, url }) => {
+export const GET: RequestHandler = async ({ params, url, locals }) => {
 	const { resourceType, namespace, name } = params;
 	const getStatus = url.searchParams.get('status') === 'true';
 
@@ -30,8 +30,8 @@ export const GET: RequestHandler = async ({ params, url }) => {
 
 	try {
 		const resource = getStatus
-			? await getFluxResourceStatus(resolvedType, namespace, name)
-			: await getFluxResource(resolvedType, namespace, name);
+			? await getFluxResourceStatus(resolvedType, namespace, name, locals.cluster)
+			: await getFluxResource(resolvedType, namespace, name, locals.cluster);
 
 		return json(resource);
 	} catch (err) {

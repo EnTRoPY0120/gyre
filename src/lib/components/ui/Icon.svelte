@@ -5,7 +5,7 @@
 		ShieldAlert, Radio, Activity, RefreshCw, FolderGit, 
 		Puzzle, ShipWheel, LayoutDashboard, Bell, Layers,
 		Search, X, Sun, Moon, Monitor, Check, ChevronRight, Settings,
-		Menu, Play, Pause, Loader2, GitBranch
+		Menu, Play, Pause, Loader2, GitBranch, ChevronDown, ChevronUp
 	} from 'lucide-svelte';
 
 	interface Props extends SVGAttributes<SVGSVGElement> {
@@ -89,7 +89,9 @@
 		'menu': Menu,
 		'play': Play,
 		'pause': Pause,
-		'loader': Loader2
+		'loader': Loader2,
+		'chevron-down': ChevronDown,
+		'chevron-up': ChevronUp
 	};
 
 	const IconComponent = $derived(lucideIcons[name]);

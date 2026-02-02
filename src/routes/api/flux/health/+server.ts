@@ -7,9 +7,9 @@ import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
  * GET /api/flux/health
  * Health check endpoint that validates K8s connection
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
 	try {
-		const { config, strategy, source } = getKubeConfig();
+		const { config, strategy, source, contexts } = getKubeConfig(locals.cluster);
 		const isValid = await validateKubeConfig(config);
 
 		if (!isValid) {
@@ -24,6 +24,7 @@ export const GET: RequestHandler = async () => {
 				connected: true,
 				configStrategy: strategy,
 				configSource: source,
+				availableContexts: contexts,
 				currentContext: config.getCurrentContext()
 			}
 		});
