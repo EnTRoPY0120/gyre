@@ -3,10 +3,23 @@
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';
 	import ConditionList from '$lib/components/flux/ConditionList.svelte';
+	import EventsList from '$lib/components/flux/EventsList.svelte';
 	import GitRepositoryDetail from '$lib/components/flux/resources/GitRepositoryDetail.svelte';
 	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
 	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
+
+	interface K8sEvent {
+		type: 'Normal' | 'Warning';
+		reason: string;
+		message: string;
+		count: number;
+		firstTimestamp: string | null;
+		lastTimestamp: string | null;
+		source: {
+			component: string;
+		};
+	}
 
 	interface Props {
 		data: {
@@ -28,6 +41,12 @@
 
 	let activeTab = $state<TabId>('overview');
 
+	// Events state
+	let events = $state<K8sEvent[]>([]);
+	let eventsLoading = $state(false);
+	let eventsError = $state<string | null>(null);
+	let eventsFetched = $state(false);
+
 	const tabs: { id: TabId; label: string }[] = [
 		{ id: 'overview', label: 'Overview' },
 		{ id: 'spec', label: 'Spec' },
@@ -39,6 +58,39 @@
 	function goBack() {
 		goto(`/resources/${data.resourceType}`);
 	}
+
+	// Fetch events when the Events tab is selected
+	async function fetchEvents() {
+		if (eventsFetched) return;
+
+		eventsLoading = true;
+		eventsError = null;
+
+		try {
+			const response = await fetch(
+				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/events`
+			);
+
+			if (!response.ok) {
+				throw new Error(`Failed to fetch events: ${response.statusText}`);
+			}
+
+			const result = await response.json();
+			events = result.events || [];
+			eventsFetched = true;
+		} catch (err) {
+			eventsError = err instanceof Error ? err.message : 'Failed to load events';
+		} finally {
+			eventsLoading = false;
+		}
+	}
+
+	// Trigger fetch when switching to events tab
+	$effect(() => {
+		if (activeTab === 'events' && !eventsFetched) {
+			fetchEvents();
+		}
+	});
 
 	// Get conditions safely
 	const conditions = $derived<K8sCondition[]>(data.resource.status?.conditions || []);
@@ -179,26 +231,34 @@
 			</div>
 		{:else if activeTab === 'events'}
 			<div class="rounded-lg border border-gray-200 bg-white p-6">
-				<h3 class="mb-4 text-lg font-semibold text-gray-900">Events</h3>
-				<div class="flex flex-col items-center justify-center py-12 text-center">
-					<svg
-						class="h-12 w-12 text-gray-300"
-						fill="none"
-						stroke="currentColor"
-						viewBox="0 0 24 24"
+				<div class="mb-4 flex items-center justify-between">
+					<h3 class="text-lg font-semibold text-gray-900">Events</h3>
+					<button
+						type="button"
+						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
+						onclick={() => {
+							eventsFetched = false;
+							fetchEvents();
+						}}
+						disabled={eventsLoading}
 					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-						/>
-					</svg>
-					<p class="mt-4 text-sm text-gray-500">Events coming soon</p>
-					<p class="mt-1 text-xs text-gray-400">
-						This feature will display Kubernetes events related to this resource
-					</p>
+						<svg
+							class="h-4 w-4 {eventsLoading ? 'animate-spin' : ''}"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+							/>
+						</svg>
+						Refresh
+					</button>
 				</div>
+				<EventsList {events} loading={eventsLoading} error={eventsError} />
 			</div>
 		{:else if activeTab === 'yaml'}
 			<div class="rounded-lg border border-gray-200 bg-white p-6">
