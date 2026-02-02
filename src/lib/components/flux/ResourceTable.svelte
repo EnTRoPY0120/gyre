@@ -1,0 +1,101 @@
+<script lang="ts">
+	import type { FluxResource } from '$lib/types/flux';
+	import { formatTimestamp, getResourceHealth } from '$lib/utils/flux';
+	import StatusBadge from './StatusBadge.svelte';
+
+	interface Props {
+		resources: FluxResource[];
+		showNamespace?: boolean;
+		onRowClick?: (resource: FluxResource) => void;
+	}
+
+	let { resources, showNamespace = true, onRowClick }: Props = $props();
+
+	function handleRowClick(resource: FluxResource) {
+		if (onRowClick) {
+			onRowClick(resource);
+		}
+	}
+
+	function getReadyMessage(resource: FluxResource): string {
+		const ready = resource.status?.conditions?.find((c) => c.type === 'Ready');
+		return ready?.message || '-';
+	}
+</script>
+
+<div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+	<table class="min-w-full divide-y divide-gray-200">
+		<thead class="bg-gray-50">
+			<tr>
+				<th
+					class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+				>
+					Name
+				</th>
+				{#if showNamespace}
+					<th
+						class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+					>
+						Namespace
+					</th>
+				{/if}
+				<th
+					class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+				>
+					Status
+				</th>
+				<th
+					class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+				>
+					Age
+				</th>
+				<th
+					class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500"
+				>
+					Message
+				</th>
+			</tr>
+		</thead>
+		<tbody class="divide-y divide-gray-200 bg-white">
+			{#if resources.length === 0}
+				<tr>
+					<td colspan={showNamespace ? 5 : 4} class="px-6 py-8 text-center text-sm text-gray-500">
+						No resources found
+					</td>
+				</tr>
+			{:else}
+				{#each resources as resource}
+					<tr
+						class="cursor-pointer transition-colors hover:bg-gray-50"
+						onclick={() => handleRowClick(resource)}
+					>
+						<td class="whitespace-nowrap px-6 py-4">
+							<div class="text-sm font-medium text-gray-900">{resource.metadata.name}</div>
+						</td>
+						{#if showNamespace}
+							<td class="whitespace-nowrap px-6 py-4">
+								<div class="text-sm text-gray-500">{resource.metadata.namespace || '-'}</div>
+							</td>
+						{/if}
+						<td class="whitespace-nowrap px-6 py-4">
+								<StatusBadge
+									conditions={resource.status?.conditions}
+									suspended={resource.spec?.suspend as boolean | undefined}
+								/>
+						</td>
+						<td class="whitespace-nowrap px-6 py-4">
+							<div class="text-sm text-gray-500">
+								{formatTimestamp(resource.metadata.creationTimestamp)}
+							</div>
+						</td>
+						<td class="px-6 py-4">
+							<div class="max-w-md text-sm text-gray-500">
+								{getReadyMessage(resource)}
+							</div>
+						</td>
+					</tr>
+				{/each}
+			{/if}
+		</tbody>
+	</table>
+</div>
