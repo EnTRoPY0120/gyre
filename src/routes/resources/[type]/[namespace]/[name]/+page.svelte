@@ -3,6 +3,7 @@
 	import { websocketStore } from '$lib/stores/websocket.svelte';
 	import { onMount } from 'svelte';
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
+	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
 	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';
 	import ConditionList from '$lib/components/flux/ConditionList.svelte';
 	import EventsList from '$lib/components/flux/EventsList.svelte';
@@ -149,6 +150,12 @@
 				{data.resourceInfo.singularName} in {data.namespace}
 			</p>
 		</div>
+		<ActionButtons
+			resource={data.resource}
+			type={data.resourceType}
+			namespace={data.namespace}
+			name={data.name}
+		/>
 	</div>
 
 	<!-- Tabs -->
