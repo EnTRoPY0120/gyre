@@ -61,6 +61,24 @@ function createPreferencesStore() {
 				return newPrefs;
 			});
 		},
+		toggleAutoRefresh: () => {
+			update((prefs) => {
+				const newPrefs = { ...prefs, autoRefresh: !prefs.autoRefresh };
+				if (browser) {
+					localStorage.setItem('gyre:preferences', JSON.stringify(newPrefs));
+				}
+				return newPrefs;
+			});
+		},
+		setRefreshInterval: (interval: number) => {
+			update((prefs) => {
+				const newPrefs = { ...prefs, refreshInterval: Math.max(5, Math.min(300, interval)) };
+				if (browser) {
+					localStorage.setItem('gyre:preferences', JSON.stringify(newPrefs));
+				}
+				return newPrefs;
+			});
+		},
 		reset: () => {
 			if (browser) {
 				localStorage.removeItem('gyre:preferences');

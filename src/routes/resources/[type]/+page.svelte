@@ -2,7 +2,9 @@
 	import { goto } from '$app/navigation';
 	import { preferences } from '$lib/stores/preferences';
 	import { getResourceHealth } from '$lib/utils/flux';
+	import { createAutoRefresh } from '$lib/utils/polling.svelte';
 	import ViewToggle from '$lib/components/layout/ViewToggle.svelte';
+	import RefreshControl from '$lib/components/layout/RefreshControl.svelte';
 	import ResourceTable from '$lib/components/flux/ResourceTable.svelte';
 	import ResourceGrid from '$lib/components/flux/ResourceGrid.svelte';
 	import type { FluxResource } from '$lib/types/flux';
@@ -24,6 +26,9 @@
 
 	const viewMode = $derived($preferences.viewMode);
 	const showNamespace = $derived($preferences.showNamespace);
+
+	// Auto-refresh setup
+	const autoRefresh = createAutoRefresh();
 
 	// Calculate statistics
 	const stats = $derived(() => {
@@ -73,12 +78,20 @@
 
 <div class="space-y-6">
 	<!-- Page Header -->
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<div>
-			<h1 class="text-2xl font-bold text-gray-900">{data.resourceInfo.displayName}</h1>
-			<p class="mt-1 text-sm text-gray-500">{data.resourceInfo.description}</p>
+	<div class="flex flex-col gap-4">
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<div>
+				<h1 class="text-2xl font-bold text-gray-900">{data.resourceInfo.displayName}</h1>
+				<p class="mt-1 text-sm text-gray-500">{data.resourceInfo.description}</p>
+			</div>
+			<ViewToggle />
 		</div>
-		<ViewToggle />
+		<!-- Refresh Controls -->
+		<RefreshControl
+			isRefreshing={autoRefresh.isRefreshing}
+			lastRefreshTime={autoRefresh.lastRefreshTime}
+			onRefresh={autoRefresh.refresh}
+		/>
 	</div>
 
 	<!-- Error Alert -->
