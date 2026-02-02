@@ -97,7 +97,9 @@
 		</div>
 	{:else if error}
 		<!-- Error State -->
-		<div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/30">
+		<div
+			class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/30"
+		>
 			<div class="flex items-center gap-3">
 				<svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path
@@ -113,7 +115,12 @@
 	{:else if filteredEvents.length === 0}
 		<!-- Empty State -->
 		<div class="flex flex-col items-center justify-center py-12 text-center">
-			<svg class="h-12 w-12 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg
+				class="h-12 w-12 text-gray-300 dark:text-gray-600"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+			>
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -122,7 +129,9 @@
 				/>
 			</svg>
 			<p class="mt-4 text-sm text-gray-500 dark:text-gray-400">
-				{filterType === 'all' ? 'No events found for this resource' : `No ${filterType.toLowerCase()} events`}
+				{filterType === 'all'
+					? 'No events found for this resource'
+					: `No ${filterType.toLowerCase()} events`}
 			</p>
 		</div>
 	{:else}
@@ -146,7 +155,7 @@
 								>
 									{#if event.type === 'Warning'}
 										<svg
-											class="-ml-0.5 mr-1 h-3 w-3"
+											class="mr-1 -ml-0.5 h-3 w-3"
 											fill="none"
 											stroke="currentColor"
 											viewBox="0 0 24 24"
@@ -160,7 +169,7 @@
 										</svg>
 									{:else}
 										<svg
-											class="-ml-0.5 mr-1 h-3 w-3"
+											class="mr-1 -ml-0.5 h-3 w-3"
 											fill="none"
 											stroke="currentColor"
 											viewBox="0 0 24 24"
@@ -181,7 +190,9 @@
 
 								<!-- Count Badge -->
 								{#if event.count > 1}
-									<span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+									<span
+										class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+									>
 										×{event.count}
 									</span>
 								{/if}

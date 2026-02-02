@@ -14,13 +14,18 @@
 		<p class="text-sm text-gray-500 dark:text-gray-400">No conditions available</p>
 	{:else}
 		{#each conditions as condition}
-			<div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/50">
+			<div
+				class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/50"
+			>
 				<div class="flex items-start justify-between">
 					<div class="flex-1">
 						<div class="flex items-center gap-2">
-							<h4 class="text-sm font-semibold text-gray-900 dark:text-gray-100">{condition.type}</h4>
+							<h4 class="text-sm font-semibold text-gray-900 dark:text-gray-100">
+								{condition.type}
+							</h4>
 							<span
-								class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium {condition.status === 'True'
+								class="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium {condition.status ===
+								'True'
 									? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
 									: condition.status === 'False'
 										? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'

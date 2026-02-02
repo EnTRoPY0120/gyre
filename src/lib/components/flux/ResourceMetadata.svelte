@@ -34,7 +34,7 @@
 		{#if metadata.uid}
 			<div>
 				<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">UID</dt>
-				<dd class="mt-1 text-sm font-mono text-gray-900 dark:text-gray-100">{metadata.uid}</dd>
+				<dd class="mt-1 font-mono text-sm text-gray-900 dark:text-gray-100">{metadata.uid}</dd>
 			</div>
 		{/if}
 	</div>
@@ -44,7 +44,9 @@
 			<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Labels</dt>
 			<dd class="mt-2 flex flex-wrap gap-2">
 				{#each Object.entries(metadata.labels) as [key, value]}
-					<span class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-200">
+					<span
+						class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+					>
 						{key}={value}
 					</span>
 				{/each}

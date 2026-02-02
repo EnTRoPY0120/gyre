@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ request }) => {
 
 			// Set up polling interval (since Kubernetes watch API requires persistent connection)
 			// For MVP, we'll poll every 10 seconds and send updates
-			let lastStates: Map<string, string> = new Map();
+			const lastStates: Map<string, string> = new Map();
 			let isActive = true;
 
 			const pollResources = async () => {
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ request }) => {
 
 				try {
 					for (const resourceType of WATCH_RESOURCES) {
-						// Note: listFluxResources returns the raw item list, not { success: true, resources: [...] } 
+						// Note: listFluxResources returns the raw item list, not { success: true, resources: [...] }
 						// as I incorrectly assumed in the previous implementation.
 						// Checking client.ts: return response as unknown as FluxResourceList;
 						// FluxResourceList has { items: [] } structure.
@@ -97,7 +97,7 @@ export const GET: RequestHandler = async ({ request }) => {
 							for (const key of lastStates.keys()) {
 								if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
 									const [type, namespace, name] = key.split('/');
-									
+
 									const event = {
 										type: 'DELETED',
 										resourceType: type,
@@ -112,7 +112,7 @@ export const GET: RequestHandler = async ({ request }) => {
 									};
 									const msg = `data: ${JSON.stringify(event)}\n\n`;
 									controller.enqueue(new TextEncoder().encode(msg));
-									
+
 									lastStates.delete(key);
 								}
 							}

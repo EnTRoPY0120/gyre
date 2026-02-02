@@ -17,7 +17,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	const { resourceType } = params;
 
 	// Try to resolve resource type from plural name first (e.g., 'gitrepositories' -> 'GitRepository')
-	let resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
+	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
 
 	// If not found by plural, check if it's already a valid PascalCase type
 	if (!resolvedType) {
@@ -35,4 +35,3 @@ export const GET: RequestHandler = async ({ params }) => {
 		return error(status, body.error);
 	}
 };
-

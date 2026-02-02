@@ -130,12 +130,7 @@
 			aria-label="Go back"
 		>
 			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M15 19l-7-7 7-7"
-				/>
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 			</svg>
 		</button>
 		<div class="flex-1">
@@ -164,7 +159,7 @@
 			{#each tabs as tab}
 				<button
 					type="button"
-					class="whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium transition-colors {activeTab ===
+					class="border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap transition-colors {activeTab ===
 					tab.id
 						? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
 						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'}"
@@ -182,13 +177,17 @@
 			<!-- Metadata and Conditions (always shown) -->
 			<div class="grid gap-6 lg:grid-cols-2">
 				<!-- Metadata Card -->
-				<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div
+					class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+				>
 					<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Metadata</h3>
 					<ResourceMetadata metadata={data.resource.metadata} />
 				</div>
 
 				<!-- Conditions Card -->
-				<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+				<div
+					class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+				>
 					<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Conditions</h3>
 					<ConditionList {conditions} />
 				</div>
@@ -204,8 +203,12 @@
 					<KustomizationDetail resource={data.resource} />
 				{:else if data.resource.spec}
 					<!-- Generic Configuration Card for other resource types -->
-					<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-						<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Configuration</h3>
+					<div
+						class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+					>
+						<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
+							Configuration
+						</h3>
 						<dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 							{#each Object.entries(data.resource.spec).slice(0, 9) as [key, value]}
 								<div>
@@ -234,27 +237,35 @@
 				{/if}
 			</div>
 		{:else if activeTab === 'spec'}
-			<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+			>
 				<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Spec</h3>
 				{#if data.resource.spec}
-					<pre
-						class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code>{JSON.stringify(data.resource.spec, null, 2)}</code></pre>
+					<pre class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code
+							>{JSON.stringify(data.resource.spec, null, 2)}</code
+						></pre>
 				{:else}
 					<p class="text-sm text-gray-500 dark:text-gray-400">No spec available</p>
 				{/if}
 			</div>
 		{:else if activeTab === 'status'}
-			<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+			>
 				<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Status</h3>
 				{#if data.resource.status}
-					<pre
-						class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code>{JSON.stringify(data.resource.status, null, 2)}</code></pre>
+					<pre class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code
+							>{JSON.stringify(data.resource.status, null, 2)}</code
+						></pre>
 				{:else}
 					<p class="text-sm text-gray-500 dark:text-gray-400">No status available</p>
 				{/if}
 			</div>
 		{:else if activeTab === 'events'}
-			<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+			>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Events</h3>
 					<button
@@ -285,7 +296,9 @@
 				<EventsList {events} loading={eventsLoading} error={eventsError} />
 			</div>
 		{:else if activeTab === 'yaml'}
-			<div class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+			>
 				<div class="mb-4 flex items-center justify-between">
 					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Full Resource YAML</h3>
 					<button
@@ -306,8 +319,9 @@
 						Copy
 					</button>
 				</div>
-				<pre
-					class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code>{JSON.stringify(data.resource, null, 2)}</code></pre>
+				<pre class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code
+						>{JSON.stringify(data.resource, null, 2)}</code
+					></pre>
 			</div>
 		{/if}
 	</div>

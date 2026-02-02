@@ -20,7 +20,6 @@
 
 	// Connect to SSE on mount
 	onMount(() => {
-		// Only connect if we're connected to the cluster
 		if (data.health.connected) {
 			websocketStore.connect();
 		}
@@ -52,4 +51,3 @@
 		</main>
 	</div>
 </div>
-

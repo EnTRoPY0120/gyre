@@ -3,7 +3,8 @@
 	import { page } from '$app/stores';
 	import { preferences } from '$lib/stores/preferences';
 	import { websocketStore } from '$lib/stores/websocket.svelte';
-	import { onMount } from 'svelte';	import { getResourceHealth } from '$lib/utils/flux';
+	import { onMount } from 'svelte';
+	import { getResourceHealth } from '$lib/utils/flux';
 	import { createAutoRefresh } from '$lib/utils/polling.svelte';
 	import {
 		filterResources,
@@ -51,7 +52,7 @@
 			// Page resourceType is e.g., 'gitrepositories'
 			const eventType = event.resourceType?.toLowerCase();
 			const pageType = data.resourceType.toLowerCase();
-			
+
 			// Simple pluralization check or direct match
 			if (eventType && (pageType === eventType + 's' || pageType === eventType)) {
 				// Invalidate the load function dependency to trigger a background refresh
@@ -152,7 +153,9 @@
 	<div class="flex flex-col gap-4">
 		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 			<div>
-				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{data.resourceInfo.displayName}</h1>
+				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+					{data.resourceInfo.displayName}
+				</h1>
 				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{data.resourceInfo.description}</p>
 			</div>
 			<ViewToggle />
@@ -166,7 +169,9 @@
 	</div>
 
 	<!-- Search and Filters -->
-	<div class="space-y-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+	<div
+		class="space-y-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+	>
 		<div class="flex flex-col gap-4 lg:flex-row lg:items-center">
 			<!-- Search -->
 			<div class="w-full lg:w-80">
@@ -179,7 +184,9 @@
 			<!-- Results count -->
 			<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
 				<span>
-					Showing <strong class="text-gray-900 dark:text-gray-100">{filteredResources.length}</strong>
+					Showing <strong class="text-gray-900 dark:text-gray-100"
+						>{filteredResources.length}</strong
+					>
 					of <strong class="text-gray-900 dark:text-gray-100">{data.resources?.length || 0}</strong> resources
 				</span>
 			</div>
@@ -213,23 +220,33 @@
 
 	<!-- Statistics Cards -->
 	<div class="grid grid-cols-2 gap-4 sm:grid-cols-5">
-		<div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+		<div
+			class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+		>
 			<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total</p>
 			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{stats().total}</p>
 		</div>
-		<div class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/30">
+		<div
+			class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/30"
+		>
 			<p class="text-sm font-medium text-green-700 dark:text-green-300">Healthy</p>
 			<p class="mt-1 text-2xl font-bold text-green-900 dark:text-green-100">{stats().healthy}</p>
 		</div>
-		<div class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/30">
+		<div
+			class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/30"
+		>
 			<p class="text-sm font-medium text-blue-700 dark:text-blue-300">Progressing</p>
 			<p class="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100">{stats().progressing}</p>
 		</div>
-		<div class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/30">
+		<div
+			class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/30"
+		>
 			<p class="text-sm font-medium text-red-700 dark:text-red-300">Failed</p>
 			<p class="mt-1 text-2xl font-bold text-red-900 dark:text-red-100">{stats().failed}</p>
 		</div>
-		<div class="rounded-lg border border-gray-300 bg-gray-100 p-4 dark:border-gray-600 dark:bg-gray-700">
+		<div
+			class="rounded-lg border border-gray-300 bg-gray-100 p-4 dark:border-gray-600 dark:bg-gray-700"
+		>
 			<p class="text-sm font-medium text-gray-600 dark:text-gray-300">Suspended</p>
 			<p class="mt-1 text-2xl font-bold text-gray-700 dark:text-gray-200">{stats().suspended}</p>
 		</div>
@@ -237,8 +254,15 @@
 
 	<!-- Resource List -->
 	{#if filteredResources.length === 0 && hasActiveFilters}
-		<div class="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-12 text-center dark:border-gray-700 dark:bg-gray-800">
-			<svg class="h-12 w-12 text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<div
+			class="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-12 text-center dark:border-gray-700 dark:bg-gray-800"
+		>
+			<svg
+				class="h-12 w-12 text-gray-300 dark:text-gray-600"
+				fill="none"
+				stroke="currentColor"
+				viewBox="0 0 24 24"
+			>
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -246,8 +270,12 @@
 					d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
 				/>
 			</svg>
-			<p class="mt-4 text-sm font-medium text-gray-900 dark:text-gray-100">No resources match your filters</p>
-			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Try adjusting your search or filter criteria</p>
+			<p class="mt-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+				No resources match your filters
+			</p>
+			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+				Try adjusting your search or filter criteria
+			</p>
 			<button
 				type="button"
 				class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
@@ -257,16 +285,8 @@
 			</button>
 		</div>
 	{:else if viewMode === 'table'}
-		<ResourceTable
-			resources={filteredResources}
-			{showNamespace}
-			onRowClick={handleResourceClick}
-		/>
+		<ResourceTable resources={filteredResources} {showNamespace} onRowClick={handleResourceClick} />
 	{:else}
-		<ResourceGrid
-			resources={filteredResources}
-			{showNamespace}
-			onCardClick={handleResourceClick}
-		/>
+		<ResourceGrid resources={filteredResources} {showNamespace} onCardClick={handleResourceClick} />
 	{/if}
 </div>

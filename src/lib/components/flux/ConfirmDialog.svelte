@@ -36,10 +36,7 @@
 		</AlertDialog.Header>
 		<AlertDialog.Footer>
 			<AlertDialog.Cancel onclick={() => (open = false)}>{cancelLabel}</AlertDialog.Cancel>
-			<AlertDialog.Action
-				class={buttonVariants({ variant })}
-				onclick={handleConfirm}
-			>
+			<AlertDialog.Action class={buttonVariants({ variant })} onclick={handleConfirm}>
 				{confirmLabel}
 			</AlertDialog.Action>
 		</AlertDialog.Footer>

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resourceGroups } from '$lib/config/resources';
+	import Icon from '$lib/components/ui/Icon.svelte';
 
 	interface Props {
 		data: {
@@ -30,166 +31,168 @@
 
 		return { total, healthy, failed };
 	});
+
+	const GroupIcons: Record<string, string> = {
+		'Sources': 'sideways-git',
+		'Kustomize': 'kustomize',
+		'Helm': 'helm',
+		'Notifications': 'bell',
+		'Image Automation': 'layers'
+	};
 </script>
 
-<div class="space-y-8">
+<div class="space-y-8 animate-in fade-in duration-700">
 	<!-- Welcome Header -->
-	<div>
-		<h1 class="text-3xl font-bold text-gray-900 dark:text-gray-100">Dashboard</h1>
-		<p class="mt-2 text-gray-600 dark:text-gray-400">Monitor and manage your FluxCD resources</p>
-	</div>
-
-	<!-- Cluster Status Card -->
-	<div class="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-		<div class="border-b border-gray-200 bg-gray-50 px-6 py-4 dark:border-gray-700 dark:bg-gray-800/50">
-			<h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Cluster Connection</h2>
+	<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+		<div>
+			<h1 class="text-4xl font-extrabold tracking-tight text-foreground flex items-center gap-4 font-display">
+				<Icon name="flux" size={36} class="text-primary" />
+				Dashboard
+			</h1>
+			<p class="mt-2 text-muted-foreground font-medium text-lg">FluxCD, Visualized</p>
 		</div>
-		<div class="p-6">
-			<div class="flex items-center gap-4">
-				{#if data.health.connected}
-					<div
-						class="flex h-14 w-14 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50"
-					>
-						<svg class="h-7 w-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M5 13l4 4L19 7"
-							/>
-						</svg>
-					</div>
-					<div>
-						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">Connected</p>
-						<p class="text-sm text-gray-500 dark:text-gray-400">
-							{data.health.clusterName || 'Kubernetes cluster is reachable'}
-						</p>
-					</div>
-				{:else}
-					<div
-						class="flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50"
-					>
-						<svg class="h-7 w-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M6 18L18 6M6 6l12 12"
-							/>
-						</svg>
-					</div>
-					<div>
-						<p class="text-lg font-semibold text-gray-900 dark:text-gray-100">Disconnected</p>
-						<p class="text-sm text-gray-500 dark:text-gray-400">
-							Unable to connect to Kubernetes cluster
-						</p>
-					</div>
-				{/if}
-			</div>
+		<div class="flex items-center gap-3 px-5 py-2.5 rounded-full bg-sidebar border border-sidebar-border shadow-sm backdrop-blur-md">
+			<div class="size-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.6)]"></div>
+			<span class="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground leading-none">Cluster Live</span>
 		</div>
 	</div>
 
-	<!-- Overall Statistics -->
-	<div class="grid gap-4 sm:grid-cols-3">
-		<div class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-			<div class="flex items-center gap-4">
-				<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/50">
-					<svg class="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-						/>
-					</svg>
+	<!-- Stats Grid -->
+	<div class="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+		<!-- Connection Card -->
+		<div class="md:col-span-2 lg:col-span-1 overflow-hidden rounded-3xl border border-border bg-card/40 shadow-sm transition-all hover:bg-card/60 hover:shadow-md">
+			<div class="p-6">
+				<div class="flex items-center justify-between mb-4">
+					<p class="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Connectivity</p>
+					<Icon name="monitor" size={16} class="text-muted-foreground/30" />
 				</div>
-				<div>
-					<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Resources</p>
-					<p class="text-2xl font-bold text-gray-900 dark:text-gray-100">{totals().total}</p>
-				</div>
-			</div>
-		</div>
-
-		<div class="rounded-xl border border-green-200 bg-green-50 p-6 dark:border-green-800 dark:bg-green-900/30">
-			<div class="flex items-center gap-4">
-				<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-green-200 dark:bg-green-800">
-					<svg class="h-6 w-6 text-green-700 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-						/>
-					</svg>
-				</div>
-				<div>
-					<p class="text-sm font-medium text-green-700 dark:text-green-300">Healthy</p>
-					<p class="text-2xl font-bold text-green-900 dark:text-green-100">{totals().healthy}</p>
+				<div class="flex items-center gap-5">
+					{#if data.health.connected}
+						<div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-500/10 text-green-500 border border-green-500/20">
+							<Icon name="check" size={28} />
+						</div>
+						<div class="min-w-0">
+							<p class="text-xl font-extrabold leading-none font-display text-foreground">Active</p>
+							<p class="text-[11px] font-bold text-muted-foreground mt-1.5 font-mono break-all">
+								{data.health.clusterName || 'Local-Cluster'}
+							</p>
+						</div>
+					{:else}
+						<div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive border border-destructive/20">
+							<Icon name="x" size={28} />
+						</div>
+						<div>
+							<p class="text-xl font-extrabold leading-none font-display">Down</p>
+							<p class="text-[11px] font-bold text-muted-foreground mt-1.5 text-destructive font-mono uppercase">Offline</p>
+						</div>
+					{/if}
 				</div>
 			</div>
 		</div>
 
-		<div class="rounded-xl border border-red-200 bg-red-50 p-6 dark:border-red-800 dark:bg-red-900/30">
-			<div class="flex items-center gap-4">
-				<div class="flex h-12 w-12 items-center justify-center rounded-lg bg-red-200 dark:bg-red-800">
-					<svg class="h-6 w-6 text-red-700 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-						/>
-					</svg>
-				</div>
-				<div>
-					<p class="text-sm font-medium text-red-700 dark:text-red-300">Failed</p>
-					<p class="text-2xl font-bold text-red-900 dark:text-red-100">{totals().failed}</p>
-				</div>
+		<!-- Total Resources -->
+		<div class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:bg-card/60 hover:shadow-md">
+			<div class="flex items-center justify-between mb-4">
+				<p class="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total</p>
+				<Icon name="activity" size={16} class="text-primary/30" />
+			</div>
+			<div class="flex items-baseline gap-2">
+				<span class="text-4xl font-black text-foreground font-display tracking-tighter">{totals().total}</span>
+				<span class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global</span>
+			</div>
+		</div>
+
+		<!-- Healthy Card -->
+		<div class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:border-green-500/20 hover:bg-green-500/[0.02]">
+			<div class="flex items-center justify-between mb-4">
+				<p class="text-[10px] font-black uppercase tracking-[0.2em] text-green-600 dark:text-green-500 font-display">Healthy</p>
+				<Icon name="check" size={16} class="text-green-500/30" />
+			</div>
+			<div class="flex items-baseline gap-2">
+				<span class="text-4xl font-black text-foreground font-display tracking-tighter">{totals().healthy}</span>
+				<span class="text-[10px] font-black text-green-600 dark:text-green-500 uppercase tracking-widest font-display">Synced</span>
+			</div>
+		</div>
+
+		<!-- Failed Card -->
+		<div class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:border-destructive/20 hover:bg-destructive/[0.02]">
+			<div class="flex items-center justify-between mb-4">
+				<p class="text-[10px] font-black uppercase tracking-[0.2em] text-destructive font-display">Failed</p>
+				<Icon name="shield-alert" size={16} class="text-destructive/30" />
+			</div>
+			<div class="flex items-baseline gap-2">
+				<span class="text-4xl font-black text-foreground font-display tracking-tighter">{totals().failed}</span>
+				<span class="text-[10px] font-black text-destructive uppercase tracking-widest font-display">Alerts</span>
 			</div>
 		</div>
 	</div>
 
-	<!-- Resource Groups -->
-	<div>
-		<h2 class="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-100">Resource Groups</h2>
-		<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+	<!-- Resource Groups Section -->
+	<div class="pt-4">
+		<div class="flex items-center justify-between mb-8">
+			<h2 class="text-2xl font-black text-foreground tracking-tight font-display">Inventory Architecture</h2>
+			<div class="h-[2px] flex-1 mx-8 bg-gradient-to-r from-border/50 via-border/10 to-transparent"></div>
+		</div>
+		
+		<div class="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
 			{#each resourceGroups as group}
 				{@const counts = data.groupCounts[group.name] || { total: 0, healthy: 0, failed: 0, error: false }}
-				<div class="overflow-hidden rounded-xl border border-gray-200 bg-white transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
-					<div class="border-b border-gray-100 bg-gray-50 px-5 py-3 dark:border-gray-700 dark:bg-gray-800/50">
-						<div class="flex items-center gap-2">
-							<span class="text-xl">{group.icon}</span>
-							<h3 class="font-semibold text-gray-900 dark:text-gray-100">{group.name}</h3>
+				<div class="group relative overflow-hidden rounded-3xl border border-border bg-card/30 shadow-sm transition-all duration-500 hover:bg-card/50 hover:border-primary/40 hover:-translate-y-1 hover:shadow-xl">
+					<!-- Card Background Accent -->
+					<div class="absolute -right-12 -top-12 size-32 rounded-full bg-primary/5 blur-3xl transition-all duration-700 group-hover:bg-primary/20"></div>
+					
+					<div class="border-b border-border/50 bg-muted/20 px-7 py-5">
+						<div class="flex items-center gap-4">
+							{#if GroupIcons[group.name]}
+								<div class="flex size-10 items-center justify-center rounded-xl bg-background border border-border group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
+									<Icon name={GroupIcons[group.name]} size={20} class="text-primary" />
+								</div>
+							{/if}
+							<h3 class="font-bold text-lg text-foreground tracking-tight font-display">{group.name}</h3>
 						</div>
 					</div>
-					<div class="p-5">
+					
+					<div class="p-7">
 						{#if counts.error}
-							<p class="text-sm text-gray-500 dark:text-gray-400">Unable to fetch data</p>
-						{:else}
-							<div class="mb-4 flex items-baseline gap-2">
-								<span class="text-3xl font-bold text-gray-900 dark:text-gray-100">{counts.total}</span>
-								<span class="text-sm text-gray-500 dark:text-gray-400">resources</span>
+							<div class="flex items-center gap-2 text-destructive bg-destructive/5 p-3 rounded-lg border border-destructive/10">
+								<Icon name="shield-alert" size={16} />
+								<p class="text-[11px] font-black uppercase tracking-wider">Sync Pipeline Interrupted</p>
 							</div>
-							<div class="flex gap-4 text-sm">
-								<div class="flex items-center gap-1.5">
-									<span class="h-2 w-2 rounded-full bg-green-500"></span>
-									<span class="text-gray-600 dark:text-gray-400">{counts.healthy} healthy</span>
+						{:else}
+							<div class="mb-8 flex items-baseline gap-2">
+								<span class="text-5xl font-black text-foreground font-display tracking-tighter leading-none">{counts.total}</span>
+								<span class="text-[11px] font-black text-muted-foreground uppercase tracking-[0.3em] font-display ml-1">Systems</span>
+							</div>
+							
+							<div class="flex flex-col gap-5">
+								<div class="space-y-2">
+									<div class="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-muted-foreground font-display">
+										<span>Healthy State</span>
+										<span>{Math.round((counts.healthy / (counts.total || 1)) * 100)}%</span>
+									</div>
+									<div class="w-full h-2 bg-muted/50 rounded-full overflow-hidden p-[1px]">
+										<div 
+											class="h-full bg-green-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(34,197,94,0.4)]" 
+											style="width: {(counts.healthy / (counts.total || 1)) * 100}%"
+										></div>
+									</div>
 								</div>
+
 								{#if counts.failed > 0}
-									<div class="flex items-center gap-1.5">
-										<span class="h-2 w-2 rounded-full bg-red-500"></span>
-										<span class="text-gray-600 dark:text-gray-400">{counts.failed} failed</span>
+									<div class="flex items-center gap-3 bg-destructive/5 border border-destructive/10 p-2.5 rounded-xl">
+										<div class="size-2 rounded-full bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.4)]"></div>
+										<span class="text-[10px] font-black uppercase tracking-widest text-destructive/80 font-display">{counts.failed} critical obstacles identified</span>
 									</div>
 								{/if}
 							</div>
 						{/if}
 
-						<!-- Resource Links -->
-						<div class="mt-4 flex flex-wrap gap-2">
+						<!-- Action Tags -->
+						<div class="mt-8 pt-6 border-t border-border/30 flex flex-wrap gap-2">
 							{#each group.resources as resource}
 								<a
 									href="/resources/{resource.type}"
-									class="rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+									class="rounded-xl bg-background/50 border border-border px-4 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary hover:shadow-lg active:scale-95 active:translate-y-0"
 								>
 									{resource.displayName}
 								</a>
@@ -201,73 +204,46 @@
 		</div>
 	</div>
 
-	<!-- Quick Actions -->
-	<div class="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800">
-		<h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Quick Actions</h2>
-		<div class="flex flex-wrap gap-3">
-			<a
-				href="/resources/gitrepositories"
-				class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
-			>
-				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
-					/>
-				</svg>
-				View Git Sources
-			</a>
-			<a
-				href="/resources/kustomizations"
-				class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-			>
-				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-					/>
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-					/>
-				</svg>
-				View Kustomizations
-			</a>
-			<a
-				href="/resources/helmreleases"
-				class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-			>
-				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
-					/>
-				</svg>
-				View Helm Releases
-			</a>
-			<button
-				type="button"
-				class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-				onclick={() => window.location.reload()}
-			>
-				<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-					/>
-				</svg>
-				Refresh
-			</button>
+	<!-- System Shortcuts -->
+	<div class="rounded-[2.5rem] border border-border bg-card/20 p-10 shadow-sm backdrop-blur-xl relative overflow-hidden group">
+		<div class="absolute inset-0 bg-gradient-to-br from-primary/[0.07] via-transparent to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100"></div>
+		
+		<div class="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-10">
+			<div>
+				<h2 class="text-3xl font-black text-foreground tracking-tight font-display">System Core</h2>
+				<p class="text-sm text-muted-foreground font-medium mt-2 max-w-md">Immediate administrative access to cluster source controllers and orchestration engines.</p>
+			</div>
+			<div class="flex flex-wrap gap-4">
+				<a
+					href="/resources/gitrepositories"
+					class="inline-flex items-center gap-3 rounded-2xl bg-primary px-8 py-4 text-sm font-black uppercase tracking-widest text-primary-foreground shadow-2xl shadow-primary/20 transition-all hover:translate-y-[-4px] hover:shadow-primary/40 active:scale-95"
+				>
+					<Icon name="git-branch" size={20} />
+					Sources
+				</a>
+				<a
+					href="/resources/kustomizations"
+					class="inline-flex items-center gap-3 rounded-2xl bg-sidebar border border-sidebar-border px-8 py-4 text-sm font-black uppercase tracking-widest text-foreground transition-all hover:bg-muted hover:translate-y-[-4px] active:scale-95"
+				>
+					<Icon name="file-cog" size={20} />
+					Kustomize
+				</a>
+				<a
+					href="/resources/helmreleases"
+					class="inline-flex items-center gap-3 rounded-2xl bg-sidebar border border-sidebar-border px-8 py-4 text-sm font-black uppercase tracking-widest text-foreground transition-all hover:bg-muted hover:translate-y-[-4px] active:scale-95"
+				>
+					<Icon name="ship" size={20} />
+					Helm
+				</a>
+				<button
+					type="button"
+					class="inline-flex items-center gap-3 rounded-2xl bg-sidebar border border-sidebar-border px-8 py-4 text-sm font-black uppercase tracking-widest text-foreground transition-all hover:bg-muted hover:translate-y-[-4px] active:scale-95 group/btn"
+					onclick={() => window.location.reload()}
+				>
+					<Icon name="refresh-cw" size={20} class="group-hover/btn:rotate-180 transition-transform duration-700" />
+					Sync
+				</button>
+			</div>
 		</div>
 	</div>
 </div>

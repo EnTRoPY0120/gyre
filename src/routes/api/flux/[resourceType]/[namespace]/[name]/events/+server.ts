@@ -23,6 +23,9 @@ export const GET: RequestHandler = async ({ params }) => {
 		return json({ events });
 	} catch (err) {
 		console.error(`Failed to fetch events for ${resourceType}/${namespace}/${name}:`, err);
-		throw error(500, `Failed to fetch events: ${err instanceof Error ? err.message : 'Unknown error'}`);
+		throw error(
+			500,
+			`Failed to fetch events: ${err instanceof Error ? err.message : 'Unknown error'}`
+		);
 	}
 };

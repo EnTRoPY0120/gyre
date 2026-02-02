@@ -7,17 +7,13 @@
 <div class="inline-flex rounded-lg border border-gray-300 bg-white p-1">
 	<button
 		type="button"
-		class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode === 'table'
+		class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
+		'table'
 			? 'bg-gray-100 text-gray-900'
 			: 'text-gray-600 hover:text-gray-900'}"
 		onclick={() => preferences.setViewMode('table')}
 	>
-		<svg
-			class="mr-1.5 h-4 w-4"
-			fill="none"
-			stroke="currentColor"
-			viewBox="0 0 24 24"
-		>
+		<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"
@@ -30,17 +26,13 @@
 
 	<button
 		type="button"
-		class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode === 'grid'
+		class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
+		'grid'
 			? 'bg-gray-100 text-gray-900'
 			: 'text-gray-600 hover:text-gray-900'}"
 		onclick={() => preferences.setViewMode('grid')}
 	>
-		<svg
-			class="mr-1.5 h-4 w-4"
-			fill="none"
-			stroke="currentColor"
-			viewBox="0 0 24 24"
-		>
+		<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"

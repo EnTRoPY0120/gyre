@@ -1,10 +1,11 @@
 <script lang="ts">
 	import { theme, type Theme } from '$lib/stores/theme.svelte';
+	import { Sun, Moon, Monitor, Check } from 'lucide-svelte';
 
-	const themeOptions: { value: Theme; label: string; icon: string }[] = [
-		{ value: 'light', label: 'Light', icon: 'sun' },
-		{ value: 'dark', label: 'Dark', icon: 'moon' },
-		{ value: 'system', label: 'System', icon: 'computer' }
+	const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
+		{ value: 'light', label: 'Light', icon: Sun },
+		{ value: 'dark', label: 'Dark', icon: Moon },
+		{ value: 'system', label: 'System', icon: Monitor }
 	];
 
 	let isOpen = $state(false);
@@ -27,90 +28,37 @@
 <div class="theme-toggle-container relative">
 	<button
 		type="button"
-		class="flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+		class="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 		onclick={() => (isOpen = !isOpen)}
 		aria-label="Toggle theme"
 		title="Toggle theme"
 	>
 		{#if theme.theme === 'light'}
-			<!-- Sun icon -->
-			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-				/>
-			</svg>
+			<Sun class="size-5" />
 		{:else if theme.theme === 'dark'}
-			<!-- Moon icon -->
-			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-				/>
-			</svg>
+			<Moon class="size-5" />
 		{:else}
-			<!-- Computer/System icon -->
-			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-				/>
-			</svg>
+			<Monitor class="size-5" />
 		{/if}
 	</button>
 
 	{#if isOpen}
 		<div
-			class="absolute right-0 top-full z-50 mt-2 w-36 origin-top-right rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800"
+			class="absolute top-full right-0 z-50 mt-2 w-36 origin-top-right rounded-lg border border-border bg-popover py-1 shadow-lg"
 		>
 			{#each themeOptions as option}
 				<button
 					type="button"
 					class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors {theme.theme ===
 					option.value
-						? 'bg-blue-50 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300'
-						: 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700'}"
+						? 'bg-accent text-accent-foreground'
+						: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'}"
 					onclick={() => selectTheme(option.value)}
 				>
-					{#if option.icon === 'sun'}
-						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-							/>
-						</svg>
-					{:else if option.icon === 'moon'}
-						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-							/>
-						</svg>
-					{:else}
-						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-							/>
-						</svg>
-					{/if}
+					<option.icon class="size-4" />
 					{option.label}
 					{#if theme.theme === option.value}
-						<svg class="ml-auto h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-						</svg>
+						<Check class="ml-auto size-4" />
 					{/if}
 				</button>
 			{/each}

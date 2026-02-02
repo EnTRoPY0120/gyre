@@ -46,7 +46,7 @@ function createThemeStore() {
 	const initialTheme = getStoredTheme();
 	const initialResolved = resolveTheme(initialTheme);
 
-	let store = $state<ThemeStore>({
+	const store = $state<ThemeStore>({
 		theme: initialTheme,
 		resolvedTheme: initialResolved
 	});

@@ -90,4 +90,3 @@ export function formatEventTime(timestamp: string | null): string {
 
 	return eventTime.toLocaleDateString();
 }
-

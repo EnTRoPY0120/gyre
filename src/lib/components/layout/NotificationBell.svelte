@@ -112,7 +112,7 @@
 		<!-- Unread Badge -->
 		{#if unreadCount > 0}
 			<span
-				class="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white"
+				class="absolute -top-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-medium text-white"
 			>
 				{unreadCount > 9 ? '9+' : unreadCount}
 			</span>
@@ -120,10 +120,10 @@
 
 		<!-- Connection Status Dot -->
 		<span
-			class="absolute bottom-0.5 right-0.5 h-2 w-2 rounded-full {status === 'connected'
+			class="absolute right-0.5 bottom-0.5 h-2 w-2 rounded-full {status === 'connected'
 				? 'bg-green-400'
 				: status === 'connecting'
-					? 'bg-yellow-400 animate-pulse'
+					? 'animate-pulse bg-yellow-400'
 					: 'bg-gray-400'}"
 		></span>
 	</button>
@@ -131,7 +131,7 @@
 	<!-- Dropdown -->
 	{#if isOpen}
 		<div
-			class="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 sm:w-96"
+			class="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white shadow-lg sm:w-96 dark:border-gray-700 dark:bg-gray-800"
 		>
 			<!-- Header -->
 			<div
@@ -266,7 +266,7 @@
 						class="h-2 w-2 rounded-full {status === 'connected'
 							? 'bg-green-400'
 							: status === 'connecting'
-								? 'bg-yellow-400 animate-pulse'
+								? 'animate-pulse bg-yellow-400'
 								: status === 'error'
 									? 'bg-red-400'
 									: 'bg-gray-400'}"
