@@ -145,3 +145,22 @@ export function getResourceDef(resourceType: string): FluxResourceDef | undefine
 export function getAllResourceTypes(): FluxResourceType[] {
 	return Object.keys(FLUX_RESOURCES) as FluxResourceType[];
 }
+
+/**
+ * Get all plural resource names (lowercase, for URL matching)
+ */
+export function getAllResourcePlurals(): string[] {
+	return Object.values(FLUX_RESOURCES).map((r) => r.plural);
+}
+
+/**
+ * Lookup resource type by plural name (e.g., 'gitrepositories' -> 'GitRepository')
+ */
+export function getResourceTypeByPlural(plural: string): FluxResourceType | undefined {
+	for (const [key, def] of Object.entries(FLUX_RESOURCES)) {
+		if (def.plural === plural) {
+			return key as FluxResourceType;
+		}
+	}
+	return undefined;
+}

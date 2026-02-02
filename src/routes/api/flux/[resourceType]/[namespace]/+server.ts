@@ -2,7 +2,8 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listFluxResourcesInNamespace } from '$lib/server/kubernetes/client.js';
 import {
-	getAllResourceTypes,
+	getAllResourcePlurals,
+	getResourceTypeByPlural,
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
 import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
@@ -14,22 +15,21 @@ import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
 export const GET: RequestHandler = async ({ params }) => {
 	const { resourceType, namespace } = params;
 
-	// Validate resource type
-	const validTypes = getAllResourceTypes();
-	if (!validTypes.includes(resourceType as FluxResourceType)) {
+	// Resolve resource type from plural name
+	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
+	if (!resolvedType) {
+		const validPlurals = getAllResourcePlurals();
 		return error(400, {
-			message: `Invalid resource type: ${resourceType}`
+			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
 		});
 	}
 
 	try {
-		const resources = await listFluxResourcesInNamespace(
-			resourceType as FluxResourceType,
-			namespace
-		);
+		const resources = await listFluxResourcesInNamespace(resolvedType, namespace);
 		return json(resources);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);
 		return error(status, body.error);
 	}
 };
+
