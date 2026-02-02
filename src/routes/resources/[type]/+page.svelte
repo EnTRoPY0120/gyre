@@ -1,10 +1,22 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { preferences } from '$lib/stores/preferences';
 	import { getResourceHealth } from '$lib/utils/flux';
 	import { createAutoRefresh } from '$lib/utils/polling.svelte';
+	import {
+		filterResources,
+		getUniqueNamespaces,
+		hasActiveFilters as checkActiveFilters,
+		searchParamsToFilters,
+		filtersToSearchParams,
+		defaultFilterState,
+		type FilterState
+	} from '$lib/utils/filtering';
 	import ViewToggle from '$lib/components/layout/ViewToggle.svelte';
 	import RefreshControl from '$lib/components/layout/RefreshControl.svelte';
+	import SearchBar from '$lib/components/flux/SearchBar.svelte';
+	import FilterBar from '$lib/components/flux/FilterBar.svelte';
 	import ResourceTable from '$lib/components/flux/ResourceTable.svelte';
 	import ResourceGrid from '$lib/components/flux/ResourceGrid.svelte';
 	import type { FluxResource } from '$lib/types/flux';
@@ -30,9 +42,27 @@
 	// Auto-refresh setup
 	const autoRefresh = createAutoRefresh();
 
-	// Calculate statistics
+	// Initialize filters from URL
+	const urlFilters = $derived(searchParamsToFilters($page.url.searchParams));
+	let filters = $state<FilterState>({ ...defaultFilterState });
+
+	// Sync filters from URL on mount and URL changes
+	$effect(() => {
+		filters = { ...urlFilters };
+	});
+
+	// Available namespaces for filter dropdown
+	const namespaces = $derived(getUniqueNamespaces(data.resources || []));
+
+	// Apply filters to resources
+	const filteredResources = $derived(filterResources(data.resources || [], filters));
+
+	// Check if filters are active
+	const hasActiveFilters = $derived(checkActiveFilters(filters));
+
+	// Calculate statistics from filtered resources
 	const stats = $derived(() => {
-		const resources = data.resources || [];
+		const resources = filteredResources;
 		let healthy = 0;
 		let progressing = 0;
 		let failed = 0;
@@ -74,6 +104,27 @@
 		const name = resource.metadata.name;
 		goto(`/resources/${data.resourceType}/${namespace}/${name}`);
 	}
+
+	function updateFilters(newFilters: FilterState) {
+		filters = newFilters;
+		// Update URL with new filters
+		const params = filtersToSearchParams(newFilters);
+		const url = new URL($page.url);
+		url.search = params.toString();
+		goto(url.toString(), { replaceState: true, noScroll: true });
+	}
+
+	function handleSearch(query: string) {
+		updateFilters({ ...filters, search: query });
+	}
+
+	function handleFilterChange(newFilters: FilterState) {
+		updateFilters(newFilters);
+	}
+
+	function clearFilters() {
+		updateFilters({ ...defaultFilterState });
+	}
 </script>
 
 <div class="space-y-6">
@@ -91,6 +142,35 @@
 			isRefreshing={autoRefresh.isRefreshing}
 			lastRefreshTime={autoRefresh.lastRefreshTime}
 			onRefresh={autoRefresh.refresh}
+		/>
+	</div>
+
+	<!-- Search and Filters -->
+	<div class="space-y-4 rounded-lg border border-gray-200 bg-white p-4">
+		<div class="flex flex-col gap-4 lg:flex-row lg:items-center">
+			<!-- Search -->
+			<div class="w-full lg:w-80">
+				<SearchBar
+					value={filters.search}
+					placeholder="Search by name or namespace..."
+					onSearch={handleSearch}
+				/>
+			</div>
+			<!-- Results count -->
+			<div class="flex items-center gap-2 text-sm text-gray-500">
+				<span>
+					Showing <strong class="text-gray-900">{filteredResources.length}</strong>
+					of <strong class="text-gray-900">{data.resources?.length || 0}</strong> resources
+				</span>
+			</div>
+		</div>
+		<!-- Filter Bar -->
+		<FilterBar
+			{filters}
+			{namespaces}
+			onFilterChange={handleFilterChange}
+			onClearFilters={clearFilters}
+			{hasActiveFilters}
 		/>
 	</div>
 
@@ -136,15 +216,35 @@
 	</div>
 
 	<!-- Resource List -->
-	{#if viewMode === 'table'}
+	{#if filteredResources.length === 0 && hasActiveFilters}
+		<div class="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-12 text-center">
+			<svg class="h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					stroke-width="2"
+					d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+				/>
+			</svg>
+			<p class="mt-4 text-sm font-medium text-gray-900">No resources match your filters</p>
+			<p class="mt-1 text-sm text-gray-500">Try adjusting your search or filter criteria</p>
+			<button
+				type="button"
+				class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800"
+				onclick={clearFilters}
+			>
+				Clear Filters
+			</button>
+		</div>
+	{:else if viewMode === 'table'}
 		<ResourceTable
-			resources={data.resources}
+			resources={filteredResources}
 			{showNamespace}
 			onRowClick={handleResourceClick}
 		/>
 	{:else}
 		<ResourceGrid
-			resources={data.resources}
+			resources={filteredResources}
 			{showNamespace}
 			onCardClick={handleResourceClick}
 		/>

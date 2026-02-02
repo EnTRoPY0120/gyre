@@ -1,6 +1,9 @@
 import type { K8sCondition } from '$lib/types/flux';
 import type { ResourceHealth } from '$lib/types/view';
 
+// Re-export for external use
+export type { ResourceHealth } from '$lib/types/view';
+
 /**
  * Determine resource health status from conditions
  */
