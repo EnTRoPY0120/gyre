@@ -23,82 +23,100 @@
 	}
 </script>
 
-<div
-	class="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
->
-	<table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-		<thead class="bg-gray-50 dark:bg-gray-800">
-			<tr>
-				<th
-					class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase dark:text-gray-400"
-				>
-					Name
-				</th>
-				{#if showNamespace}
-					<th
-						class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase"
-					>
-						Namespace
-					</th>
-				{/if}
-				<th class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
-					Status
-				</th>
-				<th class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
-					Age
-				</th>
-				<th class="px-6 py-3 text-left text-xs font-medium tracking-wider text-gray-500 uppercase">
-					Message
-				</th>
-			</tr>
-		</thead>
-		<tbody class="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-			{#if resources.length === 0}
+<div class="overflow-hidden rounded-xl border border-border bg-card/60 shadow-sm backdrop-blur-sm">
+	<div class="overflow-x-auto">
+		<table class="w-full text-left text-sm">
+			<thead class="border-b border-border bg-muted/30">
 				<tr>
-					<td
-						colspan={showNamespace ? 5 : 4}
-						class="px-6 py-8 text-center text-sm text-gray-500 dark:text-gray-400"
+					<th
+						class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
 					>
-						No resources found
-					</td>
+						Resource
+					</th>
+					{#if showNamespace}
+						<th
+							class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
+						>
+							Namespace
+						</th>
+					{/if}
+					<th
+						class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
+					>
+						Status
+					</th>
+					<th
+						class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
+					>
+						Age
+					</th>
+					<th
+						class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
+					>
+						Message
+					</th>
 				</tr>
-			{:else}
-				{#each resources as resource}
-					<tr
-						class="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
-						onclick={() => handleRowClick(resource)}
-					>
-						<td class="px-6 py-4 whitespace-nowrap">
-							<div class="text-sm font-medium text-gray-900 dark:text-gray-100">
-								{resource.metadata.name}
-							</div>
-						</td>
-						{#if showNamespace}
-							<td class="px-6 py-4 whitespace-nowrap">
-								<div class="text-sm text-gray-500 dark:text-gray-400">
-									{resource.metadata.namespace || '-'}
-								</div>
-							</td>
-						{/if}
-						<td class="px-6 py-4 whitespace-nowrap">
-							<StatusBadge
-								conditions={resource.status?.conditions}
-								suspended={resource.spec?.suspend as boolean | undefined}
-							/>
-						</td>
-						<td class="px-6 py-4 whitespace-nowrap">
-							<div class="text-sm text-gray-500 dark:text-gray-400">
-								{formatTimestamp(resource.metadata.creationTimestamp)}
-							</div>
-						</td>
-						<td class="px-6 py-4">
-							<div class="max-w-md text-sm text-gray-500 dark:text-gray-400">
-								{getReadyMessage(resource)}
+			</thead>
+			<tbody class="divide-y divide-border/40">
+				{#if resources.length === 0}
+					<tr>
+						<td
+							colspan={showNamespace ? 5 : 4}
+							class="px-6 py-12 text-center text-sm text-muted-foreground"
+						>
+							<div class="flex flex-col items-center gap-2">
+								<p class="font-medium">No resources found</p>
+								<p class="text-xs text-muted-foreground/60">
+									Try adjusting your filters or checking connection.
+								</p>
 							</div>
 						</td>
 					</tr>
-				{/each}
-			{/if}
-		</tbody>
-	</table>
+				{:else}
+					{#each resources as resource}
+						<tr
+							class="group cursor-pointer transition-colors hover:bg-accent/40 hover:text-accent-foreground"
+							onclick={() => handleRowClick(resource)}
+						>
+							<td class="px-6 py-4 whitespace-nowrap transition-all duration-200 group-hover:pl-7">
+								<div
+									class="font-mono text-[13px] font-medium text-foreground transition-colors group-hover:text-primary"
+								>
+									{resource.metadata.name}
+								</div>
+							</td>
+							{#if showNamespace}
+								<td class="px-6 py-4 whitespace-nowrap">
+									<div
+										class="inline-flex items-center rounded-md border border-transparent bg-secondary/40 px-2 py-1 text-[11px] font-medium text-muted-foreground transition-all group-hover:border-border/50"
+									>
+										{resource.metadata.namespace || '-'}
+									</div>
+								</td>
+							{/if}
+							<td class="px-6 py-4 whitespace-nowrap">
+								<StatusBadge
+									conditions={resource.status?.conditions}
+									suspended={resource.spec?.suspend as boolean | undefined}
+									size="sm"
+								/>
+							</td>
+							<td class="px-6 py-4 whitespace-nowrap">
+								<div class="font-mono text-xs font-medium text-muted-foreground">
+									{formatTimestamp(resource.metadata.creationTimestamp)}
+								</div>
+							</td>
+							<td class="max-w-[300px] px-6 py-4">
+								<div
+									class="truncate text-xs text-muted-foreground/80 group-hover:text-muted-foreground"
+								>
+									{getReadyMessage(resource)}
+								</div>
+							</td>
+						</tr>
+					{/each}
+				{/if}
+			</tbody>
+		</table>
+	</div>
 </div>

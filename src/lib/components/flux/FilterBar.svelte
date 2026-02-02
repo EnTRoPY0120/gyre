@@ -59,9 +59,7 @@
 
 	<!-- Status Filter -->
 	<div class="flex items-center gap-2">
-		<label for="status-filter" class="text-sm font-medium text-muted-foreground"
-			>Status:</label
-		>
+		<label for="status-filter" class="text-sm font-medium text-muted-foreground">Status:</label>
 		<select
 			id="status-filter"
 			class="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
@@ -76,9 +74,7 @@
 
 	<!-- Labels Filter -->
 	<div class="flex items-center gap-2">
-		<label for="labels-filter" class="text-sm font-medium text-muted-foreground"
-			>Labels:</label
-		>
+		<label for="labels-filter" class="text-sm font-medium text-muted-foreground">Labels:</label>
 		<input
 			id="labels-filter"
 			type="text"

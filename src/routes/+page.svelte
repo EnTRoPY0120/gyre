@@ -33,57 +33,77 @@
 	});
 
 	const GroupIcons: Record<string, string> = {
-		'Sources': 'sideways-git',
-		'Kustomize': 'kustomize',
-		'Helm': 'helm',
-		'Notifications': 'bell',
+		Sources: 'sideways-git',
+		Kustomize: 'kustomize',
+		Helm: 'helm',
+		Notifications: 'bell',
 		'Image Automation': 'layers'
 	};
 </script>
 
-<div class="space-y-8 animate-in fade-in duration-700">
+<div class="animate-in fade-in space-y-8 duration-700">
 	<!-- Welcome Header -->
-	<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+	<div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
 		<div>
-			<h1 class="text-4xl font-extrabold tracking-tight text-foreground flex items-center gap-4 font-display">
+			<h1
+				class="flex items-center gap-4 font-display text-4xl font-extrabold tracking-tight text-foreground"
+			>
 				<Icon name="flux" size={36} class="text-primary" />
 				Dashboard
 			</h1>
-			<p class="mt-2 text-muted-foreground font-medium text-lg">FluxCD, Visualized</p>
+			<p class="mt-2 text-lg font-medium text-muted-foreground">FluxCD, Visualized</p>
 		</div>
-		<div class="flex items-center gap-3 px-5 py-2.5 rounded-full bg-sidebar border border-sidebar-border shadow-sm backdrop-blur-md">
-			<div class="size-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.6)]"></div>
-			<span class="text-xs font-black uppercase tracking-[0.2em] text-muted-foreground leading-none">Cluster Live</span>
+		<div
+			class="flex items-center gap-3 rounded-full border border-sidebar-border bg-sidebar px-5 py-2.5 shadow-sm backdrop-blur-md"
+		>
+			<div
+				class="size-2.5 animate-pulse rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.6)]"
+			></div>
+			<span class="text-xs leading-none font-black tracking-[0.2em] text-muted-foreground uppercase"
+				>Cluster Live</span
+			>
 		</div>
 	</div>
 
 	<!-- Stats Grid -->
-	<div class="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
 		<!-- Connection Card -->
-		<div class="md:col-span-2 lg:col-span-1 overflow-hidden rounded-3xl border border-border bg-card/40 shadow-sm transition-all hover:bg-card/60 hover:shadow-md">
+		<div
+			class="overflow-hidden rounded-3xl border border-border bg-card/40 shadow-sm transition-all hover:bg-card/60 hover:shadow-md md:col-span-2 lg:col-span-1"
+		>
 			<div class="p-6">
-				<div class="flex items-center justify-between mb-4">
-					<p class="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Connectivity</p>
+				<div class="mb-4 flex items-center justify-between">
+					<p class="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase">
+						Connectivity
+					</p>
 					<Icon name="monitor" size={16} class="text-muted-foreground/30" />
 				</div>
 				<div class="flex items-center gap-5">
 					{#if data.health.connected}
-						<div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-green-500/10 text-green-500 border border-green-500/20">
+						<div
+							class="flex h-14 w-14 items-center justify-center rounded-2xl border border-green-500/20 bg-green-500/10 text-green-500"
+						>
 							<Icon name="check" size={28} />
 						</div>
 						<div class="min-w-0">
-							<p class="text-xl font-extrabold leading-none font-display text-foreground">Active</p>
-							<p class="text-[11px] font-bold text-muted-foreground mt-1.5 font-mono break-all">
+							<p class="font-display text-xl leading-none font-extrabold text-foreground">Active</p>
+							<p class="mt-1.5 font-mono text-[11px] font-bold break-all text-muted-foreground">
 								{data.health.clusterName || 'Local-Cluster'}
 							</p>
 						</div>
 					{:else}
-						<div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10 text-destructive border border-destructive/20">
+						<div
+							class="flex h-14 w-14 items-center justify-center rounded-2xl border border-destructive/20 bg-destructive/10 text-destructive"
+						>
 							<Icon name="x" size={28} />
 						</div>
 						<div>
-							<p class="text-xl font-extrabold leading-none font-display">Down</p>
-							<p class="text-[11px] font-bold text-muted-foreground mt-1.5 text-destructive font-mono uppercase">Offline</p>
+							<p class="font-display text-xl leading-none font-extrabold">Down</p>
+							<p
+								class="mt-1.5 font-mono text-[11px] font-bold text-destructive text-muted-foreground uppercase"
+							>
+								Offline
+							</p>
 						</div>
 					{/if}
 				</div>
@@ -91,108 +111,169 @@
 		</div>
 
 		<!-- Total Resources -->
-		<div class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:bg-card/60 hover:shadow-md">
-			<div class="flex items-center justify-between mb-4">
-				<p class="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Total</p>
+		<div
+			class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:bg-card/60 hover:shadow-md"
+		>
+			<div class="mb-4 flex items-center justify-between">
+				<p class="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase">Total</p>
 				<Icon name="activity" size={16} class="text-primary/30" />
 			</div>
 			<div class="flex items-baseline gap-2">
-				<span class="text-4xl font-black text-foreground font-display tracking-tighter">{totals().total}</span>
-				<span class="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Global</span>
+				<span class="font-display text-4xl font-black tracking-tighter text-foreground"
+					>{totals().total}</span
+				>
+				<span class="text-[10px] font-black tracking-widest text-muted-foreground uppercase"
+					>Global</span
+				>
 			</div>
 		</div>
 
 		<!-- Healthy Card -->
-		<div class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:border-green-500/20 hover:bg-green-500/[0.02]">
-			<div class="flex items-center justify-between mb-4">
-				<p class="text-[10px] font-black uppercase tracking-[0.2em] text-green-600 dark:text-green-500 font-display">Healthy</p>
+		<div
+			class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:border-green-500/20 hover:bg-green-500/[0.02]"
+		>
+			<div class="mb-4 flex items-center justify-between">
+				<p
+					class="font-display text-[10px] font-black tracking-[0.2em] text-green-600 uppercase dark:text-green-500"
+				>
+					Healthy
+				</p>
 				<Icon name="check" size={16} class="text-green-500/30" />
 			</div>
 			<div class="flex items-baseline gap-2">
-				<span class="text-4xl font-black text-foreground font-display tracking-tighter">{totals().healthy}</span>
-				<span class="text-[10px] font-black text-green-600 dark:text-green-500 uppercase tracking-widest font-display">Synced</span>
+				<span class="font-display text-4xl font-black tracking-tighter text-foreground"
+					>{totals().healthy}</span
+				>
+				<span
+					class="font-display text-[10px] font-black tracking-widest text-green-600 uppercase dark:text-green-500"
+					>Synced</span
+				>
 			</div>
 		</div>
 
 		<!-- Failed Card -->
-		<div class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:border-destructive/20 hover:bg-destructive/[0.02]">
-			<div class="flex items-center justify-between mb-4">
-				<p class="text-[10px] font-black uppercase tracking-[0.2em] text-destructive font-display">Failed</p>
+		<div
+			class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:border-destructive/20 hover:bg-destructive/[0.02]"
+		>
+			<div class="mb-4 flex items-center justify-between">
+				<p class="font-display text-[10px] font-black tracking-[0.2em] text-destructive uppercase">
+					Failed
+				</p>
 				<Icon name="shield-alert" size={16} class="text-destructive/30" />
 			</div>
 			<div class="flex items-baseline gap-2">
-				<span class="text-4xl font-black text-foreground font-display tracking-tighter">{totals().failed}</span>
-				<span class="text-[10px] font-black text-destructive uppercase tracking-widest font-display">Alerts</span>
+				<span class="font-display text-4xl font-black tracking-tighter text-foreground"
+					>{totals().failed}</span
+				>
+				<span class="font-display text-[10px] font-black tracking-widest text-destructive uppercase"
+					>Alerts</span
+				>
 			</div>
 		</div>
 	</div>
 
 	<!-- Resource Groups Section -->
 	<div class="pt-4">
-		<div class="flex items-center justify-between mb-8">
-			<h2 class="text-2xl font-black text-foreground tracking-tight font-display">Inventory Architecture</h2>
-			<div class="h-[2px] flex-1 mx-8 bg-gradient-to-r from-border/50 via-border/10 to-transparent"></div>
+		<div class="mb-8 flex items-center justify-between">
+			<h2 class="font-display text-2xl font-black tracking-tight text-foreground">
+				Inventory Architecture
+			</h2>
+			<div
+				class="mx-8 h-[2px] flex-1 bg-gradient-to-r from-border/50 via-border/10 to-transparent"
+			></div>
 		</div>
-		
-		<div class="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+
+		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each resourceGroups as group}
-				{@const counts = data.groupCounts[group.name] || { total: 0, healthy: 0, failed: 0, error: false }}
-				<div class="group relative overflow-hidden rounded-3xl border border-border bg-card/30 shadow-sm transition-all duration-500 hover:bg-card/50 hover:border-primary/40 hover:-translate-y-1 hover:shadow-xl">
+				{@const counts = data.groupCounts[group.name] || {
+					total: 0,
+					healthy: 0,
+					failed: 0,
+					error: false
+				}}
+				<div
+					class="group relative overflow-hidden rounded-3xl border border-border bg-card/30 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/50 hover:shadow-xl"
+				>
 					<!-- Card Background Accent -->
-					<div class="absolute -right-12 -top-12 size-32 rounded-full bg-primary/5 blur-3xl transition-all duration-700 group-hover:bg-primary/20"></div>
-					
+					<div
+						class="absolute -top-12 -right-12 size-32 rounded-full bg-primary/5 blur-3xl transition-all duration-700 group-hover:bg-primary/20"
+					></div>
+
 					<div class="border-b border-border/50 bg-muted/20 px-7 py-5">
 						<div class="flex items-center gap-4">
 							{#if GroupIcons[group.name]}
-								<div class="flex size-10 items-center justify-center rounded-xl bg-background border border-border group-hover:border-primary/50 group-hover:scale-110 transition-all duration-300">
+								<div
+									class="flex size-10 items-center justify-center rounded-xl border border-border bg-background transition-all duration-300 group-hover:scale-110 group-hover:border-primary/50"
+								>
 									<Icon name={GroupIcons[group.name]} size={20} class="text-primary" />
 								</div>
 							{/if}
-							<h3 class="font-bold text-lg text-foreground tracking-tight font-display">{group.name}</h3>
+							<h3 class="font-display text-lg font-bold tracking-tight text-foreground">
+								{group.name}
+							</h3>
 						</div>
 					</div>
-					
+
 					<div class="p-7">
 						{#if counts.error}
-							<div class="flex items-center gap-2 text-destructive bg-destructive/5 p-3 rounded-lg border border-destructive/10">
+							<div
+								class="flex items-center gap-2 rounded-lg border border-destructive/10 bg-destructive/5 p-3 text-destructive"
+							>
 								<Icon name="shield-alert" size={16} />
-								<p class="text-[11px] font-black uppercase tracking-wider">Sync Pipeline Interrupted</p>
+								<p class="text-[11px] font-black tracking-wider uppercase">
+									Sync Pipeline Interrupted
+								</p>
 							</div>
 						{:else}
 							<div class="mb-8 flex items-baseline gap-2">
-								<span class="text-5xl font-black text-foreground font-display tracking-tighter leading-none">{counts.total}</span>
-								<span class="text-[11px] font-black text-muted-foreground uppercase tracking-[0.3em] font-display ml-1">Systems</span>
+								<span
+									class="font-display text-5xl leading-none font-black tracking-tighter text-foreground"
+									>{counts.total}</span
+								>
+								<span
+									class="ml-1 font-display text-[11px] font-black tracking-[0.3em] text-muted-foreground uppercase"
+									>Systems</span
+								>
 							</div>
-							
+
 							<div class="flex flex-col gap-5">
 								<div class="space-y-2">
-									<div class="flex items-center justify-between text-[11px] font-black uppercase tracking-widest text-muted-foreground font-display">
+									<div
+										class="flex items-center justify-between font-display text-[11px] font-black tracking-widest text-muted-foreground uppercase"
+									>
 										<span>Healthy State</span>
 										<span>{Math.round((counts.healthy / (counts.total || 1)) * 100)}%</span>
 									</div>
-									<div class="w-full h-2 bg-muted/50 rounded-full overflow-hidden p-[1px]">
-										<div 
-											class="h-full bg-green-500 rounded-full transition-all duration-1000 ease-out shadow-[0_0_10px_rgba(34,197,94,0.4)]" 
+									<div class="h-2 w-full overflow-hidden rounded-full bg-muted/50 p-[1px]">
+										<div
+											class="h-full rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)] transition-all duration-1000 ease-out"
 											style="width: {(counts.healthy / (counts.total || 1)) * 100}%"
 										></div>
 									</div>
 								</div>
 
 								{#if counts.failed > 0}
-									<div class="flex items-center gap-3 bg-destructive/5 border border-destructive/10 p-2.5 rounded-xl">
-										<div class="size-2 rounded-full bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.4)]"></div>
-										<span class="text-[10px] font-black uppercase tracking-widest text-destructive/80 font-display">{counts.failed} critical obstacles identified</span>
+									<div
+										class="flex items-center gap-3 rounded-xl border border-destructive/10 bg-destructive/5 p-2.5"
+									>
+										<div
+											class="size-2 rounded-full bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.4)]"
+										></div>
+										<span
+											class="font-display text-[10px] font-black tracking-widest text-destructive/80 uppercase"
+											>{counts.failed} critical obstacles identified</span
+										>
 									</div>
 								{/if}
 							</div>
 						{/if}
 
 						<!-- Action Tags -->
-						<div class="mt-8 pt-6 border-t border-border/30 flex flex-wrap gap-2">
+						<div class="mt-8 flex flex-wrap gap-2 border-t border-border/30 pt-6">
 							{#each group.resources as resource}
 								<a
 									href="/resources/{resource.type}"
-									class="rounded-xl bg-background/50 border border-border px-4 py-2 text-[10px] font-black uppercase tracking-wider text-muted-foreground transition-all hover:bg-primary hover:text-primary-foreground hover:border-primary hover:shadow-lg active:scale-95 active:translate-y-0"
+									class="rounded-xl border border-border bg-background/50 px-4 py-2 text-[10px] font-black tracking-wider text-muted-foreground uppercase transition-all hover:border-primary hover:bg-primary hover:text-primary-foreground hover:shadow-lg active:translate-y-0 active:scale-95"
 								>
 									{resource.displayName}
 								</a>
@@ -205,42 +286,52 @@
 	</div>
 
 	<!-- System Shortcuts -->
-	<div class="rounded-[2.5rem] border border-border bg-card/20 p-10 shadow-sm backdrop-blur-xl relative overflow-hidden group">
-		<div class="absolute inset-0 bg-gradient-to-br from-primary/[0.07] via-transparent to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100"></div>
-		
-		<div class="relative z-10 flex flex-col xl:flex-row xl:items-center justify-between gap-10">
+	<div
+		class="group relative overflow-hidden rounded-[2.5rem] border border-border bg-card/20 p-10 shadow-sm backdrop-blur-xl"
+	>
+		<div
+			class="absolute inset-0 bg-gradient-to-br from-primary/[0.07] via-transparent to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100"
+		></div>
+
+		<div class="relative z-10 flex flex-col justify-between gap-10 xl:flex-row xl:items-center">
 			<div>
-				<h2 class="text-3xl font-black text-foreground tracking-tight font-display">System Core</h2>
-				<p class="text-sm text-muted-foreground font-medium mt-2 max-w-md">Immediate administrative access to cluster source controllers and orchestration engines.</p>
+				<h2 class="font-display text-3xl font-black tracking-tight text-foreground">System Core</h2>
+				<p class="mt-2 max-w-md text-sm font-medium text-muted-foreground">
+					Immediate administrative access to cluster source controllers and orchestration engines.
+				</p>
 			</div>
 			<div class="flex flex-wrap gap-4">
 				<a
 					href="/resources/gitrepositories"
-					class="inline-flex items-center gap-3 rounded-2xl bg-primary px-8 py-4 text-sm font-black uppercase tracking-widest text-primary-foreground shadow-2xl shadow-primary/20 transition-all hover:translate-y-[-4px] hover:shadow-primary/40 active:scale-95"
+					class="inline-flex items-center gap-3 rounded-2xl bg-primary px-8 py-4 text-sm font-black tracking-widest text-primary-foreground uppercase shadow-2xl shadow-primary/20 transition-all hover:translate-y-[-4px] hover:shadow-primary/40 active:scale-95"
 				>
 					<Icon name="git-branch" size={20} />
 					Sources
 				</a>
 				<a
 					href="/resources/kustomizations"
-					class="inline-flex items-center gap-3 rounded-2xl bg-sidebar border border-sidebar-border px-8 py-4 text-sm font-black uppercase tracking-widest text-foreground transition-all hover:bg-muted hover:translate-y-[-4px] active:scale-95"
+					class="inline-flex items-center gap-3 rounded-2xl border border-sidebar-border bg-sidebar px-8 py-4 text-sm font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95"
 				>
 					<Icon name="file-cog" size={20} />
 					Kustomize
 				</a>
 				<a
 					href="/resources/helmreleases"
-					class="inline-flex items-center gap-3 rounded-2xl bg-sidebar border border-sidebar-border px-8 py-4 text-sm font-black uppercase tracking-widest text-foreground transition-all hover:bg-muted hover:translate-y-[-4px] active:scale-95"
+					class="inline-flex items-center gap-3 rounded-2xl border border-sidebar-border bg-sidebar px-8 py-4 text-sm font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95"
 				>
 					<Icon name="ship" size={20} />
 					Helm
 				</a>
 				<button
 					type="button"
-					class="inline-flex items-center gap-3 rounded-2xl bg-sidebar border border-sidebar-border px-8 py-4 text-sm font-black uppercase tracking-widest text-foreground transition-all hover:bg-muted hover:translate-y-[-4px] active:scale-95 group/btn"
+					class="group/btn inline-flex items-center gap-3 rounded-2xl border border-sidebar-border bg-sidebar px-8 py-4 text-sm font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95"
 					onclick={() => window.location.reload()}
 				>
-					<Icon name="refresh-cw" size={20} class="group-hover/btn:rotate-180 transition-transform duration-700" />
+					<Icon
+						name="refresh-cw"
+						size={20}
+						class="transition-transform duration-700 group-hover/btn:rotate-180"
+					/>
 					Sync
 				</button>
 			</div>

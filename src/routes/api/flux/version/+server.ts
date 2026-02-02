@@ -18,7 +18,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			// Try to list deployments in flux-system to find the common version label
 			const response = await appsApi.listNamespacedDeployment({ namespace });
 			const deployments = response.items;
-			
+
 			if (deployments.length > 0) {
 				// Get version from the first deployment's labels
 				const version = deployments[0].metadata?.labels?.['app.kubernetes.io/version'];
@@ -26,12 +26,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 					return json({ version });
 				}
 			}
-			
+
 			// Fallback: check the namespace itself
 			const coreApi = config.makeApiClient(k8s.CoreV1Api);
 			const nsResponse = await coreApi.readNamespace({ name: namespace });
 			const version = nsResponse.metadata?.labels?.['app.kubernetes.io/version'] || 'v2.x.x';
-			
+
 			return json({ version });
 		} catch (err) {
 			console.warn('Failed to fetch version from deployments, trying fallback:', err);

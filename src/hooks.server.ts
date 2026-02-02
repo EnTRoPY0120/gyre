@@ -6,7 +6,7 @@ import { getKubeConfig } from '$lib/server/kubernetes/client';
  */
 export const handle: Handle = async ({ event, resolve }) => {
 	const cluster = event.cookies.get('gyre_cluster');
-	
+
 	if (cluster) {
 		event.locals.cluster = cluster;
 	} else {
@@ -14,7 +14,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		try {
 			const { currentContext } = getKubeConfig();
 			event.locals.cluster = currentContext;
-			
+
 			// Optionally set the cookie if it's missing so the UI is in sync
 			if (currentContext) {
 				event.cookies.set('gyre_cluster', currentContext, {

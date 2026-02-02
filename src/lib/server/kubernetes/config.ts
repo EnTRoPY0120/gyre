@@ -19,7 +19,7 @@ export interface KubeConfigResult {
  * 1. Auto-discover from ~/.kube/config (loadFromDefault)
  * 2. KUBECONFIG environment variable
  * 3. In-cluster config (for running inside K8s)
- * 
+ *
  * @param contextName Optional name of the context to use. If not provided, the current context is used.
  */
 export function loadKubeConfig(contextName?: string): KubeConfigResult {
@@ -28,8 +28,8 @@ export function loadKubeConfig(contextName?: string): KubeConfigResult {
 	try {
 		// Try to load default config first to get available contexts
 		config.loadFromDefault();
-		
-		if (contextName && config.getContexts().some(c => c.name === contextName)) {
+
+		if (contextName && config.getContexts().some((c) => c.name === contextName)) {
 			config.setCurrentContext(contextName);
 		}
 
@@ -37,7 +37,7 @@ export function loadKubeConfig(contextName?: string): KubeConfigResult {
 			config,
 			strategy: ConfigLoadStrategy.DEFAULT,
 			source: config.getCurrentContext() || 'default',
-			contexts: config.getContexts().map(c => c.name),
+			contexts: config.getContexts().map((c) => c.name),
 			currentContext: config.getCurrentContext()
 		};
 	} catch (error) {
@@ -48,14 +48,14 @@ export function loadKubeConfig(contextName?: string): KubeConfigResult {
 		const kubeconfigPath = process.env.KUBECONFIG;
 		if (kubeconfigPath) {
 			config.loadFromFile(kubeconfigPath);
-			if (contextName && config.getContexts().some(c => c.name === contextName)) {
+			if (contextName && config.getContexts().some((c) => c.name === contextName)) {
 				config.setCurrentContext(contextName);
 			}
 			return {
 				config,
 				strategy: ConfigLoadStrategy.ENV,
 				source: kubeconfigPath,
-				contexts: config.getContexts().map(c => c.name),
+				contexts: config.getContexts().map((c) => c.name),
 				currentContext: config.getCurrentContext()
 			};
 		}

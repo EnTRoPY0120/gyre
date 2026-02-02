@@ -45,7 +45,10 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<title>Gyre - FluxCD WebUI</title>
-	<meta name="description" content="A modern web interface for managing FluxCD resources in your Kubernetes cluster" />
+	<meta
+		name="description"
+		content="A modern web interface for managing FluxCD resources in your Kubernetes cluster"
+	/>
 </svelte:head>
 
 <div class="flex h-screen bg-gray-50 dark:bg-gray-950">

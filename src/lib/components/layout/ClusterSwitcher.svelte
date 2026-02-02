@@ -1,8 +1,8 @@
 <script lang="ts">
-	import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
-	import { clusterStore } from "$lib/stores/cluster.svelte";
-	import Icon from "$lib/components/ui/Icon.svelte";
-	import { cn } from "$lib/utils";
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { clusterStore } from '$lib/stores/cluster.svelte';
+	import Icon from '$lib/components/ui/Icon.svelte';
+	import { cn } from '$lib/utils';
 
 	interface Props {
 		current?: string;
@@ -21,15 +21,30 @@
 </script>
 
 <DropdownMenu.Root>
-	<DropdownMenu.Trigger class="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card/40 hover:bg-card/60 transition-all text-xs font-medium group">
-		<div class="h-2 w-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)] group-hover:scale-110 transition-transform"></div>
-		<span class="max-w-[150px] truncate font-mono text-[10px] tracking-tight">{currentCluster}</span>
-		<Icon name="chevron-down" size={12} class="text-muted-foreground/30 group-hover:text-muted-foreground/60 transition-colors" />
+	<DropdownMenu.Trigger
+		class="group flex items-center gap-2 rounded-md border border-transparent bg-secondary/50 px-3 py-1.5 text-xs font-medium transition-all hover:border-border hover:bg-secondary/80"
+	>
+		<div
+			class="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-125"
+		></div>
+		<span class="max-w-[150px] truncate font-mono text-[10px] tracking-tight">{currentCluster}</span
+		>
+		<Icon
+			name="chevron-down"
+			size={12}
+			class="text-muted-foreground/50 transition-colors group-hover:text-foreground"
+		/>
 	</DropdownMenu.Trigger>
-	<DropdownMenu.Content align="end" class="w-64 backdrop-blur-xl bg-card/80 border-border/50 shadow-2xl p-1.5">
-		<DropdownMenu.Label class="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/50 px-3 py-3">Switch Infrastructure Context</DropdownMenu.Label>
+	<DropdownMenu.Content
+		align="end"
+		class="w-64 border-border/50 bg-card/80 p-1.5 shadow-2xl backdrop-blur-xl"
+	>
+		<DropdownMenu.Label
+			class="px-3 py-3 text-[10px] font-black tracking-[0.2em] text-muted-foreground/50 uppercase"
+			>Switch Infrastructure Context</DropdownMenu.Label
+		>
 		<DropdownMenu.Separator class="mb-1.5 opacity-30" />
-		
+
 		{#if availableClusters.length === 0}
 			<div class="px-3 py-4 text-center">
 				<Icon name="loader" size={16} class="mx-auto mb-2 animate-spin text-muted-foreground/40" />
@@ -37,24 +52,32 @@
 			</div>
 		{:else}
 			{#each availableClusters as cluster}
-				<DropdownMenu.Item 
-					onSelect={() => selectCluster(cluster)} 
+				<DropdownMenu.Item
+					onSelect={() => selectCluster(cluster)}
 					class={cn(
-						"gap-3 cursor-pointer py-3 px-3 transition-colors rounded-xl mb-0.5 last:mb-0",
-						cluster === currentCluster ? "bg-primary/5 hover:bg-primary/10" : "hover:bg-accent/50"
+						'mb-0.5 cursor-pointer gap-3 rounded-xl px-3 py-3 transition-colors last:mb-0',
+						cluster === currentCluster ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-accent/50'
 					)}
 				>
-					<div class={cn(
-						"h-1.5 w-1.5 rounded-full transition-all duration-300",
-						cluster === currentCluster ? "bg-green-500 scale-150 ring-4 ring-green-500/20" : "bg-muted-foreground/20"
-					)}></div>
-					<div class="flex flex-col gap-0.5 flex-1 overflow-hidden">
-						<span class={cn(
-							"font-mono text-[11px] truncate",
-							cluster === currentCluster ? "text-foreground font-bold" : "text-muted-foreground"
-						)}>{cluster}</span>
+					<div
+						class={cn(
+							'h-1.5 w-1.5 rounded-full transition-all duration-300',
+							cluster === currentCluster
+								? 'scale-150 bg-green-500 ring-4 ring-green-500/20'
+								: 'bg-muted-foreground/20'
+						)}
+					></div>
+					<div class="flex flex-1 flex-col gap-0.5 overflow-hidden">
+						<span
+							class={cn(
+								'truncate font-mono text-[11px]',
+								cluster === currentCluster ? 'font-bold text-foreground' : 'text-muted-foreground'
+							)}>{cluster}</span
+						>
 						{#if cluster === currentCluster}
-							<span class="text-[8px] font-black uppercase tracking-widest text-green-500/60">Active Context</span>
+							<span class="text-[8px] font-black tracking-widest text-green-500/60 uppercase"
+								>Active Context</span
+							>
 						{/if}
 					</div>
 					{#if cluster === currentCluster}

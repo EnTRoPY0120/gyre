@@ -47,23 +47,29 @@
 	});
 </script>
 
-<header class="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-border bg-background/95 px-4 md:px-6 backdrop-blur-sm supports-[backdrop-filter]:bg-background/60">
+<header
+	class="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-border/60 bg-background/80 px-6 backdrop-blur-xl transition-all duration-300 supports-[backdrop-filter]:bg-background/60"
+>
 	<!-- Breadcrumb Navigation -->
 	<nav class="flex items-center" aria-label="Breadcrumb">
 		<ol class="flex items-center space-x-2">
 			{#each breadcrumbs() as crumb, i}
 				{#if i > 0}
-					<li class="flex items-center text-muted-foreground">
-						<ChevronRight class="size-4" />
+					<li class="flex items-center text-muted-foreground/50">
+						<ChevronRight class="size-3.5" />
 					</li>
 				{/if}
 				<li>
 					{#if i === breadcrumbs().length - 1}
-						<span class="text-xs md:text-sm font-medium text-foreground truncate max-w-[100px] md:max-w-none">{crumb.label}</span>
+						<span
+							class="animate-in fade-in slide-in-from-left-2 flex max-w-[150px] items-center gap-2 truncate rounded-md bg-secondary/50 px-2 py-1 text-xs font-bold text-foreground shadow-sm ring-1 ring-border duration-300 md:max-w-none"
+						>
+							{crumb.label}
+						</span>
 					{:else}
 						<a
 							href={crumb.href}
-							class="text-xs md:text-sm text-muted-foreground transition-colors hover:text-foreground truncate max-w-[80px] md:max-w-none"
+							class="max-w-[100px] truncate text-xs font-semibold tracking-wide text-muted-foreground uppercase transition-all hover:text-primary hover:underline hover:underline-offset-4 md:max-w-none"
 						>
 							{crumb.label}
 						</a>
@@ -74,7 +80,7 @@
 	</nav>
 
 	<!-- Right Side: Notifications, Theme Toggle, Connection Status & Actions -->
-	<div class="flex items-center gap-4">
+	<div class="flex items-center gap-3 md:gap-4">
 		<!-- Notification Bell (Hidden on small mobile) -->
 		<div class="hidden sm:block">
 			<NotificationBell />
@@ -83,21 +89,20 @@
 		<!-- Theme Toggle -->
 		<ThemeToggle />
 
+		<div class="mx-1 hidden h-4 w-px bg-border sm:block"></div>
+
 		<!-- Cluster Selector (Hidden on mobile) -->
 		<div class="hidden sm:block">
-			<ClusterSwitcher 
-				current={health?.clusterName} 
-				available={health?.availableClusters} 
-			/>
+			<ClusterSwitcher current={health?.clusterName} available={health?.availableClusters} />
 		</div>
 
 		<!-- Settings Button (Hidden on mobile) -->
 		<button
 			type="button"
-			class="hidden md:rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+			class="hidden h-9 w-9 items-center justify-center rounded-full border border-transparent text-muted-foreground transition-all hover:border-border hover:bg-accent hover:text-foreground active:scale-95 md:flex"
 			aria-label="Settings"
 		>
-			<Settings class="size-5" />
+			<Settings class="size-4.5" />
 		</button>
 	</div>
 </header>

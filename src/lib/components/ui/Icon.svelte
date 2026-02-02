@@ -1,11 +1,37 @@
 <script lang="ts">
 	import type { SVGAttributes } from 'svelte/elements';
-	import { 
-		GitFork, Library, Package2, Cloud, FileCog, Ship, 
-		ShieldAlert, Radio, Activity, RefreshCw, FolderGit, 
-		Puzzle, ShipWheel, LayoutDashboard, Bell, Layers,
-		Search, X, Sun, Moon, Monitor, Check, ChevronRight, Settings,
-		Menu, Play, Pause, Loader2, GitBranch, ChevronDown, ChevronUp
+	import {
+		GitFork,
+		Library,
+		Package2,
+		Cloud,
+		FileCog,
+		Ship,
+		ShieldAlert,
+		Radio,
+		Activity,
+		RefreshCw,
+		FolderGit,
+		Puzzle,
+		ShipWheel,
+		LayoutDashboard,
+		Bell,
+		Layers,
+		Search,
+		X,
+		Sun,
+		Moon,
+		Monitor,
+		Check,
+		ChevronRight,
+		Settings,
+		Menu,
+		Play,
+		Pause,
+		Loader2,
+		GitBranch,
+		ChevronDown,
+		ChevronUp
 	} from 'lucide-svelte';
 
 	interface Props extends SVGAttributes<SVGSVGElement> {
@@ -16,25 +42,25 @@
 	let { name, size = 24, ...restProps }: Props = $props();
 
 	// Custom/Official icons for specific Flux resources
-	const customIcons: Record<string, { paths: string[], viewBox: string, fill?: boolean, stroke?: boolean, strokeWidth?: string }> = {
-		'bucket': {
+	const customIcons: Record<
+		string,
+		{ paths: string[]; viewBox: string; fill?: boolean; stroke?: boolean; strokeWidth?: string }
+	> = {
+		bucket: {
 			// Official Amazon S3 Bucket Path from WorldVectorLogo
 			viewBox: '0 0 80 80',
 			stroke: true,
-			strokeWidth: "2.5",
+			strokeWidth: '2.5',
 			paths: [
 				'M60.836 42.893l.384-2.704c3.54 2.12 3.587 2.997 3.586 3.02-.006.006-.61.51-3.97-.316zm-1.943-.54C52.773 40.5 44.25 36.59 40.8 34.96c0-.014.004-.027.004-.041a2.406 2.406 0 0 0-2.404-2.403c-1.324 0-2.402 1.078-2.402 2.403s1.078 2.403 2.402 2.403c.582 0 1.11-.217 1.527-.562 4.058 1.92 12.515 5.774 18.68 7.594L56.17 61.56a.955.955 0 0 0-.01.14c0 1.516-6.707 4.299-17.666 4.299-11.075 0-17.853-2.783-17.853-4.298 0-.046-.003-.091-.01-.136l-5.093-37.207c4.409 3.035 13.892 4.64 22.962 4.64 9.056 0 18.523-1.6 22.94-4.625zM15 20.478C15.072 19.162 22.634 14 38.5 14c15.864 0 23.427 5.16 23.5 6.478v.449C61.13 23.877 51.33 27 38.5 27c-12.852 0-22.657-3.132-23.5-6.087zm49 .022c0-3.465-9.934-8.5-25.5-8.5S13 17.035 13 20.5l.094.754 5.548 40.524C18.775 66.31 30.86 68 38.494 68c9.472 0 19.535-2.178 19.665-6.22l2.396-16.896c1.333.319 2.43.482 3.31.482 1.184 0 1.984-.29 2.469-.867a1.95 1.95 0 0 0 .436-1.66c-.26-1.383-1.902-2.875-5.248-4.784l2.376-16.762z'
 			]
 		},
-		'kustomize': {
+		kustomize: {
 			viewBox: '0 0 24 24',
 			fill: true,
-			paths: [
-				'M4 4h10v10H4z',
-				'M10 10h10v10H10z'
-			]
+			paths: ['M4 4h10v10H4z', 'M10 10h10v10H10z']
 		},
-		'helm': {
+		helm: {
 			// Official Helm Ship Wheel from CNCF Artwork (Black version)
 			viewBox: '0 0 500 500',
 			fill: true,
@@ -43,7 +69,7 @@
 				'M394.52934,347.9123a176.63854,176.63854,0,0,1-23.97343,27.16338c.70941.59068,1.28594,1.07041,1.86212,1.55057A108.31456,108.31456,0,0,1,406.10131,424.772a34.61831,34.61831,0,0,1,2.202,14.42026,14.88544,14.88544,0,0,1-.74786,3.69206,7.20762,7.20762,0,0,1-8.15793,5.02308,22.23329,22.23329,0,0,1-6.76276-2.00629,51.23237,51.23237,0,0,1-9.18151-5.8151,107.59183,107.59183,0,0,1-32.936-46.7072c-.18746-.51334-.39218-1.0204-.72243-1.87691a194.65008,194.65008,0,0,1-25.01223,14.00774,181.66925,181.66925,0,0,1-26.6869,9.72442,187.55649,187.55649,0,0,1-28.3045,5.38805c.16807.84015.26446,1.5098.43745,2.15907a109.172,109.172,0,0,1,2.9708,36.44311,80.804,80.804,0,0,1-4.42286,22.4773,78.24971,78.24971,0,0,1-4.16475,8.74473,13.39,13.39,0,0,1-2.33865,2.97083c-3.98009,4.109-8.73225,4.144-12.61157-.07366a27.28012,27.28012,0,0,1-3.907-5.61776c-3.07685-5.77569-4.6604-12.056-5.791-18.46021a116.86329,116.86329,0,0,1-1.35893-26.465,94.4795,94.4795,0,0,1,2.88466-19.18513c.14009-.53269.268-1.0696.37134-1.61034.02629-.13754-.06342-.2973-.17067-.73825a176.12108,176.12108,0,0,1-80.96855-24.99386c-.40992.90921-.76206,1.67473-1.10168,2.44579a110.47729,110.47729,0,0,1-30.90112,41.42041,38.16071,38.16071,0,0,1-12.04706,6.95909,12.08987,12.08987,0,0,1-6.51516.70023,7.11858,7.11858,0,0,1-5.40329-4.4892c-1.41614-3.424-1.16526-6.985-.68438-10.51691a55.45267,55.45267,0,0,1,4.30768-14.25037A112.49985,112.49985,0,0,1,134.88761,380.779c.459-.43461.92981-.857,1.38087-1.29954a3.76029,3.76029,0,0,0,.36534-.65529,178.90466,178.90466,0,0,1-28.469-31.31672c.98458-.08018,1.64327-.18,2.30205-.1806,10.51436-.00976,21.029.02736,31.54284-.04358a4.70554,4.70554,0,0,1,3.70344,1.62615,146.94611,146.94611,0,0,0,39.40276,28.88494,139.94667,139.94667,0,0,0,49.70395,14.77367q70.68048,6.87067,121.59971-42.85452a7.64571,7.64571,0,0,1,5.99261-2.44347c9.80139.12121,19.60512.04986,29.408.04986h2.53353Z'
 			]
 		},
-		'flux': {
+		flux: {
 			// Official FluxCD Logo from Simple Icons/CNCF
 			viewBox: '0 0 24 24',
 			fill: true,
@@ -54,42 +80,40 @@
 		'sideways-git': {
 			viewBox: '0 0 24 24',
 			stroke: true,
-			paths: [
-				'M6 12h12M15 8l3 4-3 4M8 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0'
-			]
+			paths: ['M6 12h12M15 8l3 4-3 4M8 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0']
 		}
 	};
 
 	const lucideIcons: Record<string, any> = {
 		'git-fork': GitFork,
 		'git-branch': GitBranch,
-		'library': Library,
-		'package': Package2,
-		'cloud': Cloud,
+		library: Library,
+		package: Package2,
+		cloud: Cloud,
 		'file-cog': FileCog,
-		'ship': Ship,
+		ship: Ship,
 		'shield-alert': ShieldAlert,
-		'radio': Radio,
-		'activity': Activity,
+		radio: Radio,
+		activity: Activity,
 		'refresh-cw': RefreshCw,
 		'folder-git': FolderGit,
-		'puzzle': Puzzle,
+		puzzle: Puzzle,
 		'ship-wheel': ShipWheel,
-		'dashboard': LayoutDashboard,
-		'bell': Bell,
-		'layers': Layers,
-		'search': Search,
-		'x': X,
-		'sun': Sun,
-		'moon': Moon,
-		'monitor': Monitor,
-		'check': Check,
+		dashboard: LayoutDashboard,
+		bell: Bell,
+		layers: Layers,
+		search: Search,
+		x: X,
+		sun: Sun,
+		moon: Moon,
+		monitor: Monitor,
+		check: Check,
 		'chevron-right': ChevronRight,
-		'settings': Settings,
-		'menu': Menu,
-		'play': Play,
-		'pause': Pause,
-		'loader': Loader2,
+		settings: Settings,
+		menu: Menu,
+		play: Play,
+		pause: Pause,
+		loader: Loader2,
 		'chevron-down': ChevronDown,
 		'chevron-up': ChevronUp
 	};
@@ -104,9 +128,9 @@
 		width={size}
 		height={size}
 		viewBox={customIcon.viewBox}
-		fill={customIcon.fill ? "currentColor" : "none"}
-		stroke={customIcon.stroke ? "currentColor" : "none"}
-		stroke-width={customIcon.stroke ? (customIcon.strokeWidth || "2") : "0"}
+		fill={customIcon.fill ? 'currentColor' : 'none'}
+		stroke={customIcon.stroke ? 'currentColor' : 'none'}
+		stroke-width={customIcon.stroke ? customIcon.strokeWidth || '2' : '0'}
 		stroke-linecap="round"
 		stroke-linejoin="round"
 		{...restProps}
@@ -116,5 +140,5 @@
 		{/each}
 	</svg>
 {:else if IconComponent}
-	<IconComponent size={size} {...restProps} />
+	<IconComponent {size} {...restProps} />
 {/if}

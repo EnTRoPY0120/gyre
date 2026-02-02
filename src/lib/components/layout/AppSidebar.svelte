@@ -37,10 +37,10 @@
 
 	// Tracking which groups are expanded
 	let expandedGroups = $state<Record<string, boolean>>({
-		'Sources': true,
-		'Kustomize': true,
-		'Helm': true,
-		'Notifications': true,
+		Sources: true,
+		Kustomize: true,
+		Helm: true,
+		Notifications: true,
 		'Image Automation': true
 	});
 
@@ -49,10 +49,10 @@
 	}
 
 	const GroupIcons: Record<string, string> = {
-		'Sources': 'sideways-git',
-		'Kustomize': 'kustomize',
-		'Helm': 'helm',
-		'Notifications': 'bell',
+		Sources: 'sideways-git',
+		Kustomize: 'kustomize',
+		Helm: 'helm',
+		Notifications: 'bell',
 		'Image Automation': 'layers'
 	};
 
@@ -78,69 +78,122 @@
 </script>
 
 {#if isOpen}
-	<aside class="flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out">
+	<aside
+		class="relative z-50 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground shadow-2xl backdrop-blur-xl transition-all duration-300 ease-in-out"
+	>
 		<!-- Header -->
-		<div class="flex h-14 items-center justify-between border-b border-sidebar-border px-4">
-			<a href="/" class="flex items-center gap-2 text-lg font-bold tracking-tight font-display">
-				<div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-					<Icon name="dashboard" size={18} />
+		<div class="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
+			<a
+				href="/"
+				class="group flex items-center gap-3 font-display text-lg font-black tracking-tighter uppercase"
+			>
+				<div
+					class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(234,179,8,0.5)]"
+				>
+					<Icon name="flux" size={20} />
 				</div>
-				<span class="bg-gradient-to-br from-foreground to-muted-foreground bg-clip-text text-transparent">Gyre</span>
+				<span
+					class="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent transition-all group-hover:to-foreground"
+					>Gyre</span
+				>
 			</a>
-			<button 
+			<button
 				onclick={() => sidebarOpen.toggle()}
-				class="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+				class="rounded-lg p-2 text-muted-foreground transition-all hover:scale-105 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95"
 				title="Collapse Sidebar"
 			>
-				<Icon name="chevron-right" size={18} class="rotate-180" />
+				<Icon name="chevron-right" size={16} class="rotate-180" />
 			</button>
 		</div>
 
 		<!-- Nav -->
-		<div class="flex-1 overflow-y-auto px-3 py-4 space-y-1 scrollbar-hide">
+		<div class="scrollbar-hide flex-1 space-y-2 overflow-y-auto px-4 py-6">
 			<!-- Dashboard -->
-			<a href="/" class={cn(
-				"flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all duration-200",
-				currentPath === '/' 
-					? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm ring-1 ring-border" 
-					: "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
-			)}>
-				<Icon name="dashboard" size={16} />
+			<a
+				href="/"
+				class={cn(
+					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
+					currentPath === '/'
+						? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.2)]'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+				)}
+			>
+				<Icon
+					name="dashboard"
+					size={18}
+					class={cn(
+						'transition-transform group-hover:scale-110',
+						currentPath === '/' && 'animate-pulse'
+					)}
+				/>
 				Dashboard
 			</a>
 
+			<div class="mx-2 my-4 h-px bg-sidebar-border/50"></div>
+
 			<!-- Groups -->
 			{#each resourceGroups as group}
-				<div class="mt-4 space-y-1">
-					<button 
+				<div class="space-y-1">
+					<button
 						onclick={() => toggleGroup(group.name)}
-						class="group flex w-full items-center justify-between px-2 py-1.5 text-xs font-black uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground font-display transition-colors"
+						class="group flex w-full items-center justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
 					>
-                        <div class="flex items-center gap-2">
-                            {#if GroupIcons[group.name]}
-                                 <Icon name={GroupIcons[group.name]} size={12} class="transition-transform group-hover:scale-110" />
-                            {/if}
-						    {group.name}
-                        </div>
-                        <Icon 
-							name="chevron-right" 
-							size={12} 
-							class={cn("transition-transform duration-200", expandedGroups[group.name] ? "rotate-90" : "rotate-0")} 
+						<div class="flex items-center gap-2.5">
+							{#if GroupIcons[group.name]}
+								<Icon
+									name={GroupIcons[group.name]}
+									size={14}
+									class="opacity-50 transition-all group-hover:text-primary group-hover:opacity-100"
+								/>
+							{/if}
+							{group.name}
+						</div>
+						<Icon
+							name="chevron-right"
+							size={12}
+							class={cn(
+								'text-muted-foreground/50 transition-transform duration-300 group-hover:text-primary',
+								expandedGroups[group.name] ? 'rotate-90' : 'rotate-0'
+							)}
 						/>
 					</button>
-					
+
 					{#if expandedGroups[group.name]}
-						<div class="space-y-0.5 ml-1 border-l border-sidebar-border/50 pl-2">
+						<div class="relative ml-2 space-y-1 border-l border-sidebar-border/30 pl-3">
+							<!-- Active indicator line -->
+							<div
+								class="absolute top-0 bottom-0 left-[-1px] w-[1px] bg-gradient-to-b from-primary/0 via-primary/0 to-primary/0 transition-all duration-300 group-hover:via-primary/50"
+							></div>
+
 							{#each group.resources as resource}
 								{@const iconName = ResourceIcons[resource.type] || 'file-cog'}
-								<a href="/resources/{resource.type}" class={cn(
-									"flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-all duration-200",
-									isActive(resource.type) 
-										? "bg-sidebar-accent/80 text-sidebar-accent-foreground font-medium shadow-sm ring-1 ring-border" 
-										: "text-muted-foreground hover:bg-sidebar-accent/30 hover:text-sidebar-accent-foreground"
-								)}>
-									<Icon name={iconName} size={14} />
-									<span>{resource.displayName}</span>
+								{@const active = isActive(resource.type)}
+								<a
+									href="/resources/{resource.type}"
+									class={cn(
+										'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+										active
+											? 'border border-primary/20 bg-primary/10 text-primary'
+											: 'text-muted-foreground/80 hover:bg-sidebar-accent/50 hover:text-foreground'
+									)}
+								>
+									{#if active}
+										<div class="absolute inset-0 animate-pulse bg-primary/5"></div>
+									{/if}
+									<Icon
+										name={iconName}
+										size={16}
+										class={cn(
+											'transition-transform duration-300 group-hover/item:scale-110',
+											active && 'text-primary'
+										)}
+									/>
+									<span class="relative z-10">{resource.displayName}</span>
+									{#if active}
+										<div
+											class="absolute right-2 size-1.5 rounded-full bg-primary shadow-[0_0_5px_rgba(234,179,8,0.5)]"
+										></div>
+									{/if}
 								</a>
 							{/each}
 						</div>
@@ -150,16 +203,28 @@
 		</div>
 
 		<!-- Footer -->
-		<div class="border-t border-sidebar-border p-4 bg-muted/10">
-			<div class="flex items-center gap-3 rounded-lg border border-sidebar-border bg-sidebar-accent/30 p-3 backdrop-blur-sm">
-				<div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-black text-primary border border-primary/20">
-					VP
+		<div class="border-t border-sidebar-border bg-sidebar/50 p-4 backdrop-blur-md">
+			<div
+				class="group flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/20 p-3.5 transition-all hover:border-primary/30 hover:bg-sidebar-accent/40"
+			>
+				<div
+					class="flex h-9 w-9 items-center justify-center rounded-lg border border-sidebar-primary/20 bg-sidebar-primary/10 text-xs font-black text-sidebar-primary shadow-inner transition-transform group-hover:scale-110"
+				>
+					FL
 				</div>
 				<div class="flex-1 overflow-hidden">
-					<p class="truncate text-sm font-semibold tracking-tight">Flux Cluster</p>
-					<div class="flex items-center gap-1">
-						<div class="size-1.5 rounded-full bg-green-500 animate-pulse"></div>
-						<p class="truncate text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{fluxVersion}</p>
+					<p class="truncate text-xs font-bold tracking-wide text-foreground uppercase">
+						Flux Controller
+					</p>
+					<div class="mt-0.5 flex items-center gap-1.5">
+						<div
+							class="size-1.5 animate-pulse rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+						></div>
+						<p
+							class="truncate font-mono text-[10px] font-medium text-muted-foreground transition-colors group-hover:text-primary"
+						>
+							{fluxVersion}
+						</p>
 					</div>
 				</div>
 			</div>
@@ -167,28 +232,37 @@
 	</aside>
 {:else}
 	<!-- Collapsed -->
-	<aside class="flex h-screen w-16 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 transition-all duration-300 ease-in-out">
-		<button 
+	<aside
+		class="flex h-screen w-16 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 transition-all duration-300 ease-in-out"
+	>
+		<button
 			onclick={() => sidebarOpen.toggle()}
-			class="mb-6 rounded-md p-2 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all active:scale-95"
+			class="mb-6 rounded-md p-2 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95"
 		>
 			<Icon name="menu" size={22} />
 		</button>
 
-		<a href="/" class={cn(
-			"mb-4 rounded-xl p-3 transition-all active:scale-95",
-			currentPath === '/' 
-				? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-				: "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-		)} title="Dashboard">
+		<a
+			href="/"
+			class={cn(
+				'mb-4 rounded-xl p-3 transition-all active:scale-95',
+				currentPath === '/'
+					? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+					: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+			)}
+			title="Dashboard"
+		>
 			<Icon name="dashboard" size={20} />
 		</a>
-		
-		<div class="flex flex-col items-center gap-1 mt-6 w-full px-2">
+
+		<div class="mt-6 flex w-full flex-col items-center gap-1 px-2">
 			{#each resourceGroups as group}
-				<button 
-					onclick={() => { sidebarOpen.set(true); expandedGroups[group.name] = true; }}
-					class="p-2.5 text-muted-foreground hover:text-primary transition-colors duration-200"
+				<button
+					onclick={() => {
+						sidebarOpen.set(true);
+						expandedGroups[group.name] = true;
+					}}
+					class="p-2.5 text-muted-foreground transition-colors duration-200 hover:text-primary"
 					title={group.name}
 				>
 					{#if GroupIcons[group.name]}
