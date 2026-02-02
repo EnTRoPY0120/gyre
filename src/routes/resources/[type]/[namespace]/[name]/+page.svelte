@@ -3,6 +3,9 @@
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';
 	import ConditionList from '$lib/components/flux/ConditionList.svelte';
+	import GitRepositoryDetail from '$lib/components/flux/resources/GitRepositoryDetail.svelte';
+	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
+	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
 
 	interface Props {
@@ -39,6 +42,12 @@
 
 	// Get conditions safely
 	const conditions = $derived<K8sCondition[]>(data.resource.status?.conditions || []);
+
+	// Detect resource type for specialized views
+	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
+	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
+	const isKustomization = $derived(data.resourceType === 'kustomizations');
+	const hasSpecializedView = $derived(isGitRepository || isHelmRelease || isKustomization);
 </script>
 
 <div class="space-y-6">
@@ -94,6 +103,7 @@
 	<!-- Tab Content -->
 	<div class="pt-2">
 		{#if activeTab === 'overview'}
+			<!-- Metadata and Conditions (always shown) -->
 			<div class="grid gap-6 lg:grid-cols-2">
 				<!-- Metadata Card -->
 				<div class="rounded-lg border border-gray-200 bg-white p-6">
@@ -106,10 +116,19 @@
 					<h3 class="mb-4 text-lg font-semibold text-gray-900">Conditions</h3>
 					<ConditionList {conditions} />
 				</div>
+			</div>
 
-				<!-- Configuration Card -->
-				{#if data.resource.spec}
-					<div class="rounded-lg border border-gray-200 bg-white p-6 lg:col-span-2">
+			<!-- Resource-Specific Details -->
+			<div class="mt-6">
+				{#if isGitRepository}
+					<GitRepositoryDetail resource={data.resource} />
+				{:else if isHelmRelease}
+					<HelmReleaseDetail resource={data.resource} />
+				{:else if isKustomization}
+					<KustomizationDetail resource={data.resource} />
+				{:else if data.resource.spec}
+					<!-- Generic Configuration Card for other resource types -->
+					<div class="rounded-lg border border-gray-200 bg-white p-6">
 						<h3 class="mb-4 text-lg font-semibold text-gray-900">Configuration</h3>
 						<dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 							{#each Object.entries(data.resource.spec).slice(0, 9) as [key, value]}
