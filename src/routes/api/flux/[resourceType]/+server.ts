@@ -1,6 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { listFluxResources } from '$lib/server/kubernetes/client.js';
+import { listFluxResources, createFluxResource } from '$lib/server/kubernetes/client.js';
 import {
 	getAllResourcePlurals,
 	getResourceTypeByPlural,
@@ -87,6 +87,53 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 		});
 
 		return json(resources);
+	} catch (err) {
+		const { status, body } = errorToHttpResponse(err);
+		return error(status, body.error);
+	}
+};
+
+/**
+ * POST /api/flux/{resourceType}
+ * Create a new resource
+ */
+export const POST: RequestHandler = async ({ params, locals, request }) => {
+	// Check authentication
+	if (!locals.user) {
+		return error(401, { message: 'Authentication required' });
+	}
+
+	const { resourceType } = params;
+	const body = await request.json();
+	const namespace = body.metadata?.namespace || 'default';
+
+	// Resolve resource type
+	const resolvedType = getResourceTypeByPlural(resourceType);
+	if (!resolvedType) {
+		return error(400, { message: `Invalid resource type: ${resourceType}` });
+	}
+
+	// Check permission
+	const hasPermission = await checkPermission(
+		locals.user,
+		'create',
+		resolvedType,
+		namespace,
+		locals.cluster
+	);
+
+	if (!hasPermission) {
+		return error(403, { message: 'Permission denied' });
+	}
+
+	try {
+		const result = await createFluxResource(resolvedType, namespace, body, locals.cluster);
+
+		// Invalidate cache
+		const cacheKey = `${resolvedType}-${locals.cluster || 'default'}-${locals.user.id}`;
+		apiCache.delete(cacheKey);
+
+		return json(result);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);
 		return error(status, body.error);

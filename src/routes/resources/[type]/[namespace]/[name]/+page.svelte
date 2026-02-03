@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { websocketStore } from '$lib/stores/websocket.svelte';
-	import { onMount, onUnmount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
 	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';

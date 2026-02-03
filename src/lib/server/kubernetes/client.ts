@@ -227,6 +227,73 @@ export async function getFluxResourceStatus(
 }
 
 /**
+ * Create a new FluxCD resource
+ */
+export async function createFluxResource(
+	resourceType: FluxResourceType,
+	namespace: string,
+	body: any,
+	context?: string
+): Promise<FluxResource> {
+	const resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	const api = getCustomObjectsApi(context);
+
+	try {
+		const response = await api.createNamespacedCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural,
+			body
+		});
+
+		return response as unknown as FluxResource;
+	} catch (error) {
+		throw handleK8sError(error, `create ${resourceType} in ${namespace}`);
+	}
+}
+
+/**
+ * Update (Patch) an existing FluxCD resource
+ */
+export async function updateFluxResource(
+	resourceType: FluxResourceType,
+	namespace: string,
+	name: string,
+	body: any,
+	context?: string
+): Promise<FluxResource> {
+	const resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	const api = getCustomObjectsApi(context);
+
+	try {
+		const response = await api.patchNamespacedCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural,
+			name,
+			body,
+			options: {
+				headers: { 'Content-Type': 'application/merge-patch+json' }
+			}
+		});
+
+		return response as unknown as FluxResource;
+	} catch (error) {
+		throw handleK8sError(error, `patch ${resourceType} ${namespace}/${name}`);
+	}
+}
+
+/**
  * Get a generic Kubernetes resource (Core/Apps)
  */
 export async function getGenericResource(
