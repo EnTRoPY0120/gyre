@@ -96,6 +96,34 @@ class ResourceCacheStore {
 		this.resourceCache = {};
 		this.listCache = {};
 	}
+
+	async fetchList(type: string, namespace?: string): Promise<FluxResource[]> {
+		const url = namespace ? `/api/flux/${type}?namespace=${namespace}` : `/api/flux/${type}`;
+		try {
+			const res = await fetch(url);
+			if (!res.ok) throw new Error(`Failed to fetch ${type} list`);
+			const data = await res.json();
+			const items = data.resources || [];
+			this.setList(type, items, namespace);
+			return items;
+		} catch (err) {
+			console.error(`Error fetching ${type} list:`, err);
+			return [];
+		}
+	}
+
+	async fetchResource(type: string, namespace: string, name: string): Promise<FluxResource | null> {
+		try {
+			const res = await fetch(`/api/flux/${type}/${namespace}/${name}`);
+			if (!res.ok) throw new Error(`Failed to fetch ${type}/${namespace}/${name}`);
+			const resource = await res.json();
+			this.setResource(type, namespace, name, resource);
+			return resource;
+		} catch (err) {
+			console.error(`Error fetching resource ${type}/${namespace}/${name}:`, err);
+			return null;
+		}
+	}
 }
 
 export const resourceCache = new ResourceCacheStore();

@@ -2,7 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
 import { dashboards, dashboardWidgets } from '$lib/server/db/schema';
-import { eq, or, and, desc } from 'drizzle-orm';
+import { eq, or, desc } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 
 function generateId(): string {
@@ -22,17 +22,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	try {
-        // Fetch dashboards that are either owned by the user, or shared, or default
+		// Fetch dashboards that are either owned by the user, or shared, or default
 		const userDashboards = await db.query.dashboards.findMany({
 			where: or(
-                eq(dashboards.ownerId, user.id),
-                eq(dashboards.isShared, true),
-                eq(dashboards.isDefault, true)
-            ),
+				eq(dashboards.ownerId, user.id),
+				eq(dashboards.isShared, true),
+				eq(dashboards.isDefault, true)
+			),
 			orderBy: [desc(dashboards.createdAt)],
-            with: {
-                widgets: true
-            }
+			with: {
+				widgets: true
+			}
 		});
 
 		return json(userDashboards);
@@ -54,9 +54,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return error(401, 'Unauthorized');
 	}
 
-    if (user.role === 'viewer') {
-        return error(403, 'Viewers cannot create dashboards');
-    }
+	if (user.role === 'viewer') {
+		return error(403, 'Viewers cannot create dashboards');
+	}
 
 	try {
 		const body = await request.json();
@@ -67,7 +67,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		const dashboardId = generateId();
-        const now = new Date();
+		const now = new Date();
 
 		await db.insert(dashboards).values({
 			id: dashboardId,
@@ -77,33 +77,33 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			isShared: !!isShared,
 			isDefault: !!isDefault, // Only admins should generally set this, but we'll allow for now or add check
 			layout: layout ? JSON.stringify(layout) : null,
-            createdAt: now,
-            updatedAt: now
+			createdAt: now,
+			updatedAt: now
 		});
 
-        // Insert widgets if provided
-        if (widgets && Array.isArray(widgets) && widgets.length > 0) {
-            const newWidgets = widgets.map((w: any) => ({
-                id: generateId(),
-                dashboardId: dashboardId,
-                type: w.type,
-                title: w.title,
-                resourceType: w.resourceType,
-                query: w.query,
-                config: w.config ? JSON.stringify(w.config) : null,
-                position: w.position ? JSON.stringify(w.position) : null,
-                createdAt: now
-            }));
-            
-            await db.insert(dashboardWidgets).values(newWidgets);
-        }
+		// Insert widgets if provided
+		if (widgets && Array.isArray(widgets) && widgets.length > 0) {
+			const newWidgets = widgets.map((w: any) => ({
+				id: generateId(),
+				dashboardId: dashboardId,
+				type: w.type,
+				title: w.title,
+				resourceType: w.resourceType,
+				query: w.query,
+				config: w.config ? JSON.stringify(w.config) : null,
+				position: w.position ? JSON.stringify(w.position) : null,
+				createdAt: now
+			}));
 
-        const newDashboard = await db.query.dashboards.findFirst({
-            where: eq(dashboards.id, dashboardId),
-            with: {
-                widgets: true
-            }
-        });
+			await db.insert(dashboardWidgets).values(newWidgets);
+		}
+
+		const newDashboard = await db.query.dashboards.findFirst({
+			where: eq(dashboards.id, dashboardId),
+			with: {
+				widgets: true
+			}
+		});
 
 		return json(newDashboard);
 	} catch (err) {

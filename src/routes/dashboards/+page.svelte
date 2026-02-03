@@ -2,7 +2,7 @@
 	import { dashboardStore } from '$lib/stores/dashboards.svelte';
 	import { onMount } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Plus, LayoutDashboard, MoreVertical, Trash, Edit } from 'lucide-svelte';
+	import { Plus, LayoutDashboard, Trash, Edit } from 'lucide-svelte';
 	import { fade } from 'svelte/transition';
 
 	onMount(() => {
@@ -33,7 +33,7 @@
 	{#if dashboardStore.loading}
 		<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
 			{#each Array(3) as _}
-				<div class="h-40 animate-pulse rounded-xl bg-card border border-border/50"></div>
+				<div class="h-40 animate-pulse rounded-xl border border-border/50 bg-card"></div>
 			{/each}
 		</div>
 	{:else if dashboardStore.error}
@@ -41,10 +41,13 @@
 			{dashboardStore.error}
 		</div>
 	{:else if dashboardStore.dashboards.length === 0}
-		<div class="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed text-muted-foreground">
+		<div
+			class="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed text-muted-foreground"
+		>
 			<LayoutDashboard class="mb-4 size-10 opacity-20" />
 			<p>No dashboards found</p>
-			<Button variant="link" href="/dashboards/new" class="mt-2">Create your first dashboard</Button>
+			<Button variant="link" href="/dashboards/new" class="mt-2">Create your first dashboard</Button
+			>
 		</div>
 	{:else}
 		<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -56,13 +59,15 @@
 					<div>
 						<div class="flex items-start justify-between">
 							<a href="/dashboards/{dashboard.id}" class="hover:underline">
-								<h3 class="font-semibold text-lg">{dashboard.name}</h3>
+								<h3 class="text-lg font-semibold">{dashboard.name}</h3>
 							</a>
 							{#if dashboard.isDefault}
-								<span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">Default</span>
+								<span class="rounded bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+									>Default</span
+								>
 							{/if}
 						</div>
-						<p class="mt-2 text-sm text-muted-foreground line-clamp-2">
+						<p class="mt-2 line-clamp-2 text-sm text-muted-foreground">
 							{dashboard.description || 'No description provided.'}
 						</p>
 					</div>
@@ -71,24 +76,24 @@
 						<span class="text-xs text-muted-foreground">
 							{dashboard.widgets?.length || 0} widgets
 						</span>
-						
+
 						<div class="flex gap-2">
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-8 w-8 text-muted-foreground hover:text-foreground"
-                                href="/dashboards/{dashboard.id}/edit"
-                            >
-                                <Edit class="size-4" />
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                class="h-8 w-8 text-muted-foreground hover:text-red-500"
-                                onclick={() => handleDelete(dashboard.id)}
-                            >
-                                <Trash class="size-4" />
-                            </Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								class="h-8 w-8 text-muted-foreground hover:text-foreground"
+								href="/dashboards/{dashboard.id}/edit"
+							>
+								<Edit class="size-4" />
+							</Button>
+							<Button
+								variant="ghost"
+								size="icon"
+								class="h-8 w-8 text-muted-foreground hover:text-red-500"
+								onclick={() => handleDelete(dashboard.id)}
+							>
+								<Trash class="size-4" />
+							</Button>
 						</div>
 					</div>
 				</div>
