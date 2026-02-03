@@ -18,7 +18,7 @@ import { checkPermission } from '$lib/server/rbac.js';
 const apiCache = new Map<string, { data: unknown; timestamp: number }>();
 const API_CACHE_TTL = 15 * 1000; // 15 seconds
 
-export const GET: RequestHandler = async ({ params, locals, setHeaders }) => {
+export const GET: RequestHandler = async ({ params, locals, setHeaders, request }) => {
 	// Check authentication
 	if (!locals.user) {
 		return error(401, { message: 'Authentication required' });
@@ -57,7 +57,7 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders }) => {
 	// Return cached data if still valid
 	if (cached && Date.now() - cached.timestamp < API_CACHE_TTL) {
 		setHeaders({
-			'Cache-Control': 'private, max-age=15',
+			'Cache-Control': 'private, max-age=15, stale-while-revalidate=45',
 			'X-Cache': 'HIT'
 		});
 		return json(cached.data);
@@ -66,11 +66,23 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders }) => {
 	try {
 		const resources = await listFluxResources(resolvedType, locals.cluster);
 
+		// Generate ETag from resourceVersion
+		const resourceVersion = resources.metadata?.resourceVersion;
+		const etag = resourceVersion ? `W/"${resourceVersion}"` : null;
+
+		if (etag) {
+			const ifNoneMatch = request.headers.get('if-none-match');
+			if (ifNoneMatch === etag) {
+				return new Response(null, { status: 304 });
+			}
+			setHeaders({ 'ETag': etag });
+		}
+
 		// Store in cache
 		apiCache.set(cacheKey, { data: resources, timestamp: Date.now() });
 
 		setHeaders({
-			'Cache-Control': 'private, max-age=15',
+			'Cache-Control': 'private, max-age=15, stale-while-revalidate=45',
 			'X-Cache': 'MISS'
 		});
 

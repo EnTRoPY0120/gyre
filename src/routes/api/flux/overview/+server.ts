@@ -4,7 +4,10 @@ import { listFluxResources } from '$lib/server/kubernetes/client';
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { getResourceStatus } from '$lib/utils/relationships';
 
-export const GET: RequestHandler = async ({ cookies }) => {
+export const GET: RequestHandler = async ({ cookies, setHeaders }) => {
+	setHeaders({
+		'Cache-Control': 'private, max-age=15, stale-while-revalidate=45'
+	});
 	const context = cookies.get('gyre_cluster');
 	const resourceTypes = getAllResourceTypes();
 

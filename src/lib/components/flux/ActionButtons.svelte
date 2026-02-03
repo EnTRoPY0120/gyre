@@ -4,6 +4,7 @@
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
 	import type { FluxResource } from '$lib/types/flux';
 	import { RefreshCw, Play, Pause, Loader2 } from 'lucide-svelte';
+	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 
 	let {
 		resource,
@@ -27,6 +28,17 @@
 		isLoading = true;
 		error = null;
 
+		// Store original for rollback
+		const originalResource = JSON.parse(JSON.stringify(resource));
+
+		// Optimistic update for suspend/resume
+		if (action === 'suspend' || action === 'resume') {
+			const optimisticResource = JSON.parse(JSON.stringify(resource));
+			optimisticResource.spec = optimisticResource.spec || {};
+			optimisticResource.spec.suspend = action === 'suspend';
+			resourceCache.setResource(type, namespace, name, optimisticResource);
+		}
+
 		try {
 			const response = await fetch(`/api/flux/${type}/${namespace}/${name}/${action}`, {
 				method: 'POST'
@@ -37,11 +49,15 @@
 				throw new Error(data.message || `Failed to ${action} resource`);
 			}
 
-			// Success! Invalidate to refresh data
+			// Success! Invalidate to refresh data from server
 			await invalidate(`flux:resource:${type}:${namespace}:${name}`);
 		} catch (err) {
+			// Rollback on error
+			if (action === 'suspend' || action === 'resume') {
+				resourceCache.setResource(type, namespace, name, originalResource);
+			}
 			error = (err as Error).message;
-			setTimeout(() => (error = null), 5000); // Clear error after 5s
+			setTimeout(() => (error = null), 5000);
 		} finally {
 			isLoading = false;
 		}

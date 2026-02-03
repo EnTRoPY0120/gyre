@@ -1,0 +1,131 @@
+<script lang="ts">
+	import { goto, invalidate } from '$app/navigation';
+	import { websocketStore } from '$lib/stores/websocket.svelte';
+	import { onMount } from 'svelte';
+	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
+	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
+	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';
+	import ConditionList from '$lib/components/flux/ConditionList.svelte';
+	import EventsList from '$lib/components/flux/EventsList.svelte';
+	import GitRepositoryDetail from '$lib/components/flux/resources/GitRepositoryDetail.svelte';
+	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
+	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
+	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
+	import type { FluxResource, K8sCondition } from '$lib/types/flux';
+	import { resourceCache } from '$lib/stores/resourceCache.svelte';
+
+	interface K8sEvent {
+		type: 'Normal' | 'Warning';
+		reason: string;
+		message: string;
+		count: number;
+		firstTimestamp: string | null;
+		lastTimestamp: string | null;
+		source: {
+			component: string;
+		};
+	}
+
+	interface Props {
+		data: {
+			resourceType: string;
+			resourceInfo: {
+				displayName: string;
+				singularName: string;
+				description: string;
+			};
+			namespace: string;
+			name: string;
+			resource: FluxResource;
+			inventoryResources?: any[];
+		};
+	}
+
+	let { data }: Props = $props();
+
+	// Make resource reactive via cache store with fallback to initial data
+	const resource = $derived(
+		resourceCache.getResource(data.resourceType, data.namespace, data.name) || data.resource
+	);
+
+	// Sync initial data to cache on mount
+	onMount(() => {
+		resourceCache.setResource(data.resourceType, data.namespace, data.name, data.resource);
+
+		const unsubscribe = websocketStore.onEvent((event) => {
+			if (
+				event.resource &&
+				event.resource.metadata.name === data.name &&
+				event.resource.metadata.namespace === data.namespace &&
+				event.resourceType === data.resource.kind
+			) {
+				invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
+			}
+		});
+		return unsubscribe;
+	});
+
+	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'yaml';
+
+	let activeTab = $state<TabId>('overview');
+
+	// Events state
+	let events = $state<K8sEvent[]>([]);
+	let eventsLoading = $state(false);
+	let eventsError = $state<string | null>(null);
+	let eventsFetched = $state(false);
+
+	const tabs: { id: TabId; label: string }[] = [
+		{ id: 'overview', label: 'Overview' },
+		{ id: 'spec', label: 'Spec' },
+		{ id: 'status', label: 'Status' },
+		{ id: 'events', label: 'Events' },
+		{ id: 'yaml', label: 'YAML' }
+	];
+
+	function goBack() {
+		goto(`/resources/${data.resourceType}`);
+	}
+
+	// Fetch events when the Events tab is selected
+	async function fetchEvents() {
+		if (eventsFetched) return;
+
+		eventsLoading = true;
+		eventsError = null;
+
+		try {
+			const response = await fetch(
+				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/events`
+			);
+
+			if (!response.ok) {
+				throw new Error(`Failed to fetch events: ${response.statusText}`);
+			}
+
+			const result = await response.json();
+			events = result.events || [];
+			eventsFetched = true;
+		} catch (err) {
+			eventsError = err instanceof Error ? err.message : 'Failed to load events';
+		} finally {
+			eventsLoading = false;
+		}
+	}
+
+	// Trigger fetch when switching to events tab
+	$effect(() => {
+		if (activeTab === 'events' && !eventsFetched) {
+			fetchEvents();
+		}
+	});
+
+	// Get conditions safely
+	const conditions = $derived<K8sCondition[]>(resource.status?.conditions || []);
+
+	// Detect resource type for specialized views
+	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
+	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
+	const isKustomization = $derived(data.resourceType === 'kustomizations');
+	const hasSpecializedView = $derived(isGitRepository || isHelmRelease || isKustomization);
+</script>

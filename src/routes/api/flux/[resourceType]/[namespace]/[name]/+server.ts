@@ -16,7 +16,7 @@ import { checkPermission } from '$lib/server/rbac.js';
  * Query params:
  * - status=true: Get resource status instead of full object
  */
-export const GET: RequestHandler = async ({ params, url, locals }) => {
+export const GET: RequestHandler = async ({ params, url, locals, request, setHeaders }) => {
 	// Check authentication
 	if (!locals.user) {
 		return error(401, { message: 'Authentication required' });
@@ -51,6 +51,23 @@ export const GET: RequestHandler = async ({ params, url, locals }) => {
 		const resource = getStatus
 			? await getFluxResourceStatus(resolvedType, namespace, name, locals.cluster)
 			: await getFluxResource(resolvedType, namespace, name, locals.cluster);
+
+		// Generate ETag from resourceVersion if available
+		const resourceVersion = resource.metadata?.resourceVersion;
+		if (resourceVersion) {
+			const etag = `W/"${resourceVersion}"`;
+			
+			// Check If-None-Match header
+			const ifNoneMatch = request.headers.get('if-none-match');
+			if (ifNoneMatch === etag) {
+				return new Response(null, { status: 304 });
+			}
+			
+			setHeaders({
+				'ETag': etag,
+				'Cache-Control': 'private, max-age=10, stale-while-revalidate=30'
+			});
+		}
 
 		return json(resource);
 	} catch (err) {

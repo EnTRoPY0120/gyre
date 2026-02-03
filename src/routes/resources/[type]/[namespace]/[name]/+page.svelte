@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { websocketStore } from '$lib/stores/websocket.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, onUnmount } from 'svelte';
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
 	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';
@@ -12,6 +12,7 @@
 	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
 	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
+	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 
 	interface K8sEvent {
 		type: 'Normal' | 'Warning';
@@ -42,8 +43,15 @@
 
 	let { data }: Props = $props();
 
-	// Real-time updates via SSE
+	// Make resource reactive via cache store with fallback to initial data
+	const resource = $derived(
+		resourceCache.getResource(data.resourceType, data.namespace, data.name) || data.resource
+	);
+
+	// Sync initial data to cache on mount
 	onMount(() => {
+		resourceCache.setResource(data.resourceType, data.namespace, data.name, data.resource);
+
 		const unsubscribe = websocketStore.onEvent((event) => {
 			if (
 				event.resource &&
@@ -113,7 +121,7 @@
 	});
 
 	// Get conditions safely
-	const conditions = $derived<K8sCondition[]>(data.resource.status?.conditions || []);
+	const conditions = $derived<K8sCondition[]>(resource.status?.conditions || []);
 
 	// Detect resource type for specialized views
 	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
