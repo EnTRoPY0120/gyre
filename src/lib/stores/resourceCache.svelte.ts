@@ -78,7 +78,7 @@ class ResourceCacheStore {
 		};
 
 		items.forEach((item) => {
-			this.setResource(type, item.metadata.namespace, item.metadata.name, item);
+			this.setResource(type, item.metadata.namespace || 'default', item.metadata.name, item);
 		});
 	}
 

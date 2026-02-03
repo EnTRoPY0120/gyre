@@ -116,7 +116,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	// Check permission
 	const hasPermission = await checkPermission(
 		locals.user,
-		'create',
+		'write',
 		resolvedType,
 		namespace,
 		locals.cluster

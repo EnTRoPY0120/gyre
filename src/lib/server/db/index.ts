@@ -28,6 +28,7 @@ export async function getDb() {
 		const sqlite = new Database(databaseUrl);
 		// Enable WAL mode for better concurrency
 		sqlite.pragma('journal_mode = WAL');
+		sqlite.pragma('foreign_keys = ON');
 		db = drizzle(sqlite, { schema });
 	}
 	return db;
@@ -38,6 +39,7 @@ export function getDbSync() {
 	if (!db) {
 		const sqlite = new Database(databaseUrl);
 		sqlite.pragma('journal_mode = WAL');
+		sqlite.pragma('foreign_keys = ON');
 		db = drizzle(sqlite, { schema });
 	}
 	return db;
@@ -61,5 +63,9 @@ export type {
 	RbacPolicy,
 	NewRbacPolicy,
 	RbacBinding,
-	NewRbacBinding
+	NewRbacBinding,
+	Dashboard,
+	NewDashboard,
+	DashboardWidget,
+	NewDashboardWidget
 } from './schema.js';

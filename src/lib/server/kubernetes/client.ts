@@ -282,10 +282,8 @@ export async function updateFluxResource(
 			plural: resourceDef.plural,
 			name,
 			body,
-			options: {
-				headers: { 'Content-Type': 'application/merge-patch+json' }
-			}
-		});
+			headers: { 'Content-Type': 'application/merge-patch+json' }
+		} as any);
 
 		return response as unknown as FluxResource;
 	} catch (error) {

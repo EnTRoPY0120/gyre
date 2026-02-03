@@ -125,6 +125,27 @@
 				Dashboard
 			</a>
 
+			<!-- Custom Dashboards -->
+			<a
+				href="/dashboards"
+				class={cn(
+					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
+					currentPath.startsWith('/dashboards')
+						? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.2)]'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+				)}
+			>
+				<Icon
+					name="layout-template"
+					size={18}
+					class={cn(
+						'transition-transform group-hover:scale-110',
+						currentPath.startsWith('/dashboards') && 'animate-pulse'
+					)}
+				/>
+				Custom Views
+			</a>
+
 			<!-- Inventory -->
 			<a
 				href="/inventory"
@@ -161,7 +182,7 @@
 				<div
 					class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white"
 				>
-					<Icon name="plus" size={14} strokeWidth={3} />
+					<Icon name="plus" size={14} />
 				</div>
 				Create Resource
 			</a>
@@ -290,6 +311,19 @@
 			title="Dashboard"
 		>
 			<Icon name="dashboard" size={20} />
+		</a>
+
+		<a
+			href="/dashboards"
+			class={cn(
+				'mb-4 rounded-xl p-3 transition-all active:scale-95',
+				currentPath.startsWith('/dashboards')
+					? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+					: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+			)}
+			title="Custom Views"
+		>
+			<Icon name="layout-template" size={20} />
 		</a>
 
 		<a
