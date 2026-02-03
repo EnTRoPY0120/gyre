@@ -125,6 +125,27 @@
 				Dashboard
 			</a>
 
+			<!-- Inventory -->
+			<a
+				href="/inventory"
+				class={cn(
+					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
+					currentPath === '/inventory'
+						? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.2)]'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+				)}
+			>
+				<Icon
+					name="network"
+					size={18}
+					class={cn(
+						'transition-transform group-hover:scale-110',
+						currentPath === '/inventory' && 'animate-pulse'
+					)}
+				/>
+				Inventory
+			</a>
+
 			<div class="mx-2 my-4 h-px bg-sidebar-border/50"></div>
 
 			<!-- Groups -->

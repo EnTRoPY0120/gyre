@@ -1,0 +1,320 @@
+/**
+ * Utilities for analyzing and mapping FluxCD resource relationships.
+ * 
+ * Relationship types in FluxCD:
+ * - Source → Kustomization: Kustomization references a source (GitRepository, OCIRepository, Bucket)
+ * - Source → HelmRelease: HelmRelease references a HelmRepository or GitRepository
+ * - Kustomization → Managed Resources: Kustomization manages K8s resources via inventory
+ * - HelmRelease → Managed Resources: HelmRelease manages K8s resources via inventory
+ * - ImagePolicy → ImageRepository: Policy uses repository for scanning
+ * - ImageUpdateAutomation → GitRepository: Updates commits to git repo
+ * - Alert → Provider: Alert sends to a provider
+ * - Receiver → Resources: Receiver can trigger reconciliation on resources
+ */
+
+import { FluxResourceType } from '$lib/types/flux';
+
+export interface ResourceRef {
+	kind: string;
+	name: string;
+	namespace: string;
+	apiVersion?: string;
+}
+
+export interface ResourceRelationship {
+	source: ResourceRef;
+	target: ResourceRef;
+	type: 'source' | 'manages' | 'uses' | 'triggers' | 'notifies';
+	label?: string;
+}
+
+export interface ResourceNode {
+	ref: ResourceRef;
+	status?: 'ready' | 'pending' | 'failed' | 'suspended';
+	children: ResourceNode[];
+	parent?: ResourceNode;
+}
+
+/**
+ * Extract the source reference from a Kustomization
+ */
+export function getKustomizationSourceRef(kustomization: any): ResourceRef | null {
+	const sourceRef = kustomization.spec?.sourceRef;
+	if (!sourceRef) return null;
+
+	return {
+		kind: sourceRef.kind,
+		name: sourceRef.name,
+		namespace: sourceRef.namespace || kustomization.metadata.namespace,
+		apiVersion: sourceRef.apiVersion
+	};
+}
+
+/**
+ * Extract the source reference from a HelmRelease
+ */
+export function getHelmReleaseSourceRef(helmRelease: any): ResourceRef | null {
+	const chart = helmRelease.spec?.chart;
+	if (!chart?.spec?.sourceRef) return null;
+
+	const sourceRef = chart.spec.sourceRef;
+	return {
+		kind: sourceRef.kind,
+		name: sourceRef.name,
+		namespace: sourceRef.namespace || helmRelease.metadata.namespace,
+		apiVersion: sourceRef.apiVersion
+	};
+}
+
+/**
+ * Extract ImageRepository reference from an ImagePolicy
+ */
+export function getImagePolicyRepositoryRef(imagePolicy: any): ResourceRef | null {
+	const imageRepoRef = imagePolicy.spec?.imageRepositoryRef;
+	if (!imageRepoRef) return null;
+
+	return {
+		kind: 'ImageRepository',
+		name: imageRepoRef.name,
+		namespace: imageRepoRef.namespace || imagePolicy.metadata.namespace
+	};
+}
+
+/**
+ * Extract GitRepository reference from ImageUpdateAutomation
+ */
+export function getImageUpdateAutomationGitRef(imageUpdateAutomation: any): ResourceRef | null {
+	const gitRepoRef = imageUpdateAutomation.spec?.sourceRef;
+	if (!gitRepoRef) return null;
+
+	return {
+		kind: gitRepoRef.kind || 'GitRepository',
+		name: gitRepoRef.name,
+		namespace: gitRepoRef.namespace || imageUpdateAutomation.metadata.namespace
+	};
+}
+
+/**
+ * Extract Provider reference from an Alert
+ */
+export function getAlertProviderRef(alert: any): ResourceRef | null {
+	const providerRef = alert.spec?.providerRef;
+	if (!providerRef) return null;
+
+	return {
+		kind: 'Provider',
+		name: providerRef.name,
+		namespace: alert.metadata.namespace
+	};
+}
+
+/**
+ * Extract event sources from an Alert (resources it watches)
+ */
+export function getAlertEventSources(alert: any): ResourceRef[] {
+	const eventSources = alert.spec?.eventSources || [];
+	return eventSources.map((source: any) => ({
+		kind: source.kind,
+		name: source.name,
+		namespace: source.namespace || alert.metadata.namespace,
+		matchLabels: source.matchLabels
+	}));
+}
+
+/**
+ * Extract resources that a Receiver can trigger
+ */
+export function getReceiverResources(receiver: any): ResourceRef[] {
+	const resources = receiver.spec?.resources || [];
+	return resources.map((resource: any) => ({
+		kind: resource.kind,
+		name: resource.name,
+		namespace: resource.namespace || receiver.metadata.namespace,
+		matchLabels: resource.matchLabels
+	}));
+}
+
+/**
+ * Determine the FluxResourceType from a kind string
+ */
+export function kindToFluxType(kind: string): FluxResourceType | null {
+	const mapping: Record<string, FluxResourceType> = {
+		GitRepository: FluxResourceType.GitRepository,
+		HelmRepository: FluxResourceType.HelmRepository,
+		HelmChart: FluxResourceType.HelmChart,
+		Bucket: FluxResourceType.Bucket,
+		OCIRepository: FluxResourceType.OCIRepository,
+		Kustomization: FluxResourceType.Kustomization,
+		HelmRelease: FluxResourceType.HelmRelease,
+		Alert: FluxResourceType.Alert,
+		Provider: FluxResourceType.Provider,
+		Receiver: FluxResourceType.Receiver,
+		ImageRepository: FluxResourceType.ImageRepository,
+		ImagePolicy: FluxResourceType.ImagePolicy,
+		ImageUpdateAutomation: FluxResourceType.ImageUpdateAutomation
+	};
+	return mapping[kind] || null;
+}
+
+/**
+ * Build a relationship map from a collection of FluxCD resources
+ */
+export function buildRelationshipMap(resources: {
+	kustomizations?: any[];
+	helmReleases?: any[];
+	gitRepositories?: any[];
+	helmRepositories?: any[];
+	ociRepositories?: any[];
+	buckets?: any[];
+	alerts?: any[];
+	providers?: any[];
+	receivers?: any[];
+	imagePolicies?: any[];
+	imageRepositories?: any[];
+	imageUpdateAutomations?: any[];
+}): ResourceRelationship[] {
+	const relationships: ResourceRelationship[] = [];
+
+	// Kustomization → Source
+	resources.kustomizations?.forEach((ks) => {
+		const sourceRef = getKustomizationSourceRef(ks);
+		if (sourceRef) {
+			relationships.push({
+				source: {
+					kind: 'Kustomization',
+					name: ks.metadata.name,
+					namespace: ks.metadata.namespace
+				},
+				target: sourceRef,
+				type: 'source',
+				label: 'uses source'
+			});
+		}
+	});
+
+	// HelmRelease → Source
+	resources.helmReleases?.forEach((hr) => {
+		const sourceRef = getHelmReleaseSourceRef(hr);
+		if (sourceRef) {
+			relationships.push({
+				source: {
+					kind: 'HelmRelease',
+					name: hr.metadata.name,
+					namespace: hr.metadata.namespace
+				},
+				target: sourceRef,
+				type: 'source',
+				label: 'uses chart from'
+			});
+		}
+	});
+
+	// ImagePolicy → ImageRepository
+	resources.imagePolicies?.forEach((ip) => {
+		const repoRef = getImagePolicyRepositoryRef(ip);
+		if (repoRef) {
+			relationships.push({
+				source: {
+					kind: 'ImagePolicy',
+					name: ip.metadata.name,
+					namespace: ip.metadata.namespace
+				},
+				target: repoRef,
+				type: 'uses',
+				label: 'scans'
+			});
+		}
+	});
+
+	// ImageUpdateAutomation → GitRepository
+	resources.imageUpdateAutomations?.forEach((iua) => {
+		const gitRef = getImageUpdateAutomationGitRef(iua);
+		if (gitRef) {
+			relationships.push({
+				source: {
+					kind: 'ImageUpdateAutomation',
+					name: iua.metadata.name,
+					namespace: iua.metadata.namespace
+				},
+				target: gitRef,
+				type: 'uses',
+				label: 'commits to'
+			});
+		}
+	});
+
+	// Alert → Provider
+	resources.alerts?.forEach((alert) => {
+		const providerRef = getAlertProviderRef(alert);
+		if (providerRef) {
+			relationships.push({
+				source: {
+					kind: 'Alert',
+					name: alert.metadata.name,
+					namespace: alert.metadata.namespace
+				},
+				target: providerRef,
+				type: 'notifies',
+				label: 'sends to'
+			});
+		}
+
+		// Alert → Event sources
+		const eventSources = getAlertEventSources(alert);
+		eventSources.forEach((source) => {
+			if (source.name !== '*') {
+				relationships.push({
+					source: source,
+					target: {
+						kind: 'Alert',
+						name: alert.metadata.name,
+						namespace: alert.metadata.namespace
+					},
+					type: 'triggers',
+					label: 'triggers'
+				});
+			}
+		});
+	});
+
+	// Receiver → Resources
+	resources.receivers?.forEach((receiver) => {
+		const targetResources = getReceiverResources(receiver);
+		targetResources.forEach((target) => {
+			relationships.push({
+				source: {
+					kind: 'Receiver',
+					name: receiver.metadata.name,
+					namespace: receiver.metadata.namespace
+				},
+				target,
+				type: 'triggers',
+				label: 'can trigger'
+			});
+		});
+	});
+
+	return relationships;
+}
+
+/**
+ * Get the status of a resource from its conditions
+ */
+export function getResourceStatus(resource: any): 'ready' | 'pending' | 'failed' | 'suspended' {
+	if (resource.spec?.suspend) return 'suspended';
+
+	const conditions = resource.status?.conditions || [];
+	const readyCondition = conditions.find((c: any) => c.type === 'Ready');
+
+	if (!readyCondition) return 'pending';
+	if (readyCondition.status === 'True') return 'ready';
+	if (readyCondition.status === 'False') return 'failed';
+	return 'pending';
+}
+
+/**
+ * Create a resource reference key for lookups
+ */
+export function resourceRefKey(ref: ResourceRef): string {
+	return `${ref.kind}/${ref.namespace}/${ref.name}`;
+}

@@ -1,0 +1,199 @@
+import type { PageServerLoad } from './$types';
+import { listFluxResources } from '$lib/server/kubernetes/client';
+import { type FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import { buildRelationshipMap, getResourceStatus, resourceRefKey } from '$lib/utils/relationships';
+import type { FluxResource } from '$lib/server/kubernetes/flux/types';
+import { parseInventory } from '$lib/server/kubernetes/flux/inventory';
+
+export const load: PageServerLoad = async ({ cookies }) => {
+	// Get current cluster context from cookie
+	const context = cookies.get('gyre_cluster');
+
+	// Fetch all Flux resources to build the relationship map
+	const resourceTypes: FluxResourceType[] = [
+		'Kustomization',
+		'HelmRelease',
+		'GitRepository',
+		'HelmRepository',
+		'OCIRepository',
+		'Bucket',
+		'Alert',
+		'Provider',
+		'Receiver',
+		'ImagePolicy',
+		'ImageRepository',
+		'ImageUpdateAutomation'
+	];
+
+	const results = await Promise.all(
+		resourceTypes.map(async (type) => {
+			try {
+				const data = await listFluxResources(type, context);
+				return { type, items: data.items || [] };
+			} catch {
+				return { type, items: [] };
+			}
+		})
+	);
+
+	// Map results to named arrays
+	const resourceMap: Record<string, FluxResource[]> = {};
+	results.forEach((r) => {
+		resourceMap[r.type] = r.items;
+	});
+
+	// Build relationships
+	const relationships = buildRelationshipMap({
+		kustomizations: resourceMap['Kustomization'],
+		helmReleases: resourceMap['HelmRelease'],
+		gitRepositories: resourceMap['GitRepository'],
+		helmRepositories: resourceMap['HelmRepository'],
+		ociRepositories: resourceMap['OCIRepository'],
+		buckets: resourceMap['Bucket'],
+		alerts: resourceMap['Alert'],
+		providers: resourceMap['Provider'],
+		receivers: resourceMap['Receiver'],
+		imagePolicies: resourceMap['ImagePolicy'],
+		imageRepositories: resourceMap['ImageRepository'],
+		imageUpdateAutomations: resourceMap['ImageUpdateAutomation']
+	});
+
+	// Create nodes for trees
+	function createNode(resource: FluxResource, kind: string): any {
+		const node: any = {
+			ref: {
+				kind,
+				name: resource.metadata.name,
+				namespace: resource.metadata.namespace
+			},
+			status: getResourceStatus(resource),
+			children: []
+		};
+
+		// If it's a Kustomization or HelmRelease, add its inventory as children
+		if ((kind === 'Kustomization' || kind === 'HelmRelease') && resource.status?.inventory) {
+			const inventory = parseInventory(resource.status.inventory.entries);
+			node.children.push(
+				...inventory.map((item) => ({
+					ref: {
+						kind: item.kind,
+						name: item.name,
+						namespace: item.namespace
+					},
+					status: 'ready', // Default for inventory items, we don't have live status here
+					children: []
+				}))
+			);
+		}
+
+		return node;
+	}
+
+	// Build categorized trees
+	// 1. Sources Tree (with Apps as children)
+	const sourceTrees = [
+		...resourceMap['GitRepository'].map((r) => createNode(r, 'GitRepository')),
+		...resourceMap['HelmRepository'].map((r) => createNode(r, 'HelmRepository')),
+		...resourceMap['OCIRepository'].map((r) => createNode(r, 'OCIRepository')),
+		...resourceMap['Bucket'].map((r) => createNode(r, 'Bucket'))
+	];
+
+	// 2. Applications Tree (Kustomizations and HelmReleases)
+	const appTrees = [
+		...resourceMap['Kustomization'].map((r) => createNode(r, 'Kustomization')),
+		...resourceMap['HelmRelease'].map((r) => createNode(r, 'HelmRelease'))
+	];
+
+	// Map Apps to Sources for the Sources tree
+	sourceTrees.forEach((sNode) => {
+		relationships
+			.filter(
+				(rel) =>
+					rel.type === 'source' &&
+					rel.target.kind === sNode.ref.kind &&
+					rel.target.name === sNode.ref.name &&
+					rel.target.namespace === sNode.ref.namespace
+			)
+			.forEach((rel) => {
+				const appNode = appTrees.find(
+					(an) => an.ref.name === rel.source.name && an.ref.namespace === rel.source.namespace
+				);
+				if (appNode) sNode.children.push(appNode);
+			});
+	});
+
+	// 3. Image Automation Tree (Repo -> Policy -> Automation)
+	const imageRepoNodes = resourceMap['ImageRepository'].map((r) => createNode(r, 'ImageRepository'));
+	const imagePolicyNodes = resourceMap['ImagePolicy'].map((r) => createNode(r, 'ImagePolicy'));
+	const imageAutomationNodes = resourceMap['ImageUpdateAutomation'].map((r) =>
+		createNode(r, 'ImageUpdateAutomation')
+	);
+
+	imageRepoNodes.forEach((repoNode) => {
+		relationships
+			.filter(
+				(rel) =>
+					rel.target.kind === 'ImageRepository' &&
+					rel.target.name === repoNode.ref.name &&
+					rel.target.namespace === repoNode.ref.namespace
+			)
+			.forEach((rel) => {
+				const policyNode = imagePolicyNodes.find(
+					(pn) => pn.ref.name === rel.source.name && pn.ref.namespace === rel.source.namespace
+				);
+				if (policyNode) repoNode.children.push(policyNode);
+			});
+	});
+
+	// 4. Notifications Tree (Provider -> Alert)
+	const providerNodes = resourceMap['Provider'].map((r) => createNode(r, 'Provider'));
+	const alertNodes = resourceMap['Alert'].map((r) => createNode(r, 'Alert'));
+	const receiverNodes = resourceMap['Receiver'].map((r) => createNode(r, 'Receiver'));
+
+	providerNodes.forEach((pNode) => {
+		relationships
+			.filter(
+				(rel) =>
+					rel.target.kind === 'Provider' &&
+					rel.target.name === pNode.ref.name &&
+					rel.target.namespace === pNode.ref.namespace
+			)
+			.forEach((rel) => {
+				const alertNode = alertNodes.find(
+					(an) => an.ref.name === rel.source.name && an.ref.namespace === rel.source.namespace
+				);
+				if (alertNode) pNode.children.push(alertNode);
+			});
+	});
+
+	// Summary stats
+	const stats = {
+		sources: sourceTrees.length,
+		applications: appTrees.length,
+		notifications: resourceMap['Alert'].length + resourceMap['Provider'].length + resourceMap['Receiver'].length,
+		imageAutomation: resourceMap['ImageRepository'].length + resourceMap['ImagePolicy'].length + resourceMap['ImageUpdateAutomation'].length,
+		totalRelationships: relationships.length,
+		ready: 0,
+		failed: 0,
+		suspended: 0
+	};
+
+	// Calculate overall stats
+	[...results.flatMap(r => r.items)].forEach(item => {
+		const status = getResourceStatus(item);
+		if (status === 'ready') stats.ready++;
+		else if (status === 'failed') stats.failed++;
+		else if (status === 'suspended') stats.suspended++;
+	});
+
+	return {
+		relationships,
+		trees: {
+			sources: sourceTrees,
+			applications: appTrees,
+			notifications: [...providerNodes, ...receiverNodes],
+			imageAutomation: imageRepoNodes
+		},
+		stats
+	};
+};
