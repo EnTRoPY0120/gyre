@@ -53,6 +53,7 @@
 
 <svelte:head>
 	<link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
+	<link rel="manifest" href="/manifest.json" />
 	<title>Gyre - FluxCD WebUI</title>
 	<meta
 		name="description"

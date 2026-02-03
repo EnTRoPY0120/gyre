@@ -152,6 +152,7 @@
 					class="flex size-8 items-center justify-center rounded-md border border-border bg-card/60 text-muted-foreground transition-all hover:bg-accent disabled:opacity-30"
 					onclick={() => (currentPage = Math.max(1, currentPage - 1))}
 					disabled={currentPage === 1}
+					aria-label="Previous page"
 				>
 					<svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
@@ -164,6 +165,7 @@
 					class="flex size-8 items-center justify-center rounded-md border border-border bg-card/60 text-muted-foreground transition-all hover:bg-accent disabled:opacity-30"
 					onclick={() => (currentPage = Math.min(totalPages, currentPage + 1))}
 					disabled={currentPage === totalPages}
+					aria-label="Next page"
 				>
 					<svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />

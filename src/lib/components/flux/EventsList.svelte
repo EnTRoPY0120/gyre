@@ -1,4 +1,5 @@
 <script lang="ts">
+	import VirtualList from '$lib/components/ui/VirtualList.svelte';
 	interface K8sEvent {
 		type: 'Normal' | 'Warning';
 		reason: string;
@@ -135,88 +136,95 @@
 			</p>
 		</div>
 	{:else}
-		<!-- Events List -->
-		<div class="space-y-3">
-			{#each filteredEvents as event}
-				<div
-					class="rounded-lg border p-4 {event.type === 'Warning'
-						? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
-						: 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}"
-				>
-					<div class="flex items-start justify-between gap-4">
-						<div class="flex-1">
-							<div class="flex items-center gap-2">
-								<!-- Event Type Badge -->
-								<span
-									class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {event.type ===
-									'Warning'
-										? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
-										: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'}"
-								>
-									{#if event.type === 'Warning'}
-										<svg
-											class="mr-1 -ml-0.5 h-3 w-3"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
+		<!-- Events List with Virtual Scrolling -->
+		<div class="h-[500px] w-full">
+			<VirtualList items={filteredEvents} itemHeight={140} buffer={3} class="h-full rounded-xl">
+				{#snippet children(event)}
+					<div class="px-1 py-1.5">
+						<div
+							class="h-[125px] overflow-hidden rounded-lg border p-4 transition-all hover:border-primary/30 {event.type ===
+							'Warning'
+								? 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-900/20'
+								: 'border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800'}"
+						>
+							<div class="flex items-start justify-between gap-4">
+								<div class="flex-1">
+									<div class="flex items-center gap-2">
+										<!-- Event Type Badge -->
+										<span
+											class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {event.type ===
+											'Warning'
+												? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
+												: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'}"
 										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-											/>
-										</svg>
-									{:else}
-										<svg
-											class="mr-1 -ml-0.5 h-3 w-3"
-											fill="none"
-											stroke="currentColor"
-											viewBox="0 0 24 24"
-										>
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 13l4 4L19 7"
-											/>
-										</svg>
+											{#if event.type === 'Warning'}
+												<svg
+													class="mr-1 -ml-0.5 h-3 w-3"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+													/>
+												</svg>
+											{:else}
+												<svg
+													class="mr-1 -ml-0.5 h-3 w-3"
+													fill="none"
+													stroke="currentColor"
+													viewBox="0 0 24 24"
+												>
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M5 13l4 4L19 7"
+													/>
+												</svg>
+											{/if}
+											{event.type}
+										</span>
+
+										<!-- Reason -->
+										<span class="font-medium text-gray-900 dark:text-gray-100">{event.reason}</span>
+
+										<!-- Count Badge -->
+										{#if event.count > 1}
+											<span
+												class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400"
+											>
+												×{event.count}
+											</span>
+										{/if}
+									</div>
+
+									<!-- Message -->
+									<p class="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-300">
+										{event.message}
+									</p>
+
+									<!-- Source -->
+									<p class="mt-2 text-xs text-gray-400 dark:text-gray-500">
+										Source: {event.source.component}
+									</p>
+								</div>
+
+								<!-- Timestamp -->
+								<div class="text-right text-xs text-gray-400 dark:text-gray-500">
+									<p>{formatEventTime(event.lastTimestamp)}</p>
+									{#if event.count > 1 && event.firstTimestamp}
+										<p class="mt-1">First: {formatEventTime(event.firstTimestamp)}</p>
 									{/if}
-									{event.type}
-								</span>
-
-								<!-- Reason -->
-								<span class="font-medium text-gray-900 dark:text-gray-100">{event.reason}</span>
-
-								<!-- Count Badge -->
-								{#if event.count > 1}
-									<span
-										class="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400"
-									>
-										×{event.count}
-									</span>
-								{/if}
+								</div>
 							</div>
-
-							<!-- Message -->
-							<p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{event.message}</p>
-
-							<!-- Source -->
-							<p class="mt-2 text-xs text-gray-400 dark:text-gray-500">
-								Source: {event.source.component}
-							</p>
-						</div>
-
-						<!-- Timestamp -->
-						<div class="text-right text-xs text-gray-400 dark:text-gray-500">
-							<p>{formatEventTime(event.lastTimestamp)}</p>
-							{#if event.count > 1 && event.firstTimestamp}
-								<p class="mt-1">First: {formatEventTime(event.firstTimestamp)}</p>
-							{/if}
 						</div>
 					</div>
-				</div>
-			{/each}
+				{/snippet}
+			</VirtualList>
 		</div>
 	{/if}
 </div>
