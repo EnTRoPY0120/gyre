@@ -11,8 +11,10 @@
 	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
 	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
 	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
+	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
+	import { downloadFile, formatResourceForExport } from '$lib/utils/export';
 
 	interface K8sEvent {
 		type: 'Normal' | 'Warning';
@@ -65,7 +67,7 @@
 		return unsubscribe;
 	});
 
-	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'yaml';
+	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'history' | 'yaml';
 
 	let activeTab = $state<TabId>('overview');
 
@@ -75,11 +77,18 @@
 	let eventsError = $state<string | null>(null);
 	let eventsFetched = $state(false);
 
+	// History state
+	let history = $state<any[]>([]);
+	let historyLoading = $state(false);
+	let historyError = $state<string | null>(null);
+	let historyFetched = $state(false);
+
 	const tabs: { id: TabId; label: string }[] = [
 		{ id: 'overview', label: 'Overview' },
 		{ id: 'spec', label: 'Spec' },
 		{ id: 'status', label: 'Status' },
 		{ id: 'events', label: 'Events' },
+		{ id: 'history', label: 'History' },
 		{ id: 'yaml', label: 'YAML' }
 	];
 
@@ -113,10 +122,74 @@
 		}
 	}
 
+	// Fetch history when the History tab is selected
+	async function fetchHistory() {
+		if (historyFetched) return;
+
+		historyLoading = true;
+		historyError = null;
+
+		try {
+			const response = await fetch(
+				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/history`
+			);
+
+			if (!response.ok) {
+				throw new Error(`Failed to fetch history: ${response.statusText}`);
+			}
+
+			const result = await response.json();
+			history = result.history || [];
+			historyFetched = true;
+		} catch (err) {
+			historyError = err instanceof Error ? err.message : 'Failed to load history';
+		} finally {
+			historyLoading = false;
+		}
+	}
+
+	async function handleRollback(revision: string) {
+		if (!confirm(`Are you sure you want to rollback to version v${revision}?`)) return;
+
+		try {
+			const response = await fetch(
+				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ revision })
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Rollback failed');
+			}
+
+			alert(`Successfully requested rollback to v${revision}`);
+			historyFetched = false;
+			await fetchHistory();
+		} catch (err) {
+			alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+		}
+	}
+
+	function handleExport(format: 'yaml' | 'json') {
+		const exported = formatResourceForExport(data.resource, format);
+		const content = format === 'json' ? exported : JSON.stringify(exported, null, 2); // Simple fallback for now
+		downloadFile(content, `${data.name}-${data.resourceType}.${format}`, format === 'json' ? 'application/json' : 'text/yaml');
+	}
+
 	// Trigger fetch when switching to events tab
 	$effect(() => {
 		if (activeTab === 'events' && !eventsFetched) {
 			fetchEvents();
+		}
+	});
+
+	$effect(() => {
+		if (activeTab === 'history' && !historyFetched) {
+			fetchHistory();
 		}
 	});
 
@@ -309,29 +382,94 @@
 				</div>
 				<EventsList {events} loading={eventsLoading} error={eventsError} />
 			</div>
+		{:else if activeTab === 'history'}
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+			>
+				<div class="mb-4 flex items-center justify-between">
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Version History</h3>
+					<button
+						type="button"
+						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+						onclick={() => {
+							historyFetched = false;
+							fetchHistory();
+						}}
+						disabled={historyLoading}
+					>
+						<svg
+							class="h-4 w-4 {historyLoading ? 'animate-spin' : ''}"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+							/>
+						</svg>
+						Refresh
+					</button>
+				</div>
+				<VersionHistory {history} loading={historyLoading} onRollback={handleRollback} />
+			</div>
 		{:else if activeTab === 'yaml'}
 			<div
 				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
 			>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Full Resource YAML</h3>
-					<button
-						type="button"
-						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-						onclick={() => {
-							navigator.clipboard.writeText(JSON.stringify(data.resource, null, 2));
-						}}
-					>
-						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-							/>
-						</svg>
-						Copy
-					</button>
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Full Resource Manifest</h3>
+					<div class="flex items-center gap-2">
+						<button
+							type="button"
+							class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+							onclick={() => handleExport('yaml')}
+						>
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+								/>
+							</svg>
+							Export YAML
+						</button>
+						<button
+							type="button"
+							class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+							onclick={() => handleExport('json')}
+						>
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+								/>
+							</svg>
+							Export JSON
+						</button>
+						<button
+							type="button"
+							class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+							onclick={() => {
+								navigator.clipboard.writeText(JSON.stringify(data.resource, null, 2));
+							}}
+						>
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+								/>
+							</svg>
+							Copy
+						</button>
+					</div>
 				</div>
 				<pre class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code
 						>{JSON.stringify(data.resource, null, 2)}</code
