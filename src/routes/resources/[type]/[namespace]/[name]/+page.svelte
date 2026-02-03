@@ -12,9 +12,10 @@
 	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
 	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
 	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
+	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
-	import { downloadFile, formatResourceForExport } from '$lib/utils/export';
+	import { preferences } from '$lib/stores/preferences.svelte';
 
 	interface K8sEvent {
 		type: 'Normal' | 'Warning';
@@ -174,11 +175,8 @@
 		}
 	}
 
-	function handleExport(format: 'yaml' | 'json') {
-		const exported = formatResourceForExport(data.resource, format);
-		const content = format === 'json' ? exported : JSON.stringify(exported, null, 2); // Simple fallback for now
-		downloadFile(content, `${data.name}-${data.resourceType}.${format}`, format === 'json' ? 'application/json' : 'text/yaml');
-	}
+	// Format persisted in preferences store now
+	// handleExport moved to CodeViewer component
 
 	// Trigger fetch when switching to events tab
 	$effect(() => {
@@ -324,31 +322,9 @@
 				{/if}
 			</div>
 		{:else if activeTab === 'spec'}
-			<div
-				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-			>
-				<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Spec</h3>
-				{#if data.resource.spec}
-					<pre class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code
-							>{JSON.stringify(data.resource.spec, null, 2)}</code
-						></pre>
-				{:else}
-					<p class="text-sm text-gray-500 dark:text-gray-400">No spec available</p>
-				{/if}
-			</div>
+			<CodeViewer data={data.resource.spec} title="Resource Spec" showDownload={false} />
 		{:else if activeTab === 'status'}
-			<div
-				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-			>
-				<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Status</h3>
-				{#if data.resource.status}
-					<pre class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code
-							>{JSON.stringify(data.resource.status, null, 2)}</code
-						></pre>
-				{:else}
-					<p class="text-sm text-gray-500 dark:text-gray-400">No status available</p>
-				{/if}
-			</div>
+			<CodeViewer data={data.resource.status} title="Resource Status" showDownload={false} />
 		{:else if activeTab === 'events'}
 			<div
 				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
@@ -416,65 +392,7 @@
 				<VersionHistory {history} loading={historyLoading} onRollback={handleRollback} />
 			</div>
 		{:else if activeTab === 'yaml'}
-			<div
-				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-			>
-				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Full Resource Manifest</h3>
-					<div class="flex items-center gap-2">
-						<button
-							type="button"
-							class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-							onclick={() => handleExport('yaml')}
-						>
-							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-								/>
-							</svg>
-							Export YAML
-						</button>
-						<button
-							type="button"
-							class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-							onclick={() => handleExport('json')}
-						>
-							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-								/>
-							</svg>
-							Export JSON
-						</button>
-						<button
-							type="button"
-							class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-							onclick={() => {
-								navigator.clipboard.writeText(JSON.stringify(data.resource, null, 2));
-							}}
-						>
-							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-								/>
-							</svg>
-							Copy
-						</button>
-					</div>
-				</div>
-				<pre class="overflow-auto rounded-lg bg-gray-900 p-4 text-sm text-gray-100"><code
-						>{JSON.stringify(data.resource, null, 2)}</code
-					></pre>
-			</div>
+			<CodeViewer data={data.resource} title="Full Resource Manifest" />
 		{/if}
 	</div>
 </div>
