@@ -136,7 +136,7 @@
 	}
 
 	function handleSearch(results: any[]) {
-		// handleSearch is now handled by the filteredItems binding, 
+		// handleSearch is now handled by the filteredItems binding,
 		// but we still need it for URL sync if we want to keep that
 	}
 

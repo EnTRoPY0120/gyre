@@ -17,11 +17,13 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 				availableClusters: healthData?.kubernetes?.availableContexts ?? []
 			},
 			fluxVersion: versionData.version,
-			user: locals.user ? {
-				username: locals.user.username,
-				role: locals.user.role,
-				email: locals.user.email
-			} : null
+			user: locals.user
+				? {
+						username: locals.user.username,
+						role: locals.user.role,
+						email: locals.user.email
+					}
+				: null
 		};
 	} catch {
 		// Ignore errors and return disconnected status

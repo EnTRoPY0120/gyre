@@ -107,7 +107,7 @@
 		<div class="rounded-xl border border-border bg-card/60 p-4 backdrop-blur-sm">
 			<div class="flex items-center gap-2 text-muted-foreground">
 				<Icon name="git-branch" size={16} />
-				<span class="text-xs font-medium uppercase tracking-wider">Sources</span>
+				<span class="text-xs font-medium tracking-wider uppercase">Sources</span>
 			</div>
 			<p class="mt-2 text-2xl font-bold">{data.stats.sources}</p>
 		</div>
@@ -115,7 +115,7 @@
 		<div class="rounded-xl border border-border bg-card/60 p-4 backdrop-blur-sm">
 			<div class="flex items-center gap-2 text-muted-foreground">
 				<Icon name="layers" size={16} />
-				<span class="text-xs font-medium uppercase tracking-wider">Apps</span>
+				<span class="text-xs font-medium tracking-wider uppercase">Apps</span>
 			</div>
 			<p class="mt-2 text-2xl font-bold">{data.stats.applications}</p>
 		</div>
@@ -123,7 +123,7 @@
 		<div class="rounded-xl border border-border bg-card/60 p-4 backdrop-blur-sm">
 			<div class="flex items-center gap-2 text-muted-foreground">
 				<Icon name="link" size={16} />
-				<span class="text-xs font-medium uppercase tracking-wider">Relations</span>
+				<span class="text-xs font-medium tracking-wider uppercase">Relations</span>
 			</div>
 			<p class="mt-2 text-2xl font-bold">{data.stats.totalRelationships}</p>
 		</div>
@@ -131,7 +131,7 @@
 		<div class="rounded-xl border border-border bg-card/60 p-4 backdrop-blur-sm">
 			<div class="flex items-center gap-2 text-green-500">
 				<Icon name="check-circle" size={16} />
-				<span class="text-xs font-medium uppercase tracking-wider">Ready</span>
+				<span class="text-xs font-medium tracking-wider uppercase">Ready</span>
 			</div>
 			<p class="mt-2 text-2xl font-bold text-green-500">{data.stats.ready}</p>
 		</div>
@@ -139,7 +139,7 @@
 		<div class="rounded-xl border border-border bg-card/60 p-4 backdrop-blur-sm">
 			<div class="flex items-center gap-2 text-red-500">
 				<Icon name="x-circle" size={16} />
-				<span class="text-xs font-medium uppercase tracking-wider">Failed</span>
+				<span class="text-xs font-medium tracking-wider uppercase">Failed</span>
 			</div>
 			<p class="mt-2 text-2xl font-bold text-red-500">{data.stats.failed}</p>
 		</div>
@@ -147,7 +147,7 @@
 		<div class="rounded-xl border border-border bg-card/60 p-4 backdrop-blur-sm">
 			<div class="flex items-center gap-2 text-zinc-500">
 				<Icon name="pause-circle" size={16} />
-				<span class="text-xs font-medium uppercase tracking-wider">Suspended</span>
+				<span class="text-xs font-medium tracking-wider uppercase">Suspended</span>
 			</div>
 			<p class="mt-2 text-2xl font-bold text-zinc-500">{data.stats.suspended}</p>
 		</div>
@@ -203,7 +203,8 @@
 						<thead class="sticky top-0 bg-muted/80 backdrop-blur-sm">
 							<tr>
 								<th class="px-4 py-3 text-left font-medium text-muted-foreground">Source</th>
-								<th class="px-4 py-3 text-center font-medium text-muted-foreground">Relationship</th>
+								<th class="px-4 py-3 text-center font-medium text-muted-foreground">Relationship</th
+								>
 								<th class="px-4 py-3 text-left font-medium text-muted-foreground">Target</th>
 							</tr>
 						</thead>
@@ -236,7 +237,9 @@
 					</table>
 				</div>
 				{#if data.relationships.length > 50}
-					<div class="border-t border-border/50 bg-muted/30 px-4 py-2 text-center text-xs text-muted-foreground">
+					<div
+						class="border-t border-border/50 bg-muted/30 px-4 py-2 text-center text-xs text-muted-foreground"
+					>
 						Showing 50 of {data.relationships.length} relationships
 					</div>
 				{/if}

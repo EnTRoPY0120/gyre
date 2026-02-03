@@ -6,7 +6,7 @@
 	import { ChevronLeft } from 'lucide-svelte';
 
 	const templateId = $derived(page.params.templateId);
-	const template = $derived(templates.find(t => t.id === templateId));
+	const template = $derived(templates.find((t) => t.id === templateId));
 
 	// Fallback for "custom" or unknown templates
 	const customTemplate = {
@@ -38,7 +38,7 @@ data:
 	<header class="flex items-center gap-4">
 		<a
 			href="/create"
-			class="flex size-10 items-center justify-center rounded-full border border-border bg-card hover:bg-accent transition-colors"
+			class="flex size-10 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-accent"
 			aria-label="Back to template selection"
 		>
 			<ChevronLeft size={20} />

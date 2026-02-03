@@ -3,7 +3,6 @@
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 
-
 	interface Props {
 		data: {
 			health: {
@@ -22,9 +21,6 @@
 	// Show loading while cluster contexts are being fetched
 	const isLoading = $derived(clusterStore.available.length === 0);
 
-
-
-
 	// Get total counts across all groups - using $derived.by for complex logic
 	const totals = $derived.by(() => {
 		let total = 0;
@@ -39,7 +35,6 @@
 
 		return { total, healthy, failed };
 	});
-
 
 	const GroupIcons: Record<string, string> = {
 		Sources: 'sideways-git',

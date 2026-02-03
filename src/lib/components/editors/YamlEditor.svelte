@@ -43,10 +43,10 @@
 			id="yaml-editor"
 			bind:value
 			onkeydown={handleKeyDown}
-			readonly={readonly}
+			{readonly}
 			spellcheck="false"
 			class={cn(
-				'min-h-[300px] w-full resize-none rounded-lg border border-border bg-zinc-950 p-4 font-mono text-sm text-zinc-100 outline-none transition-all placeholder:text-zinc-500 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20',
+				'min-h-[300px] w-full resize-none rounded-lg border border-border bg-zinc-950 p-4 font-mono text-sm text-zinc-100 transition-all outline-none placeholder:text-zinc-500 focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20',
 				error && 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20',
 				readonly && 'cursor-not-allowed opacity-70'
 			)}

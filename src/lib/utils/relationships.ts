@@ -1,6 +1,6 @@
 /**
  * Utilities for analyzing and mapping FluxCD resource relationships.
- * 
+ *
  * Relationship types in FluxCD:
  * - Source → Kustomization: Kustomization references a source (GitRepository, OCIRepository, Bucket)
  * - Source → HelmRelease: HelmRelease references a HelmRepository or GitRepository

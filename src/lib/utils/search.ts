@@ -10,11 +10,7 @@ export interface SearchOptions {
 /**
  * Advanced search utility supporting fuzzy, regex, and literal matching
  */
-export function advancedSearch<T>(
-	items: T[],
-	query: string,
-	options: SearchOptions = {}
-): T[] {
+export function advancedSearch<T>(items: T[], query: string, options: SearchOptions = {}): T[] {
 	if (!query) return items;
 
 	const {

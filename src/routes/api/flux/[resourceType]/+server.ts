@@ -75,7 +75,7 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 			if (ifNoneMatch === etag) {
 				return new Response(null, { status: 304 });
 			}
-			setHeaders({ 'ETag': etag });
+			setHeaders({ ETag: etag });
 		}
 
 		// Store in cache

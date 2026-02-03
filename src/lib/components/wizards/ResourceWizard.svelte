@@ -10,7 +10,7 @@
 	let { template }: { template: ResourceTemplate } = $props();
 
 	let currentYaml = $state('');
-	
+
 	// Reset YAML when template changes
 	$effect(() => {
 		currentYaml = template.yaml;
@@ -29,8 +29,8 @@
 		try {
 			const parsed = yaml.load(template.yaml) as any;
 			const values: Record<string, any> = {};
-			
-			template.fields.forEach(field => {
+
+			template.fields.forEach((field) => {
 				const path = field.path.split('.');
 				let current = parsed;
 				for (let i = 0; i < path.length; i++) {
@@ -52,11 +52,11 @@
 	function updateYamlFromForm() {
 		try {
 			const parsed = yaml.load(currentYaml) as any;
-			
-			template.fields.forEach(field => {
+
+			template.fields.forEach((field) => {
 				const value = formValues[field.name];
 				const path = field.path.split('.');
-				
+
 				let current = parsed;
 				for (let i = 0; i < path.length; i++) {
 					if (i === path.length - 1) {
@@ -79,8 +79,8 @@
 		try {
 			const parsed = yaml.load(currentYaml) as any;
 			const values: Record<string, any> = { ...formValues };
-			
-			template.fields.forEach(field => {
+
+			template.fields.forEach((field) => {
 				const path = field.path.split('.');
 				let current = parsed;
 				for (let i = 0; i < path.length; i++) {
@@ -117,7 +117,9 @@
 
 			success = true;
 			setTimeout(() => {
-				goto(`/resources/${template.id.split('-')[0]}s/${parsed.metadata.namespace}/${parsed.metadata.name}`);
+				goto(
+					`/resources/${template.id.split('-')[0]}s/${parsed.metadata.namespace}/${parsed.metadata.name}`
+				);
 			}, 1500);
 		} catch (e) {
 			error = (e as Error).message;
@@ -178,7 +180,7 @@
 						<div class="flex flex-col gap-1.5">
 							<label
 								for="field-{field.name}"
-								class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+								class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 							>
 								{field.label}
 								{#if field.required}<span class="text-red-500">*</span>{/if}
@@ -188,7 +190,7 @@
 								<select
 									id="field-{field.name}"
 									bind:value={formValues[field.name]}
-									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 									onchange={updateYamlFromForm}
 								>
 									{#each field.options || [] as opt}
@@ -212,10 +214,10 @@
 									bind:value={formValues[field.name]}
 									oninput={updateYamlFromForm}
 									placeholder={field.description}
-									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 								/>
 							{/if}
-							
+
 							{#if field.description && field.type !== 'boolean'}
 								<p class="text-xs text-muted-foreground">{field.description}</p>
 							{/if}
@@ -235,12 +237,7 @@
 					This will create a new {template.kind} in your cluster. Make sure the configuration is correct.
 				</p>
 
-				<Button
-					class="w-full"
-					size="lg"
-					disabled={isSubmitting || success}
-					onclick={handleSubmit}
-				>
+				<Button class="w-full" size="lg" disabled={isSubmitting || success} onclick={handleSubmit}>
 					{#if isSubmitting}
 						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 						Creating...
@@ -253,7 +250,9 @@
 				</Button>
 
 				{#if error}
-					<div class="mt-4 flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-500">
+					<div
+						class="mt-4 flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-500"
+					>
 						<AlertCircle class="mt-0.5 shrink-0" size={16} />
 						<span>{error}</span>
 					</div>
@@ -264,7 +263,8 @@
 			<div class="rounded-xl border border-border bg-muted/30 p-6">
 				<h4 class="mb-2 text-sm font-semibold">Pro Tip</h4>
 				<p class="text-xs leading-relaxed text-muted-foreground">
-					You can switch to <strong>YAML mode</strong> at any time to see the full manifest or add advanced configuration that isn't available in the wizard.
+					You can switch to <strong>YAML mode</strong> at any time to see the full manifest or add advanced
+					configuration that isn't available in the wizard.
 				</p>
 			</div>
 		</div>

@@ -40,7 +40,9 @@
 </script>
 
 <div class="flex flex-col gap-4">
-	<div class="overflow-hidden rounded-xl border border-border bg-card/60 shadow-sm backdrop-blur-sm">
+	<div
+		class="overflow-hidden rounded-xl border border-border bg-card/60 shadow-sm backdrop-blur-sm"
+	>
 		<div class="overflow-x-auto">
 			<table class="w-full text-left text-sm">
 				<thead class="border-b border-border bg-muted/30">
@@ -95,7 +97,9 @@
 								class="group cursor-pointer transition-colors hover:bg-accent/40 hover:text-accent-foreground"
 								onclick={() => handleRowClick(resource)}
 							>
-								<td class="px-6 py-4 whitespace-nowrap transition-all duration-200 group-hover:pl-7">
+								<td
+									class="px-6 py-4 whitespace-nowrap transition-all duration-200 group-hover:pl-7"
+								>
 									<div
 										class="font-mono text-[13px] font-medium text-foreground transition-colors group-hover:text-primary"
 									>
@@ -142,9 +146,7 @@
 		<div class="flex items-center justify-between px-2">
 			<div class="text-xs text-muted-foreground">
 				Showing <span class="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to
-				<span class="font-medium"
-					>{Math.min(currentPage * itemsPerPage, resources.length)}</span
-				>
+				<span class="font-medium">{Math.min(currentPage * itemsPerPage, resources.length)}</span>
 				of <span class="font-medium">{resources.length}</span> results
 			</div>
 			<div class="flex items-center gap-2">
@@ -155,7 +157,12 @@
 					aria-label="Previous page"
 				>
 					<svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M15 19l-7-7 7-7"
+						/>
 					</svg>
 				</button>
 				<div class="text-xs font-medium">
@@ -168,7 +175,12 @@
 					aria-label="Next page"
 				>
 					<svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M9 5l7 7-7 7"
+						/>
 					</svg>
 				</button>
 			</div>

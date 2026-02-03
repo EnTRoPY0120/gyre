@@ -158,7 +158,9 @@
 						: 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-blue-500'
 				)}
 			>
-				<div class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white">
+				<div
+					class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white"
+				>
 					<Icon name="plus" size={14} strokeWidth={3} />
 				</div>
 				Create Resource

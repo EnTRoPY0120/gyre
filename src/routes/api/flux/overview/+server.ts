@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ cookies, setHeaders }) => {
 			try {
 				const data = await listFluxResources(type, context);
 				const items = data.items || [];
-				
+
 				let healthy = 0;
 				let failed = 0;
 				let suspended = 0;

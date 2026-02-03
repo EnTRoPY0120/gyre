@@ -123,7 +123,9 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	});
 
 	// 3. Image Automation Tree (Repo -> Policy -> Automation)
-	const imageRepoNodes = resourceMap['ImageRepository'].map((r) => createNode(r, 'ImageRepository'));
+	const imageRepoNodes = resourceMap['ImageRepository'].map((r) =>
+		createNode(r, 'ImageRepository')
+	);
 	const imagePolicyNodes = resourceMap['ImagePolicy'].map((r) => createNode(r, 'ImagePolicy'));
 	const imageAutomationNodes = resourceMap['ImageUpdateAutomation'].map((r) =>
 		createNode(r, 'ImageUpdateAutomation')
@@ -170,8 +172,12 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	const stats = {
 		sources: sourceTrees.length,
 		applications: appTrees.length,
-		notifications: resourceMap['Alert'].length + resourceMap['Provider'].length + resourceMap['Receiver'].length,
-		imageAutomation: resourceMap['ImageRepository'].length + resourceMap['ImagePolicy'].length + resourceMap['ImageUpdateAutomation'].length,
+		notifications:
+			resourceMap['Alert'].length + resourceMap['Provider'].length + resourceMap['Receiver'].length,
+		imageAutomation:
+			resourceMap['ImageRepository'].length +
+			resourceMap['ImagePolicy'].length +
+			resourceMap['ImageUpdateAutomation'].length,
 		totalRelationships: relationships.length,
 		ready: 0,
 		failed: 0,
@@ -179,7 +185,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	};
 
 	// Calculate overall stats
-	[...results.flatMap(r => r.items)].forEach(item => {
+	[...results.flatMap((r) => r.items)].forEach((item) => {
 		const status = getResourceStatus(item);
 		if (status === 'ready') stats.ready++;
 		else if (status === 'failed') stats.failed++;

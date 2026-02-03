@@ -17,7 +17,9 @@
 
 	const visibleItemsCount = $derived(Math.ceil(containerHeight / itemHeight));
 	const startIndex = $derived(Math.max(0, Math.floor(scrollTop / itemHeight) - buffer));
-	const endIndex = $derived(Math.min(items.length, Math.floor((scrollTop + containerHeight) / itemHeight) + buffer));
+	const endIndex = $derived(
+		Math.min(items.length, Math.floor((scrollTop + containerHeight) / itemHeight) + buffer)
+	);
 
 	const visibleItems = $derived(
 		items.slice(startIndex, endIndex).map((item, i) => ({
@@ -52,10 +54,16 @@
 	class="virtual-list-container relative overflow-y-auto {className}"
 	onscroll={handleScroll}
 >
-	<div class="virtual-list-phantom absolute top-0 left-0 w-full" style="height: {totalHeight}px"></div>
+	<div
+		class="virtual-list-phantom absolute top-0 left-0 w-full"
+		style="height: {totalHeight}px"
+	></div>
 	<div class="virtual-list-content absolute top-0 left-0 w-full">
 		{#each visibleItems as { item, index, top } (index)}
-			<div class="virtual-list-item absolute left-0 w-full" style="top: {top}px; height: {itemHeight}px">
+			<div
+				class="virtual-list-item absolute left-0 w-full"
+				style="top: {top}px; height: {itemHeight}px"
+			>
 				{@render children(item, index)}
 			</div>
 		{/each}
