@@ -45,12 +45,15 @@
 	},
 	"dependencies": {
 		"@kubernetes/client-node": "^1.4.0",
+		"arctic": "^3.7.0",
 		"bcryptjs": "^3.0.3",
 		"better-sqlite3": "^12.6.2",
 		"clsx": "^2.1.1",
 		"drizzle-orm": "^0.45.1",
+		"fuse.js": "^7.1.0",
 		"js-yaml": "^4.1.1",
 		"lucide-svelte": "^0.563.0",
+		"openid-client": "^6.8.1",
 		"svelte-motion": "^0.12.2",
 		"tailwind-merge": "^3.4.0"
 	}

@@ -17,7 +17,7 @@
 	} from '$lib/utils/filtering';
 	import ViewToggle from '$lib/components/layout/ViewToggle.svelte';
 	import RefreshControl from '$lib/components/layout/RefreshControl.svelte';
-	import SearchBar from '$lib/components/flux/SearchBar.svelte';
+	import AdvancedSearch from '$lib/components/search/AdvancedSearch.svelte';
 	import FilterBar from '$lib/components/flux/FilterBar.svelte';
 	import ResourceTable from '$lib/components/flux/ResourceTable.svelte';
 	import ResourceGrid from '$lib/components/flux/ResourceGrid.svelte';
@@ -135,8 +135,9 @@
 		goto(url.toString(), { replaceState: true, noScroll: true });
 	}
 
-	function handleSearch(query: string) {
-		updateFilters({ ...filters, search: query });
+	function handleSearch(results: any[]) {
+		// handleSearch is now handled by the filteredItems binding, 
+		// but we still need it for URL sync if we want to keep that
 	}
 
 	function handleFilterChange(newFilters: FilterState) {
@@ -174,10 +175,10 @@
 	>
 		<div class="flex flex-col gap-4 lg:flex-row lg:items-center">
 			<!-- Search -->
-			<div class="w-full lg:w-80">
-				<SearchBar
-					value={filters.search}
-					placeholder="Search by name or namespace..."
+			<div class="w-full lg:flex-1">
+				<AdvancedSearch
+					bind:filters
+					placeholder="Search by name, namespace, or use tags like ns:default..."
 					onSearch={handleSearch}
 				/>
 			</div>

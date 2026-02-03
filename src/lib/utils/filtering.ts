@@ -1,44 +1,67 @@
 import type { FluxResource } from '$lib/types/flux';
 import { getResourceHealth, type ResourceHealth } from '$lib/utils/flux';
+import { advancedSearch, parseQuery } from './search';
 
 export interface FilterState {
 	search: string;
 	namespace: string;
 	status: ResourceHealth | 'all';
-	labels: string; // Format: "key=value,key2=value2"
+	labels: string;
+	useRegex?: boolean;
 }
 
 export const defaultFilterState: FilterState = {
 	search: '',
 	namespace: '',
 	status: 'all',
-	labels: ''
+	labels: '',
+	useRegex: false
 };
 
 /**
  * Filter resources based on the current filter state
  */
 export function filterResources(resources: FluxResource[], filters: FilterState): FluxResource[] {
-	return resources.filter((resource) => {
-		// Search filter (name)
-		if (filters.search) {
-			const searchLower = filters.search.toLowerCase();
-			const name = resource.metadata.name?.toLowerCase() || '';
-			const namespace = resource.metadata.namespace?.toLowerCase() || '';
+	let results = resources;
 
-			if (!name.includes(searchLower) && !namespace.includes(searchLower)) {
-				return false;
-			}
+	// Search filter (name, namespace, etc)
+	if (filters.search) {
+		const parsed = parseQuery(filters.search);
+		results = advancedSearch(results, parsed.query, {
+			regex: filters.useRegex,
+			fuzzy: !filters.useRegex,
+			keys: ['metadata.name', 'metadata.namespace', 'status.conditions.message']
+		});
+
+		// Apply tag-based filters from search query if any
+		if (Object.keys(parsed.tags).length > 0) {
+			results = results.filter((item) => {
+				return Object.entries(parsed.tags).every(([key, value]) => {
+					if (key === 'ns' || key === 'namespace') {
+						return item.metadata?.namespace === value;
+					}
+					if (key === 'status') {
+						const health = getResourceHealth(
+							item.status?.conditions,
+							item.spec?.suspend as boolean | undefined
+						);
+						return health.toLowerCase() === value.toLowerCase();
+					}
+					return true;
+				});
+			});
 		}
+	}
 
-		// Namespace filter
+	return results.filter((resource) => {
+		// Namespace filter (from dropdown)
 		if (filters.namespace) {
 			if (resource.metadata.namespace !== filters.namespace) {
 				return false;
 			}
 		}
 
-		// Status filter
+		// Status filter (from dropdown)
 		if (filters.status !== 'all') {
 			const health = getResourceHealth(
 				resource.status?.conditions,
