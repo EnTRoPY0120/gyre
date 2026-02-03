@@ -28,55 +28,44 @@ export const load: PageServerLoad = async ({ fetch, parent, setHeaders }) => {
 		};
 	}
 
-	// Fetch resource counts for each group in parallel
+	// Fetch batched overview results
+	const response = await fetch('/api/flux/overview');
+	if (!response.ok) {
+		return { health: parentData.health, groupCounts: {}, error: true };
+	}
+
+	const overviewData = await response.json();
+	const results = overviewData.results || [];
+
+	// Map overview results back to resourceGroups structure
 	const groupCounts: Record<
 		string,
 		{ total: number; healthy: number; failed: number; error: boolean }
 	> = {};
 
-	// Fetch all groups in parallel for better performance
-	await Promise.all(
-		resourceGroups.map(async (group) => {
-			let groupTotal = 0;
-			let groupHealthy = 0;
-			let groupFailed = 0;
-			let hasError = false;
+	for (const group of resourceGroups) {
+		let groupTotal = 0;
+		let groupHealthy = 0;
+		let groupFailed = 0;
+		let hasError = false;
 
-			// Fetch all resources in a group in parallel
-			await Promise.all(
-				group.resources.map(async (resource) => {
-					try {
-						const response = await fetch(`/api/flux/${resource.type}`);
-						if (response.ok) {
-							const data = await response.json();
-							const items = data.items || [];
-							groupTotal += items.length;
+		for (const resInfo of group.resources) {
+			const resResult = results.find((r: any) => r.type === resInfo.kind);
+			if (resResult) {
+				groupTotal += resResult.total;
+				groupHealthy += resResult.healthy;
+				groupFailed += resResult.failed;
+				if (resResult.error) hasError = true;
+			}
+		}
 
-							// Count healthy and failed
-							for (const item of items) {
-								const conditions = item.status?.conditions || [];
-								const ready = conditions.find((c: { type: string }) => c.type === 'Ready');
-								if (ready?.status === 'True') {
-									groupHealthy++;
-								} else if (ready?.status === 'False') {
-									groupFailed++;
-								}
-							}
-						}
-					} catch {
-						hasError = true;
-					}
-				})
-			);
-
-			groupCounts[group.name] = {
-				total: groupTotal,
-				healthy: groupHealthy,
-				failed: groupFailed,
-				error: hasError
-			};
-		})
-	);
+		groupCounts[group.name] = {
+			total: groupTotal,
+			healthy: groupHealthy,
+			failed: groupFailed,
+			error: hasError
+		};
+	}
 
 	// Store in cache
 	dashboardCache.set(cacheKey, { data: groupCounts, timestamp: Date.now() });

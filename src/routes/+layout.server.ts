@@ -1,6 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 
-export const load: LayoutServerLoad = async ({ fetch }) => {
+export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 	try {
 		const [healthRes, versionRes] = await Promise.all([
 			fetch('/api/flux/health'),
@@ -16,7 +16,12 @@ export const load: LayoutServerLoad = async ({ fetch }) => {
 				clusterName: healthData?.kubernetes?.currentContext ?? undefined,
 				availableClusters: healthData?.kubernetes?.availableContexts ?? []
 			},
-			fluxVersion: versionData.version
+			fluxVersion: versionData.version,
+			user: locals.user ? {
+				username: locals.user.username,
+				role: locals.user.role,
+				email: locals.user.email
+			} : null
 		};
 	} catch {
 		// Ignore errors and return disconnected status

@@ -4,6 +4,7 @@
 	import ThemeToggle from './ThemeToggle.svelte';
 	import NotificationBell from './NotificationBell.svelte';
 	import ClusterSwitcher from './ClusterSwitcher.svelte';
+	import UserMenu from './UserMenu.svelte';
 	import { ChevronRight, Settings } from 'lucide-svelte';
 
 	interface Props {
@@ -12,9 +13,14 @@
 			clusterName?: string;
 			availableClusters?: string[];
 		};
+		user?: {
+			username: string;
+			role: string;
+			email?: string | null;
+		} | null;
 	}
 
-	let { health = { connected: false } }: Props = $props();
+	let { health = { connected: false }, user = null }: Props = $props();
 
 	// Build breadcrumbs from current path
 	const breadcrumbs = $derived(() => {
@@ -95,6 +101,9 @@
 		<div class="hidden sm:block">
 			<ClusterSwitcher current={health?.clusterName} available={health?.availableClusters} />
 		</div>
+
+		<!-- User Menu -->
+		<UserMenu {user} />
 
 		<!-- Settings Button (Hidden on mobile) -->
 		<button
