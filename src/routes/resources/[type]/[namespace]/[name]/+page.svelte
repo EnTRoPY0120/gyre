@@ -10,6 +10,7 @@
 	import GitRepositoryDetail from '$lib/components/flux/resources/GitRepositoryDetail.svelte';
 	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
 	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
+	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
 
 	interface K8sEvent {
@@ -35,6 +36,7 @@
 			namespace: string;
 			name: string;
 			resource: FluxResource;
+			inventoryResources?: any[];
 		};
 	}
 
@@ -194,7 +196,11 @@
 			</div>
 
 			<!-- Resource-Specific Details -->
-			<div class="mt-6">
+			<div class="mt-6 space-y-6">
+				{#if data.inventoryResources && data.inventoryResources.length > 0}
+					<InventoryList resources={data.inventoryResources} />
+				{/if}
+
 				{#if isGitRepository}
 					<GitRepositoryDetail resource={data.resource} />
 				{:else if isHelmRelease}

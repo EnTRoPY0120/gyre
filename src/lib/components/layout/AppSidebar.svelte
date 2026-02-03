@@ -35,13 +35,13 @@
 		}
 	});
 
-	// Tracking which groups are expanded
+	// Tracking which groups are expanded (all collapsed by default)
 	let expandedGroups = $state<Record<string, boolean>>({
-		Sources: true,
-		Kustomize: true,
-		Helm: true,
-		Notifications: true,
-		'Image Automation': true
+		Sources: false,
+		Kustomize: false,
+		Helm: false,
+		Notifications: false,
+		'Image Automation': false
 	});
 
 	function toggleGroup(name: string) {
@@ -83,19 +83,15 @@
 	>
 		<!-- Header -->
 		<div class="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
-			<a
-				href="/"
-				class="group flex items-center gap-3 font-display text-lg font-black tracking-tighter uppercase"
-			>
+			<a href="/" class="group flex items-center gap-3">
 				<div
-					class="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_0_15px_rgba(234,179,8,0.3)] transition-all group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(234,179,8,0.5)]"
+					class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg transition-all group-hover:scale-105"
 				>
-					<Icon name="flux" size={20} />
+					<svg class="h-6 w-6 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+						<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+					</svg>
 				</div>
-				<span
-					class="bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent transition-all group-hover:to-foreground"
-					>Gyre</span
-				>
+				<span class="text-xl font-bold text-foreground">Gyre</span>
 			</a>
 			<button
 				onclick={() => sidebarOpen.toggle()}

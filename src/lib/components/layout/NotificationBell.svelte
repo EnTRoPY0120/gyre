@@ -96,7 +96,7 @@
 	<!-- Bell Button -->
 	<button
 		type="button"
-		class="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+		class="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-accent hover:text-gray-700 dark:text-gray-400 dark:hover:bg-accent dark:hover:text-gray-200"
 		onclick={toggleDropdown}
 		aria-label="Notifications"
 	>
@@ -131,7 +131,7 @@
 	<!-- Dropdown -->
 	{#if isOpen}
 		<div
-			class="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-white shadow-lg sm:w-96 dark:border-gray-700 dark:bg-gray-800"
+			class="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-card shadow-lg sm:w-96 dark:border-gray-700 dark:bg-gray-800"
 		>
 			<!-- Header -->
 			<div
@@ -182,7 +182,7 @@
 						<div
 							role="button"
 							tabindex="0"
-							class="w-full border-b border-gray-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none dark:border-gray-700 dark:hover:bg-gray-700/50 dark:focus:bg-gray-700/50 {notification.read
+							class="w-full border-b border-gray-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-accent focus:bg-accent focus:outline-none dark:border-gray-700 dark:hover:bg-accent dark:focus:bg-accent {notification.read
 								? 'opacity-60'
 								: ''}"
 							onclick={() => markAsRead(notification.id)}

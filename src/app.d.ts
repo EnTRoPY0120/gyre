@@ -5,6 +5,8 @@ declare global {
 		// interface Error {}
 		interface Locals {
 			cluster: string | undefined;
+			user: import('$lib/server/db/schema').User | null;
+			session: import('$lib/server/db/schema').Session | null;
 		}
 		// interface PageData {}
 		// interface PageState {}

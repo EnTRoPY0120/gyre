@@ -9,10 +9,13 @@
 		available?: string[];
 	}
 
-	let { current, available = [] }: Props = $props();
+	let { current, available }: Props = $props();
 
 	const currentCluster = $derived(current || clusterStore.current || 'default');
-	const availableClusters = $derived(available?.length > 0 ? available : clusterStore.available);
+	// Merge prop data with store data, preferring store if it has data
+	const availableClusters = $derived(
+		clusterStore.available.length > 0 ? clusterStore.available : (available ?? [])
+	);
 
 	function selectCluster(name: string) {
 		if (name === currentCluster) return;
@@ -46,10 +49,21 @@
 		<DropdownMenu.Separator class="mb-1.5 opacity-30" />
 
 		{#if availableClusters.length === 0}
-			<div class="px-3 py-4 text-center">
-				<Icon name="loader" size={16} class="mx-auto mb-2 animate-spin text-muted-foreground/40" />
-				<p class="text-[10px] text-muted-foreground/60">Fetching available contexts...</p>
+			<!-- Skeleton loaders for cluster items -->
+			<div class="space-y-1 px-1">
+				{#each [1, 2, 3] as _}
+					<div class="flex items-center gap-3 rounded-xl px-3 py-3">
+						<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-foreground/20"></div>
+						<div class="flex flex-1 flex-col gap-1.5">
+							<div class="h-3 w-3/4 animate-pulse rounded bg-muted-foreground/10"></div>
+							<div class="h-2 w-1/3 animate-pulse rounded bg-muted-foreground/5"></div>
+						</div>
+					</div>
+				{/each}
 			</div>
+			<p class="mt-2 text-center text-[8px] text-muted-foreground/40">
+				Fetching cluster contexts...
+			</p>
 		{:else}
 			{#each availableClusters as cluster}
 				<DropdownMenu.Item

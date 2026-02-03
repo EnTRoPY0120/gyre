@@ -20,7 +20,12 @@ export const GET: RequestHandler = async ({ request }) => {
 				message: 'Connected to event stream',
 				timestamp: new Date().toISOString()
 			})}\n\n`;
-			controller.enqueue(new TextEncoder().encode(connectMsg));
+			try {
+				controller.enqueue(new TextEncoder().encode(connectMsg));
+			} catch {
+				// Controller may be closed, ignore
+				return;
+			}
 
 			// Set up polling interval (since Kubernetes watch API requires persistent connection)
 			// For MVP, we'll poll every 10 seconds and send updates
@@ -68,7 +73,11 @@ export const GET: RequestHandler = async ({ request }) => {
 										timestamp: new Date().toISOString()
 									};
 									const msg = `data: ${JSON.stringify(event)}\n\n`;
-									controller.enqueue(new TextEncoder().encode(msg));
+									try {
+										controller.enqueue(new TextEncoder().encode(msg));
+									} catch {
+										// Controller may be closed, ignore
+									}
 								}
 								// Detect MODIFIED
 								else if (previousState && previousState !== currentState) {
@@ -87,7 +96,11 @@ export const GET: RequestHandler = async ({ request }) => {
 									};
 
 									const msg = `data: ${JSON.stringify(event)}\n\n`;
-									controller.enqueue(new TextEncoder().encode(msg));
+									try {
+										controller.enqueue(new TextEncoder().encode(msg));
+									} catch {
+										// Controller may be closed, ignore
+									}
 								}
 
 								lastStates.set(key, currentState);
@@ -111,7 +124,11 @@ export const GET: RequestHandler = async ({ request }) => {
 										timestamp: new Date().toISOString()
 									};
 									const msg = `data: ${JSON.stringify(event)}\n\n`;
-									controller.enqueue(new TextEncoder().encode(msg));
+									try {
+										controller.enqueue(new TextEncoder().encode(msg));
+									} catch {
+										// Controller may be closed, ignore
+									}
 
 									lastStates.delete(key);
 								}
@@ -138,18 +155,30 @@ export const GET: RequestHandler = async ({ request }) => {
 					return;
 				}
 
-				const heartbeat = `data: ${JSON.stringify({
-					type: 'HEARTBEAT',
-					timestamp: new Date().toISOString()
-				})}\n\n`;
-				controller.enqueue(new TextEncoder().encode(heartbeat));
+				try {
+					const heartbeat = `data: ${JSON.stringify({
+						type: 'HEARTBEAT',
+						timestamp: new Date().toISOString()
+					})}\n\n`;
+					controller.enqueue(new TextEncoder().encode(heartbeat));
+				} catch {
+					// Controller may be closed, stop heartbeat
+					clearInterval(heartbeatInterval);
+				}
 			}, 30000);
 
 			// Handle client disconnect
 			request.signal.addEventListener('abort', () => {
 				isActive = false;
 				clearInterval(heartbeatInterval);
-				controller.close();
+				// Gracefully close the stream - ignore errors if already closed
+				Promise.resolve().then(() => {
+					try {
+						controller.close();
+					} catch {
+						// Controller may already be closed
+					}
+				});
 			});
 		}
 	});

@@ -2,8 +2,10 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
 import type { FluxResource } from '$lib/types/flux';
+import { parseInventory, type InventoryResource } from '$lib/server/kubernetes/flux/inventory';
+import { getGenericResource } from '$lib/server/kubernetes/client';
 
-export const load: PageServerLoad = async ({ params, fetch, depends }) => {
+export const load: PageServerLoad = async ({ params, fetch, depends, locals }) => {
 	const { type, namespace, name } = params;
 	depends(`flux:resource:${type}:${namespace}:${name}`);
 
@@ -38,13 +40,49 @@ export const load: PageServerLoad = async ({ params, fetch, depends }) => {
 		}
 
 		const resource: FluxResource = await response.json();
+		let inventoryResources: any[] = [];
+
+		if (resource.status?.inventory?.entries) {
+			try {
+				const parsed = parseInventory(resource.status.inventory.entries);
+				// Fetch first 50 resources to avoid overload
+				// We filter out CRDs for now as our getGenericResource is limited
+				const targetResources = parsed.slice(0, 50);
+
+				inventoryResources = await Promise.all(
+					targetResources.map(async (r) => {
+						try {
+							const child = await getGenericResource(
+								r.group,
+								r.kind,
+								r.namespace,
+								r.name,
+								locals.cluster
+							);
+							// Add our internal inventory version/id metadata back
+							return { ...child, _inventory: r };
+						} catch (e) {
+							return {
+								_inventory: r,
+								kind: r.kind,
+								metadata: { name: r.name, namespace: r.namespace },
+								error: 'Failed to fetch'
+							};
+						}
+					})
+				);
+			} catch (e) {
+				console.error('Error parsing/fetching inventory:', e);
+			}
+		}
 
 		return {
 			resourceType: type,
 			resourceInfo,
 			namespace,
 			name,
-			resource
+			resource,
+			inventoryResources
 		};
 	} catch (err) {
 		// Re-throw SvelteKit errors

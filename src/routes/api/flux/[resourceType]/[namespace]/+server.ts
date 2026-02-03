@@ -7,12 +7,18 @@ import {
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
 import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
+import { checkPermission } from '$lib/server/rbac.js';
 
 /**
  * GET /api/flux/{resourceType}/{namespace}
  * List all resources of a specific type in a namespace
  */
 export const GET: RequestHandler = async ({ params, locals }) => {
+	// Check authentication
+	if (!locals.user) {
+		return error(401, { message: 'Authentication required' });
+	}
+
 	const { resourceType, namespace } = params;
 
 	// Resolve resource type from plural name
@@ -22,6 +28,19 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		return error(400, {
 			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
 		});
+	}
+
+	// Check permission for specific namespace
+	const hasPermission = await checkPermission(
+		locals.user,
+		'read',
+		resolvedType,
+		namespace,
+		locals.cluster
+	);
+
+	if (!hasPermission) {
+		return error(403, { message: 'Permission denied' });
 	}
 
 	try {

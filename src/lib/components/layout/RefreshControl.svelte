@@ -18,7 +18,7 @@
 	<!-- Manual Refresh Button -->
 	<button
 		type="button"
-		class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+		class="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-card px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700"
 		onclick={onRefresh}
 		disabled={isRefreshing}
 		title="Refresh data"
@@ -40,7 +40,9 @@
 	</button>
 
 	<!-- Auto-refresh Toggle -->
-	<div class="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5">
+	<div
+		class="flex items-center gap-2 rounded-lg border border-gray-200 bg-card px-3 py-1.5 dark:border-gray-700"
+	>
 		<button
 			type="button"
 			class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {autoRefreshEnabled

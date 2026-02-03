@@ -1,32 +1,124 @@
 import type { Handle } from '@sveltejs/kit';
-import { getKubeConfig } from '$lib/server/kubernetes/client';
+import { getSession } from '$lib/server/auth';
+import { getDeploymentMode, isInClusterMode } from '$lib/server/mode';
+import { initializeGyre } from '$lib/server/initialize';
+
+// Initialize Gyre on first request
+let initialized = false;
+
+// Public routes that don't require authentication
+const PUBLIC_ROUTES = [
+	'/login',
+	'/api/auth/login',
+	'/api/auth/logout',
+	'/api/health',
+	'/manifest.json',
+	'/favicon.ico',
+	'/logo.svg'
+];
+
+// Static asset patterns
+const STATIC_PATTERNS = [
+	/^\/_app\//,
+	/^\/fonts\//,
+	/^\/images\//,
+	/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/
+];
+
+function isPublicRoute(path: string): boolean {
+	// Check exact matches
+	if (PUBLIC_ROUTES.some((route) => path === route || path.startsWith(route + '/'))) {
+		return true;
+	}
+
+	// Check static patterns
+	if (STATIC_PATTERNS.some((pattern) => pattern.test(path))) {
+		return true;
+	}
+
+	return false;
+}
 
 /**
- * Handle function to manage cluster context via cookies
+ * Handle function to manage:
+ * 1. Session authentication
+ * 2. Cluster context via cookies
+ * 3. RBAC checks (future enhancement)
  */
 export const handle: Handle = async ({ event, resolve }) => {
-	const cluster = event.cookies.get('gyre_cluster');
+	const { url, cookies, request } = event;
+	const path = url.pathname;
 
+	// Initialize Gyre on first request
+	if (!initialized) {
+		try {
+			await initializeGyre();
+			initialized = true;
+		} catch (error) {
+			console.error('Failed to initialize Gyre:', error);
+			// Continue anyway - let the request fail naturally if DB is truly broken
+		}
+	}
+
+	// Initialize locals with defaults
+	event.locals.user = null;
+	event.locals.session = null;
+	event.locals.cluster = undefined;
+
+	// Check for session cookie
+	const sessionId = cookies.get('gyre_session');
+	if (sessionId) {
+		const sessionData = await getSession(sessionId);
+		if (sessionData) {
+			event.locals.user = sessionData.user;
+			event.locals.session = sessionData.session;
+		}
+	}
+
+	// In-cluster mode: we can skip strict auth if using ServiceAccount
+	// But we still want to track users for audit logging
+	const mode = getDeploymentMode();
+
+	// If not authenticated and not a public route, redirect to login
+	if (!event.locals.user && !isPublicRoute(path)) {
+		// For API routes, return 401
+		if (path.startsWith('/api/')) {
+			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+				status: 401,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
+
+		// For page routes, redirect to login
+		return new Response(null, {
+			status: 302,
+			headers: { Location: '/login' }
+		});
+	}
+
+	// Handle cluster context from cookies (for multi-cluster support)
+	const cluster = cookies.get('gyre_cluster');
 	if (cluster) {
 		event.locals.cluster = cluster;
-	} else {
-		// Fallback to default context from kubeconfig
-		try {
-			const { currentContext } = getKubeConfig();
-			event.locals.cluster = currentContext;
-
-			// Optionally set the cookie if it's missing so the UI is in sync
-			if (currentContext) {
-				event.cookies.set('gyre_cluster', currentContext, {
-					path: '/',
-					httpOnly: false, // Accessible by client-side JS
-					maxAge: 60 * 60 * 24 * 30 // 30 days
-				});
-			}
-		} catch (err) {
-			console.warn('Failed to load default kubeconfig in hooks:', err);
-		}
+	} else if (isInClusterMode()) {
+		// In-cluster mode: default to 'in-cluster' context
+		event.locals.cluster = 'in-cluster';
 	}
 
 	return resolve(event);
 };
+
+/**
+ * HandleError - Global error handler
+ */
+export function handleError({ error, event }: { error: unknown; event: { url: URL } }) {
+	console.error('Error in', event.url.pathname, ':', error);
+
+	return {
+		message: error instanceof Error ? error.message : 'An unexpected error occurred',
+		code:
+			error instanceof Error && 'code' in error
+				? (error as Error & { code: string }).code
+				: 'UNKNOWN'
+	};
+}

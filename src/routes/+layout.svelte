@@ -6,6 +6,7 @@
 	import { websocketStore } from '$lib/stores/websocket.svelte';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 
 	interface Props {
 		children: import('svelte').Snippet;
@@ -19,6 +20,9 @@
 	}
 
 	let { children, data }: Props = $props();
+
+	// Check if current route is the login page
+	let isLoginPage = $derived($page.url.pathname.startsWith('/login'));
 
 	// Sync cluster store with layout data
 	$effect(() => {
@@ -43,7 +47,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" href="/favicon.svg?v=3" type="image/svg+xml" />
 	<title>Gyre - FluxCD WebUI</title>
 	<meta
 		name="description"
@@ -51,18 +55,24 @@
 	/>
 </svelte:head>
 
-<div class="flex h-screen bg-gray-50 dark:bg-gray-950">
-	<!-- Sidebar -->
-	<AppSidebar />
+{#if isLoginPage}
+	<!-- Login page: no sidebar/header -->
+	{@render children()}
+{:else}
+	<!-- Normal app layout with sidebar and header -->
+	<div class="flex h-screen bg-gray-50 dark:bg-gray-950">
+		<!-- Sidebar -->
+		<AppSidebar />
 
-	<!-- Main Content Area -->
-	<div class="flex flex-1 flex-col overflow-hidden">
-		<!-- Header -->
-		<AppHeader health={data.health} />
+		<!-- Main Content Area -->
+		<div class="flex flex-1 flex-col overflow-hidden">
+			<!-- Header -->
+			<AppHeader health={data.health} />
 
-		<!-- Scrollable Content -->
-		<main class="flex-1 overflow-y-auto p-6 dark:bg-gray-900">
-			{@render children()}
-		</main>
+			<!-- Scrollable Content -->
+			<main class="flex-1 overflow-y-auto p-6 dark:bg-gray-900">
+				{@render children()}
+			</main>
+		</div>
 	</div>
-</div>
+{/if}

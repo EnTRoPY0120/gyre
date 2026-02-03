@@ -26,6 +26,22 @@ export function getCustomObjectsApi(context?: string): k8s.CustomObjectsApi {
 }
 
 /**
+ * Create CoreV1Api client
+ */
+export function getCoreV1Api(context?: string): k8s.CoreV1Api {
+	const { config } = getKubeConfig(context);
+	return config.makeApiClient(k8s.CoreV1Api);
+}
+
+/**
+ * Create AppsV1Api client
+ */
+export function getAppsV1Api(context?: string): k8s.AppsV1Api {
+	const { config } = getKubeConfig(context);
+	return config.makeApiClient(k8s.AppsV1Api);
+}
+
+/**
  * List FluxCD resources of a specific type across all namespaces
  */
 export async function listFluxResources(
@@ -141,6 +157,95 @@ export async function getFluxResourceStatus(
 		return response as unknown as FluxResource;
 	} catch (error) {
 		throw handleK8sError(error, `get status for ${resourceType} ${namespace}/${name}`);
+	}
+}
+
+/**
+ * Get a generic Kubernetes resource (Core/Apps)
+ */
+export async function getGenericResource(
+	group: string,
+	kind: string,
+	namespace: string,
+	name: string,
+	context?: string
+): Promise<any> {
+	// Normalize group for core resources (often empty or "core")
+	const normalizedGroup = group === 'core' || group === '' ? '' : group;
+
+	try {
+		if (normalizedGroup === '') {
+			const coreApi = getCoreV1Api(context);
+			// Mapped types
+			switch (kind) {
+				case 'Service':
+					return await coreApi.readNamespacedService({ name, namespace });
+				case 'Pod':
+					return await coreApi.readNamespacedPod({ name, namespace });
+				case 'ConfigMap':
+					return await coreApi.readNamespacedConfigMap({ name, namespace });
+				case 'Secret':
+					return await coreApi.readNamespacedSecret({ name, namespace });
+				case 'ServiceAccount':
+					return await coreApi.readNamespacedServiceAccount({ name, namespace });
+				default:
+					// Fallback for others? We might need CustomObjects if it's not a known Core type?
+					// But we don't know the plural.
+					return {
+						apiVersion: 'v1',
+						kind,
+						metadata: { name, namespace, error: 'Unsupported Core Kind' }
+					};
+			}
+		} else if (normalizedGroup === 'apps') {
+			const appsApi = getAppsV1Api(context);
+			switch (kind) {
+				case 'Deployment':
+					return await appsApi.readNamespacedDeployment({ name, namespace });
+				case 'StatefulSet':
+					return await appsApi.readNamespacedStatefulSet({ name, namespace });
+				case 'DaemonSet':
+					return await appsApi.readNamespacedDaemonSet({ name, namespace });
+				case 'ReplicaSet':
+					return await appsApi.readNamespacedReplicaSet({ name, namespace });
+				default:
+					return {
+						apiVersion: 'apps/v1',
+						kind,
+						metadata: { name, namespace, error: 'Unsupported Apps Kind' }
+					};
+			}
+		}
+
+		// Everything else: Try CustomObjects, guessing plural = lowercase(kind) + 's'
+		// This is heuristic and fragile but covers many cases (Gateways, SealedSecrets, etc)
+		const customApi = getCustomObjectsApi(context);
+		const plural = kind.toLowerCase() + 's';
+		// Need version... Flux inventory doesn't always have it. We can try 'v1' or 'v1beta1' or wildcard?
+		// Without version, CustomObjectsApi calls fail.
+		// For now, return a placeholder.
+		return {
+			apiVersion: `${group}/?`,
+			kind,
+			metadata: { name, namespace },
+			status: {
+				conditions: [
+					{ type: 'Ready', status: 'Unknown', message: 'Generic Group fetch not yet implemented' }
+				]
+			}
+		};
+	} catch (error) {
+		// Verify if it is a 404 - return null or a specific error object
+		return {
+			apiVersion: group ? `${group}/?` : 'v1',
+			kind,
+			metadata: { name, namespace },
+			status: {
+				conditions: [
+					{ type: 'Ready', status: 'Unknown', message: `Fetch failed: ${(error as Error).message}` }
+				]
+			}
+		};
 	}
 }
 
