@@ -74,6 +74,7 @@ kubectl get secret gyre-initial-admin-secret \
 ```
 
 **Default credentials:**
+
 - Username: `admin`
 - Password: (from command above)
 
@@ -121,102 +122,102 @@ kubectl delete pvc gyre-data -n flux-system
 
 ### Global Parameters
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `nameOverride` | Override chart name | `""` |
-| `fullnameOverride` | Override fully qualified app name | `""` |
-| `replicaCount` | Number of replicas (SQLite requires 1) | `1` |
+| Parameter          | Description                            | Default |
+| ------------------ | -------------------------------------- | ------- |
+| `nameOverride`     | Override chart name                    | `""`    |
+| `fullnameOverride` | Override fully qualified app name      | `""`    |
+| `replicaCount`     | Number of replicas (SQLite requires 1) | `1`     |
 
 ### Image Configuration
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `image.repository` | Container image repository | `ghcr.io/entropy0120/gyre` |
-| `image.tag` | Container image tag (overrides appVersion) | `""` |
-| `image.pullPolicy` | Image pull policy | `IfNotPresent` |
-| `imagePullSecrets` | Image pull secrets | `[]` |
+| Parameter          | Description                                | Default                    |
+| ------------------ | ------------------------------------------ | -------------------------- |
+| `image.repository` | Container image repository                 | `ghcr.io/entropy0120/gyre` |
+| `image.tag`        | Container image tag (overrides appVersion) | `""`                       |
+| `image.pullPolicy` | Image pull policy                          | `IfNotPresent`             |
+| `imagePullSecrets` | Image pull secrets                         | `[]`                       |
 
 ### Service Account
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `serviceAccount.create` | Create service account | `true` |
-| `serviceAccount.automount` | Automount SA token | `true` |
-| `serviceAccount.annotations` | SA annotations | `{}` |
-| `serviceAccount.name` | SA name (generated if empty) | `""` |
+| Parameter                    | Description                  | Default |
+| ---------------------------- | ---------------------------- | ------- |
+| `serviceAccount.create`      | Create service account       | `true`  |
+| `serviceAccount.automount`   | Automount SA token           | `true`  |
+| `serviceAccount.annotations` | SA annotations               | `{}`    |
+| `serviceAccount.name`        | SA name (generated if empty) | `""`    |
 
 ### Service Configuration
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `service.type` | Kubernetes service type | `ClusterIP` |
-| `service.port` | Service port | `80` |
-| `service.targetPort` | Container target port | `3000` |
+| Parameter            | Description             | Default     |
+| -------------------- | ----------------------- | ----------- |
+| `service.type`       | Kubernetes service type | `ClusterIP` |
+| `service.port`       | Service port            | `80`        |
+| `service.targetPort` | Container target port   | `3000`      |
 
 ### Ingress Configuration
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `ingress.enabled` | Enable ingress | `false` |
-| `ingress.className` | Ingress class name | `""` |
-| `ingress.annotations` | Ingress annotations | `{}` |
-| `ingress.hosts` | Ingress hosts configuration | See values.yaml |
-| `ingress.tls` | Ingress TLS configuration | `[]` |
+| Parameter             | Description                 | Default         |
+| --------------------- | --------------------------- | --------------- |
+| `ingress.enabled`     | Enable ingress              | `false`         |
+| `ingress.className`   | Ingress class name          | `""`            |
+| `ingress.annotations` | Ingress annotations         | `{}`            |
+| `ingress.hosts`       | Ingress hosts configuration | See values.yaml |
+| `ingress.tls`         | Ingress TLS configuration   | `[]`            |
 
 ### Persistence
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `persistence.enabled` | Enable persistent storage | `true` |
-| `persistence.accessMode` | PVC access mode | `ReadWriteOnce` |
-| `persistence.size` | PVC size | `1Gi` |
-| `persistence.storageClass` | Storage class name (blank = default) | `""` |
-| `persistence.annotations` | PVC annotations | `{}` |
-| `persistence.existingClaim` | Use existing PVC | `""` |
+| Parameter                   | Description                          | Default         |
+| --------------------------- | ------------------------------------ | --------------- |
+| `persistence.enabled`       | Enable persistent storage            | `true`          |
+| `persistence.accessMode`    | PVC access mode                      | `ReadWriteOnce` |
+| `persistence.size`          | PVC size                             | `1Gi`           |
+| `persistence.storageClass`  | Storage class name (blank = default) | `""`            |
+| `persistence.annotations`   | PVC annotations                      | `{}`            |
+| `persistence.existingClaim` | Use existing PVC                     | `""`            |
 
 ### Security Context
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `podSecurityContext.runAsNonRoot` | Run as non-root | `true` |
-| `podSecurityContext.runAsUser` | User ID | `1001` |
-| `podSecurityContext.fsGroup` | Filesystem group | `1001` |
-| `securityContext.allowPrivilegeEscalation` | Allow privilege escalation | `false` |
-| `securityContext.capabilities.drop` | Drop capabilities | `["ALL"]` |
-| `securityContext.readOnlyRootFilesystem` | Read-only root FS | `false` |
+| Parameter                                  | Description                | Default   |
+| ------------------------------------------ | -------------------------- | --------- |
+| `podSecurityContext.runAsNonRoot`          | Run as non-root            | `true`    |
+| `podSecurityContext.runAsUser`             | User ID                    | `1001`    |
+| `podSecurityContext.fsGroup`               | Filesystem group           | `1001`    |
+| `securityContext.allowPrivilegeEscalation` | Allow privilege escalation | `false`   |
+| `securityContext.capabilities.drop`        | Drop capabilities          | `["ALL"]` |
+| `securityContext.readOnlyRootFilesystem`   | Read-only root FS          | `false`   |
 
 ### Resource Limits
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `resources.limits.cpu` | CPU limit | `500m` |
-| `resources.limits.memory` | Memory limit | `512Mi` |
-| `resources.requests.cpu` | CPU request | `100m` |
+| Parameter                   | Description    | Default |
+| --------------------------- | -------------- | ------- |
+| `resources.limits.cpu`      | CPU limit      | `500m`  |
+| `resources.limits.memory`   | Memory limit   | `512Mi` |
+| `resources.requests.cpu`    | CPU request    | `100m`  |
 | `resources.requests.memory` | Memory request | `128Mi` |
 
 ### Health Checks
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `livenessProbe.initialDelaySeconds` | Initial delay | `30` |
-| `livenessProbe.periodSeconds` | Check period | `30` |
-| `readinessProbe.initialDelaySeconds` | Initial delay | `10` |
-| `readinessProbe.periodSeconds` | Check period | `10` |
+| Parameter                            | Description   | Default |
+| ------------------------------------ | ------------- | ------- |
+| `livenessProbe.initialDelaySeconds`  | Initial delay | `30`    |
+| `livenessProbe.periodSeconds`        | Check period  | `30`    |
+| `readinessProbe.initialDelaySeconds` | Initial delay | `10`    |
+| `readinessProbe.periodSeconds`       | Check period  | `10`    |
 
 ### RBAC
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `rbac.create` | Create RBAC resources | `true` |
-| `rbac.clusterRole.create` | Create ClusterRole | `true` |
-| `rbac.clusterRole.rules` | Additional RBAC rules | `[]` |
+| Parameter                 | Description           | Default |
+| ------------------------- | --------------------- | ------- |
+| `rbac.create`             | Create RBAC resources | `true`  |
+| `rbac.clusterRole.create` | Create ClusterRole    | `true`  |
+| `rbac.clusterRole.rules`  | Additional RBAC rules | `[]`    |
 
 ### Admin Configuration
 
-| Parameter | Description | Default |
-|-----------|-------------|---------|
-| `admin.autoGenerate` | Auto-generate admin password | `true` |
-| `admin.secretName` | Admin password secret name | `gyre-initial-admin-secret` |
+| Parameter            | Description                  | Default                     |
+| -------------------- | ---------------------------- | --------------------------- |
+| `admin.autoGenerate` | Auto-generate admin password | `true`                      |
+| `admin.secretName`   | Admin password secret name   | `gyre-initial-admin-secret` |
 
 ## Examples
 
@@ -229,7 +230,7 @@ ingress:
   className: nginx
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
   hosts:
     - host: gyre.company.com
       paths:
@@ -341,6 +342,7 @@ kubectl logs -n flux-system -l app.kubernetes.io/name=gyre --tail=100
 ```
 
 **Common Issues**:
+
 - PVC not bound: Check StorageClass and PV availability
 - Image pull errors: Verify `image.repository` and `imagePullSecrets`
 - Insufficient resources: Check node capacity
@@ -348,18 +350,21 @@ kubectl logs -n flux-system -l app.kubernetes.io/name=gyre --tail=100
 ### Database Issues
 
 **Check PVC status**:
+
 ```bash
 kubectl get pvc -n flux-system
 kubectl describe pvc gyre-data -n flux-system
 ```
 
 **Verify database file**:
+
 ```bash
 POD=$(kubectl get pod -n flux-system -l app.kubernetes.io/name=gyre -o jsonpath='{.items[0].metadata.name}')
 kubectl exec -n flux-system $POD -- ls -lah /data
 ```
 
 **Database corruption**:
+
 ```bash
 # Stop pod
 kubectl scale deployment gyre -n flux-system --replicas=0
@@ -374,6 +379,7 @@ kubectl scale deployment gyre -n flux-system --replicas=1
 ### RBAC Permission Errors
 
 **Test ServiceAccount permissions**:
+
 ```bash
 # Check if SA can list FluxCD resources
 kubectl auth can-i get gitrepositories.source.toolkit.fluxcd.io \
@@ -385,6 +391,7 @@ kubectl get clusterrolebinding -l app.kubernetes.io/instance=gyre
 ```
 
 **View denied operations in logs**:
+
 ```bash
 kubectl logs -n flux-system -l app.kubernetes.io/name=gyre | grep "forbidden"
 ```
@@ -392,6 +399,7 @@ kubectl logs -n flux-system -l app.kubernetes.io/name=gyre | grep "forbidden"
 ### Connection Issues
 
 **Health check failing**:
+
 ```bash
 # Port-forward and test health endpoint
 kubectl port-forward -n flux-system svc/gyre 3000:80 &
@@ -399,6 +407,7 @@ curl http://localhost:3000/api/flux/health
 ```
 
 **Check Kubernetes connectivity**:
+
 ```bash
 # Exec into pod
 kubectl exec -it -n flux-system deployment/gyre -- sh
@@ -412,12 +421,14 @@ wget -O- --header="Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/se
 ### Ingress Not Working
 
 **Check Ingress status**:
+
 ```bash
 kubectl get ingress -n flux-system
 kubectl describe ingress gyre -n flux-system
 ```
 
 **Common issues**:
+
 - IngressClass not found: Verify `ingress.className` matches available class
 - TLS certificate issues: Check cert-manager logs if using
 - Path routing issues: Ensure `pathType: Prefix` for SPA
@@ -425,11 +436,13 @@ kubectl describe ingress gyre -n flux-system
 ### High Memory Usage
 
 **Check resource usage**:
+
 ```bash
 kubectl top pod -n flux-system -l app.kubernetes.io/name=gyre
 ```
 
 **Increase limits if needed**:
+
 ```bash
 helm upgrade gyre ./charts/gyre \
   --namespace flux-system \
@@ -511,6 +524,7 @@ echo "Database restored from: $BACKUP_FILE"
 ### Pod Security Standards
 
 Gyre pod meets **Restricted** Pod Security Standard:
+
 - ✅ Runs as non-root user (UID 1001)
 - ✅ Drops all capabilities
 - ✅ No privilege escalation
@@ -547,7 +561,7 @@ spec:
         - namespaceSelector: {}
       ports:
         - protocol: TCP
-          port: 443  # Kubernetes API
+          port: 443 # Kubernetes API
 ```
 
 ## Monitoring
