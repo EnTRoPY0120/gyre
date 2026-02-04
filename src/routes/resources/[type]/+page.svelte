@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
 	import { preferences } from '$lib/stores/preferences';
 	import { websocketStore } from '$lib/stores/websocket.svelte';
@@ -22,13 +23,13 @@
 	import ResourceTable from '$lib/components/flux/ResourceTable.svelte';
 	import ResourceGrid from '$lib/components/flux/ResourceGrid.svelte';
 	import type { FluxResource } from '$lib/types/flux';
+	import { FilterX } from 'lucide-svelte';
 
 	interface Props {
 		data: {
 			resourceType: string;
 			resourceInfo: {
 				displayName: string;
-				singularName: string;
 				description: string;
 			};
 			resources: FluxResource[];
@@ -63,13 +64,17 @@
 		return unsubscribe;
 	});
 
-	// Initialize filters from URL
-	const urlFilters = $derived(searchParamsToFilters($page.url.searchParams));
-	let filters = $state<FilterState>({ ...defaultFilterState });
+	// Initialize filters from URL - using $state for two-way binding with AdvancedSearch
+	let filters = $state<FilterState>(searchParamsToFilters($page.url.searchParams));
 
-	// Sync filters from URL on mount and URL changes
+	// Sync filters from URL when URL changes externally
 	$effect(() => {
-		filters = { ...urlFilters };
+		// Only update if URL params actually changed
+		const urlFilters = searchParamsToFilters($page.url.searchParams);
+		// Simple comparison to avoid infinite loops
+		if (JSON.stringify(urlFilters) !== JSON.stringify(filters)) {
+			filters = urlFilters;
+		}
 	});
 
 	// Available namespaces for filter dropdown
@@ -123,19 +128,16 @@
 	function handleResourceClick(resource: FluxResource) {
 		const namespace = resource.metadata.namespace || 'default';
 		const name = resource.metadata.name;
-		goto(`/resources/${data.resourceType}/${namespace}/${name}`);
+		goto(resolve(`/resources/${data.resourceType}/${namespace}/${name}`));
 	}
 
 	function updateFilters(newFilters: FilterState) {
-		filters = newFilters;
 		// Update URL with new filters
 		const params = filtersToSearchParams(newFilters);
-		const url = new URL($page.url);
-		url.search = params.toString();
-		goto(url.toString(), { replaceState: true, noScroll: true });
+		void goto(`?${params.toString()}`, { replaceState: true, noScroll: true });
 	}
 
-	function handleSearch(query: string) {
+	function handleSearch() {
 		// handleSearch is now handled by the filteredItems binding,
 		// but we still need it for URL sync if we want to keep that
 	}
@@ -282,6 +284,7 @@
 				class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
 				onclick={clearFilters}
 			>
+				<FilterX size={16} />
 				Clear Filters
 			</button>
 		</div>

@@ -2,6 +2,7 @@
 	import type { K8sCondition } from '$lib/types/flux';
 	import { getResourceHealth, getHealthLabel } from '$lib/utils/flux';
 	import { cn } from '$lib/utils';
+	import { Check, Loader2, AlertTriangle, Pause, HelpCircle } from 'lucide-svelte';
 
 	interface Props {
 		conditions?: K8sCondition[];
@@ -20,34 +21,34 @@
 				return {
 					badge:
 						'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.1)]',
-					dot: 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+					icon: 'text-emerald-500'
 				};
 			case 'progressing':
 				return {
 					badge: 'bg-blue-500/10 text-blue-500 border-blue-500/20 animate-pulse',
-					dot: 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]'
+					icon: 'text-blue-500'
 				};
 			case 'failed':
 				return {
 					badge:
 						'bg-red-500/10 text-red-500 border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.1)]',
-					dot: 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]'
+					icon: 'text-red-500'
 				};
 			case 'suspended':
 				return {
 					badge: 'bg-amber-500/10 text-amber-500 border-amber-500/20',
-					dot: 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+					icon: 'text-amber-500'
 				};
 			default:
 				return {
 					badge: 'bg-zinc-500/10 text-zinc-500 border-zinc-500/20',
-					dot: 'bg-zinc-500'
+					icon: 'text-zinc-500'
 				};
 		}
 	});
 
 	const sizeClasses = $derived(size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs');
-	const dotSize = $derived(size === 'sm' ? 'h-1 w-1' : 'h-1.5 w-1.5');
+	const iconSize = $derived(size === 'sm' ? 12 : 14);
 </script>
 
 <div
@@ -57,6 +58,16 @@
 		styles.badge
 	)}
 >
-	<div class={cn('rounded-full', dotSize, styles.dot)}></div>
+	{#if health === 'healthy'}
+		<Check size={iconSize} class={cn(styles.icon)} />
+	{:else if health === 'progressing'}
+		<Loader2 size={iconSize} class={cn('animate-spin', styles.icon)} />
+	{:else if health === 'failed'}
+		<AlertTriangle size={iconSize} class={cn(styles.icon)} />
+	{:else if health === 'suspended'}
+		<Pause size={iconSize} class={cn(styles.icon)} />
+	{:else}
+		<HelpCircle size={iconSize} class={cn(styles.icon)} />
+	{/if}
 	{label}
 </div>

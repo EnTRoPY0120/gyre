@@ -2,6 +2,7 @@
 	import type { FluxResource } from '$lib/types/flux';
 	import { formatTimestamp } from '$lib/utils/flux';
 	import StatusBadge from './StatusBadge.svelte';
+	import { PackageX } from 'lucide-svelte';
 
 	interface Props {
 		resources: FluxResource[];
@@ -25,12 +26,15 @@
 
 {#if resources.length === 0}
 	<div class="rounded-xl border border-border bg-card/40 p-12 text-center backdrop-blur-sm">
-		<p class="font-medium text-muted-foreground">No resources found</p>
-		<p class="mt-1 text-xs text-muted-foreground/60">Try adjusting your filters.</p>
+		<div class="flex flex-col items-center gap-3">
+			<PackageX size={48} class="text-muted-foreground/40" />
+			<p class="font-medium text-muted-foreground">No resources found</p>
+			<p class="text-xs text-muted-foreground/60">Try adjusting your filters.</p>
+		</div>
 	</div>
 {:else}
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-		{#each resources as resource}
+		{#each resources as resource (resource.metadata.uid)}
 			<button
 				type="button"
 				class="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card/40 p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:bg-card/80 hover:shadow-lg"

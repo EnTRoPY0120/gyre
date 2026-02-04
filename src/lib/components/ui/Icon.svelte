@@ -24,6 +24,7 @@
 		Monitor,
 		Check,
 		ChevronRight,
+		ChevronLeft,
 		Settings,
 		Menu,
 		Play,
@@ -31,7 +32,21 @@
 		Loader2,
 		GitBranch,
 		ChevronDown,
-		ChevronUp
+		ChevronUp,
+		Save,
+		Inbox,
+		PackageX,
+		UserPlus,
+		UserX,
+		LogIn,
+		ArrowLeft,
+		FilterX,
+		Trash2,
+		FileEdit,
+		AlertTriangle,
+		HelpCircle,
+		RotateCcw,
+		CircleOff
 	} from 'lucide-svelte';
 
 	interface Props extends SVGAttributes<SVGSVGElement> {
@@ -84,7 +99,7 @@
 		}
 	};
 
-	const lucideIcons: Record<string, any> = {
+	const lucideIcons: Record<string, typeof GitFork> = {
 		'git-fork': GitFork,
 		'git-branch': GitBranch,
 		library: Library,
@@ -109,13 +124,28 @@
 		monitor: Monitor,
 		check: Check,
 		'chevron-right': ChevronRight,
+		'chevron-left': ChevronLeft,
 		settings: Settings,
 		menu: Menu,
 		play: Play,
 		pause: Pause,
 		loader: Loader2,
 		'chevron-down': ChevronDown,
-		'chevron-up': ChevronUp
+		'chevron-up': ChevronUp,
+		save: Save,
+		inbox: Inbox,
+		'package-x': PackageX,
+		'user-plus': UserPlus,
+		'user-x': UserX,
+		'log-in': LogIn,
+		'arrow-left': ArrowLeft,
+		'filter-x': FilterX,
+		'trash-2': Trash2,
+		'file-edit': FileEdit,
+		'alert-triangle': AlertTriangle,
+		'help-circle': HelpCircle,
+		'rerotate-ccw': RotateCcw,
+		'circle-off': CircleOff
 	};
 
 	const IconComponent = $derived(lucideIcons[name]);
@@ -135,10 +165,10 @@
 		stroke-linejoin="round"
 		{...restProps}
 	>
-		{#each customIcon.paths as path}
+		{#each customIcon.paths as path, i (i)}
 			<path d={path} />
 		{/each}
 	</svg>
 {:else if IconComponent}
-	<IconComponent {size} {...restProps} />
+	<IconComponent {size} {...restProps as Record<string, unknown>} />
 {/if}

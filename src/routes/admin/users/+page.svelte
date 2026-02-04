@@ -2,6 +2,17 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import {
+		UserPlus,
+		X,
+		Save,
+		Trash2,
+		Key,
+		AlertTriangle,
+		CheckCircle2,
+		XCircle,
+		User
+	} from 'lucide-svelte';
 
 	interface User {
 		id: string;
@@ -9,6 +20,7 @@
 		email: string | null;
 		role: 'admin' | 'editor' | 'viewer';
 		active: boolean;
+		isLocal: boolean;
 		createdAt: Date;
 		updatedAt: Date;
 	}
@@ -101,9 +113,7 @@
 			<p class="text-slate-400">Manage users and their permissions</p>
 		</div>
 		<Button onclick={openCreateModal} class="gap-2">
-			<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-			</svg>
+			<UserPlus size={16} />
 			Add User
 		</Button>
 	</div>
@@ -112,14 +122,7 @@
 	{#if form?.error}
 		<div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
 			<div class="flex items-center gap-2">
-				<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-					/>
-				</svg>
+				<AlertTriangle size={20} />
 				{form.error}
 			</div>
 		</div>
@@ -129,14 +132,7 @@
 	{#if form?.success}
 		<div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400">
 			<div class="flex items-center gap-2">
-				<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M5 13l4 4L19 7"
-					/>
-				</svg>
+				<CheckCircle2 size={20} />
 				Operation completed successfully
 			</div>
 			{#if form?.password}
@@ -162,7 +158,7 @@
 				</tr>
 			</thead>
 			<tbody class="divide-y divide-slate-700/50">
-				{#each data.users as user}
+				{#each data.users as user (user.id)}
 					<tr class="hover:bg-slate-700/30">
 						<td class="px-4 py-3">
 							<div class="flex items-center gap-3">
@@ -182,7 +178,25 @@
 									</svg>
 								</div>
 								<div>
-									<p class="font-medium text-white">{user.username}</p>
+									<div class="flex items-center gap-2">
+										<p class="font-medium text-white">{user.username}</p>
+										{#if !user.isLocal}
+											<span
+												class="flex items-center gap-1 rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400"
+												title="SSO User"
+											>
+												<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+													<path
+														stroke-linecap="round"
+														stroke-linejoin="round"
+														stroke-width="2"
+														d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+													/>
+												</svg>
+												SSO
+											</span>
+										{/if}
+									</div>
 									{#if user.email}
 										<p class="text-xs text-slate-400">{user.email}</p>
 									{/if}
@@ -200,13 +214,13 @@
 						</td>
 						<td class="px-4 py-3">
 							{#if user.active}
-								<span class="inline-flex items-center gap-1 text-sm text-emerald-400">
-									<span class="h-2 w-2 rounded-full bg-emerald-400"></span>
+								<span class="inline-flex items-center gap-1.5 text-sm text-emerald-400">
+									<CheckCircle2 size={14} />
 									Active
 								</span>
 							{:else}
-								<span class="inline-flex items-center gap-1 text-sm text-slate-400">
-									<span class="h-2 w-2 rounded-full bg-slate-400"></span>
+								<span class="inline-flex items-center gap-1.5 text-sm text-slate-400">
+									<XCircle size={14} />
 									Inactive
 								</span>
 							{/if}
@@ -216,21 +230,23 @@
 						</td>
 						<td class="px-4 py-3">
 							<div class="flex justify-end gap-2">
-								<Button
-									variant="ghost"
-									size="sm"
-									onclick={() => openResetPasswordModal(user)}
-									title="Reset Password"
-								>
-									<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-										/>
-									</svg>
-								</Button>
+								{#if user.isLocal}
+									<Button
+										variant="ghost"
+										size="sm"
+										onclick={() => openResetPasswordModal(user)}
+										title="Reset Password"
+									>
+										<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+											/>
+										</svg>
+									</Button>
+								{/if}
 								<Button variant="ghost" size="sm" onclick={() => openEditModal(user)} title="Edit">
 									<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 										<path

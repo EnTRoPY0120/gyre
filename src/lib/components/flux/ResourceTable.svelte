@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { FluxResource } from '$lib/types/flux';
-	import { formatTimestamp, getResourceHealth } from '$lib/utils/flux';
+	import { formatTimestamp } from '$lib/utils/flux';
 	import StatusBadge from './StatusBadge.svelte';
+	import { PackageX, ChevronLeft, ChevronRight } from 'lucide-svelte';
 
 	interface Props {
 		resources: FluxResource[];
@@ -83,7 +84,8 @@
 								colspan={showNamespace ? 5 : 4}
 								class="px-6 py-12 text-center text-sm text-muted-foreground"
 							>
-								<div class="flex flex-col items-center gap-2">
+								<div class="flex flex-col items-center gap-3">
+									<PackageX size={40} class="text-muted-foreground/40" />
 									<p class="font-medium">No resources found</p>
 									<p class="text-xs text-muted-foreground/60">
 										Try adjusting your filters or checking connection.
@@ -92,7 +94,7 @@
 							</td>
 						</tr>
 					{:else}
-						{#each paginatedResources as resource}
+						{#each paginatedResources as resource (resource.metadata.uid)}
 							<tr
 								class="group cursor-pointer transition-colors hover:bg-accent/40 hover:text-accent-foreground"
 								onclick={() => handleRowClick(resource)}
@@ -156,14 +158,7 @@
 					disabled={currentPage === 1}
 					aria-label="Previous page"
 				>
-					<svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M15 19l-7-7 7-7"
-						/>
-					</svg>
+					<ChevronLeft size={16} />
 				</button>
 				<div class="text-xs font-medium">
 					Page {currentPage} of {totalPages}
@@ -174,14 +169,7 @@
 					disabled={currentPage === totalPages}
 					aria-label="Next page"
 				>
-					<svg class="size-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M9 5l7 7-7 7"
-						/>
-					</svg>
+					<ChevronRight size={16} />
 				</button>
 			</div>
 		</div>
