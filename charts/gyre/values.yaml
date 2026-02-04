@@ -46,6 +46,7 @@ service:
   type: ClusterIP
   port: 80
   targetPort: 3000
+  # nodePort: 30000  # Only used when type is NodePort
 
 ingress:
   enabled: false

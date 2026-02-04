@@ -3,7 +3,7 @@ name: gyre
 description: Modern WebUI for FluxCD with real-time monitoring and multi-cluster management
 type: application
 version: 0.1.0
-appVersion: '0.1.0'
+appVersion: 0.1.0
 keywords:
   - flux
   - fluxcd
