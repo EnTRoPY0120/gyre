@@ -11,6 +11,7 @@ export const users = sqliteTable('users', {
 		.notNull()
 		.default('viewer'),
 	active: integer('active', { mode: 'boolean' }).notNull().default(true),
+	isLocal: integer('is_local', { mode: 'boolean' }).notNull().default(true), // true = local auth (password), false = SSO-only
 	createdAt: integer('created_at', { mode: 'timestamp' })
 		.notNull()
 		.default(sql`(unixepoch())`),
@@ -142,6 +143,75 @@ export type NewRbacPolicy = typeof rbacPolicies.$inferInsert;
 export type RbacBinding = typeof rbacBindings.$inferSelect;
 export type NewRbacBinding = typeof rbacBindings.$inferInsert;
 
+// Auth Providers table (SSO configuration)
+export const authProviders = sqliteTable('auth_providers', {
+	id: text('id').primaryKey(),
+	name: text('name').notNull().unique(), // Display name (e.g., "Company Okta")
+	type: text('type', {
+		enum: ['oidc', 'oauth2-github', 'oauth2-google', 'oauth2-gitlab', 'oauth2-generic']
+	}).notNull(),
+	enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+
+	// OAuth2/OIDC Configuration
+	clientId: text('client_id').notNull(),
+	clientSecretEncrypted: text('client_secret_encrypted').notNull(), // Encrypted at rest
+	issuerUrl: text('issuer_url'), // OIDC issuer (e.g., https://accounts.google.com)
+	authorizationUrl: text('authorization_url'), // OAuth2 authorization endpoint
+	tokenUrl: text('token_url'), // OAuth2 token endpoint
+	userInfoUrl: text('user_info_url'), // OAuth2 user info endpoint
+	jwksUrl: text('jwks_url'), // OIDC JWKS endpoint for token validation
+
+	// Auto-provisioning settings
+	autoProvision: integer('auto_provision', { mode: 'boolean' }).notNull().default(true),
+	defaultRole: text('default_role', { enum: ['admin', 'editor', 'viewer'] })
+		.notNull()
+		.default('viewer'),
+
+	// Role mapping (JSON: { "admin": ["Admins"], "editor": ["Developers"] })
+	roleMapping: text('role_mapping'), // Maps IdP groups to Gyre roles
+	roleClaim: text('role_claim').notNull().default('groups'), // Claim name for groups
+
+	// User claim mappings
+	usernameClaim: text('username_claim').notNull().default('preferred_username'),
+	emailClaim: text('email_claim').notNull().default('email'),
+
+	// PKCE support
+	usePkce: integer('use_pkce', { mode: 'boolean' }).notNull().default(true),
+
+	// Scopes (space-separated)
+	scopes: text('scopes').notNull().default('openid profile email'),
+
+	createdAt: integer('created_at', { mode: 'timestamp' })
+		.notNull()
+		.default(sql`(unixepoch())`),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.default(sql`(unixepoch())`)
+});
+
+// User Providers table (links users to their SSO provider)
+export const userProviders = sqliteTable(
+	'user_providers',
+	{
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		providerId: text('provider_id')
+			.notNull()
+			.references(() => authProviders.id, { onDelete: 'cascade' }),
+		providerUserId: text('provider_user_id').notNull(), // User ID from IdP (sub claim)
+		lastLoginAt: integer('last_login_at', { mode: 'timestamp' }),
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`)
+	},
+	(table) => {
+		return {
+			pk: primaryKey({ columns: [table.userId, table.providerId] })
+		};
+	}
+);
+
 // Dashboards table
 export const dashboards = sqliteTable('dashboards', {
 	id: text('id').primaryKey(),
@@ -193,7 +263,34 @@ export const dashboardWidgetRelations = relations(dashboardWidgets, ({ one }) =>
 	})
 }));
 
+// Auth Provider relations
+export const authProviderRelations = relations(authProviders, ({ many }) => ({
+	userProviders: many(userProviders)
+}));
+
+// User Provider relations
+export const userProviderRelations = relations(userProviders, ({ one }) => ({
+	user: one(users, {
+		fields: [userProviders.userId],
+		references: [users.id]
+	}),
+	provider: one(authProviders, {
+		fields: [userProviders.providerId],
+		references: [authProviders.id]
+	})
+}));
+
+// User relations (add SSO providers)
+export const userRelations = relations(users, ({ many }) => ({
+	sessions: many(sessions),
+	ssoProviders: many(userProviders)
+}));
+
 export type Dashboard = typeof dashboards.$inferSelect;
 export type NewDashboard = typeof dashboards.$inferInsert;
 export type DashboardWidget = typeof dashboardWidgets.$inferSelect;
 export type NewDashboardWidget = typeof dashboardWidgets.$inferInsert;
+export type AuthProvider = typeof authProviders.$inferSelect;
+export type NewAuthProvider = typeof authProviders.$inferInsert;
+export type UserProvider = typeof userProviders.$inferSelect;
+export type NewUserProvider = typeof userProviders.$inferInsert;

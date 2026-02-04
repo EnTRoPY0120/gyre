@@ -17,6 +17,7 @@
 			username: string;
 			role: string;
 			email?: string | null;
+			isLocal?: boolean;
 		} | null;
 	}
 
@@ -59,7 +60,7 @@
 	<!-- Breadcrumb Navigation -->
 	<nav class="flex items-center" aria-label="Breadcrumb">
 		<ol class="flex items-center space-x-2">
-			{#each breadcrumbs() as crumb, i}
+			{#each breadcrumbs() as crumb, i (crumb.href)}
 				{#if i > 0}
 					<li class="flex items-center text-muted-foreground/50">
 						<ChevronRight class="size-3.5" />
@@ -73,6 +74,7 @@
 							{crumb.label}
 						</span>
 					{:else}
+						<!-- eslint-disable-next-line -->
 						<a
 							href={crumb.href}
 							class="max-w-[100px] truncate text-xs font-semibold tracking-wide text-muted-foreground uppercase transition-all hover:text-primary hover:underline hover:underline-offset-4 md:max-w-none"

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LogOut, User as UserIcon, Shield } from 'lucide-svelte';
+	import { LogOut, User as UserIcon, Shield, KeyRound, BadgeCheck } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { fade, scale } from 'svelte/transition';
 
@@ -8,11 +8,13 @@
 			username: string;
 			role: string;
 			email?: string | null;
+			isLocal?: boolean;
 		} | null;
 	}
 
 	let { user }: Props = $props();
 	let isOpen = $state(false);
+	let isLocalUser = $derived(user?.isLocal !== false); // Default to true for backward compatibility
 
 	async function handleLogout() {
 		try {
@@ -63,7 +65,17 @@
 			class="absolute right-0 mt-2 w-56 origin-top-right rounded-xl border border-border/60 bg-background/95 p-1.5 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl"
 		>
 			<div class="px-3 py-2">
-				<p class="text-xs font-medium text-muted-foreground">Signed in as</p>
+				<div class="flex items-center justify-between">
+					<p class="text-xs font-medium text-muted-foreground">Signed in as</p>
+					{#if !isLocalUser}
+						<span
+							class="flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400"
+						>
+							<BadgeCheck class="size-3" />
+							SSO
+						</span>
+					{/if}
+				</div>
 				<p class="truncate text-sm font-bold">{user?.username}</p>
 				{#if user?.email}
 					<p class="truncate text-[10px] text-muted-foreground">{user.email}</p>
@@ -79,6 +91,16 @@
 					<Shield class="size-4" />
 					Role: <span class="font-medium text-foreground capitalize">{user?.role}</span>
 				</button>
+
+				{#if isLocalUser}
+					<a
+						href="/change-password"
+						class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
+					>
+						<KeyRound class="size-4" />
+						Change Password
+					</a>
+				{/if}
 
 				<div class="my-1 h-px bg-border/50"></div>
 

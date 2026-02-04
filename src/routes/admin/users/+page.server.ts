@@ -7,7 +7,7 @@ import {
 	deleteUser,
 	updateUserPassword
 } from '$lib/server/auth';
-import { isAdmin, canAdmin } from '$lib/server/rbac';
+import { isAdmin } from '$lib/server/rbac';
 import { logUserManagement } from '$lib/server/audit';
 
 /**
@@ -35,6 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			email: u.email,
 			role: u.role,
 			active: u.active,
+			isLocal: u.isLocal,
 			createdAt: u.createdAt,
 			updatedAt: u.updatedAt
 		})),
@@ -167,6 +168,7 @@ export const actions: Actions = {
 
 	/**
 	 * Reset user password
+	 * Only works for local users (not SSO users)
 	 */
 	resetPassword: async ({ request, locals }) => {
 		if (!locals.user || !isAdmin(locals.user)) {
@@ -183,6 +185,13 @@ export const actions: Actions = {
 
 		if (newPassword.length < 8) {
 			return fail(400, { error: 'Password must be at least 8 characters' });
+		}
+
+		// Check if user is SSO user
+		const users = await listUsers();
+		const targetUser = users.find((u) => u.id === userId);
+		if (targetUser && targetUser.isLocal === false) {
+			return fail(400, { error: 'Cannot reset password for SSO users' });
 		}
 
 		try {

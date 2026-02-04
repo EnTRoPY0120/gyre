@@ -11,7 +11,7 @@
 		AlertTriangle,
 		CheckCircle2,
 		XCircle,
-		User
+		User as UserIcon
 	} from 'lucide-svelte';
 
 	interface User {
