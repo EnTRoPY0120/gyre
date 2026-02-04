@@ -50,9 +50,26 @@ export const GET: RequestHandler = async ({ request }) => {
 								const key = `${resourceType}/${resource.metadata.namespace}/${resource.metadata.name}`;
 								currentMessageKeys.add(key);
 
+								// Extract only relevant status fields to avoid noisy notifications
+								// Extract only relevant status fields to avoid noisy notifications
+								// We exclude timestamps (lastTransitionTime, lastUpdateTime) from the comparison
+								const conditions = resource.status?.conditions?.map(
+									(c: { type: string; status: string; reason?: string; message?: string }) => ({
+										type: c.type,
+										status: c.status,
+										reason: c.reason,
+										message: c.message
+									})
+								);
+
 								const currentState = JSON.stringify({
-									conditions: resource.status?.conditions,
-									observedGeneration: resource.status?.observedGeneration
+									conditions,
+									observedGeneration: resource.status?.observedGeneration,
+									// Track revision changes
+									revision:
+										resource.status?.lastAppliedRevision ||
+										resource.status?.artifact?.revision ||
+										resource.status?.lastAttemptedRevision
 								});
 
 								const previousState = lastStates.get(key);

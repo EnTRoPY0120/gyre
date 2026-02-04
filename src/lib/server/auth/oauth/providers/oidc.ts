@@ -41,14 +41,10 @@ export class OIDCProvider implements IOAuthProvider {
 
 	constructor(options: OAuthProviderOptions) {
 		this.config = options.config;
-		this.redirectUri =
-			options.redirectUri || `/api/auth/${this.config.id}/callback`;
+		this.redirectUri = options.redirectUri || `/api/auth/${this.config.id}/callback`;
 
 		if (!this.config.issuerUrl) {
-			throw new OAuthError(
-				'OIDC provider requires issuerUrl',
-				'INVALID_CONFIG'
-			);
+			throw new OAuthError('OIDC provider requires issuerUrl', 'INVALID_CONFIG');
 		}
 	}
 
@@ -79,11 +75,7 @@ export class OIDCProvider implements IOAuthProvider {
 			const discovery = (await response.json()) as OIDCDiscovery;
 
 			// Validate required fields
-			if (
-				!discovery.authorization_endpoint ||
-				!discovery.token_endpoint ||
-				!discovery.jwks_uri
-			) {
+			if (!discovery.authorization_endpoint || !discovery.token_endpoint || !discovery.jwks_uri) {
 				throw new Error('Invalid discovery document: missing required endpoints');
 			}
 
@@ -228,10 +220,7 @@ export class OIDCProvider implements IOAuthProvider {
 		// Otherwise, fetch from userinfo endpoint
 		const discovery = await this.discover();
 		if (!discovery.userinfo_endpoint) {
-			throw new OAuthError(
-				'No ID token and no userinfo endpoint available',
-				'NO_USER_INFO'
-			);
+			throw new OAuthError('No ID token and no userinfo endpoint available', 'NO_USER_INFO');
 		}
 
 		try {
@@ -280,9 +269,7 @@ export class OIDCProvider implements IOAuthProvider {
 		const groupsClaim = claims[this.config.roleClaim];
 		if (groupsClaim) {
 			if (Array.isArray(groupsClaim)) {
-				userInfo.groups = groupsClaim.filter(
-					(g): g is string => typeof g === 'string'
-				);
+				userInfo.groups = groupsClaim.filter((g): g is string => typeof g === 'string');
 			} else if (typeof groupsClaim === 'string') {
 				userInfo.groups = [groupsClaim];
 			}

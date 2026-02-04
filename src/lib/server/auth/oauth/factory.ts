@@ -20,10 +20,7 @@ import { eq } from 'drizzle-orm';
  * @param redirectUri - Optional override for redirect URI
  * @returns OAuth provider instance
  */
-export function createOAuthProvider(
-	config: AuthProvider,
-	redirectUri?: string
-): IOAuthProvider {
+export function createOAuthProvider(config: AuthProvider, redirectUri?: string): IOAuthProvider {
 	const options = { config, redirectUri };
 
 	switch (config.type) {
@@ -38,10 +35,7 @@ export function createOAuthProvider(
 
 		case ProviderType.OAUTH2_GITLAB:
 			// TODO: Implement GitLab provider
-			throw new OAuthError(
-				'GitLab provider not yet implemented',
-				'PROVIDER_NOT_IMPLEMENTED'
-			);
+			throw new OAuthError('GitLab provider not yet implemented', 'PROVIDER_NOT_IMPLEMENTED');
 
 		case ProviderType.OAUTH2_GENERIC:
 			// Generic OAuth2 falls back to OIDC provider
@@ -59,9 +53,7 @@ export function createOAuthProvider(
  * @param providerId - Provider ID
  * @returns Provider configuration or null if not found
  */
-export async function getAuthProviderById(
-	providerId: string
-): Promise<AuthProvider | null> {
+export async function getAuthProviderById(providerId: string): Promise<AuthProvider | null> {
 	const db = await getDb();
 	const provider = await db.query.authProviders.findFirst({
 		where: eq(authProviders.id, providerId)

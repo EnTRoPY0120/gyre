@@ -9,12 +9,7 @@
  */
 
 import { GitHub } from 'arctic';
-import type {
-	IOAuthProvider,
-	OAuthTokens,
-	OAuthUserInfo,
-	OAuthProviderOptions
-} from '../types';
+import type { IOAuthProvider, OAuthTokens, OAuthUserInfo, OAuthProviderOptions } from '../types';
 import { OAuthError } from '../types';
 import { decryptSecret } from '$lib/server/auth/crypto';
 
@@ -55,8 +50,7 @@ export class GitHubProvider implements IOAuthProvider {
 
 	constructor(options: OAuthProviderOptions) {
 		this.config = options.config;
-		this.redirectUri =
-			options.redirectUri || `/api/auth/${this.config.id}/callback`;
+		this.redirectUri = options.redirectUri || `/api/auth/${this.config.id}/callback`;
 	}
 
 	/**

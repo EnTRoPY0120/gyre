@@ -15,6 +15,7 @@
 				clusterName?: string;
 				availableClusters: string[];
 			};
+			fluxVersion?: string;
 			user: {
 				username: string;
 				role: string;
@@ -72,7 +73,7 @@
 		<!-- Main Content Area -->
 		<div class="flex flex-1 flex-col overflow-hidden">
 			<!-- Header -->
-			<AppHeader health={data.health} user={data.user} />
+			<AppHeader health={data.health} fluxVersion={data.fluxVersion} user={data.user} />
 
 			<!-- Scrollable Content -->
 			<main class="flex-1 overflow-y-auto p-6 dark:bg-gray-900">

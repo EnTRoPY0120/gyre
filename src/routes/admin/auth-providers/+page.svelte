@@ -237,13 +237,11 @@
 	<div class="flex items-center justify-between">
 		<div>
 			<h1 class="text-2xl font-bold text-slate-100">SSO Providers</h1>
-			<p class="mt-1 text-sm text-slate-400">
-				Manage OAuth2 and OIDC authentication providers
-			</p>
+			<p class="mt-1 text-sm text-slate-400">Manage OAuth2 and OIDC authentication providers</p>
 		</div>
 		<button
 			onclick={openCreateModal}
-			class="flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-amber-400 transition-colors"
+			class="flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-amber-400"
 		>
 			<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -271,7 +269,7 @@
 			</p>
 			<button
 				onclick={openCreateModal}
-				class="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-amber-400 transition-colors"
+				class="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-amber-400"
 			>
 				Add Provider
 			</button>
@@ -293,7 +291,9 @@
 								>
 									{provider.enabled ? 'Enabled' : 'Disabled'}
 								</span>
-								<span class="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs font-medium text-slate-300">
+								<span
+									class="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs font-medium text-slate-300"
+								>
 									{getProviderTypeName(provider.type)}
 								</span>
 							</div>
@@ -311,17 +311,16 @@
 								{/if}
 								<div>
 									<span class="text-slate-400">Auto-provision:</span>
-									<span class="ml-2 text-slate-300"
-										>{provider.autoProvision ? 'Yes' : 'No'}</span
-									>
+									<span class="ml-2 text-slate-300">{provider.autoProvision ? 'Yes' : 'No'}</span>
 								</div>
 								<div>
 									<span class="text-slate-400">Default Role:</span>
-									<span class="ml-2 capitalize text-slate-300">{provider.defaultRole}</span>
+									<span class="ml-2 text-slate-300 capitalize">{provider.defaultRole}</span>
 								</div>
 								<div>
 									<span class="text-slate-400">PKCE:</span>
-									<span class="ml-2 text-slate-300">{provider.usePkce ? 'Enabled' : 'Disabled'}</span
+									<span class="ml-2 text-slate-300"
+										>{provider.usePkce ? 'Enabled' : 'Disabled'}</span
 									>
 								</div>
 								<div>
@@ -335,11 +334,16 @@
 							<!-- Toggle Enabled/Disabled -->
 							<button
 								onclick={() => toggleEnabled(provider)}
-								class="rounded-lg p-2 hover:bg-slate-700 transition-colors"
+								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
 								title={provider.enabled ? 'Disable' : 'Enable'}
 							>
 								{#if provider.enabled}
-									<svg class="h-5 w-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<svg
+										class="h-5 w-5 text-green-400"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+									>
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -348,7 +352,12 @@
 										/>
 									</svg>
 								{:else}
-									<svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+									<svg
+										class="h-5 w-5 text-slate-400"
+										fill="none"
+										viewBox="0 0 24 24"
+										stroke="currentColor"
+									>
 										<path
 											stroke-linecap="round"
 											stroke-linejoin="round"
@@ -362,10 +371,15 @@
 							<!-- Edit Button -->
 							<button
 								onclick={() => openEditModal(provider)}
-								class="rounded-lg p-2 hover:bg-slate-700 transition-colors"
+								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
 								title="Edit"
 							>
-								<svg class="h-5 w-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<svg
+									class="h-5 w-5 text-slate-400"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"
@@ -378,10 +392,15 @@
 							<!-- Delete Button -->
 							<button
 								onclick={() => openDeleteModal(provider)}
-								class="rounded-lg p-2 hover:bg-slate-700 transition-colors"
+								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
 								title="Delete"
 							>
-								<svg class="h-5 w-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<svg
+									class="h-5 w-5 text-red-400"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
 									<path
 										stroke-linecap="round"
 										stroke-linejoin="round"
@@ -401,46 +420,73 @@
 <!-- Create Modal -->
 {#if showCreateModal}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-		<div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 p-6">
+		<div
+			class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 p-6"
+		>
 			<div class="mb-6 flex items-center justify-between">
 				<h2 class="text-xl font-bold text-slate-100">Add SSO Provider</h2>
-				<button onclick={closeModals} class="text-slate-400 hover:text-slate-300">
+				<button
+					aria-label="Close"
+					onclick={closeModals}
+					class="text-slate-400 hover:text-slate-300"
+				>
 					<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/>
 					</svg>
 				</button>
 			</div>
 
 			{#if error}
-				<div class="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+				<div
+					class="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
+				>
 					{error}
 				</div>
 			{/if}
 
 			{#if success}
-				<div class="mb-4 rounded-lg border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-400">
+				<div
+					class="mb-4 rounded-lg border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-400"
+				>
 					{success}
 				</div>
 			{/if}
 
-			<form onsubmit={(e) => { e.preventDefault(); handleCreate(); }} class="space-y-4">
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					handleCreate();
+				}}
+				class="space-y-4"
+			>
 				<!-- Basic Settings -->
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label class="block text-sm font-medium text-slate-300 mb-1">Provider Name</label>
+						<label for="provider-name" class="mb-1 block text-sm font-medium text-slate-300"
+							>Provider Name</label
+						>
 						<input
+							id="provider-name"
 							type="text"
 							bind:value={formData.name}
 							placeholder="e.g., Company Okta"
 							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-slate-300 mb-1">Provider Type</label>
+						<label for="provider-type" class="mb-1 block text-sm font-medium text-slate-300"
+							>Provider Type</label
+						>
 						<select
+							id="provider-type"
 							bind:value={formData.type}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						>
 							<option value="oidc">OIDC (Generic)</option>
 							<option value="oauth2-google">Google OAuth</option>
@@ -453,21 +499,27 @@
 				<!-- OAuth Credentials -->
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label class="block text-sm font-medium text-slate-300 mb-1">Client ID</label>
+						<label for="client-id" class="mb-1 block text-sm font-medium text-slate-300"
+							>Client ID</label
+						>
 						<input
+							id="client-id"
 							type="text"
 							bind:value={formData.clientId}
 							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-slate-300 mb-1">Client Secret</label>
+						<label for="client-secret" class="mb-1 block text-sm font-medium text-slate-300"
+							>Client Secret</label
+						>
 						<input
+							id="client-secret"
 							type="password"
 							bind:value={formData.clientSecret}
 							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						/>
 					</div>
 				</div>
@@ -475,13 +527,16 @@
 				<!-- OIDC Settings -->
 				{#if formData.type === 'oidc'}
 					<div>
-						<label class="block text-sm font-medium text-slate-300 mb-1">Issuer URL</label>
+						<label for="issuer-url" class="mb-1 block text-sm font-medium text-slate-300"
+							>Issuer URL</label
+						>
 						<input
+							id="issuer-url"
 							type="url"
 							bind:value={formData.issuerUrl}
 							placeholder="https://accounts.google.com"
 							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						/>
 					</div>
 				{/if}
@@ -490,15 +545,23 @@
 				<div class="grid grid-cols-2 gap-4">
 					<div>
 						<label class="flex items-center gap-2 text-sm font-medium text-slate-300">
-							<input type="checkbox" bind:checked={formData.autoProvision} class="rounded" />
+							<input
+								id="auto-provision"
+								type="checkbox"
+								bind:checked={formData.autoProvision}
+								class="rounded"
+							/>
 							Auto-provision users
 						</label>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-slate-300 mb-1">Default Role</label>
+						<label for="default-role" class="mb-1 block text-sm font-medium text-slate-300"
+							>Default Role</label
+						>
 						<select
+							id="default-role"
 							bind:value={formData.defaultRole}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						>
 							<option value="viewer">Viewer</option>
 							<option value="editor">Editor</option>
@@ -509,27 +572,40 @@
 
 				<!-- Advanced Settings -->
 				<details class="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
-					<summary class="cursor-pointer text-sm font-medium text-slate-300">Advanced Settings</summary>
+					<summary class="cursor-pointer text-sm font-medium text-slate-300"
+						>Advanced Settings</summary
+					>
 					<div class="mt-4 space-y-4">
 						<div>
-							<label class="block text-sm font-medium text-slate-300 mb-1">Scopes</label>
+							<label for="scopes" class="mb-1 block text-sm font-medium text-slate-300"
+								>Scopes</label
+							>
 							<input
+								id="scopes"
 								type="text"
 								bind:value={formData.scopes}
-								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 							/>
 						</div>
 						<div>
-							<label class="block text-sm font-medium text-slate-300 mb-1">Role Mapping (JSON)</label>
+							<label for="role-mapping" class="mb-1 block text-sm font-medium text-slate-300"
+								>Role Mapping (JSON)</label
+							>
 							<textarea
+								id="role-mapping"
 								bind:value={formData.roleMapping}
 								rows="6"
-								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 							></textarea>
 						</div>
 						<div class="flex items-center gap-2">
-							<input type="checkbox" bind:checked={formData.usePkce} class="rounded" />
-							<label class="text-sm text-slate-300">Enable PKCE (Recommended)</label>
+							<input
+								id="use-pkce"
+								type="checkbox"
+								bind:checked={formData.usePkce}
+								class="rounded"
+							/>
+							<label for="use-pkce" class="text-sm text-slate-300">Enable PKCE (Recommended)</label>
 						</div>
 					</div>
 				</details>
@@ -539,14 +615,14 @@
 					<button
 						type="submit"
 						disabled={loading}
-						class="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-900 hover:bg-amber-400 disabled:opacity-50 transition-colors"
+						class="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-900 transition-colors hover:bg-amber-400 disabled:opacity-50"
 					>
 						{loading ? 'Creating...' : 'Create Provider'}
 					</button>
 					<button
 						type="button"
 						onclick={closeModals}
-						class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 hover:bg-slate-700 transition-colors"
+						class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 transition-colors hover:bg-slate-700"
 					>
 						Cancel
 					</button>
@@ -559,45 +635,72 @@
 <!-- Edit Modal (similar structure to Create) -->
 {#if showEditModal && selectedProvider}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-		<div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 p-6">
+		<div
+			class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 p-6"
+		>
 			<div class="mb-6 flex items-center justify-between">
 				<h2 class="text-xl font-bold text-slate-100">Edit Provider: {selectedProvider.name}</h2>
-				<button onclick={closeModals} class="text-slate-400 hover:text-slate-300">
+				<button
+					aria-label="Close"
+					onclick={closeModals}
+					class="text-slate-400 hover:text-slate-300"
+				>
 					<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M6 18L18 6M6 6l12 12"
+						/>
 					</svg>
 				</button>
 			</div>
 
 			{#if error}
-				<div class="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+				<div
+					class="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
+				>
 					{error}
 				</div>
 			{/if}
 
 			{#if success}
-				<div class="mb-4 rounded-lg border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-400">
+				<div
+					class="mb-4 rounded-lg border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-400"
+				>
 					{success}
 				</div>
 			{/if}
 
-			<form onsubmit={(e) => { e.preventDefault(); handleUpdate(); }} class="space-y-4">
+			<form
+				onsubmit={(e) => {
+					e.preventDefault();
+					handleUpdate();
+				}}
+				class="space-y-4"
+			>
 				<!-- Same form fields as Create modal, but with Update button -->
 				<div class="grid grid-cols-2 gap-4">
 					<div>
-						<label class="block text-sm font-medium text-slate-300 mb-1">Provider Name</label>
+						<label for="edit-provider-name" class="mb-1 block text-sm font-medium text-slate-300"
+							>Provider Name</label
+						>
 						<input
+							id="edit-provider-name"
 							type="text"
 							bind:value={formData.name}
 							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						/>
 					</div>
 					<div>
-						<label class="block text-sm font-medium text-slate-300 mb-1">Default Role</label>
+						<label for="edit-default-role" class="mb-1 block text-sm font-medium text-slate-300"
+							>Default Role</label
+						>
 						<select
+							id="edit-default-role"
 							bind:value={formData.defaultRole}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						>
 							<option value="viewer">Viewer</option>
 							<option value="editor">Editor</option>
@@ -607,14 +710,15 @@
 				</div>
 
 				<div>
-					<label class="block text-sm font-medium text-slate-300 mb-1">
+					<label for="edit-client-secret" class="mb-1 block text-sm font-medium text-slate-300">
 						Client Secret (leave blank to keep current)
 					</label>
 					<input
+						id="edit-client-secret"
 						type="password"
 						bind:value={formData.clientSecret}
 						placeholder="Enter new secret to change"
-						class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+						class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 					/>
 				</div>
 
@@ -622,14 +726,14 @@
 					<button
 						type="submit"
 						disabled={loading}
-						class="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-900 hover:bg-amber-400 disabled:opacity-50 transition-colors"
+						class="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-900 transition-colors hover:bg-amber-400 disabled:opacity-50"
 					>
 						{loading ? 'Updating...' : 'Update Provider'}
 					</button>
 					<button
 						type="button"
 						onclick={closeModals}
-						class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 hover:bg-slate-700 transition-colors"
+						class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 transition-colors hover:bg-slate-700"
 					>
 						Cancel
 					</button>
@@ -645,12 +749,14 @@
 		<div class="w-full max-w-md rounded-lg border border-slate-700 bg-slate-800 p-6">
 			<h2 class="text-xl font-bold text-slate-100">Delete Provider</h2>
 			<p class="mt-4 text-sm text-slate-300">
-				Are you sure you want to delete <strong>{selectedProvider.name}</strong>? This action
-				cannot be undone and will affect all users linked to this provider.
+				Are you sure you want to delete <strong>{selectedProvider.name}</strong>? This action cannot
+				be undone and will affect all users linked to this provider.
 			</p>
 
 			{#if error}
-				<div class="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
+				<div
+					class="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
+				>
 					{error}
 				</div>
 			{/if}
@@ -659,13 +765,13 @@
 				<button
 					onclick={handleDelete}
 					disabled={loading}
-					class="flex-1 rounded-lg bg-red-500 px-4 py-2 font-medium text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+					class="flex-1 rounded-lg bg-red-500 px-4 py-2 font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
 				>
 					{loading ? 'Deleting...' : 'Delete'}
 				</button>
 				<button
 					onclick={closeModals}
-					class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 hover:bg-slate-700 transition-colors"
+					class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 transition-colors hover:bg-slate-700"
 				>
 					Cancel
 				</button>

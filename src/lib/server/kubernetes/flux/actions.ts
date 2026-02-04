@@ -85,11 +85,7 @@ export async function reconcileResource(
 
 	try {
 		// Fetch current resource to check if annotations exist
-		const resource = await getFluxResource(
-			resourceDef.kind as FluxResourceType,
-			namespace,
-			name
-		);
+		const resource = await getFluxResource(resourceDef.kind as FluxResourceType, namespace, name);
 		const hasAnnotations = !!resource.metadata.annotations;
 
 		let patchBody;

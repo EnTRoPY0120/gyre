@@ -73,7 +73,7 @@ export async function initializeGyre(): Promise<void> {
 			} else {
 				// Local development mode
 				console.log('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
-				console.log('   ⚠️  Please save this password - it won\'t be shown again!');
+				console.log("   ⚠️  Please save this password - it won't be shown again!");
 			}
 		}
 		console.log('   ✓ Authentication ready');

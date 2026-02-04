@@ -42,10 +42,7 @@ export async function createOrUpdateSSOUser(
 			.update(userProviders)
 			.set({ lastLoginAt: new Date() })
 			.where(
-				and(
-					eq(userProviders.userId, existingLink.userId),
-					eq(userProviders.providerId, providerId)
-				)
+				and(eq(userProviders.userId, existingLink.userId), eq(userProviders.providerId, providerId))
 			);
 
 		// Get and return user

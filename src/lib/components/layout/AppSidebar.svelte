@@ -7,10 +7,12 @@
 	import Icon from '$lib/components/ui/Icon.svelte';
 
 	import { onMount, onDestroy } from 'svelte';
+
 	const isOpen = $derived($sidebarOpen);
 	const currentPath = $derived($page.url.pathname);
 
 	const fluxVersion = $derived($page.data.fluxVersion || 'v2.x.x');
+	const gyreVersion = $derived($page.data.gyreVersion || '0.0.1');
 	const userRole = $derived($page.data.user?.role || 'viewer');
 	const isAdmin = $derived(userRole === 'admin');
 
@@ -85,29 +87,41 @@
 		class="relative z-50 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground shadow-2xl backdrop-blur-xl transition-all duration-300 ease-in-out"
 	>
 		<!-- Header -->
-		<div class="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
-			<!-- eslint-disable-next-line -->
-			<a href="/" class="group flex items-center gap-3">
-				<div
-					class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg transition-all group-hover:scale-105"
+		<div class="flex h-20 flex-col justify-center border-b border-sidebar-border px-6">
+			<div class="flex items-center justify-between">
+				<!-- Logo & Brand -->
+				<a href="/" class="group flex items-center gap-3">
+					<div
+						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20 transition-all group-hover:scale-105 group-hover:shadow-amber-500/30"
+					>
+						<svg class="h-6 w-6 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+						</svg>
+					</div>
+					<div class="flex flex-col">
+						<span class="text-xl leading-tight font-bold tracking-tight text-foreground">Gyre</span>
+						<div class="mt-0.5">
+							<span
+								class="inline-flex items-center rounded-md border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-500"
+							>
+								v{gyreVersion}
+							</span>
+						</div>
+					</div>
+				</a>
+
+				<button
+					onclick={() => sidebarOpen.toggle()}
+					class="rounded-lg p-2 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95"
+					title="Collapse Sidebar"
 				>
-					<svg class="h-6 w-6 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
-						<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-					</svg>
-				</div>
-				<span class="text-xl font-bold text-foreground">Gyre</span>
-			</a>
-			<button
-				onclick={() => sidebarOpen.toggle()}
-				class="rounded-lg p-2 text-muted-foreground transition-all hover:scale-105 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95"
-				title="Collapse Sidebar"
-			>
-				<Icon name="chevron-right" size={16} class="rotate-180" />
-			</button>
+					<Icon name="chevron-right" size={16} class="rotate-180" />
+				</button>
+			</div>
 		</div>
 
 		<!-- Nav -->
-		<div class="scrollbar-hide flex-1 space-y-2 overflow-y-auto px-4 py-6">
+		<div class="custom-scrollbar flex-1 space-y-2 overflow-y-auto px-4 py-6">
 			<!-- Dashboard -->
 			<!-- eslint-disable-next-line -->
 			<a
@@ -237,7 +251,11 @@
 								{#if currentPath === '/admin/users'}
 									<div class="absolute inset-0 animate-pulse bg-primary/5"></div>
 								{/if}
-								<Icon name="users" size={16} class="transition-transform duration-300 group-hover/item:scale-110" />
+								<Icon
+									name="users"
+									size={16}
+									class="transition-transform duration-300 group-hover/item:scale-110"
+								/>
 								<span class="relative z-10">Users</span>
 							</a>
 
@@ -254,7 +272,11 @@
 								{#if currentPath === '/admin/clusters'}
 									<div class="absolute inset-0 animate-pulse bg-primary/5"></div>
 								{/if}
-								<Icon name="server" size={16} class="transition-transform duration-300 group-hover/item:scale-110" />
+								<Icon
+									name="server"
+									size={16}
+									class="transition-transform duration-300 group-hover/item:scale-110"
+								/>
 								<span class="relative z-10">Clusters</span>
 							</a>
 
@@ -271,7 +293,11 @@
 								{#if currentPath === '/admin/auth-providers'}
 									<div class="absolute inset-0 animate-pulse bg-primary/5"></div>
 								{/if}
-								<Icon name="key" size={16} class="transition-transform duration-300 group-hover/item:scale-110" />
+								<Icon
+									name="key"
+									size={16}
+									class="transition-transform duration-300 group-hover/item:scale-110"
+								/>
 								<span class="relative z-10">Auth Providers</span>
 							</a>
 
@@ -288,7 +314,11 @@
 								{#if currentPath === '/admin/policies'}
 									<div class="absolute inset-0 animate-pulse bg-primary/5"></div>
 								{/if}
-								<Icon name="shield-check" size={16} class="transition-transform duration-300 group-hover/item:scale-110" />
+								<Icon
+									name="shield-check"
+									size={16}
+									class="transition-transform duration-300 group-hover/item:scale-110"
+								/>
 								<span class="relative z-10">Policies</span>
 							</a>
 						</div>
@@ -368,34 +398,6 @@
 					{/if}
 				</div>
 			{/each}
-		</div>
-
-		<!-- Footer -->
-		<div class="border-t border-sidebar-border bg-sidebar/50 p-4 backdrop-blur-md">
-			<div
-				class="group flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/20 p-3.5 transition-all hover:border-primary/30 hover:bg-sidebar-accent/40"
-			>
-				<div
-					class="flex h-9 w-9 items-center justify-center rounded-lg border border-sidebar-primary/20 bg-sidebar-primary/10 text-xs font-black text-sidebar-primary shadow-inner transition-transform group-hover:scale-110"
-				>
-					FL
-				</div>
-				<div class="flex-1 overflow-hidden">
-					<p class="truncate text-xs font-bold tracking-wide text-foreground uppercase">
-						Flux Controller
-					</p>
-					<div class="mt-0.5 flex items-center gap-1.5">
-						<div
-							class="size-1.5 animate-pulse rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
-						></div>
-						<p
-							class="truncate font-mono text-[10px] font-medium text-muted-foreground transition-colors group-hover:text-primary"
-						>
-							{fluxVersion}
-						</p>
-					</div>
-				</div>
-			</div>
 		</div>
 	</aside>
 {:else}
@@ -486,12 +488,21 @@
 {/if}
 
 <style>
-	/* Hide scrollbar but keep functionality */
-	.scrollbar-hide::-webkit-scrollbar {
-		display: none;
+	/* Subtle and premium custom scrollbar */
+	.custom-scrollbar::-webkit-scrollbar {
+		width: 4px;
 	}
-	.scrollbar-hide {
-		-ms-overflow-style: none;
-		scrollbar-width: none;
+	.custom-scrollbar::-webkit-scrollbar-track {
+		background: transparent;
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.05);
+		border-radius: 20px;
+	}
+	.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.1);
+	}
+	.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+		background: var(--sidebar-primary);
 	}
 </style>

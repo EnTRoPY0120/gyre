@@ -69,6 +69,7 @@ echo
 ```bash
 kubectl port-forward -n flux-system svc/gyre 3000:80
 ```
+
 Visit [http://localhost:3000](http://localhost:3000).
 
 **Option 2: Ingress (Production)**

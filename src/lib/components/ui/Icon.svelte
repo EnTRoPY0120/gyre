@@ -171,7 +171,13 @@
 		'alert-triangle': AlertTriangle,
 		'help-circle': HelpCircle,
 		'rerotate-ccw': RotateCcw,
-		'circle-off': CircleOff
+		'circle-off': CircleOff,
+
+		// Resource Kind mappings (lowercase)
+		gitrepository: GitBranch,
+		helmrepository: Library,
+		kustomization: FileCog,
+		helmrelease: Ship
 	};
 
 	const IconComponent = $derived(lucideIcons[name]);

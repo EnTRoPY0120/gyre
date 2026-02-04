@@ -80,8 +80,7 @@ export const GET: RequestHandler = async ({ params, url, cookies, getClientAddre
 		// Check if user creation/retrieval was successful
 		if (!user) {
 			throw error(403, {
-				message:
-					'Account auto-provisioning is disabled. Please contact your administrator.'
+				message: 'Account auto-provisioning is disabled. Please contact your administrator.'
 			});
 		}
 

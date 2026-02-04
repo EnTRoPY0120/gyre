@@ -89,10 +89,10 @@ export function generatePKCEPair(): { verifier: string; challenge: string } {
  * Validate PKCE parameters for correctness.
  * Useful for input validation.
  */
-export function validatePKCEParams(params: {
-	verifier?: string;
-	challenge?: string;
-}): { valid: boolean; error?: string } {
+export function validatePKCEParams(params: { verifier?: string; challenge?: string }): {
+	valid: boolean;
+	error?: string;
+} {
 	const { verifier, challenge } = params;
 
 	if (verifier !== undefined) {

@@ -13,6 +13,7 @@
 			clusterName?: string;
 			availableClusters?: string[];
 		};
+		fluxVersion?: string;
 		user?: {
 			username: string;
 			role: string;
@@ -21,7 +22,7 @@
 		} | null;
 	}
 
-	let { health = { connected: false }, user = null }: Props = $props();
+	let { health = { connected: false }, fluxVersion = 'v2.x.x', user = null }: Props = $props();
 
 	// Build breadcrumbs from current path
 	const breadcrumbs = $derived(() => {
@@ -103,6 +104,18 @@
 		<div class="hidden sm:block">
 			<ClusterSwitcher current={health?.clusterName} available={health?.availableClusters} />
 		</div>
+
+		<!-- Flux Version Badge -->
+		{#if fluxVersion}
+			<div class="hidden sm:block">
+				<span
+					class="inline-flex items-center rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 font-mono text-[10px] font-bold text-emerald-500"
+					title="Flux CD Version"
+				>
+					Flux {fluxVersion}
+				</span>
+			</div>
+		{/if}
 
 		<!-- User Menu -->
 		<UserMenu {user} />

@@ -10,12 +10,7 @@
  */
 
 import { Google } from 'arctic';
-import type {
-	IOAuthProvider,
-	OAuthTokens,
-	OAuthUserInfo,
-	OAuthProviderOptions
-} from '../types';
+import type { IOAuthProvider, OAuthTokens, OAuthUserInfo, OAuthProviderOptions } from '../types';
 import { OAuthError } from '../types';
 import { decryptSecret } from '$lib/server/auth/crypto';
 import { OIDCProvider } from './oidc';
@@ -35,8 +30,7 @@ export class GoogleProvider implements IOAuthProvider {
 
 	constructor(options: OAuthProviderOptions) {
 		this.config = options.config;
-		this.redirectUri =
-			options.redirectUri || `/api/auth/${this.config.id}/callback`;
+		this.redirectUri = options.redirectUri || `/api/auth/${this.config.id}/callback`;
 
 		// Ensure issuerUrl is set for Google
 		if (!this.config.issuerUrl) {
@@ -118,9 +112,7 @@ export class GoogleProvider implements IOAuthProvider {
 				idToken: tokens.idToken(), // Google returns ID token
 				tokenType: 'Bearer',
 				expiresIn: tokens.accessTokenExpiresAt()
-					? Math.floor(
-							(tokens.accessTokenExpiresAt()!.getTime() - Date.now()) / 1000
-						)
+					? Math.floor((tokens.accessTokenExpiresAt()!.getTime() - Date.now()) / 1000)
 					: undefined
 			};
 		} catch (error) {

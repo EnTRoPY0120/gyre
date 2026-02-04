@@ -1,4 +1,5 @@
 import type { LayoutServerLoad } from './$types';
+import pkg from '../../package.json';
 
 export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 	try {
@@ -17,6 +18,7 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 				availableClusters: healthData?.kubernetes?.availableContexts ?? []
 			},
 			fluxVersion: versionData.version,
+			gyreVersion: pkg.version,
 			user: locals.user
 				? {
 						username: locals.user.username,
