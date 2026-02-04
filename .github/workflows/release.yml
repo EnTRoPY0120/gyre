@@ -1,0 +1,106 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get tag info
+        id: tag
+        run: |
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG_NAME#v}
+          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Package Helm Chart
+        run: |
+          helm package charts/gyre --version ${{ steps.tag.outputs.version }} --app-version ${{ steps.tag.outputs.version }}
+          ls -lh *.tgz
+
+      - name: Generate Release Notes
+        id: notes
+        run: |
+          cat << 'EOF' > release_notes.md
+          ## 🚀 Release ${{ steps.tag.outputs.tag_name }}
+
+          ### 📦 Docker Images
+
+          Pull the Docker image:
+          ```bash
+          docker pull ghcr.io/entropy0120/gyre:${{ steps.tag.outputs.tag_name }}-${GITHUB_SHA:0:7}
+          docker pull ghcr.io/entropy0120/gyre:latest
+          ```
+
+          ### ⎈ Kubernetes Installation
+
+          **Using Helm:**
+          ```bash
+          helm install gyre charts/gyre \
+            --namespace flux-system \
+            --create-namespace
+          ```
+
+          **Get admin password:**
+          ```bash
+          kubectl get secret gyre-initial-admin-secret -n flux-system \
+            -o jsonpath='{.data.password}' | base64 -d
+          ```
+
+          ### 📋 What's Included
+
+          - **Multi-arch Docker images** (amd64, arm64)
+          - **Production-ready Helm chart**
+          - **Comprehensive RBAC configuration**
+          - **Auto-generated admin credentials**
+
+          ### 📚 Documentation
+
+          - [Installation Guide](https://github.com/EnTRoPY0120/gyre/blob/main/README.md)
+          - [Helm Chart Documentation](https://github.com/EnTRoPY0120/gyre/blob/main/charts/gyre/README.md)
+          - [Deployment Strategies](https://github.com/EnTRoPY0120/gyre/blob/main/DEPLOYMENT_STRATEGIES.md)
+
+          ### 🔗 Links
+
+          - **Docker Image**: [ghcr.io/entropy0120/gyre](https://github.com/EnTRoPY0120/gyre/pkgs/container/gyre)
+          - **Source Code**: [GitHub Repository](https://github.com/EnTRoPY0120/gyre)
+          - **Issues**: [Report a bug](https://github.com/EnTRoPY0120/gyre/issues)
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.tag.outputs.tag_name }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.tag.outputs.tag_name, '-alpha') || contains(steps.tag.outputs.tag_name, '-beta') || contains(steps.tag.outputs.tag_name, '-rc') }}
+          generate_release_notes: true
+          files: |
+            gyre-*.tgz
+
+      - name: Release Summary
+        run: |
+          echo "### ✅ Release Created Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.tag.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Docker Image:** \`ghcr.io/entropy0120/gyre:${{ steps.tag.outputs.tag_name }}-${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/${{ steps.tag.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
