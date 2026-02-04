@@ -20,8 +20,15 @@ export const GET: RequestHandler = async () => {
 			const deployments = response.items;
 
 			if (deployments.length > 0) {
-				// Get version from the first deployment's labels
-				const version = deployments[0].metadata?.labels?.['app.kubernetes.io/version'];
+				// Find a deployment that is part of Flux
+				const fluxDep = deployments.find(d => 
+					d.metadata?.labels?.['app.kubernetes.io/part-of'] === 'flux' ||
+					d.metadata?.name?.includes('source-controller')
+				);
+				
+				const version = fluxDep?.metadata?.labels?.['app.kubernetes.io/version'] || 
+								deployments[0].metadata?.labels?.['app.kubernetes.io/version'];
+								
 				if (version) {
 					return json({ version });
 				}

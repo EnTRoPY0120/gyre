@@ -67,13 +67,15 @@
 	// Initialize filters from URL - using $state for two-way binding with AdvancedSearch
 	let filters = $state<FilterState>(searchParamsToFilters($page.url.searchParams));
 
-	// Sync filters from URL when URL changes externally
+	// Track the last synced URL search params to avoid overwriting local state
+	let lastSearchParams = $state($page.url.search.toString());
+
+	// Sync filters from URL when URL changes (e.g. back button, or other navigation)
 	$effect(() => {
-		// Only update if URL params actually changed
-		const urlFilters = searchParamsToFilters($page.url.searchParams);
-		// Simple comparison to avoid infinite loops
-		if (JSON.stringify(urlFilters) !== JSON.stringify(filters)) {
-			filters = urlFilters;
+		const currentSync = $page.url.search.toString();
+		if (currentSync !== lastSearchParams) {
+			filters = searchParamsToFilters($page.url.searchParams);
+			lastSearchParams = currentSync;
 		}
 	});
 
@@ -87,7 +89,7 @@
 	const hasActiveFilters = $derived(checkActiveFilters(filters));
 
 	// Calculate statistics from filtered resources
-	const stats = $derived(() => {
+	const stats = $derived.by(() => {
 		const resources = filteredResources;
 		let healthy = 0;
 		let progressing = 0;
@@ -227,31 +229,31 @@
 			class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 		>
 			<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total</p>
-			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{stats().total}</p>
+			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.total}</p>
 		</div>
 		<div
 			class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/30"
 		>
 			<p class="text-sm font-medium text-green-700 dark:text-green-300">Healthy</p>
-			<p class="mt-1 text-2xl font-bold text-green-900 dark:text-green-100">{stats().healthy}</p>
+			<p class="mt-1 text-2xl font-bold text-green-900 dark:text-green-100">{stats.healthy}</p>
 		</div>
 		<div
 			class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/30"
 		>
 			<p class="text-sm font-medium text-blue-700 dark:text-blue-300">Progressing</p>
-			<p class="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100">{stats().progressing}</p>
+			<p class="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.progressing}</p>
 		</div>
 		<div
 			class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/30"
 		>
 			<p class="text-sm font-medium text-red-700 dark:text-red-300">Failed</p>
-			<p class="mt-1 text-2xl font-bold text-red-900 dark:text-red-100">{stats().failed}</p>
+			<p class="mt-1 text-2xl font-bold text-red-900 dark:text-red-100">{stats.failed}</p>
 		</div>
 		<div
 			class="rounded-lg border border-gray-300 bg-gray-100 p-4 dark:border-gray-600 dark:bg-gray-700"
 		>
 			<p class="text-sm font-medium text-gray-600 dark:text-gray-300">Suspended</p>
-			<p class="mt-1 text-2xl font-bold text-gray-700 dark:text-gray-200">{stats().suspended}</p>
+			<p class="mt-1 text-2xl font-bold text-gray-700 dark:text-gray-200">{stats.suspended}</p>
 		</div>
 	</div>
 

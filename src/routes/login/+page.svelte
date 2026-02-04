@@ -33,11 +33,11 @@
 
 			// Check if this is the first login (using default password)
 			if (password === 'admin' && data.user?.role === 'admin') {
-				// Redirect to password change page - keep loading until navigation completes
-				void goto('/change-password?first=true');
+				// Redirect to password change page - HARD RELOAD
+				window.location.href = '/change-password?first=true';
 			} else {
-				// Normal redirect to home - keep loading until navigation completes
-				void goto('/');
+				// Normal redirect to home - HARD RELOAD to ensure all state is synced
+				window.location.href = '/';
 			}
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Login failed';

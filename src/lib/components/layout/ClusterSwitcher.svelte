@@ -31,7 +31,8 @@
 		<div
 			class="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-125"
 		></div>
-		<span class="max-w-[150px] truncate font-mono text-[10px] tracking-tight">{currentCluster}</span
+		<span class="max-w-[150px] truncate font-mono text-[10px] tracking-tight"
+			>{currentCluster === 'inClusterContext' ? 'In-cluster' : currentCluster}</span
 		>
 		<Icon
 			name="chevron-down"
@@ -87,7 +88,7 @@
 							class={cn(
 								'truncate font-mono text-[11px]',
 								cluster === currentCluster ? 'font-bold text-foreground' : 'text-muted-foreground'
-							)}>{cluster}</span
+							)}>{cluster === 'inClusterContext' ? 'In-cluster' : cluster}</span
 						>
 						{#if cluster === currentCluster}
 							<span class="text-[8px] font-black tracking-widest text-green-500/60 uppercase"
