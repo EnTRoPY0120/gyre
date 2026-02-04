@@ -1315,14 +1315,38 @@ spec:
       name: '*'
     - kind: Kustomization
       name: '*'`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'notification',
+			title: 'Notification Settings',
+			description: 'Provider and severity configuration',
+			defaultExpanded: true
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Event filtering and summary',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
 	fields: [
+		// Basic Information
 		{
 			name: 'name',
 			label: 'Name',
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'my-alert',
+			description: 'Unique name for this Alert resource'
 		},
 		{
 			name: 'namespace',
@@ -1330,26 +1354,54 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
-			default: 'flux-system'
+			section: 'basic',
+			default: 'flux-system',
+			description: 'Namespace where the resource will be created'
 		},
+
+		// Notification Settings
 		{
 			name: 'providerName',
 			label: 'Provider Name',
 			path: 'spec.providerRef.name',
 			type: 'string',
 			required: true,
-			description: 'Name of the notification Provider'
+			section: 'notification',
+			placeholder: 'slack',
+			description: 'Name of the Provider resource to send notifications to'
 		},
 		{
 			name: 'eventSeverity',
 			label: 'Event Severity',
 			path: 'spec.eventSeverity',
 			type: 'select',
+			section: 'notification',
+			default: 'info',
 			options: [
-				{ label: 'Info', value: 'info' },
-				{ label: 'Error', value: 'error' }
+				{ label: 'Info (all events)', value: 'info' },
+				{ label: 'Error (only errors)', value: 'error' }
 			],
-			default: 'info'
+			description: 'Minimum severity level to trigger alerts'
+		},
+
+		// Advanced Options
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Suspend sending notifications'
+		},
+		{
+			name: 'summary',
+			label: 'Summary',
+			path: 'spec.summary',
+			type: 'string',
+			section: 'advanced',
+			placeholder: 'Production cluster alerts',
+			description: 'Optional summary to include in notifications'
 		}
 	]
 };
@@ -1372,14 +1424,31 @@ spec:
   channel: general
   secretRef:
     name: slack-webhook-url`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'provider',
+			title: 'Provider Configuration',
+			description: 'Notification provider settings',
+			defaultExpanded: true
+		}
+	],
 	fields: [
+		// Basic Information
 		{
 			name: 'name',
 			label: 'Name',
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'slack'
+			section: 'basic',
+			placeholder: 'slack',
+			description: 'Unique name for this Provider resource'
 		},
 		{
 			name: 'namespace',
@@ -1387,28 +1456,47 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
-			default: 'flux-system'
+			section: 'basic',
+			default: 'flux-system',
+			description: 'Namespace where the resource will be created'
 		},
+
+		// Provider Configuration
 		{
 			name: 'type',
-			label: 'Type',
+			label: 'Provider Type',
 			path: 'spec.type',
 			type: 'select',
+			required: true,
+			section: 'provider',
+			default: 'slack',
 			options: [
 				{ label: 'Slack', value: 'slack' },
 				{ label: 'Discord', value: 'discord' },
 				{ label: 'Microsoft Teams', value: 'msteams' },
 				{ label: 'Generic Webhook', value: 'generic' },
-				{ label: 'GitHub', value: 'github' }
+				{ label: 'GitHub', value: 'github' },
+				{ label: 'GitLab', value: 'gitlab' }
 			],
-			required: true
+			description: 'Type of notification provider'
 		},
 		{
 			name: 'channel',
 			label: 'Channel',
 			path: 'spec.channel',
 			type: 'string',
-			description: 'Notification channel/room (for Slack, Discord, etc.)'
+			section: 'provider',
+			placeholder: 'general',
+			description: 'Channel name (for Slack, Discord, etc.)'
+		},
+		{
+			name: 'username',
+			label: 'Username',
+			path: 'spec.username',
+			type: 'string',
+			section: 'provider',
+			placeholder: 'FluxCD Bot',
+			description: 'Override username for notifications'
 		},
 		{
 			name: 'secretName',
@@ -1416,6 +1504,8 @@ spec:
 			path: 'spec.secretRef.name',
 			type: 'string',
 			required: true,
+			section: 'provider',
+			placeholder: 'slack-webhook-url',
 			description: 'Secret containing webhook URL or credentials'
 		}
 	]
@@ -1444,14 +1534,31 @@ spec:
   resources:
     - kind: GitRepository
       name: webapp`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'receiver',
+			title: 'Receiver Configuration',
+			description: 'Webhook receiver settings',
+			defaultExpanded: true
+		}
+	],
 	fields: [
+		// Basic Information
 		{
 			name: 'name',
 			label: 'Name',
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'github-receiver',
+			description: 'Unique name for this Receiver resource'
 		},
 		{
 			name: 'namespace',
@@ -1459,13 +1566,20 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
-			default: 'flux-system'
+			section: 'basic',
+			default: 'flux-system',
+			description: 'Namespace where the resource will be created'
 		},
+
+		// Receiver Configuration
 		{
 			name: 'type',
-			label: 'Type',
+			label: 'Receiver Type',
 			path: 'spec.type',
 			type: 'select',
+			required: true,
+			section: 'receiver',
+			default: 'github',
 			options: [
 				{ label: 'GitHub', value: 'github' },
 				{ label: 'GitLab', value: 'gitlab' },
@@ -1473,7 +1587,7 @@ spec:
 				{ label: 'Harbor', value: 'harbor' },
 				{ label: 'Generic', value: 'generic' }
 			],
-			required: true
+			description: 'Type of webhook receiver'
 		},
 		{
 			name: 'secretName',
@@ -1481,7 +1595,18 @@ spec:
 			path: 'spec.secretRef.name',
 			type: 'string',
 			required: true,
-			description: 'Secret containing webhook token'
+			section: 'receiver',
+			placeholder: 'webhook-token',
+			description: 'Secret containing webhook validation token'
+		},
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'receiver',
+			default: false,
+			description: 'Suspend webhook processing'
 		}
 	]
 };
@@ -1502,6 +1627,27 @@ metadata:
 spec:
   interval: 5m
   image: ghcr.io/org/app`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'repository',
+			title: 'Repository Settings',
+			description: 'Container registry and scan configuration',
+			defaultExpanded: true
+		},
+		{
+			id: 'auth',
+			title: 'Authentication',
+			description: 'Registry credentials',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
 	fields: [
 		{
 			name: 'name',
@@ -1509,7 +1655,9 @@ spec:
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'my-app',
+			description: 'Unique name for this ImageRepository resource'
 		},
 		{
 			name: 'namespace',
@@ -1517,6 +1665,7 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
+			section: 'basic',
 			default: 'flux-system'
 		},
 		{
@@ -1525,15 +1674,37 @@ spec:
 			path: 'spec.image',
 			type: 'string',
 			required: true,
-			description: 'Container image to scan (e.g., ghcr.io/org/app)'
+			section: 'repository',
+			placeholder: 'ghcr.io/org/app',
+			description: 'Container image repository to scan'
 		},
 		{
 			name: 'interval',
-			label: 'Interval',
+			label: 'Scan Interval',
 			path: 'spec.interval',
 			type: 'duration',
+			required: true,
+			section: 'repository',
 			default: '5m',
-			description: 'Scan interval'
+			description: 'How often to scan for new images'
+		},
+		{
+			name: 'secretRefName',
+			label: 'Secret Name',
+			path: 'spec.secretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'registry-credentials',
+			description: 'Secret containing registry credentials'
+		},
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'repository',
+			default: false,
+			description: 'Suspend image scanning'
 		}
 	]
 };
@@ -1557,6 +1728,20 @@ spec:
   policy:
     semver:
       range: ">=1.0.0"`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'policy',
+			title: 'Policy Configuration',
+			description: 'Image selection policy',
+			defaultExpanded: true
+		}
+	],
 	fields: [
 		{
 			name: 'name',
@@ -1564,7 +1749,9 @@ spec:
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'my-app-policy',
+			description: 'Unique name for this ImagePolicy resource'
 		},
 		{
 			name: 'namespace',
@@ -1572,6 +1759,7 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
+			section: 'basic',
 			default: 'flux-system'
 		},
 		{
@@ -1580,15 +1768,33 @@ spec:
 			path: 'spec.imageRepositoryRef.name',
 			type: 'string',
 			required: true,
-			description: 'Name of the ImageRepository to use'
+			section: 'policy',
+			placeholder: 'my-app',
+			description: 'Name of the ImageRepository to apply policy to'
+		},
+		{
+			name: 'policyType',
+			label: 'Policy Type',
+			path: 'spec.policy.type',
+			type: 'select',
+			section: 'policy',
+			default: 'semver',
+			options: [
+				{ label: 'Semver (semantic versioning)', value: 'semver' },
+				{ label: 'Alphabetical', value: 'alphabetical' },
+				{ label: 'Numerical', value: 'numerical' }
+			],
+			description: 'Strategy for selecting image tags'
 		},
 		{
 			name: 'semverRange',
 			label: 'Semver Range',
 			path: 'spec.policy.semver.range',
 			type: 'string',
+			section: 'policy',
 			default: '>=1.0.0',
-			description: 'Semantic version constraint'
+			placeholder: '>=1.0.0 <2.0.0',
+			description: 'Semver constraint (if policy type is semver)'
 		}
 	]
 };
@@ -1625,6 +1831,33 @@ spec:
   update:
     path: ./clusters/production
     strategy: Setters`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'git',
+			title: 'Git Configuration',
+			description: 'Git repository and branch settings',
+			defaultExpanded: true
+		},
+		{
+			id: 'update',
+			title: 'Update Settings',
+			description: 'Image update configuration',
+			defaultExpanded: true
+		},
+		{
+			id: 'commit',
+			title: 'Commit Settings',
+			description: 'Git commit author and message',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
 	fields: [
 		{
 			name: 'name',
@@ -1632,7 +1865,9 @@ spec:
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'image-update-automation',
+			description: 'Unique name for this resource'
 		},
 		{
 			name: 'namespace',
@@ -1640,6 +1875,7 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
+			section: 'basic',
 			default: 'flux-system'
 		},
 		{
@@ -1648,30 +1884,88 @@ spec:
 			path: 'spec.sourceRef.name',
 			type: 'string',
 			required: true,
-			description: 'Name of the GitRepository'
+			section: 'git',
+			placeholder: 'flux-system',
+			description: 'Name of the GitRepository to update'
 		},
 		{
 			name: 'branch',
 			label: 'Branch',
 			path: 'spec.git.checkout.ref.branch',
 			type: 'string',
+			required: true,
+			section: 'git',
 			default: 'main',
-			description: 'Git branch to update'
+			description: 'Branch to checkout and push to'
+		},
+		{
+			name: 'interval',
+			label: 'Update Interval',
+			path: 'spec.interval',
+			type: 'duration',
+			required: true,
+			section: 'update',
+			default: '30m',
+			description: 'How often to check for image updates'
 		},
 		{
 			name: 'updatePath',
 			label: 'Update Path',
 			path: 'spec.update.path',
 			type: 'string',
-			default: './clusters/production',
-			description: 'Path to update in the repository'
+			required: true,
+			section: 'update',
+			default: './',
+			placeholder: './clusters/production',
+			description: 'Path in repository to update'
 		},
 		{
-			name: 'interval',
-			label: 'Interval',
-			path: 'spec.interval',
-			type: 'duration',
-			default: '30m'
+			name: 'updateStrategy',
+			label: 'Update Strategy',
+			path: 'spec.update.strategy',
+			type: 'select',
+			section: 'update',
+			default: 'Setters',
+			options: [
+				{ label: 'Setters', value: 'Setters' }
+			],
+			description: 'Strategy for updating images'
+		},
+		{
+			name: 'authorName',
+			label: 'Author Name',
+			path: 'spec.git.commit.author.name',
+			type: 'string',
+			section: 'commit',
+			default: 'fluxcdbot',
+			description: 'Git commit author name'
+		},
+		{
+			name: 'authorEmail',
+			label: 'Author Email',
+			path: 'spec.git.commit.author.email',
+			type: 'string',
+			section: 'commit',
+			default: 'fluxcdbot@example.com',
+			description: 'Git commit author email'
+		},
+		{
+			name: 'messageTemplate',
+			label: 'Commit Message Template',
+			path: 'spec.git.commit.messageTemplate',
+			type: 'textarea',
+			section: 'commit',
+			default: 'chore: update image tags',
+			description: 'Template for commit messages'
+		},
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'update',
+			default: false,
+			description: 'Suspend automation'
 		}
 	]
 };
