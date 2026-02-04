@@ -60,14 +60,15 @@ export function advancedSearch<T>(items: T[], query: string, options: SearchOpti
 /**
  * Extract a single string from an object based on keys for simple regex/literal matching
  */
-function getSearchString(obj: any, keys: string[]): string {
+function getSearchString(obj: unknown, keys: string[]): string {
 	return keys
 		.map((key) => {
 			const path = key.split('.');
-			let current = obj;
+			let current: unknown = obj;
 			for (const p of path) {
 				if (current && typeof current === 'object' && p in current) {
-					current = current[p];
+					const record = current as Record<string, unknown>;
+					current = record[p];
 				} else {
 					current = undefined;
 					break;

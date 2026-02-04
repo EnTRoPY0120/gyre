@@ -50,7 +50,10 @@ export const load: PageServerLoad = async ({ fetch, parent, setHeaders }) => {
 		let hasError = false;
 
 		for (const resInfo of group.resources) {
-			const resResult = results.find((r: any) => r.type === resInfo.kind);
+			const resResult = results.find(
+				(r: { type: string; total: number; healthy: number; failed: number; error: boolean }) =>
+					r.type === resInfo.kind
+			);
 			if (resResult) {
 				groupTotal += resResult.total;
 				groupHealthy += resResult.healthy;

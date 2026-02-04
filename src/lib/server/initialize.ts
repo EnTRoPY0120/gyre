@@ -1,6 +1,6 @@
 import { getDbSync } from './db/index.js';
 import { createDefaultAdminIfNeeded } from './auth.js';
-import { isInClusterMode, isLocalMode, getInClusterPaths } from './mode.js';
+import { isInClusterMode, getInClusterPaths } from './mode.js';
 import { initDatabase } from './db/migrate.js';
 import { readFileSync } from 'node:fs';
 
@@ -39,7 +39,7 @@ export async function initializeGyre(): Promise<void> {
 	// Initialize database connection and tables
 	console.log('\n🗄️  Initializing database...');
 	try {
-		const db = getDbSync();
+		getDbSync();
 		initDatabase(); // Create tables if they don't exist
 		console.log('   ✓ Database connection established');
 	} catch (error) {

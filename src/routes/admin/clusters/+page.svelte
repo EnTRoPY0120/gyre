@@ -21,7 +21,6 @@
 	}>();
 
 	let showCreateModal = $state(false);
-	let testingCluster = $state<Cluster | null>(null);
 	let deletingCluster = $state<Cluster | null>(null);
 	let kubeconfigInput = $state('');
 	let isDragging = $state(false);
@@ -36,17 +35,12 @@
 		showCreateModal = true;
 	}
 
-	function openTestModal(cluster: Cluster) {
-		testingCluster = cluster;
-	}
-
 	function openDeleteModal(cluster: Cluster) {
 		deletingCluster = cluster;
 	}
 
 	function closeModals() {
 		showCreateModal = false;
-		testingCluster = null;
 		deletingCluster = null;
 	}
 
@@ -89,12 +83,6 @@
 
 	function handleDragLeave() {
 		isDragging = false;
-	}
-
-	async function convertYamlToJson(yaml: string): Promise<string> {
-		// Simple YAML to JSON conversion for display
-		// In production, you'd use a proper YAML parser
-		return yaml;
 	}
 </script>
 
@@ -149,7 +137,7 @@
 
 	<!-- Clusters Grid -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-		{#each data.clusters as cluster}
+		{#each data.clusters as cluster (cluster.id)}
 			<div class="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4">
 				<div class="mb-3 flex items-start justify-between">
 					<div>
@@ -200,7 +188,6 @@
 							use:enhance={() => {
 								return async ({ result }) => {
 									if (result.type === 'success') {
-										testingCluster = null;
 										invalidateAll();
 									}
 								};

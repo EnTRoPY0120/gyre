@@ -4,7 +4,7 @@ import { getResourceDef, type FluxResourceType } from './flux/resources.js';
 import type { FluxResource, FluxResourceList } from './flux/types.js';
 
 // Cache for different contexts
-let configCache: Record<string, KubeConfigResult> = {};
+const configCache: Record<string, KubeConfigResult> = {};
 
 /**
  * Get or create cached KubeConfig for a specific context
@@ -42,8 +42,11 @@ export function getAppsV1Api(context?: string): k8s.AppsV1Api {
 }
 
 // Cache for Kubernetes resources
-const resourceCache = new Map<string, { data: any; timestamp: number }>();
-const pendingRequests = new Map<string, Promise<any>>();
+const resourceCache = new Map<
+	string,
+	{ data: FluxResource | FluxResourceList; timestamp: number }
+>();
+const pendingRequests = new Map<string, Promise<FluxResource | FluxResourceList>>();
 const CACHE_TTL = 5000; // 5 seconds cache for K8s resources
 
 /**
@@ -58,12 +61,12 @@ export async function listFluxResources(
 	// Check cache
 	const cached = resourceCache.get(cacheKey);
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		return cached.data;
+		return cached.data as FluxResourceList;
 	}
 
 	// Check pending requests (deduplication)
 	if (pendingRequests.has(cacheKey)) {
-		return pendingRequests.get(cacheKey);
+		return pendingRequests.get(cacheKey) as Promise<FluxResourceList>;
 	}
 
 	const resourceDef = getResourceDef(resourceType);
@@ -107,11 +110,11 @@ export async function listFluxResourcesInNamespace(
 
 	const cached = resourceCache.get(cacheKey);
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		return cached.data;
+		return cached.data as FluxResourceList;
 	}
 
 	if (pendingRequests.has(cacheKey)) {
-		return pendingRequests.get(cacheKey);
+		return pendingRequests.get(cacheKey) as Promise<FluxResourceList>;
 	}
 
 	const resourceDef = getResourceDef(resourceType);
@@ -157,11 +160,11 @@ export async function getFluxResource(
 
 	const cached = resourceCache.get(cacheKey);
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		return cached.data;
+		return cached.data as FluxResource;
 	}
 
 	if (pendingRequests.has(cacheKey)) {
-		return pendingRequests.get(cacheKey);
+		return pendingRequests.get(cacheKey) as Promise<FluxResource>;
 	}
 
 	const resourceDef = getResourceDef(resourceType);
@@ -227,71 +230,6 @@ export async function getFluxResourceStatus(
 }
 
 /**
- * Create a new FluxCD resource
- */
-export async function createFluxResource(
-	resourceType: FluxResourceType,
-	namespace: string,
-	body: any,
-	context?: string
-): Promise<FluxResource> {
-	const resourceDef = getResourceDef(resourceType);
-	if (!resourceDef) {
-		throw new Error(`Unknown resource type: ${resourceType}`);
-	}
-
-	const api = getCustomObjectsApi(context);
-
-	try {
-		const response = await api.createNamespacedCustomObject({
-			group: resourceDef.group,
-			version: resourceDef.version,
-			namespace,
-			plural: resourceDef.plural,
-			body
-		});
-
-		return response as unknown as FluxResource;
-	} catch (error) {
-		throw handleK8sError(error, `create ${resourceType} in ${namespace}`);
-	}
-}
-
-/**
- * Update (Patch) an existing FluxCD resource
- */
-export async function updateFluxResource(
-	resourceType: FluxResourceType,
-	namespace: string,
-	name: string,
-	body: any,
-	context?: string
-): Promise<FluxResource> {
-	const resourceDef = getResourceDef(resourceType);
-	if (!resourceDef) {
-		throw new Error(`Unknown resource type: ${resourceType}`);
-	}
-
-	const api = getCustomObjectsApi(context);
-
-	try {
-		const response = await api.patchNamespacedCustomObject({
-			group: resourceDef.group,
-			version: resourceDef.version,
-			namespace,
-			plural: resourceDef.plural,
-			name,
-			body,
-			headers: { 'Content-Type': 'application/merge-patch+json' }
-		} as any);
-
-		return response as unknown as FluxResource;
-	} catch (error) {
-		throw handleK8sError(error, `patch ${resourceType} ${namespace}/${name}`);
-	}
-}
-
-/**
  * Get a generic Kubernetes resource (Core/Apps)
  */
 export async function getGenericResource(
@@ -300,7 +238,7 @@ export async function getGenericResource(
 	namespace: string,
 	name: string,
 	context?: string
-): Promise<any> {
+): Promise<unknown> {
 	// Normalize group for core resources (often empty or "core")
 	const normalizedGroup = group === 'core' || group === '' ? '' : group;
 
@@ -350,8 +288,6 @@ export async function getGenericResource(
 
 		// Everything else: Try CustomObjects, guessing plural = lowercase(kind) + 's'
 		// This is heuristic and fragile but covers many cases (Gateways, SealedSecrets, etc)
-		const customApi = getCustomObjectsApi(context);
-		const plural = kind.toLowerCase() + 's';
 		// Need version... Flux inventory doesn't always have it. We can try 'v1' or 'v1beta1' or wildcard?
 		// Without version, CustomObjectsApi calls fail.
 		// For now, return a placeholder.
@@ -377,6 +313,37 @@ export async function getGenericResource(
 				]
 			}
 		};
+	}
+}
+
+/**
+ * Create a FluxCD resource
+ */
+export async function createFluxResource(
+	resourceType: string,
+	namespace: string,
+	body: Record<string, unknown>,
+	context?: string
+): Promise<FluxResource> {
+	const resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	const api = getCustomObjectsApi(context);
+
+	try {
+		const response = await api.createNamespacedCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural,
+			body: body as object
+		});
+
+		return response as unknown as FluxResource;
+	} catch (error) {
+		throw handleK8sError(error, `create ${resourceType} in ${namespace}`);
 	}
 }
 

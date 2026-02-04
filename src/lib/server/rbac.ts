@@ -1,7 +1,7 @@
 import type { User } from './db/schema.js';
-import { getDbSync, type Cluster } from './db/index.js';
-import { rbacPolicies, rbacBindings, clusters } from './db/schema.js';
-import { eq, and, or, like, sql } from 'drizzle-orm';
+import { getDbSync } from './db/index.js';
+import { rbacPolicies, rbacBindings } from './db/schema.js';
+import { eq, and, or, sql } from 'drizzle-orm';
 
 /**
  * RBAC Actions

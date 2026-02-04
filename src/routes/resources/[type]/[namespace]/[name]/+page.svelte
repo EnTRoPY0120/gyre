@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import { websocketStore } from '$lib/stores/websocket.svelte';
-	import { onMount, onDestroy } from 'svelte';
+	import { onMount } from 'svelte';
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
 	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';
@@ -15,7 +16,6 @@
 	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
-	import { preferences } from '$lib/stores/preferences.svelte';
 
 	interface K8sEvent {
 		type: 'Normal' | 'Warning';
@@ -32,15 +32,10 @@
 	interface Props {
 		data: {
 			resourceType: string;
-			resourceInfo: {
-				displayName: string;
-				singularName: string;
-				description: string;
-			};
 			namespace: string;
 			name: string;
 			resource: FluxResource;
-			inventoryResources?: any[];
+			inventoryResources?: FluxResource[];
 		};
 	}
 
@@ -79,9 +74,10 @@
 	let eventsFetched = $state(false);
 
 	// History state
-	let history = $state<any[]>([]);
+	let history = $state<
+		Array<{ revision: string; timestamp: string; status: string; message?: string }>
+	>([]);
 	let historyLoading = $state(false);
-	let historyError = $state<string | null>(null);
 	let historyFetched = $state(false);
 
 	const tabs: { id: TabId; label: string }[] = [
@@ -94,7 +90,7 @@
 	];
 
 	function goBack() {
-		goto(`/resources/${data.resourceType}`);
+		goto(resolve(`/resources/${data.resourceType}`));
 	}
 
 	// Fetch events when the Events tab is selected
@@ -128,7 +124,6 @@
 		if (historyFetched) return;
 
 		historyLoading = true;
-		historyError = null;
 
 		try {
 			const response = await fetch(
@@ -142,8 +137,8 @@
 			const result = await response.json();
 			history = result.history || [];
 			historyFetched = true;
-		} catch (err) {
-			historyError = err instanceof Error ? err.message : 'Failed to load history';
+		} catch {
+			// Silently ignore errors for now
 		} finally {
 			historyLoading = false;
 		}
@@ -198,7 +193,6 @@
 	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
 	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
 	const isKustomization = $derived(data.resourceType === 'kustomizations');
-	const hasSpecializedView = $derived(isGitRepository || isHelmRelease || isKustomization);
 </script>
 
 <div class="space-y-6">
@@ -223,7 +217,7 @@
 				/>
 			</div>
 			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-				{data.resourceInfo.singularName} in {data.namespace}
+				{data.resourceType} in {data.namespace}
 			</p>
 		</div>
 		<ActionButtons
@@ -237,7 +231,7 @@
 	<!-- Tabs -->
 	<div class="border-b border-gray-200 dark:border-gray-700">
 		<nav class="-mb-px flex space-x-8">
-			{#each tabs as tab}
+			{#each tabs as tab (tab.id)}
 				<button
 					type="button"
 					class="border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap transition-colors {activeTab ===
@@ -277,7 +271,16 @@
 			<!-- Resource-Specific Details -->
 			<div class="mt-6 space-y-6">
 				{#if data.inventoryResources && data.inventoryResources.length > 0}
-					<InventoryList resources={data.inventoryResources} />
+					<InventoryList
+						resources={data.inventoryResources as unknown as Array<{
+							kind: string;
+							metadata: { name: string; namespace: string };
+							status?: {
+								conditions?: Array<{ type: string; status: 'True' | 'False' | 'Unknown' }>;
+							};
+							error?: string;
+						}>}
+					/>
 				{/if}
 
 				{#if isGitRepository}
@@ -295,7 +298,7 @@
 							Configuration
 						</h3>
 						<dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-							{#each Object.entries(data.resource.spec).slice(0, 9) as [key, value]}
+							{#each Object.entries(data.resource.spec).slice(0, 9) as [key, value], index (index)}
 								<div>
 									<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{key}</dt>
 									<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
@@ -322,9 +325,17 @@
 				{/if}
 			</div>
 		{:else if activeTab === 'spec'}
-			<CodeViewer data={data.resource.spec} title="Resource Spec" showDownload={false} />
+			<CodeViewer
+				data={data.resource.spec as Record<string, unknown>}
+				title="Resource Spec"
+				showDownload={false}
+			/>
 		{:else if activeTab === 'status'}
-			<CodeViewer data={data.resource.status} title="Resource Status" showDownload={false} />
+			<CodeViewer
+				data={(data.resource.status as Record<string, unknown>) || {}}
+				title="Resource Status"
+				showDownload={false}
+			/>
 		{:else if activeTab === 'events'}
 			<div
 				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
@@ -392,7 +403,10 @@
 				<VersionHistory {history} loading={historyLoading} onRollback={handleRollback} />
 			</div>
 		{:else if activeTab === 'yaml'}
-			<CodeViewer data={data.resource} title="Full Resource Manifest" />
+			<CodeViewer
+				data={data.resource as unknown as Record<string, unknown>}
+				title="Full Resource Manifest"
+			/>
 		{/if}
 	</div>
 </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	/* eslint-disable @typescript-eslint/no-unused-vars */
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
@@ -51,7 +52,7 @@
 		{#if availableClusters.length === 0}
 			<!-- Skeleton loaders for cluster items -->
 			<div class="space-y-1 px-1">
-				{#each [1, 2, 3] as _}
+				{#each [1, 2, 3] as _, index (index)}
 					<div class="flex items-center gap-3 rounded-xl px-3 py-3">
 						<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-muted-foreground/20"></div>
 						<div class="flex flex-1 flex-col gap-1.5">
@@ -65,7 +66,7 @@
 				Fetching cluster contexts...
 			</p>
 		{:else}
-			{#each availableClusters as cluster}
+			{#each availableClusters as cluster (cluster)}
 				<DropdownMenu.Item
 					onSelect={() => selectCluster(cluster)}
 					class={cn(

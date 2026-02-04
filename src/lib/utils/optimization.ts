@@ -1,7 +1,7 @@
 /**
  * Debounce a function call
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
 	fn: T,
 	delay: number
 ): (...args: Parameters<T>) => void {
@@ -15,7 +15,7 @@ export function debounce<T extends (...args: any[]) => any>(
 /**
  * Throttle a function call
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
 	fn: T,
 	limit: number
 ): (...args: Parameters<T>) => void {

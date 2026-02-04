@@ -1,19 +1,4 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
-
-// Resource types to watch
-const WATCH_RESOURCES: FluxResourceType[] = [
-	'GitRepository',
-	'HelmRepository',
-	'HelmChart',
-	'Bucket',
-	'OCIRepository',
-	'Kustomization',
-	'HelmRelease',
-	'Alert',
-	'Provider',
-	'Receiver'
-];
 
 export const GET: RequestHandler = async ({ request }) => {
 	// Check if this is a WebSocket upgrade request

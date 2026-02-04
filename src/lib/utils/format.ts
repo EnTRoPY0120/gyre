@@ -3,7 +3,7 @@ import yaml from 'js-yaml';
 /**
  * Convert an object to a formatted YAML string
  */
-export function toYaml(obj: any): string {
+export function toYaml(obj: Record<string, unknown>): string {
 	try {
 		return yaml.dump(obj, {
 			indent: 2,
@@ -20,7 +20,7 @@ export function toYaml(obj: any): string {
 /**
  * Convert an object to a formatted JSON string
  */
-export function toJson(obj: any): string {
+export function toJson(obj: Record<string, unknown>): string {
 	try {
 		return JSON.stringify(obj, null, 2);
 	} catch (e) {

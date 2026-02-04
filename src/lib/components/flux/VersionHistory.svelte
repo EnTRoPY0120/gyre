@@ -53,7 +53,7 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-sidebar-border bg-sidebar/50">
-					{#each history as rev, i}
+					{#each history as rev, i (rev.revision)}
 						<tr class="transition-colors hover:bg-sidebar-accent/10">
 							<td class="px-6 py-4">
 								<span class="font-mono font-bold">v{rev.revision}</span>
@@ -65,7 +65,9 @@
 								{/if}
 							</td>
 							<td class="px-6 py-4 text-muted-foreground">
-								{rev.timestamp ? formatDistanceToNow(new Date(rev.timestamp), { addSuffix: true }) : 'unknown'}
+								{rev.timestamp
+									? formatDistanceToNow(new Date(rev.timestamp), { addSuffix: true })
+									: 'unknown'}
 							</td>
 							<td class="px-6 py-4">
 								<span

@@ -75,7 +75,7 @@
 
 			// Redirect after a short delay
 			setTimeout(() => {
-				goto('/?success=password-changed');
+				void goto('/?success=password-changed');
 			}, 1500);
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'An unexpected error occurred';

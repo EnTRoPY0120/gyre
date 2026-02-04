@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { templates } from '$lib/templates';
-	import { Button } from '$lib/components/ui/button';
 	import Icon from '$lib/components/ui/Icon.svelte';
-	import { cn } from '$lib/utils';
 	import { Plus, ArrowRight } from 'lucide-svelte';
 </script>
 
@@ -23,9 +21,10 @@
 
 	<!-- Template Grid -->
 	<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-		{#each templates as template}
+		{#each templates as template (template.id)}
 			<a
 				href="/create/{template.id}"
+				rel="external"
 				class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card/60 p-6 transition-all hover:border-blue-500/50 hover:bg-card hover:shadow-lg hover:shadow-blue-500/5"
 			>
 				<div
@@ -49,6 +48,7 @@
 		<!-- Custom / Advanced Card -->
 		<a
 			href="/create/custom"
+			rel="external"
 			class="group relative flex flex-col overflow-hidden rounded-2xl border border-dashed border-border bg-muted/20 p-6 transition-all hover:border-blue-500/50 hover:bg-muted/30"
 		>
 			<div

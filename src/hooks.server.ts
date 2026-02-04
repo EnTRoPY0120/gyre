@@ -1,6 +1,6 @@
 import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/auth';
-import { getDeploymentMode, isInClusterMode } from '$lib/server/mode';
+import { isInClusterMode } from '$lib/server/mode';
 import { initializeGyre } from '$lib/server/initialize';
 
 // Initialize Gyre on first request
@@ -46,7 +46,7 @@ function isPublicRoute(path: string): boolean {
  * 3. RBAC checks (future enhancement)
  */
 export const handle: Handle = async ({ event, resolve }) => {
-	const { url, cookies, request } = event;
+	const { url, cookies } = event;
 	const path = url.pathname;
 
 	// Initialize Gyre on first request
@@ -74,10 +74,6 @@ export const handle: Handle = async ({ event, resolve }) => {
 			event.locals.session = sessionData.session;
 		}
 	}
-
-	// In-cluster mode: we can skip strict auth if using ServiceAccount
-	// But we still want to track users for audit logging
-	const mode = getDeploymentMode();
 
 	// If not authenticated and not a public route, redirect to login
 	if (!event.locals.user && !isPublicRoute(path)) {

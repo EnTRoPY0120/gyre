@@ -1,5 +1,5 @@
 import { websocketStore } from './websocket.svelte';
-import type { FluxResource, FluxResourceType } from '$lib/types/flux';
+import type { FluxResource } from '$lib/types/flux';
 
 interface CacheEntry<T> {
 	data: T;

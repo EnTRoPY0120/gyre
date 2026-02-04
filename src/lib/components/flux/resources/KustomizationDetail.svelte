@@ -213,7 +213,7 @@
 		>
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Dependencies</h3>
 			<div class="flex flex-wrap gap-2">
-				{#each dependsOn as dep}
+				{#each dependsOn as dep (dep.name)}
 					<span
 						class="inline-flex items-center gap-1.5 rounded-md bg-purple-100 px-2.5 py-1 text-xs font-medium text-purple-800 dark:bg-purple-900/50 dark:text-purple-300"
 					>
@@ -242,7 +242,7 @@
 		>
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Health Checks</h3>
 			<div class="space-y-2">
-				{#each healthChecks as check}
+				{#each healthChecks as check (`${check.kind}-${check.name}-${check.namespace}`)}
 					<div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-700/50">
 						<span
 							class="inline-flex items-center rounded-md bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-600 dark:text-gray-300"
@@ -278,7 +278,7 @@
 				PostBuild Substitutions
 			</h3>
 			<div class="flex flex-wrap gap-2">
-				{#each Object.entries(postBuild.substitute) as [key, value]}
+				{#each Object.entries(postBuild.substitute) as [key, value] (key)}
 					<span
 						class="inline-flex items-center rounded-md bg-orange-100 px-2 py-1 text-xs font-medium text-orange-800 dark:bg-orange-900/50 dark:text-orange-300"
 					>

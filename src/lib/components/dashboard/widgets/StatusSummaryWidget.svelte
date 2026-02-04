@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DashboardWidget } from '$lib/server/db/schema';
+	import type { DashboardWidget } from '$lib/stores/dashboards.svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { FluxResourceType } from '$lib/types/flux';
 

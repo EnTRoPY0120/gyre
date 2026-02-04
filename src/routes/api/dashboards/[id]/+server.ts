@@ -125,12 +125,16 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 			// Update or Insert widgets
 			for (const w of widgets) {
 				const widgetData = {
-					title: w.title,
-					type: w.type,
-					resourceType: w.resourceType,
-					query: w.query,
-					config: typeof w.config === 'object' ? JSON.stringify(w.config) : w.config,
-					position: typeof w.position === 'object' ? JSON.stringify(w.position) : w.position
+					title: w.title as string,
+					type: w.type as string,
+					resourceType: w.resourceType as string | null,
+					query: w.query as string | null,
+					config:
+						typeof w.config === 'object' ? JSON.stringify(w.config) : (w.config as string | null),
+					position:
+						typeof w.position === 'object'
+							? JSON.stringify(w.position)
+							: (w.position as string | null)
 				};
 
 				if (w.id && currentIds.includes(w.id)) {

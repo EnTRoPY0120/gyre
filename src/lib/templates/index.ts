@@ -14,8 +14,8 @@ export interface TemplateField {
 	label: string;
 	path: string; // JSON path or similar to update the YAML
 	type: 'string' | 'number' | 'boolean' | 'select' | 'duration';
-	default?: any;
-	options?: { label: string; value: any }[];
+	default?: string | number | boolean;
+	options?: { label: string; value: string }[];
 	required?: boolean;
 	description?: string;
 }

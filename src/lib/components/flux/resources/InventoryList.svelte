@@ -2,15 +2,22 @@
 	import StatusBadge from '../StatusBadge.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
 
+	import type { K8sCondition } from '$lib/types/flux';
+
 	interface Props {
-		resources: any[];
+		resources: Array<{
+			kind: string;
+			metadata: { name: string; namespace: string };
+			status?: { conditions?: K8sCondition[] };
+			error?: string;
+		}>;
 	}
 
 	let { resources }: Props = $props();
 
 	// Group by Kind for cleaner display
 	const groupedResources = $derived.by(() => {
-		const groups: Record<string, any[]> = {};
+		const groups: Record<string, typeof resources> = {};
 		resources.forEach((r) => {
 			const kind = r.kind || 'Unknown';
 			if (!groups[kind]) groups[kind] = [];
@@ -37,7 +44,7 @@
 		<div class="p-8 text-center text-sm text-muted-foreground">No inventory records found.</div>
 	{:else}
 		<div class="divide-y divide-border/50">
-			{#each Object.entries(groupedResources) as [kind, items]}
+			{#each Object.entries(groupedResources) as [kind, items] (kind)}
 				<div class="p-4">
 					<h4
 						class="mb-3 flex items-center gap-2 pl-1 text-xs font-black tracking-wider text-muted-foreground uppercase"
@@ -45,7 +52,7 @@
 						{kind}
 					</h4>
 					<div class="grid grid-cols-1 gap-2 md:grid-cols-2 lg:grid-cols-3">
-						{#each items as resource}
+						{#each items as resource (resource.metadata.name)}
 							<div
 								class="group flex items-center gap-3 rounded-lg border border-border/60 bg-card/40 p-3 transition-all hover:border-primary/30 hover:bg-accent/40"
 							>

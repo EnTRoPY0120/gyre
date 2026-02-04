@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DashboardWidget } from '$lib/server/db/schema';
+	import type { DashboardWidget } from '$lib/stores/dashboards.svelte';
 	import { cn } from '$lib/utils';
 	import { Settings, Trash2 } from 'lucide-svelte';
 	import ResourceCountWidget from './widgets/ResourceCountWidget.svelte';

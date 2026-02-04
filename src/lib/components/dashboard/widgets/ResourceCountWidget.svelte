@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DashboardWidget } from '$lib/server/db/schema';
+	import type { DashboardWidget } from '$lib/stores/dashboards.svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { FluxResourceType, type K8sCondition } from '$lib/types/flux';
 	import { onMount } from 'svelte';

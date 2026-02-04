@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getResourceHistory } from '$lib/server/kubernetes/flux/history';
-import { getResourceTypeByPlural, type FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	try {
 		const history = await getResourceHistory(resolvedType, namespace, name, locals.cluster);
 		return json({ history });
-	} catch (err: any) {
-		return error(500, { message: err.message || 'Failed to fetch history' });
+	} catch (err: unknown) {
+		return error(500, { message: err instanceof Error ? err.message : 'Failed to fetch history' });
 	}
 };

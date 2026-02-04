@@ -46,7 +46,7 @@
 		<div
 			class="absolute top-full right-0 z-50 mt-2 w-36 origin-top-right rounded-lg border border-border bg-popover py-1 shadow-lg"
 		>
-			{#each themeOptions as option}
+			{#each themeOptions as option (option.value)}
 				<button
 					type="button"
 					class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors {theme.theme ===

@@ -13,7 +13,7 @@ function generateId(): string {
  * GET /api/dashboards
  * List dashboards visible to the user
  */
-export const GET: RequestHandler = async ({ locals, url }) => {
+export const GET: RequestHandler = async ({ locals }) => {
 	const db = await getDb();
 	const user = locals.user;
 
@@ -83,17 +83,26 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		// Insert widgets if provided
 		if (widgets && Array.isArray(widgets) && widgets.length > 0) {
-			const newWidgets = widgets.map((w: any) => ({
-				id: generateId(),
-				dashboardId: dashboardId,
-				type: w.type,
-				title: w.title,
-				resourceType: w.resourceType,
-				query: w.query,
-				config: w.config ? JSON.stringify(w.config) : null,
-				position: w.position ? JSON.stringify(w.position) : null,
-				createdAt: now
-			}));
+			const newWidgets = widgets.map(
+				(w: {
+					type: string;
+					title: string;
+					resourceType?: string;
+					query?: string;
+					config?: unknown;
+					position?: unknown;
+				}) => ({
+					id: generateId(),
+					dashboardId: dashboardId,
+					type: w.type as string,
+					title: w.title as string,
+					resourceType: w.resourceType as string | null,
+					query: w.query as string | null,
+					config: w.config ? JSON.stringify(w.config) : null,
+					position: w.position ? JSON.stringify(w.position) : null,
+					createdAt: now
+				})
+			);
 
 			await db.insert(dashboardWidgets).values(newWidgets);
 		}

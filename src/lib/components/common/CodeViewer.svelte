@@ -2,7 +2,7 @@
 	import { preferences } from '$lib/stores/preferences.svelte';
 	import { toYaml, toJson, copyToClipboard } from '$lib/utils/format';
 	import { cn } from '$lib/utils';
-	import { Check, Copy, FileCode, FileJson, Download } from 'lucide-svelte';
+	import { Check, Copy, FileCode, Download } from 'lucide-svelte';
 	import { downloadFile, formatResourceForExport } from '$lib/utils/export';
 
 	let {
@@ -10,7 +10,7 @@
 		title = 'Resource Manifest',
 		showDownload = true
 	}: {
-		data: any;
+		data: Record<string, unknown>;
 		title?: string;
 		showDownload?: boolean;
 	} = $props();
@@ -31,8 +31,13 @@
 		const format = preferences.format;
 		const exported = formatResourceForExport(data, format);
 		const content = format === 'json' ? exported : toYaml(exported);
-		const name = data.metadata?.name || 'resource';
-		downloadFile(content, `${name}.${format}`, format === 'json' ? 'application/json' : 'text/yaml');
+		const metadata = data.metadata as { name?: string } | undefined;
+		const name = metadata?.name || 'resource';
+		downloadFile(
+			content,
+			`${name}.${format}`,
+			format === 'json' ? 'application/json' : 'text/yaml'
+		);
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -112,7 +117,9 @@
 
 	<!-- Code Area -->
 	<div class="relative flex-1 overflow-auto bg-slate-950 p-4">
-		<pre class="scrollbar-hide font-mono text-sm leading-relaxed text-slate-300"><code>{formattedCode}</code></pre>
+		<pre class="scrollbar-hide font-mono text-sm leading-relaxed text-slate-300"><code
+				>{formattedCode}</code
+			></pre>
 	</div>
 </div>
 

@@ -1,9 +1,20 @@
 import type { PageServerLoad } from './$types';
 import { listFluxResources } from '$lib/server/kubernetes/client';
 import { type FluxResourceType } from '$lib/server/kubernetes/flux/resources';
-import { buildRelationshipMap, getResourceStatus, resourceRefKey } from '$lib/utils/relationships';
-import type { FluxResource } from '$lib/server/kubernetes/flux/types';
+import {
+	buildRelationshipMap,
+	getResourceStatus,
+	type FluxResource as RelationshipsFluxResource
+} from '$lib/utils/relationships';
+import type { FluxResource as ServerFluxResource } from '$lib/server/kubernetes/flux/types';
 import { parseInventory } from '$lib/server/kubernetes/flux/inventory';
+import type { ResourceRef } from '$lib/utils/relationships';
+
+interface TreeNode {
+	ref: ResourceRef;
+	status?: 'ready' | 'pending' | 'failed' | 'suspended';
+	children: TreeNode[];
+}
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	// Get current cluster context from cookie
@@ -37,36 +48,36 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	);
 
 	// Map results to named arrays
-	const resourceMap: Record<string, FluxResource[]> = {};
+	const resourceMap: Record<string, ServerFluxResource[]> = {};
 	results.forEach((r) => {
 		resourceMap[r.type] = r.items;
 	});
 
 	// Build relationships
 	const relationships = buildRelationshipMap({
-		kustomizations: resourceMap['Kustomization'],
-		helmReleases: resourceMap['HelmRelease'],
-		gitRepositories: resourceMap['GitRepository'],
-		helmRepositories: resourceMap['HelmRepository'],
-		ociRepositories: resourceMap['OCIRepository'],
-		buckets: resourceMap['Bucket'],
-		alerts: resourceMap['Alert'],
-		providers: resourceMap['Provider'],
-		receivers: resourceMap['Receiver'],
-		imagePolicies: resourceMap['ImagePolicy'],
-		imageRepositories: resourceMap['ImageRepository'],
-		imageUpdateAutomations: resourceMap['ImageUpdateAutomation']
+		kustomizations: resourceMap['Kustomization'] as RelationshipsFluxResource[],
+		helmReleases: resourceMap['HelmRelease'] as RelationshipsFluxResource[],
+		gitRepositories: resourceMap['GitRepository'] as RelationshipsFluxResource[],
+		helmRepositories: resourceMap['HelmRepository'] as RelationshipsFluxResource[],
+		ociRepositories: resourceMap['OCIRepository'] as RelationshipsFluxResource[],
+		buckets: resourceMap['Bucket'] as RelationshipsFluxResource[],
+		alerts: resourceMap['Alert'] as RelationshipsFluxResource[],
+		providers: resourceMap['Provider'] as RelationshipsFluxResource[],
+		receivers: resourceMap['Receiver'] as RelationshipsFluxResource[],
+		imagePolicies: resourceMap['ImagePolicy'] as RelationshipsFluxResource[],
+		imageRepositories: resourceMap['ImageRepository'] as RelationshipsFluxResource[],
+		imageUpdateAutomations: resourceMap['ImageUpdateAutomation'] as RelationshipsFluxResource[]
 	});
 
 	// Create nodes for trees
-	function createNode(resource: FluxResource, kind: string): any {
-		const node: any = {
+	function createNode(resource: ServerFluxResource, kind: string): TreeNode {
+		const node: TreeNode = {
 			ref: {
 				kind,
 				name: resource.metadata.name,
-				namespace: resource.metadata.namespace
+				namespace: resource.metadata.namespace || ''
 			},
-			status: getResourceStatus(resource),
+			status: getResourceStatus(resource as RelationshipsFluxResource),
 			children: []
 		};
 
@@ -80,7 +91,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 						name: item.name,
 						namespace: item.namespace
 					},
-					status: 'ready', // Default for inventory items, we don't have live status here
+					status: 'ready' as const,
 					children: []
 				}))
 			);
@@ -127,9 +138,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		createNode(r, 'ImageRepository')
 	);
 	const imagePolicyNodes = resourceMap['ImagePolicy'].map((r) => createNode(r, 'ImagePolicy'));
-	const imageAutomationNodes = resourceMap['ImageUpdateAutomation'].map((r) =>
-		createNode(r, 'ImageUpdateAutomation')
-	);
+	resourceMap['ImageUpdateAutomation'].map((r) => createNode(r, 'ImageUpdateAutomation'));
 
 	imageRepoNodes.forEach((repoNode) => {
 		relationships
@@ -186,7 +195,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 	// Calculate overall stats
 	[...results.flatMap((r) => r.items)].forEach((item) => {
-		const status = getResourceStatus(item);
+		const status = getResourceStatus(item as RelationshipsFluxResource);
 		if (status === 'ready') stats.ready++;
 		else if (status === 'failed') stats.failed++;
 		else if (status === 'suspended') stats.suspended++;

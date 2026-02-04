@@ -3,22 +3,27 @@
 	import ResourceTree from '$lib/components/flux/ResourceTree.svelte';
 	import { cn } from '$lib/utils';
 	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
 	import type { ResourceRef } from '$lib/utils/relationships';
+
+	interface TreeNode {
+		ref: ResourceRef;
+		status?: 'ready' | 'pending' | 'failed' | 'suspended';
+		children: TreeNode[];
+	}
 
 	interface Props {
 		data: {
-			relationships: any[];
+			relationships: Record<string, unknown>[];
 			trees: {
-				sources: any[];
-				applications: any[];
-				notifications: any[];
-				imageAutomation: any[];
+				sources: TreeNode[];
+				applications: TreeNode[];
+				notifications: TreeNode[];
+				imageAutomation: TreeNode[];
 			};
 			stats: {
 				sources: number;
 				applications: number;
-				notifications: number;
-				imageAutomation: number;
 				totalRelationships: number;
 				ready: number;
 				failed: number;
@@ -30,7 +35,7 @@
 	let { data }: Props = $props();
 
 	// Handle node click to navigate to resource detail
-	function handleNodeClick(node: { ref: ResourceRef }) {
+	function handleNodeClick(node: TreeNode) {
 		const typeMapping: Record<string, string> = {
 			GitRepository: 'gitrepositories',
 			HelmRepository: 'helmrepositories',
@@ -49,7 +54,7 @@
 
 		const type = typeMapping[node.ref.kind];
 		if (type) {
-			goto(`/resources/${type}/${node.ref.namespace}/${node.ref.name}`);
+			goto(resolve(`/resources/${type}/${node.ref.namespace}/${node.ref.name}`));
 		}
 	}
 
@@ -155,7 +160,7 @@
 
 	<!-- Resource Trees by Category -->
 	<div class="grid gap-6 lg:grid-cols-2">
-		{#each categories as category}
+		{#each categories as category (category.name)}
 			<div
 				class={cn(
 					'overflow-hidden rounded-xl border bg-gradient-to-br backdrop-blur-sm',
@@ -209,12 +214,14 @@
 							</tr>
 						</thead>
 						<tbody class="divide-y divide-border/50">
-							{#each data.relationships.slice(0, 50) as rel}
+							{#each data.relationships.slice(0, 50) as rel, index (index)}
 								<tr class="hover:bg-accent/30">
 									<td class="px-4 py-2">
 										<div class="flex items-center gap-2">
-											<span class="font-mono text-xs text-muted-foreground">{rel.source.kind}</span>
-											<span class="font-medium">{rel.source.name}</span>
+											<span class="font-mono text-xs text-muted-foreground"
+												>{(rel.source as ResourceRef).kind}</span
+											>
+											<span class="font-medium">{(rel.source as ResourceRef).name}</span>
 										</div>
 									</td>
 									<td class="px-4 py-2 text-center">
@@ -227,8 +234,10 @@
 									</td>
 									<td class="px-4 py-2">
 										<div class="flex items-center gap-2">
-											<span class="font-mono text-xs text-muted-foreground">{rel.target.kind}</span>
-											<span class="font-medium">{rel.target.name}</span>
+											<span class="font-mono text-xs text-muted-foreground"
+												>{(rel.target as ResourceRef).kind}</span
+											>
+											<span class="font-medium">{(rel.target as ResourceRef).name}</span>
 										</div>
 									</td>
 								</tr>

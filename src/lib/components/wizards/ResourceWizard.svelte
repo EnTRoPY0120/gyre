@@ -2,33 +2,36 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import YamlEditor from '$lib/components/editors/YamlEditor.svelte';
-	import type { ResourceTemplate, TemplateField } from '$lib/templates';
+	import type { ResourceTemplate } from '$lib/templates';
 	import { cn } from '$lib/utils';
 	import { Loader2, Check, AlertCircle, Code, ListChecks } from 'lucide-svelte';
 	import yaml from 'js-yaml';
 
 	let { template }: { template: ResourceTemplate } = $props();
 
-	let currentYaml = $state('');
-
-	// Reset YAML when template changes
-	$effect(() => {
-		currentYaml = template.yaml;
-	});
-
 	let mode = $state<'wizard' | 'yaml'>('wizard');
 	let isSubmitting = $state(false);
 	let error = $state<string | null>(null);
 	let success = $state(false);
 
+	// Use derived for currentYaml
+	let currentYaml = $derived.by(() => template.yaml);
+
 	// Form values derived from parsing the current YAML
-	let formValues = $state<Record<string, any>>({});
+	let formValues = $state<Record<string, unknown>>({});
+
+	// Update currentYaml from template
+	$effect(() => {
+		currentYaml = template.yaml;
+	});
 
 	// Initialize form values from initial YAML
 	$effect(() => {
 		try {
-			const parsed = yaml.load(template.yaml) as any;
-			const values: Record<string, any> = {};
+			const parsed = yaml.load(template.yaml) as Record<string, unknown> & {
+				metadata?: { namespace?: string; name?: string };
+			};
+			const values: Record<string, unknown> = {};
 
 			template.fields.forEach((field) => {
 				const path = field.path.split('.');
@@ -38,20 +41,20 @@
 					if (i === path.length - 1) {
 						values[field.name] = current[path[i]];
 					} else {
-						current = current[path[i]];
+						current = current[path[i]] as Record<string, unknown>;
 					}
 				}
 			});
 			formValues = values;
-		} catch (e) {
-			console.error('Failed to parse initial YAML:', e);
+		} catch {
+			console.error('Failed to parse initial YAML');
 		}
 	});
 
 	// Synchronize YAML when form values change (Wizard -> YAML)
 	function updateYamlFromForm() {
 		try {
-			const parsed = yaml.load(currentYaml) as any;
+			const parsed = yaml.load(currentYaml) as Record<string, unknown>;
 
 			template.fields.forEach((field) => {
 				const value = formValues[field.name];
@@ -63,22 +66,22 @@
 						current[path[i]] = value;
 					} else {
 						if (!current[path[i]]) current[path[i]] = {};
-						current = current[path[i]];
+						current = current[path[i]] as Record<string, unknown>;
 					}
 				}
 			});
 
 			currentYaml = yaml.dump(parsed);
-		} catch (e) {
-			console.error('Failed to update YAML from form:', e);
+		} catch {
+			console.error('Failed to update YAML from form');
 		}
 	}
 
 	// Synchronize form values when YAML changes (YAML -> Wizard)
 	function updateFormFromYaml() {
 		try {
-			const parsed = yaml.load(currentYaml) as any;
-			const values: Record<string, any> = { ...formValues };
+			const parsed = yaml.load(currentYaml) as Record<string, unknown>;
+			const values: Record<string, unknown> = { ...formValues };
 
 			template.fields.forEach((field) => {
 				const path = field.path.split('.');
@@ -88,12 +91,12 @@
 					if (i === path.length - 1) {
 						values[field.name] = current[path[i]];
 					} else {
-						current = current[path[i]];
+						current = current[path[i]] as Record<string, unknown>;
 					}
 				}
 			});
 			formValues = values;
-		} catch (e) {
+		} catch {
 			// Don't log here to avoid spamming as user types invalid YAML
 		}
 	}
@@ -103,7 +106,9 @@
 		error = null;
 
 		try {
-			const parsed = yaml.load(currentYaml) as any;
+			const parsed = yaml.load(currentYaml) as Record<string, unknown> & {
+				metadata?: { namespace?: string; name?: string };
+			};
 			const response = await fetch(`/api/flux/${template.id.split('-')[0]}s`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -117,12 +122,12 @@
 
 			success = true;
 			setTimeout(() => {
-				goto(
-					`/resources/${template.id.split('-')[0]}s/${parsed.metadata.namespace}/${parsed.metadata.name}`
+				void goto(
+					`/resources/${template.id.split('-')[0]}s/${parsed.metadata?.namespace}/${parsed.metadata?.name}`
 				);
 			}, 1500);
-		} catch (e) {
-			error = (e as Error).message;
+		} catch (err) {
+			error = (err as Error).message;
 		} finally {
 			isSubmitting = false;
 		}
@@ -176,7 +181,7 @@
 		<div class="rounded-xl border border-border bg-card/60 p-6 backdrop-blur-sm">
 			{#if mode === 'wizard'}
 				<div class="grid gap-6">
-					{#each template.fields as field}
+					{#each template.fields as field (field.name)}
 						<div class="flex flex-col gap-1.5">
 							<label
 								for="field-{field.name}"
@@ -191,9 +196,8 @@
 									id="field-{field.name}"
 									bind:value={formValues[field.name]}
 									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-									onchange={updateYamlFromForm}
 								>
-									{#each field.options || [] as opt}
+									{#each field.options || [] as opt (opt.value)}
 										<option value={opt.value}>{opt.label}</option>
 									{/each}
 								</select>
@@ -201,8 +205,7 @@
 								<div class="flex items-center gap-2">
 									<input
 										type="checkbox"
-										bind:checked={formValues[field.name]}
-										onchange={updateYamlFromForm}
+										bind:checked={formValues[field.name] as boolean}
 										class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 									/>
 									<span class="text-sm text-muted-foreground">{field.description || ''}</span>
@@ -211,8 +214,7 @@
 								<input
 									id="field-{field.name}"
 									type={field.type === 'number' ? 'number' : 'text'}
-									bind:value={formValues[field.name]}
-									oninput={updateYamlFromForm}
+									bind:value={formValues[field.name] as string}
 									placeholder={field.description}
 									class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 								/>
@@ -225,7 +227,7 @@
 					{/each}
 				</div>
 			{:else}
-				<YamlEditor bind:value={currentYaml} className="min-h-[500px]" />
+				<YamlEditor value={currentYaml} className="min-h-[500px]" />
 			{/if}
 		</div>
 

@@ -203,7 +203,7 @@
 		>
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Values From</h3>
 			<div class="flex flex-wrap gap-2">
-				{#each valuesFrom as source}
+				{#each valuesFrom as source (source.name)}
 					<span
 						class="inline-flex items-center gap-1.5 rounded-md bg-yellow-100 px-2.5 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300"
 					>

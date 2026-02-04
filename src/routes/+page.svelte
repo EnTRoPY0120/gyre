@@ -238,7 +238,7 @@
 		{#if isLoading}
 			<!-- Skeleton loading state for cards -->
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-				{#each resourceGroups as group}
+				{#each resourceGroups}
 					<div
 						class="group relative overflow-hidden rounded-3xl border border-border bg-card/30 p-6 shadow-sm"
 					>
@@ -253,7 +253,7 @@
 							<div class="h-2 w-full animate-pulse rounded-full bg-muted/50"></div>
 						</div>
 						<div class="mt-8 flex flex-wrap gap-2">
-							{#each Array(3) as _, i}
+							{#each Array(3)}
 								<div class="h-8 w-24 animate-pulse rounded-xl bg-muted/50"></div>
 							{/each}
 						</div>
@@ -262,7 +262,7 @@
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-				{#each resourceGroups as group}
+				{#each resourceGroups as group (group.name)}
 					{@const counts = data.groupCounts[group.name] || {
 						total: 0,
 						healthy: 0,
@@ -363,7 +363,7 @@
 
 							<!-- Resource Type Tags (visual only, card is clickable) -->
 							<div class="mt-8 flex flex-wrap gap-2 border-t border-border/30 pt-6">
-								{#each group.resources.slice(0, 4) as resource}
+								{#each group.resources.slice(0, 4) as resource (resource.type)}
 									<span
 										class="rounded-xl border border-border bg-background/50 px-4 py-2 text-[10px] font-black tracking-wider text-muted-foreground uppercase"
 									>

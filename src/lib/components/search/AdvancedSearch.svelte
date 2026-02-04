@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { advancedSearch, parseQuery } from '$lib/utils/search';
 	import { Search, SlidersHorizontal, X } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import type { FilterState } from '$lib/utils/filtering';
@@ -8,15 +7,9 @@
 		filters: FilterState;
 		placeholder?: string;
 		onSearch?: (query: string) => void;
-		onToggleRegex?: (useRegex: boolean) => void;
 	}
 
-	let {
-		filters = $bindable(),
-		placeholder = 'Search resources...',
-		onSearch,
-		onToggleRegex
-	}: Props = $props();
+	let { filters = $bindable(), placeholder = 'Search resources...', onSearch }: Props = $props();
 
 	let isAdvancedOpen = $state(false);
 
@@ -29,11 +22,6 @@
 		const target = e.target as HTMLInputElement;
 		filters.search = target.value;
 		if (onSearch) onSearch(target.value);
-	}
-
-	function toggleRegex() {
-		filters.useRegex = !filters.useRegex;
-		if (onToggleRegex) onToggleRegex(filters.useRegex);
 	}
 </script>
 

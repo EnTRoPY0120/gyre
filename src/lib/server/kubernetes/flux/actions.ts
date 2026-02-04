@@ -1,6 +1,7 @@
 import { getCustomObjectsApi, getFluxResource } from '../client';
 import { getResourceDef, getResourceTypeByPlural } from './resources';
 import type { FluxResourceType } from './resources';
+import type { ConfigurationOptions } from '@kubernetes/client-node';
 
 /**
  * Suspend or Resume a FluxCD resource
@@ -49,7 +50,7 @@ export async function toggleSuspendResource(
 			},
 			{
 				headers: { 'Content-Type': 'application/json-patch+json' }
-			} as any
+			} as ConfigurationOptions
 		);
 	} catch (error) {
 		console.error(`Failed to suspend/resume ${name}:`, error);
@@ -127,7 +128,7 @@ export async function reconcileResource(
 			},
 			{
 				headers: { 'Content-Type': 'application/json-patch+json' }
-			} as any
+			} as ConfigurationOptions
 		);
 	} catch (error) {
 		console.error(`Failed to reconcile ${name}:`, error);

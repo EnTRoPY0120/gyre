@@ -5,8 +5,7 @@ import {
 	createCluster,
 	updateCluster,
 	deleteCluster,
-	testClusterConnection,
-	type NewCluster
+	testClusterConnection
 } from '$lib/server/clusters';
 import { isAdmin } from '$lib/server/rbac';
 import { logClusterChange } from '$lib/server/audit';

@@ -1,5 +1,6 @@
 import { onDestroy } from 'svelte';
 import { get } from 'svelte/store';
+import { SvelteDate } from 'svelte/reactivity';
 import { preferences } from '$lib/stores/preferences';
 import { invalidateAll } from '$app/navigation';
 
@@ -36,7 +37,7 @@ export function createAutoRefresh() {
 		isRefreshing = true;
 		try {
 			await invalidateAll();
-			lastRefreshTime = new Date();
+			lastRefreshTime = new SvelteDate();
 		} finally {
 			isRefreshing = false;
 		}
@@ -82,7 +83,7 @@ export function createAutoRefresh() {
 export function formatLastRefresh(date: Date | null): string {
 	if (!date) return 'Never';
 
-	const now = new Date();
+	const now = new SvelteDate();
 	const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
 
 	if (diff < 5) return 'Just now';

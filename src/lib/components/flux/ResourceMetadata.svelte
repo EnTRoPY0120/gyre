@@ -43,7 +43,7 @@
 		<div class="mt-4">
 			<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Labels</dt>
 			<dd class="mt-2 flex flex-wrap gap-2">
-				{#each Object.entries(metadata.labels) as [key, value]}
+				{#each Object.entries(metadata.labels) as [key, value] (key)}
 					<span
 						class="inline-flex items-center rounded-md bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-200"
 					>
@@ -58,7 +58,7 @@
 		<div class="mt-4">
 			<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Annotations</dt>
 			<dd class="mt-2 space-y-1">
-				{#each Object.entries(metadata.annotations) as [key, value]}
+				{#each Object.entries(metadata.annotations) as [key, value] (key)}
 					<div class="text-xs">
 						<span class="font-medium text-gray-700 dark:text-gray-300">{key}:</span>
 						<span class="text-gray-600 dark:text-gray-400">{value}</span>

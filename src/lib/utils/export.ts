@@ -16,14 +16,17 @@ export function downloadFile(content: string, filename: string, contentType: str
 /**
  * Format a resource for export (removing sensitive or unnecessary fields)
  */
-export function formatResourceForExport(resource: any, format: 'yaml' | 'json' = 'yaml') {
+export function formatResourceForExport(
+	resource: Record<string, unknown>,
+	format: 'yaml' | 'json' = 'yaml'
+) {
 	// Deep clone
 	const exported = JSON.parse(JSON.stringify(resource));
 
 	// Remove managed fields and status for a cleaner export
 	delete exported.metadata.managedFields;
 	delete exported.status;
-	
+
 	// Keep uid, generation, etc? Usually better to remove for portability
 	delete exported.metadata.uid;
 	delete exported.metadata.resourceVersion;
@@ -33,8 +36,8 @@ export function formatResourceForExport(resource: any, format: 'yaml' | 'json' =
 	if (format === 'json') {
 		return JSON.stringify(exported, null, 2);
 	}
-	
-	// For YAML, we'd ideally use a library like js-yaml, 
+
+	// For YAML, we'd ideally use a library like js-yaml,
 	// but we can return JSON and handle it or use a simple stringify if needed.
 	// Actually, the app already uses JSON for display in most places.
 	return exported;

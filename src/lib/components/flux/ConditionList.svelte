@@ -13,7 +13,7 @@
 	{#if conditions.length === 0}
 		<p class="text-sm text-gray-500 dark:text-gray-400">No conditions available</p>
 	{:else}
-		{#each conditions as condition}
+		{#each conditions as condition (condition.type)}
 			<div
 				class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-600 dark:bg-gray-700/50"
 			>

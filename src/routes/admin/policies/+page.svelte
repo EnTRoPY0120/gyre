@@ -119,14 +119,6 @@
 
 		return data.users.filter((u: User) => userIds.includes(u.id));
 	}
-
-	function formatDate(date: Date) {
-		return new Date(date).toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric'
-		});
-	}
 </script>
 
 <div class="space-y-6">
@@ -180,7 +172,7 @@
 
 	<!-- Policies Grid -->
 	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-		{#each data.policies as policy}
+		{#each data.policies as policy (policy.id)}
 			<div class="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4">
 				<div class="mb-3 flex items-start justify-between">
 					<div>
@@ -238,7 +230,7 @@
 					{#if getUsersWithPolicy(policy.id).length > 0}
 						{@const assignedUsers = getUsersWithPolicy(policy.id)}
 						<div class="flex flex-wrap gap-1">
-							{#each assignedUsers as user}
+							{#each assignedUsers as user (user.id)}
 								<form
 									method="POST"
 									action="?/unbind"
@@ -430,7 +422,7 @@
 							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
 						>
 							<option value="">All Resources</option>
-							{#each allResourceTypes as rt}
+							{#each allResourceTypes as rt (rt.value)}
 								<option value={rt.value}>{rt.label}</option>
 							{/each}
 						</select>
@@ -547,7 +539,7 @@
 							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
 						>
 							<option value="">Choose a user...</option>
-							{#each data.users.filter((u: User) => u.active && assigningPolicy && !getUsersWithPolicy(assigningPolicy.id).find((au: User) => au.id === u.id)) as user}
+							{#each data.users.filter((u: User) => u.active && assigningPolicy && !getUsersWithPolicy(assigningPolicy.id).find((au: User) => au.id === u.id)) as user (user.id)}
 								<option value={user.id}>{user.username} ({user.role})</option>
 							{/each}
 						</select>

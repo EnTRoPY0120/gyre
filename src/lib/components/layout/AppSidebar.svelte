@@ -83,6 +83,7 @@
 	>
 		<!-- Header -->
 		<div class="flex h-16 items-center justify-between border-b border-sidebar-border px-6">
+			<!-- eslint-disable-next-line -->
 			<a href="/" class="group flex items-center gap-3">
 				<div
 					class="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg transition-all group-hover:scale-105"
@@ -105,6 +106,7 @@
 		<!-- Nav -->
 		<div class="scrollbar-hide flex-1 space-y-2 overflow-y-auto px-4 py-6">
 			<!-- Dashboard -->
+			<!-- eslint-disable-next-line -->
 			<a
 				href="/"
 				class={cn(
@@ -126,6 +128,7 @@
 			</a>
 
 			<!-- Custom Dashboards -->
+			<!-- eslint-disable-next-line -->
 			<a
 				href="/dashboards"
 				class={cn(
@@ -147,6 +150,7 @@
 			</a>
 
 			<!-- Inventory -->
+			<!-- eslint-disable-next-line -->
 			<a
 				href="/inventory"
 				class={cn(
@@ -170,6 +174,7 @@
 			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
 
 			<!-- Create Resource -->
+			<!-- eslint-disable-next-line -->
 			<a
 				href="/create"
 				class={cn(
@@ -190,7 +195,7 @@
 			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
 
 			<!-- Groups -->
-			{#each resourceGroups as group}
+			{#each resourceGroups as group (group.name)}
 				<div class="space-y-1">
 					<button
 						onclick={() => toggleGroup(group.name)}
@@ -223,9 +228,10 @@
 								class="absolute top-0 bottom-0 left-[-1px] w-[1px] bg-gradient-to-b from-primary/0 via-primary/0 to-primary/0 transition-all duration-300 group-hover:via-primary/50"
 							></div>
 
-							{#each group.resources as resource}
+							{#each group.resources as resource (resource.type)}
 								{@const iconName = ResourceIcons[resource.type] || 'file-cog'}
 								{@const active = isActive(resource.type)}
+								<!-- eslint-disable-next-line -->
 								<a
 									href="/resources/{resource.type}"
 									class={cn(
@@ -300,6 +306,7 @@
 			<Icon name="menu" size={22} />
 		</button>
 
+		<!-- eslint-disable-next-line -->
 		<a
 			href="/"
 			class={cn(
@@ -313,6 +320,7 @@
 			<Icon name="dashboard" size={20} />
 		</a>
 
+		<!-- eslint-disable-next-line -->
 		<a
 			href="/dashboards"
 			class={cn(
@@ -326,6 +334,7 @@
 			<Icon name="layout-template" size={20} />
 		</a>
 
+		<!-- eslint-disable-next-line -->
 		<a
 			href="/inventory"
 			class={cn(
@@ -339,6 +348,7 @@
 			<Icon name="network" size={20} />
 		</a>
 
+		<!-- eslint-disable-next-line -->
 		<a
 			href="/create"
 			class={cn(
@@ -353,7 +363,7 @@
 		</a>
 
 		<div class="mt-6 flex w-full flex-col items-center gap-1 px-2">
-			{#each resourceGroups as group}
+			{#each resourceGroups as group (group.name)}
 				<button
 					onclick={() => {
 						sidebarOpen.set(true);

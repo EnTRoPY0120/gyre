@@ -32,7 +32,7 @@
 	<!-- Dashboards Grid -->
 	{#if dashboardStore.loading}
 		<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-			{#each Array(3) as _}
+			{#each Array(3)}
 				<div class="h-40 animate-pulse rounded-xl border border-border/50 bg-card"></div>
 			{/each}
 		</div>

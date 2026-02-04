@@ -1,9 +1,10 @@
 <script lang="ts">
-	import type { DashboardWidget } from '$lib/server/db/schema';
+	import type { DashboardWidget } from '$lib/stores/dashboards.svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { FluxResourceType } from '$lib/types/flux';
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 
 	let { widget, config }: { widget: DashboardWidget; config: Record<string, unknown> } = $props();
 
@@ -28,9 +29,10 @@
 		<div class="py-4 text-center text-xs text-muted-foreground italic">No resources found</div>
 	{:else}
 		{#each resources as r (r.metadata.uid)}
-			<!-- svelte-ignore no-navigation-without-resolve -->
 			<a
-				href="/resources/{resourceType}/{r.metadata.namespace}/{r.metadata.name}"
+				href={resolve(
+					`/resources/${resourceType}/${r.metadata.namespace || 'default'}/${r.metadata.name}`
+				)}
 				class="flex items-center justify-between rounded-lg border border-border/50 bg-secondary/10 px-3 py-2 transition-all hover:bg-secondary/20"
 			>
 				<div class="flex min-w-0 flex-col">

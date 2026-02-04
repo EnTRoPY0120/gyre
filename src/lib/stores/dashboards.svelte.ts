@@ -1,25 +1,16 @@
 import { browser } from '$app/environment';
+import type {
+	Dashboard as DbDashboard,
+	DashboardWidget as DbDashboardWidget
+} from '$lib/server/db/schema';
 
-export interface DashboardWidget {
-	id: string;
-	dashboardId: string;
-	type: string; // 'metric', 'list', 'chart', 'log', 'markdown', etc.
-	title: string;
-	resourceType?: string | null;
-	query?: string | null;
-	config?: string | null;
-	position?: string | null;
+// Client-side types with Date converted to string for JSON serialization
+export interface DashboardWidget extends Omit<DbDashboardWidget, 'createdAt'> {
 	createdAt: string;
+	[key: string]: unknown;
 }
 
-export interface Dashboard {
-	id: string;
-	name: string;
-	description?: string | null;
-	isDefault: boolean;
-	isShared: boolean;
-	ownerId?: string | null;
-	layout?: string | null;
+export interface Dashboard extends Omit<DbDashboard, 'createdAt' | 'updatedAt'> {
 	widgets: DashboardWidget[];
 	createdAt: string;
 	updatedAt: string;

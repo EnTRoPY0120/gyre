@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import type { DashboardWidget } from '$lib/stores/dashboards.svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { ArrowLeft, Share2, Plus, Layout } from 'lucide-svelte';
 	import { dashboardStore } from '$lib/stores/dashboards.svelte';
@@ -12,17 +13,25 @@
 
 	let { data }: { data: PageData } = $props();
 
-	// Find the dashboard in the store or use the server data
+	// Find the dashboard in the store or use the server data (convert DB types to store types)
 	let dashboard = $derived(
-		dashboardStore.dashboards.find((d) => d.id === data.dashboard.id) || data.dashboard
+		dashboardStore.dashboards.find((d) => d.id === data.dashboard.id) || {
+			...data.dashboard,
+			createdAt: new Date(data.dashboard.createdAt).toISOString(),
+			updatedAt: new Date(data.dashboard.updatedAt).toISOString(),
+			widgets: data.dashboard.widgets.map((w) => ({
+				...w,
+				createdAt: new Date(w.createdAt).toISOString()
+			}))
+		}
 	);
 
 	let isAddWidgetOpen = $state(false);
-	let editingWidget = $state<any | null>(null);
+	let editingWidget = $state<DashboardWidget | null>(null);
 	let isLayoutMode = $state(false);
 
 	// We need a local copy of widgets for dnd to work smoothly before save
-	let items = $state<any[]>([]);
+	let items = $state<DashboardWidget[]>([]);
 
 	$effect(() => {
 		if (!isLayoutMode) {
@@ -30,11 +39,11 @@
 		}
 	});
 
-	function handleDndConsider(e: CustomEvent<any>) {
+	function handleDndConsider(e: CustomEvent<{ items: DashboardWidget[] }>) {
 		items = e.detail.items;
 	}
 
-	function handleDndFinalize(e: CustomEvent<any>) {
+	function handleDndFinalize(e: CustomEvent<{ items: DashboardWidget[] }>) {
 		items = e.detail.items;
 	}
 
@@ -49,7 +58,7 @@
 		}
 	}
 
-	async function handleSaveWidget(widgetData: any) {
+	async function handleSaveWidget(widgetData: Partial<DashboardWidget> & Record<string, unknown>) {
 		try {
 			if (widgetData.id) {
 				// Update existing widget
@@ -166,7 +175,7 @@
 							{widget}
 							onDelete={handleDeleteWidget}
 							onEdit={(id) => {
-								editingWidget = dashboard.widgets.find((w) => w.id === id);
+								editingWidget = dashboard.widgets.find((w) => w.id === id) || null;
 							}}
 						/>
 					</div>

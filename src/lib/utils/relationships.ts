@@ -14,11 +14,37 @@
 
 import { FluxResourceType } from '$lib/types/flux';
 
+export interface FluxResourceMetadata {
+	name: string;
+	namespace?: string;
+	uid?: string;
+	resourceVersion?: string;
+	creationTimestamp?: string;
+	generation?: number;
+	managedFields?: unknown[];
+}
+
+export interface FluxResourceSpec {
+	suspend?: boolean;
+	[key: string]: unknown;
+}
+
+export interface FluxResourceStatus {
+	conditions?: Array<{ type: string; status: string; reason?: string; message?: string }>;
+}
+
+export interface FluxResource {
+	metadata: FluxResourceMetadata;
+	spec?: FluxResourceSpec;
+	status?: FluxResourceStatus;
+}
+
 export interface ResourceRef {
 	kind: string;
 	name: string;
-	namespace: string;
+	namespace?: string;
 	apiVersion?: string;
+	matchLabels?: Record<string, string>;
 }
 
 export interface ResourceRelationship {
@@ -38,7 +64,11 @@ export interface ResourceNode {
 /**
  * Extract the source reference from a Kustomization
  */
-export function getKustomizationSourceRef(kustomization: any): ResourceRef | null {
+export function getKustomizationSourceRef(
+	kustomization: FluxResource & {
+		spec?: { sourceRef?: { kind: string; name: string; namespace?: string; apiVersion?: string } };
+	}
+): ResourceRef | null {
 	const sourceRef = kustomization.spec?.sourceRef;
 	if (!sourceRef) return null;
 
@@ -53,7 +83,17 @@ export function getKustomizationSourceRef(kustomization: any): ResourceRef | nul
 /**
  * Extract the source reference from a HelmRelease
  */
-export function getHelmReleaseSourceRef(helmRelease: any): ResourceRef | null {
+export function getHelmReleaseSourceRef(
+	helmRelease: FluxResource & {
+		spec?: {
+			chart?: {
+				spec?: {
+					sourceRef?: { kind: string; name: string; namespace?: string; apiVersion?: string };
+				};
+			};
+		};
+	}
+): ResourceRef | null {
 	const chart = helmRelease.spec?.chart;
 	if (!chart?.spec?.sourceRef) return null;
 
@@ -69,7 +109,11 @@ export function getHelmReleaseSourceRef(helmRelease: any): ResourceRef | null {
 /**
  * Extract ImageRepository reference from an ImagePolicy
  */
-export function getImagePolicyRepositoryRef(imagePolicy: any): ResourceRef | null {
+export function getImagePolicyRepositoryRef(
+	imagePolicy: FluxResource & {
+		spec?: { imageRepositoryRef?: { name: string; namespace?: string } };
+	}
+): ResourceRef | null {
 	const imageRepoRef = imagePolicy.spec?.imageRepositoryRef;
 	if (!imageRepoRef) return null;
 
@@ -83,7 +127,11 @@ export function getImagePolicyRepositoryRef(imagePolicy: any): ResourceRef | nul
 /**
  * Extract GitRepository reference from ImageUpdateAutomation
  */
-export function getImageUpdateAutomationGitRef(imageUpdateAutomation: any): ResourceRef | null {
+export function getImageUpdateAutomationGitRef(
+	imageUpdateAutomation: FluxResource & {
+		spec?: { sourceRef?: { kind?: string; name: string; namespace?: string } };
+	}
+): ResourceRef | null {
 	const gitRepoRef = imageUpdateAutomation.spec?.sourceRef;
 	if (!gitRepoRef) return null;
 
@@ -97,7 +145,9 @@ export function getImageUpdateAutomationGitRef(imageUpdateAutomation: any): Reso
 /**
  * Extract Provider reference from an Alert
  */
-export function getAlertProviderRef(alert: any): ResourceRef | null {
+export function getAlertProviderRef(
+	alert: FluxResource & { spec?: { providerRef?: { name: string } } }
+): ResourceRef | null {
 	const providerRef = alert.spec?.providerRef;
 	if (!providerRef) return null;
 
@@ -111,9 +161,20 @@ export function getAlertProviderRef(alert: any): ResourceRef | null {
 /**
  * Extract event sources from an Alert (resources it watches)
  */
-export function getAlertEventSources(alert: any): ResourceRef[] {
+export function getAlertEventSources(
+	alert: FluxResource & {
+		spec?: {
+			eventSources?: Array<{
+				kind: string;
+				name: string;
+				namespace?: string;
+				matchLabels?: Record<string, string>;
+			}>;
+		};
+	}
+): ResourceRef[] {
 	const eventSources = alert.spec?.eventSources || [];
-	return eventSources.map((source: any) => ({
+	return eventSources.map((source) => ({
 		kind: source.kind,
 		name: source.name,
 		namespace: source.namespace || alert.metadata.namespace,
@@ -124,9 +185,20 @@ export function getAlertEventSources(alert: any): ResourceRef[] {
 /**
  * Extract resources that a Receiver can trigger
  */
-export function getReceiverResources(receiver: any): ResourceRef[] {
+export function getReceiverResources(
+	receiver: FluxResource & {
+		spec?: {
+			resources?: Array<{
+				kind: string;
+				name: string;
+				namespace?: string;
+				matchLabels?: Record<string, string>;
+			}>;
+		};
+	}
+): ResourceRef[] {
 	const resources = receiver.spec?.resources || [];
-	return resources.map((resource: any) => ({
+	return resources.map((resource) => ({
 		kind: resource.kind,
 		name: resource.name,
 		namespace: resource.namespace || receiver.metadata.namespace,
@@ -160,18 +232,18 @@ export function kindToFluxType(kind: string): FluxResourceType | null {
  * Build a relationship map from a collection of FluxCD resources
  */
 export function buildRelationshipMap(resources: {
-	kustomizations?: any[];
-	helmReleases?: any[];
-	gitRepositories?: any[];
-	helmRepositories?: any[];
-	ociRepositories?: any[];
-	buckets?: any[];
-	alerts?: any[];
-	providers?: any[];
-	receivers?: any[];
-	imagePolicies?: any[];
-	imageRepositories?: any[];
-	imageUpdateAutomations?: any[];
+	kustomizations?: FluxResource[];
+	helmReleases?: FluxResource[];
+	gitRepositories?: FluxResource[];
+	helmRepositories?: FluxResource[];
+	ociRepositories?: FluxResource[];
+	buckets?: FluxResource[];
+	alerts?: FluxResource[];
+	providers?: FluxResource[];
+	receivers?: FluxResource[];
+	imagePolicies?: FluxResource[];
+	imageRepositories?: FluxResource[];
+	imageUpdateAutomations?: FluxResource[];
 }): ResourceRelationship[] {
 	const relationships: ResourceRelationship[] = [];
 
@@ -300,11 +372,13 @@ export function buildRelationshipMap(resources: {
 /**
  * Get the status of a resource from its conditions
  */
-export function getResourceStatus(resource: any): 'ready' | 'pending' | 'failed' | 'suspended' {
+export function getResourceStatus(
+	resource: FluxResource
+): 'ready' | 'pending' | 'failed' | 'suspended' {
 	if (resource.spec?.suspend) return 'suspended';
 
 	const conditions = resource.status?.conditions || [];
-	const readyCondition = conditions.find((c: any) => c.type === 'Ready');
+	const readyCondition = conditions.find((c) => c.type === 'Ready');
 
 	if (!readyCondition) return 'pending';
 	if (readyCondition.status === 'True') return 'ready';
@@ -316,5 +390,5 @@ export function getResourceStatus(resource: any): 'ready' | 'pending' | 'failed'
  * Create a resource reference key for lookups
  */
 export function resourceRefKey(ref: ResourceRef): string {
-	return `${ref.kind}/${ref.namespace}/${ref.name}`;
+	return `${ref.kind}/${ref.namespace || 'cluster-scoped'}/${ref.name}`;
 }

@@ -2,7 +2,6 @@ import { eq, desc } from 'drizzle-orm';
 import { getDbSync } from './db/index.js';
 import { clusters, clusterContexts, type NewCluster, type NewClusterContext } from './db/schema.js';
 import * as k8s from '@kubernetes/client-node';
-import { randomBytes } from 'node:crypto';
 
 // Simple encryption key - in production this should be from environment/config
 const ENCRYPTION_KEY = process.env.GYRE_ENCRYPTION_KEY || 'default-key-change-in-production';

@@ -3,6 +3,7 @@
 	import { cn } from '$lib/utils';
 	import type { ResourceRef } from '$lib/utils/relationships';
 	import ResourceTree from './ResourceTree.svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	interface TreeNode {
 		ref: ResourceRef;
@@ -20,7 +21,7 @@
 	let { nodes, level = 0, onNodeClick }: Props = $props();
 
 	// Track expanded state locally
-	let expandedNodes = $state<Set<string>>(new Set());
+	let expandedNodes = new SvelteSet<string>();
 
 	function getNodeKey(node: TreeNode): string {
 		return `${node.ref.kind}/${node.ref.namespace}/${node.ref.name}`;
@@ -33,7 +34,6 @@
 		} else {
 			expandedNodes.add(key);
 		}
-		expandedNodes = new Set(expandedNodes);
 	}
 
 	function isExpanded(node: TreeNode): boolean {
@@ -45,13 +45,6 @@
 		pending: 'bg-yellow-500',
 		failed: 'bg-red-500',
 		suspended: 'bg-zinc-500'
-	};
-
-	const statusIcons = {
-		ready: 'check-circle',
-		pending: 'clock',
-		failed: 'x-circle',
-		suspended: 'pause-circle'
 	};
 
 	const kindIcons: Record<string, string> = {
@@ -77,7 +70,7 @@
 </script>
 
 <div class="space-y-1" style="padding-left: {level * 16}px">
-	{#each nodes as node}
+	{#each nodes as node (getNodeKey(node))}
 		{@const hasChildren = node.children && node.children.length > 0}
 		{@const expanded = isExpanded(node)}
 		{@const status = node.status || 'pending'}

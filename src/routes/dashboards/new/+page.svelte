@@ -31,9 +31,9 @@
 			});
 
 			// Redirect to the new dashboard
-			goto(`/dashboards/${newDashboard.id}`);
-		} catch (err: any) {
-			error = err.message;
+			await goto(`/dashboards/${newDashboard.id}`);
+		} catch (err: unknown) {
+			error = err instanceof Error ? err.message : 'Unknown error';
 		} finally {
 			saving = false;
 		}

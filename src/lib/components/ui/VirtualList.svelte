@@ -15,7 +15,6 @@
 	let scrollTop = $state(0);
 	let containerHeight = $state(0);
 
-	const visibleItemsCount = $derived(Math.ceil(containerHeight / itemHeight));
 	const startIndex = $derived(Math.max(0, Math.floor(scrollTop / itemHeight) - buffer));
 	const endIndex = $derived(
 		Math.min(items.length, Math.floor((scrollTop + containerHeight) / itemHeight) + buffer)

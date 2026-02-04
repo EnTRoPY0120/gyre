@@ -6,7 +6,7 @@ import { deleteSession } from '$lib/server/auth';
  * POST /api/auth/logout
  * Logout user and clear session
  */
-export const POST: RequestHandler = async ({ cookies, locals }) => {
+export const POST: RequestHandler = async ({ cookies }) => {
 	try {
 		const sessionId = cookies.get('gyre_session');
 

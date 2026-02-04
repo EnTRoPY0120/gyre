@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
 import type { FluxResource } from '$lib/types/flux';
-import { parseInventory, type InventoryResource } from '$lib/server/kubernetes/flux/inventory';
+import { parseInventory } from '$lib/server/kubernetes/flux/inventory';
 import { getGenericResource } from '$lib/server/kubernetes/client';
 
 export const load: PageServerLoad = async ({ params, fetch, depends, locals }) => {
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ params, fetch, depends, locals }) =
 		}
 
 		const resource: FluxResource = await response.json();
-		let inventoryResources: any[] = [];
+		let inventoryResources: Record<string, unknown>[] = [];
 
 		if (resource.status?.inventory?.entries) {
 			try {
@@ -60,8 +60,8 @@ export const load: PageServerLoad = async ({ params, fetch, depends, locals }) =
 								locals.cluster
 							);
 							// Add our internal inventory version/id metadata back
-							return { ...child, _inventory: r };
-						} catch (e) {
+							return { ...(child as Record<string, unknown>), _inventory: r };
+						} catch {
 							return {
 								_inventory: r,
 								kind: r.kind,

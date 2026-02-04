@@ -1,5 +1,5 @@
-import { getCoreV1Api, getCustomObjectsApi } from '../client.js';
-import { getResourceDef, type FluxResourceType } from './resources.js';
+import { getCoreV1Api } from '../client.js';
+import type { FluxResourceType } from './resources.js';
 
 export interface ResourceRevision {
 	revision: string;
@@ -25,7 +25,7 @@ export async function getResourceHistory(
 	// For now, let's return a basic history from events?
 	// Or just the current status as the only "version" if we don't track history elsewhere.
 	// Actually, Flux status.history (for HR) or special annotations could be used.
-	
+
 	return [];
 }
 
@@ -48,10 +48,9 @@ async function getHelmReleaseHistory(
 		});
 
 		const secrets = response.items || [];
-		
+
 		return secrets
 			.map((secret) => {
-				const releaseData = secret.metadata?.labels?.['release'] || name;
 				const version = secret.metadata?.name?.split('.v')?.pop() || '0';
 				const status = secret.metadata?.labels?.['status'] || 'unknown';
 				const timestamp = secret.metadata?.creationTimestamp?.toISOString() || '';
@@ -80,7 +79,7 @@ export async function rollbackResource(
 	type: FluxResourceType,
 	namespace: string,
 	name: string,
-	targetRevision: string,
+	revision: string,
 	cluster?: string
 ): Promise<void> {
 	if (type !== 'HelmRelease') {
@@ -93,12 +92,18 @@ export async function rollbackResource(
 	// However, we can "suspend" and then manually perform helm operations? No, that's complex.
 	// A better way is to provide a "Rollback" that just reverts the Spec to a known good state.
 	// But we don't have the full spec history in DB yet.
-	
+
 	// For now, let's implement it as a "Reconcile" with a specific annotation if Flux supports it?
 	// Actually, Flux has 'reconcile.fluxcd.io/requestedAt'.
-	
-	// If we want to support actual rollback, we might need to talk to the helm-controller 
+
+	// If we want to support actual rollback, we might need to talk to the helm-controller
 	// or perform the helm operation ourselves.
-	
+
+	// Suppress unused parameter warnings temporarily for this unimplemented function
+	void namespace;
+	void name;
+	void revision;
+	void cluster;
+
 	throw new Error('Not implemented: Rollback requires specific version patching logic');
 }

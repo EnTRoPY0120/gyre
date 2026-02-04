@@ -49,7 +49,7 @@
 						<a
 							href={url}
 							target="_blank"
-							rel="noopener noreferrer"
+							rel="external noopener noreferrer"
 							class="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline dark:text-blue-400"
 						>
 							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

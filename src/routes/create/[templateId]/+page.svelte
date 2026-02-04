@@ -2,7 +2,6 @@
 	import { page } from '$app/state';
 	import { templates } from '$lib/templates';
 	import ResourceWizard from '$lib/components/wizards/ResourceWizard.svelte';
-	import { Button } from '$lib/components/ui/button';
 	import { ChevronLeft } from 'lucide-svelte';
 
 	const templateId = $derived(page.params.templateId);
@@ -38,6 +37,7 @@ data:
 	<header class="flex items-center gap-4">
 		<a
 			href="/create"
+			rel="external"
 			class="flex size-10 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-accent"
 			aria-label="Back to template selection"
 		>

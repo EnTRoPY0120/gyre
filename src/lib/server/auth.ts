@@ -3,7 +3,7 @@ import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db
 import { users, sessions } from './db/schema.js';
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
-import { isInClusterMode, isLocalMode, getInClusterPaths } from './mode.js';
+import { isInClusterMode, getInClusterPaths } from './mode.js';
 import * as k8s from '@kubernetes/client-node';
 import { readFileSync } from 'node:fs';
 
@@ -245,7 +245,7 @@ export async function hasUsers(): Promise<boolean> {
 			.from(users)
 			.get();
 		return (result?.count ?? 0) > 0;
-	} catch (error) {
+	} catch {
 		// Table doesn't exist yet - no users
 		return false;
 	}
@@ -279,7 +279,7 @@ async function isSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promise<
 		});
 		const labels = result.metadata?.labels || {};
 		return labels['gyre.io/initial-password-consumed'] === 'true';
-	} catch (error: unknown) {
+	} catch {
 		// If secret doesn't exist, it's not consumed
 		return false;
 	}

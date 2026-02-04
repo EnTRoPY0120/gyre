@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { DashboardWidget } from '$lib/server/db/schema';
+	import type { DashboardWidget } from '$lib/stores/dashboards.svelte';
 	import { formatDistanceToNow } from 'date-fns';
 	import { onMount } from 'svelte';
 
@@ -14,9 +14,6 @@
 	}
 
 	let { widget, config }: { widget: DashboardWidget; config: Record<string, unknown> } = $props();
-
-	// widget.id can be used for tracking/debugging if needed
-	void widget;
 
 	let events = $state<K8sEvent[]>([]);
 	let loading = $state(false);
@@ -45,7 +42,7 @@
 	onMount(fetchEvents);
 </script>
 
-<div class="space-y-3">
+<div class="space-y-3" data-widget-id={widget.id}>
 	{#if loading}
 		<div class="flex items-center justify-center py-4">
 			<div

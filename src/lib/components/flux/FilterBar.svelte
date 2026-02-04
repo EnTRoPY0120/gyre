@@ -51,7 +51,7 @@
 			onchange={handleNamespaceChange}
 		>
 			<option value="">All Namespaces</option>
-			{#each namespaces as ns}
+			{#each namespaces as ns (ns)}
 				<option value={ns}>{ns}</option>
 			{/each}
 		</select>
@@ -66,7 +66,7 @@
 			value={filters.status}
 			onchange={handleStatusChange}
 		>
-			{#each statusOptions as option}
+			{#each statusOptions as option (option.value)}
 				<option value={option.value}>{option.label}</option>
 			{/each}
 		</select>
