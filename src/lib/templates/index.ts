@@ -243,14 +243,45 @@ metadata:
 spec:
   interval: 5m
   url: https://charts.bitnami.com/bitnami`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'source',
+			title: 'Repository Configuration',
+			description: 'Helm repository settings',
+			defaultExpanded: true
+		},
+		{
+			id: 'auth',
+			title: 'Authentication',
+			description: 'Credentials and TLS configuration',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
 	fields: [
+		// Basic Information
 		{
 			name: 'name',
 			label: 'Name',
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'my-helm-repo',
+			description: 'Unique name for this HelmRepository resource'
 		},
 		{
 			name: 'namespace',
@@ -258,22 +289,85 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
-			default: 'flux-system'
+			section: 'basic',
+			default: 'flux-system',
+			description: 'Namespace where the resource will be created'
 		},
+
+		// Repository Configuration
 		{
 			name: 'url',
-			label: 'URL',
+			label: 'Repository URL',
 			path: 'spec.url',
 			type: 'string',
 			required: true,
-			description: 'The URL of the Helm repository'
+			section: 'source',
+			placeholder: 'https://charts.bitnami.com/bitnami',
+			description: 'HTTP/S or OCI Helm repository URL'
+		},
+		{
+			name: 'type',
+			label: 'Repository Type',
+			path: 'spec.type',
+			type: 'select',
+			section: 'source',
+			default: 'default',
+			options: [
+				{ label: 'Default (HTTP/S)', value: 'default' },
+				{ label: 'OCI', value: 'oci' }
+			],
+			description: 'Type of Helm repository'
 		},
 		{
 			name: 'interval',
-			label: 'Interval',
+			label: 'Sync Interval',
 			path: 'spec.interval',
 			type: 'duration',
-			default: '5m'
+			required: true,
+			section: 'source',
+			default: '5m',
+			placeholder: '5m',
+			description: 'How often to check for new chart versions'
+		},
+
+		// Authentication
+		{
+			name: 'secretRefName',
+			label: 'Secret Name',
+			path: 'spec.secretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'helm-repo-credentials',
+			description: 'Secret containing authentication credentials (username/password or certFile/keyFile)'
+		},
+		{
+			name: 'passCredentials',
+			label: 'Pass Credentials',
+			path: 'spec.passCredentials',
+			type: 'boolean',
+			section: 'auth',
+			default: false,
+			description: 'Pass credentials to all domains'
+		},
+
+		// Advanced Options
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Suspend reconciliation of this repository'
+		},
+		{
+			name: 'timeout',
+			label: 'Timeout',
+			path: 'spec.timeout',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '60s',
+			description: 'Timeout for index download operations'
 		}
 	]
 };
@@ -298,14 +392,51 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'source',
+			title: 'Source Configuration',
+			description: 'Source reference and path settings',
+			defaultExpanded: true
+		},
+		{
+			id: 'deployment',
+			title: 'Deployment Settings',
+			description: 'Reconciliation and deployment options',
+			defaultExpanded: true
+		},
+		{
+			id: 'health',
+			title: 'Health Checks',
+			description: 'Health assessment and wait configuration',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
 	fields: [
+		// Basic Information
 		{
 			name: 'name',
 			label: 'Name',
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'my-app',
+			description: 'Unique name for this Kustomization resource'
 		},
 		{
 			name: 'namespace',
@@ -313,15 +444,26 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
-			default: 'flux-system'
+			section: 'basic',
+			default: 'flux-system',
+			description: 'Namespace where the resource will be created'
 		},
+
+		// Source Configuration
 		{
-			name: 'path',
-			label: 'Path',
-			path: 'spec.path',
-			type: 'string',
-			default: './deploy',
-			description: 'Path within the source repository'
+			name: 'sourceKind',
+			label: 'Source Kind',
+			path: 'spec.sourceRef.kind',
+			type: 'select',
+			required: true,
+			section: 'source',
+			default: 'GitRepository',
+			options: [
+				{ label: 'GitRepository', value: 'GitRepository' },
+				{ label: 'OCIRepository', value: 'OCIRepository' },
+				{ label: 'Bucket', value: 'Bucket' }
+			],
+			description: 'Type of source to reconcile from'
 		},
 		{
 			name: 'sourceName',
@@ -329,26 +471,108 @@ spec:
 			path: 'spec.sourceRef.name',
 			type: 'string',
 			required: true,
-			description: 'The name of the source resource'
+			section: 'source',
+			placeholder: 'flux-system',
+			description: 'Name of the source resource'
 		},
 		{
-			name: 'sourceKind',
-			label: 'Source Kind',
-			path: 'spec.sourceRef.kind',
-			type: 'select',
-			options: [
-				{ label: 'Git Repository', value: 'GitRepository' },
-				{ label: 'Bucket', value: 'Bucket' },
-				{ label: 'OCI Repository', value: 'OCIRepository' }
-			],
-			default: 'GitRepository'
+			name: 'sourceNamespace',
+			label: 'Source Namespace',
+			path: 'spec.sourceRef.namespace',
+			type: 'string',
+			section: 'source',
+			placeholder: 'flux-system',
+			description: 'Namespace of the source (if different from this resource)'
+		},
+		{
+			name: 'path',
+			label: 'Path',
+			path: 'spec.path',
+			type: 'string',
+			section: 'source',
+			default: './',
+			placeholder: './deploy',
+			description: 'Path to the directory containing Kustomize files'
+		},
+
+		// Deployment Settings
+		{
+			name: 'interval',
+			label: 'Sync Interval',
+			path: 'spec.interval',
+			type: 'duration',
+			required: true,
+			section: 'deployment',
+			default: '5m',
+			placeholder: '5m',
+			description: 'How often to reconcile the Kustomization'
 		},
 		{
 			name: 'prune',
-			label: 'Prune',
+			label: 'Prune Resources',
 			path: 'spec.prune',
 			type: 'boolean',
-			default: true
+			section: 'deployment',
+			default: true,
+			description: 'Delete resources removed from source'
+		},
+		{
+			name: 'targetNamespace',
+			label: 'Target Namespace',
+			path: 'spec.targetNamespace',
+			type: 'string',
+			section: 'deployment',
+			placeholder: 'default',
+			description: 'Override namespace for all resources'
+		},
+
+		// Health Checks
+		{
+			name: 'wait',
+			label: 'Wait for Resources',
+			path: 'spec.wait',
+			type: 'boolean',
+			section: 'health',
+			default: false,
+			description: 'Wait for all resources to become ready'
+		},
+		{
+			name: 'timeout',
+			label: 'Timeout',
+			path: 'spec.timeout',
+			type: 'duration',
+			section: 'health',
+			placeholder: '5m',
+			description: 'Timeout for health checks and operations'
+		},
+
+		// Advanced Options
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Suspend reconciliation'
+		},
+		{
+			name: 'force',
+			label: 'Force Apply',
+			path: 'spec.force',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Force resource updates through delete/recreate if needed'
+		},
+		{
+			name: 'serviceAccountName',
+			label: 'Service Account',
+			path: 'spec.serviceAccountName',
+			type: 'string',
+			section: 'advanced',
+			placeholder: 'kustomize-controller',
+			description: 'ServiceAccount to impersonate for reconciliation'
 		}
 	]
 };
@@ -376,35 +600,206 @@ spec:
         kind: HelmRepository
         name: bitnami
         namespace: flux-system`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'chart',
+			title: 'Chart Configuration',
+			description: 'Helm chart source and version',
+			defaultExpanded: true
+		},
+		{
+			id: 'release',
+			title: 'Release Settings',
+			description: 'Helm release configuration',
+			defaultExpanded: true
+		},
+		{
+			id: 'upgrade',
+			title: 'Upgrade & Rollback',
+			description: 'Upgrade and rollback behavior',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
 	fields: [
+		// Basic Information
 		{
 			name: 'name',
 			label: 'Name',
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'my-release',
+			description: 'Unique name for this HelmRelease resource'
+		},
+		{
+			name: 'namespace',
+			label: 'Namespace',
+			path: 'metadata.namespace',
+			type: 'string',
+			required: true,
+			section: 'basic',
+			default: 'flux-system',
+			description: 'Namespace where the resource will be created'
+		},
+
+		// Chart Configuration
+		{
+			name: 'chartSourceKind',
+			label: 'Chart Source Kind',
+			path: 'spec.chart.spec.sourceRef.kind',
+			type: 'select',
+			required: true,
+			section: 'chart',
+			default: 'HelmRepository',
+			options: [
+				{ label: 'HelmRepository', value: 'HelmRepository' },
+				{ label: 'GitRepository', value: 'GitRepository' },
+				{ label: 'Bucket', value: 'Bucket' }
+			],
+			description: 'Type of source containing the chart'
+		},
+		{
+			name: 'chartSourceName',
+			label: 'Chart Source Name',
+			path: 'spec.chart.spec.sourceRef.name',
+			type: 'string',
+			required: true,
+			section: 'chart',
+			placeholder: 'bitnami',
+			description: 'Name of the source resource'
+		},
+		{
+			name: 'chartSourceNamespace',
+			label: 'Chart Source Namespace',
+			path: 'spec.chart.spec.sourceRef.namespace',
+			type: 'string',
+			section: 'chart',
+			placeholder: 'flux-system',
+			description: 'Namespace of the chart source'
 		},
 		{
 			name: 'chartName',
 			label: 'Chart Name',
 			path: 'spec.chart.spec.chart',
 			type: 'string',
-			required: true
+			required: true,
+			section: 'chart',
+			placeholder: 'podinfo',
+			description: 'Name of the Helm chart'
 		},
 		{
 			name: 'chartVersion',
 			label: 'Chart Version',
 			path: 'spec.chart.spec.version',
 			type: 'string',
-			default: '>=1.0.0'
+			section: 'chart',
+			default: '*',
+			placeholder: '>=1.0.0 <2.0.0',
+			description: 'SemVer version constraint or specific version'
+		},
+
+		// Release Settings
+		{
+			name: 'interval',
+			label: 'Sync Interval',
+			path: 'spec.interval',
+			type: 'duration',
+			required: true,
+			section: 'release',
+			default: '5m',
+			placeholder: '5m',
+			description: 'How often to reconcile the release'
 		},
 		{
-			name: 'sourceName',
-			label: 'Source Name',
-			path: 'spec.chart.spec.sourceRef.name',
+			name: 'targetNamespace',
+			label: 'Target Namespace',
+			path: 'spec.targetNamespace',
 			type: 'string',
-			required: true
+			section: 'release',
+			placeholder: 'default',
+			description: 'Namespace to install the release into'
+		},
+		{
+			name: 'releaseName',
+			label: 'Release Name',
+			path: 'spec.releaseName',
+			type: 'string',
+			section: 'release',
+			placeholder: 'my-app',
+			description: 'Helm release name (defaults to metadata.name)'
+		},
+
+		// Upgrade & Rollback
+		{
+			name: 'upgradeForce',
+			label: 'Force Upgrade',
+			path: 'spec.upgrade.force',
+			type: 'boolean',
+			section: 'upgrade',
+			default: false,
+			description: 'Force resource updates through delete/recreate'
+		},
+		{
+			name: 'upgradeCleanupOnFail',
+			label: 'Cleanup on Fail',
+			path: 'spec.upgrade.cleanupOnFail',
+			type: 'boolean',
+			section: 'upgrade',
+			default: true,
+			description: 'Delete resources created during failed upgrade'
+		},
+		{
+			name: 'rollbackCleanupOnFail',
+			label: 'Cleanup on Rollback Fail',
+			path: 'spec.rollback.cleanupOnFail',
+			type: 'boolean',
+			section: 'upgrade',
+			default: true,
+			description: 'Delete resources created during failed rollback'
+		},
+
+		// Advanced Options
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Suspend reconciliation'
+		},
+		{
+			name: 'timeout',
+			label: 'Timeout',
+			path: 'spec.timeout',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '5m',
+			description: 'Timeout for Helm operations'
+		},
+		{
+			name: 'serviceAccountName',
+			label: 'Service Account',
+			path: 'spec.serviceAccountName',
+			type: 'string',
+			section: 'advanced',
+			placeholder: 'helm-controller',
+			description: 'ServiceAccount to impersonate for Helm operations'
 		}
 	]
 };
