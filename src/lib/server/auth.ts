@@ -3,9 +3,14 @@ import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db
 import { users, sessions } from './db/schema.js';
 import { eq, and, gt, sql } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
-import { isInClusterMode, getInClusterPaths } from './mode.js';
+import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import * as k8s from '@kubernetes/client-node';
 import { readFileSync } from 'node:fs';
+
+// In-cluster configuration paths
+const IN_CLUSTER_TOKEN_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token';
+const IN_CLUSTER_CA_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
+const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
 const SALT_ROUNDS = 12;
 const SESSION_DURATION_DAYS = 7;
@@ -120,6 +125,9 @@ export async function createUser(
 		throw new Error('Failed to create user');
 	}
 
+	// Auto-bind user to default RBAC policies based on role
+	await bindUserToDefaultPolicies(user);
+
 	return user;
 }
 
@@ -144,12 +152,25 @@ export async function updateUser(
 	updates: Partial<Pick<User, 'role' | 'active' | 'email'>>
 ): Promise<User | null> {
 	const db = await getDb();
+
+	// Get current user to check if role is changing
+	const currentUser = await getUserById(id);
+	const roleChanged = updates.role && currentUser && updates.role !== currentUser.role;
+
 	await db
 		.update(users)
 		.set({ ...updates, updatedAt: new Date() })
 		.where(eq(users.id, id));
 
-	return getUserById(id);
+	const updatedUser = await getUserById(id);
+
+	// If role changed, sync RBAC policy bindings
+	if (roleChanged && updatedUser) {
+		const { syncUserPolicyBindings } = await import('./rbac-defaults.js');
+		await syncUserPolicyBindings(updatedUser);
+	}
+
+	return updatedUser;
 }
 
 export async function updateUserPassword(id: string, newPassword: string): Promise<void> {
@@ -251,11 +272,10 @@ export async function hasUsers(): Promise<boolean> {
 	}
 }
 
-// Get current namespace when running in-cluster
+// Get current namespace from in-cluster ServiceAccount
 function getCurrentNamespace(): string {
 	try {
-		const { namespacePath } = getInClusterPaths();
-		return readFileSync(namespacePath, 'utf-8').trim();
+		return readFileSync(IN_CLUSTER_NAMESPACE_PATH, 'utf-8').trim();
 	} catch {
 		return 'default';
 	}
@@ -423,8 +443,7 @@ export function isInClusterAdminPasswordConsumed(): boolean {
 
 /**
  * Create default admin if no users exist
- * - In-cluster mode: Uses K8s secret for password
- * - Local mode: Uses SQLite with generated password
+ * Uses K8s secret for password (in-cluster only)
  */
 export async function createDefaultAdminIfNeeded(): Promise<{
 	password: string | null;
@@ -433,41 +452,31 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 	const hasAnyUsers = await hasUsers();
 
 	if (hasAnyUsers) {
-		return { password: null, mode: isInClusterMode() ? 'in-cluster' : 'local' };
+		return { password: null, mode: 'in-cluster' };
 	}
 
-	if (isInClusterMode()) {
-		// In-cluster mode: use K8s secret
-		const password = await loadOrCreateInClusterAdmin();
-		if (password) {
-			// Still create a user record in SQLite for session management
-			// but we don't store the password hash here - we validate against K8s secret
-			const db = getDbSync();
-			const newUser: NewUser = {
-				id: generateUserId(),
-				username: 'admin',
-				passwordHash: '', // Empty hash - we validate against K8s secret
-				role: 'admin',
-				email: 'admin@gyre.local',
-				active: true
-			};
-			db.insert(users).values(newUser).run();
-			return { password, mode: 'in-cluster' };
-		}
-		return { password: null, mode: 'in-cluster' };
-	} else {
-		// Local mode: use SQLite with generated password
-		const password = generateStrongPassword();
-		generatedAdminPassword = password;
-		await createUser('admin', password, 'admin', 'admin@gyre.local');
-		return { password, mode: 'local' };
+	// Use K8s secret for admin password
+	const password = await loadOrCreateInClusterAdmin();
+	if (password) {
+		// Create a user record in SQLite for session management
+		// but we don't store the password hash here - we validate against K8s secret
+		const db = getDbSync();
+		const newUser: NewUser = {
+			id: generateUserId(),
+			username: 'admin',
+			passwordHash: '', // Empty hash - we validate against K8s secret
+			role: 'admin',
+			email: 'admin@gyre.local',
+			active: true
+		};
+		db.insert(users).values(newUser).run();
+		return { password, mode: 'in-cluster' };
 	}
+	return { password: null, mode: 'in-cluster' };
 }
 
 /**
- * Override authenticateUser for in-cluster mode
- * - Local mode: Uses SQLite password hash
- * - In-cluster mode: Uses K8s secret password
+ * Authenticate user against K8s secret (admin) or SQLite password hash (other users)
  */
 export async function authenticateUser(username: string, password: string): Promise<User | null> {
 	const user = await getUserByUsername(username);
@@ -478,11 +487,11 @@ export async function authenticateUser(username: string, password: string): Prom
 
 	let isValid: boolean;
 
-	if (isInClusterMode() && username === 'admin') {
-		// In-cluster mode: validate against K8s secret
+	if (username === 'admin') {
+		// Admin user: validate against K8s secret
 		isValid = await validateInClusterAdmin(password);
 	} else {
-		// Local mode: validate against SQLite hash
+		// Other users: validate against SQLite hash
 		isValid = await verifyPassword(password, user.passwordHash);
 	}
 

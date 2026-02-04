@@ -7,6 +7,7 @@ import { getDb } from '$lib/server/db';
 import { users, userProviders, type AuthProvider } from '$lib/server/db/schema';
 import type { User } from '$lib/server/db/schema';
 import { generateUserId } from '$lib/server/auth';
+import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
 import type { OAuthUserInfo } from './oauth/types';
 import { eq, and } from 'drizzle-orm';
 
@@ -100,6 +101,18 @@ export async function createOrUpdateSSOUser(
 
 	await db.insert(users).values(newUser);
 
+	// Get the created user for binding policies
+	const user = await db.query.users.findFirst({
+		where: eq(users.id, userId)
+	});
+
+	if (!user) {
+		throw new Error('Failed to create SSO user');
+	}
+
+	// Auto-bind user to default RBAC policies based on role
+	await bindUserToDefaultPolicies(user);
+
 	// Link user to provider
 	await db.insert(userProviders).values({
 		userId: userId,
@@ -112,12 +125,7 @@ export async function createOrUpdateSSOUser(
 		`Auto-provisioned new SSO user: ${finalUsername} (${email}) with role ${role} from provider ${providerId}`
 	);
 
-	// Return the newly created user
-	const user = await db.query.users.findFirst({
-		where: eq(users.id, userId)
-	});
-
-	return user || null;
+	return user;
 }
 
 /**

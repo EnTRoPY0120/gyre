@@ -12,7 +12,7 @@ export async function toggleSuspendResource(
 	namespace: string,
 	name: string,
 	suspend: boolean,
-	context?: string
+	_context?: string
 ): Promise<void> {
 	let resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -26,7 +26,7 @@ export async function toggleSuspendResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = getCustomObjectsApi();
 
 	// JSON Patch to update spec.suspend
 	// Use 'add' which works as 'replace' if exists or creates if missing
@@ -66,7 +66,7 @@ export async function reconcileResource(
 	resourceType: string,
 	namespace: string,
 	name: string,
-	context?: string
+	_context?: string
 ): Promise<void> {
 	let resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -80,7 +80,7 @@ export async function reconcileResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = getCustomObjectsApi();
 	const now = new Date().toISOString();
 
 	try {
@@ -88,8 +88,7 @@ export async function reconcileResource(
 		const resource = await getFluxResource(
 			resourceDef.kind as FluxResourceType,
 			namespace,
-			name,
-			context
+			name
 		);
 		const hasAnnotations = !!resource.metadata.annotations;
 

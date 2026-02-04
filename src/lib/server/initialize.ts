@@ -1,16 +1,17 @@
 import { getDbSync } from './db/index.js';
 import { createDefaultAdminIfNeeded } from './auth.js';
-import { isInClusterMode, getInClusterPaths } from './mode.js';
 import { initDatabase } from './db/migrate.js';
+import { initializeDefaultPolicies, repairUserPolicyBindings } from './rbac-defaults.js';
 import { readFileSync } from 'node:fs';
 
+const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
+
 /**
- * Get current namespace when running in-cluster
+ * Get current namespace from in-cluster ServiceAccount
  */
 function getCurrentNamespace(): string {
 	try {
-		const { namespacePath } = getInClusterPaths();
-		return readFileSync(namespacePath, 'utf-8').trim();
+		return readFileSync(IN_CLUSTER_NAMESPACE_PATH, 'utf-8').trim();
 	} catch {
 		return 'default';
 	}
@@ -28,13 +29,8 @@ export async function initializeGyre(): Promise<void> {
 	console.log('='.repeat(60));
 
 	// Log deployment mode
-	if (isInClusterMode()) {
-		console.log('📦 Deployment Mode: In-Cluster');
-		console.log('   Using Kubernetes ServiceAccount for API access');
-	} else {
-		console.log('💻 Deployment Mode: Local');
-		console.log('   Using kubeconfig for API access');
-	}
+	console.log('📦 Deployment Mode: In-Cluster');
+	console.log('   Using Kubernetes ServiceAccount for API access');
 
 	// Initialize database connection and tables
 	console.log('\n🗄️  Initializing database...');
@@ -50,36 +46,40 @@ export async function initializeGyre(): Promise<void> {
 	// Create default admin if needed
 	console.log('\n👤 Setting up authentication...');
 	try {
-		const { password: generatedPassword, mode } = await createDefaultAdminIfNeeded();
+		const { password: generatedPassword } = await createDefaultAdminIfNeeded();
 
 		if (generatedPassword) {
-			if (mode === 'in-cluster') {
-				// In-cluster mode: show K8s secret command
-				const namespace = getCurrentNamespace();
-				console.log('   ⚠️  FIRST TIME SETUP - INITIAL ADMIN PASSWORD:');
-				console.log('   ' + '='.repeat(50));
-				console.log('   Username: admin');
-				console.log('   Password: ' + generatedPassword);
-				console.log('   ' + '='.repeat(50));
-				console.log('   \n   📋 To retrieve the password later, run:');
-				console.log(
-					`   kubectl get secret gyre-initial-admin-secret -n ${namespace} -o jsonpath='{.data.password}' | base64 -d`
-				);
-				console.log('\n   ⚠️  Please change this password after first login!');
-				console.log('   After first login, the secret will be marked as consumed.');
-			} else {
-				// Local mode: show password directly
-				console.log('   ⚠️  FIRST TIME SETUP - SAVE THESE CREDENTIALS:');
-				console.log('   ' + '='.repeat(50));
-				console.log('   Username: admin');
-				console.log('   Password: ' + generatedPassword);
-				console.log('   ' + '='.repeat(50));
-				console.log('   ⚠️  Please change this password after first login!');
-			}
+			// In-cluster mode: show K8s secret command
+			const namespace = getCurrentNamespace();
+			console.log('   ⚠️  FIRST TIME SETUP - INITIAL ADMIN PASSWORD:');
+			console.log('   ' + '='.repeat(50));
+			console.log('   Username: admin');
+			console.log('   Password: ' + generatedPassword);
+			console.log('   ' + '='.repeat(50));
+			console.log('   \n   📋 To retrieve the password later, run:');
+			console.log(
+				`   kubectl get secret gyre-initial-admin-secret -n ${namespace} -o jsonpath='{.data.password}' | base64 -d`
+			);
+			console.log('\n   ⚠️  Please change this password after first login!');
+			console.log('   After first login, the secret will be marked as consumed.');
 		}
 		console.log('   ✓ Authentication ready');
 	} catch (error) {
 		console.error('   ✗ Failed to setup authentication:', error);
+		throw error;
+	}
+
+	// Initialize default RBAC policies
+	console.log('\n🔐 Setting up RBAC policies...');
+	try {
+		await initializeDefaultPolicies();
+		const repairedCount = await repairUserPolicyBindings();
+		if (repairedCount > 0) {
+			console.log(`   ✓ Repaired RBAC bindings for ${repairedCount} existing user(s)`);
+		}
+		console.log('   ✓ RBAC policies ready');
+	} catch (error) {
+		console.error('   ✗ Failed to setup RBAC policies:', error);
 		throw error;
 	}
 
@@ -97,8 +97,8 @@ export function getInitializationStatus(): {
 	databaseConnected: boolean;
 } {
 	return {
-		initialized: true, // This would be set to true after successful init
-		mode: isInClusterMode() ? 'in-cluster' : 'local',
-		databaseConnected: true // This would check actual connection
+		initialized: true,
+		mode: 'in-cluster',
+		databaseConnected: true
 	};
 }

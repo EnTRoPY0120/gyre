@@ -1,43 +1,42 @@
 import * as k8s from '@kubernetes/client-node';
-import { loadKubeConfig, type KubeConfigResult } from './config.js';
+import { loadKubeConfig } from './config.js';
 import { getResourceDef, type FluxResourceType } from './flux/resources.js';
 import type { FluxResource, FluxResourceList } from './flux/types.js';
 
-// Cache for different contexts
-const configCache: Record<string, KubeConfigResult> = {};
+// Cached kubeconfig (single in-cluster config)
+let cachedConfig: k8s.KubeConfig | null = null;
 
 /**
- * Get or create cached KubeConfig for a specific context
+ * Get or create cached KubeConfig
  */
-export function getKubeConfig(context?: string): KubeConfigResult {
-	const cacheKey = context || 'default';
-	if (!configCache[cacheKey]) {
-		configCache[cacheKey] = loadKubeConfig(context);
+export function getKubeConfig(): k8s.KubeConfig {
+	if (!cachedConfig) {
+		cachedConfig = loadKubeConfig();
 	}
-	return configCache[cacheKey];
+	return cachedConfig;
 }
 
 /**
- * Create CustomObjectsApi client for a specific context
+ * Create CustomObjectsApi client
  */
-export function getCustomObjectsApi(context?: string): k8s.CustomObjectsApi {
-	const { config } = getKubeConfig(context);
+export function getCustomObjectsApi(): k8s.CustomObjectsApi {
+	const config = getKubeConfig();
 	return config.makeApiClient(k8s.CustomObjectsApi);
 }
 
 /**
  * Create CoreV1Api client
  */
-export function getCoreV1Api(context?: string): k8s.CoreV1Api {
-	const { config } = getKubeConfig(context);
+export function getCoreV1Api(): k8s.CoreV1Api {
+	const config = getKubeConfig();
 	return config.makeApiClient(k8s.CoreV1Api);
 }
 
 /**
  * Create AppsV1Api client
  */
-export function getAppsV1Api(context?: string): k8s.AppsV1Api {
-	const { config } = getKubeConfig(context);
+export function getAppsV1Api(): k8s.AppsV1Api {
+	const config = getKubeConfig();
 	return config.makeApiClient(k8s.AppsV1Api);
 }
 
@@ -54,9 +53,9 @@ const CACHE_TTL = 5000; // 5 seconds cache for K8s resources
  */
 export async function listFluxResources(
 	resourceType: FluxResourceType,
-	context?: string
+	_context?: string
 ): Promise<FluxResourceList> {
-	const cacheKey = `list:${resourceType}:${context || 'default'}`;
+	const cacheKey = `list:${resourceType}:${'default'}`;
 
 	// Check cache
 	const cached = resourceCache.get(cacheKey);
@@ -74,7 +73,7 @@ export async function listFluxResources(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = getCustomObjectsApi();
 
 	const fetchPromise = (async () => {
 		try {
@@ -104,9 +103,9 @@ export async function listFluxResources(
 export async function listFluxResourcesInNamespace(
 	resourceType: FluxResourceType,
 	namespace: string,
-	context?: string
+	_context?: string
 ): Promise<FluxResourceList> {
-	const cacheKey = `list:${resourceType}:${namespace}:${context || 'default'}`;
+	const cacheKey = `list:${resourceType}:${namespace}:${'default'}`;
 
 	const cached = resourceCache.get(cacheKey);
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -122,7 +121,7 @@ export async function listFluxResourcesInNamespace(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = getCustomObjectsApi();
 
 	const fetchPromise = (async () => {
 		try {
@@ -154,9 +153,9 @@ export async function getFluxResource(
 	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,
-	context?: string
+	_context?: string
 ): Promise<FluxResource> {
-	const cacheKey = `get:${resourceType}:${namespace}:${name}:${context || 'default'}`;
+	const cacheKey = `get:${resourceType}:${namespace}:${name}:${'default'}`;
 
 	const cached = resourceCache.get(cacheKey);
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -172,7 +171,7 @@ export async function getFluxResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = getCustomObjectsApi();
 
 	const fetchPromise = (async () => {
 		try {
@@ -205,14 +204,14 @@ export async function getFluxResourceStatus(
 	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,
-	context?: string
+	_context?: string
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = getCustomObjectsApi();
 
 	try {
 		const response = await api.getNamespacedCustomObjectStatus({
@@ -237,14 +236,14 @@ export async function getGenericResource(
 	kind: string,
 	namespace: string,
 	name: string,
-	context?: string
+	_context?: string
 ): Promise<unknown> {
 	// Normalize group for core resources (often empty or "core")
 	const normalizedGroup = group === 'core' || group === '' ? '' : group;
 
 	try {
 		if (normalizedGroup === '') {
-			const coreApi = getCoreV1Api(context);
+			const coreApi = getCoreV1Api();
 			// Mapped types
 			switch (kind) {
 				case 'Service':
@@ -267,7 +266,7 @@ export async function getGenericResource(
 					};
 			}
 		} else if (normalizedGroup === 'apps') {
-			const appsApi = getAppsV1Api(context);
+			const appsApi = getAppsV1Api();
 			switch (kind) {
 				case 'Deployment':
 					return await appsApi.readNamespacedDeployment({ name, namespace });
@@ -323,14 +322,14 @@ export async function createFluxResource(
 	resourceType: string,
 	namespace: string,
 	body: Record<string, unknown>,
-	context?: string
+	_context?: string
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = getCustomObjectsApi();
 
 	try {
 		const response = await api.createNamespacedCustomObject({

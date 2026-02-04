@@ -1,0 +1,66 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Dependencies
+node_modules
+
+# Build artifacts
+build
+.svelte-kit
+dist
+.output
+
+# Data and logs
+data
+*.db
+*.db-shm
+*.db-wal
+logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+docs
+CLAUDE.md
+HELM_CHART_PLAN.md
+PHASE*.md
+*_PLAN.md
+*_SUMMARY.md
+*_ROADMAP.md
+TESTING_*.md
+
+# Testing
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+test
+tests
+__tests__
+coverage
+
+# CI/CD (except Docker workflow)
+.github
+!.github/workflows/docker-publish.yml
+
+# Misc
+*.bak
+*.tmp
+tmp
+temp

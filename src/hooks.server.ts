@@ -1,6 +1,5 @@
 import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/auth';
-import { isInClusterMode } from '$lib/server/mode';
 import { initializeGyre } from '$lib/server/initialize';
 
 // Initialize Gyre on first request
@@ -96,8 +95,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const cluster = cookies.get('gyre_cluster');
 	if (cluster) {
 		event.locals.cluster = cluster;
-	} else if (isInClusterMode()) {
-		// In-cluster mode: default to 'in-cluster' context
+	} else {
+		// Default to 'in-cluster' context
 		event.locals.cluster = 'in-cluster';
 	}
 

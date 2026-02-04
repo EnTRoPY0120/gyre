@@ -4,8 +4,9 @@ import { mkdir } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import * as schema from './schema.js';
 
-// Determine database path
-const databaseUrl = process.env.DATABASE_URL || './data/gyre.db';
+// Determine database path (container-mounted volume at /data)
+const databaseUrl = process.env.DATABASE_URL || '/data/gyre.db';
+console.log(`[DB] Database location: ${databaseUrl}`);
 
 // Ensure directory exists
 async function ensureDbDirectory() {

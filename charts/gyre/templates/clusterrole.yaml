@@ -1,0 +1,114 @@
+{{- if and .Values.rbac.create .Values.rbac.clusterRole.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "gyre.fullname" . }}
+  labels:
+    {{- include "gyre.labels" . | nindent 4 }}
+rules:
+# FluxCD Source Controller Resources
+- apiGroups: ["source.toolkit.fluxcd.io"]
+  resources:
+    - gitrepositories
+    - helmrepositories
+    - helmcharts
+    - buckets
+    - ocirepositories
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# FluxCD Source Controller Status
+- apiGroups: ["source.toolkit.fluxcd.io"]
+  resources:
+    - gitrepositories/status
+    - helmrepositories/status
+    - helmcharts/status
+    - buckets/status
+    - ocirepositories/status
+  verbs: ["get", "list", "watch"]
+
+# FluxCD Kustomize Controller Resources
+- apiGroups: ["kustomize.toolkit.fluxcd.io"]
+  resources:
+    - kustomizations
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# FluxCD Kustomize Controller Status
+- apiGroups: ["kustomize.toolkit.fluxcd.io"]
+  resources:
+    - kustomizations/status
+  verbs: ["get", "list", "watch"]
+
+# FluxCD Helm Controller Resources
+- apiGroups: ["helm.toolkit.fluxcd.io"]
+  resources:
+    - helmreleases
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# FluxCD Helm Controller Status
+- apiGroups: ["helm.toolkit.fluxcd.io"]
+  resources:
+    - helmreleases/status
+  verbs: ["get", "list", "watch"]
+
+# FluxCD Notification Controller Resources
+- apiGroups: ["notification.toolkit.fluxcd.io"]
+  resources:
+    - alerts
+    - providers
+    - receivers
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# FluxCD Notification Controller Status
+- apiGroups: ["notification.toolkit.fluxcd.io"]
+  resources:
+    - alerts/status
+    - providers/status
+    - receivers/status
+  verbs: ["get", "list", "watch"]
+
+# FluxCD Image Automation Controller Resources
+- apiGroups: ["image.toolkit.fluxcd.io"]
+  resources:
+    - imagerepositories
+    - imagepolicies
+    - imageupdateautomations
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+# FluxCD Image Automation Controller Status
+- apiGroups: ["image.toolkit.fluxcd.io"]
+  resources:
+    - imagerepositories/status
+    - imagepolicies/status
+    - imageupdateautomations/status
+  verbs: ["get", "list", "watch"]
+
+# Core Kubernetes Resources (read-only)
+- apiGroups: [""]
+  resources:
+    - namespaces
+    - events
+    - pods
+    - services
+    - configmaps
+  verbs: ["get", "list", "watch"]
+
+# Secrets (for admin password and cluster configs)
+- apiGroups: [""]
+  resources:
+    - secrets
+  verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+# Apps Resources (read-only for deployments, etc.)
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+    - statefulsets
+    - daemonsets
+    - replicasets
+  verbs: ["get", "list", "watch"]
+
+{{- with .Values.rbac.clusterRole.rules }}
+# Additional custom rules
+{{- toYaml . | nindent 0 }}
+{{- end }}
+{{- end }}

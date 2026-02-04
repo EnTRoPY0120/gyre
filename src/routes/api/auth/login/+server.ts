@@ -1,7 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { authenticateUser, createSession } from '$lib/server/auth';
-import { isInClusterMode } from '$lib/server/mode';
 
 /**
  * POST /api/auth/login
@@ -36,7 +35,7 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
 		cookies.set('gyre_session', sessionId, {
 			path: '/',
 			httpOnly: true,
-			secure: !isInClusterMode(), // Secure in production, non-secure in local dev
+			secure: true,
 			sameSite: 'lax',
 			maxAge: 60 * 60 * 24 * 7 // 7 days
 		});

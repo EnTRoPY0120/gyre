@@ -15,10 +15,10 @@ export async function getResourceHistory(
 	type: FluxResourceType,
 	namespace: string,
 	name: string,
-	cluster?: string
+	_cluster?: string
 ): Promise<ResourceRevision[]> {
 	if (type === 'HelmRelease') {
-		return getHelmReleaseHistory(namespace, name, cluster);
+		return getHelmReleaseHistory(namespace, name);
 	}
 
 	// For other resources, we might only have the current and maybe some info from events or status
@@ -35,9 +35,9 @@ export async function getResourceHistory(
 async function getHelmReleaseHistory(
 	namespace: string,
 	name: string,
-	cluster?: string
+	_cluster?: string
 ): Promise<ResourceRevision[]> {
-	const coreApi = getCoreV1Api(cluster);
+	const coreApi = getCoreV1Api();
 
 	try {
 		// Helm releases are stored in secrets with label owner=helm and name=sh.helm.release.v1.NAME.vVERSION
@@ -80,7 +80,7 @@ export async function rollbackResource(
 	namespace: string,
 	name: string,
 	revision: string,
-	cluster?: string
+	_cluster?: string
 ): Promise<void> {
 	if (type !== 'HelmRelease') {
 		throw new Error('Rollback only supported for HelmRelease currently');
@@ -103,7 +103,6 @@ export async function rollbackResource(
 	void namespace;
 	void name;
 	void revision;
-	void cluster;
 
 	throw new Error('Not implemented: Rollback requires specific version patching logic');
 }

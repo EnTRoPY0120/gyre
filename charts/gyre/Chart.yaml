@@ -1,0 +1,18 @@
+apiVersion: v2
+name: gyre
+description: Modern WebUI for FluxCD with real-time monitoring and multi-cluster management
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - flux
+  - fluxcd
+  - gitops
+  - kubernetes
+  - dashboard
+home: https://github.com/username/gyre
+sources:
+  - https://github.com/username/gyre
+maintainers:
+  - name: Gyre Team
+    email: maintainers@gyre.local

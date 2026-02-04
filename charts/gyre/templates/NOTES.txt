@@ -1,0 +1,56 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about this chart, visit: https://github.com/username/gyre
+
+==============================================================================
+
+🚀 Gyre is starting up in namespace: {{ .Release.Namespace }}
+
+To access Gyre:
+
+{{- if .Values.ingress.enabled }}
+  Visit:
+{{- range $host := .Values.ingress.hosts }}
+  - http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ (index $host.paths 0).path }}
+{{- end }}
+{{- else }}
+  Run these commands:
+
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "gyre.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+
+  kubectl port-forward --namespace {{ .Release.Namespace }} $POD_NAME 3000:3000
+
+  Then visit http://localhost:3000
+{{- end }}
+
+==============================================================================
+
+🔐 Initial Admin Credentials:
+
+{{- if .Values.admin.autoGenerate }}
+Username: admin
+
+Password: Retrieve with this command:
+  kubectl get secret {{ .Values.admin.secretName }} -n {{ .Release.Namespace }} -o jsonpath='{.data.password}' | base64 -d && echo
+
+⚠️  IMPORTANT:
+- Please change this password after your first login!
+- The secret will be marked as "consumed" after first successful login
+- This initial password is only for bootstrapping
+{{- else }}
+Please configure admin credentials according to your setup.
+{{- end }}
+
+==============================================================================
+
+📊 Check status:
+
+  kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "gyre.name" . }}"
+
+  kubectl logs --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "gyre.name" . }}" --follow
+
+📚 For more information, visit:
+  - Documentation: https://github.com/username/gyre/blob/main/README.md
+  - Issues: https://github.com/username/gyre/issues

@@ -47,11 +47,63 @@ graph LR
 
 ### Prerequisites
 
-- [Bun](https://bun.sh) installed.
-- Access to one or more Kubernetes clusters with FluxCD installed.
-- Valid `kubeconfig` credentials.
+- Kubernetes 1.20+ cluster with FluxCD v2+ installed
+- Helm 3.0+
+- PersistentVolume provisioner support
+
+### Quick Installation
+
+Install Gyre in your Kubernetes cluster using Helm:
+
+```bash
+# Add Helm repository (if published)
+# helm repo add gyre https://username.github.io/gyre
+# helm repo update
+
+# Install from local chart
+helm install gyre charts/gyre \
+  --namespace flux-system \
+  --create-namespace
+```
+
+### Get Admin Credentials
+
+After installation, retrieve the auto-generated admin password:
+
+```bash
+kubectl get secret gyre-initial-admin-secret -n flux-system \
+  -o jsonpath='{.data.password}' | base64 -d
+echo
+```
+
+### Access Gyre
+
+**Option 1: Port Forward (Quick Access)**
+
+```bash
+kubectl port-forward -n flux-system svc/gyre 3000:80
+```
+
+Then visit http://localhost:3000
+
+**Option 2: Ingress (Production)**
+
+```bash
+helm install gyre charts/gyre \
+  --namespace flux-system \
+  --create-namespace \
+  --set ingress.enabled=true \
+  --set ingress.className=nginx \
+  --set ingress.hosts[0].host=gyre.example.com \
+  --set ingress.hosts[0].paths[0].path=/ \
+  --set ingress.hosts[0].paths[0].pathType=Prefix
+```
+
+Then visit https://gyre.example.com
 
 ### Development
+
+For local development:
 
 ```bash
 # Install dependencies
@@ -64,22 +116,7 @@ bun drizzle-kit migrate
 bun run dev
 ```
 
-### Production Build
-
-Gyre currently runs as a Node.js application.
-
-```bash
-# 1. Build the app
-bun run build
-
-# 2. Run migrations (if not done)
-bun drizzle-kit migrate
-
-# 3. Start the server
-node build/index.js
-```
-
-> **Note**: Single binary compilation is temporarily set aside due to Kubernetes API certificate handling. Future plans include a Rust/Go sidecar architecture for improved binary distribution.
+**Note:** Gyre is designed for in-cluster deployment only. Local development mode is supported but requires kubeconfig access.
 
 ## 📈 Implementation Status
 

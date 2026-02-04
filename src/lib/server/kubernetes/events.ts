@@ -27,7 +27,7 @@ export async function getResourceEvents(
 	resourceName: string,
 	resourceKind: string
 ): Promise<K8sEvent[]> {
-	const { config } = getKubeConfig();
+	const config = getKubeConfig();
 	const coreApi = config.makeApiClient(k8s.CoreV1Api);
 
 	try {
@@ -73,7 +73,7 @@ export async function getResourceEvents(
  * Fetch all recent events from the cluster related to FluxCD
  */
 export async function getAllRecentEvents(limit = 10): Promise<K8sEvent[]> {
-	const { config } = getKubeConfig();
+	const config = getKubeConfig();
 	const coreApi = config.makeApiClient(k8s.CoreV1Api);
 
 	try {

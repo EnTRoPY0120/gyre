@@ -18,7 +18,6 @@ import type { RequestHandler } from './$types';
 import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
 import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
 import { createSession } from '$lib/server/auth';
-import { isInClusterMode } from '$lib/server/mode';
 
 /**
  * GET /api/auth/[providerId]/callback
@@ -100,7 +99,7 @@ export const GET: RequestHandler = async ({ params, url, cookies, getClientAddre
 		cookies.set('gyre_session', sessionId, {
 			path: '/',
 			httpOnly: true,
-			secure: !isInClusterMode(), // Secure in production
+			secure: true,
 			sameSite: 'lax',
 			maxAge: 60 * 60 * 24 * 7 // 7 days
 		});

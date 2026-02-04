@@ -14,7 +14,6 @@ import { redirect, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
 import { generateState, generateCodeVerifier } from '$lib/server/auth/pkce';
-import { isInClusterMode } from '$lib/server/mode';
 
 // State cookie TTL: 10 minutes (enough time to complete OAuth flow)
 const STATE_COOKIE_MAX_AGE = 60 * 10;
@@ -43,7 +42,7 @@ export const GET: RequestHandler = async ({ params, cookies, url }) => {
 		cookies.set(`oauth_state_${providerId}`, state, {
 			path: '/',
 			httpOnly: true,
-			secure: !isInClusterMode(), // Secure in production
+			secure: true,
 			sameSite: 'lax',
 			maxAge: STATE_COOKIE_MAX_AGE
 		});
@@ -53,7 +52,7 @@ export const GET: RequestHandler = async ({ params, cookies, url }) => {
 			cookies.set(`oauth_verifier_${providerId}`, codeVerifier, {
 				path: '/',
 				httpOnly: true,
-				secure: !isInClusterMode(),
+				secure: true,
 				sameSite: 'lax',
 				maxAge: STATE_COOKIE_MAX_AGE
 			});

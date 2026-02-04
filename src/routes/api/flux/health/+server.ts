@@ -3,58 +3,29 @@ import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
 import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
 
-// Separate caches for contexts (rarely change) and connection status (changes more frequently)
-const contextsCache = new Map<
-	string,
-	{ contexts: string[]; currentContext: string; timestamp: number }
->();
-const connectionCache = new Map<string, { connected: boolean; timestamp: number }>();
-const CONTEXTS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes - contexts rarely change
-const CONNECTION_CACHE_TTL = 30 * 1000; // 30 seconds - connection status changes
+// Cache for connection status
+const connectionCache = { connected: false, timestamp: 0 };
+const CONNECTION_CACHE_TTL = 30 * 1000; // 30 seconds
 
 /**
  * GET /api/flux/health
  * Health check endpoint that validates K8s connection
  */
-export const GET: RequestHandler = async ({ locals, setHeaders }) => {
-	const clusterKey = locals.cluster || 'default';
-	const contextsCacheKey = `contexts-${clusterKey}`;
-	const connectionCacheKey = `connection-${clusterKey}`;
-
-	const cachedContexts = contextsCache.get(contextsCacheKey);
-	const cachedConnection = connectionCache.get(connectionCacheKey);
-
+export const GET: RequestHandler = async ({ setHeaders }) => {
 	try {
-		const { config, strategy, source, contexts } = getKubeConfig(locals.cluster);
+		const config = getKubeConfig();
 		const currentContext = config.getCurrentContext();
-
-		// Use cached contexts if available
-		let availableContexts = contexts;
-		let contextSource = 'fresh';
-		if (cachedContexts && Date.now() - cachedContexts.timestamp < CONTEXTS_CACHE_TTL) {
-			availableContexts = cachedContexts.contexts;
-			contextSource = 'cached';
-		} else {
-			// Cache the contexts for next time
-			contextsCache.set(contextsCacheKey, {
-				contexts,
-				currentContext,
-				timestamp: Date.now()
-			});
-		}
 
 		// Check connection - use cache if recent, otherwise validate
 		let isValid = false;
 		let connectionSource = 'fresh';
-		if (cachedConnection && Date.now() - cachedConnection.timestamp < CONNECTION_CACHE_TTL) {
-			isValid = cachedConnection.connected;
+		if (Date.now() - connectionCache.timestamp < CONNECTION_CACHE_TTL) {
+			isValid = connectionCache.connected;
 			connectionSource = 'cached';
 		} else {
 			isValid = await validateKubeConfig(config);
-			connectionCache.set(connectionCacheKey, {
-				connected: isValid,
-				timestamp: Date.now()
-			});
+			connectionCache.connected = isValid;
+			connectionCache.timestamp = Date.now();
 		}
 
 		if (!isValid) {
@@ -67,17 +38,16 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
 			status: 'healthy',
 			kubernetes: {
 				connected: true,
-				configStrategy: strategy,
-				configSource: source,
-				availableContexts,
+				configStrategy: 'in-cluster',
+				configSource: 'ServiceAccount',
 				currentContext,
-				_debug: { contextSource, connectionSource } // Debug info (remove in production)
+				_debug: { connectionSource }
 			}
 		};
 
 		setHeaders({
 			'Cache-Control': 'private, max-age=30',
-			'X-Cache': contextSource === 'cached' && connectionSource === 'cached' ? 'HIT' : 'MISS'
+			'X-Cache': connectionSource === 'cached' ? 'HIT' : 'MISS'
 		});
 
 		return json(responseData);
