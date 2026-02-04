@@ -824,14 +824,38 @@ spec:
   sourceRef:
     kind: HelmRepository
     name: podinfo`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'chart',
+			title: 'Chart Configuration',
+			description: 'Chart source and version',
+			defaultExpanded: true
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
 	fields: [
+		// Basic Information
 		{
 			name: 'name',
 			label: 'Name',
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'my-chart',
+			description: 'Unique name for this HelmChart resource'
 		},
 		{
 			name: 'namespace',
@@ -839,23 +863,26 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
-			default: 'flux-system'
+			section: 'basic',
+			default: 'flux-system',
+			description: 'Namespace where the resource will be created'
 		},
+
+		// Chart Configuration
 		{
-			name: 'chart',
-			label: 'Chart Name',
-			path: 'spec.chart',
-			type: 'string',
+			name: 'sourceKind',
+			label: 'Source Kind',
+			path: 'spec.sourceRef.kind',
+			type: 'select',
 			required: true,
-			description: 'The name of the Helm chart'
-		},
-		{
-			name: 'version',
-			label: 'Chart Version',
-			path: 'spec.version',
-			type: 'string',
-			default: '>=1.0.0',
-			description: 'Version constraint for the chart'
+			section: 'chart',
+			default: 'HelmRepository',
+			options: [
+				{ label: 'HelmRepository', value: 'HelmRepository' },
+				{ label: 'GitRepository', value: 'GitRepository' },
+				{ label: 'Bucket', value: 'Bucket' }
+			],
+			description: 'Type of source containing the chart'
 		},
 		{
 			name: 'sourceName',
@@ -863,14 +890,60 @@ spec:
 			path: 'spec.sourceRef.name',
 			type: 'string',
 			required: true,
-			description: 'The name of the HelmRepository'
+			section: 'chart',
+			placeholder: 'podinfo',
+			description: 'Name of the source resource'
+		},
+		{
+			name: 'chart',
+			label: 'Chart Name',
+			path: 'spec.chart',
+			type: 'string',
+			required: true,
+			section: 'chart',
+			placeholder: 'podinfo',
+			description: 'Name of the Helm chart'
+		},
+		{
+			name: 'version',
+			label: 'Chart Version',
+			path: 'spec.version',
+			type: 'string',
+			section: 'chart',
+			default: '*',
+			placeholder: '>=1.0.0',
+			description: 'SemVer version constraint'
 		},
 		{
 			name: 'interval',
-			label: 'Interval',
+			label: 'Sync Interval',
 			path: 'spec.interval',
 			type: 'duration',
-			default: '5m'
+			required: true,
+			section: 'chart',
+			default: '5m',
+			placeholder: '5m',
+			description: 'How often to check for new chart versions'
+		},
+
+		// Advanced Options
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Suspend reconciliation'
+		},
+		{
+			name: 'valuesFiles',
+			label: 'Values Files',
+			path: 'spec.valuesFiles',
+			type: 'textarea',
+			section: 'advanced',
+			placeholder: '- values.yaml\n- values-prod.yaml',
+			description: 'List of values files to merge (YAML array format)'
 		}
 	]
 };
@@ -893,14 +966,45 @@ spec:
   provider: generic
   bucketName: my-bucket
   endpoint: s3.amazonaws.com`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'bucket',
+			title: 'Bucket Configuration',
+			description: 'S3-compatible bucket settings',
+			defaultExpanded: true
+		},
+		{
+			id: 'auth',
+			title: 'Authentication',
+			description: 'Credentials and access configuration',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
 	fields: [
+		// Basic Information
 		{
 			name: 'name',
 			label: 'Name',
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'my-bucket',
+			description: 'Unique name for this Bucket resource'
 		},
 		{
 			name: 'namespace',
@@ -908,7 +1012,27 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
-			default: 'flux-system'
+			section: 'basic',
+			default: 'flux-system',
+			description: 'Namespace where the resource will be created'
+		},
+
+		// Bucket Configuration
+		{
+			name: 'provider',
+			label: 'Provider',
+			path: 'spec.provider',
+			type: 'select',
+			required: true,
+			section: 'bucket',
+			default: 'generic',
+			options: [
+				{ label: 'Generic S3', value: 'generic' },
+				{ label: 'AWS S3', value: 'aws' },
+				{ label: 'Google Cloud Storage', value: 'gcp' },
+				{ label: 'Azure Blob Storage', value: 'azure' }
+			],
+			description: 'Cloud provider type'
 		},
 		{
 			name: 'bucketName',
@@ -916,6 +1040,8 @@ spec:
 			path: 'spec.bucketName',
 			type: 'string',
 			required: true,
+			section: 'bucket',
+			placeholder: 'my-artifacts',
 			description: 'Name of the S3 bucket'
 		},
 		{
@@ -924,27 +1050,69 @@ spec:
 			path: 'spec.endpoint',
 			type: 'string',
 			required: true,
-			description: 'S3-compatible endpoint'
+			section: 'bucket',
+			placeholder: 's3.amazonaws.com',
+			description: 'S3-compatible endpoint URL'
 		},
 		{
-			name: 'provider',
-			label: 'Provider',
-			path: 'spec.provider',
-			type: 'select',
-			options: [
-				{ label: 'Generic', value: 'generic' },
-				{ label: 'AWS', value: 'aws' },
-				{ label: 'GCP', value: 'gcp' },
-				{ label: 'Azure', value: 'azure' }
-			],
-			default: 'generic'
+			name: 'region',
+			label: 'Region',
+			path: 'spec.region',
+			type: 'string',
+			section: 'bucket',
+			placeholder: 'us-east-1',
+			description: 'Bucket region'
 		},
 		{
 			name: 'interval',
-			label: 'Interval',
+			label: 'Sync Interval',
 			path: 'spec.interval',
 			type: 'duration',
-			default: '5m'
+			required: true,
+			section: 'bucket',
+			default: '5m',
+			placeholder: '5m',
+			description: 'How often to check for changes'
+		},
+
+		// Authentication
+		{
+			name: 'secretRefName',
+			label: 'Secret Name',
+			path: 'spec.secretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 's3-credentials',
+			description: 'Secret containing access key and secret key'
+		},
+
+		// Advanced Options
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Suspend reconciliation'
+		},
+		{
+			name: 'timeout',
+			label: 'Timeout',
+			path: 'spec.timeout',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '60s',
+			description: 'Timeout for bucket operations'
+		},
+		{
+			name: 'ignore',
+			label: 'Ignore Paths',
+			path: 'spec.ignore',
+			type: 'textarea',
+			section: 'advanced',
+			placeholder: '# .gitignore format\n*.txt',
+			description: 'Paths to ignore when calculating artifact checksum'
 		}
 	]
 };
@@ -967,14 +1135,45 @@ spec:
   url: oci://ghcr.io/org/manifests
   ref:
     tag: latest`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'source',
+			title: 'OCI Configuration',
+			description: 'OCI registry and artifact settings',
+			defaultExpanded: true
+		},
+		{
+			id: 'auth',
+			title: 'Authentication',
+			description: 'Registry credentials',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
 	fields: [
+		// Basic Information
 		{
 			name: 'name',
 			label: 'Name',
 			path: 'metadata.name',
 			type: 'string',
 			required: true,
-			default: 'example'
+			section: 'basic',
+			placeholder: 'my-oci-repo',
+			description: 'Unique name for this OCIRepository resource'
 		},
 		{
 			name: 'namespace',
@@ -982,30 +1181,114 @@ spec:
 			path: 'metadata.namespace',
 			type: 'string',
 			required: true,
-			default: 'flux-system'
+			section: 'basic',
+			default: 'flux-system',
+			description: 'Namespace where the resource will be created'
 		},
+
+		// OCI Configuration
 		{
 			name: 'url',
 			label: 'Repository URL',
 			path: 'spec.url',
 			type: 'string',
 			required: true,
-			description: 'OCI repository URL (oci://...)'
+			section: 'source',
+			placeholder: 'oci://ghcr.io/org/manifests',
+			description: 'OCI repository URL (must start with oci://)'
+		},
+		{
+			name: 'refType',
+			label: 'Reference Type',
+			path: 'spec.ref.type',
+			type: 'select',
+			section: 'source',
+			default: 'tag',
+			options: [
+				{ label: 'Tag', value: 'tag' },
+				{ label: 'Semver', value: 'semver' },
+				{ label: 'Digest', value: 'digest' }
+			],
+			description: 'Type of reference to track'
 		},
 		{
 			name: 'tag',
 			label: 'Tag',
 			path: 'spec.ref.tag',
 			type: 'string',
+			section: 'source',
 			default: 'latest',
-			description: 'The tag to track'
+			placeholder: 'latest',
+			description: 'Tag to track (if reference type is tag)'
+		},
+		{
+			name: 'semver',
+			label: 'Semver Range',
+			path: 'spec.ref.semver',
+			type: 'string',
+			section: 'source',
+			placeholder: '>=1.0.0',
+			description: 'Semver range to track (if reference type is semver)'
+		},
+		{
+			name: 'digest',
+			label: 'Digest',
+			path: 'spec.ref.digest',
+			type: 'string',
+			section: 'source',
+			placeholder: 'sha256:abc123...',
+			description: 'Digest to track (if reference type is digest)'
 		},
 		{
 			name: 'interval',
-			label: 'Interval',
+			label: 'Sync Interval',
 			path: 'spec.interval',
 			type: 'duration',
-			default: '5m'
+			required: true,
+			section: 'source',
+			default: '5m',
+			placeholder: '5m',
+			description: 'How often to check for changes'
+		},
+
+		// Authentication
+		{
+			name: 'secretRefName',
+			label: 'Secret Name',
+			path: 'spec.secretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'oci-credentials',
+			description: 'Secret containing registry credentials'
+		},
+
+		// Advanced Options
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Suspend reconciliation'
+		},
+		{
+			name: 'timeout',
+			label: 'Timeout',
+			path: 'spec.timeout',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '60s',
+			description: 'Timeout for OCI operations'
+		},
+		{
+			name: 'ignore',
+			label: 'Ignore Paths',
+			path: 'spec.ignore',
+			type: 'textarea',
+			section: 'advanced',
+			placeholder: '# .gitignore format\n*.md',
+			description: 'Paths to ignore when calculating artifact checksum'
 		}
 	]
 };
