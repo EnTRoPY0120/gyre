@@ -11,6 +11,7 @@ const PUBLIC_ROUTES = [
 	'/api/auth/login',
 	'/api/auth/logout',
 	'/api/health',
+	'/api/flux/health',
 	'/manifest.json',
 	'/favicon.ico',
 	'/logo.svg'

@@ -4,9 +4,9 @@
   "entries": [
     {
       "idx": 0,
-      "version": "6",
-      "when": 1770144520120,
-      "tag": "0000_lyrical_stick",
+      "version": "7",
+      "when": 1738682000000,
+      "tag": "0000_initial_schema",
       "breakpoints": true
     }
   ]
