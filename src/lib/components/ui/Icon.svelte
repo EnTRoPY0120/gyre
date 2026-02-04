@@ -59,7 +59,10 @@
 		AlertTriangle,
 		HelpCircle,
 		RotateCcw,
-		CircleOff
+		CircleOff,
+		BellRing,
+		Webhook,
+		Container
 	} from 'lucide-svelte';
 
 	interface Props extends SVGAttributes<SVGSVGElement> {
@@ -176,8 +179,16 @@
 		// Resource Kind mappings (lowercase)
 		gitrepository: GitBranch,
 		helmrepository: Library,
+		helmchart: Package2,
+		ocirepository: Cloud,
 		kustomization: FileCog,
-		helmrelease: Ship
+		helmrelease: Ship,
+		alert: BellRing,
+		provider: Radio,
+		receiver: Webhook,
+		imagerepository: Container,
+		imagepolicy: Shield,
+		imageupdateautomation: RefreshCw
 	};
 
 	const IconComponent = $derived(lucideIcons[name]);
