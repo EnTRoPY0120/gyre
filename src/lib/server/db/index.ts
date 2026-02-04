@@ -1,22 +1,33 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import * as schema from './schema.js';
 
-// Determine database path (container-mounted volume at /data)
-const databaseUrl = process.env.DATABASE_URL || '/data/gyre.db';
+// Determine database path
+// - Production (in-cluster): /data/gyre.db (PersistentVolume mount)
+// - Local development: ./data/gyre.db (relative to project root)
+const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
+const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
 console.log(`[DB] Database location: ${databaseUrl}`);
 
-// Ensure directory exists
+// Ensure directory exists (async)
 async function ensureDbDirectory() {
-	if (databaseUrl.startsWith('./') || databaseUrl.startsWith('/') || !databaseUrl.includes('://')) {
-		const dir = dirname(databaseUrl);
-		try {
-			await mkdir(dir, { recursive: true });
-		} catch {
-			// Directory might already exist
-		}
+	const dir = dirname(databaseUrl);
+	try {
+		await mkdir(dir, { recursive: true }, () => {});
+	} catch {
+		// Directory might already exist
+	}
+}
+
+// Ensure directory exists (sync)
+function ensureDbDirectorySync() {
+	const dir = dirname(databaseUrl);
+	try {
+		mkdirSync(dir, { recursive: true });
+	} catch {
+		// Directory might already exist
 	}
 }
 
@@ -38,6 +49,7 @@ export async function getDb() {
 // For synchronous usage (server-side only)
 export function getDbSync() {
 	if (!db) {
+		ensureDbDirectorySync(); // Create directory if it doesn't exist
 		const sqlite = new Database(databaseUrl);
 		sqlite.pragma('journal_mode = WAL');
 		sqlite.pragma('foreign_keys = ON');

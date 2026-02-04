@@ -34,13 +34,18 @@ export const GET: RequestHandler = async ({ setHeaders }) => {
 			});
 		}
 
+		// Detect mode
+		const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
+		const allContexts = config.getContexts().map((c) => c.name);
+
 		const responseData = {
 			status: 'healthy',
 			kubernetes: {
 				connected: true,
-				configStrategy: 'in-cluster',
-				configSource: 'ServiceAccount',
+				configStrategy: isInCluster ? 'in-cluster' : 'local-kubeconfig',
+				configSource: isInCluster ? 'ServiceAccount' : 'kubeconfig',
 				currentContext,
+				availableContexts: isInCluster ? [currentContext] : allContexts,
 				_debug: { connectionSource }
 			}
 		};

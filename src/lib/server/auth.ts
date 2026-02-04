@@ -281,10 +281,10 @@ function getCurrentNamespace(): string {
 	}
 }
 
-// Create Kubernetes Core API client for in-cluster access
-function createK8sClient(): k8s.CoreV1Api {
-	const kc = new k8s.KubeConfig();
-	kc.loadFromCluster();
+// Create Kubernetes Core API client (works both in-cluster and locally)
+async function createK8sClient(): Promise<k8s.CoreV1Api> {
+	const { loadKubeConfig } = await import('./kubernetes/config.js');
+	const kc = loadKubeConfig();
 	return kc.makeApiClient(k8s.CoreV1Api);
 }
 
@@ -310,14 +310,14 @@ async function isSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promise<
  */
 async function markSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promise<void> {
 	try {
-		// Patch the secret to add the consumed label
-		const patch = {
-			metadata: {
-				labels: {
-					'gyre.io/initial-password-consumed': 'true'
-				}
+		// Patch the secret to add the consumed label using JSON Patch format
+		const patch = [
+			{
+				op: 'add',
+				path: '/metadata/labels/gyre.io~1initial-password-consumed',
+				value: 'true'
 			}
-		};
+		];
 		await api.patchNamespacedSecret({
 			name: ADMIN_SECRET_NAME,
 			namespace,
@@ -336,7 +336,7 @@ async function markSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promis
  */
 export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 	try {
-		const api = createK8sClient();
+		const api = await createK8sClient();
 		const namespace = getCurrentNamespace();
 
 		// Check if secret already exists
@@ -422,7 +422,7 @@ export async function validateInClusterAdmin(password: string): Promise<boolean>
 	if (isValid && !inClusterFirstLoginDone) {
 		// Mark as consumed
 		try {
-			const api = createK8sClient();
+			const api = await createK8sClient();
 			const namespace = getCurrentNamespace();
 			await markSecretConsumed(api, namespace);
 			inClusterFirstLoginDone = true;
@@ -443,7 +443,8 @@ export function isInClusterAdminPasswordConsumed(): boolean {
 
 /**
  * Create default admin if no users exist
- * Uses K8s secret for password (in-cluster only)
+ * - In-cluster mode: Uses K8s secret for password
+ * - Local development: Uses ADMIN_PASSWORD env var or generates a password
  */
 export async function createDefaultAdminIfNeeded(): Promise<{
 	password: string | null;
@@ -452,31 +453,58 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 	const hasAnyUsers = await hasUsers();
 
 	if (hasAnyUsers) {
+		return { password: null, mode: isInClusterMode() ? 'in-cluster' : 'local' };
+	}
+
+	// In-cluster mode: Use K8s secret
+	if (isInClusterMode()) {
+		const password = await loadOrCreateInClusterAdmin();
+		if (password) {
+			const db = getDbSync();
+			const newUser: NewUser = {
+				id: generateUserId(),
+				username: 'admin',
+				passwordHash: '', // Empty hash - we validate against K8s secret
+				role: 'admin',
+				email: 'admin@gyre.local',
+				active: true
+			};
+			db.insert(users).values(newUser).run();
+			return { password, mode: 'in-cluster' };
+		}
 		return { password: null, mode: 'in-cluster' };
 	}
 
-	// Use K8s secret for admin password
-	const password = await loadOrCreateInClusterAdmin();
-	if (password) {
-		// Create a user record in SQLite for session management
-		// but we don't store the password hash here - we validate against K8s secret
-		const db = getDbSync();
-		const newUser: NewUser = {
-			id: generateUserId(),
-			username: 'admin',
-			passwordHash: '', // Empty hash - we validate against K8s secret
-			role: 'admin',
-			email: 'admin@gyre.local',
-			active: true
-		};
-		db.insert(users).values(newUser).run();
-		return { password, mode: 'in-cluster' };
-	}
-	return { password: null, mode: 'in-cluster' };
+	// Local development mode: Use env var or generate password
+	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
+	generatedAdminPassword = password;
+
+	const db = getDbSync();
+	const passwordHash = await hashPassword(password);
+	const newUser: NewUser = {
+		id: generateUserId(),
+		username: 'admin',
+		passwordHash, // Store hash in SQLite for local dev
+		role: 'admin',
+		email: 'admin@gyre.local',
+		active: true
+	};
+	db.insert(users).values(newUser).run();
+
+	return { password, mode: 'local' };
 }
 
 /**
- * Authenticate user against K8s secret (admin) or SQLite password hash (other users)
+ * Check if running in-cluster (vs local development)
+ */
+function isInClusterMode(): boolean {
+	return !!process.env.KUBERNETES_SERVICE_HOST;
+}
+
+/**
+ * Authenticate user
+ * - In-cluster mode: Admin validates against K8s secret, others against SQLite
+ * - Local dev mode: All users validate against SQLite
  */
 export async function authenticateUser(username: string, password: string): Promise<User | null> {
 	const user = await getUserByUsername(username);
@@ -487,11 +515,12 @@ export async function authenticateUser(username: string, password: string): Prom
 
 	let isValid: boolean;
 
-	if (username === 'admin') {
-		// Admin user: validate against K8s secret
+	// In-cluster mode: Admin password is in K8s secret
+	// Local dev mode: All passwords (including admin) are in SQLite
+	if (username === 'admin' && isInClusterMode()) {
 		isValid = await validateInClusterAdmin(password);
 	} else {
-		// Other users: validate against SQLite hash
+		// Validate against SQLite password hash
 		isValid = await verifyPassword(password, user.passwordHash);
 	}
 

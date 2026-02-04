@@ -34,6 +34,9 @@ LABEL org.opencontainers.image.title="Gyre" \
       org.opencontainers.image.vendor="Gyre Project" \
       org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
+# Install CA certificates for TLS verification (required for in-cluster K8s API access)
+RUN apk add --no-cache ca-certificates
+
 # Create non-root user for security
 RUN addgroup -g 1001 -S gyre && \
     adduser -S -D -H -u 1001 -h /app -s /sbin/nologin -G gyre -g gyre gyre
