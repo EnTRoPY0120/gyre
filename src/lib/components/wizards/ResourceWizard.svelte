@@ -22,7 +22,7 @@
 	$effect(() => {
 		if (template.sections) {
 			const initial: Record<string, boolean> = {};
-			template.sections.forEach(section => {
+			template.sections.forEach((section) => {
 				initial[section.id] = section.defaultExpanded ?? true;
 			});
 			expandedSections = initial;
@@ -183,12 +183,12 @@
 		}
 
 		const grouped: Record<string, typeof template.fields> = {};
-		template.sections.forEach(section => {
-			grouped[section.id] = template.fields.filter(f => f.section === section.id);
+		template.sections.forEach((section) => {
+			grouped[section.id] = template.fields.filter((f) => f.section === section.id);
 		});
 
 		// Add fields without section to default group
-		const unsectioned = template.fields.filter(f => !f.section);
+		const unsectioned = template.fields.filter((f) => !f.section);
 		if (unsectioned.length > 0) {
 			grouped[''] = unsectioned;
 		}
@@ -206,23 +206,6 @@
 		</div>
 
 		<div class="flex items-center gap-2">
-			{#if mode === 'yaml'}
-				<Button
-					variant="outline"
-					size="sm"
-					onclick={copyYaml}
-					class="gap-2"
-				>
-					{#if copySuccess}
-						<Check size={16} class="text-green-500" />
-						Copied!
-					{:else}
-						<Copy size={16} />
-						Copy YAML
-					{/if}
-				</Button>
-			{/if}
-
 			<div class="flex rounded-lg border border-border bg-card p-1">
 				<button
 					class={cn(
@@ -251,7 +234,12 @@
 	<!-- Content -->
 	<div class="grid gap-8 lg:grid-cols-[1fr_400px]">
 		<!-- Primary Content -->
-		<div class="rounded-xl border border-border bg-card/60 backdrop-blur-sm">
+		<div
+			class={cn(
+				'rounded-xl border border-border bg-card/60 backdrop-blur-sm',
+				mode === 'yaml' && 'min-h-[500px]'
+			)}
+		>
 			{#if mode === 'wizard'}
 				<div class="divide-y divide-border">
 					{#if template.sections}
@@ -264,7 +252,7 @@
 										class="mb-4 flex w-full items-center justify-between text-left"
 									>
 										<div>
-											<h3 class="font-semibold text-base">{section.title}</h3>
+											<h3 class="text-base font-semibold">{section.title}</h3>
 											{#if section.description}
 												<p class="text-sm text-muted-foreground">{section.description}</p>
 											{/if}
@@ -273,7 +261,7 @@
 											<ChevronDown
 												size={20}
 												class={cn(
-													'transition-transform text-muted-foreground',
+													'text-muted-foreground transition-transform',
 													expandedSections[section.id] ? 'rotate-180' : ''
 												)}
 											/>
@@ -309,7 +297,9 @@
 																bind:checked={formValues[field.name] as boolean}
 																class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 															/>
-															<span class="text-sm text-muted-foreground">{field.description || ''}</span>
+															<span class="text-sm text-muted-foreground"
+																>{field.description || ''}</span
+															>
 														</div>
 													{:else if field.type === 'textarea'}
 														<textarea
@@ -317,7 +307,7 @@
 															bind:value={formValues[field.name] as string}
 															placeholder={field.placeholder || field.description}
 															rows="4"
-															class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+															class="flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 														></textarea>
 													{:else}
 														<input
@@ -378,7 +368,7 @@
 												bind:value={formValues[field.name] as string}
 												placeholder={field.placeholder || field.description}
 												rows="4"
-												class="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 font-mono"
+												class="flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 											></textarea>
 										{:else}
 											<input
@@ -400,7 +390,12 @@
 					{/if}
 				</div>
 			{:else}
-				<YamlEditor value={currentYaml} className="min-h-[500px]" />
+				<YamlEditor
+					value={currentYaml}
+					onCopy={copyYaml}
+					{copySuccess}
+					className="h-full min-h-[500px]"
+				/>
 			{/if}
 		</div>
 
@@ -440,7 +435,9 @@
 				<ul class="space-y-2 text-xs leading-relaxed text-muted-foreground">
 					<li class="flex gap-2">
 						<span class="text-primary">•</span>
-						<span>Use <strong>Form mode</strong> for guided configuration with all available fields</span>
+						<span
+							>Use <strong>Form mode</strong> for guided configuration with all available fields</span
+						>
 					</li>
 					<li class="flex gap-2">
 						<span class="text-primary">•</span>
