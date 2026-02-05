@@ -9,19 +9,32 @@ export interface ResourceTemplate {
 	fields: TemplateField[];
 	sections?: TemplateSection[];
 	category?: string; // Added for categorization
+	plural: string; // API plural form (e.g., 'gitrepositories', 'helmcharts')
 }
 
 export interface TemplateField {
 	name: string;
 	label: string;
 	path: string; // JSON path or similar to update the YAML
-	type: 'string' | 'number' | 'boolean' | 'select' | 'duration' | 'textarea';
-	default?: string | number | boolean;
+	type: 'string' | 'number' | 'boolean' | 'select' | 'duration' | 'textarea' | 'array';
+	default?: string | number | boolean | unknown[];
 	options?: { label: string; value: string }[];
 	required?: boolean;
 	description?: string;
 	section?: string; // Section grouping for fields
 	placeholder?: string;
+	showIf?: {
+		field: string; // Name of field to check
+		value: string | string[]; // Value(s) that trigger visibility
+	};
+	validation?: {
+		pattern?: string; // Regex pattern
+		message?: string; // Custom error message
+		min?: number; // Min value (for numbers)
+		max?: number; // Max value (for numbers)
+	};
+	arrayItemType?: 'string' | 'object'; // For array fields
+	arrayItemFields?: TemplateField[]; // For object array items
 }
 
 export interface TemplateSection {
@@ -40,6 +53,7 @@ export const GIT_REPOSITORY_TEMPLATE: ResourceTemplate = {
 	group: 'source.toolkit.fluxcd.io',
 	version: 'v1',
 	category: 'sources',
+	plural: 'gitrepositories',
 	yaml: `apiVersion: source.toolkit.fluxcd.io/v1
 kind: GitRepository
 metadata:
@@ -88,7 +102,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-repository',
-			description: 'Unique name for this GitRepository resource'
+			description: 'Unique name for this GitRepository resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -98,7 +116,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// Source Configuration
@@ -110,7 +132,11 @@ spec:
 			required: true,
 			section: 'source',
 			placeholder: 'https://github.com/org/repo',
-			description: 'Git repository URL (https://, ssh://, or git@)'
+			description: 'Git repository URL (https://, ssh://, or git@)',
+			validation: {
+				pattern: '^(https?://|ssh://|git@)',
+				message: 'URL must start with https://, http://, ssh://, or git@'
+			}
 		},
 		{
 			name: 'refType',
@@ -132,37 +158,61 @@ spec:
 			label: 'Branch',
 			path: 'spec.ref.branch',
 			type: 'string',
+			required: true,
 			section: 'source',
 			default: 'main',
 			placeholder: 'main',
-			description: 'Branch name to track (if reference type is branch)'
+			description: 'Branch name to track',
+			showIf: {
+				field: 'refType',
+				value: 'branch'
+			}
 		},
 		{
 			name: 'tag',
 			label: 'Tag',
 			path: 'spec.ref.tag',
 			type: 'string',
+			required: true,
 			section: 'source',
 			placeholder: 'v1.0.0',
-			description: 'Tag name to track (if reference type is tag)'
+			description: 'Tag name to track',
+			showIf: {
+				field: 'refType',
+				value: 'tag'
+			}
 		},
 		{
 			name: 'semver',
 			label: 'Semver Range',
 			path: 'spec.ref.semver',
 			type: 'string',
+			required: true,
 			section: 'source',
 			placeholder: '>=1.0.0',
-			description: 'Semver range to track (if reference type is semver)'
+			description: 'Semver range to track',
+			showIf: {
+				field: 'refType',
+				value: 'semver'
+			},
+			validation: {
+				pattern: '^[><=~^*]?[0-9]+\\.[0-9]+(\\.[0-9]+)?',
+				message: 'Must be a valid semver constraint (e.g., >=1.0.0, ~1.2.0, ^2.0.0)'
+			}
 		},
 		{
 			name: 'commit',
 			label: 'Commit SHA',
 			path: 'spec.ref.commit',
 			type: 'string',
+			required: true,
 			section: 'source',
 			placeholder: 'abc123...',
-			description: 'Specific commit SHA to track (if reference type is commit)'
+			description: 'Specific commit SHA to track',
+			showIf: {
+				field: 'refType',
+				value: 'commit'
+			}
 		},
 		{
 			name: 'interval',
@@ -173,7 +223,11 @@ spec:
 			section: 'source',
 			default: '1m',
 			placeholder: '1m',
-			description: 'How often to check for repository changes (e.g., 1m, 5m, 1h)'
+			description: 'How often to check for repository changes (e.g., 1m, 1m30s, 1h30m)',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
 		},
 
 		// Authentication
@@ -204,7 +258,11 @@ spec:
 			type: 'duration',
 			section: 'advanced',
 			placeholder: '60s',
-			description: 'Timeout for Git operations'
+			description: 'Timeout for Git operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
 		},
 		{
 			name: 'recurseSubmodules',
@@ -235,6 +293,7 @@ export const HELM_REPOSITORY_TEMPLATE: ResourceTemplate = {
 	group: 'source.toolkit.fluxcd.io',
 	version: 'v1',
 	category: 'sources',
+	plural: 'helmrepositories',
 	yaml: `apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
@@ -281,7 +340,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-helm-repo',
-			description: 'Unique name for this HelmRepository resource'
+			description: 'Unique name for this HelmRepository resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -291,7 +354,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// Repository Configuration
@@ -303,7 +370,11 @@ spec:
 			required: true,
 			section: 'source',
 			placeholder: 'https://charts.bitnami.com/bitnami',
-			description: 'HTTP/S or OCI Helm repository URL'
+			description: 'HTTP/S or OCI Helm repository URL',
+			validation: {
+				pattern: '^(https?://|oci://)',
+				message: 'URL must start with https://, http://, or oci://'
+			}
 		},
 		{
 			name: 'type',
@@ -327,7 +398,11 @@ spec:
 			section: 'source',
 			default: '5m',
 			placeholder: '5m',
-			description: 'How often to check for new chart versions'
+			description: 'How often to check for new chart versions',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
 		},
 
 		// Authentication
@@ -367,7 +442,11 @@ spec:
 			type: 'duration',
 			section: 'advanced',
 			placeholder: '60s',
-			description: 'Timeout for index download operations'
+			description: 'Timeout for index download operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
 		}
 	]
 };
@@ -380,6 +459,7 @@ export const KUSTOMIZATION_TEMPLATE: ResourceTemplate = {
 	group: 'kustomize.toolkit.fluxcd.io',
 	version: 'v1',
 	category: 'deployments',
+	plural: 'kustomizations',
 	yaml: `apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
@@ -436,7 +516,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-app',
-			description: 'Unique name for this Kustomization resource'
+			description: 'Unique name for this Kustomization resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -446,7 +530,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// Source Configuration
@@ -505,7 +593,11 @@ spec:
 			section: 'deployment',
 			default: '5m',
 			placeholder: '5m',
-			description: 'How often to reconcile the Kustomization'
+			description: 'How often to reconcile the Kustomization',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
 		},
 		{
 			name: 'prune',
@@ -525,6 +617,16 @@ spec:
 			placeholder: 'default',
 			description: 'Override namespace for all resources'
 		},
+		{
+			name: 'dependsOn',
+			label: 'Dependencies',
+			path: 'spec.dependsOn',
+			type: 'array',
+			section: 'deployment',
+			arrayItemType: 'string',
+			placeholder: 'namespace/name',
+			description: 'List of Kustomizations this depends on (format: namespace/name)'
+		},
 
 		// Health Checks
 		{
@@ -543,7 +645,11 @@ spec:
 			type: 'duration',
 			section: 'health',
 			placeholder: '5m',
-			description: 'Timeout for health checks and operations'
+			description: 'Timeout for health checks and operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
 		},
 
 		// Advanced Options
@@ -585,6 +691,7 @@ export const HELM_RELEASE_TEMPLATE: ResourceTemplate = {
 	group: 'helm.toolkit.fluxcd.io',
 	version: 'v2',
 	category: 'deployments',
+	plural: 'helmreleases',
 	yaml: `apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -644,7 +751,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-release',
-			description: 'Unique name for this HelmRelease resource'
+			description: 'Unique name for this HelmRelease resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -654,7 +765,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// Chart Configuration
@@ -723,7 +838,11 @@ spec:
 			section: 'release',
 			default: '5m',
 			placeholder: '5m',
-			description: 'How often to reconcile the release'
+			description: 'How often to reconcile the release',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
 		},
 		{
 			name: 'targetNamespace',
@@ -790,7 +909,11 @@ spec:
 			type: 'duration',
 			section: 'advanced',
 			placeholder: '5m',
-			description: 'Timeout for Helm operations'
+			description: 'Timeout for Helm operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
 		},
 		{
 			name: 'serviceAccountName',
@@ -812,6 +935,7 @@ export const HELM_CHART_TEMPLATE: ResourceTemplate = {
 	group: 'source.toolkit.fluxcd.io',
 	version: 'v1',
 	category: 'sources',
+	plural: 'helmcharts',
 	yaml: `apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmChart
 metadata:
@@ -855,7 +979,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-chart',
-			description: 'Unique name for this HelmChart resource'
+			description: 'Unique name for this HelmChart resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -865,7 +993,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// Chart Configuration
@@ -923,7 +1055,11 @@ spec:
 			section: 'chart',
 			default: '5m',
 			placeholder: '5m',
-			description: 'How often to check for new chart versions'
+			description: 'How often to check for new chart versions',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
 		},
 
 		// Advanced Options
@@ -956,6 +1092,7 @@ export const BUCKET_TEMPLATE: ResourceTemplate = {
 	group: 'source.toolkit.fluxcd.io',
 	version: 'v1beta2',
 	category: 'sources',
+	plural: 'buckets',
 	yaml: `apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: Bucket
 metadata:
@@ -1004,7 +1141,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-bucket',
-			description: 'Unique name for this Bucket resource'
+			description: 'Unique name for this Bucket resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -1014,7 +1155,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// Bucket Configuration
@@ -1072,7 +1217,11 @@ spec:
 			section: 'bucket',
 			default: '5m',
 			placeholder: '5m',
-			description: 'How often to check for changes'
+			description: 'How often to check for changes',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
 		},
 
 		// Authentication
@@ -1084,6 +1233,15 @@ spec:
 			section: 'auth',
 			placeholder: 's3-credentials',
 			description: 'Secret containing access key and secret key'
+		},
+		{
+			name: 'insecure',
+			label: 'Insecure',
+			path: 'spec.insecure',
+			type: 'boolean',
+			section: 'auth',
+			default: false,
+			description: 'Allow insecure connections (skip TLS verification)'
 		},
 
 		// Advanced Options
@@ -1103,7 +1261,11 @@ spec:
 			type: 'duration',
 			section: 'advanced',
 			placeholder: '60s',
-			description: 'Timeout for bucket operations'
+			description: 'Timeout for bucket operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
 		},
 		{
 			name: 'ignore',
@@ -1125,6 +1287,7 @@ export const OCI_REPOSITORY_TEMPLATE: ResourceTemplate = {
 	group: 'source.toolkit.fluxcd.io',
 	version: 'v1beta2',
 	category: 'sources',
+	plural: 'ocirepositories',
 	yaml: `apiVersion: source.toolkit.fluxcd.io/v1beta2
 kind: OCIRepository
 metadata:
@@ -1173,7 +1336,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-oci-repo',
-			description: 'Unique name for this OCIRepository resource'
+			description: 'Unique name for this OCIRepository resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -1183,7 +1350,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// OCI Configuration
@@ -1195,7 +1366,11 @@ spec:
 			required: true,
 			section: 'source',
 			placeholder: 'oci://ghcr.io/org/manifests',
-			description: 'OCI repository URL (must start with oci://)'
+			description: 'OCI repository URL (must start with oci://)',
+			validation: {
+				pattern: '^oci://',
+				message: 'OCI repository URL must start with oci://'
+			}
 		},
 		{
 			name: 'refType',
@@ -1219,7 +1394,11 @@ spec:
 			section: 'source',
 			default: 'latest',
 			placeholder: 'latest',
-			description: 'Tag to track (if reference type is tag)'
+			description: 'Tag to track',
+			showIf: {
+				field: 'refType',
+				value: 'tag'
+			}
 		},
 		{
 			name: 'semver',
@@ -1228,7 +1407,15 @@ spec:
 			type: 'string',
 			section: 'source',
 			placeholder: '>=1.0.0',
-			description: 'Semver range to track (if reference type is semver)'
+			description: 'Semver range to track',
+			showIf: {
+				field: 'refType',
+				value: 'semver'
+			},
+			validation: {
+				pattern: '^[><=~^*]?[0-9]+\\.[0-9]+(\\.[0-9]+)?',
+				message: 'Must be a valid semver constraint (e.g., >=1.0.0, ~1.2.0, ^2.0.0)'
+			}
 		},
 		{
 			name: 'digest',
@@ -1237,7 +1424,11 @@ spec:
 			type: 'string',
 			section: 'source',
 			placeholder: 'sha256:abc123...',
-			description: 'Digest to track (if reference type is digest)'
+			description: 'Digest to track',
+			showIf: {
+				field: 'refType',
+				value: 'digest'
+			}
 		},
 		{
 			name: 'interval',
@@ -1248,7 +1439,11 @@ spec:
 			section: 'source',
 			default: '5m',
 			placeholder: '5m',
-			description: 'How often to check for changes'
+			description: 'How often to check for changes',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
 		},
 
 		// Authentication
@@ -1279,7 +1474,11 @@ spec:
 			type: 'duration',
 			section: 'advanced',
 			placeholder: '60s',
-			description: 'Timeout for OCI operations'
+			description: 'Timeout for OCI operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
 		},
 		{
 			name: 'ignore',
@@ -1301,6 +1500,7 @@ export const ALERT_TEMPLATE: ResourceTemplate = {
 	group: 'notification.toolkit.fluxcd.io',
 	version: 'v1beta3',
 	category: 'notifications',
+	plural: 'alerts',
 	yaml: `apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert
 metadata:
@@ -1346,7 +1546,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-alert',
-			description: 'Unique name for this Alert resource'
+			description: 'Unique name for this Alert resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -1356,7 +1560,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// Notification Settings
@@ -1414,6 +1622,7 @@ export const PROVIDER_TEMPLATE: ResourceTemplate = {
 	group: 'notification.toolkit.fluxcd.io',
 	version: 'v1beta3',
 	category: 'notifications',
+	plural: 'providers',
 	yaml: `apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Provider
 metadata:
@@ -1448,7 +1657,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'slack',
-			description: 'Unique name for this Provider resource'
+			description: 'Unique name for this Provider resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -1458,7 +1671,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// Provider Configuration
@@ -1519,6 +1736,7 @@ export const RECEIVER_TEMPLATE: ResourceTemplate = {
 	group: 'notification.toolkit.fluxcd.io',
 	version: 'v1',
 	category: 'notifications',
+	plural: 'receivers',
 	yaml: `apiVersion: notification.toolkit.fluxcd.io/v1
 kind: Receiver
 metadata:
@@ -1558,7 +1776,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'github-receiver',
-			description: 'Unique name for this Receiver resource'
+			description: 'Unique name for this Receiver resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -1568,7 +1790,11 @@ spec:
 			required: true,
 			section: 'basic',
 			default: 'flux-system',
-			description: 'Namespace where the resource will be created'
+			description: 'Namespace where the resource will be created',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 
 		// Receiver Configuration
@@ -1619,6 +1845,7 @@ export const IMAGE_REPOSITORY_TEMPLATE: ResourceTemplate = {
 	group: 'image.toolkit.fluxcd.io',
 	version: 'v1beta2',
 	category: 'image-automation',
+	plural: 'imagerepositories',
 	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageRepository
 metadata:
@@ -1657,7 +1884,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-app',
-			description: 'Unique name for this ImageRepository resource'
+			description: 'Unique name for this ImageRepository resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -1666,7 +1897,11 @@ spec:
 			type: 'string',
 			required: true,
 			section: 'basic',
-			default: 'flux-system'
+			default: 'flux-system',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'image',
@@ -1686,7 +1921,11 @@ spec:
 			required: true,
 			section: 'repository',
 			default: '5m',
-			description: 'How often to scan for new images'
+			description: 'How often to scan for new images',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
 		},
 		{
 			name: 'secretRefName',
@@ -1717,6 +1956,7 @@ export const IMAGE_POLICY_TEMPLATE: ResourceTemplate = {
 	group: 'image.toolkit.fluxcd.io',
 	version: 'v1beta2',
 	category: 'image-automation',
+	plural: 'imagepolicies',
 	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImagePolicy
 metadata:
@@ -1751,7 +1991,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-app-policy',
-			description: 'Unique name for this ImagePolicy resource'
+			description: 'Unique name for this ImagePolicy resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -1760,7 +2004,11 @@ spec:
 			type: 'string',
 			required: true,
 			section: 'basic',
-			default: 'flux-system'
+			default: 'flux-system',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'imageRepositoryName',
@@ -1807,6 +2055,7 @@ export const IMAGE_UPDATE_AUTOMATION_TEMPLATE: ResourceTemplate = {
 	group: 'image.toolkit.fluxcd.io',
 	version: 'v1beta2',
 	category: 'image-automation',
+	plural: 'imageupdateautomations',
 	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageUpdateAutomation
 metadata:
@@ -1867,7 +2116,11 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'image-update-automation',
-			description: 'Unique name for this resource'
+			description: 'Unique name for this resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -1876,7 +2129,11 @@ spec:
 			type: 'string',
 			required: true,
 			section: 'basic',
-			default: 'flux-system'
+			default: 'flux-system',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'sourceRefName',
@@ -1906,7 +2163,11 @@ spec:
 			required: true,
 			section: 'update',
 			default: '30m',
-			description: 'How often to check for image updates'
+			description: 'How often to check for image updates',
+			validation: {
+				pattern: '^[0-9]+(ms|s|m|h)$',
+				message: 'Duration must be a number followed by a time unit (e.g., 1m, 30m, 1h)'
+			}
 		},
 		{
 			name: 'updatePath',
