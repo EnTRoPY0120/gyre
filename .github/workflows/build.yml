@@ -7,10 +7,30 @@ on:
       - develop
     tags:
       - 'v*'
+    paths-ignore:
+      - 'documentation/**'
+      - '**.md'
+      - 'CLAUDE.md'
+      - 'TODO.md'
+      - 'TESTING_*.md'
+      - 'WIZARD_*.md'
+      - 'MIGRATION_*.md'
+      - 'GITREPO_*.md'
+      - 'MANUAL_*.md'
   pull_request:
     branches:
       - main
       - develop
+    paths-ignore:
+      - 'documentation/**'
+      - '**.md'
+      - 'CLAUDE.md'
+      - 'TODO.md'
+      - 'TESTING_*.md'
+      - 'WIZARD_*.md'
+      - 'MIGRATION_*.md'
+      - 'GITREPO_*.md'
+      - 'MANUAL_*.md'
   workflow_dispatch:
 
 env:
