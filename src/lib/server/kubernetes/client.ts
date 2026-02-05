@@ -5,38 +5,59 @@ import type { FluxResource, FluxResourceList } from './flux/types.js';
 
 // Cached kubeconfig (single in-cluster config)
 let cachedConfig: k8s.KubeConfig | null = null;
+let currentContext: string | null = null;
 
 /**
- * Get or create cached KubeConfig
+ * Get or create cached KubeConfig with optional context switching
+ * @param context - Optional context name to switch to
  */
-export function getKubeConfig(): k8s.KubeConfig {
+export function getKubeConfig(context?: string): k8s.KubeConfig {
 	if (!cachedConfig) {
 		cachedConfig = loadKubeConfig();
+		currentContext = cachedConfig.getCurrentContext();
 	}
+
+	// Switch context if a different one is requested
+	if (context && context !== currentContext) {
+		const availableContexts = cachedConfig.getContexts().map((c) => c.name);
+		if (availableContexts.includes(context)) {
+			cachedConfig.setCurrentContext(context);
+			currentContext = context;
+			console.log(`✓ Switched Kubernetes context to: ${context}`);
+		} else {
+			console.warn(
+				`Context "${context}" not found in kubeconfig. Available: ${availableContexts.join(', ')}`
+			);
+		}
+	}
+
 	return cachedConfig;
 }
 
 /**
  * Create CustomObjectsApi client
+ * @param context - Optional context name to use
  */
-export function getCustomObjectsApi(): k8s.CustomObjectsApi {
-	const config = getKubeConfig();
+export function getCustomObjectsApi(context?: string): k8s.CustomObjectsApi {
+	const config = getKubeConfig(context);
 	return config.makeApiClient(k8s.CustomObjectsApi);
 }
 
 /**
  * Create CoreV1Api client
+ * @param context - Optional context name to use
  */
-export function getCoreV1Api(): k8s.CoreV1Api {
-	const config = getKubeConfig();
+export function getCoreV1Api(context?: string): k8s.CoreV1Api {
+	const config = getKubeConfig(context);
 	return config.makeApiClient(k8s.CoreV1Api);
 }
 
 /**
  * Create AppsV1Api client
+ * @param context - Optional context name to use
  */
-export function getAppsV1Api(): k8s.AppsV1Api {
-	const config = getKubeConfig();
+export function getAppsV1Api(context?: string): k8s.AppsV1Api {
+	const config = getKubeConfig(context);
 	return config.makeApiClient(k8s.AppsV1Api);
 }
 
@@ -53,9 +74,9 @@ const CACHE_TTL = 5000; // 5 seconds cache for K8s resources
  */
 export async function listFluxResources(
 	resourceType: FluxResourceType,
-	_context?: string
+	context?: string
 ): Promise<FluxResourceList> {
-	const cacheKey = `list:${resourceType}:${'default'}`;
+	const cacheKey = `list:${resourceType}:${context || 'default'}`;
 
 	// Check cache
 	const cached = resourceCache.get(cacheKey);
@@ -73,7 +94,7 @@ export async function listFluxResources(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	const fetchPromise = (async () => {
 		try {
@@ -103,9 +124,9 @@ export async function listFluxResources(
 export async function listFluxResourcesInNamespace(
 	resourceType: FluxResourceType,
 	namespace: string,
-	_context?: string
+	context?: string
 ): Promise<FluxResourceList> {
-	const cacheKey = `list:${resourceType}:${namespace}:${'default'}`;
+	const cacheKey = `list:${resourceType}:${namespace}:${context || 'default'}`;
 
 	const cached = resourceCache.get(cacheKey);
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -121,7 +142,7 @@ export async function listFluxResourcesInNamespace(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	const fetchPromise = (async () => {
 		try {
@@ -153,9 +174,9 @@ export async function getFluxResource(
 	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,
-	_context?: string
+	context?: string
 ): Promise<FluxResource> {
-	const cacheKey = `get:${resourceType}:${namespace}:${name}:${'default'}`;
+	const cacheKey = `get:${resourceType}:${namespace}:${name}:${context || 'default'}`;
 
 	const cached = resourceCache.get(cacheKey);
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -171,7 +192,7 @@ export async function getFluxResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	const fetchPromise = (async () => {
 		try {
@@ -204,14 +225,14 @@ export async function getFluxResourceStatus(
 	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,
-	_context?: string
+	context?: string
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	try {
 		const response = await api.getNamespacedCustomObjectStatus({
@@ -236,14 +257,14 @@ export async function getGenericResource(
 	kind: string,
 	namespace: string,
 	name: string,
-	_context?: string
+	context?: string
 ): Promise<unknown> {
 	// Normalize group for core resources (often empty or "core")
 	const normalizedGroup = group === 'core' || group === '' ? '' : group;
 
 	try {
 		if (normalizedGroup === '') {
-			const coreApi = getCoreV1Api();
+			const coreApi = getCoreV1Api(context);
 			// Mapped types
 			switch (kind) {
 				case 'Service':
@@ -266,7 +287,7 @@ export async function getGenericResource(
 					};
 			}
 		} else if (normalizedGroup === 'apps') {
-			const appsApi = getAppsV1Api();
+			const appsApi = getAppsV1Api(context);
 			switch (kind) {
 				case 'Deployment':
 					return await appsApi.readNamespacedDeployment({ name, namespace });
@@ -322,14 +343,14 @@ export async function createFluxResource(
 	resourceType: string,
 	namespace: string,
 	body: Record<string, unknown>,
-	_context?: string
+	context?: string
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi();
+	const api = getCustomObjectsApi(context);
 
 	try {
 		const response = await api.createNamespacedCustomObject({

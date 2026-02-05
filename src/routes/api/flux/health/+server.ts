@@ -11,9 +11,11 @@ const CONNECTION_CACHE_TTL = 30 * 1000; // 30 seconds
  * GET /api/flux/health
  * Health check endpoint that validates K8s connection
  */
-export const GET: RequestHandler = async ({ setHeaders }) => {
+export const GET: RequestHandler = async ({ setHeaders, cookies }) => {
 	try {
-		const config = getKubeConfig();
+		// Get the current cluster from cookie (for multi-cluster support)
+		const selectedCluster = cookies.get('gyre_cluster');
+		const config = getKubeConfig(selectedCluster);
 		const currentContext = config.getCurrentContext();
 
 		// Check connection - use cache if recent, otherwise validate
