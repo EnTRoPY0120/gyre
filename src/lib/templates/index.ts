@@ -363,20 +363,6 @@ spec:
 
 		// Repository Configuration
 		{
-			name: 'url',
-			label: 'Repository URL',
-			path: 'spec.url',
-			type: 'string',
-			required: true,
-			section: 'source',
-			placeholder: 'https://charts.bitnami.com/bitnami',
-			description: 'HTTP/S or OCI Helm repository URL',
-			validation: {
-				pattern: '^(https?://|oci://)',
-				message: 'URL must start with https://, http://, or oci://'
-			}
-		},
-		{
 			name: 'type',
 			label: 'Repository Type',
 			path: 'spec.type',
@@ -388,6 +374,42 @@ spec:
 				{ label: 'OCI', value: 'oci' }
 			],
 			description: 'Type of Helm repository'
+		},
+		{
+			name: 'url',
+			label: 'Repository URL',
+			path: 'spec.url',
+			type: 'string',
+			required: true,
+			section: 'source',
+			placeholder: 'https://charts.bitnami.com/bitnami',
+			description: 'HTTP/S Helm repository URL',
+			validation: {
+				pattern: '^https?://',
+				message: 'URL must start with https:// or http://'
+			},
+			showIf: {
+				field: 'type',
+				value: 'default'
+			}
+		},
+		{
+			name: 'url',
+			label: 'Repository URL',
+			path: 'spec.url',
+			type: 'string',
+			required: true,
+			section: 'source',
+			placeholder: 'oci://ghcr.io/org/charts',
+			description: 'OCI registry URL (must start with oci://)',
+			validation: {
+				pattern: '^oci://',
+				message: 'OCI repository URL must start with oci://'
+			},
+			showIf: {
+				field: 'type',
+				value: 'oci'
+			}
 		},
 		{
 			name: 'interval',
