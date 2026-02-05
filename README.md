@@ -1,52 +1,45 @@
 # Gyre
 
-**A Modern, High-Performance Dashboard for FluxCD.**
+[![Documentation](https://img.shields.io/badge/docs-entropy0120.github.io%2Fgyre-gold?style=for-the-badge)](https://entropy0120.github.io/gyre/)
+[![GitHub release](https://img.shields.io/github/v/release/entropy0120/gyre?style=for-the-badge)](https://github.com/entropy0120/gyre/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 
-Gyre is a full-featured WebUI for managing multi-cluster FluxCD environments. Built with **Svelte 5**, **Bun**, and **SQLite**, it provides a real-time experience with built-in security, SSO integration, and comprehensive resource visualization.
+> **A Modern WebUI for FluxCD** with real-time monitoring, multi-cluster management, and built-in RBAC.
 
-## ✨ Key Features
+[📚 **Full Documentation**](https://entropy0120.github.io/gyre/) •
+[🚀 **Quick Start**](https://entropy0120.github.io/gyre/getting-started) •
+[💻 **GitHub**](https://github.com/entropy0120/gyre)
 
-- **🎨 Industrial Aesthetic**: A premium design featuring deep zinc backgrounds, high-contrast accents, and glassmorphic floating components.
-- **🌐 Multi-Cluster Management**: Seamlessly switch between multiple Kubernetes clusters. Contexts are health-monitored in real-time with automatic reconciliation tracking.
-- **📊 Inventory Architecture**: Hierarchical resource tree visualization showing the relationship between Flux resources and their downstream Kubernetes objects.
-- **🔐 Enterprise Security**: Built-in RBAC (Admin, Editor, Viewer), OIDC/SSO support (GitHub, Google, etc.), and secure session management.
-- **⚡ Comprehensive Control**: Full support for all FluxCD resources including Sources, Kustomizations, HelmReleases, Notifications, and Image Automations.
-- **🚀 One-Click Actions**: Reconcile, Suspend, Resume, and Force-Sync resources directly from the UI with instant feedback via WebSockets.
-- **📝 Audit Logging**: Complete audit trail for all user actions and system events stored in a highly-available SQLite backend.
-- **💨 Multi-layer Caching**: Intelligent caching strategy (Server-side + API) to minimize Kubernetes API load while maintaining real-time responsiveness.
+---
 
-## 🛠️ Tech Stack
+## ✨ Features
 
-- **Runtime**: [Bun](https://bun.sh) (v1.1+)
-- **Framework**: [Svelte 5](https://svelte.dev) (Runes) + SvelteKit
-- **Styling**: TailwindCSS v4 + shadcn-svelte
-- **Database**: SQLite with [Drizzle ORM](https://orm.drizzle.team)
-- **API**: Native Kubernetes Client integration with WebSocket support
-- **Auth**: [Arctic](https://arctic.js.org/) (OIDC) & [Jose](https://github.com/panva/jose) (JWT)
+- 🎨 **Modern UI** - Built with Svelte 5 and TailwindCSS
+- 🌐 **Multi-Cluster** - Manage multiple Kubernetes clusters
+- 🔐 **Built-in Security** - RBAC and SSO/OAuth support
+- ⚡ **Real-time Updates** - Live resource monitoring via WebSocket
+- 📊 **Complete FluxCD Support** - All resource types supported
 
-## 🏗️ Architecture
+[See full feature list →](https://entropy0120.github.io/gyre/features)
 
-Gyre is designed for in-cluster deployment, leveraging ServiceAccounts for secure Kubernetes API access and a lightweight embedded database for state management.
+---
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Kubernetes 1.25+ cluster
 - FluxCD v2+ installed
 - Helm 3.10+
-- PersistentVolume provisioner
 
-### Quick Installation
-
-Install Gyre via Helm:
+### Installation
 
 ```bash
 # Add the Gyre Helm repository
 helm repo add gyre https://entropy0120.github.io/gyre
 helm repo update
 
-# Install the chart
+# Install Gyre
 helm install gyre gyre/gyre \
   --namespace flux-system \
   --create-namespace
@@ -54,46 +47,60 @@ helm install gyre gyre/gyre \
 
 ### Get Admin Credentials
 
-Retrieve the auto-generated admin password:
-
 ```bash
 kubectl get secret gyre-initial-admin-secret -n flux-system \
-  -o jsonpath='{.data.password}' | base64 -d
-echo
+  -o jsonpath='{.data.password}' | base64 -d && echo
 ```
 
-### Accessing the Dashboard
-
-**Option 1: Port-Forward (Local Access)**
+### Access the Dashboard
 
 ```bash
+# Port-forward for local access
 kubectl port-forward -n flux-system svc/gyre 3000:80
 ```
 
-Visit [http://localhost:3000](http://localhost:3000).
+Visit [http://localhost:3000](http://localhost:3000) and login with:
 
-**Option 2: Ingress (Production)**
+- **Username:** `admin`
+- **Password:** (from command above)
 
-Configure your ingress settings in `values.yaml` or via `--set`:
+---
 
-```bash
-helm upgrade --install gyre gyre/gyre -n flux-system \
-  --set ingress.enabled=true \
-  --set ingress.hosts[0].host=gyre.example.com
-```
+## 📚 Documentation
 
-## 📈 Roadmap & Status
+Comprehensive documentation is available at **[entropy0120.github.io/gyre](https://entropy0120.github.io/gyre/)**:
 
-Gyre is under active development. Current focus is on advanced visualization and GitOps workflows.
+- **[Getting Started](https://entropy0120.github.io/gyre/getting-started)** - Installation guide and first steps
+- **[Architecture](https://entropy0120.github.io/gyre/architecture)** - System design and components
+- **[Configuration](https://entropy0120.github.io/gyre/configuration)** - Customization options
+- **[Features](https://entropy0120.github.io/gyre/features)** - Complete feature overview
+- **[Contributing](https://entropy0120.github.io/gyre/contributing)** - How to contribute
+- **[API Reference](https://entropy0120.github.io/gyre/api/)** - API documentation
 
-- ✅ **Core Dashboard**: Real-time health and resource summaries.
-- ✅ **Full Flux Support**: All Source, Kustomize, Helm, Notification, and Image Automations.
-- ✅ **Multi-Cluster Support**: High-performance cluster switching and health monitoring.
-- ✅ **SSO Integration**: OIDC support for major providers.
-- ✅ **Inventory Tree**: Hierarchical visualization of resource relationships.
-- ✅ **Audit System**: Detailed tracking of all administrative actions.
-- 🔨 **Upcoming**: Advanced Diff Viewer, GitOps Commit management, and Performance Optimizations.
+---
 
-## 📜 License
+## 🛠️ Tech Stack
 
-Distributed under the MIT License. Developed with ❤️ by [Vijay](https://github.com/EnTRoPY0120).
+- **Runtime:** [Bun](https://bun.sh) (v1.1+)
+- **Framework:** [Svelte 5](https://svelte.dev) + SvelteKit
+- **Styling:** TailwindCSS v4 + shadcn-svelte
+- **Database:** SQLite with [Drizzle ORM](https://orm.drizzle.team)
+- **Kubernetes:** Native client with WebSocket support
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our [Contributing Guide](https://entropy0120.github.io/gyre/contributing) for details.
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+---
+
+<p align="center">
+  Built with ❤️ for the FluxCD community
+</p>
