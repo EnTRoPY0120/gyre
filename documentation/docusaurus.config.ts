@@ -39,10 +39,7 @@ const config: Config = {
 					editUrl: 'https://github.com/entropy0120/gyre/tree/main/documentation/',
 					routeBasePath: '/'
 				},
-				blog: {
-					showReadingTime: true,
-					editUrl: 'https://github.com/entropy0120/gyre/tree/main/documentation/'
-				},
+				blog: false,
 				theme: {
 					customCss: './src/css/custom.css'
 				}
@@ -69,7 +66,6 @@ const config: Config = {
 					position: 'left',
 					label: 'Documentation'
 				},
-				{ to: '/blog', label: 'Blog', position: 'left' },
 				{
 					href: 'https://github.com/entropy0120/gyre',
 					label: 'GitHub',
@@ -114,12 +110,12 @@ const config: Config = {
 					title: 'More',
 					items: [
 						{
-							label: 'Blog',
-							to: '/blog'
-						},
-						{
 							label: 'GitHub',
 							href: 'https://github.com/entropy0120/gyre'
+						},
+						{
+							label: 'Releases',
+							href: 'https://github.com/entropy0120/gyre/releases'
 						}
 					]
 				}

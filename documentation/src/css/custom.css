@@ -1,117 +1,442 @@
 /**
- * Any CSS included here will be global. The classic template
- * bundles Infima by default. Infima is a CSS framework designed to
- * work well for content-centric websites.
+ * Gyre Brand Colors and Theme Configuration
+ * 
+ * Primary: Gold/Amber (#E6A817)
+ * Background: Dark Zinc (#09090b)
  */
 
-/* Gyre Brand Colors */
+/* =============================================
+   CSS Custom Properties
+   ============================================= */
+
+/* Base colors - Always available */
 :root {
-	/* Primary - Gold/Amber */
-	--ifm-color-primary: #e6a817;
-	--ifm-color-primary-dark: #d97706;
-	--ifm-color-primary-darker: #b45309;
-	--ifm-color-primary-darkest: #92400e;
-	--ifm-color-primary-light: #fbbf24;
-	--ifm-color-primary-lighter: #fcd34d;
-	--ifm-color-primary-lightest: #fde68a;
+	/* Primary Brand Colors */
+	--gyre-primary: #e6a817;
+	--gyre-primary-dark: #d97706;
+	--gyre-primary-darker: #b45309;
+	--gyre-primary-light: #fbbf24;
+	--gyre-primary-lighter: #fcd34d;
 
-	/* Background - Dark Zinc */
-	--ifm-background-color: #09090b;
-	--ifm-background-surface-color: #18181b;
+	/* Neutral Colors */
+	--gyre-zinc-950: #09090b;
+	--gyre-zinc-900: #18181b;
+	--gyre-zinc-800: #27272a;
+	--gyre-zinc-700: #3f3f46;
+	--gyre-zinc-600: #52525b;
+	--gyre-zinc-500: #71717a;
+	--gyre-zinc-400: #a1a1aa;
+	--gyre-zinc-300: #d4d4d8;
+	--gyre-zinc-200: #e4e4e7;
+	--gyre-zinc-100: #f4f4f5;
+	--gyre-zinc-50: #fafafa;
+}
 
-	/* Text */
-	--ifm-font-color-base: #fafafa;
-	--ifm-heading-color: #fafafa;
+/* =============================================
+   LIGHT MODE (Default for accessibility)
+   ============================================= */
+:root {
+	--gyre-bg-primary: var(--gyre-zinc-50);
+	--gyre-bg-secondary: #ffffff;
+	--gyre-bg-card: #ffffff;
+	--gyre-bg-sidebar: var(--gyre-zinc-100);
+	--gyre-bg-navbar: var(--gyre-zinc-50);
 
-	/* Code */
+	--gyre-text-primary: var(--gyre-zinc-900);
+	--gyre-text-secondary: var(--gyre-zinc-600);
+	--gyre-text-muted: var(--gyre-zinc-500);
+
+	--gyre-border: var(--gyre-zinc-200);
+	--gyre-border-hover: var(--gyre-zinc-300);
+
+	/* Docusaurus Overrides - Light */
+	--ifm-background-color: var(--gyre-bg-primary);
+	--ifm-background-surface-color: var(--gyre-bg-secondary);
+	--ifm-color-primary: var(--gyre-primary);
+	--ifm-color-primary-dark: var(--gyre-primary-dark);
+	--ifm-color-primary-darker: var(--gyre-primary-darker);
+	--ifm-color-primary-light: var(--gyre-primary-light);
+	--ifm-color-primary-lighter: var(--gyre-primary-lighter);
+	--ifm-font-color-base: var(--gyre-text-primary);
+	--ifm-font-color-secondary: var(--gyre-text-secondary);
+	--ifm-heading-color: var(--gyre-text-primary);
+	--ifm-navbar-background-color: var(--gyre-bg-navbar);
+	--ifm-navbar-border-color: var(--gyre-border);
+	--ifm-footer-background-color: var(--gyre-bg-secondary);
+	--ifm-footer-border-color: var(--gyre-border);
+	--ifm-menu-color: var(--gyre-text-primary);
+	--ifm-toc-border-color: var(--gyre-border);
+
 	--ifm-code-font-size: 95%;
 	--docusaurus-highlighted-code-line-bg: rgba(230, 168, 23, 0.1);
 }
 
-/* Dark mode - Gyre's primary theme */
+/* =============================================
+   DARK MODE
+   ============================================= */
 [data-theme='dark'] {
-	--ifm-color-primary: #e6a817;
-	--ifm-color-primary-dark: #d97706;
-	--ifm-color-primary-darker: #b45309;
-	--ifm-color-primary-darkest: #92400e;
-	--ifm-color-primary-light: #fbbf24;
-	--ifm-color-primary-lighter: #fcd34d;
-	--ifm-color-primary-lightest: #fde68a;
+	--gyre-bg-primary: var(--gyre-zinc-950);
+	--gyre-bg-secondary: var(--gyre-zinc-900);
+	--gyre-bg-card: var(--gyre-zinc-900);
+	--gyre-bg-sidebar: var(--gyre-zinc-950);
+	--gyre-bg-navbar: var(--gyre-zinc-950);
 
-	--ifm-background-color: #09090b;
-	--ifm-background-surface-color: #18181b;
+	--gyre-text-primary: var(--gyre-zinc-50);
+	--gyre-text-secondary: var(--gyre-zinc-400);
+	--gyre-text-muted: var(--gyre-zinc-500);
 
-	--ifm-navbar-background-color: #09090b;
-	--ifm-navbar-border-color: #27272a;
+	--gyre-border: var(--gyre-zinc-800);
+	--gyre-border-hover: var(--gyre-zinc-700);
 
-	--ifm-footer-background-color: #09090b;
-	--ifm-footer-border-color: #27272a;
+	/* Docusaurus Overrides - Dark */
+	--ifm-background-color: var(--gyre-bg-primary);
+	--ifm-background-surface-color: var(--gyre-bg-secondary);
+	--ifm-color-primary: var(--gyre-primary);
+	--ifm-color-primary-dark: var(--gyre-primary-light);
+	--ifm-color-primary-light: var(--gyre-primary-lighter);
+	--ifm-font-color-base: var(--gyre-text-primary);
+	--ifm-font-color-secondary: var(--gyre-text-secondary);
+	--ifm-heading-color: var(--gyre-text-primary);
+	--ifm-navbar-background-color: var(--gyre-bg-navbar);
+	--ifm-navbar-border-color: var(--gyre-border);
+	--ifm-footer-background-color: var(--gyre-bg-secondary);
+	--ifm-footer-border-color: var(--gyre-border);
+	--ifm-menu-color: var(--gyre-text-primary);
+	--ifm-toc-border-color: var(--gyre-border);
 
 	--docusaurus-highlighted-code-line-bg: rgba(230, 168, 23, 0.15);
 }
 
-/* Navbar styling */
+/* =============================================
+   Global Styles
+   ============================================= */
+
+/* Smooth transitions for theme switching */
+* {
+	transition:
+		background-color 0.3s ease,
+		border-color 0.3s ease;
+}
+
+/* Body background */
+body {
+	background-color: var(--gyre-bg-primary);
+	color: var(--gyre-text-primary);
+}
+
+/* =============================================
+   Navbar Styling
+   ============================================= */
 .navbar {
-	border-bottom: 1px solid #27272a;
+	background-color: var(--gyre-bg-navbar);
+	border-bottom: 1px solid var(--gyre-border);
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .navbar__brand {
 	font-weight: 700;
+	color: var(--gyre-text-primary);
+}
+
+.navbar__brand:hover {
+	color: var(--gyre-primary);
 }
 
 .navbar__logo {
 	border-radius: 8px;
+	margin-right: 0.75rem;
 }
 
-/* Footer styling */
+.navbar__link {
+	color: var(--gyre-text-secondary);
+	font-weight: 500;
+	transition: color 0.2s ease;
+}
+
+.navbar__link:hover,
+.navbar__link--active {
+	color: var(--gyre-primary);
+}
+
+/* =============================================
+   Footer Styling
+   ============================================= */
 .footer {
-	border-top: 1px solid #27272a;
+	background-color: var(--gyre-bg-secondary);
+	border-top: 1px solid var(--gyre-border);
+	color: var(--gyre-text-secondary);
 }
 
-/* Link hover effects */
-.menu__link:hover,
-.navbar__link:hover {
-	color: var(--ifm-color-primary-light);
-}
-
-/* Button styling */
-.button--primary {
-	background: linear-gradient(135deg, #e6a817 0%, #d97706 100%);
-	border: none;
-}
-
-.button--primary:hover {
-	background: linear-gradient(135deg, #fbbf24 0%, #e6a817 100%);
-}
-
-/* Card styling */
-.card {
-	background-color: #18181b;
-	border: 1px solid #27272a;
-}
-
-.card:hover {
-	border-color: #e6a817;
-}
-
-/* Announcement bar styling */
-div[class^='announcementBar_'] {
-	background: linear-gradient(90deg, #e6a817 0%, #d97706 100%);
-	color: #09090b;
+.footer__title {
+	color: var(--gyre-text-primary);
 	font-weight: 600;
 }
 
-/* Search styling */
-.search-box {
-	background-color: #18181b;
+.footer__link-item {
+	color: var(--gyre-text-secondary);
+	transition: color 0.2s ease;
 }
 
-/* Table styling */
+.footer__link-item:hover {
+	color: var(--gyre-primary);
+}
+
+.footer__copyright {
+	color: var(--gyre-text-muted);
+}
+
+/* =============================================
+   Sidebar Styling
+   ============================================= */
+.theme-doc-sidebar-container {
+	background-color: var(--gyre-bg-sidebar);
+	border-right: 1px solid var(--gyre-border);
+}
+
+.theme-doc-sidebar-menu {
+	padding: 1rem 0.5rem;
+}
+
+.menu__link {
+	color: var(--gyre-text-secondary);
+	border-radius: 6px;
+	transition: all 0.2s ease;
+}
+
+.menu__link:hover {
+	color: var(--gyre-primary);
+	background-color: rgba(230, 168, 23, 0.1);
+}
+
+.menu__link--active {
+	color: var(--gyre-primary);
+	background-color: rgba(230, 168, 23, 0.15);
+	font-weight: 600;
+}
+
+.menu__caret::before,
+.menu__link--sublist-caret::after {
+	filter: brightness(0.8);
+}
+
+/* =============================================
+   Content Styling
+   ============================================= */
+.theme-doc-markdown {
+	max-width: 900px;
+}
+
+.theme-doc-markdown h1,
+.theme-doc-markdown h2,
+.theme-doc-markdown h3,
+.theme-doc-markdown h4,
+.theme-doc-markdown h5,
+.theme-doc-markdown h6 {
+	color: var(--gyre-text-primary);
+}
+
+.theme-doc-markdown p,
+.theme-doc-markdown li {
+	color: var(--gyre-text-secondary);
+}
+
+/* =============================================
+   Table of Contents
+   ============================================= */
+.table-of-contents {
+	border-left: 1px solid var(--gyre-border);
+}
+
+.table-of-contents__link {
+	color: var(--gyre-text-secondary);
+	transition: color 0.2s ease;
+}
+
 .table-of-contents__link:hover {
-	color: var(--ifm-color-primary-light);
+	color: var(--gyre-primary);
 }
 
-/* Code block styling */
+.table-of-contents__link--active {
+	color: var(--gyre-primary);
+	font-weight: 600;
+}
+
+/* =============================================
+   Buttons
+   ============================================= */
+.button--primary {
+	background: linear-gradient(135deg, var(--gyre-primary) 0%, var(--gyre-primary-dark) 100%);
+	border: none;
+	color: var(--gyre-zinc-950) !important;
+	font-weight: 600;
+	transition: all 0.3s ease;
+}
+
+.button--primary:hover {
+	background: linear-gradient(135deg, var(--gyre-primary-light) 0%, var(--gyre-primary) 100%);
+	transform: translateY(-2px);
+	box-shadow: 0 4px 15px rgba(230, 168, 23, 0.3);
+}
+
+.button--secondary {
+	background: transparent;
+	border: 2px solid var(--gyre-border);
+	color: var(--gyre-text-primary);
+	font-weight: 600;
+	transition: all 0.3s ease;
+}
+
+.button--secondary:hover {
+	border-color: var(--gyre-primary);
+	color: var(--gyre-primary);
+}
+
+/* =============================================
+   Code Blocks
+   ============================================= */
 .theme-code-block {
 	border-radius: 8px;
+	margin: 1.5rem 0;
+	box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+code {
+	background-color: var(--gyre-bg-secondary);
+	color: var(--gyre-text-primary);
+	border: 1px solid var(--gyre-border);
+	border-radius: 4px;
+	padding: 0.2rem 0.4rem;
+}
+
+/* =============================================
+   Links
+   ============================================= */
+a {
+	color: var(--gyre-primary);
+	transition: color 0.2s ease;
+}
+
+a:hover {
+	color: var(--gyre-primary-light);
+	text-decoration: none;
+}
+
+/* =============================================
+   Cards (for feature sections)
+   ============================================= */
+.card {
+	background-color: var(--gyre-bg-card);
+	border: 1px solid var(--gyre-border);
+	border-radius: 12px;
+	transition: all 0.3s ease;
+}
+
+.card:hover {
+	border-color: var(--gyre-primary);
+	transform: translateY(-2px);
+	box-shadow: 0 8px 30px rgba(230, 168, 23, 0.1);
+}
+
+/* =============================================
+   Breadcrumbs
+   ============================================= */
+.breadcrumbs {
+	border-bottom: 1px solid var(--gyre-border);
+	padding-bottom: 0.5rem;
+}
+
+.breadcrumbs__item--active .breadcrumbs__link {
+	color: var(--gyre-primary);
+	font-weight: 600;
+}
+
+/* =============================================
+   Pagination
+   ============================================= */
+.pagination-nav__link {
+	background-color: var(--gyre-bg-card);
+	border: 1px solid var(--gyre-border);
+	border-radius: 8px;
+	transition: all 0.3s ease;
+}
+
+.pagination-nav__link:hover {
+	border-color: var(--gyre-primary);
+	background-color: rgba(230, 168, 23, 0.05);
+}
+
+.pagination-nav__label {
+	color: var(--gyre-primary);
+	font-weight: 600;
+}
+
+.pagination-nav__sublabel {
+	color: var(--gyre-text-secondary);
+}
+
+/* =============================================
+   Search
+   ============================================= */
+.DocSearch-Button {
+	background-color: var(--gyre-bg-card) !important;
+	border: 1px solid var(--gyre-border) !important;
+	border-radius: 8px !important;
+	color: var(--gyre-text-secondary) !important;
+}
+
+.DocSearch-Button:hover {
+	border-color: var(--gyre-primary) !important;
+	color: var(--gyre-primary) !important;
+}
+
+/* =============================================
+   Tables
+   ============================================= */
+table {
+	background-color: var(--gyre-bg-card);
+	border: 1px solid var(--gyre-border);
+	border-radius: 8px;
+}
+
+th {
+	background-color: var(--gyre-bg-secondary);
+	color: var(--gyre-text-primary);
+	font-weight: 600;
+}
+
+td {
+	color: var(--gyre-text-secondary);
+}
+
+tr:nth-child(2n) {
+	background-color: var(--gyre-bg-secondary);
+}
+
+/* =============================================
+   Admonitions (Callouts)
+   ============================================= */
+.alert--primary {
+	--ifm-alert-background-color: rgba(230, 168, 23, 0.1);
+	--ifm-alert-border-color: var(--gyre-primary);
+}
+
+.alert--secondary {
+	--ifm-alert-background-color: var(--gyre-bg-secondary);
+	--ifm-alert-border-color: var(--gyre-border);
+}
+
+/* =============================================
+   Print Styles
+   ============================================= */
+@media print {
+	.navbar,
+	.footer,
+	.theme-doc-sidebar-container,
+	.table-of-contents {
+		display: none;
+	}
+
+	.theme-doc-markdown {
+		max-width: 100%;
+	}
 }

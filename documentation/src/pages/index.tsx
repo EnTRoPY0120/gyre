@@ -11,15 +11,24 @@ import styles from './index.module.css';
 function HomepageHeader() {
 	const { siteConfig } = useDocusaurusContext();
 	return (
-		<header className={clsx('hero hero--primary', styles.heroBanner)}>
+		<header className={clsx('hero', styles.heroBanner)}>
 			<div className="container">
 				<Heading as="h1" className="hero__title">
 					{siteConfig.title}
 				</Heading>
 				<p className="hero__subtitle">{siteConfig.tagline}</p>
 				<div className={styles.buttons}>
-					<Link className="button button--secondary button--lg" to="/getting-started">
-						Get Started - 5min ⏱️
+					<Link
+						className={clsx('button button--primary button--lg', styles.primaryButton)}
+						to="/getting-started"
+					>
+						Get Started
+					</Link>
+					<Link
+						className={clsx('button button--secondary button--lg', styles.secondaryButton)}
+						to="/architecture"
+					>
+						Learn More
 					</Link>
 				</div>
 			</div>
@@ -31,8 +40,8 @@ export default function Home(): ReactNode {
 	const { siteConfig } = useDocusaurusContext();
 	return (
 		<Layout
-			title={`Hello from ${siteConfig.title}`}
-			description="Description will go into a meta tag in <head />"
+			title={`${siteConfig.title} - Modern WebUI for FluxCD`}
+			description="Gyre is a modern, full-featured WebUI for FluxCD with real-time monitoring, multi-cluster management, built-in RBAC, and comprehensive resource management."
 		>
 			<HomepageHeader />
 			<main>

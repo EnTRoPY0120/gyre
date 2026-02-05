@@ -1,11 +1,84 @@
 .features {
-  display: flex;
-  align-items: center;
-  padding: 2rem 0;
-  width: 100%;
+	padding: 4rem 0;
+	background: var(--gyre-bg-secondary);
+	width: 100%;
 }
 
-.featureSvg {
-  height: 200px;
-  width: 200px;
+.sectionHeader {
+	text-align: center;
+	margin-bottom: 4rem;
+	max-width: 800px;
+	margin-left: auto;
+	margin-right: auto;
+}
+
+.sectionTitle {
+	font-size: 2.5rem;
+	font-weight: 700;
+	margin-bottom: 1rem;
+	color: var(--gyre-text-primary);
+}
+
+.sectionDescription {
+	font-size: 1.25rem;
+	color: var(--gyre-text-secondary);
+	line-height: 1.6;
+}
+
+.featureCard {
+	background: var(--gyre-bg-card);
+	border: 1px solid var(--gyre-border);
+	border-radius: 12px;
+	padding: 2rem;
+	margin-bottom: 2rem;
+	height: 100%;
+	transition: all 0.3s ease;
+}
+
+.featureCard:hover {
+	border-color: var(--gyre-primary);
+	transform: translateY(-4px);
+	box-shadow: 0 8px 30px rgba(230, 168, 23, 0.1);
+}
+
+.featureIcon {
+	font-size: 3rem;
+	margin-bottom: 1.5rem;
+}
+
+.featureContent {
+	text-align: left;
+}
+
+.featureTitle {
+	font-size: 1.25rem;
+	font-weight: 600;
+	margin-bottom: 0.75rem;
+	color: var(--gyre-text-primary);
+}
+
+.featureDescription {
+	font-size: 1rem;
+	line-height: 1.6;
+	color: var(--gyre-text-secondary);
+	margin: 0;
+}
+
+/* Responsive adjustments */
+@media screen and (max-width: 996px) {
+	.features {
+		padding: 3rem 0;
+	}
+
+	.sectionTitle {
+		font-size: 2rem;
+	}
+
+	.sectionDescription {
+		font-size: 1.1rem;
+	}
+
+	.featureCard {
+		padding: 1.5rem;
+	}
 }

@@ -1,23 +1,90 @@
-/**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
- */
-
 .heroBanner {
-  padding: 4rem 0;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
+	padding: 6rem 0 4rem;
+	text-align: center;
+	position: relative;
+	overflow: hidden;
+	background: linear-gradient(135deg, var(--gyre-bg-primary) 0%, var(--gyre-bg-secondary) 100%);
 }
 
-@media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+.heroBanner h1 {
+	font-size: 3.5rem;
+	font-weight: 800;
+	margin-bottom: 1rem;
+	background: linear-gradient(135deg, var(--gyre-primary) 0%, var(--gyre-primary-light) 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+.heroBanner p {
+	font-size: 1.5rem;
+	color: var(--gyre-text-secondary);
+	margin-bottom: 2rem;
+	max-width: 600px;
+	margin-left: auto;
+	margin-right: auto;
 }
 
 .buttons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 1rem;
+	flex-wrap: wrap;
+}
+
+.primaryButton {
+	background: linear-gradient(
+		135deg,
+		var(--gyre-primary) 0%,
+		var(--gyre-primary-dark) 100%
+	) !important;
+	border: none !important;
+	color: #09090b !important;
+	font-weight: 600;
+	padding: 0.75rem 2rem !important;
+	transition: all 0.3s ease;
+}
+
+.primaryButton:hover {
+	background: linear-gradient(
+		135deg,
+		var(--gyre-primary-light) 0%,
+		var(--gyre-primary) 100%
+	) !important;
+	transform: translateY(-2px);
+	box-shadow: 0 4px 15px rgba(230, 168, 23, 0.3);
+}
+
+.secondaryButton {
+	background: transparent !important;
+	border: 2px solid var(--gyre-border) !important;
+	color: var(--gyre-text-primary) !important;
+	font-weight: 600;
+	padding: 0.75rem 2rem !important;
+	transition: all 0.3s ease;
+}
+
+.secondaryButton:hover {
+	border-color: var(--gyre-primary) !important;
+	color: var(--gyre-primary) !important;
+}
+
+@media screen and (max-width: 996px) {
+	.heroBanner {
+		padding: 4rem 1rem;
+	}
+
+	.heroBanner h1 {
+		font-size: 2.5rem;
+	}
+
+	.heroBanner p {
+		font-size: 1.25rem;
+	}
+
+	.buttons {
+		flex-direction: column;
+		gap: 0.75rem;
+	}
 }
