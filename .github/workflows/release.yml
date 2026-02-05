@@ -46,8 +46,9 @@ jobs:
 
           Pull the Docker image:
           ```bash
-          docker pull ghcr.io/entropy0120/gyre:${{ steps.tag.outputs.tag_name }}-${GITHUB_SHA:0:7}
+          docker pull ghcr.io/entropy0120/gyre:${{ steps.tag.outputs.version }}
           docker pull ghcr.io/entropy0120/gyre:latest
+          docker pull ghcr.io/entropy0120/gyre:main
           ```
 
           ### ⎈ Kubernetes Installation
@@ -101,6 +102,6 @@ jobs:
           echo "### ✅ Release Created Successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ steps.tag.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Docker Image:** \`ghcr.io/entropy0120/gyre:${{ steps.tag.outputs.tag_name }}-${GITHUB_SHA:0:7}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Docker Image:** \`ghcr.io/entropy0120/gyre:${{ steps.tag.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/${{ steps.tag.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
