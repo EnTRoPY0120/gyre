@@ -15,6 +15,7 @@
 		kind: 'Resource',
 		group: '',
 		version: '',
+		plural: 'resources',
 		yaml: `apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -51,5 +52,5 @@ data:
 	<hr class="border-border/50" />
 
 	<!-- Wizard -->
-	<ResourceWizard template={activeTemplate} />
+	<ResourceWizard template={activeTemplate} defaultNamespace="flux-system" />
 </div>

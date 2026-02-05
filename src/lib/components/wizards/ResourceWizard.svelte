@@ -2,18 +2,31 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import YamlEditor from '$lib/components/editors/YamlEditor.svelte';
+	import ArrayField from '$lib/components/wizards/ArrayField.svelte';
+	import FieldHelp from '$lib/components/wizards/FieldHelp.svelte';
 	import type { ResourceTemplate } from '$lib/templates';
 	import { cn } from '$lib/utils';
 	import { Loader2, Check, AlertCircle, Code, ListChecks, Copy, ChevronDown } from 'lucide-svelte';
 	import yaml from 'js-yaml';
 
-	let { template }: { template: ResourceTemplate } = $props();
+	let {
+		template,
+		defaultNamespace = 'flux-system'
+	}: {
+		template: ResourceTemplate;
+		defaultNamespace?: string;
+	} = $props();
+
+	// LocalStorage key for remembering form values
+	const storageKey = $derived(`gyre-wizard-${template.id}`);
 
 	let mode = $state<'wizard' | 'yaml'>('wizard');
 	let isSubmitting = $state(false);
 	let error = $state<string | null>(null);
 	let success = $state(false);
 	let copySuccess = $state(false);
+	let validationErrors = $state<Record<string, string>>({});
+	let yamlError = $state<string | null>(null);
 
 	// Track which sections are expanded
 	let expandedSections = $state<Record<string, boolean>>({});
@@ -29,24 +42,52 @@
 		}
 	});
 
-	// Use derived for currentYaml
-	let currentYaml = $derived.by(() => template.yaml);
+	// Current YAML - starts with template YAML and can be edited
+	let currentYaml = $state('');
 
 	// Form values derived from parsing the current YAML
 	let formValues = $state<Record<string, unknown>>({});
 
-	// Update currentYaml from template
+	// Update currentYaml when template changes
 	$effect(() => {
 		currentYaml = template.yaml;
+		yamlError = null;
 	});
 
-	// Initialize form values from initial YAML
+	// Validate YAML in real-time when in YAML mode
+	$effect(() => {
+		if (mode === 'yaml' && currentYaml) {
+			try {
+				yaml.load(currentYaml);
+				yamlError = null;
+			} catch (err) {
+				if (err instanceof yaml.YAMLException) {
+					yamlError = `YAML Syntax Error: ${err.message}`;
+				} else {
+					yamlError = 'Invalid YAML syntax';
+				}
+			}
+		}
+	});
+
+	// Initialize form values from initial YAML, localStorage, and defaults
 	$effect(() => {
 		try {
 			const parsed = yaml.load(template.yaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
 			const values: Record<string, unknown> = {};
+
+			// Load saved values from localStorage
+			let savedValues: Record<string, unknown> = {};
+			try {
+				const saved = localStorage.getItem(storageKey);
+				if (saved) {
+					savedValues = JSON.parse(saved);
+				}
+			} catch {
+				// Ignore localStorage errors
+			}
 
 			template.fields.forEach((field) => {
 				const path = field.path.split('.');
@@ -58,6 +99,16 @@
 					} else {
 						current = current[path[i]] as Record<string, unknown>;
 					}
+				}
+
+				// Apply saved value if exists and field allows it
+				if (field.name in savedValues && field.name !== 'name') {
+					values[field.name] = savedValues[field.name];
+				}
+
+				// Apply default namespace
+				if (field.name === 'namespace' && defaultNamespace) {
+					values[field.name] = defaultNamespace;
 				}
 			});
 			formValues = values;
@@ -96,6 +147,7 @@
 	function updateFormFromYaml() {
 		try {
 			const parsed = yaml.load(currentYaml) as Record<string, unknown>;
+			yamlError = null;
 			const values: Record<string, unknown> = { ...formValues };
 
 			template.fields.forEach((field) => {
@@ -111,12 +163,28 @@
 				}
 			});
 			formValues = values;
-		} catch {
-			// Don't log here to avoid spamming as user types invalid YAML
+		} catch (err) {
+			if (err instanceof yaml.YAMLException) {
+				yamlError = `YAML Syntax Error: ${err.message}`;
+			} else {
+				yamlError = 'Invalid YAML syntax';
+			}
 		}
 	}
 
 	async function handleSubmit() {
+		// Check for YAML syntax errors first
+		if (yamlError) {
+			error = yamlError;
+			return;
+		}
+
+		// Validate form before submitting (only in wizard mode)
+		if (mode === 'wizard' && !validateForm()) {
+			error = 'Please fix validation errors before submitting';
+			return;
+		}
+
 		isSubmitting = true;
 		error = null;
 
@@ -124,7 +192,7 @@
 			const parsed = yaml.load(currentYaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
-			const response = await fetch(`/api/flux/${template.id.split('-')[0]}s`, {
+			const response = await fetch(`/api/flux/${template.plural}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(parsed)
@@ -136,15 +204,40 @@
 			}
 
 			success = true;
+
+			// Save form values to localStorage for next time (excluding name)
+			try {
+				const valuesToSave: Record<string, unknown> = {};
+				template.fields.forEach((field) => {
+					if (field.name !== 'name' && field.name in formValues) {
+						valuesToSave[field.name] = formValues[field.name];
+					}
+				});
+				localStorage.setItem(storageKey, JSON.stringify(valuesToSave));
+			} catch {
+				// Ignore localStorage errors
+			}
+
 			setTimeout(() => {
 				void goto(
-					`/resources/${template.id.split('-')[0]}s/${parsed.metadata?.namespace}/${parsed.metadata?.name}`
+					`/resources/${template.plural}/${parsed.metadata?.namespace}/${parsed.metadata?.name}`
 				);
 			}, 1500);
 		} catch (err) {
 			error = (err as Error).message;
 		} finally {
 			isSubmitting = false;
+		}
+	}
+
+	// Validate field on change
+	function handleFieldChange(field: (typeof template.fields)[0]) {
+		const error = validateField(field);
+		if (error) {
+			validationErrors[field.name] = error;
+		} else {
+			const { [field.name]: _, ...rest } = validationErrors;
+			validationErrors = rest;
 		}
 	}
 
@@ -175,6 +268,80 @@
 			console.error('Failed to copy YAML:', err);
 		}
 	}
+
+	// Check if a field should be visible based on its showIf condition
+	function shouldShowField(field: (typeof template.fields)[0]): boolean {
+		if (!field.showIf) return true;
+
+		const dependentValue = formValues[field.showIf.field];
+		const expectedValues = Array.isArray(field.showIf.value)
+			? field.showIf.value
+			: [field.showIf.value];
+
+		return expectedValues.includes(String(dependentValue));
+	}
+
+	// Validate a single field
+	function validateField(field: (typeof template.fields)[0]): string | null {
+		const value = formValues[field.name];
+
+		// Skip validation if field is not visible
+		if (!shouldShowField(field)) {
+			return null;
+		}
+
+		// Required field validation
+		if (field.required && (value === undefined || value === null || value === '')) {
+			return `${field.label} is required`;
+		}
+
+		// Skip further validation if field is empty and not required
+		if (!value) {
+			return null;
+		}
+
+		// Custom pattern validation
+		if (field.validation?.pattern && typeof value === 'string') {
+			const regex = new RegExp(field.validation.pattern);
+			if (!regex.test(value)) {
+				return field.validation.message || `Invalid format for ${field.label}`;
+			}
+		}
+
+		// Number range validation
+		if (field.type === 'number' && typeof value === 'number') {
+			if (field.validation?.min !== undefined && value < field.validation.min) {
+				return `${field.label} must be at least ${field.validation.min}`;
+			}
+			if (field.validation?.max !== undefined && value > field.validation.max) {
+				return `${field.label} must be at most ${field.validation.max}`;
+			}
+		}
+
+		return null;
+	}
+
+	// Validate all fields
+	function validateForm(): boolean {
+		const errors: Record<string, string> = {};
+
+		template.fields.forEach((field) => {
+			const error = validateField(field);
+			if (error) {
+				errors[field.name] = error;
+			}
+		});
+
+		validationErrors = errors;
+		return Object.keys(errors).length === 0;
+	}
+
+	// Check if form is valid (derived)
+	const isFormValid = $derived.by(() => {
+		if (yamlError) return false; // Invalid if YAML has syntax errors
+		if (mode === 'yaml') return true; // Skip field validation in YAML mode
+		return Object.keys(validationErrors).length === 0;
+	});
 
 	// Group fields by section
 	const fieldsBySection = $derived.by(() => {
@@ -271,58 +438,88 @@
 									{#if expandedSections[section.id]}
 										<div class="grid gap-6">
 											{#each sectionFields as field (field.name)}
-												<div class="flex flex-col gap-1.5">
-													<label
-														for="field-{field.name}"
-														class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-													>
-														{field.label}
-														{#if field.required}<span class="text-red-500">*</span>{/if}
-													</label>
-
-													{#if field.type === 'select'}
-														<select
-															id="field-{field.name}"
-															bind:value={formValues[field.name]}
-															class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-														>
-															{#each field.options || [] as opt (opt.value)}
-																<option value={opt.value}>{opt.label}</option>
-															{/each}
-														</select>
-													{:else if field.type === 'boolean'}
+												{#if shouldShowField(field)}
+													<div class="flex flex-col gap-1.5">
 														<div class="flex items-center gap-2">
-															<input
-																type="checkbox"
-																bind:checked={formValues[field.name] as boolean}
-																class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-															/>
-															<span class="text-sm text-muted-foreground"
-																>{field.description || ''}</span
+															<label
+																for="field-{field.name}"
+																class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
 															>
+																{field.label}
+																{#if field.required}<span class="text-red-500">*</span>{/if}
+															</label>
+															<FieldHelp helpText={field.helpText} docsUrl={field.docsUrl} />
 														</div>
-													{:else if field.type === 'textarea'}
-														<textarea
-															id="field-{field.name}"
-															bind:value={formValues[field.name] as string}
-															placeholder={field.placeholder || field.description}
-															rows="4"
-															class="flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-														></textarea>
-													{:else}
-														<input
-															id="field-{field.name}"
-															type={field.type === 'number' ? 'number' : 'text'}
-															bind:value={formValues[field.name] as string}
-															placeholder={field.placeholder || field.description}
-															class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-														/>
-													{/if}
 
-													{#if field.description && field.type !== 'boolean'}
-														<p class="text-xs text-muted-foreground">{field.description}</p>
-													{/if}
-												</div>
+														{#if field.type === 'select'}
+															<select
+																id="field-{field.name}"
+																bind:value={formValues[field.name]}
+																onchange={() => handleFieldChange(field)}
+																class={cn(
+																	'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+																	validationErrors[field.name] && 'border-red-500'
+																)}
+															>
+																{#each field.options || [] as opt (opt.value)}
+																	<option value={opt.value}>{opt.label}</option>
+																{/each}
+															</select>
+														{:else if field.type === 'boolean'}
+															<div class="flex items-center gap-2">
+																<input
+																	type="checkbox"
+																	bind:checked={formValues[field.name] as boolean}
+																	onchange={() => handleFieldChange(field)}
+																	class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+																/>
+																<span class="text-sm text-muted-foreground"
+																	>{field.description || ''}</span
+																>
+															</div>
+														{:else if field.type === 'textarea'}
+															<textarea
+																id="field-{field.name}"
+																bind:value={formValues[field.name] as string}
+																oninput={() => handleFieldChange(field)}
+																placeholder={field.placeholder || field.description}
+																rows="4"
+																class={cn(
+																	'flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+																	validationErrors[field.name] && 'border-red-500'
+																)}
+															></textarea>
+														{:else if field.type === 'array'}
+															{#if !formValues[field.name]}
+																{(formValues[field.name] = [])}
+															{/if}
+															<ArrayField
+																bind:value={formValues[field.name] as unknown[]}
+																itemType={field.arrayItemType || 'string'}
+																placeholder={field.placeholder}
+																error={validationErrors[field.name]}
+															/>
+														{:else}
+															<input
+																id="field-{field.name}"
+																type={field.type === 'number' ? 'number' : 'text'}
+																bind:value={formValues[field.name] as string}
+																oninput={() => handleFieldChange(field)}
+																placeholder={field.placeholder || field.description}
+																class={cn(
+																	'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+																	validationErrors[field.name] && 'border-red-500'
+																)}
+															/>
+														{/if}
+
+														{#if validationErrors[field.name]}
+															<p class="text-xs text-red-500">{validationErrors[field.name]}</p>
+														{:else if field.description && field.type !== 'boolean'}
+															<p class="text-xs text-muted-foreground">{field.description}</p>
+														{/if}
+													</div>
+												{/if}
 											{/each}
 										</div>
 									{/if}
@@ -334,56 +531,88 @@
 						<div class="p-6">
 							<div class="grid gap-6">
 								{#each template.fields as field (field.name)}
-									<div class="flex flex-col gap-1.5">
-										<label
-											for="field-{field.name}"
-											class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-										>
-											{field.label}
-											{#if field.required}<span class="text-red-500">*</span>{/if}
-										</label>
-
-										{#if field.type === 'select'}
-											<select
-												id="field-{field.name}"
-												bind:value={formValues[field.name]}
-												class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-											>
-												{#each field.options || [] as opt (opt.value)}
-													<option value={opt.value}>{opt.label}</option>
-												{/each}
-											</select>
-										{:else if field.type === 'boolean'}
+									{#if shouldShowField(field)}
+										<div class="flex flex-col gap-1.5">
 											<div class="flex items-center gap-2">
-												<input
-													type="checkbox"
-													bind:checked={formValues[field.name] as boolean}
-													class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-												/>
-												<span class="text-sm text-muted-foreground">{field.description || ''}</span>
+												<label
+													for="field-{field.name}"
+													class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+												>
+													{field.label}
+													{#if field.required}<span class="text-red-500">*</span>{/if}
+												</label>
+												<FieldHelp helpText={field.helpText} docsUrl={field.docsUrl} />
 											</div>
-										{:else if field.type === 'textarea'}
-											<textarea
-												id="field-{field.name}"
-												bind:value={formValues[field.name] as string}
-												placeholder={field.placeholder || field.description}
-												rows="4"
-												class="flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-											></textarea>
-										{:else}
-											<input
-												id="field-{field.name}"
-												type={field.type === 'number' ? 'number' : 'text'}
-												bind:value={formValues[field.name] as string}
-												placeholder={field.placeholder || field.description}
-												class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-											/>
-										{/if}
 
-										{#if field.description && field.type !== 'boolean'}
-											<p class="text-xs text-muted-foreground">{field.description}</p>
-										{/if}
-									</div>
+											{#if field.type === 'select'}
+												<select
+													id="field-{field.name}"
+													bind:value={formValues[field.name]}
+													onchange={() => handleFieldChange(field)}
+													class={cn(
+														'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+														validationErrors[field.name] && 'border-red-500'
+													)}
+												>
+													{#each field.options || [] as opt (opt.value)}
+														<option value={opt.value}>{opt.label}</option>
+													{/each}
+												</select>
+											{:else if field.type === 'boolean'}
+												<div class="flex items-center gap-2">
+													<input
+														type="checkbox"
+														bind:checked={formValues[field.name] as boolean}
+														onchange={() => handleFieldChange(field)}
+														class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+													/>
+													<span class="text-sm text-muted-foreground"
+														>{field.description || ''}</span
+													>
+												</div>
+											{:else if field.type === 'textarea'}
+												<textarea
+													id="field-{field.name}"
+													bind:value={formValues[field.name] as string}
+													oninput={() => handleFieldChange(field)}
+													placeholder={field.placeholder || field.description}
+													rows="4"
+													class={cn(
+														'flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+														validationErrors[field.name] && 'border-red-500'
+													)}
+												></textarea>
+											{:else if field.type === 'array'}
+												{#if !formValues[field.name]}
+													{(formValues[field.name] = [])}
+												{/if}
+												<ArrayField
+													bind:value={formValues[field.name] as unknown[]}
+													itemType={field.arrayItemType || 'string'}
+													placeholder={field.placeholder}
+													error={validationErrors[field.name]}
+												/>
+											{:else}
+												<input
+													id="field-{field.name}"
+													type={field.type === 'number' ? 'number' : 'text'}
+													bind:value={formValues[field.name] as string}
+													oninput={() => handleFieldChange(field)}
+													placeholder={field.placeholder || field.description}
+													class={cn(
+														'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
+														validationErrors[field.name] && 'border-red-500'
+													)}
+												/>
+											{/if}
+
+											{#if validationErrors[field.name]}
+												<p class="text-xs text-red-500">{validationErrors[field.name]}</p>
+											{:else if field.description && field.type !== 'boolean'}
+												<p class="text-xs text-muted-foreground">{field.description}</p>
+											{/if}
+										</div>
+									{/if}
 								{/each}
 							</div>
 						</div>
@@ -391,9 +620,10 @@
 				</div>
 			{:else}
 				<YamlEditor
-					value={currentYaml}
+					bind:value={currentYaml}
 					onCopy={copyYaml}
 					{copySuccess}
+					error={yamlError}
 					className="h-full min-h-[500px]"
 				/>
 			{/if}
@@ -407,7 +637,12 @@
 					This will create a new {template.kind} in your cluster. Make sure the configuration is correct.
 				</p>
 
-				<Button class="w-full" size="lg" disabled={isSubmitting || success} onclick={handleSubmit}>
+				<Button
+					class="w-full"
+					size="lg"
+					disabled={isSubmitting || success || (mode === 'wizard' && !isFormValid)}
+					onclick={handleSubmit}
+				>
 					{#if isSubmitting}
 						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 						Creating...

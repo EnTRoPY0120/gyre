@@ -35,6 +35,8 @@ export interface TemplateField {
 	};
 	arrayItemType?: 'string' | 'object'; // For array fields
 	arrayItemFields?: TemplateField[]; // For object array items
+	helpText?: string; // Detailed help text for the field
+	docsUrl?: string; // Link to FluxCD documentation
 }
 
 export interface TemplateSection {
@@ -105,7 +107,8 @@ spec:
 			description: 'Unique name for this GitRepository resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -119,7 +122,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -131,8 +135,11 @@ spec:
 			type: 'string',
 			required: true,
 			section: 'source',
-			placeholder: 'https://github.com/org/repo',
+			placeholder: 'https://github.com/fluxcd/flux2',
 			description: 'Git repository URL (https://, ssh://, or git@)',
+			helpText:
+				'The Git repository URL to sync from. Supports HTTPS (with optional basic auth), SSH (requires secretRef), and GitHub App authentication.',
+			docsUrl: 'https://fluxcd.io/flux/components/source/gitrepositories/#url',
 			validation: {
 				pattern: '^(https?://|ssh://|git@)',
 				message: 'URL must start with https://, http://, ssh://, or git@'
@@ -224,9 +231,13 @@ spec:
 			default: '1m',
 			placeholder: '1m',
 			description: 'How often to check for repository changes (e.g., 1m, 1m30s, 1h30m)',
+			helpText:
+				'The interval at which to check the upstream repository for changes. Uses Go duration format: 1h30m, 5m, 30s, etc.',
+			docsUrl: 'https://fluxcd.io/flux/components/source/gitrepositories/#interval',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
-				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 
@@ -343,7 +354,8 @@ spec:
 			description: 'Unique name for this HelmRepository resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -357,7 +369,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -423,7 +436,8 @@ spec:
 			description: 'How often to check for new chart versions',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
-				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 
@@ -435,7 +449,8 @@ spec:
 			type: 'string',
 			section: 'auth',
 			placeholder: 'helm-repo-credentials',
-			description: 'Secret containing authentication credentials (username/password or certFile/keyFile)'
+			description:
+				'Secret containing authentication credentials (username/password or certFile/keyFile)'
 		},
 		{
 			name: 'passCredentials',
@@ -541,7 +556,8 @@ spec:
 			description: 'Unique name for this Kustomization resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -555,7 +571,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -618,7 +635,8 @@ spec:
 			description: 'How often to reconcile the Kustomization',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
-				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 		{
@@ -776,7 +794,8 @@ spec:
 			description: 'Unique name for this HelmRelease resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -790,7 +809,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -863,7 +883,8 @@ spec:
 			description: 'How often to reconcile the release',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
-				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 		{
@@ -1004,7 +1025,8 @@ spec:
 			description: 'Unique name for this HelmChart resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -1018,7 +1040,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -1080,7 +1103,8 @@ spec:
 			description: 'How often to check for new chart versions',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
-				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 
@@ -1166,7 +1190,8 @@ spec:
 			description: 'Unique name for this Bucket resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -1180,7 +1205,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -1242,7 +1268,8 @@ spec:
 			description: 'How often to check for changes',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
-				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 
@@ -1361,7 +1388,8 @@ spec:
 			description: 'Unique name for this OCIRepository resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -1375,7 +1403,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -1464,7 +1493,8 @@ spec:
 			description: 'How often to check for changes',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
-				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 
@@ -1571,7 +1601,8 @@ spec:
 			description: 'Unique name for this Alert resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -1585,7 +1616,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -1682,7 +1714,8 @@ spec:
 			description: 'Unique name for this Provider resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -1696,7 +1729,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -1801,7 +1835,8 @@ spec:
 			description: 'Unique name for this Receiver resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -1815,7 +1850,8 @@ spec:
 			description: 'Namespace where the resource will be created',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 
@@ -1909,7 +1945,8 @@ spec:
 			description: 'Unique name for this ImageRepository resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -1922,7 +1959,8 @@ spec:
 			default: 'flux-system',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -1946,7 +1984,8 @@ spec:
 			description: 'How often to scan for new images',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
-				message: 'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 		{
@@ -2016,7 +2055,8 @@ spec:
 			description: 'Unique name for this ImagePolicy resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -2029,7 +2069,8 @@ spec:
 			default: 'flux-system',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -2141,7 +2182,8 @@ spec:
 			description: 'Unique name for this resource',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -2154,7 +2196,8 @@ spec:
 			default: 'flux-system',
 			validation: {
 				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
-				message: 'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
 			}
 		},
 		{
@@ -2209,9 +2252,7 @@ spec:
 			type: 'select',
 			section: 'update',
 			default: 'Setters',
-			options: [
-				{ label: 'Setters', value: 'Setters' }
-			],
+			options: [{ label: 'Setters', value: 'Setters' }],
 			description: 'Strategy for updating images'
 		},
 		{
