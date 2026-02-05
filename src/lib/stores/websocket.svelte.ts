@@ -18,6 +18,7 @@ export interface ResourceEvent {
 			conditions?: Array<{
 				type: string;
 				status: string;
+				reason?: string;
 				message?: string;
 			}>;
 		};
@@ -41,6 +42,10 @@ export interface NotificationMessage {
 type EventCallback = (event: ResourceEvent) => void;
 type StatusCallback = (status: ConnectionStatus) => void;
 
+const NOTIFICATIONS_STORAGE_KEY = 'gyre_notifications';
+const NOTIFICATION_STATE_STORAGE_KEY = 'gyre_notification_state';
+const MAX_STORED_NOTIFICATIONS = 100;
+
 class RealtimeStore {
 	private eventSource: EventSource | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -50,10 +55,64 @@ class RealtimeStore {
 	private eventCallbacks: Set<EventCallback> = new Set();
 	private statusCallbacks: Set<StatusCallback> = new Set();
 
+	// Notification state cache to prevent duplicate notifications
+	// Key: `${resourceType}/${namespace}/${name}`, Value: `${readyStatus}/${readyMessageHash}`
+	private lastNotificationState: Map<string, string> = new Map();
+
 	// Reactive state using Svelte 5 runes
 	status = $state<ConnectionStatus>('disconnected');
 	notifications = $state<NotificationMessage[]>([]);
 	unreadCount = $derived(this.notifications.filter((n) => !n.read).length);
+
+	constructor() {
+		// Load persisted notifications and state on initialization (browser only)
+		if (typeof window !== 'undefined') {
+			this.loadFromStorage();
+		}
+	}
+
+	private loadFromStorage() {
+		try {
+			// Load notifications
+			const storedNotifications = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+			if (storedNotifications) {
+				const parsed = JSON.parse(storedNotifications);
+				// Convert timestamp strings back to Date objects
+				this.notifications = parsed.map((n: NotificationMessage) => ({
+					...n,
+					timestamp: new Date(n.timestamp)
+				}));
+			}
+
+			// Load notification state cache
+			const storedState = localStorage.getItem(NOTIFICATION_STATE_STORAGE_KEY);
+			if (storedState) {
+				const parsed = JSON.parse(storedState);
+				this.lastNotificationState = new Map(parsed);
+			}
+		} catch (err) {
+			console.error('[Storage] Failed to load persisted notifications:', err);
+			// Clear corrupted data
+			localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
+			localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
+		}
+	}
+
+	private saveToStorage() {
+		if (typeof window === 'undefined') return;
+
+		try {
+			// Save only the most recent notifications to avoid localStorage quota issues
+			const toSave = this.notifications.slice(0, MAX_STORED_NOTIFICATIONS);
+			localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(toSave));
+
+			// Save notification state cache
+			const stateArray = Array.from(this.lastNotificationState.entries());
+			localStorage.setItem(NOTIFICATION_STATE_STORAGE_KEY, JSON.stringify(stateArray));
+		} catch (err) {
+			console.error('[Storage] Failed to persist notifications:', err);
+		}
+	}
 
 	connect() {
 		if (this.eventSource?.readyState === EventSource.OPEN) {
@@ -160,6 +219,53 @@ class RealtimeStore {
 	private addNotification(event: ResourceEvent) {
 		if (!event.resource || !event.resourceType) return;
 
+		const resourceKey = `${event.resourceType}/${event.resource.metadata.namespace}/${event.resource.metadata.name}`;
+		const readyCondition = event.resource.status?.conditions?.find((c) => c.type === 'Ready');
+
+		// Build a state signature matching server-side logic
+		// Focus on actual meaningful changes: revision/SHA, ready state, and message preview
+		const revision = this.getRevisionFromResource(event.resource);
+		const messagePreview = readyCondition?.message?.substring(0, 100) || '';
+
+		// Match the server-side notificationState structure
+		const currentState = JSON.stringify({
+			type: event.type, // Include event type in client state
+			revision: revision,
+			readyStatus: readyCondition?.status,
+			readyReason: readyCondition?.reason,
+			messagePreview: messagePreview
+		});
+
+		const previousState = this.lastNotificationState.get(resourceKey);
+
+		// Skip notification if this exact state was already notified
+		// Exception: Always notify ADDED and DELETED events
+		if (event.type === 'MODIFIED' && previousState === currentState) {
+			// This is a duplicate notification - same resource in same state
+			const parsedState = JSON.parse(currentState);
+			console.log(
+				`[Notification] Skipping duplicate for ${resourceKey}: state unchanged (revision: ${parsedState.revision || 'none'})`
+			);
+			return;
+		}
+
+		// Update the state cache (will be persisted with notification)
+		this.lastNotificationState.set(resourceKey, currentState);
+
+		// Log state change for debugging
+		if (previousState) {
+			const prevParsed = JSON.parse(previousState);
+			const currParsed = JSON.parse(currentState);
+			console.log(
+				`[Notification] State change for ${resourceKey}: revision "${prevParsed.revision || 'none'}" -> "${currParsed.revision || 'none'}", ready: ${currParsed.readyStatus}`
+			);
+		} else {
+			const currParsed = JSON.parse(currentState);
+			console.log(
+				`[Notification] New notification for ${resourceKey}: ${event.type}, revision: ${currParsed.revision || 'none'}`
+			);
+		}
+
 		const notification: NotificationMessage = {
 			id: crypto.randomUUID(),
 			type: this.getNotificationType(event),
@@ -174,6 +280,9 @@ class RealtimeStore {
 
 		// Add to beginning of array and limit to 50 notifications
 		this.notifications = [notification, ...this.notifications.slice(0, 49)];
+
+		// Persist to localStorage
+		this.saveToStorage();
 	}
 
 	private getNotificationType(event: ResourceEvent): NotificationMessage['type'] {
@@ -217,6 +326,17 @@ class RealtimeStore {
 		return `${name} in ${namespace}`;
 	}
 
+	private getRevisionFromResource(resource: ResourceEvent['resource']): string | undefined {
+		if (!resource) return undefined;
+		const status = resource.status as Record<string, unknown> | undefined;
+		if (!status) return undefined;
+		return (
+			(status.lastAppliedRevision as string) ||
+			((status.artifact as Record<string, unknown>)?.revision as string) ||
+			(status.lastAttemptedRevision as string)
+		);
+	}
+
 	private notifyStatusChange(status: ConnectionStatus) {
 		this.statusCallbacks.forEach((callback) => {
 			try {
@@ -246,21 +366,26 @@ class RealtimeStore {
 	// Mark notification as read
 	markAsRead(id: string) {
 		this.notifications = this.notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
+		this.saveToStorage();
 	}
 
 	// Mark all as read
 	markAllAsRead() {
 		this.notifications = this.notifications.map((n) => ({ ...n, read: true }));
+		this.saveToStorage();
 	}
 
 	// Clear all notifications
 	clearAll() {
 		this.notifications = [];
+		this.lastNotificationState.clear();
+		this.saveToStorage();
 	}
 
 	// Remove a specific notification
 	removeNotification(id: string) {
 		this.notifications = this.notifications.filter((n) => n.id !== id);
+		this.saveToStorage();
 	}
 }
 

@@ -10,6 +10,23 @@ const WATCH_RESOURCES: FluxResourceType[] = [
 	'HelmRelease'
 ];
 
+// Global state tracking to persist across SSE connections
+// This prevents duplicate notifications when clients reconnect
+const globalLastStates: Map<string, string> = new Map();
+const globalLastNotificationStates: Map<string, string> = new Map();
+const resourceFirstSeen: Map<string, number> = new Map();
+const SETTLING_PERIOD_MS = 30000; // Don't notify for 30s after first seeing a resource
+
+// Helper to extract revision/SHA from resource status
+function getResourceRevision(resource: any): string {
+	return (
+		resource.status?.lastAppliedRevision ||
+		resource.status?.artifact?.revision ||
+		resource.status?.lastAttemptedRevision ||
+		''
+	);
+}
+
 export const GET: RequestHandler = async ({ request }) => {
 	// Create a ReadableStream for SSE
 	const stream = new ReadableStream({
@@ -28,8 +45,7 @@ export const GET: RequestHandler = async ({ request }) => {
 			}
 
 			// Set up polling interval (since Kubernetes watch API requires persistent connection)
-			// For MVP, we'll poll every 10 seconds and send updates
-			const lastStates: Map<string, string> = new Map();
+			// Use global maps for state tracking to persist across reconnections
 			let isActive = true;
 
 			const pollResources = async () => {
@@ -37,10 +53,6 @@ export const GET: RequestHandler = async ({ request }) => {
 
 				try {
 					for (const resourceType of WATCH_RESOURCES) {
-						// Note: listFluxResources returns the raw item list, not { success: true, resources: [...] }
-						// as I incorrectly assumed in the previous implementation.
-						// Checking client.ts: return response as unknown as FluxResourceList;
-						// FluxResourceList has { items: [] } structure.
 						const resourceList = await listFluxResources(resourceType);
 
 						if (resourceList && resourceList.items) {
@@ -51,8 +63,6 @@ export const GET: RequestHandler = async ({ request }) => {
 								currentMessageKeys.add(key);
 
 								// Extract only relevant status fields to avoid noisy notifications
-								// Extract only relevant status fields to avoid noisy notifications
-								// We exclude timestamps (lastTransitionTime, lastUpdateTime) from the comparison
 								const conditions = resource.status?.conditions?.map(
 									(c: { type: string; status: string; reason?: string; message?: string }) => ({
 										type: c.type,
@@ -62,71 +72,161 @@ export const GET: RequestHandler = async ({ request }) => {
 									})
 								);
 
+								// Use resourceVersion as the primary indicator of change
 								const currentState = JSON.stringify({
-									conditions,
-									observedGeneration: resource.status?.observedGeneration,
-									// Track revision changes
-									revision:
-										resource.status?.lastAppliedRevision ||
-										resource.status?.artifact?.revision ||
-										resource.status?.lastAttemptedRevision
+									resourceVersion: resource.metadata?.resourceVersion,
+									generation: resource.metadata?.generation,
+									observedGeneration: resource.status?.observedGeneration
 								});
 
-								const previousState = lastStates.get(key);
+								// For MODIFIED events, track "notification-worthy" state separately
+								// Focus on actual meaningful changes: revision/SHA and ready state
+								const readyCondition = conditions?.find(
+									(c: { type: string }) => c.type === 'Ready'
+								);
+								const revision = getResourceRevision(resource);
+
+								// Build a stable notification state that focuses on actual changes
+								const notificationState = JSON.stringify({
+									revision: revision, // Primary indicator of actual change
+									readyStatus: readyCondition?.status,
+									readyReason: readyCondition?.reason,
+									// Include first 100 chars of message to detect meaningful message changes
+									messagePreview: readyCondition?.message?.substring(0, 100) || ''
+								});
+
+								const previousState = globalLastStates.get(key);
+
+								// Track when we first saw this resource
+								const now = Date.now();
+								if (!resourceFirstSeen.has(key)) {
+									resourceFirstSeen.set(key, now);
+								}
+								const firstSeen = resourceFirstSeen.get(key) || now;
+								const isSettled = now - firstSeen > SETTLING_PERIOD_MS;
 
 								// Detect ADDED
-								if (!previousState && lastStates.size > 0) {
-									const event = {
-										type: 'ADDED',
-										resourceType,
-										resource: {
-											metadata: {
-												name: resource.metadata.name,
-												namespace: resource.metadata.namespace,
-												uid: resource.metadata.uid || 'unknown'
+								if (!previousState) {
+									// Only notify if settled (not during initial load)
+									if (isSettled) {
+										console.log(
+											`[SSE] ADDED: ${key} with revision ${revision || 'none'}`
+										);
+										const event = {
+											type: 'ADDED',
+											resourceType,
+											resource: {
+												metadata: {
+													name: resource.metadata.name,
+													namespace: resource.metadata.namespace,
+													uid: resource.metadata.uid || 'unknown'
+												},
+												status: resource.status
 											},
-											status: resource.status
-										},
-										timestamp: new Date().toISOString()
-									};
-									const msg = `data: ${JSON.stringify(event)}\n\n`;
-									try {
-										controller.enqueue(new TextEncoder().encode(msg));
-									} catch {
-										// Controller may be closed, ignore
+											timestamp: new Date().toISOString()
+										};
+										const msg = `data: ${JSON.stringify(event)}\n\n`;
+										try {
+											controller.enqueue(new TextEncoder().encode(msg));
+										} catch {
+											// Controller may be closed, ignore
+										}
+									} else {
+										console.log(
+											`[SSE] INITIAL: ${key} with revision ${revision || 'none'} (settling period)`
+										);
 									}
+									// Always update state cache, even during settling period
+									globalLastNotificationStates.set(key, notificationState);
 								}
 								// Detect MODIFIED
 								else if (previousState && previousState !== currentState) {
-									const event = {
-										type: 'MODIFIED',
-										resourceType,
-										resource: {
-											metadata: {
-												name: resource.metadata.name,
-												namespace: resource.metadata.namespace,
-												uid: resource.metadata.uid || 'unknown'
-											},
-											status: resource.status
-										},
-										timestamp: new Date().toISOString()
-									};
+									const previousNotificationState = globalLastNotificationStates.get(key);
 
-									const msg = `data: ${JSON.stringify(event)}\n\n`;
-									try {
-										controller.enqueue(new TextEncoder().encode(msg));
-									} catch {
-										// Controller may be closed, ignore
+									// Only send MODIFIED event if the notification-worthy state changed
+									if (
+										!previousNotificationState ||
+										previousNotificationState !== notificationState
+									) {
+										// Parse to see what actually changed
+										const prevState = previousNotificationState
+											? JSON.parse(previousNotificationState)
+											: {};
+										const currState = JSON.parse(notificationState);
+
+										// Determine if this is a meaningful change worth notifying about
+										const revisionChanged = prevState.revision !== currState.revision;
+										const becameFailed = currState.readyStatus === 'False';
+										const becameHealthy =
+											prevState.readyStatus === 'False' && currState.readyStatus === 'True';
+										const isTransientState = currState.readyStatus === 'Unknown';
+
+										// Only notify if:
+										// 1. Revision actually changed (new deployment), OR
+										// 2. Status changed to False (failure), OR
+										// 3. Recovered from False to True (recovery)
+										// Skip notifications for transient "Unknown" states during reconciliation
+										const shouldNotify =
+											revisionChanged || becameFailed || (becameHealthy && revisionChanged);
+
+										if (shouldNotify && !isTransientState) {
+											console.log(
+												`[SSE] MODIFIED: ${key} - revision changed from "${prevState.revision || 'none'}" to "${currState.revision || 'none'}", ready: ${currState.readyStatus}`
+											);
+
+											const event = {
+												type: 'MODIFIED',
+												resourceType,
+												resource: {
+													metadata: {
+														name: resource.metadata.name,
+														namespace: resource.metadata.namespace,
+														uid: resource.metadata.uid || 'unknown'
+													},
+													status: resource.status
+												},
+												timestamp: new Date().toISOString()
+											};
+
+											const msg = `data: ${JSON.stringify(event)}\n\n`;
+											try {
+												controller.enqueue(new TextEncoder().encode(msg));
+											} catch {
+												// Controller may be closed, ignore
+											}
+										} else {
+											// Skipping transient or non-meaningful state change
+											const reason = isTransientState
+												? 'transient Unknown state'
+												: !revisionChanged
+													? 'revision unchanged'
+													: 'non-critical state change';
+											console.log(
+												`[SSE] SKIPPED: ${key} - ${reason} (revision: ${currState.revision || 'none'}, ready: ${currState.readyStatus})`
+											);
+										}
+
+										// Always update the notification state cache
+										globalLastNotificationStates.set(key, notificationState);
+									} else {
+										// State changed but notification-worthy state didn't
+										// This is expected for metadata-only changes
+										const currState = JSON.parse(notificationState);
+										console.log(
+											`[SSE] SKIPPED: ${key} - state changed but notification-worthy fields unchanged (revision: ${currState.revision || 'none'})`
+										);
 									}
 								}
 
-								lastStates.set(key, currentState);
+								globalLastStates.set(key, currentState);
 							}
 
 							// Detect DELETED
-							for (const key of lastStates.keys()) {
+							for (const key of globalLastStates.keys()) {
 								if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
 									const [type, namespace, name] = key.split('/');
+
+									console.log(`[SSE] DELETED: ${key}`);
 
 									const event = {
 										type: 'DELETED',
@@ -147,7 +247,9 @@ export const GET: RequestHandler = async ({ request }) => {
 										// Controller may be closed, ignore
 									}
 
-									lastStates.delete(key);
+									globalLastStates.delete(key);
+									globalLastNotificationStates.delete(key);
+									resourceFirstSeen.delete(key);
 								}
 							}
 						}
