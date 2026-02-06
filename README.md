@@ -91,7 +91,14 @@ Comprehensive documentation is available at **[entropy0120.github.io/gyre](https
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](https://entropy0120.github.io/gyre/contributing) for details.
+We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details on:
+
+- Branch naming conventions
+- Commit message standards
+- Code quality requirements
+- Pull request process
+
+You can also view the guide in our [online documentation](https://entropy0120.github.io/gyre/contributing).
 
 ---
 
