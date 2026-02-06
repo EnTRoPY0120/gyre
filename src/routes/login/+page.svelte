@@ -7,12 +7,19 @@
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
+	let localLoginEnabled = $derived(data.localLoginEnabled ?? true);
 
 	let username = $state('');
 	let password = $state('');
 	let showPassword = $state(false);
 	let loading = $state(false);
 	let errors = $state<Record<string, string>>({});
+
+	// Determine what to show
+	let hasProviders = $derived(providers.length > 0);
+	let showLocalLogin = $derived(hasProviders ? localLoginEnabled : true);
+	let showProviders = $derived(hasProviders);
+	let hasAnyAuth = $derived(showLocalLogin || showProviders);
 
 	// Handle query parameters for messages
 	$effect(() => {
@@ -143,91 +150,42 @@
 		<div
 			class="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-8 shadow-2xl backdrop-blur-xl transition-all duration-500 hover:border-slate-600/50"
 		>
-			<form onsubmit={handleLogin} class="space-y-6">
-				<div class="space-y-2">
-					<label for="username" class="text-sm font-medium text-slate-300">Username</label>
-					<input
-						id="username"
-						type="text"
-						bind:value={username}
-						placeholder="Enter your username"
-						required
-						class="w-full rounded-lg border bg-slate-700/50 px-4 py-3 text-white placeholder-slate-500 transition-all outline-none focus:ring-2 {errors.username
-							? 'border-red-500/50 focus:ring-red-500/20'
-							: 'border-slate-600/50 focus:border-amber-500/50 focus:ring-amber-500/20'}"
-					/>
-				</div>
-
-				<div class="space-y-2">
-					<label for="password" class="text-sm font-medium text-slate-300">Password</label>
-					<div class="relative">
-						<input
-							id="password"
-							type={showPassword ? 'text' : 'password'}
-							bind:value={password}
-							placeholder="Enter your password"
-							required
-							class="w-full rounded-lg border bg-slate-700/50 px-4 py-3 pr-12 text-white placeholder-slate-500 transition-all outline-none focus:ring-2 {errors.password
-								? 'border-red-500/50 focus:ring-red-500/20'
-								: 'border-slate-600/50 focus:border-amber-500/50 focus:ring-amber-500/20'}"
-						/>
-						<button
-							type="button"
-							onclick={() => (showPassword = !showPassword)}
-							class="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-300"
-							aria-label={showPassword ? 'Hide password' : 'Show password'}
-						>
-							{#if showPassword}
-								<EyeOff size={20} />
-							{:else}
-								<Eye size={20} />
-							{/if}
-						</button>
-					</div>
-				</div>
-
-				<button
-					type="submit"
-					disabled={loading}
-					class="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-3 font-semibold text-slate-900 shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-amber-500 hover:shadow-amber-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-				>
+			{#if !hasAnyAuth}
+				<!-- No authentication methods configured -->
+				<div class="space-y-4 text-center">
 					<div
-						class="absolute inset-0 translate-y-full bg-white/10 transition-transform duration-300 group-hover:translate-y-0"
-					></div>
-					{#if loading}
-						<span class="relative flex items-center justify-center gap-2">
-							<Loader2 size={20} class="animate-spin" />
-							Signing in...
-						</span>
-					{:else}
-						<span class="relative flex items-center justify-center gap-2">
-							<LogIn size={20} class="transition-transform group-hover:translate-x-1" />
-							Sign In
-						</span>
-					{/if}
-				</button>
-			</form>
-
-			<!-- SSO Providers -->
-			{#if providers.length > 0}
-				<div class="mt-6">
-					<div class="relative">
-						<div class="absolute inset-0 flex items-center">
-							<div class="w-full border-t border-slate-600"></div>
-						</div>
-						<div class="relative flex justify-center text-sm">
-							<span class="bg-slate-800/50 px-3 text-slate-400">Or continue with</span>
-						</div>
+						class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10"
+					>
+						<svg
+							class="h-8 w-8 text-red-500"
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+							/>
+						</svg>
 					</div>
-
-					<div class="mt-6 space-y-3">
+					<h3 class="text-lg font-semibold text-white">No Authentication Methods</h3>
+					<p class="text-sm text-slate-400">
+						No authentication methods are currently configured. Please contact your administrator.
+					</p>
+				</div>
+			{:else}
+				<!-- SSO Providers (shown first if available) -->
+				{#if showProviders}
+					<div class="space-y-3">
 						{#each providers as provider (provider.id)}
 							<button
 								type="button"
 								onclick={() => handleSSOLogin(provider.id)}
 								class="flex w-full items-center justify-center gap-3 rounded-lg bg-gradient-to-r {getProviderColor(
 									provider.type
-								)} px-4 py-3 font-medium text-white shadow-lg transition-all active:scale-[0.98]"
+								)} px-4 py-4 font-medium text-white shadow-lg transition-all active:scale-[0.98]"
 							>
 								{#if getProviderIcon(provider.type) === 'google'}
 									<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -279,11 +237,95 @@
 										/>
 									</svg>
 								{/if}
-								<span>Sign in with {provider.name}</span>
+								<span>Continue with {provider.name}</span>
 							</button>
 						{/each}
 					</div>
-				</div>
+				{/if}
+
+				<!-- Divider (only if both methods available) -->
+				{#if showProviders && showLocalLogin}
+					<div class="my-6">
+						<div class="relative">
+							<div class="absolute inset-0 flex items-center">
+								<div class="w-full border-t border-slate-600"></div>
+							</div>
+							<div class="relative flex justify-center text-sm">
+								<span class="bg-slate-800/50 px-3 text-slate-400"
+									>Or sign in with local account</span
+								>
+							</div>
+						</div>
+					</div>
+				{/if}
+
+				<!-- Local Login Form -->
+				{#if showLocalLogin}
+					<form onsubmit={handleLogin} class="space-y-6">
+						<div class="space-y-2">
+							<label for="username" class="text-sm font-medium text-slate-300">Username</label>
+							<input
+								id="username"
+								type="text"
+								bind:value={username}
+								placeholder="Enter your username"
+								required
+								class="w-full rounded-lg border bg-slate-700/50 px-4 py-3 text-white placeholder-slate-500 transition-all outline-none focus:ring-2 {errors.username
+									? 'border-red-500/50 focus:ring-red-500/20'
+									: 'border-slate-600/50 focus:border-amber-500/50 focus:ring-amber-500/20'}"
+							/>
+						</div>
+
+						<div class="space-y-2">
+							<label for="password" class="text-sm font-medium text-slate-300">Password</label>
+							<div class="relative">
+								<input
+									id="password"
+									type={showPassword ? 'text' : 'password'}
+									bind:value={password}
+									placeholder="Enter your password"
+									required
+									class="w-full rounded-lg border bg-slate-700/50 px-4 py-3 pr-12 text-white placeholder-slate-500 transition-all outline-none focus:ring-2 {errors.password
+										? 'border-red-500/50 focus:ring-red-500/20'
+										: 'border-slate-600/50 focus:border-amber-500/50 focus:ring-amber-500/20'}"
+								/>
+								<button
+									type="button"
+									onclick={() => (showPassword = !showPassword)}
+									class="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-300"
+									aria-label={showPassword ? 'Hide password' : 'Show password'}
+								>
+									{#if showPassword}
+										<EyeOff size={20} />
+									{:else}
+										<Eye size={20} />
+									{/if}
+								</button>
+							</div>
+						</div>
+
+						<button
+							type="submit"
+							disabled={loading}
+							class="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-3 font-semibold text-slate-900 shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-amber-500 hover:shadow-amber-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+						>
+							<div
+								class="absolute inset-0 translate-y-full bg-white/10 transition-transform duration-300 group-hover:translate-y-0"
+							></div>
+							{#if loading}
+								<span class="relative flex items-center justify-center gap-2">
+									<Loader2 size={20} class="animate-spin" />
+									Signing in...
+								</span>
+							{:else}
+								<span class="relative flex items-center justify-center gap-2">
+									<LogIn size={20} class="transition-transform group-hover:translate-x-1" />
+									Sign In
+								</span>
+							{/if}
+						</button>
+					</form>
+				{/if}
 			{/if}
 		</div>
 	</div>

@@ -135,3 +135,46 @@ encryption:
   # Existing secret name containing encryption keys
   # Keys in secret should be named GYRE_ENCRYPTION_KEY and AUTH_ENCRYPTION_KEY
   existingSecret: ""
+
+# Authentication configuration
+auth:
+  # Enable/disable local username+password login
+  localLoginEnabled: true
+  # Allow new user registration via OAuth (if false, only existing users can log in)
+  allowSignup: true
+  # Restrict OAuth signup to specific email domains (empty = allow all)
+  domainAllowlist: []
+  # OAuth/OIDC providers to seed on startup
+  # These are created if they don't exist, but won't overwrite admin UI changes
+  providers: []
+  # Example providers:
+  # providers:
+  #   - name: "GitHub"
+  #     type: "oauth2-github"
+  #     clientId: "your-client-id"
+  #     clientSecret: "your-client-secret"  # Will be encrypted at rest
+  #     enabled: true
+  #     autoProvision: true
+  #     defaultRole: "viewer"
+  #   - name: "Google"
+  #     type: "oauth2-google"
+  #     clientId: "your-client-id"
+  #     clientSecret: "your-client-secret"
+  #     enabled: true
+  #     autoProvision: true
+  #     defaultRole: "viewer"
+  #   - name: "Corporate SSO"
+  #     type: "oidc"
+  #     clientId: "your-client-id"
+  #     clientSecret: "your-client-secret"
+  #     issuerUrl: "https://idp.company.com"
+  #     enabled: true
+  #     autoProvision: true
+  #     defaultRole: "viewer"
+  #     scopes: "openid profile email groups"
+  #     roleClaim: "groups"
+  #     roleMapping: '{"admin":["DevOps"],"editor":["Developers"]}'
+  # Provider secrets from existing Kubernetes Secret (recommended for production)
+  # If set, clientSecret values in providers[] are ignored
+  # Secret should have keys like: PROVIDER_0_CLIENT_SECRET, PROVIDER_1_CLIENT_SECRET, etc.
+  providersExistingSecret: ""

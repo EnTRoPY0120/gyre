@@ -10,6 +10,15 @@ import { generateUserId } from '$lib/server/auth';
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
 import type { OAuthUserInfo } from './oauth/types';
 import { eq, and } from 'drizzle-orm';
+import { getAuthSettings } from '../settings.js';
+
+/**
+ * SSO User Creation Result
+ */
+export interface SSOUserResult {
+	user: User | null;
+	reason?: 'signup_disabled' | 'domain_not_allowed' | 'auto_provision_disabled';
+}
 
 /**
  * Create or update a user from SSO login.
@@ -19,13 +28,13 @@ import { eq, and } from 'drizzle-orm';
  * @param providerId - Auth provider ID
  * @param userInfo - User information from IdP
  * @param providerConfig - Provider configuration
- * @returns User object or null if auto-provisioning disabled
+ * @returns User object or null if auto-provisioning disabled, with optional reason
  */
 export async function createOrUpdateSSOUser(
 	providerId: string,
 	userInfo: OAuthUserInfo,
 	providerConfig: AuthProvider
-): Promise<User | null> {
+): Promise<SSOUserResult> {
 	const db = await getDb();
 
 	// Check if user already exists via provider link
@@ -50,15 +59,42 @@ export async function createOrUpdateSSOUser(
 			where: eq(users.id, existingLink.userId)
 		});
 
-		return user || null;
+		return { user: user || null };
 	}
 
-	// User doesn't exist - check if auto-provisioning is enabled
+	// User doesn't exist - check auth settings and provider config
+	const authSettings = await getAuthSettings();
+
+	// Check if signup is allowed
+	if (!authSettings.allowSignup) {
+		console.log(`Signup disabled, user ${userInfo.sub} not allowed to register`);
+		return { user: null, reason: 'signup_disabled' };
+	}
+
+	// Check if auto-provisioning is enabled for this provider
 	if (!providerConfig.autoProvision) {
 		console.log(
 			`Auto-provisioning disabled for provider ${providerId}, user ${userInfo.sub} not found`
 		);
-		return null;
+		return { user: null, reason: 'auto_provision_disabled' };
+	}
+
+	// Extract username and email from user info
+	const username = extractUsername(userInfo, providerConfig);
+	const email = extractEmail(userInfo, providerConfig);
+
+	// Check domain allowlist (only for new users)
+	if (authSettings.domainAllowlist.length > 0) {
+		if (!email) {
+			console.log(`No email found for user ${userInfo.sub}, cannot verify domain`);
+			return { user: null, reason: 'domain_not_allowed' };
+		}
+
+		const domain = email.split('@')[1]?.toLowerCase();
+		if (!domain || !authSettings.domainAllowlist.includes(domain)) {
+			console.log(`Domain ${domain} not in allowlist for user ${userInfo.sub}`);
+			return { user: null, reason: 'domain_not_allowed' };
+		}
 	}
 
 	// Auto-provision new user
@@ -67,10 +103,6 @@ export async function createOrUpdateSSOUser(
 		providerConfig.roleMapping,
 		providerConfig.defaultRole
 	);
-
-	// Extract username and email from user info
-	const username = extractUsername(userInfo, providerConfig);
-	const email = extractEmail(userInfo, providerConfig);
 
 	// Check if username already exists (shouldn't happen, but handle it)
 	let finalUsername = username;
@@ -122,7 +154,7 @@ export async function createOrUpdateSSOUser(
 		`Auto-provisioned new SSO user: ${finalUsername} (${email}) with role ${role} from provider ${providerId}`
 	);
 
-	return user;
+	return { user };
 }
 
 /**
