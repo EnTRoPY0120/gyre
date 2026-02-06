@@ -121,3 +121,17 @@ admin:
   autoGenerate: true
   # Name of the secret containing the initial admin password
   secretName: gyre-initial-admin-secret
+
+# Encryption configuration
+# Keys must be 64-character hexadecimal strings (32 bytes)
+# Generate with: openssl rand -hex 32
+encryption:
+  # Key for encrypting cluster kubeconfigs
+  # It is HIGHLY recommended to provide this via an existing secret in production
+  gyreKey: ""
+  # Key for encrypting OAuth client secrets
+  # It is HIGHLY recommended to provide this via an existing secret in production
+  authKey: ""
+  # Existing secret name containing encryption keys
+  # Keys in secret should be named GYRE_ENCRYPTION_KEY and AUTH_ENCRYPTION_KEY
+  existingSecret: ""

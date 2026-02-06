@@ -56,6 +56,27 @@ spec:
           value: production
         - name: ORIGIN
           value: "http://{{ include "gyre.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
+        {{- if .Values.encryption.existingSecret }}
+        - name: GYRE_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.encryption.existingSecret }}
+              key: GYRE_ENCRYPTION_KEY
+        - name: AUTH_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.encryption.existingSecret }}
+              key: AUTH_ENCRYPTION_KEY
+        {{- else }}
+        {{- if .Values.encryption.gyreKey }}
+        - name: GYRE_ENCRYPTION_KEY
+          value: {{ .Values.encryption.gyreKey | quote }}
+        {{- end }}
+        {{- if .Values.encryption.authKey }}
+        - name: AUTH_ENCRYPTION_KEY
+          value: {{ .Values.encryption.authKey | quote }}
+        {{- end }}
+        {{- end }}
       volumes:
       - name: data
         {{- if .Values.persistence.enabled }}
