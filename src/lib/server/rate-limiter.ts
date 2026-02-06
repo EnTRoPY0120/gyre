@@ -107,8 +107,10 @@ export class RateLimiter {
 const limiter = new RateLimiter();
 
 /**
- * tryCheckRateLimit is a helper to check rate limits without throwing.
- * Useful when you want to handle the error yourself (e.g. redirecting).
+ * Check a key's sliding-window rate limit, set standard rate-limit headers, and return the result without throwing.
+ *
+ * @param event - An object with a `setHeaders` method used to apply `X-RateLimit-*` and `Retry-After` headers
+ * @returns The rate limit check result: `limited` is `true` if the request exceeds the limit, `remaining` is the number of requests left in the window, `resetAt` is the epoch milliseconds when the current window ends, and `retryAfter` is the number of seconds the client should wait before retrying
  */
 export function tryCheckRateLimit(
 	event: { setHeaders: (headers: Record<string, string>) => void },
@@ -135,8 +137,16 @@ export function tryCheckRateLimit(
 }
 
 /**
- * checkRateLimit is a helper to enforce rate limits in SvelteKit endpoints.
- * It throws a 429 error if the limit is exceeded.
+ * Enforces a sliding-window rate limit for a request in a SvelteKit endpoint.
+ *
+ * Sets standard rate-limit response headers (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`)
+ * and throws an HTTP 429 error with a `Retry-After` header when the limit is exceeded.
+ *
+ * @param event - The SvelteKit event; its `setHeaders` will be used to attach rate-limit headers.
+ * @param key - Identifier used to track the requester (for example, an IP address or user ID).
+ * @param limit - Maximum allowed requests within the sliding window.
+ * @param windowMs - Window size in milliseconds for rate limiting.
+ * @throws Throws an HTTP 429 error when the request exceeds the rate limit; the error message includes the retry-after seconds.
  */
 export function checkRateLimit(
 	event: { request: Request; setHeaders: (headers: Record<string, string>) => void },
