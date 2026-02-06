@@ -160,7 +160,13 @@
 
 <div class="flex items-center gap-2">
 	{#if error}
-		<span class="animate-in fade-in slide-in-from-right-2 text-sm text-red-600">{error}</span>
+		<span
+			role="alert"
+			aria-live="assertive"
+			class="animate-in fade-in slide-in-from-right-2 text-sm text-red-600"
+		>
+			{error}
+		</span>
 	{/if}
 
 	<!-- Edit Button -->

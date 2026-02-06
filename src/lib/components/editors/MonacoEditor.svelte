@@ -57,6 +57,7 @@
 				self.MonacoEnvironment = {
 					getWorkerUrl: function (_moduleId: string, label: string) {
 						// Use jsdelivr CDN for workers to avoid bundling issues
+						// IMPORTANT: Keep this version in sync with package.json "monaco-editor" version
 						const version = '0.55.1'; // Match installed version
 						const base = `https://cdn.jsdelivr.net/npm/monaco-editor@${version}/min/vs`;
 						if (label === 'json') {
