@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
 import { dashboards, dashboardWidgets } from '$lib/server/db/schema';
@@ -18,7 +18,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const user = locals.user;
 
 	if (!user) {
-		return error(401, 'Unauthorized');
+		throw error(401, 'Unauthorized');
 	}
 
 	try {
@@ -37,8 +37,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		return json(userDashboards);
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) throw err;
 		console.error('Failed to list dashboards:', err);
-		return error(500, 'Internal server error');
+		throw error(500, 'Internal server error');
 	}
 };
 
@@ -51,11 +52,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const user = locals.user;
 
 	if (!user) {
-		return error(401, 'Unauthorized');
+		throw error(401, 'Unauthorized');
 	}
 
 	if (user.role === 'viewer') {
-		return error(403, 'Viewers cannot create dashboards');
+		throw error(403, 'Viewers cannot create dashboards');
 	}
 
 	try {
@@ -63,7 +64,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const { name, description, layout, isShared, isDefault, widgets } = body;
 
 		if (!name) {
-			return error(400, 'Name is required');
+			throw error(400, 'Name is required');
 		}
 
 		const dashboardId = generateId();
@@ -116,7 +117,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		return json(newDashboard);
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) throw err;
 		console.error('Failed to create dashboard:', err);
-		return error(500, 'Internal server error');
+		throw error(500, 'Internal server error');
 	}
 };

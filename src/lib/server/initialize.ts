@@ -76,7 +76,10 @@ export async function initializeGyre(): Promise<void> {
 
 		console.log('   ✓ Encryption validation passed');
 	} catch (error) {
-		console.error('   ✗ Encryption validation failed:', error instanceof Error ? error.message : error);
+		console.error(
+			'   ✗ Encryption validation failed:',
+			error instanceof Error ? error.message : error
+		);
 		throw error;
 	}
 

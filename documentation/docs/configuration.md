@@ -146,14 +146,14 @@ clusters:
 
 You can also configure Gyre using environment variables:
 
-| Variable                | Description                                        | Default        |
-| ----------------------- | -------------------------------------------------- | -------------- |
-| `ADMIN_PASSWORD`        | Initial admin password                             | Auto-generated |
-| `SESSION_SECRET`        | Session encryption key                             | Auto-generated |
-| `GYRE_ENCRYPTION_KEY`   | Key for encrypting cluster kubeconfigs (32 bytes)  | Required       |
-| `AUTH_ENCRYPTION_KEY`   | Key for encrypting OAuth client secrets (32 bytes) | Required       |
-| `DATABASE_PATH`         | SQLite database path                               | `/data/gyre.db`|
-| `LOG_LEVEL`             | Logging level                                      | `info`         |
+| Variable              | Description                                        | Default         |
+| --------------------- | -------------------------------------------------- | --------------- |
+| `ADMIN_PASSWORD`      | Initial admin password                             | Auto-generated  |
+| `SESSION_SECRET`      | Session encryption key                             | Auto-generated  |
+| `GYRE_ENCRYPTION_KEY` | Key for encrypting cluster kubeconfigs (32 bytes)  | Required        |
+| `AUTH_ENCRYPTION_KEY` | Key for encrypting OAuth client secrets (32 bytes) | Required        |
+| `DATABASE_PATH`       | SQLite database path                               | `/data/gyre.db` |
+| `LOG_LEVEL`           | Logging level                                      | `info`          |
 
 ### Example
 

@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
 import { dashboards, dashboardWidgets } from '$lib/server/db/schema';
@@ -161,9 +161,9 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 
 		return json(updatedDashboard);
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) throw err;
 		console.error('Failed to update dashboard:', err);
-		if (err instanceof Error && 'status' in err) throw err;
-		return error(500, 'Internal server error');
+		throw error(500, 'Internal server error');
 	}
 };
 

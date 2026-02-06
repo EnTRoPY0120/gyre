@@ -109,9 +109,7 @@ export const GET: RequestHandler = async ({ request }) => {
 								if (!previousState) {
 									// Only notify if settled (not during initial load)
 									if (isSettled) {
-										console.log(
-											`[SSE] ADDED: ${key} with revision ${revision || 'none'}`
-										);
+										console.log(`[SSE] ADDED: ${key} with revision ${revision || 'none'}`);
 										const event = {
 											type: 'ADDED',
 											resourceType,
