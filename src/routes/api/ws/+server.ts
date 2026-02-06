@@ -1,6 +1,11 @@
-import type { RequestHandler } from '@sveltejs/kit';
+import { error, type RequestHandler } from '@sveltejs/kit';
 
-export const GET: RequestHandler = async ({ request }) => {
+export const GET: RequestHandler = async ({ request, locals }) => {
+	// Check authentication
+	if (!locals.user) {
+		return error(401, { message: 'Authentication required' });
+	}
+
 	// Check if this is a WebSocket upgrade request
 	const upgradeHeader = request.headers.get('upgrade');
 	if (upgradeHeader?.toLowerCase() !== 'websocket') {

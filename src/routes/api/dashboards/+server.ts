@@ -4,6 +4,7 @@ import { getDb } from '$lib/server/db';
 import { dashboards, dashboardWidgets } from '$lib/server/db/schema';
 import { eq, or, desc } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
+import { checkPermission } from '$lib/server/rbac.js';
 
 function generateId(): string {
 	return randomBytes(16).toString('hex');
@@ -55,8 +56,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		throw error(401, 'Unauthorized');
 	}
 
-	if (user.role === 'viewer') {
-		throw error(403, 'Viewers cannot create dashboards');
+	// Check permission for write action on dashboards
+	const hasPermission = await checkPermission(user, 'write', 'Dashboard');
+	if (!hasPermission) {
+		throw error(403, 'Permission denied');
 	}
 
 	try {

@@ -4,6 +4,7 @@ import { getDb } from '$lib/server/db';
 import { dashboards, dashboardWidgets } from '$lib/server/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
+import { checkPermission } from '$lib/server/rbac.js';
 
 function generateId(): string {
 	return randomBytes(16).toString('hex');
@@ -26,6 +27,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		return error(400, 'Dashboard ID is required');
 	}
 
+	// Check permission for read action on dashboards
+	const hasReadPermission = await checkPermission(user, 'read', 'Dashboard');
+	if (!hasReadPermission) {
+		return error(403, 'Permission denied');
+	}
+
 	try {
 		const dashboard = await db.query.dashboards.findFirst({
 			where: eq(dashboards.id, id),
@@ -38,7 +45,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			return error(404, 'Dashboard not found');
 		}
 
-		// Check visibility
+		// Check visibility (even if they have read permission, they might not be allowed to see private dashboards of others)
 		if (
 			dashboard.ownerId !== user.id &&
 			!dashboard.isShared &&
@@ -69,9 +76,10 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		return error(401, 'Unauthorized');
 	}
 
-	// Role check - only editors and admins can modify
-	if (user.role === 'viewer') {
-		return error(403, 'Viewers cannot modify dashboards');
+	// Check permission for write action on dashboards
+	const hasWritePermission = await checkPermission(user, 'write', 'Dashboard');
+	if (!hasWritePermission) {
+		return error(403, 'Permission denied');
 	}
 
 	try {
@@ -178,6 +186,12 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 
 	if (!user) {
 		return error(401, 'Unauthorized');
+	}
+
+	// Check permission for delete (admin/write) action on dashboards
+	const hasDeletePermission = await checkPermission(user, 'write', 'Dashboard');
+	if (!hasDeletePermission) {
+		return error(403, 'Permission denied');
 	}
 
 	try {

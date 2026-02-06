@@ -11,6 +11,7 @@ import { authProviders } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { eq } from 'drizzle-orm';
+import { checkPermission } from '$lib/server/rbac.js';
 
 /**
  * GET /api/admin/auth-providers/[id]
@@ -22,8 +23,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(401, { message: 'Unauthorized' });
 	}
 
-	// Check admin role
-	if (locals.user.role !== 'admin') {
+	// Check permission (admin action needed for auth providers)
+	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
+	if (!hasPermission) {
 		throw error(403, { message: 'Admin access required' });
 	}
 
@@ -66,8 +68,9 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		throw error(401, { message: 'Unauthorized' });
 	}
 
-	// Check admin role
-	if (locals.user.role !== 'admin') {
+	// Check permission (admin action needed for auth providers)
+	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
+	if (!hasPermission) {
 		throw error(403, { message: 'Admin access required' });
 	}
 
@@ -160,8 +163,9 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		throw error(401, { message: 'Unauthorized' });
 	}
 
-	// Check admin role
-	if (locals.user.role !== 'admin') {
+	// Check permission (admin action needed for auth providers)
+	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
+	if (!hasPermission) {
 		throw error(403, { message: 'Admin access required' });
 	}
 

@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
 import * as k8s from '@kubernetes/client-node';
+import { checkPermission } from '$lib/server/rbac.js';
 
 /**
  * GET /api/flux/version
@@ -9,6 +10,23 @@ import * as k8s from '@kubernetes/client-node';
  * on the flux-system deployments or namespace.
  */
 export const GET: RequestHandler = async ({ locals }) => {
+	// Check authentication
+	if (!locals.user) {
+		return error(401, { message: 'Authentication required' });
+	}
+
+	// Check permission
+	const hasPermission = await checkPermission(
+		locals.user,
+		'read',
+		undefined,
+		undefined,
+		locals.cluster
+	);
+	if (!hasPermission) {
+		return error(403, { message: 'Permission denied' });
+	}
+
 	try {
 		const config = await getKubeConfig(locals.cluster);
 		const appsApi = config.makeApiClient(k8s.AppsV1Api);
