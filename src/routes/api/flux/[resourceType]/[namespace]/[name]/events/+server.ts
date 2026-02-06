@@ -38,7 +38,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const resourceKind = resourceDef.kind;
 
 	try {
-		const events = await getResourceEvents(namespace, name, resourceKind);
+		const events = await getResourceEvents(namespace, name, resourceKind, locals.cluster);
 		return json({ events });
 	} catch (err) {
 		console.error(`Failed to fetch events for ${resourceType}/${namespace}/${name}:`, err);

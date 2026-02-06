@@ -8,9 +8,9 @@ import * as k8s from '@kubernetes/client-node';
  * Fetches the Flux version from the cluster by checking the 'app.kubernetes.io/version' label
  * on the flux-system deployments or namespace.
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
 	try {
-		const config = getKubeConfig();
+		const config = await getKubeConfig(locals.cluster);
 		const appsApi = config.makeApiClient(k8s.AppsV1Api);
 		const namespace = 'flux-system';
 

@@ -10,12 +10,13 @@ const WATCH_RESOURCES: FluxResourceType[] = [
 	'HelmRelease'
 ];
 
-const SETTLING_PERIOD_MS = 30000; // Don't notify for 30s after first seeing a resource
-const POLL_INTERVAL_MS = 5000; // Poll every 5 seconds
-const HEARTBEAT_INTERVAL_MS = 30000; // Send heartbeat every 30 seconds
+const SETTLING_PERIOD_MS = 30000;
+const POLL_INTERVAL_MS = 5000;
+const HEARTBEAT_INTERVAL_MS = 30000;
 
 export interface SSEEvent {
 	type: 'CONNECTED' | 'ADDED' | 'MODIFIED' | 'DELETED' | 'HEARTBEAT';
+	clusterId?: string;
 	resourceType?: string;
 	resource?: unknown;
 	message?: string;
@@ -24,90 +25,123 @@ export interface SSEEvent {
 
 type Subscriber = (event: SSEEvent) => void;
 
-// Module-level state (Singleton by nature of JS modules)
-const subscribers = new Set<Subscriber>();
-let isActive = false;
-let pollTimeout: NodeJS.Timeout | null = null;
-let heartbeatInterval: NodeJS.Timeout | null = null;
+interface ClusterContext {
+	clusterId: string;
+	subscribers: Set<Subscriber>;
+	isActive: boolean;
+	pollTimeout: NodeJS.Timeout | null;
+	heartbeatInterval: NodeJS.Timeout | null;
+	lastStates: Map<string, string>;
+	lastNotificationStates: Map<string, string>;
+	resourceFirstSeen: Map<string, number>;
+}
 
-// State tracking
-const lastStates = new Map<string, string>();
-const lastNotificationStates = new Map<string, string>();
-const resourceFirstSeen = new Map<string, number>();
+// Map of active polling workers per cluster
+const activeWorkers = new Map<string, ClusterContext>();
 
 /**
- * Subscribe to the event bus
- * @param subscriber Callback for events
- * @returns Unsubscribe function
+ * Subscribe to events for a specific cluster
+ * @param clusterId - The cluster to watch
+ * @param subscriber - Callback for events
  */
-export function subscribe(subscriber: Subscriber): () => void {
-	subscribers.add(subscriber);
+export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluster'): () => void {
+	let context = activeWorkers.get(clusterId);
 
-	// Send initial connection message
+	if (!context) {
+		context = {
+			clusterId,
+			subscribers: new Set(),
+			isActive: false,
+			pollTimeout: null,
+			heartbeatInterval: null,
+			lastStates: new Map(),
+			lastNotificationStates: new Map(),
+			resourceFirstSeen: new Map()
+		};
+		activeWorkers.set(clusterId, context);
+	}
+
+	context.subscribers.add(subscriber);
+
+	// Initial connection message
 	subscriber({
 		type: 'CONNECTED',
-		message: 'Connected to event stream',
+		clusterId,
+		message: `Connected to event stream for cluster: ${clusterId}`,
 		timestamp: new Date().toISOString()
 	});
 
-	// Start polling if this is the first subscriber
-	if (subscribers.size === 1) {
-		start();
+	if (!context.isActive) {
+		startWorker(context);
 	}
 
 	return () => {
-		subscribers.delete(subscriber);
-		// Stop polling if no more subscribers
-		if (subscribers.size === 0) {
-			stop();
+		const ctx = activeWorkers.get(clusterId);
+		if (!ctx) return;
+
+		ctx.subscribers.delete(subscriber);
+
+		if (ctx.subscribers.size === 0) {
+			stopWorker(ctx);
+			activeWorkers.delete(clusterId);
 		}
 	};
 }
 
-function start() {
-	if (isActive) return;
-	isActive = true;
-	console.log('[EventBus] Starting consolidated polling worker');
+function startWorker(context: ClusterContext) {
+	if (context.isActive) return;
+	context.isActive = true;
+	console.log(`[EventBus] Starting consolidated polling worker for cluster: ${context.clusterId}`);
 
-	poll();
+	poll(context);
 
-	heartbeatInterval = setInterval(() => {
-		broadcast({
+	context.heartbeatInterval = setInterval(() => {
+		broadcast(context, {
 			type: 'HEARTBEAT',
+			clusterId: context.clusterId,
 			timestamp: new Date().toISOString()
 		});
 	}, HEARTBEAT_INTERVAL_MS);
 }
 
-function stop() {
-	isActive = false;
-	if (pollTimeout) {
-		clearTimeout(pollTimeout);
-		pollTimeout = null;
+function stopWorker(context: ClusterContext) {
+	context.isActive = false;
+	if (context.pollTimeout) {
+		clearTimeout(context.pollTimeout);
+		context.pollTimeout = null;
 	}
-	if (heartbeatInterval) {
-		clearInterval(heartbeatInterval);
-		heartbeatInterval = null;
+	if (context.heartbeatInterval) {
+		clearInterval(context.heartbeatInterval);
+		context.heartbeatInterval = null;
 	}
-	console.log('[EventBus] Stopping consolidated polling worker (no active subscribers)');
+	console.log(
+		`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId} (no active subscribers)`
+	);
 }
 
-function broadcast(event: SSEEvent) {
-	for (const subscriber of subscribers) {
+function broadcast(context: ClusterContext, event: SSEEvent) {
+	for (const subscriber of context.subscribers) {
 		try {
 			subscriber(event);
 		} catch (err) {
-			console.error('[EventBus] Error broadcasting to subscriber:', err);
+			console.error(
+				`[EventBus] Error broadcasting to subscriber on cluster ${context.clusterId}:`,
+				err
+			);
 		}
 	}
 }
 
-async function poll() {
-	if (!isActive) return;
+async function poll(context: ClusterContext) {
+	if (!context.isActive) return;
 
 	try {
 		for (const resourceType of WATCH_RESOURCES) {
-			const resourceList = await listFluxResources(resourceType);
+			// Pass clusterId to listFluxResources to get resources from the correct cluster
+			const resourceList = await listFluxResources(
+				resourceType,
+				context.clusterId === 'in-cluster' ? undefined : context.clusterId
+			);
 
 			if (resourceList && resourceList.items) {
 				const currentMessageKeys = new Set<string>();
@@ -116,7 +150,6 @@ async function poll() {
 					const key = `${resourceType}/${resource.metadata.namespace}/${resource.metadata.name}`;
 					currentMessageKeys.add(key);
 
-					// Extract only relevant status fields to avoid noisy notifications
 					const conditions = resource.status?.conditions?.map((c: K8sCondition) => ({
 						type: c.type,
 						status: c.status,
@@ -124,14 +157,12 @@ async function poll() {
 						message: c.message
 					}));
 
-					// Use resourceVersion as the primary indicator of change
 					const currentState = JSON.stringify({
 						resourceVersion: resource.metadata?.resourceVersion,
 						generation: resource.metadata?.generation,
 						observedGeneration: resource.status?.observedGeneration
 					});
 
-					// For MODIFIED events, track "notification-worthy" state separately
 					const readyCondition = conditions?.find((c: { type: string }) => c.type === 'Ready');
 					const revision = getResourceRevision(resource);
 
@@ -142,21 +173,20 @@ async function poll() {
 						messagePreview: readyCondition?.message?.substring(0, 100) || ''
 					});
 
-					const previousState = lastStates.get(key);
+					const previousState = context.lastStates.get(key);
 
-					// Track when we first saw this resource
 					const now = Date.now();
-					if (!resourceFirstSeen.has(key)) {
-						resourceFirstSeen.set(key, now);
+					if (!context.resourceFirstSeen.has(key)) {
+						context.resourceFirstSeen.set(key, now);
 					}
-					const firstSeen = resourceFirstSeen.get(key) || now;
+					const firstSeen = context.resourceFirstSeen.get(key) || now;
 					const isSettled = now - firstSeen > SETTLING_PERIOD_MS;
 
-					// Detect ADDED
 					if (!previousState) {
 						if (isSettled) {
-							broadcast({
+							broadcast(context, {
 								type: 'ADDED',
+								clusterId: context.clusterId,
 								resourceType,
 								resource: {
 									metadata: {
@@ -169,11 +199,9 @@ async function poll() {
 								timestamp: new Date().toISOString()
 							});
 						}
-						lastNotificationStates.set(key, notificationState);
-					}
-					// Detect MODIFIED
-					else if (previousState && previousState !== currentState) {
-						const previousNotificationState = lastNotificationStates.get(key);
+						context.lastNotificationStates.set(key, notificationState);
+					} else if (previousState && previousState !== currentState) {
+						const previousNotificationState = context.lastNotificationStates.get(key);
 
 						if (!previousNotificationState || previousNotificationState !== notificationState) {
 							const prevState = previousNotificationState
@@ -191,8 +219,9 @@ async function poll() {
 								revisionChanged || becameFailed || (becameHealthy && revisionChanged);
 
 							if (shouldNotify && !isTransientState) {
-								broadcast({
+								broadcast(context, {
 									type: 'MODIFIED',
+									clusterId: context.clusterId,
 									resourceType,
 									resource: {
 										metadata: {
@@ -205,20 +234,20 @@ async function poll() {
 									timestamp: new Date().toISOString()
 								});
 							}
-							lastNotificationStates.set(key, notificationState);
+							context.lastNotificationStates.set(key, notificationState);
 						}
 					}
 
-					lastStates.set(key, currentState);
+					context.lastStates.set(key, currentState);
 				}
 
-				// Detect DELETED
-				for (const key of lastStates.keys()) {
+				for (const key of context.lastStates.keys()) {
 					if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
 						const [type, namespace, name] = key.split('/');
 
-						broadcast({
+						broadcast(context, {
 							type: 'DELETED',
+							clusterId: context.clusterId,
 							resourceType: type,
 							resource: {
 								metadata: {
@@ -230,19 +259,19 @@ async function poll() {
 							timestamp: new Date().toISOString()
 						});
 
-						lastStates.delete(key);
-						lastNotificationStates.delete(key);
-						resourceFirstSeen.delete(key);
+						context.lastStates.delete(key);
+						context.lastNotificationStates.delete(key);
+						context.resourceFirstSeen.delete(key);
 					}
 				}
 			}
 		}
 	} catch (err) {
-		console.error('[EventBus] Error polling resources:', err);
+		console.error(`[EventBus] Error polling resources for cluster ${context.clusterId}:`, err);
 	}
 
-	if (isActive) {
-		pollTimeout = setTimeout(() => poll(), POLL_INTERVAL_MS);
+	if (context.isActive) {
+		context.pollTimeout = setTimeout(() => poll(context), POLL_INTERVAL_MS);
 	}
 }
 

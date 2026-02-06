@@ -14,10 +14,11 @@ export interface ResourceRevision {
 export async function getResourceHistory(
 	type: FluxResourceType,
 	namespace: string,
-	name: string
+	name: string,
+	context?: string
 ): Promise<ResourceRevision[]> {
 	if (type === 'HelmRelease') {
-		return getHelmReleaseHistory(namespace, name);
+		return getHelmReleaseHistory(namespace, name, context);
 	}
 
 	// For other resources, we might only have the current and maybe some info from events or status
@@ -31,8 +32,12 @@ export async function getResourceHistory(
 /**
  * Get HelmRelease history from Helm secrets
  */
-async function getHelmReleaseHistory(namespace: string, name: string): Promise<ResourceRevision[]> {
-	const coreApi = getCoreV1Api();
+async function getHelmReleaseHistory(
+	namespace: string,
+	name: string,
+	context?: string
+): Promise<ResourceRevision[]> {
+	const coreApi = await getCoreV1Api(context);
 
 	try {
 		// Helm releases are stored in secrets with label owner=helm and name=sh.helm.release.v1.NAME.vVERSION

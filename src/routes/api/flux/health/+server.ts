@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ setHeaders, cookies }) => {
 	try {
 		// Get the current cluster from cookie (for multi-cluster support)
 		const selectedCluster = cookies.get('gyre_cluster');
-		const config = getKubeConfig(selectedCluster);
+		const config = await getKubeConfig(selectedCluster);
 		const currentContext = config.getCurrentContext();
 
 		// Check connection - use cache if recent, otherwise validate

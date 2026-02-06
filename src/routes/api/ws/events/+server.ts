@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { subscribe, type SSEEvent } from '$lib/server/events.js';
 
-export const GET: RequestHandler = async ({ request }) => {
+export const GET: RequestHandler = async ({ request, locals }) => {
 	// Create a ReadableStream for SSE
 	const stream = new ReadableStream({
 		start(controller) {
@@ -16,7 +16,7 @@ export const GET: RequestHandler = async ({ request }) => {
 					// Controller may be closed, unsubscribe
 					unsubscribe();
 				}
-			});
+			}, locals.cluster);
 
 			// Handle client disconnect
 			request.signal.addEventListener('abort', () => {
