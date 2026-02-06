@@ -9,7 +9,8 @@ import {
 } from './auth/crypto.js';
 import {
 	testEncryption as testClusterEncryption,
-	isUsingDevelopmentKey as isUsingDevClusterKey
+	isUsingDevelopmentKey as isUsingDevClusterKey,
+	migrateKubeconfigs
 } from './clusters.js';
 
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
@@ -77,6 +78,17 @@ export async function initializeGyre(): Promise<void> {
 	} catch (error) {
 		console.error('   ✗ Encryption validation failed:', error instanceof Error ? error.message : error);
 		throw error;
+	}
+
+	// Migrate kubeconfigs to new encryption format if needed
+	try {
+		const migratedCount = await migrateKubeconfigs();
+		if (migratedCount > 0) {
+			console.log(`   ✓ Migrated ${migratedCount} cluster(s) to new encryption format`);
+		}
+	} catch (error) {
+		console.error('   ✗ Failed to migrate kubeconfigs:', error);
+		// Don't throw here, as the app can still function with old encryption if migration fails
 	}
 
 	// Initialize database connection and tables

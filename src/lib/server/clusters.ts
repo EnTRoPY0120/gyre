@@ -60,25 +60,53 @@ export function testEncryption(): boolean {
 	}
 }
 
+const ALGORITHM = 'aes-256-gcm';
+
 /**
- * Encrypt kubeconfig string
- * Simple XOR encryption for now - replace with AES-256-GCM in Issue #8
+ * Encrypt kubeconfig string using AES-256-GCM
+ * Format: v2:iv:ciphertext:authTag (all hex except v2 prefix)
  */
 function encryptKubeconfig(kubeconfig: string): string {
-	// For production, use proper AES-256-GCM encryption
-	// This is a placeholder implementation
-	const buffer = Buffer.from(kubeconfig);
-	const encrypted = Buffer.alloc(buffer.length);
-	for (let i = 0; i < buffer.length; i++) {
-		encrypted[i] = buffer[i] ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
-	}
-	return encrypted.toString('base64');
+	const iv = crypto.randomBytes(16);
+	const key = Buffer.from(ENCRYPTION_KEY, 'hex'); // We validated it's 32 bytes hex
+
+	const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
+
+	let encrypted = cipher.update(kubeconfig, 'utf8', 'hex');
+	encrypted += cipher.final('hex');
+
+	const authTag = cipher.getAuthTag();
+
+	// Return format: v2:iv:ciphertext:authTag
+	return `v2:${iv.toString('hex')}:${encrypted}:${authTag.toString('hex')}`;
 }
 
 /**
  * Decrypt kubeconfig string
+ * Supports both old XOR format and new AES-256-GCM (v2) format
  */
 function decryptKubeconfig(encrypted: string): string {
+	// Check if it's the new v2 format
+	if (encrypted.startsWith('v2:')) {
+		const parts = encrypted.split(':');
+		if (parts.length !== 4) {
+			throw new Error('Invalid v2 encrypted kubeconfig format');
+		}
+
+		const [, ivHex, ciphertext, authTagHex] = parts;
+		const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+		const iv = Buffer.from(ivHex, 'hex');
+		const authTag = Buffer.from(authTagHex, 'hex');
+
+		const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
+		decipher.setAuthTag(authTag);
+
+		let decrypted = decipher.update(ciphertext, 'hex', 'utf8');
+		decrypted += decipher.final('utf8');
+		return decrypted;
+	}
+
+	// Fallback to old XOR encryption for backward compatibility during migration
 	const buffer = Buffer.from(encrypted, 'base64');
 	const decrypted = Buffer.alloc(buffer.length);
 	for (let i = 0; i < buffer.length; i++) {
@@ -278,6 +306,40 @@ export async function testClusterConnection(id: string): Promise<{
 			error: errorMessage
 		};
 	}
+}
+
+/**
+ * Migrate all kubeconfigs to the new AES-256-GCM (v2) format
+ */
+export async function migrateKubeconfigs(): Promise<number> {
+	const db = getDbSync();
+	const allClusters = await getAllClusters();
+	let migratedCount = 0;
+
+	for (const cluster of allClusters) {
+		if (cluster.kubeconfigEncrypted && !cluster.kubeconfigEncrypted.startsWith('v2:')) {
+			try {
+				// Decrypt using old format (handled by decryptKubeconfig)
+				const plaintext = decryptKubeconfig(cluster.kubeconfigEncrypted);
+				// Re-encrypt using new format
+				const reEncrypted = encryptKubeconfig(plaintext);
+
+				await db
+					.update(clusters)
+					.set({
+						kubeconfigEncrypted: reEncrypted,
+						updatedAt: new Date()
+					})
+					.where(eq(clusters.id, cluster.id));
+
+				migratedCount++;
+			} catch (error) {
+				console.error(`Failed to migrate kubeconfig for cluster ${cluster.name}:`, error);
+			}
+		}
+	}
+
+	return migratedCount;
 }
 
 export type { NewCluster, NewClusterContext };
