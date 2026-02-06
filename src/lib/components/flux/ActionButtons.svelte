@@ -4,11 +4,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
-	import EditResourceModal from '$lib/components/flux/EditResourceModal.svelte';
 	import type { FluxResource } from '$lib/types/flux';
-	import { RefreshCw, Play, Pause, Loader2, Pencil } from 'lucide-svelte';
+	import { RefreshCw, Play, Pause, Loader2 } from 'lucide-svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
-	import yaml from 'js-yaml';
 
 	let {
 		resource,
@@ -25,17 +23,6 @@
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 	let showSuspendDialog = $state(false);
-	let showEditModal = $state(false);
-
-	// Serialize resource to YAML for editing
-	const resourceYaml = $derived.by(() => {
-		try {
-			return yaml.dump(resource, { noRefs: true, lineWidth: -1 });
-		} catch (err) {
-			console.error('Failed to serialize resource:', err);
-			return '';
-		}
-	});
 
 	const userRole = $derived($page.data.user?.role || 'viewer');
 	const canWrite = $derived(userRole === 'admin' || userRole === 'editor');
@@ -83,19 +70,8 @@
 	}
 </script>
 
-{#snippet actionButton(action: 'edit' | 'reconcile' | 'suspend' | 'resume')}
-	{#if action === 'edit'}
-		<Button
-			variant="outline"
-			size="sm"
-			disabled={!canWrite}
-			onclick={() => (showEditModal = true)}
-			class={!canWrite ? 'pointer-events-none' : ''}
-		>
-			<Pencil class="mr-2 h-4 w-4" />
-			Edit
-		</Button>
-	{:else if action === 'reconcile'}
+{#snippet actionButton(action: 'reconcile' | 'suspend' | 'resume')}
+	{#if action === 'reconcile'}
 		<Button
 			variant="outline"
 			size="sm"
@@ -139,7 +115,7 @@
 	{/if}
 {/snippet}
 
-{#snippet withPermissionTooltip(action: 'edit' | 'reconcile' | 'suspend' | 'resume')}
+{#snippet withPermissionTooltip(action: 'reconcile' | 'suspend' | 'resume')}
 	{#if !canWrite}
 		<Tooltip.Provider delayDuration={200}>
 			<Tooltip.Root>
@@ -148,7 +124,7 @@
 				</Tooltip.Trigger>
 				<Tooltip.Content side="top">
 					<p class="text-xs">
-						You need additional permissions to {action} resources.
+						You need additional permissions to {action === 'reconcile' ? 'reconcile' : action} resources.
 					</p>
 				</Tooltip.Content>
 			</Tooltip.Root>
@@ -162,9 +138,6 @@
 	{#if error}
 		<span class="animate-in fade-in slide-in-from-right-2 text-sm text-red-600">{error}</span>
 	{/if}
-
-	<!-- Edit Button -->
-	{@render withPermissionTooltip('edit')}
 
 	<!-- Reconcile Button -->
 	{@render withPermissionTooltip('reconcile')}
@@ -184,14 +157,4 @@
 	confirmLabel="Suspend"
 	variant="destructive"
 	onConfirm={() => handleAction('suspend')}
-/>
-
-<EditResourceModal
-	bind:open={showEditModal}
-	resourceType={type}
-	{namespace}
-	{name}
-	initialYaml={resourceYaml}
-	onClose={() => (showEditModal = false)}
-	onSuccess={() => invalidate(`flux:resource:${type}:${namespace}:${name}`)}
 />
