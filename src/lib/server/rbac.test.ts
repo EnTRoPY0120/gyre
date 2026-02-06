@@ -53,7 +53,7 @@ describe('RBAC checkPermission', () => {
 	});
 
 	it('should deny viewer access when no policies are bound', async () => {
-		const db = getDbSync() as any;
+		const db = getDbSync() as unknown as { where: { mockResolvedValueOnce: (v: unknown) => void } };
 		// Mock the chain: db.select().from().where() -> resolves to []
 		db.where.mockResolvedValueOnce([]);
 
@@ -62,7 +62,10 @@ describe('RBAC checkPermission', () => {
 	});
 
 	it('should handle policy matching correctly', async () => {
-		const db = getDbSync() as any;
+		const db = getDbSync() as unknown as {
+			where: { mockResolvedValueOnce: (v: unknown) => void };
+			get: { mockResolvedValueOnce: (v: unknown) => void };
+		};
 
 		// First call: mock user bindings (resolves to array)
 		db.where.mockResolvedValueOnce([{ policyId: 'policy-1' }]);
@@ -76,7 +79,10 @@ describe('RBAC checkPermission', () => {
 	});
 
 	it('should deny access when policy count is 0', async () => {
-		const db = getDbSync() as any;
+		const db = getDbSync() as unknown as {
+			where: { mockResolvedValueOnce: (v: unknown) => void };
+			get: { mockResolvedValueOnce: (v: unknown) => void };
+		};
 
 		// First call: mock user bindings
 		db.where.mockResolvedValueOnce([{ policyId: 'policy-1' }]);
