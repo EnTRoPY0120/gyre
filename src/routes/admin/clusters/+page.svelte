@@ -15,19 +15,52 @@
 		createdAt: Date;
 	}
 
+	interface HealthCheckResult {
+		name: string;
+		passed: boolean;
+		message: string;
+		details?: string;
+		duration?: number;
+	}
+
+	interface ClusterHealthCheck {
+		connected: boolean;
+		clusterName: string;
+		kubernetesVersion?: string;
+		checks: HealthCheckResult[];
+		error?: string;
+		timestamp: string;
+	}
+
 	let { data, form } = $props<{
 		data: { clusters: Cluster[] };
-		form?: { error?: string; success?: boolean; message?: string };
+		form?: {
+			error?: string;
+			success?: boolean;
+			message?: string;
+			healthCheck?: ClusterHealthCheck;
+		};
 	}>();
 
 	let showCreateModal = $state(false);
 	let deletingCluster = $state<Cluster | null>(null);
+	let showHealthCheckModal = $state(false);
 	let kubeconfigInput = $state('');
 	let isDragging = $state(false);
 	let newCluster = $state({
 		name: '',
 		description: ''
 	});
+
+	function openHealthCheckModal() {
+		if (form?.healthCheck) {
+			showHealthCheckModal = true;
+		}
+	}
+
+	function closeHealthCheckModal() {
+		showHealthCheckModal = false;
+	}
 
 	function openCreateModal() {
 		newCluster = { name: '', description: '' };
@@ -121,16 +154,72 @@
 	<!-- Success Message -->
 	{#if form?.success}
 		<div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M5 13l4 4L19 7"
+						/>
+					</svg>
+					<span class="font-medium">Connection successful!</span>
+				</div>
+				{#if form?.healthCheck}
+					<Button
+						variant="ghost"
+						size="sm"
+						onclick={openHealthCheckModal}
+						class="text-emerald-300 hover:text-emerald-200"
+					>
+						View Details
+					</Button>
+				{/if}
+			</div>
+		</div>
+	{/if}
+
+	<!-- Error Message with Details Button -->
+	{#if form?.error && form?.healthCheck}
+		<div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
+			<div class="flex items-center justify-between">
+				<div class="flex items-center gap-2">
+					<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+						/>
+					</svg>
+					<span class="font-medium">Connection failed</span>
+				</div>
+				<Button
+					variant="ghost"
+					size="sm"
+					onclick={openHealthCheckModal}
+					class="text-red-300 hover:text-red-200"
+				>
+					View Diagnostics
+				</Button>
+			</div>
+			{#if form.healthCheck.error}
+				<p class="mt-2 text-sm">{form.healthCheck.error}</p>
+			{/if}
+		</div>
+	{:else if form?.error}
+		<div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
 			<div class="flex items-center gap-2">
 				<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 					<path
 						stroke-linecap="round"
 						stroke-linejoin="round"
 						stroke-width="2"
-						d="M5 13l4 4L19 7"
+						d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					/>
 				</svg>
-				{form?.message || 'Operation completed successfully'}
+				{form.error}
 			</div>
 		</div>
 	{/if}
@@ -186,9 +275,21 @@
 							method="POST"
 							action="?/test"
 							use:enhance={() => {
-								return async ({ result }) => {
+								return async ({ result, update }) => {
+									// Let the form update with the result data
+									await update();
+
 									if (result.type === 'success') {
 										invalidateAll();
+										// Open the health check modal automatically
+										setTimeout(() => {
+											openHealthCheckModal();
+										}, 100);
+									} else if (result.type === 'failure') {
+										// Still open modal for failure to show diagnostics
+										setTimeout(() => {
+											openHealthCheckModal();
+										}, 100);
 									}
 								};
 							}}
@@ -452,6 +553,147 @@
 					<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>
 					<Button type="submit" variant="destructive">Delete Cluster</Button>
 				</form>
+			</div>
+		</div>
+	{/if}
+
+	<!-- Health Check Details Modal -->
+	{#if showHealthCheckModal && form?.healthCheck}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+			<div
+				class="max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl"
+			>
+				<div class="mb-4 flex items-center justify-between">
+					<div class="flex items-center gap-3">
+						<div
+							class="flex h-12 w-12 items-center justify-center rounded-full {form.healthCheck
+								.connected
+								? 'bg-emerald-500/20'
+								: 'bg-red-500/20'}"
+						>
+							{#if form.healthCheck.connected}
+								<svg
+									class="h-6 w-6 text-emerald-400"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M5 13l4 4L19 7"
+									/>
+								</svg>
+							{:else}
+								<svg
+									class="h-6 w-6 text-red-400"
+									fill="none"
+									viewBox="0 0 24 24"
+									stroke="currentColor"
+								>
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M6 18L18 6M6 6l12 12"
+									/>
+								</svg>
+							{/if}
+						</div>
+						<div>
+							<h2 class="text-xl font-bold text-white">Connection Diagnostics</h2>
+							<p class="text-sm text-slate-400">{form.healthCheck.clusterName}</p>
+						</div>
+					</div>
+					<button
+						onclick={closeHealthCheckModal}
+						class="text-slate-400 hover:text-white"
+						aria-label="Close"
+					>
+						<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M6 18L18 6M6 6l12 12"
+							/>
+						</svg>
+					</button>
+				</div>
+
+				<div class="space-y-3">
+					{#each form.healthCheck.checks as check}
+						<div
+							class="rounded-lg border {check.passed
+								? 'border-emerald-500/30 bg-emerald-500/5'
+								: 'border-red-500/30 bg-red-500/5'} p-4"
+						>
+							<div class="flex items-start gap-3">
+								<div class="mt-0.5 flex-shrink-0">
+									{#if check.passed}
+										<svg
+											class="h-5 w-5 text-emerald-400"
+											fill="none"
+											viewBox="0 0 24 24"
+											stroke="currentColor"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 13l4 4L19 7"
+											/>
+										</svg>
+									{:else}
+										<svg
+											class="h-5 w-5 text-red-400"
+											fill="none"
+											viewBox="0 0 24 24"
+											stroke="currentColor"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M6 18L18 6M6 6l12 12"
+											/>
+										</svg>
+									{/if}
+								</div>
+								<div class="min-w-0 flex-1">
+									<div class="flex items-center justify-between">
+										<h3 class="font-medium {check.passed ? 'text-emerald-400' : 'text-red-400'}">
+											{check.name}
+										</h3>
+										{#if check.duration}
+											<span class="text-xs text-slate-500">{check.duration}ms</span>
+										{/if}
+									</div>
+									<p class="mt-1 text-sm text-slate-300">{check.message}</p>
+									{#if check.details}
+										<p class="mt-2 rounded bg-slate-900/50 p-2 text-xs text-slate-400">
+											{check.details}
+										</p>
+									{/if}
+								</div>
+							</div>
+						</div>
+					{/each}
+				</div>
+
+				{#if form.healthCheck.kubernetesVersion}
+					<div class="mt-4 border-t border-slate-700/50 pt-4">
+						<p class="text-sm text-slate-400">
+							<span class="font-medium">Kubernetes Version:</span>
+							{form.healthCheck.kubernetesVersion}
+						</p>
+					</div>
+				{/if}
+
+				<div class="mt-6 flex justify-end">
+					<Button type="button" variant="ghost" onclick={closeHealthCheckModal}>Close</Button>
+				</div>
 			</div>
 		</div>
 	{/if}

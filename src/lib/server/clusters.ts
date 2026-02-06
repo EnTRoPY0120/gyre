@@ -256,29 +256,240 @@ export async function getClusterKubeconfig(id: string): Promise<string | null> {
 }
 
 /**
- * Test cluster connection
+ * Health check result for a single diagnostic test
  */
-export async function testClusterConnection(id: string): Promise<{
+export interface HealthCheckResult {
+	name: string;
+	passed: boolean;
+	message: string;
+	details?: string;
+	duration?: number;
+}
+
+/**
+ * Detailed cluster connection test result
+ */
+export interface ClusterHealthCheck {
 	connected: boolean;
 	clusterName: string;
+	kubernetesVersion?: string;
+	checks: HealthCheckResult[];
 	error?: string;
-}> {
+	timestamp: Date;
+}
+
+/**
+ * Test cluster connection with detailed health diagnostics
+ */
+export async function testClusterConnection(id: string): Promise<ClusterHealthCheck> {
+	const cluster = await getClusterById(id);
+	const clusterName = cluster?.name || 'Unknown';
+	const checks: HealthCheckResult[] = [];
+	let kubernetesVersion: string | undefined;
+
 	try {
 		const kubeconfig = await getClusterKubeconfig(id);
 		if (!kubeconfig) {
-			return { connected: false, clusterName: 'Unknown', error: 'Kubeconfig not found' };
+			const error = 'Kubeconfig not found or failed to decrypt';
+			if (cluster) {
+				await updateCluster(id, { lastError: error });
+			}
+			return {
+				connected: false,
+				clusterName,
+				checks: [
+					{
+						name: 'Kubeconfig Access',
+						passed: false,
+						message: 'Failed to retrieve kubeconfig',
+						details: error
+					}
+				],
+				error,
+				timestamp: new Date()
+			};
 		}
 
 		const kc = new k8s.KubeConfig();
-		kc.loadFromString(kubeconfig);
 
-		const coreApi = kc.makeApiClient(k8s.CoreV1Api);
+		// Test 1: Parse kubeconfig
+		const parseStart = Date.now();
+		try {
+			kc.loadFromString(kubeconfig);
+			checks.push({
+				name: 'Kubeconfig Parse',
+				passed: true,
+				message: 'Kubeconfig is valid YAML/JSON',
+				duration: Date.now() - parseStart
+			});
+		} catch (parseError) {
+			const error = parseError instanceof Error ? parseError.message : 'Invalid kubeconfig format';
+			checks.push({
+				name: 'Kubeconfig Parse',
+				passed: false,
+				message: 'Failed to parse kubeconfig',
+				details: error,
+				duration: Date.now() - parseStart
+			});
 
-		// Try to list namespaces as a connection test
-		await coreApi.listNamespace();
+			if (cluster) {
+				await updateCluster(id, { lastError: error });
+			}
 
-		// Update last connected timestamp
-		const cluster = await getClusterById(id);
+			return {
+				connected: false,
+				clusterName,
+				checks,
+				error,
+				timestamp: new Date()
+			};
+		}
+
+		// Test 2: API Server Reachability
+		const networkStart = Date.now();
+		try {
+			const coreApi = kc.makeApiClient(k8s.CoreV1Api);
+			// Get server info first (lightweight call)
+			const serverInfo = await coreApi.getAPIResources();
+
+			checks.push({
+				name: 'API Server Reachability',
+				passed: true,
+				message: 'Successfully connected to Kubernetes API server',
+				duration: Date.now() - networkStart
+			});
+		} catch (networkError) {
+			const error = networkError instanceof Error ? networkError.message : 'Network error';
+			let details = error;
+
+			// Provide more helpful error messages for common network issues
+			if (error.includes('ENOTFOUND') || error.includes('getaddrinfo')) {
+				details = 'DNS resolution failed. Check if the server address in kubeconfig is correct.';
+			} else if (error.includes('ECONNREFUSED') || error.includes('ECONNRESET')) {
+				details =
+					'Connection refused. Check if the Kubernetes API server is running and accessible.';
+			} else if (error.includes('ETIMEDOUT') || error.includes('timeout')) {
+				details = 'Connection timed out. Check network connectivity and firewall rules.';
+			}
+
+			checks.push({
+				name: 'API Server Reachability',
+				passed: false,
+				message: 'Failed to reach Kubernetes API server',
+				details,
+				duration: Date.now() - networkStart
+			});
+
+			if (cluster) {
+				await updateCluster(id, { lastError: details });
+			}
+
+			return {
+				connected: false,
+				clusterName,
+				checks,
+				error: details,
+				timestamp: new Date()
+			};
+		}
+
+		// Test 3: Authentication & Version Check
+		const authStart = Date.now();
+		try {
+			const coreApi = kc.makeApiClient(k8s.CoreV1Api);
+			// Try to get server info - this validates authentication
+			const namespaces = await coreApi.listNamespace();
+			// If we get here, authentication worked
+
+			// Extract version info from the first namespace's metadata (if available)
+			// or we'll check it separately
+			const currentUser = kc.getCurrentUser();
+			const userInfo = currentUser ? `User: ${currentUser.name}` : 'ServiceAccount';
+
+			checks.push({
+				name: 'Authentication',
+				passed: true,
+				message: 'Authentication successful',
+				details: userInfo,
+				duration: Date.now() - authStart
+			});
+
+			// Store namespaces for authorization check
+			const namespaceCount = Array.isArray(namespaces)
+				? namespaces.length
+				: namespaces.items?.length || 0;
+
+			// Test 4: Authorization Check (Can list namespaces?)
+			checks.push({
+				name: 'Authorization',
+				passed: true,
+				message: 'Successfully listed namespaces',
+				details: `Access to ${namespaceCount} namespace(s) confirmed`,
+				duration: Date.now() - authStart
+			});
+
+			// Test 5: Kubernetes Version Check
+			const versionStart = Date.now();
+			try {
+				const versionApi = kc.makeApiClient(k8s.VersionApi);
+				const versionResponse = await versionApi.getCode();
+				kubernetesVersion = versionResponse.gitVersion;
+
+				checks.push({
+					name: 'Kubernetes Version',
+					passed: true,
+					message: `Cluster version detected: ${kubernetesVersion}`,
+					duration: Date.now() - versionStart
+				});
+			} catch (versionError) {
+				// Version check is optional but helpful
+				checks.push({
+					name: 'Kubernetes Version',
+					passed: true, // Still "passed" because core connectivity worked
+					message: 'Connected, but failed to retrieve detailed version info',
+					duration: Date.now() - versionStart
+				});
+			}
+		} catch (authError) {
+			const error = authError instanceof Error ? authError.message : 'Authentication error';
+			let details = error;
+
+			if (error.includes('Unauthorized') || error.includes('401')) {
+				details =
+					'Authentication failed. Check if the token/certificate in kubeconfig is valid and not expired.';
+			} else if (error.includes('Forbidden') || error.includes('403')) {
+				details =
+					'Authorization failed. The user/service account does not have permission to list namespaces. Gyre requires at least namespace listing permissions.';
+			} else if (error.includes('certificate') || error.includes('x509')) {
+				details = 'Certificate error. Check if the CA certificate is valid and matches the server.';
+			}
+
+			// Determine if it's auth or authz failure
+			const isAuthFailure =
+				error.includes('Unauthorized') || error.includes('401') || error.includes('certificate');
+
+			checks.push({
+				name: isAuthFailure ? 'Authentication' : 'Authorization',
+				passed: false,
+				message: isAuthFailure ? 'Authentication failed' : 'Authorization failed',
+				details,
+				duration: Date.now() - authStart
+			});
+
+			if (cluster) {
+				await updateCluster(id, { lastError: details });
+			}
+
+			return {
+				connected: false,
+				clusterName,
+				checks,
+				error: details,
+				timestamp: new Date()
+			};
+		}
+
+		// All checks passed!
 		if (cluster) {
 			await updateCluster(id, {
 				lastConnectedAt: new Date(),
@@ -288,22 +499,24 @@ export async function testClusterConnection(id: string): Promise<{
 
 		return {
 			connected: true,
-			clusterName: cluster?.name || 'Unknown'
+			clusterName,
+			kubernetesVersion,
+			checks,
+			timestamp: new Date()
 		};
-	} catch (error) {
-		const cluster = await getClusterById(id);
-		const clusterName = cluster?.name || 'Unknown';
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+	} catch (unexpectedError) {
+		const error = unexpectedError instanceof Error ? unexpectedError.message : 'Unexpected error';
 
-		// Update last error
 		if (cluster) {
-			await updateCluster(id, { lastError: errorMessage });
+			await updateCluster(id, { lastError: error });
 		}
 
 		return {
 			connected: false,
 			clusterName,
-			error: errorMessage
+			checks,
+			error,
+			timestamp: new Date()
 		};
 	}
 }

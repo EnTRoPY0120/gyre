@@ -123,11 +123,11 @@ export const actions: Actions = {
 				error: result.error
 			});
 
-			if (result.connected) {
-				return { success: true, message: 'Connection successful' };
-			} else {
-				return fail(400, { error: result.error || 'Connection failed' });
-			}
+			// Return the detailed health check result
+			return {
+				success: result.connected,
+				healthCheck: result
+			};
 		} catch (error) {
 			console.error('Error testing connection:', error);
 			return fail(500, { error: 'Failed to test connection' });
