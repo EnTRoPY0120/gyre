@@ -6,6 +6,10 @@ sidebar_position: 6
 
 We welcome contributions to Gyre! This guide will help you get started.
 
+:::tip
+For the complete contributing guide with detailed information on commit conventions, PR process, and code standards, see the [CONTRIBUTING.md](https://github.com/entropy0120/gyre/blob/main/CONTRIBUTING.md) file in the repository.
+:::
+
 ## Development Setup
 
 ### Prerequisites
@@ -50,9 +54,23 @@ gyre/
 
 ### 1. Create a Branch
 
+Name your branch based on the type of change:
+
 ```bash
-git checkout -b feature/my-feature
+# Format: <type>/<short-description>
+git checkout -b feat/add-oci-repository
+git checkout -b fix/session-timeout-bug
+git checkout -b docs/update-install-guide
 ```
+
+**Branch prefixes:**
+
+- `feat/` - New features
+- `fix/` - Bug fixes
+- `docs/` - Documentation changes
+- `refactor/` - Code refactoring
+- `chore/` - Maintenance tasks
+- `ci/` - CI/CD changes
 
 ### 2. Make Changes
 
