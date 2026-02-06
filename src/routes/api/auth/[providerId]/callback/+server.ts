@@ -18,15 +18,33 @@ import type { RequestHandler } from './$types';
 import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
 import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
 import { createSession } from '$lib/server/auth';
+import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
 /**
  * GET /api/auth/[providerId]/callback
  * Handles OAuth callback from IdP
  */
-export const GET: RequestHandler = async ({ params, url, cookies, getClientAddress }) => {
+export const GET: RequestHandler = async (event) => {
+	const { params, url, cookies, getClientAddress, setHeaders } = event;
 	const { providerId } = params;
 
 	try {
+		// Rate limit: 10 attempts per minute per IP
+		const ipAddress = getClientAddress();
+		const rateLimit = tryCheckRateLimit(
+			{ setHeaders },
+			`oauth_callback:${ipAddress}`,
+			10,
+			60 * 1000
+		);
+
+		if (rateLimit.limited) {
+			throw redirect(
+				302,
+				`/login?error=${encodeURIComponent(`Too many requests. Please try again in ${rateLimit.retryAfter} seconds.`)}`
+			);
+		}
+
 		// Extract code and state from query parameters
 		const code = url.searchParams.get('code');
 		const returnedState = url.searchParams.get('state');
@@ -88,7 +106,6 @@ export const GET: RequestHandler = async ({ params, url, cookies, getClientAddre
 		}
 
 		// Create session for the user
-		const ipAddress = getClientAddress();
 		const sessionId = await createSession(user.id, ipAddress, undefined);
 
 		// Set session cookie

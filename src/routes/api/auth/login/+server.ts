@@ -1,12 +1,14 @@
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { authenticateUser, createSession, getUserByUsername } from '$lib/server/auth';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /**
  * POST /api/auth/login
  * Authenticate user and create session
  */
-export const POST: RequestHandler = async ({ request, cookies, getClientAddress }) => {
+export const POST: RequestHandler = async (event) => {
+	const { request, cookies, getClientAddress, setHeaders } = event;
 	try {
 		const body = await request.json();
 		const { username, password } = body;
@@ -14,6 +16,11 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
 		if (!username || !password) {
 			throw error(400, { message: 'Username and password are required' });
 		}
+
+		// Rate limit: 5 attempts per 5 minutes per IP + Username
+		const ipAddress = getClientAddress();
+		const limitKey = `login:${ipAddress}:${username}`;
+		checkRateLimit({ request, setHeaders }, limitKey, 5, 5 * 60 * 1000);
 
 		// Check if user exists first to give better error message
 		const existingUser = await getUserByUsername(username);
@@ -34,7 +41,6 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
 
 		// Create session
 		const userAgent = request.headers.get('user-agent') || undefined;
-		const ipAddress = getClientAddress();
 		const sessionId = await createSession(user.id, ipAddress, userAgent);
 
 		// Set session cookie
