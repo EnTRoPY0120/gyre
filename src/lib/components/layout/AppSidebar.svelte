@@ -5,6 +5,7 @@
 	import { cn } from '$lib/utils';
 	import { FluxResourceType } from '$lib/types/flux';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 
 	import { onMount, onDestroy } from 'svelte';
 
@@ -14,6 +15,7 @@
 	const gyreVersion = $derived($page.data.gyreVersion || '0.0.1');
 	const userRole = $derived($page.data.user?.role || 'viewer');
 	const isAdmin = $derived(userRole === 'admin');
+	const canCreate = $derived(userRole === 'admin' || userRole === 'editor');
 
 	// Responsiveness
 	let isMobile = $state(false);
@@ -191,22 +193,44 @@
 
 			<!-- Create Resource -->
 			<!-- eslint-disable-next-line -->
-			<a
-				href="/create"
-				class={cn(
-					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
-					currentPath.startsWith('/create')
-						? 'bg-blue-600 text-white shadow-[0_4px_20px_-4px_rgba(37,99,235,0.3)]'
-						: 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-blue-500'
-				)}
-			>
-				<div
-					class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white"
+			{#if !canCreate}
+				<Tooltip.Provider delayDuration={200}>
+					<Tooltip.Root>
+						<Tooltip.Trigger class="w-full">
+							<div
+								class="group flex cursor-not-allowed items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-muted-foreground opacity-60 transition-all duration-300"
+							>
+								<div
+									class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors"
+								>
+									<Icon name="plus" size={14} />
+								</div>
+								Create Resource
+							</div>
+						</Tooltip.Trigger>
+						<Tooltip.Content side="right">
+							<p class="text-xs text-white">You need additional permissions to create resources.</p>
+						</Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
+			{:else}
+				<a
+					href="/create"
+					class={cn(
+						'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
+						currentPath.startsWith('/create')
+							? 'bg-blue-600 text-white shadow-[0_4px_20px_-4px_rgba(37,99,235,0.3)]'
+							: 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-blue-500'
+					)}
 				>
-					<Icon name="plus" size={14} />
-				</div>
-				Create Resource
-			</a>
+					<div
+						class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white"
+					>
+						<Icon name="plus" size={14} />
+					</div>
+					Create Resource
+				</a>
+			{/if}
 
 			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
 
@@ -454,18 +478,36 @@
 		</a>
 
 		<!-- eslint-disable-next-line -->
-		<a
-			href="/create"
-			class={cn(
-				'mb-4 rounded-xl p-3 transition-all active:scale-95',
-				currentPath.startsWith('/create')
-					? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-					: 'text-muted-foreground hover:bg-sidebar-accent hover:text-blue-500'
-			)}
-			title="Create Resource"
-		>
-			<Icon name="plus" size={20} />
-		</a>
+		{#if !canCreate}
+			<Tooltip.Provider delayDuration={200}>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<div
+							class="mb-4 cursor-not-allowed rounded-xl bg-gray-200 p-3 text-gray-400 transition-all dark:bg-gray-800"
+							title="Create Resource (Disabled)"
+						>
+							<Icon name="plus" size={20} />
+						</div>
+					</Tooltip.Trigger>
+					<Tooltip.Content side="right">
+						<p class="text-xs text-white">You need additional permissions to create resources.</p>
+					</Tooltip.Content>
+				</Tooltip.Root>
+			</Tooltip.Provider>
+		{:else}
+			<a
+				href="/create"
+				class={cn(
+					'mb-4 rounded-xl p-3 transition-all active:scale-95',
+					currentPath.startsWith('/create')
+						? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-blue-500'
+				)}
+				title="Create Resource"
+			>
+				<Icon name="plus" size={20} />
+			</a>
+		{/if}
 
 		<div class="mt-6 flex w-full flex-col items-center gap-1 px-2">
 			{#each resourceGroups as group (group.name)}
