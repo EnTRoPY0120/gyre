@@ -15,8 +15,15 @@ const KEY_LENGTH = 32; // 256 bits
  */
 function getEncryptionKey(): Buffer {
 	const keyHex = process.env.AUTH_ENCRYPTION_KEY;
+	const isProd = process.env.NODE_ENV === 'production';
 
 	if (!keyHex) {
+		if (isProd) {
+			throw new Error(
+				'AUTH_ENCRYPTION_KEY must be set in production! ' +
+					'Please set it to a 64-character hexadecimal string.'
+			);
+		}
 		console.warn(
 			'⚠️  AUTH_ENCRYPTION_KEY not set! Using development-only key. DO NOT USE IN PRODUCTION!'
 		);

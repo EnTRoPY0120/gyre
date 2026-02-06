@@ -2,13 +2,67 @@ import { eq, desc } from 'drizzle-orm';
 import { getDbSync } from './db/index.js';
 import { clusters, clusterContexts, type NewCluster, type NewClusterContext } from './db/schema.js';
 import * as k8s from '@kubernetes/client-node';
+import crypto from 'node:crypto';
 
-// Simple encryption key - in production this should be from environment/config
-const ENCRYPTION_KEY = process.env.GYRE_ENCRYPTION_KEY || 'default-key-change-in-production';
+/**
+ * Get the encryption key for kubeconfigs from environment.
+ * In production, this MUST be set via GYRE_ENCRYPTION_KEY env var.
+ * For development, a default key is used.
+ */
+function getEncryptionKey(): string {
+	const key = process.env.GYRE_ENCRYPTION_KEY;
+	const isProd = process.env.NODE_ENV === 'production';
+
+	if (!key) {
+		if (isProd) {
+			throw new Error(
+				'GYRE_ENCRYPTION_KEY must be set in production! ' +
+					'Please set it to a 64-character hexadecimal string.'
+			);
+		}
+		console.warn(
+			'⚠️  GYRE_ENCRYPTION_KEY not set! Using development-only key. DO NOT USE IN PRODUCTION!'
+		);
+		// Development-only default key (32 bytes hex)
+		return '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
+	}
+
+	// Validate key format (should be 64 hex characters = 32 bytes)
+	if (!/^[0-9a-f]{64}$/i.test(key)) {
+		throw new Error(
+			'GYRE_ENCRYPTION_KEY must be 64 hexadecimal characters (32 bytes). Generate with: openssl rand -hex 32'
+		);
+	}
+
+	return key;
+}
+
+const ENCRYPTION_KEY = getEncryptionKey();
+
+/**
+ * Check if the encryption key is the insecure development default.
+ */
+export function isUsingDevelopmentKey(): boolean {
+	return !process.env.GYRE_ENCRYPTION_KEY;
+}
+
+/**
+ * Validate that encryption/decryption works correctly.
+ */
+export function testEncryption(): boolean {
+	try {
+		const testSecret = 'test-kubeconfig-' + crypto.randomUUID();
+		const encrypted = encryptKubeconfig(testSecret);
+		const decrypted = decryptKubeconfig(encrypted);
+		return testSecret === decrypted;
+	} catch {
+		return false;
+	}
+}
 
 /**
  * Encrypt kubeconfig string
- * Simple XOR encryption for now - replace with AES-256-GCM in production
+ * Simple XOR encryption for now - replace with AES-256-GCM in Issue #8
  */
 function encryptKubeconfig(kubeconfig: string): string {
 	// For production, use proper AES-256-GCM encryption

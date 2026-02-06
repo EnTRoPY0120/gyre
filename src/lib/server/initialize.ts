@@ -3,6 +3,14 @@ import { createDefaultAdminIfNeeded } from './auth.js';
 import { initDatabase } from './db/migrate.js';
 import { initializeDefaultPolicies, repairUserPolicyBindings } from './rbac-defaults.js';
 import { readFileSync } from 'node:fs';
+import {
+	testEncryption as testAuthEncryption,
+	isUsingDevelopmentKey as isUsingDevAuthKey
+} from './auth/crypto.js';
+import {
+	testEncryption as testClusterEncryption,
+	isUsingDevelopmentKey as isUsingDevClusterKey
+} from './clusters.js';
 
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
@@ -30,12 +38,45 @@ export async function initializeGyre(): Promise<void> {
 
 	// Log deployment mode
 	const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
+	const isProd = process.env.NODE_ENV === 'production';
+
 	if (isInCluster) {
 		console.log('📦 Deployment Mode: In-Cluster');
 		console.log('   Using Kubernetes ServiceAccount for API access');
 	} else {
 		console.log('📦 Deployment Mode: Local Development');
 		console.log('   Using local kubeconfig for cluster access');
+	}
+
+	// Encryption checks
+	console.log('\n🔐 Validating encryption...');
+	try {
+		// Test Auth Encryption
+		if (!testAuthEncryption()) {
+			throw new Error('Authentication encryption test failed!');
+		}
+		if (isUsingDevAuthKey()) {
+			if (isProd) {
+				throw new Error('AUTH_ENCRYPTION_KEY must be set in production!');
+			}
+			console.warn('   ⚠️  Using development key for AUTH_ENCRYPTION_KEY');
+		}
+
+		// Test Cluster Encryption
+		if (!testClusterEncryption()) {
+			throw new Error('Cluster kubeconfig encryption test failed!');
+		}
+		if (isUsingDevClusterKey()) {
+			if (isProd) {
+				throw new Error('GYRE_ENCRYPTION_KEY must be set in production!');
+			}
+			console.warn('   ⚠️  Using development key for GYRE_ENCRYPTION_KEY');
+		}
+
+		console.log('   ✓ Encryption validation passed');
+	} catch (error) {
+		console.error('   ✗ Encryption validation failed:', error instanceof Error ? error.message : error);
+		throw error;
 	}
 
 	// Initialize database connection and tables

@@ -366,7 +366,8 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 		}
 
 		// Generate new password
-		const password = generateStrongPassword();
+		// Use ADMIN_PASSWORD from env if provided, otherwise generate a strong one
+		const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
 		generatedAdminPassword = password;
 
 		// Hash for storage
