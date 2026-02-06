@@ -196,7 +196,8 @@
 								</span>
 							</div>
 							<div class="flex h-1 gap-1">
-								{#each Array(5) as _, i}
+								<!-- eslint-disable-next-line @typescript-eslint/no-unused-vars -->
+								{#each Array(5) as _, i (i)}
 									<div
 										class="h-full flex-1 rounded-full transition-all duration-500 {i < strengthScore
 											? strengthColor()
@@ -207,7 +208,7 @@
 
 							<!-- Requirements List -->
 							<div class="grid grid-cols-2 gap-x-4 gap-y-1 pt-1">
-								{#each requirements as req}
+								{#each requirements as req (req.label)}
 									<div class="flex items-center gap-1.5">
 										{#if req.met}
 											<div class="rounded-full bg-emerald-500/20 p-0.5">

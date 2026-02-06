@@ -623,7 +623,7 @@
 				</div>
 
 				<div class="space-y-3">
-					{#each form.healthCheck.checks as check}
+					{#each form.healthCheck.checks as check (check.name)}
 						<div
 							class="rounded-lg border {check.passed
 								? 'border-emerald-500/30 bg-emerald-500/5'

@@ -88,9 +88,8 @@ export const GET: RequestHandler = async ({ params, url, cookies, getClientAddre
 		}
 
 		// Create session for the user
-		const userAgent = url.searchParams.get('user-agent') || undefined;
 		const ipAddress = getClientAddress();
-		const sessionId = await createSession(user.id, ipAddress, userAgent);
+		const sessionId = await createSession(user.id, ipAddress, undefined);
 
 		// Set session cookie
 		cookies.set('gyre_session', sessionId, {

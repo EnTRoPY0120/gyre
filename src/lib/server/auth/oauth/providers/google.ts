@@ -95,11 +95,7 @@ export class GoogleProvider implements IOAuthProvider {
 	/**
 	 * Exchange authorization code for tokens using Arctic
 	 */
-	async validateCallback(
-		code: string,
-		codeVerifier?: string,
-		_redirectUri?: string
-	): Promise<OAuthTokens> {
+	async validateCallback(code: string, codeVerifier?: string): Promise<OAuthTokens> {
 		const client = this.getClient();
 		const verifier = codeVerifier || '';
 

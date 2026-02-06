@@ -1,6 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { listFluxResources } from '$lib/server/kubernetes/client';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import type { FluxResource, K8sCondition } from '$lib/server/kubernetes/flux/types';
 
 // Resource types to watch
 const WATCH_RESOURCES: FluxResourceType[] = [
@@ -18,7 +19,7 @@ const resourceFirstSeen: Map<string, number> = new Map();
 const SETTLING_PERIOD_MS = 30000; // Don't notify for 30s after first seeing a resource
 
 // Helper to extract revision/SHA from resource status
-function getResourceRevision(resource: any): string {
+function getResourceRevision(resource: FluxResource): string {
 	return (
 		resource.status?.lastAppliedRevision ||
 		resource.status?.artifact?.revision ||
@@ -63,14 +64,12 @@ export const GET: RequestHandler = async ({ request }) => {
 								currentMessageKeys.add(key);
 
 								// Extract only relevant status fields to avoid noisy notifications
-								const conditions = resource.status?.conditions?.map(
-									(c: { type: string; status: string; reason?: string; message?: string }) => ({
-										type: c.type,
-										status: c.status,
-										reason: c.reason,
-										message: c.message
-									})
-								);
+								const conditions = resource.status?.conditions?.map((c: K8sCondition) => ({
+									type: c.type,
+									status: c.status,
+									reason: c.reason,
+									message: c.message
+								}));
 
 								// Use resourceVersion as the primary indicator of change
 								const currentState = JSON.stringify({

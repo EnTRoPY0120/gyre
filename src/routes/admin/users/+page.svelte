@@ -2,17 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import {
-		UserPlus,
-		X,
-		Save,
-		Trash2,
-		Key,
-		AlertTriangle,
-		CheckCircle2,
-		XCircle,
-		User as UserIcon
-	} from 'lucide-svelte';
+	import { UserPlus, AlertTriangle, CheckCircle2, XCircle } from 'lucide-svelte';
 
 	interface User {
 		id: string;

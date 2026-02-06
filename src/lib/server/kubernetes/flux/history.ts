@@ -14,8 +14,7 @@ export interface ResourceRevision {
 export async function getResourceHistory(
 	type: FluxResourceType,
 	namespace: string,
-	name: string,
-	_cluster?: string
+	name: string
 ): Promise<ResourceRevision[]> {
 	if (type === 'HelmRelease') {
 		return getHelmReleaseHistory(namespace, name);
@@ -32,11 +31,7 @@ export async function getResourceHistory(
 /**
  * Get HelmRelease history from Helm secrets
  */
-async function getHelmReleaseHistory(
-	namespace: string,
-	name: string,
-	_cluster?: string
-): Promise<ResourceRevision[]> {
+async function getHelmReleaseHistory(namespace: string, name: string): Promise<ResourceRevision[]> {
 	const coreApi = getCoreV1Api();
 
 	try {
@@ -79,8 +74,7 @@ export async function rollbackResource(
 	type: FluxResourceType,
 	namespace: string,
 	name: string,
-	revision: string,
-	_cluster?: string
+	revision: string
 ): Promise<void> {
 	if (type !== 'HelmRelease') {
 		throw new Error('Rollback only supported for HelmRelease currently');

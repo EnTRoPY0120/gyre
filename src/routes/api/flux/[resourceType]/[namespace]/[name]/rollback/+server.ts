@@ -36,7 +36,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	}
 
 	try {
-		await rollbackResource(resolvedType, namespace, name, revision, locals.cluster);
+		await rollbackResource(resolvedType, namespace, name, revision);
 		return json({ message: `Successfully requested rollback to ${revision}` });
 	} catch (err: unknown) {
 		return error(500, {

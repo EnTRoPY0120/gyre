@@ -22,7 +22,7 @@ const STATE_COOKIE_MAX_AGE = 60 * 10;
  * GET /api/auth/[providerId]/login
  * Initiates OAuth login flow
  */
-export const GET: RequestHandler = async ({ params, cookies, url }) => {
+export const GET: RequestHandler = async ({ params, cookies }) => {
 	const { providerId } = params;
 
 	try {
@@ -57,9 +57,6 @@ export const GET: RequestHandler = async ({ params, cookies, url }) => {
 				maxAge: STATE_COOKIE_MAX_AGE
 			});
 		}
-
-		// Build redirect URI (callback endpoint)
-		const redirectUri = `${url.origin}/api/auth/${providerId}/callback`;
 
 		// Get authorization URL from provider
 		const authUrl = await provider.getAuthorizationUrl(state, codeVerifier);

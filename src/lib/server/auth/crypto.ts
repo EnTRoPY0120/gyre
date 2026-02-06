@@ -101,7 +101,7 @@ export function decryptSecret(ciphertext: string): string {
 	try {
 		decrypted = decipher.update(encrypted, 'hex', 'utf8');
 		decrypted += decipher.final('utf8');
-	} catch (error) {
+	} catch {
 		throw new Error('Failed to decrypt secret. Incorrect key or tampered data.');
 	}
 

@@ -72,7 +72,7 @@ export class GitHubProvider implements IOAuthProvider {
 	 * Generate authorization URL
 	 * GitHub supports PKCE but it's not required (we enable it by default)
 	 */
-	async getAuthorizationUrl(state: string, _codeVerifier?: string): Promise<URL> {
+	async getAuthorizationUrl(state: string): Promise<URL> {
 		const client = this.getClient();
 
 		// Parse scopes (GitHub uses space-separated scopes)
@@ -97,11 +97,7 @@ export class GitHubProvider implements IOAuthProvider {
 	/**
 	 * Exchange authorization code for access token
 	 */
-	async validateCallback(
-		code: string,
-		_codeVerifier?: string,
-		_redirectUri?: string
-	): Promise<OAuthTokens> {
+	async validateCallback(code: string): Promise<OAuthTokens> {
 		const client = this.getClient();
 
 		try {

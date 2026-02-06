@@ -8,8 +8,6 @@ import * as k8s from '@kubernetes/client-node';
 import { readFileSync } from 'node:fs';
 
 // In-cluster configuration paths
-const IN_CLUSTER_TOKEN_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/token';
-const IN_CLUSTER_CA_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
 const SALT_ROUNDS = 12;

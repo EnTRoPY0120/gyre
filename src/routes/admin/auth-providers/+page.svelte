@@ -1,6 +1,14 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
+
+	type ProviderType =
+		| 'oidc'
+		| 'oauth2-github'
+		| 'oauth2-google'
+		| 'oauth2-gitlab'
+		| 'oauth2-generic';
+	type UserRole = 'admin' | 'editor' | 'viewer';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -16,13 +24,13 @@
 	// Form fields
 	let formData = $state({
 		name: '',
-		type: 'oidc' as 'oidc' | 'oauth2-github' | 'oauth2-google' | 'oauth2-gitlab' | 'oauth2-generic',
+		type: 'oidc' as ProviderType,
 		enabled: true,
 		clientId: '',
 		clientSecret: '',
 		issuerUrl: '',
 		autoProvision: true,
-		defaultRole: 'viewer' as 'admin' | 'editor' | 'viewer',
+		defaultRole: 'viewer' as UserRole,
 		roleMapping: '{\n  "admin": [],\n  "editor": [],\n  "viewer": []\n}',
 		roleClaim: 'groups',
 		usernameClaim: 'preferred_username',
@@ -58,13 +66,13 @@
 		selectedProvider = provider;
 		formData = {
 			name: provider.name,
-			type: provider.type as any,
+			type: provider.type as ProviderType,
 			enabled: provider.enabled,
 			clientId: provider.clientId,
 			clientSecret: '', // Don't populate secret
 			issuerUrl: provider.issuerUrl || '',
 			autoProvision: provider.autoProvision,
-			defaultRole: provider.defaultRole as any,
+			defaultRole: provider.defaultRole as UserRole,
 			roleMapping: provider.roleMapping || '{\n  "admin": [],\n  "editor": [],\n  "viewer": []\n}',
 			roleClaim: provider.roleClaim,
 			usernameClaim: provider.usernameClaim,
@@ -276,7 +284,7 @@
 		</div>
 	{:else}
 		<div class="grid gap-4">
-			{#each providers as provider}
+			{#each providers as provider (provider.id)}
 				<div
 					class="rounded-lg border border-slate-700 bg-slate-800/50 p-6 transition-colors hover:border-slate-600"
 				>

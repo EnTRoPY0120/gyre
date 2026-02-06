@@ -6,7 +6,6 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
-import { authProviders } from '$lib/server/db/schema';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Check authentication

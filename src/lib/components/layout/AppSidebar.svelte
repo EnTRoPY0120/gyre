@@ -11,7 +11,6 @@
 	const isOpen = $derived($sidebarOpen);
 	const currentPath = $derived($page.url.pathname);
 
-	const fluxVersion = $derived($page.data.fluxVersion || 'v2.x.x');
 	const gyreVersion = $derived($page.data.gyreVersion || '0.0.1');
 	const userRole = $derived($page.data.user?.role || 'viewer');
 	const isAdmin = $derived(userRole === 'admin');

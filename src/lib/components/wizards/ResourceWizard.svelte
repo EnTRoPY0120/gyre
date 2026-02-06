@@ -6,7 +6,7 @@
 	import FieldHelp from '$lib/components/wizards/FieldHelp.svelte';
 	import type { ResourceTemplate } from '$lib/templates';
 	import { cn } from '$lib/utils';
-	import { Loader2, Check, AlertCircle, Code, ListChecks, Copy, ChevronDown } from 'lucide-svelte';
+	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from 'lucide-svelte';
 	import yaml from 'js-yaml';
 
 	let {
@@ -236,7 +236,8 @@
 		if (error) {
 			validationErrors[field.name] = error;
 		} else {
-			const { [field.name]: _, ...rest } = validationErrors;
+			const rest = { ...validationErrors };
+			delete rest[field.name];
 			validationErrors = rest;
 		}
 	}

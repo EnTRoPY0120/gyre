@@ -11,7 +11,6 @@ import { authProviders, type NewAuthProvider } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
 
 /**
  * Generate a unique provider ID

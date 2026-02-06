@@ -350,7 +350,7 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 		try {
 			const coreApi = kc.makeApiClient(k8s.CoreV1Api);
 			// Get server info first (lightweight call)
-			const serverInfo = await coreApi.getAPIResources();
+			await coreApi.getAPIResources();
 
 			checks.push({
 				name: 'API Server Reachability',
@@ -441,7 +441,7 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 					message: `Cluster version detected: ${kubernetesVersion}`,
 					duration: Date.now() - versionStart
 				});
-			} catch (versionError) {
+			} catch {
 				// Version check is optional but helpful
 				checks.push({
 					name: 'Kubernetes Version',

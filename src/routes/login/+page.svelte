@@ -221,7 +221,7 @@
 					</div>
 
 					<div class="mt-6 space-y-3">
-						{#each providers as provider}
+						{#each providers as provider (provider.id)}
 							<button
 								type="button"
 								onclick={() => handleSSOLogin(provider.id)}
