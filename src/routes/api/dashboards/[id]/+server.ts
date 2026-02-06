@@ -20,17 +20,28 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
 
 	if (!user) {
-		return error(401, 'Unauthorized');
+		throw error(401, 'Unauthorized');
 	}
 
 	if (!id) {
-		return error(400, 'Dashboard ID is required');
+		throw error(400, 'Dashboard ID is required');
+	}
+
+	// Validate cluster context
+	if (!locals.cluster) {
+		throw error(400, 'Cluster context required');
 	}
 
 	// Check permission for read action on dashboards
-	const hasReadPermission = await checkPermission(user, 'read', 'Dashboard');
+	const hasReadPermission = await checkPermission(
+		user,
+		'read',
+		'Dashboard',
+		undefined,
+		locals.cluster
+	);
 	if (!hasReadPermission) {
-		return error(403, 'Permission denied');
+		throw error(403, 'Permission denied');
 	}
 
 	try {
@@ -42,7 +53,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		});
 
 		if (!dashboard) {
-			return error(404, 'Dashboard not found');
+			throw error(404, 'Dashboard not found');
 		}
 
 		// Check visibility (even if they have read permission, they might not be allowed to see private dashboards of others)
@@ -52,14 +63,14 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			!dashboard.isDefault &&
 			user.role !== 'admin'
 		) {
-			return error(403, 'Access denied');
+			throw error(403, 'Access denied');
 		}
 
 		return json(dashboard);
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) throw err;
 		console.error('Failed to get dashboard:', err);
-		if (err instanceof Error && 'status' in err) throw err;
-		return error(500, 'Internal server error');
+		throw error(500, 'Internal server error');
 	}
 };
 
@@ -73,13 +84,24 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 	const { id } = params;
 
 	if (!user) {
-		return error(401, 'Unauthorized');
+		throw error(401, 'Unauthorized');
+	}
+
+	// Validate cluster context
+	if (!locals.cluster) {
+		throw error(400, 'Cluster context required');
 	}
 
 	// Check permission for write action on dashboards
-	const hasWritePermission = await checkPermission(user, 'write', 'Dashboard');
+	const hasWritePermission = await checkPermission(
+		user,
+		'write',
+		'Dashboard',
+		undefined,
+		locals.cluster
+	);
 	if (!hasWritePermission) {
-		return error(403, 'Permission denied');
+		throw error(403, 'Permission denied');
 	}
 
 	try {
@@ -88,12 +110,12 @@ export const PATCH: RequestHandler = async ({ params, locals, request }) => {
 		});
 
 		if (!dashboard) {
-			return error(404, 'Dashboard not found');
+			throw error(404, 'Dashboard not found');
 		}
 
 		// Only owner or admin can edit
 		if (dashboard.ownerId !== user.id && user.role !== 'admin') {
-			return error(403, 'Access denied');
+			throw error(403, 'Access denied');
 		}
 
 		const body = await request.json();
@@ -185,13 +207,24 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 	const { id } = params;
 
 	if (!user) {
-		return error(401, 'Unauthorized');
+		throw error(401, 'Unauthorized');
+	}
+
+	// Validate cluster context
+	if (!locals.cluster) {
+		throw error(400, 'Cluster context required');
 	}
 
 	// Check permission for delete (admin/write) action on dashboards
-	const hasDeletePermission = await checkPermission(user, 'write', 'Dashboard');
+	const hasDeletePermission = await checkPermission(
+		user,
+		'write',
+		'Dashboard',
+		undefined,
+		locals.cluster
+	);
 	if (!hasDeletePermission) {
-		return error(403, 'Permission denied');
+		throw error(403, 'Permission denied');
 	}
 
 	try {
@@ -200,12 +233,12 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		});
 
 		if (!dashboard) {
-			return error(404, 'Dashboard not found');
+			throw error(404, 'Dashboard not found');
 		}
 
 		// Only owner or admin can delete
 		if (dashboard.ownerId !== user.id && user.role !== 'admin') {
-			return error(403, 'Access denied');
+			throw error(403, 'Access denied');
 		}
 
 		await db.delete(dashboards).where(eq(dashboards.id, id));
