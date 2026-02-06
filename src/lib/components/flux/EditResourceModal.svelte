@@ -4,18 +4,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
 	import yaml from 'js-yaml';
-	import type * as Monaco from 'monaco-editor';
-
-	interface K8sResource {
-		apiVersion: string;
-		kind: string;
-		metadata: {
-			name: string;
-			namespace?: string;
-			[key: string]: unknown;
-		};
-		[key: string]: unknown;
-	}
 
 	interface Props {
 		open: boolean;
@@ -27,21 +15,13 @@
 		onSuccess?: () => void;
 	}
 
-	let {
-		open = $bindable(false),
-		resourceType,
-		namespace,
-		name,
-		initialYaml,
-		onClose,
-		onSuccess
-	}: Props = $props();
+	let { open = $bindable(false), resourceType, namespace, name, initialYaml, onClose, onSuccess }: Props = $props();
 
 	// State
 	let yamlContent = $state('');
 	let saving = $state(false);
 	let error = $state<string | null>(null);
-	let validationErrors = $state<Monaco.editor.IMarker[]>([]);
+	let validationErrors = $state<any[]>([]);
 
 	// Reset state when modal opens or initialYaml changes
 	$effect(() => {
@@ -53,8 +33,8 @@
 	});
 
 	// Handle validation from Monaco
-	function handleValidation(errors: Monaco.editor.IMarker[]) {
-		validationErrors = errors.filter((e) => e.severity === 8); // Only errors, not warnings
+	function handleValidation(errors: any[]) {
+		validationErrors = errors.filter(e => e.severity === 8); // Only errors, not warnings
 	}
 
 	// Save resource
@@ -73,7 +53,7 @@
 				return;
 			}
 
-			const resource = parsed as K8sResource;
+			const resource = parsed as any;
 			if (!resource.apiVersion || !resource.kind || !resource.metadata) {
 				error = 'Invalid resource: missing required fields (apiVersion, kind, metadata)';
 				return;
@@ -89,6 +69,7 @@
 				error = `Namespace mismatch: expected "${namespace}", got "${resource.metadata.namespace}"`;
 				return;
 			}
+
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Invalid YAML syntax';
 			return;
@@ -150,6 +131,7 @@
 </script>
 
 {#if open}
+	<!-- svelte-ignore a11y_no_static_element_interactions -->
 	<div
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
 		onkeydown={handleKeydown}
@@ -158,23 +140,21 @@
 		aria-labelledby="edit-resource-title"
 		tabindex="-1"
 	>
-		<div
-			class="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl"
-		>
+		<div class="relative w-full max-w-4xl max-h-[90vh] bg-zinc-800 rounded-lg shadow-xl border border-zinc-700 flex flex-col">
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-zinc-700 p-6">
+			<div class="flex items-center justify-between p-6 border-b border-zinc-700">
 				<div>
 					<h2 id="edit-resource-title" class="text-xl font-semibold text-zinc-100">
 						Edit Resource
 					</h2>
-					<p class="mt-1 text-sm text-zinc-400">
+					<p class="text-sm text-zinc-400 mt-1">
 						{resourceType}/{namespace}/{name}
 					</p>
 				</div>
 				<button
 					onclick={handleClose}
 					disabled={saving}
-					class="text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-50"
+					class="text-zinc-400 hover:text-zinc-100 transition-colors disabled:opacity-50"
 					aria-label="Close modal"
 				>
 					<X size={24} />
@@ -182,8 +162,8 @@
 			</div>
 
 			<!-- Editor Area -->
-			<div class="flex-1 overflow-hidden p-6">
-				<div class="h-full overflow-hidden rounded-lg border border-zinc-700">
+			<div class="flex-1 p-6 overflow-hidden">
+				<div class="h-full border border-zinc-700 rounded-lg overflow-hidden">
 					<MonacoEditor
 						bind:value={yamlContent}
 						language="yaml"
@@ -199,9 +179,7 @@
 			<!-- Error Display -->
 			{#if error}
 				<div class="px-6 pb-4">
-					<div
-						class="flex items-start gap-2 rounded border border-red-500/30 bg-red-900/20 p-3 text-sm text-red-400"
-					>
+					<div class="flex items-start gap-2 p-3 bg-red-900/20 border border-red-500/30 rounded text-red-400 text-sm">
 						<AlertTriangle size={16} class="mt-0.5 flex-shrink-0" />
 						<p>{error}</p>
 					</div>
@@ -209,15 +187,12 @@
 			{/if}
 
 			<!-- Footer -->
-			<div class="flex items-center justify-between border-t border-zinc-700 bg-zinc-900/50 p-6">
+			<div class="flex items-center justify-between p-6 border-t border-zinc-700 bg-zinc-900/50">
 				<div class="text-xs text-zinc-500">
 					{#if validationErrors.length > 0}
-						<span class="text-red-400"
-							>{validationErrors.length} error{validationErrors.length !== 1 ? 's' : ''} found</span
-						>
+						<span class="text-red-400">{validationErrors.length} error{validationErrors.length !== 1 ? 's' : ''} found</span>
 					{:else}
-						Press <kbd class="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5">Ctrl+S</kbd> to
-						save
+						Press <kbd class="px-1.5 py-0.5 bg-zinc-800 rounded border border-zinc-700">Ctrl+S</kbd> to save
 					{/if}
 				</div>
 				<div class="flex gap-3">
@@ -232,12 +207,10 @@
 					<Button
 						onclick={handleSave}
 						disabled={saving || validationErrors.length > 0}
-						class="bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700"
+						class="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white"
 					>
 						{#if saving}
-							<div
-								class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
-							></div>
+							<div class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
 							Saving...
 						{:else}
 							<Save size={16} class="mr-2" />

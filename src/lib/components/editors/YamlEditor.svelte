@@ -67,9 +67,7 @@
 		/>
 
 		{#if error}
-			<p
-				class="absolute bottom-3 left-3 mt-1 rounded bg-zinc-900/90 px-2 py-1 text-xs text-red-500"
-			>
+			<p class="absolute bottom-3 left-3 mt-1 text-xs text-red-500 bg-zinc-900/90 px-2 py-1 rounded">
 				{error}
 			</p>
 		{/if}
