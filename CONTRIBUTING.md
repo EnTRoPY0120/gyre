@@ -12,6 +12,7 @@ Thank you for your interest in contributing to Gyre! This document outlines the 
 - [Testing](#testing)
 - [Reporting Issues](#reporting-issues)
 - [Adding New Features](#adding-new-features)
+- [Questions?](#questions)
 
 ## Getting Started
 
@@ -263,7 +264,7 @@ git checkout -b branch-1
 6. **Push** your branch:
 
    ```bash
-   git push origin feature/your-feature-name
+   git push origin feat/your-feature-name
    ```
 
 7. **Open a Pull Request** on GitHub with:
