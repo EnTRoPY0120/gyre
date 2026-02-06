@@ -429,6 +429,39 @@ export async function createFluxResource(
 }
 
 /**
+ * Update (replace) a FluxCD resource
+ */
+export async function updateFluxResource(
+	resourceType: string,
+	namespace: string,
+	name: string,
+	body: Record<string, unknown>,
+	context?: string
+): Promise<FluxResource> {
+	const resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	const api = await getCustomObjectsApi(context);
+
+	try {
+		const response = await api.replaceNamespacedCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural,
+			name,
+			body: body as object
+		});
+
+		return response as unknown as FluxResource;
+	} catch (error) {
+		throw handleK8sError(error, `update ${resourceType} ${namespace}/${name}`);
+	}
+}
+
+/**
  * Get logs for a FluxCD controller responsible for a specific resource
  */
 export async function getControllerLogs(
