@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
 	import type { FluxResource } from '$lib/types/flux';
-	import { RefreshCw, Play, Pause, Loader2 } from 'lucide-svelte';
+	import { RefreshCw, Play, Pause, Loader2, ShieldAlert } from 'lucide-svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 
 	let {
@@ -22,9 +23,16 @@
 	let error = $state<string | null>(null);
 	let showSuspendDialog = $state(false);
 
+	const userRole = $derived($page.data.user?.role || 'viewer');
+	const canWrite = $derived(userRole === 'admin' || userRole === 'editor');
 	const isSuspended = $derived(resource.spec?.suspend === true);
 
 	async function handleAction(action: 'suspend' | 'resume' | 'reconcile') {
+		if (!canWrite) {
+			error = 'Permission denied';
+			return;
+		}
+
 		isLoading = true;
 		error = null;
 
@@ -65,6 +73,15 @@
 </script>
 
 <div class="flex items-center gap-2">
+	{#if !canWrite}
+		<div
+			class="mr-2 flex items-center gap-1.5 text-sm font-medium text-amber-600 dark:text-amber-500"
+		>
+			<ShieldAlert class="h-4 w-4" />
+			Permission denied
+		</div>
+	{/if}
+
 	{#if error}
 		<span class="animate-in fade-in slide-in-from-right-2 text-sm text-red-600">{error}</span>
 	{/if}
@@ -73,8 +90,9 @@
 	<Button
 		variant="outline"
 		size="sm"
-		disabled={isLoading || isSuspended}
+		disabled={isLoading || isSuspended || !canWrite}
 		onclick={() => handleAction('reconcile')}
+		title={!canWrite ? 'Permission denied' : ''}
 	>
 		{#if isLoading}
 			<Loader2 class="mr-2 h-4 w-4 animate-spin" />
@@ -89,9 +107,10 @@
 		<Button
 			variant="default"
 			size="sm"
-			disabled={isLoading}
+			disabled={isLoading || !canWrite}
 			onclick={() => handleAction('resume')}
 			class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+			title={!canWrite ? 'Permission denied' : ''}
 		>
 			<Play class="mr-2 h-4 w-4" />
 			Resume
@@ -100,9 +119,10 @@
 		<Button
 			variant="ghost"
 			size="sm"
-			disabled={isLoading}
+			disabled={isLoading || !canWrite}
 			onclick={() => (showSuspendDialog = true)}
 			class="text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-950/30"
+			title={!canWrite ? 'Permission denied' : ''}
 		>
 			<Pause class="mr-2 h-4 w-4" />
 			Suspend
