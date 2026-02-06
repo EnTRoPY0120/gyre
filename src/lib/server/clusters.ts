@@ -37,7 +37,14 @@ function getEncryptionKey(): string {
 	return key;
 }
 
-const ENCRYPTION_KEY = getEncryptionKey();
+let _encryptionKey: string | null = null;
+
+function getEncryptionKeyLazy(): string {
+	if (!_encryptionKey) {
+		_encryptionKey = getEncryptionKey();
+	}
+	return _encryptionKey;
+}
 
 /**
  * Check if the encryption key is the insecure development default.
@@ -68,7 +75,7 @@ const ALGORITHM = 'aes-256-gcm';
  */
 function encryptKubeconfig(kubeconfig: string): string {
 	const iv = crypto.randomBytes(16);
-	const key = Buffer.from(ENCRYPTION_KEY, 'hex'); // We validated it's 32 bytes hex
+	const key = Buffer.from(getEncryptionKeyLazy(), 'hex'); // We validated it's 32 bytes hex
 
 	const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
@@ -94,7 +101,7 @@ function decryptKubeconfig(encrypted: string): string {
 		}
 
 		const [, ivHex, ciphertext, authTagHex] = parts;
-		const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+		const key = Buffer.from(getEncryptionKeyLazy(), 'hex');
 		const iv = Buffer.from(ivHex, 'hex');
 		const authTag = Buffer.from(authTagHex, 'hex');
 
@@ -110,7 +117,8 @@ function decryptKubeconfig(encrypted: string): string {
 	const buffer = Buffer.from(encrypted, 'base64');
 	const decrypted = Buffer.alloc(buffer.length);
 	for (let i = 0; i < buffer.length; i++) {
-		decrypted[i] = buffer[i] ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+		const key = getEncryptionKeyLazy();
+		decrypted[i] = buffer[i] ^ key.charCodeAt(i % key.length);
 	}
 	return decrypted.toString('utf-8');
 }
