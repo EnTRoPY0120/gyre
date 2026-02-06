@@ -10,7 +10,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const limit = parseInt(url.searchParams.get('limit') || '20');
 
 	try {
-		const events = await getAllRecentEvents(limit);
+		const events = await getAllRecentEvents(limit, locals.cluster);
 		return json({ events });
 	} catch (err) {
 		console.error('Failed to fetch global events:', err);

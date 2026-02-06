@@ -26,7 +26,7 @@ export async function toggleSuspendResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = await getCustomObjectsApi(context);
 
 	// JSON Patch to update spec.suspend
 	// Use 'add' which works as 'replace' if exists or creates if missing
@@ -80,7 +80,7 @@ export async function reconcileResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = await getCustomObjectsApi(context);
 	const now = new Date().toISOString();
 
 	try {

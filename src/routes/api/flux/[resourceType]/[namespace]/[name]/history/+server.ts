@@ -30,7 +30,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	}
 
 	try {
-		const history = await getResourceHistory(resolvedType, namespace, name);
+		const history = await getResourceHistory(resolvedType, namespace, name, locals.cluster);
 		return json({ history });
 	} catch (err: unknown) {
 		return error(500, { message: err instanceof Error ? err.message : 'Failed to fetch history' });
