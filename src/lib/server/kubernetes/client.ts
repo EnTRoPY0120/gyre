@@ -159,8 +159,8 @@ export async function listFluxResources(
 	}
 
 	const fetchPromise = (async () => {
-		const api = await getCustomObjectsApi(context);
 		try {
+			const api = await getCustomObjectsApi(context);
 			const response = await api.listClusterCustomObject({
 				group: resourceDef.group,
 				version: resourceDef.version,
@@ -206,8 +206,8 @@ export async function listFluxResourcesInNamespace(
 	}
 
 	const fetchPromise = (async () => {
-		const api = await getCustomObjectsApi(context);
 		try {
+			const api = await getCustomObjectsApi(context);
 			const response = await api.listNamespacedCustomObject({
 				group: resourceDef.group,
 				version: resourceDef.version,
@@ -255,8 +255,8 @@ export async function getFluxResource(
 	}
 
 	const fetchPromise = (async () => {
-		const api = await getCustomObjectsApi(context);
 		try {
+			const api = await getCustomObjectsApi(context);
 			const response = await api.getNamespacedCustomObject({
 				group: resourceDef.group,
 				version: resourceDef.version,

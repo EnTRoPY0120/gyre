@@ -139,7 +139,7 @@ export async function getAllRecentEvents(limit = 10, context?: string): Promise<
 		return events;
 	} catch (error) {
 		console.error('Failed to fetch all events:', error);
-		return [];
+		throw error;
 	}
 }
 
