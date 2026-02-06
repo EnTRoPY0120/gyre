@@ -59,8 +59,10 @@ export const load: PageServerLoad = async ({ params, fetch, depends, locals }) =
 								r.name,
 								locals.cluster
 							);
+							// Convert to plain object using structuredClone to make it serializable
+							const plainChild = structuredClone(child) as Record<string, unknown>;
 							// Add our internal inventory version/id metadata back
-							return { ...(child as Record<string, unknown>), _inventory: r };
+							return { ...plainChild, _inventory: r };
 						} catch {
 							return {
 								_inventory: r,
