@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import {
 	getFluxResource,
@@ -13,17 +13,7 @@ import {
 import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 import yaml from 'js-yaml';
-
-interface K8sResource {
-	apiVersion: string;
-	kind: string;
-	metadata: {
-		name: string;
-		namespace?: string;
-		[key: string]: unknown;
-	};
-	[key: string]: unknown;
-}
+import type { K8sResource } from '$lib/types/kubernetes';
 
 /**
  * GET /api/flux/{resourceType}/{namespace}/{name}
@@ -35,7 +25,7 @@ interface K8sResource {
 export const GET: RequestHandler = async ({ params, url, locals, request, setHeaders }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
 	}
 
 	const { resourceType, namespace, name } = params;
@@ -45,7 +35,7 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
 		const validPlurals = getAllResourcePlurals();
-		return error(400, {
+		throw error(400, {
 			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
 		});
 	}
@@ -60,7 +50,7 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	try {
@@ -88,7 +78,7 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 		return json(resource);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);
-		return error(status, body.error);
+		throw error(status, body.error);
 	}
 };
 
@@ -188,6 +178,9 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
 		return json(updated);
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) {
+			throw err;
+		}
 		const { status, body } = errorToHttpResponse(err);
 		throw error(status, body.error);
 	}

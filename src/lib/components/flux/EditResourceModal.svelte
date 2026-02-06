@@ -5,17 +5,7 @@
 	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
 	import yaml from 'js-yaml';
 	import type * as Monaco from 'monaco-editor';
-
-	interface K8sResource {
-		apiVersion: string;
-		kind: string;
-		metadata: {
-			name: string;
-			namespace?: string;
-			[key: string]: unknown;
-		};
-		[key: string]: unknown;
-	}
+	import type { K8sResource } from '$lib/types/kubernetes';
 
 	interface Props {
 		open: boolean;
@@ -42,6 +32,8 @@
 	let saving = $state(false);
 	let error = $state<string | null>(null);
 	let validationErrors = $state<Monaco.editor.IMarker[]>([]);
+	let modalEl = $state<HTMLDivElement | null>(null);
+	let previousActiveElement: HTMLElement | null = null;
 
 	// Reset state when modal opens or initialYaml changes
 	$effect(() => {
@@ -49,6 +41,17 @@
 			yamlContent = initialYaml;
 			error = null;
 			validationErrors = [];
+
+			// Store previous active element to restore focus later
+			if (typeof document !== 'undefined') {
+				previousActiveElement = document.activeElement as HTMLElement;
+				// Focus the modal for accessibility
+				setTimeout(() => modalEl?.focus(), 50);
+			}
+		} else if (previousActiveElement) {
+			// Restore focus when closing
+			previousActiveElement.focus();
+			previousActiveElement = null;
 		}
 	});
 
@@ -112,8 +115,16 @@
 			});
 
 			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.error || `Failed to update resource: ${response.statusText}`);
+				let errorMessage = `Failed to update resource: ${response.statusText}`;
+				try {
+					const data = await response.json();
+					errorMessage = data.error || data.message || errorMessage;
+				} catch {
+					// Fallback to text if JSON parsing fails
+					const text = await response.text().catch(() => '');
+					if (text) errorMessage = text;
+				}
+				throw new Error(errorMessage);
 			}
 
 			// Success - invalidate cache and close modal
@@ -151,6 +162,7 @@
 
 {#if open}
 	<div
+		bind:this={modalEl}
 		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
 		onkeydown={handleKeydown}
 		role="dialog"
