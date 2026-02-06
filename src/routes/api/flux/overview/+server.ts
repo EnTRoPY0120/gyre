@@ -3,11 +3,24 @@ import type { RequestHandler } from './$types';
 import { listFluxResources } from '$lib/server/kubernetes/client';
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { getResourceStatus } from '$lib/utils/relationships';
+import { checkPermission } from '$lib/server/rbac.js';
 
 export const GET: RequestHandler = async ({ locals, setHeaders }) => {
 	// Check authentication
 	if (!locals.user) {
 		return error(401, { message: 'Authentication required' });
+	}
+
+	// Check permission
+	const hasPermission = await checkPermission(
+		locals.user,
+		'read',
+		undefined,
+		undefined,
+		locals.cluster
+	);
+	if (!hasPermission) {
+		return error(403, { message: 'Permission denied' });
 	}
 
 	setHeaders({
