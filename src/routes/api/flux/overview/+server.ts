@@ -1,10 +1,15 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listFluxResources } from '$lib/server/kubernetes/client';
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { getResourceStatus } from '$lib/utils/relationships';
 
 export const GET: RequestHandler = async ({ locals, setHeaders }) => {
+	// Check authentication
+	if (!locals.user) {
+		return error(401, { message: 'Authentication required' });
+	}
+
 	setHeaders({
 		'Cache-Control': 'private, max-age=15, stale-while-revalidate=45'
 	});

@@ -7,7 +7,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		throw error(401, { message: 'Authentication required' });
 	}
 
-	const limit = parseInt(url.searchParams.get('limit') || '20');
+	const limit = Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20);
 
 	try {
 		const events = await getAllRecentEvents(limit, locals.cluster);

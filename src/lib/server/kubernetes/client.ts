@@ -130,9 +130,8 @@ export async function listFluxResources(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = await getCustomObjectsApi(context);
-
 	const fetchPromise = (async () => {
+		const api = await getCustomObjectsApi(context);
 		try {
 			const response = await api.listClusterCustomObject({
 				group: resourceDef.group,
@@ -178,9 +177,8 @@ export async function listFluxResourcesInNamespace(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = await getCustomObjectsApi(context);
-
 	const fetchPromise = (async () => {
+		const api = await getCustomObjectsApi(context);
 		try {
 			const response = await api.listNamespacedCustomObject({
 				group: resourceDef.group,
@@ -228,9 +226,8 @@ export async function getFluxResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = await getCustomObjectsApi(context);
-
 	const fetchPromise = (async () => {
+		const api = await getCustomObjectsApi(context);
 		try {
 			const response = await api.getNamespacedCustomObject({
 				group: resourceDef.group,
