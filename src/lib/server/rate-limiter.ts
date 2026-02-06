@@ -13,6 +13,8 @@ export class RateLimiter {
 	constructor() {
 		// Clean up expired entries every 5 minutes
 		this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+		// Allow the process to exit even if the interval is still running
+		this.cleanupInterval.unref?.();
 	}
 
 	/**
