@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { updateUserPassword, verifyPassword } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
@@ -11,7 +11,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Require authentication
 		if (!locals.user) {
-			return error(401, { message: 'Authentication required' });
+			throw error(401, { message: 'Authentication required' });
 		}
 
 		const body = await request.json();
@@ -19,21 +19,26 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Validate inputs
 		if (!currentPassword || !newPassword) {
-			return error(400, { message: 'Current password and new password are required' });
+			throw error(400, { message: 'Current password and new password are required' });
 		}
 
 		// Validate new password strength
 		if (newPassword.length < 8) {
-			return error(400, { message: 'Password must be at least 8 characters long' });
+			throw error(400, { message: 'New password must be at least 8 characters long.' });
 		}
 		if (!/[A-Z]/.test(newPassword)) {
-			return error(400, { message: 'Password must contain at least one uppercase letter' });
+			throw error(400, { message: 'New password must contain at least one uppercase letter.' });
 		}
 		if (!/[a-z]/.test(newPassword)) {
-			return error(400, { message: 'Password must contain at least one lowercase letter' });
+			throw error(400, { message: 'New password must contain at least one lowercase letter.' });
 		}
 		if (!/[0-9]/.test(newPassword)) {
-			return error(400, { message: 'Password must contain at least one number' });
+			throw error(400, { message: 'New password must contain at least one number.' });
+		}
+		if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
+			throw error(400, {
+				message: 'New password must contain at least one special character (e.g., !@#$%^&*).'
+			});
 		}
 
 		// Verify current password
@@ -46,13 +51,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 				ipAddress: locals.session?.ipAddress || undefined,
 				details: { reason: 'invalid_current_password' }
 			});
-			return error(401, { message: 'Current password is incorrect' });
+			throw error(401, { message: 'Current password is incorrect' });
 		}
 
 		// Prevent using same password
 		const isSamePassword = await verifyPassword(newPassword, user.passwordHash);
 		if (isSamePassword) {
-			return error(400, { message: 'New password must be different from current password' });
+			throw error(400, { message: 'New password must be different from current password' });
 		}
 
 		// Update password
@@ -70,10 +75,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			message: 'Password changed successfully'
 		});
 	} catch (err) {
-		console.error('Change password error:', err);
-		if (err instanceof Error && 'status' in err && typeof err.status === 'number') {
+		if (isHttpError(err) || isRedirect(err)) {
 			throw err;
 		}
-		return error(500, { message: 'Internal server error' });
+		console.error('Change password error:', err);
+		throw error(500, { message: 'Internal server error' });
 	}
 };

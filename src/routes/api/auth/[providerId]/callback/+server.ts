@@ -13,7 +13,7 @@
  * 8. Redirect to home
  */
 
-import { redirect, error } from '@sveltejs/kit';
+import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
 import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
@@ -36,9 +36,7 @@ export const GET: RequestHandler = async ({ params, url, cookies, getClientAddre
 		// Check for OAuth errors from IdP
 		if (errorParam) {
 			console.error('OAuth error from IdP:', errorParam, errorDescription);
-			throw error(400, {
-				message: `Authentication failed: ${errorDescription || errorParam}`
-			});
+			throw redirect(302, `/login?error=${encodeURIComponent(errorDescription || errorParam)}`);
 		}
 
 		// Validate required parameters
@@ -108,34 +106,33 @@ export const GET: RequestHandler = async ({ params, url, cookies, getClientAddre
 		// Redirect to home page
 		throw redirect(302, '/');
 	} catch (err) {
+		// Re-throw SvelteKit errors (redirect, error)
+		if (isHttpError(err) || isRedirect(err)) {
+			throw err;
+		}
+
 		console.error('OAuth callback error:', err);
+
+		let errorMessage = 'Authentication failed';
 
 		// Handle OAuth-specific errors
 		if (err instanceof OAuthError) {
 			if (err.code === 'PROVIDER_NOT_FOUND') {
-				throw error(404, { message: 'Authentication provider not found' });
+				errorMessage = 'Authentication provider not found';
+			} else if (err.code === 'PROVIDER_DISABLED') {
+				errorMessage = 'Authentication provider is disabled';
+			} else if (err.code === 'TOKEN_EXCHANGE_FAILED') {
+				errorMessage = 'Failed to exchange authorization code for token';
+			} else if (err.code === 'USERINFO_FAILED') {
+				errorMessage = 'Failed to fetch user information from provider';
+			} else if (err.code === 'INVALID_ID_TOKEN') {
+				errorMessage = 'Invalid ID token from provider';
+			} else {
+				errorMessage = `OAuth error: ${err.message}`;
 			}
-			if (err.code === 'PROVIDER_DISABLED') {
-				throw error(403, { message: 'Authentication provider is disabled' });
-			}
-			if (err.code === 'TOKEN_EXCHANGE_FAILED') {
-				throw error(500, { message: 'Failed to exchange authorization code for token' });
-			}
-			if (err.code === 'USERINFO_FAILED') {
-				throw error(500, { message: 'Failed to fetch user information from provider' });
-			}
-			if (err.code === 'INVALID_ID_TOKEN') {
-				throw error(500, { message: 'Invalid ID token from provider' });
-			}
-			throw error(500, { message: `OAuth error: ${err.message}` });
 		}
 
-		// Re-throw SvelteKit errors (redirect, error)
-		if (err instanceof Response) {
-			throw err;
-		}
-
-		// Generic error
-		throw error(500, { message: 'Authentication failed' });
+		// Redirect to login page with error message instead of showing error page
+		throw redirect(302, `/login?error=${encodeURIComponent(errorMessage)}`);
 	}
 };

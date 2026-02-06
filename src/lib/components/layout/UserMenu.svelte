@@ -20,7 +20,7 @@
 		try {
 			const res = await fetch('/api/auth/logout', { method: 'POST' });
 			if (res.ok) {
-				window.location.href = '/login';
+				window.location.href = '/login?loggedOut=true';
 			}
 		} catch (err) {
 			console.error('Logout failed:', err);

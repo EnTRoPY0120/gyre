@@ -21,6 +21,6 @@ export const POST: RequestHandler = async ({ cookies }) => {
 		return json({ success: true });
 	} catch (err) {
 		console.error('Logout error:', err);
-		return error(500, { message: 'Internal server error' });
+		throw error(500, { message: 'Internal server error' });
 	}
 };

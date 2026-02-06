@@ -10,7 +10,7 @@
  * 5. Redirect user to IdP authorization URL
  */
 
-import { redirect, error } from '@sveltejs/kit';
+import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
 import { generateState, generateCodeVerifier } from '$lib/server/auth/pkce';
@@ -67,6 +67,10 @@ export const GET: RequestHandler = async ({ params, cookies, url }) => {
 		// Redirect to IdP for authentication
 		throw redirect(302, authUrl.toString());
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) {
+			throw err;
+		}
+
 		console.error('OAuth login error:', err);
 
 		// Handle OAuth-specific errors
@@ -78,11 +82,6 @@ export const GET: RequestHandler = async ({ params, cookies, url }) => {
 				throw error(403, { message: 'Authentication provider is disabled' });
 			}
 			throw error(500, { message: `OAuth error: ${err.message}` });
-		}
-
-		// Re-throw redirect (SvelteKit convention)
-		if (err instanceof Response && err.status === 302) {
-			throw err;
 		}
 
 		// Generic error

@@ -1,6 +1,6 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { authenticateUser, createSession } from '$lib/server/auth';
+import { authenticateUser, createSession, getUserByUsername } from '$lib/server/auth';
 
 /**
  * POST /api/auth/login
@@ -12,18 +12,24 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
 		const { username, password } = body;
 
 		if (!username || !password) {
-			return error(400, { message: 'Username and password are required' });
+			throw error(400, { message: 'Username and password are required' });
+		}
+
+		// Check if user exists first to give better error message
+		const existingUser = await getUserByUsername(username);
+		if (!existingUser) {
+			throw error(401, { message: 'Invalid username or password' });
+		}
+
+		if (!existingUser.active) {
+			throw error(403, { message: 'Account is disabled. Please contact an administrator.' });
 		}
 
 		// Authenticate user
 		const user = await authenticateUser(username, password);
 
 		if (!user) {
-			return error(401, { message: 'Invalid username or password' });
-		}
-
-		if (!user.active) {
-			return error(403, { message: 'Account is disabled' });
+			throw error(401, { message: 'Invalid username or password' });
 		}
 
 		// Create session
@@ -50,10 +56,10 @@ export const POST: RequestHandler = async ({ request, cookies, getClientAddress 
 			}
 		});
 	} catch (err) {
-		console.error('Login error:', err);
-		if (err instanceof Error && 'status' in err && typeof err.status === 'number') {
+		if (isHttpError(err) || isRedirect(err)) {
 			throw err;
 		}
-		return error(500, { message: 'Internal server error' });
+		console.error('Login error:', err);
+		throw error(500, { message: 'Internal server error' });
 	}
 };

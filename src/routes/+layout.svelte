@@ -6,6 +6,7 @@
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
+	import { Toaster } from 'svelte-sonner';
 
 	interface Props {
 		children: import('svelte').Snippet;
@@ -60,6 +61,8 @@
 		content="A modern web interface for managing FluxCD resources in your Kubernetes cluster"
 	/>
 </svelte:head>
+
+<Toaster position="top-right" richColors closeButton />
 
 {#if isLoginPage}
 	<!-- Login page: no sidebar/header -->

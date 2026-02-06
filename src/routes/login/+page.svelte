@@ -1,21 +1,57 @@
 <script lang="ts">
-	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
+	import { LogIn, Loader2, Eye, EyeOff } from 'lucide-svelte';
+	import { loginSchema } from '$lib/utils/validation';
+	import { page } from '$app/state';
 	import type { PageData } from './$types';
-	import { LogIn, Loader2, X, ExternalLink } from 'lucide-svelte';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
 
 	let username = $state('');
 	let password = $state('');
-	let error = $state('');
+	let showPassword = $state(false);
 	let loading = $state(false);
-	let showWelcome = $state(true);
+	let errors = $state<Record<string, string>>({});
+
+	// Handle query parameters for messages
+	$effect(() => {
+		const loggedOut = page.url.searchParams.get('loggedOut');
+		const errorParam = page.url.searchParams.get('error');
+
+		if (loggedOut === 'true') {
+			toast.success('Successfully logged out');
+		}
+
+		if (errorParam) {
+			toast.error(decodeURIComponent(errorParam));
+		}
+
+		// Clear the params from URL without reload
+		if (loggedOut === 'true' || errorParam) {
+			const url = new URL(window.location.href);
+			url.searchParams.delete('loggedOut');
+			url.searchParams.delete('error');
+			window.history.replaceState({}, '', url);
+		}
+	});
 
 	async function handleLogin(event: Event) {
 		event.preventDefault();
-		error = '';
 		loading = true;
+		errors = {};
+
+		// Client-side validation with Zod
+		const validation = loginSchema.safeParse({ username, password });
+		if (!validation.success) {
+			validation.error.issues.forEach((issue) => {
+				const path = issue.path[0] as string;
+				errors[path] = issue.message;
+			});
+			toast.error(validation.error.issues[0].message);
+			loading = false;
+			return;
+		}
 
 		try {
 			const response = await fetch('/api/auth/login', {
@@ -24,34 +60,34 @@
 				body: JSON.stringify({ username, password })
 			});
 
+			const result = await response.json();
+
 			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Login failed');
+				const message =
+					typeof result.message === 'object'
+						? result.message.message
+						: result.message || 'Login failed';
+				if (response.status === 401) {
+					errors.password = message;
+				}
+				throw new Error(message);
 			}
 
-			const data = await response.json();
+			toast.success('Login successful! Redirecting...');
 
 			// Check if this is the first login (using default password)
-			if (password === 'admin' && data.user?.role === 'admin') {
-				// Redirect to password change page - HARD RELOAD
+			if (password === 'admin' && result.user?.role === 'admin') {
 				window.location.href = '/change-password?first=true';
 			} else {
-				// Normal redirect to home - HARD RELOAD to ensure all state is synced
 				window.location.href = '/';
 			}
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Login failed';
+			toast.error(err instanceof Error ? err.message : 'Login failed');
 			loading = false;
 		}
-		// Note: loading is NOT set to false on success - it stays spinning until page navigation completes
-	}
-
-	function dismissWelcome() {
-		showWelcome = false;
 	}
 
 	function handleSSOLogin(providerId: string) {
-		// Redirect to SSO login endpoint
 		window.location.href = `/api/auth/${providerId}/login`;
 	}
 
@@ -105,46 +141,9 @@
 
 		<!-- Login Form -->
 		<div
-			class="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-8 shadow-2xl backdrop-blur-xl"
+			class="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-8 shadow-2xl backdrop-blur-xl transition-all duration-500 hover:border-slate-600/50"
 		>
-			<!-- First Time Setup Notice -->
-			{#if showWelcome}
-				<div class="mb-6 rounded-lg border border-amber-500/30 bg-amber-500/10 p-4">
-					<div class="flex items-start justify-between">
-						<div>
-							<p class="text-sm font-medium text-amber-400">Welcome! First time setup</p>
-							<p class="mt-1 text-xs text-amber-300/80">
-								Please sign in with the default credentials. You'll be prompted to change your
-								password after first login.
-							</p>
-							<a
-								href="https://docs.gyre.io/getting-started#authentication"
-								target="_blank"
-								rel="noopener noreferrer"
-								class="mt-2 inline-flex items-center text-xs font-medium text-amber-400 underline hover:text-amber-300"
-							>
-								View default credentials in docs
-								<ExternalLink size={12} class="ml-1" />
-							</a>
-						</div>
-						<button
-							onclick={dismissWelcome}
-							class="ml-2 text-amber-400/60 hover:text-amber-400"
-							aria-label="Dismiss"
-						>
-							<X size={16} />
-						</button>
-					</div>
-				</div>
-			{/if}
-
 			<form onsubmit={handleLogin} class="space-y-6">
-				{#if error}
-					<div class="rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">
-						{error}
-					</div>
-				{/if}
-
 				<div class="space-y-2">
 					<label for="username" class="text-sm font-medium text-slate-300">Username</label>
 					<input
@@ -153,35 +152,56 @@
 						bind:value={username}
 						placeholder="Enter your username"
 						required
-						class="w-full rounded-lg border border-slate-600/50 bg-slate-700/50 px-4 py-3 text-white placeholder-slate-500 transition-all outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
+						class="w-full rounded-lg border bg-slate-700/50 px-4 py-3 text-white placeholder-slate-500 transition-all outline-none focus:ring-2 {errors.username
+							? 'border-red-500/50 focus:ring-red-500/20'
+							: 'border-slate-600/50 focus:border-amber-500/50 focus:ring-amber-500/20'}"
 					/>
 				</div>
 
 				<div class="space-y-2">
 					<label for="password" class="text-sm font-medium text-slate-300">Password</label>
-					<input
-						id="password"
-						type="password"
-						bind:value={password}
-						placeholder="Enter your password"
-						required
-						class="w-full rounded-lg border border-slate-600/50 bg-slate-700/50 px-4 py-3 text-white placeholder-slate-500 transition-all outline-none focus:border-amber-500/50 focus:ring-2 focus:ring-amber-500/20"
-					/>
+					<div class="relative">
+						<input
+							id="password"
+							type={showPassword ? 'text' : 'password'}
+							bind:value={password}
+							placeholder="Enter your password"
+							required
+							class="w-full rounded-lg border bg-slate-700/50 px-4 py-3 pr-12 text-white placeholder-slate-500 transition-all outline-none focus:ring-2 {errors.password
+								? 'border-red-500/50 focus:ring-red-500/20'
+								: 'border-slate-600/50 focus:border-amber-500/50 focus:ring-amber-500/20'}"
+						/>
+						<button
+							type="button"
+							onclick={() => (showPassword = !showPassword)}
+							class="absolute top-1/2 right-3 -translate-y-1/2 text-slate-500 transition-colors hover:text-slate-300"
+							aria-label={showPassword ? 'Hide password' : 'Show password'}
+						>
+							{#if showPassword}
+								<EyeOff size={20} />
+							{:else}
+								<Eye size={20} />
+							{/if}
+						</button>
+					</div>
 				</div>
 
 				<button
 					type="submit"
 					disabled={loading}
-					class="w-full rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-3 font-semibold text-slate-900 shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-amber-500 hover:shadow-amber-500/40 disabled:cursor-not-allowed disabled:opacity-50"
+					class="group relative w-full overflow-hidden rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-3 font-semibold text-slate-900 shadow-lg shadow-amber-500/25 transition-all hover:from-amber-400 hover:to-amber-500 hover:shadow-amber-500/40 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
 				>
+					<div
+						class="absolute inset-0 translate-y-full bg-white/10 transition-transform duration-300 group-hover:translate-y-0"
+					></div>
 					{#if loading}
-						<span class="flex items-center justify-center gap-2">
+						<span class="relative flex items-center justify-center gap-2">
 							<Loader2 size={20} class="animate-spin" />
 							Signing in...
 						</span>
 					{:else}
-						<span class="flex items-center justify-center gap-2">
-							<LogIn size={20} />
+						<span class="relative flex items-center justify-center gap-2">
+							<LogIn size={20} class="transition-transform group-hover:translate-x-1" />
 							Sign In
 						</span>
 					{/if}
@@ -207,7 +227,7 @@
 								onclick={() => handleSSOLogin(provider.id)}
 								class="flex w-full items-center justify-center gap-3 rounded-lg bg-gradient-to-r {getProviderColor(
 									provider.type
-								)} px-4 py-3 font-medium text-white shadow-lg transition-all"
+								)} px-4 py-3 font-medium text-white shadow-lg transition-all active:scale-[0.98]"
 							>
 								{#if getProviderIcon(provider.type) === 'google'}
 									<svg class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -268,3 +288,14 @@
 		</div>
 	</div>
 </div>
+
+<style>
+	input:-webkit-autofill,
+	input:-webkit-autofill:hover,
+	input:-webkit-autofill:focus,
+	input:-webkit-autofill:active {
+		-webkit-box-shadow: 0 0 0 30px #1e293b inset !important; /* matches slate-800 */
+		-webkit-text-fill-color: white !important;
+		transition: background-color 5000s ease-in-out 0s;
+	}
+</style>
