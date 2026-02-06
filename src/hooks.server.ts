@@ -101,20 +101,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.cluster = 'in-cluster';
 	}
 
-	// Protect admin routes
-	if (path.startsWith('/admin') && event.locals.user?.role !== 'admin') {
-		// For API routes under /admin, return 403
-		if (path.startsWith('/api/admin')) {
-			return new Response(JSON.stringify({ error: 'Forbidden' }), {
-				status: 403,
-				headers: { 'Content-Type': 'application/json' }
-			});
-		}
-
-		// For page routes, redirect to dashboard
-		return new Response(null, {
-			status: 302,
-			headers: { Location: '/' }
+	// Protect admin API routes
+	if (path.startsWith('/api/admin') && event.locals.user?.role !== 'admin') {
+		return new Response(JSON.stringify({ error: 'Forbidden' }), {
+			status: 403,
+			headers: { 'Content-Type': 'application/json' }
 		});
 	}
 

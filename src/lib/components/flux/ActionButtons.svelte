@@ -2,9 +2,10 @@
 	import { invalidate } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
 	import type { FluxResource } from '$lib/types/flux';
-	import { RefreshCw, Play, Pause, Loader2, ShieldAlert } from 'lucide-svelte';
+	import { RefreshCw, Play, Pause, Loader2 } from 'lucide-svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 
 	let {
@@ -28,10 +29,7 @@
 	const isSuspended = $derived(resource.spec?.suspend === true);
 
 	async function handleAction(action: 'suspend' | 'resume' | 'reconcile') {
-		if (!canWrite) {
-			error = 'Permission denied';
-			return;
-		}
+		if (!canWrite) return;
 
 		isLoading = true;
 		error = null;
@@ -72,61 +70,83 @@
 	}
 </script>
 
-<div class="flex items-center gap-2">
-	{#if !canWrite}
-		<div
-			class="mr-2 flex items-center gap-1.5 text-sm font-medium text-amber-600 dark:text-amber-500"
+{#snippet actionButton(action: 'reconcile' | 'suspend' | 'resume')}
+	{#if action === 'reconcile'}
+		<Button
+			variant="outline"
+			size="sm"
+			disabled={isLoading || isSuspended || !canWrite}
+			onclick={() => handleAction('reconcile')}
+			class={!canWrite ? 'pointer-events-none' : ''}
 		>
-			<ShieldAlert class="h-4 w-4" />
-			Permission denied
-		</div>
-	{/if}
-
-	{#if error}
-		<span class="animate-in fade-in slide-in-from-right-2 text-sm text-red-600">{error}</span>
-	{/if}
-
-	<!-- Reconcile Button -->
-	<Button
-		variant="outline"
-		size="sm"
-		disabled={isLoading || isSuspended || !canWrite}
-		onclick={() => handleAction('reconcile')}
-		title={!canWrite ? 'Permission denied' : ''}
-	>
-		{#if isLoading}
-			<Loader2 class="mr-2 h-4 w-4 animate-spin" />
-		{:else}
-			<RefreshCw class="mr-2 h-4 w-4" />
-		{/if}
-		Reconcile
-	</Button>
-
-	<!-- Suspend/Resume Button -->
-	{#if isSuspended}
+			{#if isLoading}
+				<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+			{:else}
+				<RefreshCw class="mr-2 h-4 w-4" />
+			{/if}
+			Reconcile
+		</Button>
+	{:else if action === 'resume'}
 		<Button
 			variant="default"
 			size="sm"
 			disabled={isLoading || !canWrite}
 			onclick={() => handleAction('resume')}
-			class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
-			title={!canWrite ? 'Permission denied' : ''}
+			class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 {!canWrite
+				? 'pointer-events-none'
+				: ''}"
 		>
 			<Play class="mr-2 h-4 w-4" />
 			Resume
 		</Button>
-	{:else}
+	{:else if action === 'suspend'}
 		<Button
 			variant="ghost"
 			size="sm"
 			disabled={isLoading || !canWrite}
 			onclick={() => (showSuspendDialog = true)}
-			class="text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-950/30"
-			title={!canWrite ? 'Permission denied' : ''}
+			class="text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-950/30 {!canWrite
+				? 'pointer-events-none'
+				: ''}"
 		>
 			<Pause class="mr-2 h-4 w-4" />
 			Suspend
 		</Button>
+	{/if}
+{/snippet}
+
+{#snippet withPermissionTooltip(action: 'reconcile' | 'suspend' | 'resume')}
+	{#if !canWrite}
+		<Tooltip.Provider delayDuration={200}>
+			<Tooltip.Root>
+				<Tooltip.Trigger>
+					{@render actionButton(action)}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="top">
+					<p class="text-xs">
+						You need additional permissions to {action === 'reconcile' ? 'reconcile' : action} resources.
+					</p>
+				</Tooltip.Content>
+			</Tooltip.Root>
+		</Tooltip.Provider>
+	{:else}
+		{@render actionButton(action)}
+	{/if}
+{/snippet}
+
+<div class="flex items-center gap-2">
+	{#if error}
+		<span class="animate-in fade-in slide-in-from-right-2 text-sm text-red-600">{error}</span>
+	{/if}
+
+	<!-- Reconcile Button -->
+	{@render withPermissionTooltip('reconcile')}
+
+	<!-- Suspend/Resume Button -->
+	{#if isSuspended}
+		{@render withPermissionTooltip('resume')}
+	{:else}
+		{@render withPermissionTooltip('suspend')}
 	{/if}
 </div>
 
