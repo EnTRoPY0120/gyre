@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db/index.js';
 import { users, sessions } from './db/schema.js';
-import { eq, and, gt, sql } from 'drizzle-orm';
+import { eq, and, gt, lt, sql } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import * as k8s from '@kubernetes/client-node';
@@ -252,7 +252,7 @@ export async function deleteUserSessions(userId: string): Promise<void> {
 export async function cleanupExpiredSessions(): Promise<void> {
 	const db = await getDb();
 	const now = new Date();
-	await db.delete(sessions).where(gt(sessions.expiresAt, now));
+	await db.delete(sessions).where(lt(sessions.expiresAt, now));
 }
 
 // Check if any users exist (for initial setup)
