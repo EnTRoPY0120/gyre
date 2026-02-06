@@ -2,6 +2,7 @@
 	import { cn } from '$lib/utils';
 	import { Copy, Check } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
+	import MonacoEditor from './MonacoEditor.svelte';
 
 	let {
 		value = $bindable(''),
@@ -21,21 +22,9 @@
 		copySuccess?: boolean;
 	} = $props();
 
-	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Tab') {
-			e.preventDefault();
-			const textarea = e.target as HTMLTextAreaElement;
-			const start = textarea.selectionStart;
-			const end = textarea.selectionEnd;
-
-			// Set textarea value to: text before caret + tab + text after caret
-			value = value.substring(0, start) + '  ' + value.substring(end);
-
-			// Put caret at right position again
-			setTimeout(() => {
-				textarea.selectionStart = textarea.selectionEnd = start + 2;
-			}, 0);
-		}
+	// Handle value changes from Monaco
+	function handleChange(newValue: string) {
+		value = newValue;
 	}
 </script>
 
@@ -44,71 +33,49 @@
 		<label for="yaml-editor" class="text-sm font-medium text-foreground">{label}</label>
 	{/if}
 
-	<div class="relative flex-1 overflow-hidden rounded-lg border border-border bg-zinc-950">
+	<div class="group relative flex-1 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 transition-all focus-within:border-zinc-700">
 		<!-- Copy button positioned inside the editor -->
 		{#if onCopy}
-			<div class="absolute top-3 right-3 z-10">
+			<div class="absolute top-3 right-3 z-10 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
 				<Button
 					variant="secondary"
 					size="sm"
 					onclick={onCopy}
-					class="h-8 gap-1.5 bg-zinc-800/90 px-3 text-xs text-zinc-100 hover:bg-zinc-700"
+					class="h-7 gap-1.5 border border-zinc-700 bg-zinc-800/80 px-2.5 text-[11px] font-medium text-zinc-200 backdrop-blur-sm hover:bg-zinc-700 hover:text-white"
 				>
 					{#if copySuccess}
-						<Check size={14} class="text-green-400" />
-						<span>Copied!</span>
+						<Check size={12} class="text-green-400" />
+						<span>Copied</span>
 					{:else}
-						<Copy size={14} />
+						<Copy size={12} />
 						<span>Copy YAML</span>
 					{/if}
 				</Button>
 			</div>
 		{/if}
 
-		<textarea
-			id="yaml-editor"
+		<!-- Monaco Editor -->
+		<MonacoEditor
 			bind:value
-			onkeydown={handleKeyDown}
+			language="yaml"
 			{readonly}
-			spellcheck="false"
-			class={cn(
-				'h-full w-full resize-none bg-transparent p-4 pr-32 font-mono text-sm text-zinc-100 outline-none placeholder:text-zinc-500',
-				'scrollbar-thin scrollbar-track-zinc-900 scrollbar-thumb-zinc-700 overflow-y-scroll',
-				error && 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20',
-				readonly && 'cursor-not-allowed opacity-70'
-			)}
-			placeholder="# Enter YAML here..."
-		></textarea>
-
-		{#if error}
-			<p class="absolute bottom-3 left-3 mt-1 text-xs text-red-500">{error}</p>
-		{/if}
+			height="100%"
+			lineNumbers="on"
+			minimap={false}
+			onChange={handleChange}
+			className="h-full"
+		/>
 	</div>
+
+	{#if error}
+		<div
+			class="mt-2 flex flex-col gap-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-xs animate-in fade-in slide-in-from-top-1 duration-200"
+		>
+			<div class="flex items-center gap-2 font-semibold text-red-400">
+				<div class="flex size-4 items-center justify-center rounded-full bg-red-500/20 text-[10px]">!</div>
+				<span>Syntax Error</span>
+			</div>
+			<pre class="overflow-x-auto font-mono leading-relaxed text-red-300/90">{error.replace('YAML Syntax Error: ', '')}</pre>
+		</div>
+	{/if}
 </div>
-
-<style>
-	/* Always show scrollbar but make it inactive when not needed */
-	textarea::-webkit-scrollbar {
-		width: 10px;
-	}
-
-	textarea::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	textarea::-webkit-scrollbar-thumb {
-		background: #3f3f46;
-		border-radius: 5px;
-		border: 2px solid #09090b;
-	}
-
-	textarea::-webkit-scrollbar-thumb:hover {
-		background: #52525b;
-	}
-
-	/* Firefox scrollbar */
-	textarea {
-		scrollbar-width: thin;
-		scrollbar-color: #3f3f46 transparent;
-	}
-</style>
