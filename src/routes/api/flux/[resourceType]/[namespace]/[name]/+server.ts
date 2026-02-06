@@ -14,6 +14,17 @@ import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 import yaml from 'js-yaml';
 
+interface K8sResource {
+	apiVersion: string;
+	kind: string;
+	metadata: {
+		name: string;
+		namespace?: string;
+		[key: string]: unknown;
+	};
+	[key: string]: unknown;
+}
+
 /**
  * GET /api/flux/{resourceType}/{namespace}/{name}
  * Get a specific resource
@@ -90,7 +101,12 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
+	}
+
+	// Validate cluster context is available
+	if (!locals.cluster) {
+		throw error(400, { message: 'Cluster context required' });
 	}
 
 	const { resourceType, namespace, name } = params;
@@ -99,7 +115,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
 		const validPlurals = getAllResourcePlurals();
-		return error(400, {
+		throw error(400, {
 			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
 		});
 	}
@@ -114,46 +130,49 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	try {
 		// Parse request body
 		const body = await request.json();
 		if (!body.yaml || typeof body.yaml !== 'string') {
-			return error(400, { message: 'Missing or invalid yaml field in request body' });
+			throw error(400, { message: 'Missing or invalid yaml field in request body' });
 		}
 
 		// Parse YAML to object
-		let resource: any;
+		let resource: K8sResource;
 		try {
-			resource = yaml.load(body.yaml);
+			const parsed = yaml.load(body.yaml);
+
+			// Validate basic structure before casting
+			if (!parsed || typeof parsed !== 'object') {
+				throw error(400, { message: 'Invalid resource: must be a valid Kubernetes object' });
+			}
+
+			resource = parsed as K8sResource;
 		} catch (err) {
-			return error(400, {
+			throw error(400, {
 				message: `Invalid YAML: ${err instanceof Error ? err.message : 'Unable to parse'}`
 			});
 		}
 
 		// Validate resource structure
-		if (!resource || typeof resource !== 'object') {
-			return error(400, { message: 'Invalid resource: must be a valid Kubernetes object' });
-		}
-
 		if (!resource.apiVersion || !resource.kind || !resource.metadata) {
-			return error(400, {
+			throw error(400, {
 				message: 'Invalid resource: missing required fields (apiVersion, kind, metadata)'
 			});
 		}
 
 		// Validate name and namespace match
 		if (resource.metadata.name !== name) {
-			return error(400, {
+			throw error(400, {
 				message: `Resource name mismatch: expected "${name}", got "${resource.metadata.name}"`
 			});
 		}
 
 		if (resource.metadata.namespace && resource.metadata.namespace !== namespace) {
-			return error(400, {
+			throw error(400, {
 				message: `Namespace mismatch: expected "${namespace}", got "${resource.metadata.namespace}"`
 			});
 		}
@@ -170,6 +189,6 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		return json(updated);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);
-		return error(status, body.error);
+		throw error(status, body.error);
 	}
 };

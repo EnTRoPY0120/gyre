@@ -13,7 +13,7 @@
 		minimap?: boolean;
 		lineNumbers?: 'on' | 'off';
 		onChange?: (value: string) => void;
-		onValidation?: (errors: any[]) => void;
+		onValidation?: (errors: Monaco.editor.IMarker[]) => void;
 		className?: string;
 	}
 
@@ -39,87 +39,93 @@
 	// Fallback to textarea if Monaco fails to load
 	let showFallback = $state(false);
 
+	// Store disposables for cleanup
+	let contentChangeDisposable: Monaco.IDisposable | undefined = $state();
+	let markersDisposable: Monaco.IDisposable | undefined = $state();
+
 	// Initialize Monaco Editor
 	onMount(() => {
 		if (!browser || !containerEl) return;
 
 		(async () => {
 			try {
-			// Dynamically import Monaco to avoid SSR issues
-			const monacoModule = await import('monaco-editor');
-			monaco = monacoModule;
+				// Dynamically import Monaco to avoid SSR issues
+				const monacoModule = await import('monaco-editor');
+				monaco = monacoModule;
 
-			// Configure Monaco environment - use CDN for workers in production
-			self.MonacoEnvironment = {
-				getWorkerUrl: function (_moduleId: string, label: string) {
-					// Use jsdelivr CDN for workers to avoid bundling issues
-					const version = '0.55.1'; // Match installed version
-					const base = `https://cdn.jsdelivr.net/npm/monaco-editor@${version}/min/vs`;
-					if (label === 'json') {
-						return `${base}/language/json/json.worker.js`;
+				// Configure Monaco environment - use CDN for workers in production
+				self.MonacoEnvironment = {
+					getWorkerUrl: function (_moduleId: string, label: string) {
+						// Use jsdelivr CDN for workers to avoid bundling issues
+						const version = '0.55.1'; // Match installed version
+						const base = `https://cdn.jsdelivr.net/npm/monaco-editor@${version}/min/vs`;
+						if (label === 'json') {
+							return `${base}/language/json/json.worker.js`;
+						}
+						if (label === 'css' || label === 'scss' || label === 'less') {
+							return `${base}/language/css/css.worker.js`;
+						}
+						if (label === 'html' || label === 'handlebars' || label === 'razor') {
+							return `${base}/language/html/html.worker.js`;
+						}
+						if (label === 'typescript' || label === 'javascript') {
+							return `${base}/language/typescript/ts.worker.js`;
+						}
+						return `${base}/editor/editor.worker.js`;
 					}
-					if (label === 'css' || label === 'scss' || label === 'less') {
-						return `${base}/language/css/css.worker.js`;
-					}
-					if (label === 'html' || label === 'handlebars' || label === 'razor') {
-						return `${base}/language/html/html.worker.js`;
-					}
-					if (label === 'typescript' || label === 'javascript') {
-						return `${base}/language/typescript/ts.worker.js`;
-					}
-					return `${base}/editor/editor.worker.js`;
-				}
-			};
+				};
 
-			// Create editor instance
-			editor = monaco.editor.create(containerEl, {
-				value: value,
-				language: language,
-				theme: theme.resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light',
-				readOnly: readonly,
-				automaticLayout: true,
-				minimap: { enabled: minimap },
-				lineNumbers: lineNumbers,
-				scrollBeyondLastLine: false,
-				fontSize: 14,
-				fontFamily: 'JetBrains Mono, monospace',
-				wordWrap: 'on',
-				wrappingIndent: 'indent',
-				tabSize: 2,
-				insertSpaces: true
-			});
-
-			// Listen for content changes
-			editor.onDidChangeModelContent(() => {
-				if (!editor) return;
-				const currentValue = editor.getValue();
-				value = currentValue;
-				onChange?.(currentValue);
-			});
-
-			// Listen for validation markers
-			if (onValidation) {
-				monaco.editor.onDidChangeMarkers((uris) => {
-					if (!editor || !monaco) return;
-					const model = editor.getModel();
-					if (!model || !uris.some((uri) => uri.toString() === model.uri.toString())) return;
-
-					const markers = monaco.editor.getModelMarkers({ resource: model.uri });
-					onValidation(markers);
+				// Create editor instance
+				editor = monaco.editor.create(containerEl, {
+					value: value,
+					language: language,
+					theme: theme.resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light',
+					readOnly: readonly,
+					automaticLayout: true,
+					minimap: { enabled: minimap },
+					lineNumbers: lineNumbers,
+					scrollBeyondLastLine: false,
+					fontSize: 14,
+					fontFamily: 'JetBrains Mono, monospace',
+					wordWrap: 'on',
+					wrappingIndent: 'indent',
+					tabSize: 2,
+					insertSpaces: true
 				});
-			}
 
-			loading = false;
-		} catch (err) {
-			console.error('Failed to load Monaco Editor:', err);
-			error = err instanceof Error ? err.message : 'Failed to load editor';
-			showFallback = true;
-			loading = false;
-		}
+				// Listen for content changes and store disposable
+				contentChangeDisposable = editor.onDidChangeModelContent(() => {
+					if (!editor) return;
+					const currentValue = editor.getValue();
+					value = currentValue;
+					onChange?.(currentValue);
+				});
+
+				// Listen for validation markers and store disposable
+				if (onValidation) {
+					markersDisposable = monaco.editor.onDidChangeMarkers((uris) => {
+						if (!editor || !monaco) return;
+						const model = editor.getModel();
+						if (!model || !uris.some((uri) => uri.toString() === model.uri.toString())) return;
+
+						const markers = monaco.editor.getModelMarkers({ resource: model.uri });
+						onValidation(markers);
+					});
+				}
+
+				loading = false;
+			} catch (err) {
+				console.error('Failed to load Monaco Editor:', err);
+				error = err instanceof Error ? err.message : 'Failed to load editor';
+				showFallback = true;
+				loading = false;
+			}
 		})();
 
 		// Cleanup on unmount
 		return () => {
+			contentChangeDisposable?.dispose();
+			markersDisposable?.dispose();
 			editor?.dispose();
 		};
 	});
@@ -175,9 +181,9 @@
 
 <div class="monaco-editor-wrapper {className}" style="height: {height}">
 	{#if loading}
-		<div class="flex items-center justify-center h-full bg-zinc-900 rounded">
+		<div class="flex h-full items-center justify-center rounded bg-zinc-900">
 			<div class="flex flex-col items-center gap-2">
-				<div class="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+				<div class="h-8 w-8 animate-spin rounded-full border-b-2 border-amber-500"></div>
 				<p class="text-sm text-zinc-400">Loading editor...</p>
 			</div>
 		</div>
@@ -187,15 +193,15 @@
 				bind:value
 				oninput={handleTextareaChange}
 				{readonly}
-				class="w-full h-full p-4 bg-zinc-900 text-zinc-100 font-mono text-sm rounded border border-zinc-700 focus:border-amber-500 focus:outline-none resize-none"
+				class="h-full w-full resize-none rounded border border-zinc-700 bg-zinc-900 p-4 font-mono text-sm text-zinc-100 focus:border-amber-500 focus:outline-none"
 				placeholder="Enter {language.toUpperCase()} content..."
 			></textarea>
 			{#if error}
-				<p class="text-xs text-red-400 mt-1">Editor failed to load: {error}</p>
+				<p class="mt-1 text-xs text-red-400">Editor failed to load: {error}</p>
 			{/if}
 		</div>
 	{:else}
-		<div bind:this={containerEl} class="monaco-container h-full rounded overflow-hidden"></div>
+		<div bind:this={containerEl} class="monaco-container h-full overflow-hidden rounded"></div>
 	{/if}
 </div>
 
