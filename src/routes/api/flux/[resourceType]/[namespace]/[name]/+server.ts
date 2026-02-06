@@ -1,6 +1,10 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getFluxResource, getFluxResourceStatus } from '$lib/server/kubernetes/client.js';
+import {
+	getFluxResource,
+	getFluxResourceStatus,
+	updateFluxResource
+} from '$lib/server/kubernetes/client.js';
 import {
 	getAllResourcePlurals,
 	getResourceTypeByPlural,
@@ -8,6 +12,7 @@ import {
 } from '$lib/server/kubernetes/flux/resources.js';
 import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
+import yaml from 'js-yaml';
 
 /**
  * GET /api/flux/{resourceType}/{namespace}/{name}
@@ -70,6 +75,99 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 		}
 
 		return json(resource);
+	} catch (err) {
+		const { status, body } = errorToHttpResponse(err);
+		return error(status, body.error);
+	}
+};
+
+/**
+ * PUT /api/flux/{resourceType}/{namespace}/{name}
+ * Update a specific resource
+ *
+ * Body: { yaml: string } - The updated resource YAML
+ */
+export const PUT: RequestHandler = async ({ params, request, locals }) => {
+	// Check authentication
+	if (!locals.user) {
+		return error(401, { message: 'Authentication required' });
+	}
+
+	const { resourceType, namespace, name } = params;
+
+	// Resolve resource type from plural name
+	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
+	if (!resolvedType) {
+		const validPlurals = getAllResourcePlurals();
+		return error(400, {
+			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
+		});
+	}
+
+	// Check permission for specific namespace
+	const hasPermission = await checkPermission(
+		locals.user,
+		'write',
+		resolvedType,
+		namespace,
+		locals.cluster
+	);
+
+	if (!hasPermission) {
+		return error(403, { message: 'Permission denied' });
+	}
+
+	try {
+		// Parse request body
+		const body = await request.json();
+		if (!body.yaml || typeof body.yaml !== 'string') {
+			return error(400, { message: 'Missing or invalid yaml field in request body' });
+		}
+
+		// Parse YAML to object
+		let resource: any;
+		try {
+			resource = yaml.load(body.yaml);
+		} catch (err) {
+			return error(400, {
+				message: `Invalid YAML: ${err instanceof Error ? err.message : 'Unable to parse'}`
+			});
+		}
+
+		// Validate resource structure
+		if (!resource || typeof resource !== 'object') {
+			return error(400, { message: 'Invalid resource: must be a valid Kubernetes object' });
+		}
+
+		if (!resource.apiVersion || !resource.kind || !resource.metadata) {
+			return error(400, {
+				message: 'Invalid resource: missing required fields (apiVersion, kind, metadata)'
+			});
+		}
+
+		// Validate name and namespace match
+		if (resource.metadata.name !== name) {
+			return error(400, {
+				message: `Resource name mismatch: expected "${name}", got "${resource.metadata.name}"`
+			});
+		}
+
+		if (resource.metadata.namespace && resource.metadata.namespace !== namespace) {
+			return error(400, {
+				message: `Namespace mismatch: expected "${namespace}", got "${resource.metadata.namespace}"`
+			});
+		}
+
+		// Update the resource
+		const updated = await updateFluxResource(
+			resolvedType,
+			namespace,
+			name,
+			resource,
+			locals.cluster
+		);
+
+		return json(updated);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);
 		return error(status, body.error);

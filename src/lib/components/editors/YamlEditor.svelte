@@ -2,6 +2,7 @@
 	import { cn } from '$lib/utils';
 	import { Copy, Check } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
+	import MonacoEditor from './MonacoEditor.svelte';
 
 	let {
 		value = $bindable(''),
@@ -21,21 +22,9 @@
 		copySuccess?: boolean;
 	} = $props();
 
-	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === 'Tab') {
-			e.preventDefault();
-			const textarea = e.target as HTMLTextAreaElement;
-			const start = textarea.selectionStart;
-			const end = textarea.selectionEnd;
-
-			// Set textarea value to: text before caret + tab + text after caret
-			value = value.substring(0, start) + '  ' + value.substring(end);
-
-			// Put caret at right position again
-			setTimeout(() => {
-				textarea.selectionStart = textarea.selectionEnd = start + 2;
-			}, 0);
-		}
+	// Handle value changes from Monaco
+	function handleChange(newValue: string) {
+		value = newValue;
 	}
 </script>
 
@@ -65,50 +54,22 @@
 			</div>
 		{/if}
 
-		<textarea
-			id="yaml-editor"
+		<!-- Monaco Editor -->
+		<MonacoEditor
 			bind:value
-			onkeydown={handleKeyDown}
+			language="yaml"
 			{readonly}
-			spellcheck="false"
-			class={cn(
-				'h-full w-full resize-none bg-transparent p-4 pr-32 font-mono text-sm text-zinc-100 outline-none placeholder:text-zinc-500',
-				'scrollbar-thin scrollbar-track-zinc-900 scrollbar-thumb-zinc-700 overflow-y-scroll',
-				error && 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20',
-				readonly && 'cursor-not-allowed opacity-70'
-			)}
-			placeholder="# Enter YAML here..."
-		></textarea>
+			height="100%"
+			lineNumbers="on"
+			minimap={false}
+			onChange={handleChange}
+			className="h-full"
+		/>
 
 		{#if error}
-			<p class="absolute bottom-3 left-3 mt-1 text-xs text-red-500">{error}</p>
+			<p class="absolute bottom-3 left-3 mt-1 text-xs text-red-500 bg-zinc-900/90 px-2 py-1 rounded">
+				{error}
+			</p>
 		{/if}
 	</div>
 </div>
-
-<style>
-	/* Always show scrollbar but make it inactive when not needed */
-	textarea::-webkit-scrollbar {
-		width: 10px;
-	}
-
-	textarea::-webkit-scrollbar-track {
-		background: transparent;
-	}
-
-	textarea::-webkit-scrollbar-thumb {
-		background: #3f3f46;
-		border-radius: 5px;
-		border: 2px solid #09090b;
-	}
-
-	textarea::-webkit-scrollbar-thumb:hover {
-		background: #52525b;
-	}
-
-	/* Firefox scrollbar */
-	textarea {
-		scrollbar-width: thin;
-		scrollbar-color: #3f3f46 transparent;
-	}
-</style>
