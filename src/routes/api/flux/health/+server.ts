@@ -3,31 +3,33 @@ import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
 import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
 
-// Cache for connection status
-const connectionCache = { connected: false, timestamp: 0 };
+// Cache for connection status per cluster
+const connectionCache = new Map<string, { connected: boolean; timestamp: number }>();
 const CONNECTION_CACHE_TTL = 30 * 1000; // 30 seconds
 
 /**
  * GET /api/flux/health
  * Health check endpoint that validates K8s connection
  */
-export const GET: RequestHandler = async ({ setHeaders, cookies }) => {
+export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 	try {
-		// Get the current cluster from cookie (for multi-cluster support)
-		const selectedCluster = cookies.get('gyre_cluster');
+		// Get the current cluster from locals (for multi-cluster support)
+		const selectedCluster = locals.cluster;
 		const config = await getKubeConfig(selectedCluster);
 		const currentContext = config.getCurrentContext();
+
+		const cacheKey = selectedCluster || 'default';
+		const cached = connectionCache.get(cacheKey) || { connected: false, timestamp: 0 };
 
 		// Check connection - use cache if recent, otherwise validate
 		let isValid = false;
 		let connectionSource = 'fresh';
-		if (Date.now() - connectionCache.timestamp < CONNECTION_CACHE_TTL) {
-			isValid = connectionCache.connected;
+		if (Date.now() - cached.timestamp < CONNECTION_CACHE_TTL) {
+			isValid = cached.connected;
 			connectionSource = 'cached';
 		} else {
 			isValid = await validateKubeConfig(config);
-			connectionCache.connected = isValid;
-			connectionCache.timestamp = Date.now();
+			connectionCache.set(cacheKey, { connected: isValid, timestamp: Date.now() });
 		}
 
 		if (!isValid) {

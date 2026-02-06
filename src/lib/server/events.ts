@@ -137,90 +137,56 @@ async function poll(context: ClusterContext) {
 
 	try {
 		for (const resourceType of WATCH_RESOURCES) {
-			// Pass clusterId to listFluxResources to get resources from the correct cluster
-			const resourceList = await listFluxResources(
-				resourceType,
-				context.clusterId === 'in-cluster' ? undefined : context.clusterId
-			);
+			try {
+				// Pass clusterId to listFluxResources to get resources from the correct cluster
+				const resourceList = await listFluxResources(
+					resourceType,
+					context.clusterId === 'in-cluster' ? undefined : context.clusterId
+				);
 
-			if (resourceList && resourceList.items) {
-				const currentMessageKeys = new Set<string>();
+				if (resourceList && resourceList.items) {
+					const currentMessageKeys = new Set<string>();
 
-				for (const resource of resourceList.items) {
-					const key = `${resourceType}/${resource.metadata.namespace}/${resource.metadata.name}`;
-					currentMessageKeys.add(key);
+					for (const resource of resourceList.items) {
+						const key = `${resourceType}/${resource.metadata.namespace}/${resource.metadata.name}`;
+						currentMessageKeys.add(key);
 
-					const conditions = resource.status?.conditions?.map((c: K8sCondition) => ({
-						type: c.type,
-						status: c.status,
-						reason: c.reason,
-						message: c.message
-					}));
+						const conditions = resource.status?.conditions?.map((c: K8sCondition) => ({
+							type: c.type,
+							status: c.status,
+							reason: c.reason,
+							message: c.message
+						}));
 
-					const currentState = JSON.stringify({
-						resourceVersion: resource.metadata?.resourceVersion,
-						generation: resource.metadata?.generation,
-						observedGeneration: resource.status?.observedGeneration
-					});
+						const currentState = JSON.stringify({
+							resourceVersion: resource.metadata?.resourceVersion,
+							generation: resource.metadata?.generation,
+							observedGeneration: resource.status?.observedGeneration
+						});
 
-					const readyCondition = conditions?.find((c: { type: string }) => c.type === 'Ready');
-					const revision = getResourceRevision(resource);
+						const readyCondition = conditions?.find((c: { type: string }) => c.type === 'Ready');
+						const revision = getResourceRevision(resource);
 
-					const notificationState = JSON.stringify({
-						revision: revision,
-						readyStatus: readyCondition?.status,
-						readyReason: readyCondition?.reason,
-						messagePreview: readyCondition?.message?.substring(0, 100) || ''
-					});
+						const notificationState = JSON.stringify({
+							revision: revision,
+							readyStatus: readyCondition?.status,
+							readyReason: readyCondition?.reason,
+							messagePreview: readyCondition?.message?.substring(0, 100) || ''
+						});
 
-					const previousState = context.lastStates.get(key);
+						const previousState = context.lastStates.get(key);
 
-					const now = Date.now();
-					if (!context.resourceFirstSeen.has(key)) {
-						context.resourceFirstSeen.set(key, now);
-					}
-					const firstSeen = context.resourceFirstSeen.get(key) || now;
-					const isSettled = now - firstSeen > SETTLING_PERIOD_MS;
-
-					if (!previousState) {
-						if (isSettled) {
-							broadcast(context, {
-								type: 'ADDED',
-								clusterId: context.clusterId,
-								resourceType,
-								resource: {
-									metadata: {
-										name: resource.metadata.name,
-										namespace: resource.metadata.namespace,
-										uid: resource.metadata.uid || 'unknown'
-									},
-									status: resource.status
-								},
-								timestamp: new Date().toISOString()
-							});
+						const now = Date.now();
+						if (!context.resourceFirstSeen.has(key)) {
+							context.resourceFirstSeen.set(key, now);
 						}
-						context.lastNotificationStates.set(key, notificationState);
-					} else if (previousState && previousState !== currentState) {
-						const previousNotificationState = context.lastNotificationStates.get(key);
+						const firstSeen = context.resourceFirstSeen.get(key) || now;
+						const isSettled = now - firstSeen > SETTLING_PERIOD_MS;
 
-						if (!previousNotificationState || previousNotificationState !== notificationState) {
-							const prevState = previousNotificationState
-								? JSON.parse(previousNotificationState)
-								: {};
-							const currState = JSON.parse(notificationState);
-
-							const revisionChanged = prevState.revision !== currState.revision;
-							const becameFailed = currState.readyStatus === 'False';
-							const becameHealthy =
-								prevState.readyStatus === 'False' && currState.readyStatus === 'True';
-							const isTransientState = currState.readyStatus === 'Unknown';
-
-							const shouldNotify =
-								revisionChanged || becameFailed || (becameHealthy && revisionChanged);
-
-							if (shouldNotify && !isTransientState) {
+						if (!previousState) {
+							if (isSettled) {
 								broadcast(context, {
-									type: 'MODIFIED',
+									type: 'ADDED',
 									clusterId: context.clusterId,
 									resourceType,
 									resource: {
@@ -235,39 +201,80 @@ async function poll(context: ClusterContext) {
 								});
 							}
 							context.lastNotificationStates.set(key, notificationState);
+						} else if (previousState && previousState !== currentState) {
+							const previousNotificationState = context.lastNotificationStates.get(key);
+
+							if (!previousNotificationState || previousNotificationState !== notificationState) {
+								const prevState = previousNotificationState
+									? JSON.parse(previousNotificationState)
+									: {};
+								const currState = JSON.parse(notificationState);
+
+								const revisionChanged = prevState.revision !== currState.revision;
+								const becameFailed = currState.readyStatus === 'False';
+								const becameHealthy =
+									prevState.readyStatus === 'False' && currState.readyStatus === 'True';
+								const isTransientState = currState.readyStatus === 'Unknown';
+
+								const shouldNotify =
+									revisionChanged || becameFailed || (becameHealthy && revisionChanged);
+
+								if (shouldNotify && !isTransientState) {
+									broadcast(context, {
+										type: 'MODIFIED',
+										clusterId: context.clusterId,
+										resourceType,
+										resource: {
+											metadata: {
+												name: resource.metadata.name,
+												namespace: resource.metadata.namespace,
+												uid: resource.metadata.uid || 'unknown'
+											},
+											status: resource.status
+										},
+										timestamp: new Date().toISOString()
+									});
+								}
+								context.lastNotificationStates.set(key, notificationState);
+							}
+						}
+
+						context.lastStates.set(key, currentState);
+					}
+
+					for (const key of context.lastStates.keys()) {
+						if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
+							const [type, namespace, name] = key.split('/');
+
+							broadcast(context, {
+								type: 'DELETED',
+								clusterId: context.clusterId,
+								resourceType: type,
+								resource: {
+									metadata: {
+										name: name,
+										namespace: namespace,
+										uid: 'unknown'
+									}
+								},
+								timestamp: new Date().toISOString()
+							});
+
+							context.lastStates.delete(key);
+							context.lastNotificationStates.delete(key);
+							context.resourceFirstSeen.delete(key);
 						}
 					}
-
-					context.lastStates.set(key, currentState);
 				}
-
-				for (const key of context.lastStates.keys()) {
-					if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
-						const [type, namespace, name] = key.split('/');
-
-						broadcast(context, {
-							type: 'DELETED',
-							clusterId: context.clusterId,
-							resourceType: type,
-							resource: {
-								metadata: {
-									name: name,
-									namespace: namespace,
-									uid: 'unknown'
-								}
-							},
-							timestamp: new Date().toISOString()
-						});
-
-						context.lastStates.delete(key);
-						context.lastNotificationStates.delete(key);
-						context.resourceFirstSeen.delete(key);
-					}
-				}
+			} catch (err) {
+				console.error(
+					`[EventBus] Error polling ${resourceType} for cluster ${context.clusterId}:`,
+					err
+				);
 			}
 		}
 	} catch (err) {
-		console.error(`[EventBus] Error polling resources for cluster ${context.clusterId}:`, err);
+		console.error(`[EventBus] Critical error in poll loop for cluster ${context.clusterId}:`, err);
 	}
 
 	if (context.isActive) {
