@@ -10,7 +10,33 @@ import type { FluxResource, FluxResourceList } from './flux/types.js';
 
 // Cache for Kubernetes configurations to ensure atomic access and performance
 // Maps clusterId or contextName to a fully configured KubeConfig instance
-const configCache = new Map<string, k8s.KubeConfig>();
+const MAX_CACHED_CONFIGS = 50;
+const configCache = new Map<string, { config: k8s.KubeConfig; lastAccess: number }>();
+
+function getFromCache(key: string): k8s.KubeConfig | undefined {
+	const entry = configCache.get(key);
+	if (entry) {
+		entry.lastAccess = Date.now();
+		return entry.config;
+	}
+	return undefined;
+}
+
+function setInCache(key: string, config: k8s.KubeConfig): void {
+	if (configCache.size >= MAX_CACHED_CONFIGS) {
+		// Evict least recently accessed
+		let oldestKey: string | null = null;
+		let oldestTime = Infinity;
+		for (const [k, v] of configCache) {
+			if (v.lastAccess < oldestTime) {
+				oldestTime = v.lastAccess;
+				oldestKey = k;
+			}
+		}
+		if (oldestKey) configCache.delete(oldestKey);
+	}
+	configCache.set(key, { config, lastAccess: Date.now() });
+}
 
 // Store the base default config separately to avoid reloading it constantly
 let baseConfig: k8s.KubeConfig | null = null;
@@ -24,8 +50,9 @@ export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.Ku
 	const key = clusterIdOrContext || 'in-cluster';
 
 	// 1. Check cache first
-	if (configCache.has(key)) {
-		return configCache.get(key)!;
+	const cached = getFromCache(key);
+	if (cached) {
+		return cached;
 	}
 
 	// 2. Load the base configuration if not already loaded
@@ -57,8 +84,9 @@ export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.Ku
 			config.setCurrentContext(key);
 			console.log(`✓ Switched to Kubernetes context: ${key}`);
 		} else {
-			console.warn(`Context "${key}" not found. Falling back to default.`);
-			config = baseConfig;
+			throw new Error(
+				`Context "${key}" not found in kubeconfig. Available: ${availableContexts.join(', ')}`
+			);
 		}
 	} else {
 		// Default context
@@ -66,7 +94,7 @@ export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.Ku
 	}
 
 	// 4. Cache and return
-	configCache.set(key, config);
+	setInCache(key, config);
 	return config;
 }
 
