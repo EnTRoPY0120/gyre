@@ -66,6 +66,52 @@ Visit [http://localhost:3000](http://localhost:3000) and login with:
 
 ---
 
+## 🏗️ Development
+
+### Using DevContainer (Recommended)
+
+The easiest way to start developing Gyre is to use the provided devcontainer:
+
+1. Open the repository in [VS Code](https://code.visualstudio.com/)
+2. Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+3. Press `F1` and select "Dev Containers: Reopen in Container"
+4. The devcontainer will automatically:
+   - Install [Bun](https://bun.sh) runtime
+   - Install VS Code extensions (Svelte, Tailwind, Kubernetes)
+   - Mount your `~/.kube` config for cluster access
+   - Run `bun install` and type checks
+
+**Optional: Create a local kind cluster with FluxCD**
+
+```bash
+# Create kind cluster (requires Docker)
+kind create cluster
+
+# Install FluxCD
+flux install
+
+# Verify FluxCD is running
+kubectl get pods -n flux-system
+```
+
+**Start the development server:**
+
+```bash
+bun run dev
+```
+
+Access Gyre at [http://localhost:3000](http://localhost:3000)
+
+### Manual Setup
+
+If you prefer not to use the devcontainer:
+
+1. Install [Bun](https://bun.sh) (v1.1+)
+2. Install dependencies: `bun install`
+3. Start development server: `bun run dev`
+
+---
+
 ## 📚 Documentation
 
 Comprehensive documentation is available at **[entropy0120.github.io/gyre](https://entropy0120.github.io/gyre/)**:
