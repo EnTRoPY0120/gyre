@@ -12,6 +12,8 @@ import {
 	isUsingDevelopmentKey as isUsingDevClusterKey,
 	migrateKubeconfigs
 } from './clusters.js';
+import { seedAuthSettings } from './settings.js';
+import { seedAuthProviders } from './auth/seed-providers.js';
 
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
@@ -150,6 +152,23 @@ export async function initializeGyre(): Promise<void> {
 	} catch (error) {
 		console.error('   ✗ Failed to setup RBAC policies:', error);
 		throw error;
+	}
+
+	// Seed auth settings and providers from environment
+	console.log('\n🔑 Setting up authentication settings...');
+	try {
+		await seedAuthSettings();
+		const seedResult = await seedAuthProviders();
+		if (seedResult.created > 0) {
+			console.log(`   ✓ Seeded ${seedResult.created} auth provider(s)`);
+		}
+		if (seedResult.skipped > 0) {
+			console.log(`   ℹ Skipped ${seedResult.skipped} existing provider(s)`);
+		}
+		console.log('   ✓ Authentication settings ready');
+	} catch (error) {
+		console.error('   ✗ Failed to seed auth settings:', error);
+		// Don't throw - app can still work without seeded providers
 	}
 
 	console.log('\n' + '='.repeat(60));

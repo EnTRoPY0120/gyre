@@ -8,8 +8,7 @@ let initialized = false;
 // Public routes that don't require authentication
 const PUBLIC_ROUTES = [
 	'/login',
-	'/api/auth/login',
-	'/api/auth/logout',
+	'/api/auth', // All auth API routes (including OAuth callbacks)
 	'/api/health',
 	'/api/flux/health',
 	'/manifest.json',

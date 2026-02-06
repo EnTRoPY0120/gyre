@@ -300,6 +300,27 @@
 								<span class="relative z-10">Auth Providers</span>
 							</a>
 
+							<!-- Settings -->
+							<a
+								href="/admin/settings"
+								class={cn(
+									'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
+									currentPath === '/admin/settings'
+										? 'border border-primary/20 bg-primary/10 text-primary'
+										: 'text-muted-foreground/80 hover:bg-sidebar-accent/50 hover:text-foreground'
+								)}
+							>
+								{#if currentPath === '/admin/settings'}
+									<div class="absolute inset-0 animate-pulse bg-primary/5"></div>
+								{/if}
+								<Icon
+									name="settings"
+									size={16}
+									class="transition-transform duration-300 group-hover/item:scale-110"
+								/>
+								<span class="relative z-10">Settings</span>
+							</a>
+
 							<!-- Policies -->
 							<a
 								href="/admin/policies"
