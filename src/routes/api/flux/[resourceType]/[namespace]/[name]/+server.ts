@@ -123,50 +123,51 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		throw error(403, { message: 'Permission denied' });
 	}
 
+	// Parse request body
+	const body = await request.json();
+	if (!body.yaml || typeof body.yaml !== 'string') {
+		throw error(400, { message: 'Missing or invalid yaml field in request body' });
+	}
+
+	// Parse YAML to object
+	let resource: K8sResource;
 	try {
-		// Parse request body
-		const body = await request.json();
-		if (!body.yaml || typeof body.yaml !== 'string') {
-			throw error(400, { message: 'Missing or invalid yaml field in request body' });
+		const parsed = yaml.load(body.yaml);
+
+		// Validate basic structure before casting
+		if (!parsed || typeof parsed !== 'object') {
+			throw error(400, { message: 'Invalid resource: must be a valid Kubernetes object' });
 		}
 
-		// Parse YAML to object
-		let resource: K8sResource;
-		try {
-			const parsed = yaml.load(body.yaml);
+		resource = parsed as K8sResource;
+	} catch (err) {
+		if (isHttpError(err)) throw err;
+		throw error(400, {
+			message: `Invalid YAML: ${err instanceof Error ? err.message : 'Unable to parse'}`
+		});
+	}
 
-			// Validate basic structure before casting
-			if (!parsed || typeof parsed !== 'object') {
-				throw error(400, { message: 'Invalid resource: must be a valid Kubernetes object' });
-			}
+	// Validate resource structure
+	if (!resource.apiVersion || !resource.kind || !resource.metadata) {
+		throw error(400, {
+			message: 'Invalid resource: missing required fields (apiVersion, kind, metadata)'
+		});
+	}
 
-			resource = parsed as K8sResource;
-		} catch (err) {
-			throw error(400, {
-				message: `Invalid YAML: ${err instanceof Error ? err.message : 'Unable to parse'}`
-			});
-		}
+	// Validate name and namespace match
+	if (resource.metadata.name !== name) {
+		throw error(400, {
+			message: `Resource name mismatch: expected "${name}", got "${resource.metadata.name}"`
+		});
+	}
 
-		// Validate resource structure
-		if (!resource.apiVersion || !resource.kind || !resource.metadata) {
-			throw error(400, {
-				message: 'Invalid resource: missing required fields (apiVersion, kind, metadata)'
-			});
-		}
+	if (resource.metadata.namespace && resource.metadata.namespace !== namespace) {
+		throw error(400, {
+			message: `Namespace mismatch: expected "${namespace}", got "${resource.metadata.namespace}"`
+		});
+	}
 
-		// Validate name and namespace match
-		if (resource.metadata.name !== name) {
-			throw error(400, {
-				message: `Resource name mismatch: expected "${name}", got "${resource.metadata.name}"`
-			});
-		}
-
-		if (resource.metadata.namespace && resource.metadata.namespace !== namespace) {
-			throw error(400, {
-				message: `Namespace mismatch: expected "${namespace}", got "${resource.metadata.namespace}"`
-			});
-		}
-
+	try {
 		// Update the resource
 		const updated = await updateFluxResource(
 			resolvedType,
