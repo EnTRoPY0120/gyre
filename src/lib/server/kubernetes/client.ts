@@ -53,7 +53,7 @@ export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.Ku
 		if (availableContexts.includes(key)) {
 			// Create a clone of the base config and switch context
 			config = new k8s.KubeConfig();
-			config.loadFromString(JSON.stringify(baseConfig.exportConfig()));
+			config.loadFromString(baseConfig.exportConfig());
 			config.setCurrentContext(key);
 			console.log(`✓ Switched to Kubernetes context: ${key}`);
 		} else {
