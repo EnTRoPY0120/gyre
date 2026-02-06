@@ -12,7 +12,7 @@ import { checkPermission } from '$lib/server/rbac.js';
 export const GET: RequestHandler = async ({ locals }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
 	}
 
 	// Check permission
@@ -24,7 +24,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		locals.cluster
 	);
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	try {

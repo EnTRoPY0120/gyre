@@ -1,26 +1,36 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, type Mock } from 'vitest';
 import { checkPermission } from './rbac';
 import type { User } from './db/schema';
 
-// Mock the database module
-vi.mock('./db/index.js', () => {
-	const mockDb = {
-		select: vi.fn().mockReturnThis(),
-		from: vi.fn().mockReturnThis(),
-		where: vi.fn().mockReturnThis(),
-		get: vi.fn(),
-		query: {
-			rbacPolicies: {
-				findFirst: vi.fn()
-			}
-		}
+// Define a type for our mock database to satisfy the linter
+interface MockDb {
+	select: Mock;
+	from: Mock;
+	where: Mock;
+	get: Mock;
+	query: {
+		rbacPolicies: {
+			findFirst: Mock;
+		};
 	};
-	return {
-		getDbSync: () => mockDb
-	};
-});
+}
 
-import { getDbSync } from './db/index.js';
+const mockDb: MockDb = {
+	select: vi.fn().mockReturnThis(),
+	from: vi.fn().mockReturnThis(),
+	where: vi.fn().mockReturnThis(),
+	get: vi.fn(),
+	query: {
+		rbacPolicies: {
+			findFirst: vi.fn()
+		}
+	}
+};
+
+// Mock the database module
+vi.mock('./db/index.js', () => ({
+	getDbSync: () => mockDb
+}));
 
 describe('RBAC checkPermission', () => {
 	const adminUser: User = {
@@ -53,42 +63,31 @@ describe('RBAC checkPermission', () => {
 	});
 
 	it('should deny viewer access when no policies are bound', async () => {
-		const db = getDbSync() as unknown as { where: { mockResolvedValueOnce: (v: unknown) => void } };
 		// Mock the chain: db.select().from().where() -> resolves to []
-		db.where.mockResolvedValueOnce([]);
+		mockDb.where.mockResolvedValueOnce([]);
 
 		const result = await checkPermission(viewerUser, 'write', 'GitRepository');
 		expect(result).toBe(false);
 	});
 
 	it('should handle policy matching correctly', async () => {
-		const db = getDbSync() as unknown as {
-			where: { mockResolvedValueOnce: (v: unknown) => void };
-			get: { mockResolvedValueOnce: (v: unknown) => void };
-		};
-
 		// First call: mock user bindings (resolves to array)
-		db.where.mockResolvedValueOnce([{ policyId: 'policy-1' }]);
+		mockDb.where.mockResolvedValueOnce([{ policyId: 'policy-1' }]);
 
 		// Second call: mock policy check (resolves to object with count)
 		// Chain: db.select().from().where().get() -> resolves to { count: 1 }
-		db.get.mockResolvedValueOnce({ count: 1 });
+		mockDb.get.mockResolvedValueOnce({ count: 1 });
 
 		const result = await checkPermission(viewerUser, 'read', 'GitRepository');
 		expect(result).toBe(true);
 	});
 
 	it('should deny access when policy count is 0', async () => {
-		const db = getDbSync() as unknown as {
-			where: { mockResolvedValueOnce: (v: unknown) => void };
-			get: { mockResolvedValueOnce: (v: unknown) => void };
-		};
-
 		// First call: mock user bindings
-		db.where.mockResolvedValueOnce([{ policyId: 'policy-1' }]);
+		mockDb.where.mockResolvedValueOnce([{ policyId: 'policy-1' }]);
 
 		// Second call: mock policy check (count 0)
-		db.get.mockResolvedValueOnce({ count: 0 });
+		mockDb.get.mockResolvedValueOnce({ count: 0 });
 
 		const result = await checkPermission(viewerUser, 'write', 'GitRepository');
 		expect(result).toBe(false);
