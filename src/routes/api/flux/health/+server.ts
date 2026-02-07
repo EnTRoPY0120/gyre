@@ -39,6 +39,12 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 			});
 		}
 
+		// If not authenticated, return only basic status to prevent information leakage.
+		// Detailed cluster information is restricted to authenticated users.
+		if (!locals.user) {
+			return json({ status: 'healthy' });
+		}
+
 		// Detect mode
 		const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 		const allContexts = config.getContexts().map((c) => c.name);
