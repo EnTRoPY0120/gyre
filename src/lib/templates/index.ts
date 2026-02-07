@@ -251,6 +251,15 @@ spec:
 			placeholder: 'git-credentials',
 			description: 'Name of secret containing authentication credentials'
 		},
+		{
+			name: 'proxySecretRef',
+			label: 'Proxy Secret',
+			path: 'spec.proxySecretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'proxy-credentials',
+			description: 'Secret containing proxy credentials'
+		},
 
 		// Advanced Options
 		{
@@ -270,6 +279,19 @@ spec:
 			section: 'advanced',
 			placeholder: '60s',
 			description: 'Timeout for Git operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
@@ -484,6 +506,19 @@ spec:
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
+		},
+		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
 		}
 	]
 };
@@ -539,6 +574,20 @@ spec:
 			id: 'advanced',
 			title: 'Advanced Options',
 			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'customization',
+			title: 'Manifest Customization',
+			description: 'Metadata and name overrides',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'remote',
+			title: 'Remote Cluster & Decryption',
+			description: 'KubeConfig and SOPS decryption',
 			collapsible: true,
 			defaultExpanded: false
 		}
@@ -663,9 +712,25 @@ spec:
 			path: 'spec.dependsOn',
 			type: 'array',
 			section: 'deployment',
-			arrayItemType: 'string',
-			placeholder: 'namespace/name',
-			description: 'List of Kustomizations this depends on (format: namespace/name)'
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'name',
+					label: 'Name',
+					path: 'name',
+					type: 'string',
+					required: true,
+					placeholder: 'common'
+				},
+				{
+					name: 'namespace',
+					label: 'Namespace',
+					path: 'namespace',
+					type: 'string',
+					placeholder: 'flux-system'
+				}
+			],
+			description: 'List of Kustomizations this depends on'
 		},
 
 		// Health Checks
@@ -719,6 +784,149 @@ spec:
 			section: 'advanced',
 			placeholder: 'kustomize-controller',
 			description: 'ServiceAccount to impersonate for reconciliation'
+		},
+		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'components',
+			label: 'Components',
+			path: 'spec.components',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'string',
+			placeholder: './components/feature-a',
+			description: 'List of Kustomize components'
+		},
+		{
+			name: 'commonMetadataLabels',
+			label: 'Common Labels',
+			path: 'spec.commonMetadata.labels',
+			type: 'textarea',
+			section: 'customization',
+			placeholder: 'app: my-app\nenv: prod',
+			description: 'Labels to apply to all resources (YAML format)'
+		},
+		{
+			name: 'commonMetadataAnnotations',
+			label: 'Common Annotations',
+			path: 'spec.commonMetadata.annotations',
+			type: 'textarea',
+			section: 'customization',
+			placeholder: 'team: frontend',
+			description: 'Annotations to apply to all resources (YAML format)'
+		},
+		{
+			name: 'namePrefix',
+			label: 'Name Prefix',
+			path: 'spec.namePrefix',
+			type: 'string',
+			section: 'customization',
+			placeholder: 'prod-',
+			description: 'Prefix to add to all resource names'
+		},
+		{
+			name: 'nameSuffix',
+			label: 'Name Suffix',
+			path: 'spec.nameSuffix',
+			type: 'string',
+			section: 'customization',
+			placeholder: '-v1',
+			description: 'Suffix to add to all resource names'
+		},
+		{
+			name: 'postBuildSubstitute',
+			label: 'Variable Substitution',
+			path: 'spec.postBuild.substitute',
+			type: 'textarea',
+			section: 'customization',
+			placeholder: 'cluster_name: prod-cluster',
+			description: 'Key-value pairs for variable substitution (YAML format)'
+		},
+		{
+			name: 'kubeConfigSecret',
+			label: 'Remote KubeConfig Secret',
+			path: 'spec.kubeConfig.secretRef.name',
+			type: 'string',
+			section: 'remote',
+			placeholder: 'remote-cluster-kubeconfig',
+			description: 'Secret containing KubeConfig for remote cluster'
+		},
+		{
+			name: 'decryptionProvider',
+			label: 'Decryption Provider',
+			path: 'spec.decryption.provider',
+			type: 'select',
+			section: 'remote',
+			default: '',
+			options: [
+				{ label: 'None', value: '' },
+				{ label: 'SOPS', value: 'sops' }
+			],
+			description: 'Provider for Secrets decryption'
+		},
+		{
+			name: 'decryptionSecret',
+			label: 'Decryption Secret',
+			path: 'spec.decryption.secretRef.name',
+			type: 'string',
+			section: 'remote',
+			placeholder: 'sops-gpg',
+			description: 'Secret containing decryption keys',
+			showIf: {
+				field: 'decryptionProvider',
+				value: 'sops'
+			}
+		},
+		{
+			name: 'images',
+			label: 'Images',
+			path: 'spec.images',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'name',
+					label: 'Original Name',
+					path: 'name',
+					type: 'string',
+					required: true,
+					placeholder: 'ghcr.io/stefanprodan/podinfo'
+				},
+				{
+					name: 'newName',
+					label: 'New Name',
+					path: 'newName',
+					type: 'string',
+					placeholder: 'registry.example.com/podinfo'
+				},
+				{
+					name: 'newTag',
+					label: 'New Tag',
+					path: 'newTag',
+					type: 'string',
+					placeholder: 'v1.0.0'
+				},
+				{
+					name: 'digest',
+					label: 'Digest',
+					path: 'digest',
+					type: 'string',
+					placeholder: 'sha256:...'
+				}
+			],
+			description: 'Override container images'
 		}
 	]
 };
@@ -777,6 +985,41 @@ spec:
 			id: 'advanced',
 			title: 'Advanced Options',
 			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'drift',
+			title: 'Drift Detection',
+			description: 'Drift detection and correction',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'install',
+			title: 'Install Options',
+			description: 'Helm install action configuration',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'test',
+			title: 'Helm Test',
+			description: 'Helm test action configuration',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'uninstall',
+			title: 'Uninstall Options',
+			description: 'Helm uninstall action configuration',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'remote',
+			title: 'Remote Cluster',
+			description: 'KubeConfig for remote cluster',
 			collapsible: true,
 			defaultExpanded: false
 		}
@@ -897,6 +1140,15 @@ spec:
 			description: 'Namespace to install the release into'
 		},
 		{
+			name: 'storageNamespace',
+			label: 'Storage Namespace',
+			path: 'spec.storageNamespace',
+			type: 'string',
+			section: 'release',
+			placeholder: 'flux-system',
+			description: 'Namespace where Helm stores release state'
+		},
+		{
 			name: 'releaseName',
 			label: 'Release Name',
 			path: 'spec.releaseName',
@@ -904,6 +1156,53 @@ spec:
 			section: 'release',
 			placeholder: 'my-app',
 			description: 'Helm release name (defaults to metadata.name)'
+		},
+		{
+			name: 'values',
+			label: 'Values',
+			path: 'spec.values',
+			type: 'textarea',
+			section: 'release',
+			placeholder: 'replicaCount: 3\nimage:\n  tag: v1.0.0',
+			description: 'Helm values to override (YAML format)'
+		},
+		{
+			name: 'valuesFrom',
+			label: 'Values From',
+			path: 'spec.valuesFrom',
+			type: 'array',
+			section: 'release',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'kind',
+					label: 'Kind',
+					path: 'kind',
+					type: 'select',
+					options: [
+						{ label: 'ConfigMap', value: 'ConfigMap' },
+						{ label: 'Secret', value: 'Secret' }
+					]
+				},
+				{ name: 'name', label: 'Name', path: 'name', type: 'string' },
+				{ name: 'valuesKey', label: 'Values Key', path: 'valuesKey', type: 'string' },
+				{ name: 'targetPath', label: 'Target Path', path: 'targetPath', type: 'string' },
+				{ name: 'optional', label: 'Optional', path: 'optional', type: 'boolean' }
+			],
+			description: 'References to ConfigMaps or Secrets for values'
+		},
+		{
+			name: 'dependsOn',
+			label: 'Dependencies',
+			path: 'spec.dependsOn',
+			type: 'array',
+			section: 'release',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{ name: 'name', label: 'Name', path: 'name', type: 'string' },
+				{ name: 'namespace', label: 'Namespace', path: 'namespace', type: 'string' }
+			],
+			description: 'List of HelmReleases this depends on'
 		},
 
 		// Upgrade & Rollback
@@ -966,6 +1265,90 @@ spec:
 			section: 'advanced',
 			placeholder: 'helm-controller',
 			description: 'ServiceAccount to impersonate for Helm operations'
+		},
+		{
+			name: 'maxHistory',
+			label: 'Max History',
+			path: 'spec.maxHistory',
+			type: 'number',
+			section: 'advanced',
+			default: 5,
+			description: 'Max number of release revisions to keep'
+		},
+		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'driftMode',
+			label: 'Drift Detection Mode',
+			path: 'spec.driftDetection.mode',
+			type: 'select',
+			section: 'drift',
+			default: 'warn',
+			options: [
+				{ label: 'Warn', value: 'warn' },
+				{ label: 'Enabled (Automatic Correction)', value: 'enabled' }
+			],
+			description: 'Mode for drift detection and correction'
+		},
+		{
+			name: 'installCRDs',
+			label: 'Install CRDs',
+			path: 'spec.install.crds',
+			type: 'select',
+			section: 'install',
+			default: 'Create',
+			options: [
+				{ label: 'Skip', value: 'Skip' },
+				{ label: 'Create', value: 'Create' },
+				{ label: 'CreateReplace', value: 'CreateReplace' }
+			]
+		},
+		{
+			name: 'createNamespace',
+			label: 'Create Namespace',
+			path: 'spec.install.createNamespace',
+			type: 'boolean',
+			section: 'install',
+			default: false,
+			description: 'Create target namespace if it does not exist'
+		},
+		{
+			name: 'testEnabled',
+			label: 'Enable Helm Test',
+			path: 'spec.test.enable',
+			type: 'boolean',
+			section: 'test',
+			default: false,
+			description: 'Run helm test after install/upgrade'
+		},
+		{
+			name: 'uninstallKeepHistory',
+			label: 'Keep History on Uninstall',
+			path: 'spec.uninstall.keepHistory',
+			type: 'boolean',
+			section: 'uninstall',
+			default: false,
+			description: 'Retain release history after uninstall'
+		},
+		{
+			name: 'kubeConfigSecret',
+			label: 'Remote KubeConfig Secret',
+			path: 'spec.kubeConfig.secretRef.name',
+			type: 'string',
+			section: 'remote',
+			placeholder: 'remote-cluster-kubeconfig',
+			description: 'Secret containing KubeConfig for remote cluster'
 		}
 	]
 };
@@ -1126,6 +1509,19 @@ spec:
 			section: 'advanced',
 			placeholder: '- values.yaml\n- values-prod.yaml',
 			description: 'List of values files to merge (YAML array format)'
+		},
+		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
 		}
 	]
 };
@@ -1284,6 +1680,15 @@ spec:
 			description: 'Secret containing access key and secret key'
 		},
 		{
+			name: 'proxySecretRef',
+			label: 'Proxy Secret',
+			path: 'spec.proxySecretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'proxy-credentials',
+			description: 'Secret containing proxy credentials'
+		},
+		{
 			name: 'insecure',
 			label: 'Insecure',
 			path: 'spec.insecure',
@@ -1311,6 +1716,19 @@ spec:
 			section: 'advanced',
 			placeholder: '60s',
 			description: 'Timeout for bucket operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
@@ -1508,6 +1926,15 @@ spec:
 			placeholder: 'oci-credentials',
 			description: 'Secret containing registry credentials'
 		},
+		{
+			name: 'proxySecretRef',
+			label: 'Proxy Secret',
+			path: 'spec.proxySecretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'proxy-credentials',
+			description: 'Secret containing proxy credentials'
+		},
 
 		// Advanced Options
 		{
@@ -1527,6 +1954,19 @@ spec:
 			section: 'advanced',
 			placeholder: '60s',
 			description: 'Timeout for OCI operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
@@ -1780,6 +2220,24 @@ spec:
 			section: 'provider',
 			placeholder: 'slack-webhook-url',
 			description: 'Secret containing webhook URL or credentials'
+		},
+		{
+			name: 'address',
+			label: 'Address',
+			path: 'spec.address',
+			type: 'string',
+			section: 'provider',
+			placeholder: 'https://hooks.slack.com/services/...',
+			description: 'Webhook URL or API address (if not in secret)'
+		},
+		{
+			name: 'proxy',
+			label: 'Proxy',
+			path: 'spec.proxy',
+			type: 'string',
+			section: 'provider',
+			placeholder: 'http://proxy.example.com:8080',
+			description: 'Proxy address to use for notifications'
 		}
 	]
 };
@@ -1998,6 +2456,19 @@ spec:
 			description: 'Secret containing registry credentials'
 		},
 		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
 			name: 'suspend',
 			label: 'Suspend',
 			path: 'spec.suspend',
@@ -2086,12 +2557,12 @@ spec:
 		{
 			name: 'policyType',
 			label: 'Policy Type',
-			path: 'spec.policy.type',
+			path: 'spec.policy.type', // Virtual field for wizard choice
 			type: 'select',
 			section: 'policy',
 			default: 'semver',
 			options: [
-				{ label: 'Semver (semantic versioning)', value: 'semver' },
+				{ label: 'Semver', value: 'semver' },
 				{ label: 'Alphabetical', value: 'alphabetical' },
 				{ label: 'Numerical', value: 'numerical' }
 			],
@@ -2105,7 +2576,61 @@ spec:
 			section: 'policy',
 			default: '>=1.0.0',
 			placeholder: '>=1.0.0 <2.0.0',
-			description: 'Semver constraint (if policy type is semver)'
+			description: 'Semver constraint',
+			showIf: {
+				field: 'policyType',
+				value: 'semver'
+			}
+		},
+		{
+			name: 'alphabeticalOrder',
+			label: 'Alphabetical Order',
+			path: 'spec.policy.alphabetical.order',
+			type: 'select',
+			section: 'policy',
+			default: 'asc',
+			options: [
+				{ label: 'Ascending', value: 'asc' },
+				{ label: 'Descending', value: 'desc' }
+			],
+			showIf: {
+				field: 'policyType',
+				value: 'alphabetical'
+			}
+		},
+		{
+			name: 'numericalOrder',
+			label: 'Numerical Order',
+			path: 'spec.policy.numerical.order',
+			type: 'select',
+			section: 'policy',
+			default: 'asc',
+			options: [
+				{ label: 'Ascending', value: 'asc' },
+				{ label: 'Descending', value: 'desc' }
+			],
+			showIf: {
+				field: 'policyType',
+				value: 'numerical'
+			}
+		},
+		{
+			name: 'filterTagsPattern',
+			label: 'Filter Tags Pattern',
+			path: 'spec.filterTags.pattern',
+			type: 'string',
+			section: 'policy',
+			placeholder: '^v(?P<version>.*)$',
+			description: 'Regular expression to filter image tags'
+		},
+		{
+			name: 'filterTagsExtract',
+			label: 'Filter Tags Extract',
+			path: 'spec.filterTags.extract',
+			type: 'string',
+			section: 'policy',
+			placeholder: '$version',
+			description: 'Extraction expression to get the version from the tag'
 		}
 	]
 };
@@ -2212,13 +2737,22 @@ spec:
 		},
 		{
 			name: 'branch',
-			label: 'Branch',
+			label: 'Checkout Branch',
 			path: 'spec.git.checkout.ref.branch',
 			type: 'string',
 			required: true,
 			section: 'git',
 			default: 'main',
-			description: 'Branch to checkout and push to'
+			description: 'Branch to checkout'
+		},
+		{
+			name: 'pushBranch',
+			label: 'Push Branch',
+			path: 'spec.git.push.branch',
+			type: 'string',
+			section: 'git',
+			placeholder: 'main',
+			description: 'Branch to push changes to (defaults to checkout branch)'
 		},
 		{
 			name: 'interval',
@@ -2230,8 +2764,21 @@ spec:
 			default: '30m',
 			description: 'How often to check for image updates',
 			validation: {
-				pattern: '^[0-9]+(ms|s|m|h)$',
-				message: 'Duration must be a number followed by a time unit (e.g., 1m, 30m, 1h)'
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'update',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
