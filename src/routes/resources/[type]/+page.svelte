@@ -224,7 +224,7 @@
 	{/if}
 
 	<!-- Statistics Cards -->
-	<div class="grid grid-cols-2 gap-4 sm:grid-cols-5">
+	<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-5">
 		<div
 			class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 		>

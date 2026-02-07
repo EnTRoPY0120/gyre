@@ -171,10 +171,10 @@
 		tabindex="-1"
 	>
 		<div
-			class="relative flex max-h-[90vh] w-full max-w-4xl flex-col rounded-lg border border-zinc-700 bg-zinc-800 shadow-xl"
+			class="relative flex h-full w-full flex-col border border-zinc-700 bg-zinc-800 shadow-xl md:max-h-[90vh] md:max-w-4xl md:rounded-lg"
 		>
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-zinc-700 p-6">
+			<div class="flex items-center justify-between border-b border-zinc-700 p-4 md:p-6">
 				<div>
 					<h2 id="edit-resource-title" class="text-xl font-semibold text-zinc-100">
 						Edit Resource
@@ -194,7 +194,7 @@
 			</div>
 
 			<!-- Editor Area -->
-			<div class="flex-1 overflow-hidden p-6">
+			<div class="flex-1 overflow-hidden p-4 md:p-6">
 				<div class="h-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
 					<MonacoEditor
 						bind:value={yamlContent}
@@ -225,7 +225,9 @@
 			{/if}
 
 			<!-- Footer -->
-			<div class="flex items-center justify-between border-t border-zinc-700 bg-zinc-900/50 p-6">
+			<div
+				class="flex items-center justify-between border-t border-zinc-700 bg-zinc-900/50 p-4 md:p-6"
+			>
 				<div class="text-xs text-zinc-500">
 					{#if validationErrors.length > 0}
 						<span class="text-red-400"

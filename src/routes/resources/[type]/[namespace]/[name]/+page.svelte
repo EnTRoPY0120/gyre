@@ -312,8 +312,8 @@
 	</div>
 
 	<!-- Tabs -->
-	<div class="border-b border-gray-200 dark:border-gray-700">
-		<nav class="-mb-px flex space-x-8">
+	<div class="scrollbar-none overflow-x-auto border-b border-gray-200 dark:border-gray-700">
+		<nav class="-mb-px flex min-w-max space-x-8">
 			{#each tabs as tab (tab.id)}
 				<button
 					type="button"

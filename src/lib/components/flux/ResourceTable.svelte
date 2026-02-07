@@ -66,12 +66,12 @@
 							Status
 						</th>
 						<th
-							class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
+							class="hidden px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase md:table-cell"
 						>
 							Age
 						</th>
 						<th
-							class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
+							class="hidden px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase sm:table-cell"
 						>
 							Message
 						</th>
@@ -124,12 +124,12 @@
 										size="sm"
 									/>
 								</td>
-								<td class="px-6 py-4 whitespace-nowrap">
+								<td class="hidden px-6 py-4 whitespace-nowrap md:table-cell">
 									<div class="font-mono text-xs font-medium text-muted-foreground">
 										{formatTimestamp(resource.metadata.creationTimestamp)}
 									</div>
 								</td>
-								<td class="max-w-[300px] px-6 py-4">
+								<td class="hidden max-w-[300px] px-6 py-4 sm:table-cell">
 									<div
 										class="truncate text-xs text-muted-foreground/80 group-hover:text-muted-foreground"
 									>

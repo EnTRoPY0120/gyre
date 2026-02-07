@@ -103,7 +103,7 @@
 
 			<div class="h-4 w-px bg-border"></div>
 
-			<div class="ml-auto flex items-center gap-3">
+			<div class="ml-auto hidden items-center gap-3 sm:flex">
 				<div class="flex items-center gap-1 text-[10px] text-muted-foreground">
 					<span class="mr-1">Tips:</span>
 					<kbd class="rounded border border-border bg-muted px-1.5 py-0.5 font-mono">ns:default</kbd

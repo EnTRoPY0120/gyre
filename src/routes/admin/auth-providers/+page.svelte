@@ -242,14 +242,14 @@
 
 <div class="space-y-6">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="text-2xl font-bold text-slate-100">SSO Providers</h1>
 			<p class="mt-1 text-sm text-slate-400">Manage OAuth2 and OIDC authentication providers</p>
 		</div>
 		<button
 			onclick={openCreateModal}
-			class="flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-amber-400"
+			class="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-amber-400 sm:w-auto"
 		>
 			<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
 				<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
@@ -306,7 +306,7 @@
 								</span>
 							</div>
 
-							<div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+							<div class="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
 								<div>
 									<span class="text-slate-400">Client ID:</span>
 									<span class="ml-2 font-mono text-slate-300">{provider.clientId}</span>
@@ -427,9 +427,9 @@
 
 <!-- Create Modal -->
 {#if showCreateModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4">
 		<div
-			class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 p-6"
+			class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-lg"
 		>
 			<div class="mb-6 flex items-center justify-between">
 				<h2 class="text-xl font-bold text-slate-100">Add SSO Provider</h2>
@@ -642,9 +642,9 @@
 
 <!-- Edit Modal (similar structure to Create) -->
 {#if showEditModal && selectedProvider}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4">
 		<div
-			class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-700 bg-slate-800 p-6"
+			class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-lg"
 		>
 			<div class="mb-6 flex items-center justify-between">
 				<h2 class="text-xl font-bold text-slate-100">Edit Provider: {selectedProvider.name}</h2>

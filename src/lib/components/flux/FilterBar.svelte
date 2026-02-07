@@ -40,13 +40,14 @@
 
 <div class="flex flex-wrap items-center gap-3">
 	<!-- Namespace Filter -->
-	<div class="flex items-center gap-2">
-		<label for="namespace-filter" class="text-sm font-medium text-muted-foreground"
-			>Namespace:</label
+	<div class="flex min-w-[140px] flex-1 items-center gap-2">
+		<label
+			for="namespace-filter"
+			class="text-sm font-medium whitespace-nowrap text-muted-foreground">Namespace:</label
 		>
 		<select
 			id="namespace-filter"
-			class="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+			class="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
 			value={filters.namespace}
 			onchange={handleNamespaceChange}
 		>
@@ -58,11 +59,13 @@
 	</div>
 
 	<!-- Status Filter -->
-	<div class="flex items-center gap-2">
-		<label for="status-filter" class="text-sm font-medium text-muted-foreground">Status:</label>
+	<div class="flex min-w-[140px] flex-1 items-center gap-2">
+		<label for="status-filter" class="text-sm font-medium whitespace-nowrap text-muted-foreground"
+			>Status:</label
+		>
 		<select
 			id="status-filter"
-			class="rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+			class="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
 			value={filters.status}
 			onchange={handleStatusChange}
 		>
@@ -73,12 +76,14 @@
 	</div>
 
 	<!-- Labels Filter -->
-	<div class="flex items-center gap-2">
-		<label for="labels-filter" class="text-sm font-medium text-muted-foreground">Labels:</label>
+	<div class="flex min-w-[200px] flex-1 items-center gap-2">
+		<label for="labels-filter" class="text-sm font-medium whitespace-nowrap text-muted-foreground"
+			>Labels:</label
+		>
 		<input
 			id="labels-filter"
 			type="text"
-			class="w-48 rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+			class="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground placeholder-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
 			placeholder="key=value,..."
 			value={filters.labels}
 			oninput={handleLabelsChange}

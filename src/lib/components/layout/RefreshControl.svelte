@@ -14,7 +14,7 @@
 	const refreshInterval = $derived($preferences.refreshInterval);
 </script>
 
-<div class="flex items-center gap-3">
+<div class="flex flex-wrap items-center gap-3">
 	<!-- Manual Refresh Button -->
 	<button
 		type="button"
