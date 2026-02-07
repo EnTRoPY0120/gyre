@@ -1,5 +1,5 @@
 import type { PageServerLoad, Actions } from './$types';
-import { redirect, fail } from '@sveltejs/kit';
+import { fail } from '@sveltejs/kit';
 import {
 	listUsers,
 	createUser,
@@ -12,19 +12,8 @@ import { logUserManagement } from '$lib/server/audit';
 
 /**
  * Load function for user management page
- * Requires admin role
  */
 export const load: PageServerLoad = async ({ locals }) => {
-	// Check if user is authenticated
-	if (!locals.user) {
-		throw redirect(302, '/login');
-	}
-
-	// Check if user is admin
-	if (!isAdmin(locals.user)) {
-		throw redirect(302, '/?error=not-admin');
-	}
-
 	// Load all users
 	const users = await listUsers();
 
@@ -39,7 +28,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			createdAt: u.createdAt,
 			updatedAt: u.updatedAt
 		})),
-		currentUser: locals.user
+		currentUser: locals.user!
 	};
 };
 

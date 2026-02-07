@@ -5,7 +5,7 @@
 	import NotificationBell from './NotificationBell.svelte';
 	import ClusterSwitcher from './ClusterSwitcher.svelte';
 	import UserMenu from './UserMenu.svelte';
-	import { ChevronRight, Settings, Menu } from 'lucide-svelte';
+	import { ChevronRight, Menu } from 'lucide-svelte';
 	import { sidebarOpen } from '$lib/stores/sidebar';
 	import { cn } from '$lib/utils';
 
@@ -51,6 +51,29 @@
 					href: `/resources/${parts[1]}/${parts[2]}/${parts[3]}`
 				});
 			}
+		} else if (parts[0] === 'admin') {
+			crumbs.push({ label: 'Administration', href: '/admin' });
+			if (parts[1]) {
+				const adminLabels: Record<string, string> = {
+					users: 'Users',
+					clusters: 'Clusters',
+					'auth-providers': 'Auth Providers',
+					policies: 'Policies'
+				};
+				crumbs.push({
+					label: adminLabels[parts[1]] || parts[1],
+					href: `/admin/${parts[1]}`
+				});
+			}
+		} else if (parts[0] === 'inventory') {
+			crumbs.push({ label: 'Inventory', href: '/inventory' });
+		} else if (parts[0] === 'create') {
+			crumbs.push({ label: 'Create Resource', href: '/create' });
+			if (parts[1]) {
+				crumbs.push({ label: parts[1], href: `/create/${parts[1]}` });
+			}
+		} else if (parts[0] === 'change-password') {
+			crumbs.push({ label: 'Change Password', href: '/change-password' });
 		}
 
 		return crumbs;
@@ -133,14 +156,5 @@
 		{/if}
 		<!-- User Menu -->
 		<UserMenu {user} />
-
-		<!-- Settings Button (Hidden on mobile) -->
-		<button
-			type="button"
-			class="hidden h-9 w-9 items-center justify-center rounded-full border border-transparent text-muted-foreground transition-all hover:border-border hover:bg-accent hover:text-foreground active:scale-95 md:flex"
-			aria-label="Settings"
-		>
-			<Settings class="size-4.5" />
-		</button>
 	</div>
 </header>
