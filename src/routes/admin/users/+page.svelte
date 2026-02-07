@@ -104,7 +104,7 @@
 		</div>
 		<Button onclick={openCreateModal} class="w-full gap-2 sm:w-auto">
 			<UserPlus size={16} />
-			<span class="sm:inline">Add User</span>
+			<span class="hidden sm:inline">Add User</span>
 		</Button>
 	</div>
 
@@ -279,9 +279,20 @@
 
 	<!-- Create User Modal -->
 	{#if showCreateModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-				<h2 class="mb-4 text-xl font-bold text-white">Create New User</h2>
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="create-user-title"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
+			>
+				<h2 id="create-user-title" class="mb-4 text-xl font-bold text-white">Create New User</h2>
 
 				<form
 					method="POST"
@@ -382,9 +393,22 @@
 
 	<!-- Edit User Modal -->
 	{#if editingUser}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-				<h2 class="mb-4 text-xl font-bold text-white">Edit User: {editingUser.username}</h2>
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="edit-user-title"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
+			>
+				<h2 id="edit-user-title" class="mb-4 text-xl font-bold text-white">
+					Edit User: {editingUser.username}
+				</h2>
 
 				<form
 					method="POST"
@@ -457,8 +481,19 @@
 
 	<!-- Delete Confirmation Modal -->
 	{#if deletingUser}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-xl border border-red-500/30 bg-slate-800 p-6 shadow-2xl">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="delete-user-title"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-red-500/30 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
+			>
 				<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
 					<svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path
@@ -469,7 +504,7 @@
 						/>
 					</svg>
 				</div>
-				<h2 class="mb-2 text-xl font-bold text-white">Delete User</h2>
+				<h2 id="delete-user-title" class="mb-2 text-xl font-bold text-white">Delete User</h2>
 				<p class="mb-6 text-slate-400">
 					Are you sure you want to delete <strong class="text-white">{deletingUser.username}</strong
 					>? This action cannot be undone.

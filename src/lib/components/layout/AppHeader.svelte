@@ -27,7 +27,7 @@
 	let { health = { connected: false }, fluxVersion = 'v2.x.x', user = null }: Props = $props();
 
 	// Build breadcrumbs from current path
-	const breadcrumbs = $derived(() => {
+	const breadcrumbs = $derived.by(() => {
 		const pathname = $page.url.pathname;
 		const parts = pathname.split('/').filter(Boolean);
 		const crumbs: { label: string; href: string }[] = [];
@@ -74,19 +74,19 @@
 		<!-- Breadcrumb Navigation -->
 		<nav class="flex min-w-0 items-center" aria-label="Breadcrumb">
 			<ol class="flex items-center space-x-1 overflow-hidden text-ellipsis sm:space-x-2">
-				{#each breadcrumbs() as crumb, i (crumb.href)}
+				{#each breadcrumbs as crumb, i (crumb.href)}
 					{#if i > 0}
 						<li
 							class={cn(
 								'flex shrink-0 items-center text-muted-foreground/50',
-								i < breadcrumbs().length - 1 && 'hidden md:flex'
+								i < breadcrumbs.length - 1 && 'hidden md:flex'
 							)}
 						>
 							<ChevronRight class="size-3.5" />
 						</li>
 					{/if}
-					<li class={cn(i < breadcrumbs().length - 1 && 'hidden md:block', 'min-w-0')}>
-						{#if i === breadcrumbs().length - 1}
+					<li class={cn(i < breadcrumbs.length - 1 && 'hidden md:block', 'min-w-0')}>
+						{#if i === breadcrumbs.length - 1}
 							<span
 								class="animate-in fade-in slide-in-from-left-2 xs:max-w-[120px] flex items-center gap-2 truncate rounded-md bg-secondary/50 px-2 py-1 text-[10px] font-bold text-foreground shadow-sm ring-1 ring-border duration-300 sm:max-w-[150px] sm:text-xs md:max-w-none"
 							>

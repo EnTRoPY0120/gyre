@@ -203,7 +203,7 @@
 		<div class="mt-8">
 			<h2 class="mb-4 text-lg font-semibold">Resource Relationships</h2>
 			<div class="overflow-hidden rounded-xl border border-border bg-card/60 backdrop-blur-sm">
-				<div class="max-h-[300px] overflow-x-auto">
+				<div class="scrollbar-thin max-h-[400px] overflow-auto">
 					<table class="w-full min-w-[600px] text-sm">
 						<thead class="sticky top-0 bg-muted/80 backdrop-blur-sm">
 							<tr>

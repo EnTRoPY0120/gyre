@@ -26,18 +26,25 @@
 
 	// Close sidebar on mobile ONLY when path changes
 	let lastPath = $state($page.url.pathname);
+	let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
 	$effect(() => {
 		const currentPathValue = $page.url.pathname;
 		if (currentPathValue !== lastPath) {
 			if (isMobile && $sidebarOpen) {
 				// Use a small timeout to let navigation start before closing
 				// This prevents "flashing" where the layout shifts abruptly
-				setTimeout(() => {
+				clearTimeout(closeTimer);
+				closeTimer = setTimeout(() => {
 					sidebarOpen.set(false);
 				}, 100);
 			}
 			lastPath = currentPathValue;
 		}
+
+		return () => {
+			clearTimeout(closeTimer);
+		};
 	});
 
 	onMount(() => {
