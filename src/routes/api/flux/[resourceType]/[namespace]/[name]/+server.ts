@@ -12,6 +12,7 @@ import {
 } from '$lib/server/kubernetes/flux/resources.js';
 import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
+import type { K8sResource } from '$lib/types/kubernetes';
 import yaml from 'js-yaml';
 
 /**
@@ -124,9 +125,9 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	// Parse YAML to object
-	let resource: any;
+	let resource: K8sResource;
 	try {
-		resource = yaml.load(body.yaml);
+		resource = yaml.load(body.yaml) as K8sResource;
 	} catch (err) {
 		return error(400, {
 			message: `Invalid YAML: ${err instanceof Error ? err.message : 'Unable to parse'}`

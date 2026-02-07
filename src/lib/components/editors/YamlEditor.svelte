@@ -33,10 +33,14 @@
 		<label for="yaml-editor" class="text-sm font-medium text-foreground">{label}</label>
 	{/if}
 
-	<div class="group relative flex-1 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 transition-all focus-within:border-zinc-700">
+	<div
+		class="group relative flex-1 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950 transition-all focus-within:border-zinc-700"
+	>
 		<!-- Copy button positioned inside the editor -->
 		{#if onCopy}
-			<div class="absolute top-3 right-3 z-10 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+			<div
+				class="absolute top-3 right-3 z-10 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+			>
 				<Button
 					variant="secondary"
 					size="sm"
@@ -69,13 +73,18 @@
 
 	{#if error}
 		<div
-			class="mt-2 flex flex-col gap-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-xs animate-in fade-in slide-in-from-top-1 duration-200"
+			class="animate-in fade-in slide-in-from-top-1 mt-2 flex flex-col gap-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-xs duration-200"
 		>
 			<div class="flex items-center gap-2 font-semibold text-red-400">
-				<div class="flex size-4 items-center justify-center rounded-full bg-red-500/20 text-[10px]">!</div>
+				<div class="flex size-4 items-center justify-center rounded-full bg-red-500/20 text-[10px]">
+					!
+				</div>
 				<span>Syntax Error</span>
 			</div>
-			<pre class="overflow-x-auto font-mono leading-relaxed text-red-300/90">{error.replace('YAML Syntax Error: ', '')}</pre>
+			<pre class="overflow-x-auto font-mono leading-relaxed text-red-300/90">{error.replace(
+					'YAML Syntax Error: ',
+					''
+				)}</pre>
 		</div>
 	{/if}
 </div>

@@ -88,7 +88,8 @@
 					scrollBeyondLastLine: false,
 					fontSize: 14,
 					lineHeight: 22,
-					fontFamily: "'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace",
+					fontFamily:
+						"'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace",
 					fontLigatures: true,
 					wordWrap: 'on',
 					wrappingIndent: 'indent',
@@ -199,8 +200,12 @@
 	{#if loading}
 		<div class="flex h-full items-center justify-center rounded bg-zinc-950">
 			<div class="flex flex-col items-center gap-3">
-				<div class="h-8 w-8 animate-spin rounded-full border-2 border-zinc-800 border-t-amber-500"></div>
-				<p class="text-xs font-medium text-zinc-500 uppercase tracking-widest">Initialising Editor</p>
+				<div
+					class="h-8 w-8 animate-spin rounded-full border-2 border-zinc-800 border-t-amber-500"
+				></div>
+				<p class="text-xs font-medium tracking-widest text-zinc-500 uppercase">
+					Initialising Editor
+				</p>
 			</div>
 		</div>
 	{:else if showFallback}
@@ -210,11 +215,13 @@
 				oninput={handleTextareaChange}
 				{readonly}
 				spellcheck="false"
-				class="h-full w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-sm text-zinc-300 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 focus:outline-none transition-all"
+				class="h-full w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-sm text-zinc-300 transition-all focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 focus:outline-none"
 				placeholder="Enter {language.toUpperCase()} content..."
 			></textarea>
 			{#if error}
-				<div class="absolute top-2 right-2 flex items-center gap-2 rounded bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-400 border border-red-500/20">
+				<div
+					class="absolute top-2 right-2 flex items-center gap-2 rounded border border-red-500/20 bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-400"
+				>
 					<span>Basic Mode</span>
 					<span class="opacity-50">|</span>
 					<span>{error}</span>
