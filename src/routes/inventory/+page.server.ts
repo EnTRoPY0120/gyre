@@ -172,7 +172,11 @@ export const load: PageServerLoad = async ({ cookies }) => {
 					imageUpdateNodes
 						.filter((un) => un.ref.namespace === policyNode.ref.namespace)
 						.forEach((un) => {
-							if (!policyNode.children.some((c) => c.ref.name === un.ref.name)) {
+							if (
+								!policyNode.children.some(
+									(c) => c.ref.name === un.ref.name && c.ref.namespace === un.ref.namespace
+								)
+							) {
 								policyNode.children.push(un);
 							}
 						});
@@ -227,7 +231,9 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 	// Determine which image automation nodes are top-level (not children of a policy)
 	const topLevelImageUpdateNodes = imageUpdateNodes.filter((un) => {
-		return !imagePolicyNodes.some((pn) => pn.children.some((c) => c.ref.name === un.ref.name));
+		return !imagePolicyNodes.some((pn) =>
+			pn.children.some((c) => c.ref.name === un.ref.name && c.ref.namespace === un.ref.namespace)
+		);
 	});
 
 	return {
