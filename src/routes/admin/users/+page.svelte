@@ -102,7 +102,7 @@
 			<h1 class="text-2xl font-bold text-white">User Management</h1>
 			<p class="text-slate-400">Manage users and their permissions</p>
 		</div>
-		<Button onclick={openCreateModal} class="w-full gap-2 sm:w-auto">
+		<Button onclick={openCreateModal} class="w-full gap-2 sm:w-auto" aria-label="Add User">
 			<UserPlus size={16} />
 			<span class="hidden sm:inline">Add User</span>
 		</Button>
