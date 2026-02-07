@@ -26,18 +26,19 @@
 
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
-		class="group flex items-center gap-2 rounded-md border border-transparent bg-secondary/50 px-3 py-1.5 text-xs font-medium transition-all hover:border-border hover:bg-secondary/80"
+		class="group flex items-center gap-1.5 rounded-md border border-transparent bg-secondary/50 px-2 py-1 text-xs font-medium transition-all hover:border-border hover:bg-secondary/80 sm:gap-2 sm:px-3 sm:py-1.5"
 	>
 		<div
 			class="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-125"
 		></div>
-		<span class="max-w-[150px] truncate font-mono text-[10px] tracking-tight"
+		<span
+			class="xs:max-w-[100px] max-w-[60px] truncate font-mono text-[9px] tracking-tight sm:max-w-[150px] sm:text-[10px]"
 			>{currentCluster === 'inClusterContext' ? 'In-cluster' : currentCluster}</span
 		>
 		<Icon
 			name="chevron-down"
-			size={12}
-			class="text-muted-foreground/50 transition-colors group-hover:text-foreground"
+			size={10}
+			class="text-muted-foreground/50 transition-colors group-hover:text-foreground sm:size-3"
 		/>
 	</DropdownMenu.Trigger>
 	<DropdownMenu.Content

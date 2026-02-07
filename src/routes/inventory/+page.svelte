@@ -108,7 +108,7 @@
 	</div>
 
 	<!-- Stats Overview -->
-	<div class="mb-8 grid grid-cols-2 gap-4 md:grid-cols-4 lg:grid-cols-6">
+	<div class="mb-8 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
 		<div class="rounded-xl border border-border bg-card/60 p-4 backdrop-blur-sm">
 			<div class="flex items-center gap-2 text-muted-foreground">
 				<Icon name="git-branch" size={16} />
