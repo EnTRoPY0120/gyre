@@ -12,7 +12,14 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 	}
 
 	const { resourceType, namespace, name } = params;
-	const { revision } = await request.json();
+	let revision: string;
+
+	try {
+		const body = await request.json();
+		revision = body.revision;
+	} catch {
+		throw error(400, { message: 'Invalid JSON payload' });
+	}
 
 	if (!revision) {
 		throw error(400, { message: 'Revision is required for rollback' });
@@ -51,7 +58,7 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 		// Log failed audit event with sanitized error
 		await logResourceWrite(locals.user, resolvedType, 'rollback', name, namespace, locals.cluster, {
 			ipAddress: getClientAddress(),
-			error: sanitizeK8sErrorMessage((err as Error).message),
+			error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err)),
 			details: { revision }
 		});
 
