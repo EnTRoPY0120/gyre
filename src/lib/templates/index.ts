@@ -324,19 +324,6 @@ spec:
 			}
 		},
 		{
-			name: 'retryInterval',
-			label: 'Retry Interval',
-			path: 'spec.retryInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry after a failure',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
-		},
-		{
 			name: 'recurseSubmodules',
 			label: 'Recurse Submodules',
 			path: 'spec.recurseSubmodules',
@@ -547,15 +534,6 @@ spec:
 				'Secret containing authentication credentials (username/password or certFile/keyFile)'
 		},
 		{
-			name: 'proxySecretRef',
-			label: 'Proxy Secret',
-			path: 'spec.proxySecretRef.name',
-			type: 'string',
-			section: 'auth',
-			placeholder: 'proxy-credentials',
-			description: 'Secret containing proxy credentials'
-		},
-		{
 			name: 'passCredentials',
 			label: 'Pass Credentials',
 			path: 'spec.passCredentials',
@@ -601,19 +579,6 @@ spec:
 			section: 'advanced',
 			placeholder: '60s',
 			description: 'Timeout for index download operations',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
-		},
-		{
-			name: 'retryInterval',
-			label: 'Retry Interval',
-			path: 'spec.retryInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
@@ -1028,33 +993,6 @@ spec:
 			description: 'Override container images'
 		},
 		{
-			name: 'crds',
-			label: 'CRD Handling',
-			path: 'spec.crds',
-			type: 'select',
-			section: 'advanced',
-			default: 'Create',
-			options: [
-				{ label: 'Create', value: 'Create' },
-				{ label: 'Skip', value: 'Skip' },
-				{ label: 'Select (From List)', value: 'Select' }
-			],
-			description: 'How to handle Custom Resource Definitions'
-		},
-		{
-			name: 'retryIntervalSource',
-			label: 'Source Retry Interval',
-			path: 'spec.retryIntervalSource',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry source refresh after a failure',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
-		},
-		{
 			name: 'patches',
 			label: 'Strategic Merge Patches',
 			path: 'spec.patches',
@@ -1078,31 +1016,6 @@ spec:
 				}
 			],
 			description: 'Strategic merge patches to apply'
-		},
-		{
-			name: 'patchesJson6902',
-			label: 'JSON 6902 Patches',
-			path: 'spec.patchesJson6902',
-			type: 'array',
-			section: 'advanced',
-			arrayItemType: 'object',
-			arrayItemFields: [
-				{
-					name: 'target',
-					label: 'Target',
-					path: 'target',
-					type: 'textarea',
-					placeholder: 'group: apps\nversion: v1\nkind: Deployment\nname: my-app'
-				},
-				{
-					name: 'patch',
-					label: 'Patch Operations',
-					path: 'patch',
-					type: 'textarea',
-					placeholder: '- op: replace\n  path: /spec/replicas\n  value: 3'
-				}
-			],
-			description: 'JSON 6902 patches to apply'
 		}
 	]
 };
@@ -1452,19 +1365,6 @@ spec:
 			description: 'Max number of release revisions to keep'
 		},
 		{
-			name: 'retryInterval',
-			label: 'Retry Interval',
-			path: 'spec.retryInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry after a failure',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
-		},
-		{
 			name: 'driftMode',
 			label: 'Drift Detection Mode',
 			path: 'spec.driftDetection.mode',
@@ -1704,55 +1604,6 @@ spec:
 			section: 'advanced',
 			placeholder: '- values.yaml\n- values-prod.yaml',
 			description: 'List of values files to merge (YAML array format)'
-		},
-		{
-			name: 'valuesFile',
-			label: 'Values File (Single)',
-			path: 'spec.valuesFile',
-			type: 'string',
-			section: 'advanced',
-			placeholder: 'values.yaml',
-			description: 'Single values file to use (alternative to valuesFiles)'
-		},
-		{
-			name: 'verifyProvider',
-			label: 'Verify Provider',
-			path: 'spec.verify.provider',
-			type: 'string',
-			section: 'advanced',
-			placeholder: 'cosign',
-			description: 'Chart verification provider (e.g., cosign)'
-		},
-		{
-			name: 'verifySecret',
-			label: 'Verify Secret',
-			path: 'spec.verify.secretRef.name',
-			type: 'string',
-			section: 'advanced',
-			placeholder: 'verification-keys',
-			description: 'Secret containing verification public keys'
-		},
-		{
-			name: 'secretRefName',
-			label: 'Secret Name',
-			path: 'spec.secretRef.name',
-			type: 'string',
-			section: 'advanced',
-			placeholder: 'chart-credentials',
-			description: 'Secret containing credentials for private registries'
-		},
-		{
-			name: 'retryInterval',
-			label: 'Retry Interval',
-			path: 'spec.retryInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry after a failure',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
 		}
 	]
 };
@@ -1956,19 +1807,6 @@ spec:
 			section: 'advanced',
 			placeholder: '60s',
 			description: 'Timeout for bucket operations',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
-		},
-		{
-			name: 'retryInterval',
-			label: 'Retry Interval',
-			path: 'spec.retryInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
@@ -2200,19 +2038,6 @@ spec:
 			}
 		},
 		{
-			name: 'retryInterval',
-			label: 'Retry Interval',
-			path: 'spec.retryInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry after a failure',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
-		},
-		{
 			name: 'ignore',
 			label: 'Ignore Paths',
 			path: 'spec.ignore',
@@ -2238,34 +2063,6 @@ spec:
 			section: 'advanced',
 			default: false,
 			description: 'Allow insecure connections (skip TLS verification)'
-		},
-		{
-			name: 'layers',
-			label: 'Layers',
-			path: 'spec.layers',
-			type: 'array',
-			section: 'advanced',
-			arrayItemType: 'object',
-			arrayItemFields: [
-				{
-					name: 'mediaType',
-					label: 'Media Type',
-					path: 'mediaType',
-					type: 'string',
-					placeholder: 'application/vnd.custom.layer.v1+json'
-				},
-				{
-					name: 'operation',
-					label: 'Operation',
-					path: 'operation',
-					type: 'select',
-					options: [
-						{ label: 'Extract', value: 'Extract' },
-						{ label: 'Copy', value: 'Copy' }
-					]
-				}
-			],
-			description: 'Layer selection configuration'
 		}
 	]
 };
@@ -2580,19 +2377,6 @@ spec:
 			description: 'Proxy address to use for notifications'
 		},
 		{
-			name: 'importTimeout',
-			label: 'Import Timeout',
-			path: 'spec.importTimeout',
-			type: 'duration',
-			section: 'provider',
-			placeholder: '30s',
-			description: 'Timeout for importing provider-specific settings',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 30s, 1m, 5m)'
-			}
-		},
-		{
 			name: 'tlsCertSecret',
 			label: 'TLS Certificate Secret',
 			path: 'spec.certSecretRef.name',
@@ -2870,19 +2654,6 @@ spec:
 			description: 'Secret containing registry credentials'
 		},
 		{
-			name: 'scanTimeout',
-			label: 'Scan Timeout',
-			path: 'spec.scanTimeout',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'Timeout for scanning the image repository',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
-		},
-		{
 			name: 'serviceAccountName',
 			label: 'Service Account',
 			path: 'spec.serviceAccountName',
@@ -2908,38 +2679,6 @@ spec:
 				}
 			],
 			description: 'Namespaces allowed to access this ImageRepository'
-		},
-		{
-			name: 'excludeImages',
-			label: 'Exclude Images',
-			path: 'spec.excludeImages',
-			type: 'array',
-			section: 'advanced',
-			arrayItemType: 'string',
-			placeholder: '*-dev',
-			description: 'Image patterns to exclude from scanning'
-		},
-		{
-			name: 'concurrency',
-			label: 'Concurrency',
-			path: 'spec.concurrency',
-			type: 'number',
-			section: 'advanced',
-			placeholder: '10',
-			description: 'Number of concurrent image scans'
-		},
-		{
-			name: 'retryInterval',
-			label: 'Retry Interval',
-			path: 'spec.retryInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry after a failure',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
 		},
 		{
 			name: 'suspend',
@@ -3244,19 +2983,6 @@ spec:
 			section: 'update',
 			default: '30m',
 			description: 'How often to check for image updates',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
-		},
-		{
-			name: 'retryInterval',
-			label: 'Retry Interval',
-			path: 'spec.retryInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
