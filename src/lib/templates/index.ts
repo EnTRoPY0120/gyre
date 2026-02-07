@@ -1472,6 +1472,7 @@ spec:
 			section: 'drift',
 			default: 'warn',
 			options: [
+				{ label: 'Disabled', value: 'disabled' },
 				{ label: 'Warn', value: 'warn' },
 				{ label: 'Enabled (Automatic Correction)', value: 'enabled' }
 			],
@@ -2380,6 +2381,21 @@ spec:
 			description: 'Name of the Provider resource to send notifications to'
 		},
 		{
+			name: 'eventSources',
+			label: 'Event Sources',
+			path: 'spec.eventSources',
+			type: 'array',
+			required: true,
+			section: 'notification',
+			arrayItemType: 'object',
+			placeholder: 'GitRepository',
+			description:
+				'Resources to monitor for events. Use * for name to watch all resources of that kind.',
+			helpText:
+				'Define which FluxCD resources to monitor. Each entry needs a kind (e.g., GitRepository, Kustomization) and name (use * for all).',
+			docsUrl: 'https://fluxcd.io/flux/components/notification/alerts/#event-sources'
+		},
+		{
 			name: 'eventSeverity',
 			label: 'Event Severity',
 			path: 'spec.eventSeverity',
@@ -2678,6 +2694,21 @@ spec:
 				{ label: 'Generic', value: 'generic' }
 			],
 			description: 'Type of webhook receiver'
+		},
+		{
+			name: 'resources',
+			label: 'Resources',
+			path: 'spec.resources',
+			type: 'array',
+			required: true,
+			section: 'receiver',
+			arrayItemType: 'object',
+			placeholder: 'GitRepository',
+			description:
+				'FluxCD resources to reconcile when webhook is triggered. Use * for name to reconcile all resources of that kind.',
+			helpText:
+				'Define which resources should be reconciled when this webhook receives an event. Each entry needs a kind (e.g., GitRepository, HelmRelease) and name (use * for all).',
+			docsUrl: 'https://fluxcd.io/flux/components/notification/receivers/#resources'
 		},
 		{
 			name: 'events',
