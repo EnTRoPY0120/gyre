@@ -7,14 +7,14 @@ import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
 	}
 
 	const { resourceType, namespace, name } = params;
 	const resolvedType = getResourceTypeByPlural(resourceType);
 
 	if (!resolvedType) {
-		return error(400, { message: `Invalid resource type: ${resourceType}` });
+		throw error(400, { message: `Invalid resource type: ${resourceType}` });
 	}
 
 	// Check permission
@@ -27,7 +27,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	try {

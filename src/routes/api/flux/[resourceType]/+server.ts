@@ -21,7 +21,7 @@ const API_CACHE_TTL = 15 * 1000; // 15 seconds
 export const GET: RequestHandler = async ({ params, locals, setHeaders, request }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
 	}
 
 	const { resourceType } = params;
@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 	// If not found by plural, check if it's already a valid PascalCase type
 	if (!resolvedType) {
 		const validPlurals = getAllResourcePlurals();
-		return error(400, {
+		throw error(400, {
 			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
 		});
 	}
@@ -47,7 +47,7 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	// Create cache key
@@ -89,7 +89,7 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 		return json(resources);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);
-		return error(status, body.error);
+		throw error(status, body.error);
 	}
 };
 
@@ -100,7 +100,7 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
 	}
 
 	const { resourceType } = params;
@@ -110,7 +110,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	// Resolve resource type
 	const resolvedType = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
-		return error(400, { message: `Invalid resource type: ${resourceType}` });
+		throw error(400, { message: `Invalid resource type: ${resourceType}` });
 	}
 
 	// Check permission
@@ -123,7 +123,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	try {
@@ -136,6 +136,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		return json(result);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);
-		return error(status, body.error);
+		throw error(status, body.error);
 	}
 };
