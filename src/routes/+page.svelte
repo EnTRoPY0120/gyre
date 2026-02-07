@@ -54,15 +54,17 @@
 	};
 </script>
 
-<div class="animate-in fade-in space-y-8 duration-700">
+<div class="animate-in fade-in space-y-6 duration-700 md:space-y-8">
 	<!-- Welcome Header -->
 	<div class="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
 		<div>
-			<h1 class="text-3xl font-bold tracking-tight text-foreground">Welcome to Gyre</h1>
-			<p class="mt-2 text-lg text-muted-foreground">Monitor and manage your FluxCD resources</p>
+			<h1 class="text-2xl font-bold tracking-tight text-foreground md:text-3xl">Welcome to Gyre</h1>
+			<p class="mt-2 text-base text-muted-foreground md:text-lg">
+				Monitor and manage your FluxCD resources
+			</p>
 		</div>
 		<div
-			class="flex items-center gap-3 rounded-full border border-sidebar-border bg-sidebar px-5 py-2.5 shadow-sm backdrop-blur-md"
+			class="flex items-center gap-3 self-start rounded-full border border-sidebar-border bg-sidebar px-5 py-2.5 shadow-sm backdrop-blur-md"
 		>
 			{#if isLoading}
 				<div
@@ -387,49 +389,53 @@
 
 	<!-- System Shortcuts -->
 	<div
-		class="group relative overflow-hidden rounded-[2.5rem] border border-border bg-card/20 p-10 shadow-sm backdrop-blur-xl"
+		class="group relative overflow-hidden rounded-[2rem] border border-border bg-card/20 p-6 shadow-sm backdrop-blur-xl md:rounded-[2.5rem] md:p-10"
 	>
 		<div
 			class="absolute inset-0 bg-gradient-to-br from-primary/[0.07] via-transparent to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100"
 		></div>
 
-		<div class="relative z-10 flex flex-col justify-between gap-10 xl:flex-row xl:items-center">
+		<div
+			class="relative z-10 flex flex-col justify-between gap-6 md:gap-10 xl:flex-row xl:items-center"
+		>
 			<div>
-				<h2 class="font-display text-3xl font-black tracking-tight text-foreground">System Core</h2>
+				<h2 class="font-display text-2xl font-black tracking-tight text-foreground md:text-3xl">
+					System Core
+				</h2>
 				<p class="mt-2 max-w-md text-sm font-medium text-muted-foreground">
 					Immediate administrative access to cluster source controllers and orchestration engines.
 				</p>
 			</div>
-			<div class="flex flex-wrap gap-4">
+			<div class="flex flex-wrap gap-3 md:gap-4">
 				<a
 					href="/resources/gitrepositories"
-					class="inline-flex items-center gap-3 rounded-2xl bg-primary px-8 py-4 text-sm font-black tracking-widest text-primary-foreground uppercase shadow-2xl shadow-primary/20 transition-all hover:translate-y-[-4px] hover:shadow-primary/40 active:scale-95"
+					class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-black tracking-widest text-primary-foreground uppercase shadow-2xl shadow-primary/20 transition-all hover:translate-y-[-4px] hover:shadow-primary/40 active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 				>
-					<Icon name="git-branch" size={20} />
+					<Icon name="git-branch" size={18} />
 					Sources
 				</a>
 				<a
 					href="/resources/kustomizations"
-					class="inline-flex items-center gap-3 rounded-2xl border border-sidebar-border bg-sidebar px-8 py-4 text-sm font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95"
+					class="inline-flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar px-4 py-3 text-xs font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 				>
-					<Icon name="file-cog" size={20} />
+					<Icon name="file-cog" size={18} />
 					Kustomize
 				</a>
 				<a
 					href="/resources/helmreleases"
-					class="inline-flex items-center gap-3 rounded-2xl border border-sidebar-border bg-sidebar px-8 py-4 text-sm font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95"
+					class="inline-flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar px-4 py-3 text-xs font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 				>
-					<Icon name="ship" size={20} />
+					<Icon name="ship" size={18} />
 					Helm
 				</a>
 				<button
 					type="button"
-					class="group/btn inline-flex items-center gap-3 rounded-2xl border border-sidebar-border bg-sidebar px-8 py-4 text-sm font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95"
+					class="group/btn inline-flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar px-4 py-3 text-xs font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 					onclick={() => window.location.reload()}
 				>
 					<Icon
 						name="refresh-cw"
-						size={20}
+						size={18}
 						class="transition-transform duration-700 group-hover/btn:rotate-180"
 					/>
 					Sync

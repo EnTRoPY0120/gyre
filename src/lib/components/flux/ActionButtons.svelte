@@ -92,8 +92,8 @@
 			onclick={() => (showEditModal = true)}
 			class={!canWrite ? 'pointer-events-none' : ''}
 		>
-			<Pencil class="mr-2 h-4 w-4" />
-			Edit
+			<Pencil class="h-4 w-4 md:mr-2" />
+			<span class="hidden md:inline">Edit</span>
 		</Button>
 	{:else if action === 'reconcile'}
 		<Button
@@ -104,11 +104,11 @@
 			class={!canWrite ? 'pointer-events-none' : ''}
 		>
 			{#if isLoading}
-				<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+				<Loader2 class="h-4 w-4 animate-spin md:mr-2" />
 			{:else}
-				<RefreshCw class="mr-2 h-4 w-4" />
+				<RefreshCw class="h-4 w-4 md:mr-2" />
 			{/if}
-			Reconcile
+			<span class="hidden md:inline">Reconcile</span>
 		</Button>
 	{:else if action === 'resume'}
 		<Button
@@ -120,8 +120,8 @@
 				? 'pointer-events-none'
 				: ''}"
 		>
-			<Play class="mr-2 h-4 w-4" />
-			Resume
+			<Play class="h-4 w-4 md:mr-2" />
+			<span class="hidden md:inline">Resume</span>
 		</Button>
 	{:else if action === 'suspend'}
 		<Button
@@ -133,8 +133,8 @@
 				? 'pointer-events-none'
 				: ''}"
 		>
-			<Pause class="mr-2 h-4 w-4" />
-			Suspend
+			<Pause class="h-4 w-4 md:mr-2" />
+			<span class="hidden md:inline">Suspend</span>
 		</Button>
 	{/if}
 {/snippet}

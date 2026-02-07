@@ -97,14 +97,14 @@
 
 <div class="space-y-6">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="text-2xl font-bold text-white">User Management</h1>
 			<p class="text-slate-400">Manage users and their permissions</p>
 		</div>
-		<Button onclick={openCreateModal} class="gap-2">
+		<Button onclick={openCreateModal} class="w-full gap-2 sm:w-auto">
 			<UserPlus size={16} />
-			Add User
+			<span class="sm:inline">Add User</span>
 		</Button>
 	</div>
 
@@ -142,8 +142,12 @@
 				<tr class="border-b border-slate-700/50">
 					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">User</th>
 					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Role</th>
-					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Status</th>
-					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Created</th>
+					<th class="hidden px-4 py-3 text-left text-sm font-medium text-slate-400 md:table-cell"
+						>Status</th
+					>
+					<th class="hidden px-4 py-3 text-left text-sm font-medium text-slate-400 sm:table-cell"
+						>Created</th
+					>
 					<th class="px-4 py-3 text-right text-sm font-medium text-slate-400">Actions</th>
 				</tr>
 			</thead>
@@ -202,7 +206,7 @@
 								{user.role}
 							</span>
 						</td>
-						<td class="px-4 py-3">
+						<td class="hidden px-4 py-3 md:table-cell">
 							{#if user.active}
 								<span class="inline-flex items-center gap-1.5 text-sm text-emerald-400">
 									<CheckCircle2 size={14} />
@@ -215,7 +219,7 @@
 								</span>
 							{/if}
 						</td>
-						<td class="px-4 py-3 text-sm text-slate-400">
+						<td class="hidden px-4 py-3 text-sm text-slate-400 sm:table-cell">
 							{formatDate(user.createdAt)}
 						</td>
 						<td class="px-4 py-3">

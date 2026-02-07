@@ -98,10 +98,10 @@
 	<title>Inventory | Gyre</title>
 </svelte:head>
 
-<div class="min-h-screen bg-background p-8">
+<div class="min-h-screen bg-background p-4 md:p-8">
 	<!-- Header -->
-	<div class="mb-8">
-		<h1 class="font-display text-3xl font-black tracking-tight">Resource Inventory</h1>
+	<div class="mb-6 md:mb-8">
+		<h1 class="font-display text-2xl font-black tracking-tight md:text-3xl">Resource Inventory</h1>
 		<p class="mt-2 text-muted-foreground">
 			Explore FluxCD resources and their relationships across your cluster
 		</p>
@@ -203,8 +203,8 @@
 		<div class="mt-8">
 			<h2 class="mb-4 text-lg font-semibold">Resource Relationships</h2>
 			<div class="overflow-hidden rounded-xl border border-border bg-card/60 backdrop-blur-sm">
-				<div class="max-h-[300px] overflow-y-auto">
-					<table class="w-full text-sm">
+				<div class="max-h-[300px] overflow-x-auto">
+					<table class="w-full min-w-[600px] text-sm">
 						<thead class="sticky top-0 bg-muted/80 backdrop-blur-sm">
 							<tr>
 								<th class="px-4 py-3 text-left font-medium text-muted-foreground">Source</th>

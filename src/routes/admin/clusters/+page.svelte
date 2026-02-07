@@ -121,12 +121,12 @@
 
 <div class="space-y-6">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="text-2xl font-bold text-white">Cluster Management</h1>
 			<p class="text-slate-400">Manage Kubernetes clusters and kubeconfig uploads</p>
 		</div>
-		<Button onclick={openCreateModal} class="gap-2">
+		<Button onclick={openCreateModal} class="w-full gap-2 sm:w-auto">
 			<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 			</svg>
@@ -392,8 +392,10 @@
 
 	<!-- Create Cluster Modal -->
 	{#if showCreateModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-2xl rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4">
+			<div
+				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-2xl sm:rounded-xl"
+			>
 				<h2 class="mb-4 text-xl font-bold text-white">Add New Cluster</h2>
 
 				<form
@@ -409,7 +411,7 @@
 					}}
 					class="space-y-4"
 				>
-					<div class="grid grid-cols-2 gap-4">
+					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<div>
 							<label for="clusterName" class="mb-1 block text-sm font-medium text-slate-300"
 								>Cluster Name</label
