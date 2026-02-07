@@ -4,7 +4,7 @@
 	const viewMode = $derived($preferences.viewMode);
 </script>
 
-<div class="inline-flex rounded-lg border border-border bg-card p-1">
+<div class="inline-flex shrink-0 self-start rounded-lg border border-border bg-card p-1">
 	<button
 		type="button"
 		class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===

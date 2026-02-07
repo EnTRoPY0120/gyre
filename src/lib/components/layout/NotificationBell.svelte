@@ -131,7 +131,7 @@
 	<!-- Dropdown -->
 	{#if isOpen}
 		<div
-			class="absolute right-0 z-50 mt-2 w-80 rounded-lg border border-gray-200 bg-card shadow-lg sm:w-96 dark:border-gray-700 dark:bg-gray-800"
+			class="fixed right-4 left-4 z-50 mt-2 rounded-lg border border-gray-200 bg-card shadow-lg sm:absolute sm:right-0 sm:left-auto sm:w-96 dark:border-gray-700 dark:bg-gray-800"
 		>
 			<!-- Header -->
 			<div

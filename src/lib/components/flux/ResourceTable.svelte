@@ -44,8 +44,8 @@
 	<div
 		class="overflow-hidden rounded-xl border border-border bg-card/60 shadow-sm backdrop-blur-sm"
 	>
-		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm">
+		<div class="scrollbar-thin overflow-x-auto">
+			<table class="w-full min-w-[700px] text-left text-sm">
 				<thead class="border-b border-border bg-muted/30">
 					<tr>
 						<th
@@ -66,12 +66,12 @@
 							Status
 						</th>
 						<th
-							class="hidden px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase md:table-cell"
+							class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
 						>
 							Age
 						</th>
 						<th
-							class="hidden px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase sm:table-cell"
+							class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
 						>
 							Message
 						</th>
@@ -124,12 +124,12 @@
 										size="sm"
 									/>
 								</td>
-								<td class="hidden px-6 py-4 whitespace-nowrap md:table-cell">
+								<td class="px-6 py-4 whitespace-nowrap">
 									<div class="font-mono text-xs font-medium text-muted-foreground">
 										{formatTimestamp(resource.metadata.creationTimestamp)}
 									</div>
 								</td>
-								<td class="hidden max-w-[300px] px-6 py-4 sm:table-cell">
+								<td class="max-w-[300px] px-6 py-4">
 									<div
 										class="truncate text-xs text-muted-foreground/80 group-hover:text-muted-foreground"
 									>

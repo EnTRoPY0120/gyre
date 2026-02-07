@@ -1,5 +1,12 @@
 <script lang="ts">
-	import { LogOut, User as UserIcon, Shield, KeyRound, BadgeCheck, Server } from 'lucide-svelte';
+	import {
+		LogOut,
+		User as UserIcon,
+		Shield,
+		KeyRound,
+		BadgeCheck,
+		Server
+	} from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { fade, scale } from 'svelte/transition';
 	import ClusterSwitcher from './ClusterSwitcher.svelte';
@@ -88,15 +95,6 @@
 			<div class="my-1 h-px bg-border/50"></div>
 
 			<div class="space-y-0.5">
-				<!-- Mobile Cluster Switcher -->
-				<div class="flex flex-col gap-2 px-3 py-2 sm:hidden">
-					<div class="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-						<Server class="size-3.5" />
-						Cluster Context
-					</div>
-					<ClusterSwitcher current={health?.clusterName} available={health?.availableClusters} />
-				</div>
-
 				<button
 					class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
 				>

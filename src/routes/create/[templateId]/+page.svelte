@@ -33,12 +33,11 @@ data:
 	<title>{activeTemplate.name} | Create | Gyre</title>
 </svelte:head>
 
-<div class="space-y-6 p-8">
+<div class="space-y-6 p-4 sm:p-8">
 	<!-- Top Navigation -->
 	<header class="flex items-center gap-4">
 		<a
 			href="/create"
-			rel="external"
 			class="flex size-10 items-center justify-center rounded-full border border-border bg-card transition-colors hover:bg-accent"
 			aria-label="Back to template selection"
 		>

@@ -22,16 +22,21 @@
 
 	function updateMobileState() {
 		isMobile = window.innerWidth < 1024;
-		// Auto-close sidebar on mobile when resizing from desktop
-		if (isMobile && $sidebarOpen && !currentPath) {
-			sidebarOpen.set(false);
-		}
 	}
 
-	// Close sidebar on mobile after navigation
+	// Close sidebar on mobile ONLY when path changes
+	let lastPath = $state($page.url.pathname);
 	$effect(() => {
-		if (isMobile && $sidebarOpen && currentPath) {
-			sidebarOpen.set(false);
+		const currentPathValue = $page.url.pathname;
+		if (currentPathValue !== lastPath) {
+			if (isMobile && $sidebarOpen) {
+				// Use a small timeout to let navigation start before closing
+				// This prevents "flashing" where the layout shifts abruptly
+				setTimeout(() => {
+					sidebarOpen.set(false);
+				}, 100);
+			}
+			lastPath = currentPathValue;
 		}
 	});
 
