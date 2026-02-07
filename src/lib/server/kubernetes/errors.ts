@@ -53,13 +53,17 @@ export function sanitizeK8sErrorMessage(message: string): string {
 
 	return (
 		message
-			// Redact URLs
-			.replace(/https?:\/\/[^\s/]+/g, '[REDACTED URL]')
+			// Redact full URLs (scheme://host[:port]/path?query#fragment)
+			.replace(/https?:\/\/[^\s]+/g, '[REDACTED URL]')
 			// Redact IPv4 addresses
 			.replace(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/g, '[REDACTED IP]')
+			// Redact IPv6 addresses (simplified pattern)
+			.replace(/\[?[0-9a-fA-F:]+:[0-9a-fA-F:]+\]?/g, '[REDACTED IP]')
 			// Redact possible sensitive tokens in messages
 			.replace(/token=[a-zA-Z0-9._-]+/g, 'token=[REDACTED]')
 			.replace(/password=[a-zA-Z0-9._-]+/g, 'password=[REDACTED]')
+			.replace(/bearer\s+[a-zA-Z0-9._-]+/gi, 'Bearer [REDACTED]')
+			.replace(/(api[_-]?key|secret)[=:]\s*[a-zA-Z0-9._-]+/gi, '$1=[REDACTED]')
 	);
 }
 
@@ -108,7 +112,7 @@ export function errorToHttpResponse(error: unknown): {
 		return {
 			status: error.code,
 			body: {
-				error: error.message,
+				error: sanitizeK8sErrorMessage(error.message),
 				code: error.reason
 			}
 		};

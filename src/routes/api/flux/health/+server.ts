@@ -34,7 +34,7 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 		}
 
 		if (!isValid) {
-			return error(503, {
+			throw error(503, {
 				message: 'Unable to connect to Kubernetes cluster'
 			});
 		}

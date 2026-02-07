@@ -9,7 +9,7 @@ import { handleApiError } from '$lib/server/kubernetes/errors.js';
 export const POST: RequestHandler = async ({ params, locals, getClientAddress }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
 	}
 
 	const { type, namespace, name } = params;
@@ -24,7 +24,7 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	try {
