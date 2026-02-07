@@ -1,16 +1,7 @@
 <script lang="ts">
-	import {
-		LogOut,
-		User as UserIcon,
-		Shield,
-		KeyRound,
-		BadgeCheck,
-		Server
-	} from 'lucide-svelte';
+	import { LogOut, User as UserIcon, Shield, KeyRound, BadgeCheck } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { fade, scale } from 'svelte/transition';
-	import ClusterSwitcher from './ClusterSwitcher.svelte';
-	import { page } from '$app/stores';
 
 	interface Props {
 		user: {
@@ -24,7 +15,6 @@
 	let { user }: Props = $props();
 	let isOpen = $state(false);
 	let isLocalUser = $derived(user?.isLocal !== false);
-	const health = $derived($page.data.health);
 
 	async function handleLogout() {
 		try {
