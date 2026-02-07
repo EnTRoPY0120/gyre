@@ -26,7 +26,7 @@ RUN bun run build
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:24-alpine AS runtime
+FROM node:25-alpine AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
