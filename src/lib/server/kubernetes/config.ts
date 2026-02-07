@@ -25,13 +25,15 @@ export function loadKubeConfig(): k8s.KubeConfig {
 	try {
 		// Fall back to local kubeconfig (development mode)
 		// Tries: $KUBECONFIG, then ~/.kube/config
+		config.loadFromDefault();
 		console.log('✓ Using local kubeconfig for development');
 		return config;
-	} catch {
+	} catch (error) {
 		throw new ConfigurationError(
 			'Failed to load Kubernetes configuration. ' +
 				'For production: Ensure running in a pod with ServiceAccount. ' +
-				'For development: Set KUBECONFIG or create ~/.kube/config.'
+				'For development: Set KUBECONFIG or create ~/.kube/config. ' +
+				`Error: ${error instanceof Error ? error.message : String(error)}`
 		);
 	}
 }

@@ -73,7 +73,7 @@ export function handleApiError(err: unknown, contextMessage = 'Kubernetes API er
 	// If it's a known safe error, pass it through
 	if (err instanceof KubernetesError) {
 		throw error(err.code, {
-			message: err.message,
+			message: sanitizeK8sErrorMessage(err.message),
 			code: err.reason
 		});
 	}
