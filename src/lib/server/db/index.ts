@@ -76,9 +76,5 @@ export type {
 	RbacPolicy,
 	NewRbacPolicy,
 	RbacBinding,
-	NewRbacBinding,
-	Dashboard,
-	NewDashboard,
-	DashboardWidget,
-	NewDashboardWidget
+	NewRbacBinding
 } from './schema.js';
