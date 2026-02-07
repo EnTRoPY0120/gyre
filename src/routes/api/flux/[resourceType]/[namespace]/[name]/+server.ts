@@ -82,7 +82,7 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 
 		return json(resource);
 	} catch (err) {
-		handleApiError(err, `Error fetching ${resolvedType} ${namespace}/${name}`);
+		throw handleApiError(err, `Error fetching ${resolvedType} ${namespace}/${name}`);
 	}
 };
 
@@ -128,7 +128,13 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	// Parse request body
-	const body = await request.json();
+	let body;
+	try {
+		body = await request.json();
+	} catch {
+		throw error(400, { message: 'Invalid JSON in request body' });
+	}
+
 	if (!body.yaml || typeof body.yaml !== 'string') {
 		throw error(400, { message: 'Missing or invalid yaml field in request body' });
 	}
@@ -179,6 +185,6 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
 		return json(updated);
 	} catch (err) {
-		handleApiError(err, `Error updating ${resolvedType} ${namespace}/${name}`);
+		throw handleApiError(err, `Error updating ${resolvedType} ${namespace}/${name}`);
 	}
 };
