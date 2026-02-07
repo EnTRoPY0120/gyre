@@ -279,9 +279,9 @@ spec:
 			default: '',
 			options: [
 				{ label: 'Disabled', value: '' },
-				{ label: 'Heads (branches)', value: 'heads' },
-				{ label: 'Tags', value: 'tags' },
-				{ label: 'Commits', value: 'commits' }
+				{ label: 'Head (branch)', value: 'head' },
+				{ label: 'Tag', value: 'Tag' },
+				{ label: 'Tag and Head', value: 'TagAndHEAD' }
 			],
 			description: 'Which references to verify with GPG'
 		},
@@ -296,7 +296,7 @@ spec:
 			description: 'Secret containing GPG public keys for verification',
 			showIf: {
 				field: 'verifyMode',
-				value: ['heads', 'tags', 'commits']
+				value: ['head', 'Tag', 'TagAndHEAD']
 			}
 		},
 
@@ -2565,10 +2565,9 @@ spec:
 			label: 'Secret Name',
 			path: 'spec.secretRef.name',
 			type: 'string',
-			required: true,
 			section: 'provider',
 			placeholder: 'slack-webhook-url',
-			description: 'Secret containing webhook URL or credentials'
+			description: 'Secret containing webhook URL or credentials (if not using inline address)'
 		},
 		{
 			name: 'address',
@@ -2598,7 +2597,7 @@ spec:
 			description: 'Timeout for importing provider-specific settings',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 30s, 1m, 5m)'
+				message: 'Duration must be in Flux format (e.g., 30s, 1m, 5m)'
 			}
 		},
 		{
@@ -3221,7 +3220,7 @@ spec:
 			label: 'Retry Interval',
 			path: 'spec.retryInterval',
 			type: 'duration',
-			section: 'update',
+			section: 'advanced',
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
