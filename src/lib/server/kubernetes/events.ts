@@ -1,4 +1,4 @@
-import { getKubeConfig } from './client';
+import { getKubeConfig, handleK8sError } from './client';
 import * as k8s from '@kubernetes/client-node';
 
 export interface K8sEvent {
@@ -65,8 +65,7 @@ export async function getResourceEvents(
 
 		return events;
 	} catch (error) {
-		console.error('Failed to fetch events:', error);
-		throw error;
+		throw handleK8sError(error, `fetch events for ${resourceName}`);
 	}
 }
 
@@ -138,8 +137,7 @@ export async function getAllRecentEvents(limit = 10, context?: string): Promise<
 
 		return events;
 	} catch (error) {
-		console.error('Failed to fetch all events:', error);
-		throw error;
+		throw handleK8sError(error, 'fetch all recent events');
 	}
 }
 

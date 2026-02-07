@@ -7,6 +7,12 @@ import {
 	type FluxResourceType
 } from './flux/resources.js';
 import type { FluxResource, FluxResourceList } from './flux/types.js';
+import {
+	KubernetesError,
+	ResourceNotFoundError,
+	AuthenticationError,
+	AuthorizationError
+} from './errors.js';
 
 // Cache for Kubernetes configurations to ensure atomic access and performance
 // Maps clusterId or contextName to a fully configured KubeConfig instance
@@ -547,27 +553,30 @@ export async function getControllerLogs(
 /**
  * Handle Kubernetes API errors
  */
-function handleK8sError(error: unknown, operation: string): Error {
+export function handleK8sError(error: unknown, operation: string): Error {
+	// Log the full error server-side for debugging
+	console.error(`Kubernetes API error during ${operation}:`, error);
+
 	if (error instanceof Error) {
 		const k8sError = error as Error & {
 			response?: { statusCode: number; body?: { message?: string } };
 		};
+
 		if (k8sError.response) {
 			const status = k8sError.response.statusCode;
-			const message = k8sError.response.body?.message || error.message;
 
 			switch (status) {
 				case 404:
-					return new Error(`Resource not found: ${operation}`);
+					return new ResourceNotFoundError(operation);
 				case 401:
-					return new Error(`Authentication failed: ${operation}`);
+					return new AuthenticationError(`Authentication failed: ${operation}`);
 				case 403:
-					return new Error(`Permission denied: ${operation}`);
+					return new AuthorizationError(`Permission denied: ${operation}`);
 				default:
-					return new Error(`Kubernetes API error (${status}): ${message}`);
+					return new KubernetesError(`Kubernetes API error (${status})`, status, 'ApiError');
 			}
 		}
-		return new Error(`Failed to ${operation}: ${error.message}`);
+		return new KubernetesError(`Failed to ${operation}: Internal Error`, 500, 'InternalError');
 	}
-	return new Error(`Failed to ${operation}: Unknown error`);
+	return new KubernetesError(`Failed to ${operation}: Unknown error`, 500, 'UnknownError');
 }

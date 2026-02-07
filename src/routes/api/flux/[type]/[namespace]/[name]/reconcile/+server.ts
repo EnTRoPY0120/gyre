@@ -4,6 +4,7 @@ import { reconcileResource } from '$lib/server/kubernetes/flux/actions';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { logResourceWrite } from '$lib/server/audit.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const POST: RequestHandler = async ({ params, locals, getClientAddress }) => {
 	// Check authentication
@@ -36,14 +37,12 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 
 		return json({ success: true, message: `Reconciliation triggered for ${name}` });
 	} catch (err) {
-		console.error(`Error reconciling ${name}:`, err);
-
 		// Log failed audit event
 		await logResourceWrite(locals.user, type, 'reconcile', name, namespace, locals.cluster, {
 			ipAddress: getClientAddress(),
 			error: (err as Error).message
 		});
 
-		return error(500, `Failed to trigger reconciliation: ${(err as Error).message}`);
+		handleApiError(err, `Error reconciling ${name}`);
 	}
 };

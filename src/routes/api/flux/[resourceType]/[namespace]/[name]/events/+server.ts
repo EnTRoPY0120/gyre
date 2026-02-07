@@ -4,6 +4,7 @@ import { getResourceEvents } from '$lib/server/kubernetes/events';
 import { getResourceTypeByPlural, FLUX_RESOURCES } from '$lib/server/kubernetes/flux/resources';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	// Check authentication
@@ -41,10 +42,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		const events = await getResourceEvents(namespace, name, resourceKind, locals.cluster);
 		return json({ events });
 	} catch (err) {
-		console.error(`Failed to fetch events for ${resourceType}/${namespace}/${name}:`, err);
-		throw error(
-			500,
-			`Failed to fetch events: ${err instanceof Error ? err.message : 'Unknown error'}`
-		);
+		handleApiError(err, `Failed to fetch events for ${resourceType}/${namespace}/${name}`);
 	}
 };
