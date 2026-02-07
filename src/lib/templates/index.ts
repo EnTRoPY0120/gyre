@@ -87,6 +87,20 @@ spec:
 			defaultExpanded: false
 		},
 		{
+			id: 'tls',
+			title: 'TLS Configuration',
+			description: 'TLS certificate and verification settings',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'verification',
+			title: 'Verification',
+			description: 'GPG signature verification settings',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
 			id: 'advanced',
 			title: 'Advanced Options',
 			description: 'Additional configuration options',
@@ -144,6 +158,19 @@ spec:
 				pattern: '^(https?://|ssh://|git@)',
 				message: 'URL must start with https://, http://, ssh://, or git@'
 			}
+		},
+		{
+			name: 'gitImplementation',
+			label: 'Git Implementation',
+			path: 'spec.gitImplementation',
+			type: 'select',
+			section: 'source',
+			default: 'go-git',
+			options: [
+				{ label: 'go-git', value: 'go-git' },
+				{ label: 'libgit2', value: 'libgit2' }
+			],
+			description: 'Git implementation to use for cloning'
 		},
 		{
 			name: 'refType',
@@ -235,7 +262,7 @@ spec:
 				'The interval at which to check the upstream repository for changes. Uses Go duration format: 1h30m, 5m, 30s, etc.',
 			docsUrl: 'https://fluxcd.io/flux/components/source/gitrepositories/#interval',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -261,6 +288,68 @@ spec:
 			description: 'Secret containing proxy credentials'
 		},
 
+		// TLS Configuration
+		{
+			name: 'caFile',
+			label: 'CA File',
+			path: 'spec.caFile',
+			type: 'textarea',
+			section: 'tls',
+			placeholder: '-----BEGIN CERTIFICATE-----\n...',
+			description: 'CA certificate to verify server certificate (for HTTPS)'
+		},
+		{
+			name: 'knownHosts',
+			label: 'Known Hosts',
+			path: 'spec.knownHosts',
+			type: 'textarea',
+			section: 'tls',
+			placeholder: 'github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGm...',
+			description: 'SSH known hosts data to verify server host key (for SSH)'
+		},
+
+		// Verification
+		{
+			name: 'verificationEnabled',
+			label: 'Enable Verification',
+			path: 'spec.verification.enabled',
+			type: 'boolean',
+			section: 'verification',
+			default: false,
+			description: 'Enable GPG signature verification'
+		},
+		{
+			name: 'verificationMode',
+			label: 'Verification Mode',
+			path: 'spec.verification.mode',
+			type: 'select',
+			section: 'verification',
+			default: 'heads',
+			options: [
+				{ label: 'Heads (branches)', value: 'heads' },
+				{ label: 'Tags', value: 'tags' },
+				{ label: 'Commits', value: 'commits' }
+			],
+			description: 'Which references to verify',
+			showIf: {
+				field: 'verificationEnabled',
+				value: 'true'
+			}
+		},
+		{
+			name: 'verificationSecret',
+			label: 'Verification Secret',
+			path: 'spec.verification.secretRef.name',
+			type: 'string',
+			section: 'verification',
+			placeholder: 'git-pgp-public-keys',
+			description: 'Secret containing GPG public keys for verification',
+			showIf: {
+				field: 'verificationEnabled',
+				value: 'true'
+			}
+		},
+
 		// Advanced Options
 		{
 			name: 'suspend',
@@ -280,7 +369,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for Git operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -293,7 +382,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -314,6 +403,39 @@ spec:
 			section: 'advanced',
 			placeholder: '# .gitignore format\n*.txt\n/temp/',
 			description: 'Paths to ignore when calculating artifact checksum (.gitignore format)'
+		},
+		{
+			name: 'include',
+			label: 'Include Repositories',
+			path: 'spec.include',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'repository',
+					label: 'Repository',
+					path: 'repository',
+					type: 'string',
+					required: true,
+					placeholder: 'other-repo'
+				},
+				{
+					name: 'toPath',
+					label: 'To Path',
+					path: 'toPath',
+					type: 'string',
+					placeholder: './included'
+				},
+				{
+					name: 'fromPath',
+					label: 'From Path',
+					path: 'fromPath',
+					type: 'string',
+					placeholder: './'
+				}
+			],
+			description: 'Additional Git repositories to include'
 		}
 	]
 };
@@ -457,7 +579,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for new chart versions',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -475,6 +597,15 @@ spec:
 				'Secret containing authentication credentials (username/password or certFile/keyFile)'
 		},
 		{
+			name: 'proxySecretRef',
+			label: 'Proxy Secret',
+			path: 'spec.proxySecretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'proxy-credentials',
+			description: 'Secret containing proxy credentials'
+		},
+		{
 			name: 'passCredentials',
 			label: 'Pass Credentials',
 			path: 'spec.passCredentials',
@@ -482,6 +613,42 @@ spec:
 			section: 'auth',
 			default: false,
 			description: 'Pass credentials to all domains'
+		},
+		{
+			name: 'insecureHttp',
+			label: 'Insecure HTTP',
+			path: 'spec.insecureHttp',
+			type: 'boolean',
+			section: 'auth',
+			default: false,
+			description: 'Allow insecure HTTP connections (skip TLS verification)'
+		},
+		{
+			name: 'caFile',
+			label: 'CA Certificate',
+			path: 'spec.caFile',
+			type: 'textarea',
+			section: 'auth',
+			placeholder: '-----BEGIN CERTIFICATE-----\n...',
+			description: 'CA certificate to verify server certificate'
+		},
+		{
+			name: 'certFile',
+			label: 'Client Certificate',
+			path: 'spec.certFile',
+			type: 'textarea',
+			section: 'auth',
+			placeholder: '-----BEGIN CERTIFICATE-----\n...',
+			description: 'Client certificate for mutual TLS authentication'
+		},
+		{
+			name: 'keyFile',
+			label: 'Client Key',
+			path: 'spec.keyFile',
+			type: 'textarea',
+			section: 'auth',
+			placeholder: '-----BEGIN PRIVATE KEY-----\n...',
+			description: 'Client private key for mutual TLS authentication'
 		},
 
 		// Advanced Options
@@ -503,7 +670,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for index download operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -516,7 +683,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		}
@@ -683,7 +850,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to reconcile the Kustomization',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -752,7 +919,7 @@ spec:
 			placeholder: '5m',
 			description: 'Timeout for health checks and operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -794,7 +961,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -927,6 +1094,83 @@ spec:
 				}
 			],
 			description: 'Override container images'
+		},
+		{
+			name: 'crds',
+			label: 'CRD Handling',
+			path: 'spec.crds',
+			type: 'select',
+			section: 'advanced',
+			default: 'Create',
+			options: [
+				{ label: 'Create', value: 'Create' },
+				{ label: 'Skip', value: 'Skip' },
+				{ label: 'Select (From List)', value: 'Select' }
+			],
+			description: 'How to handle Custom Resource Definitions'
+		},
+		{
+			name: 'retryIntervalSource',
+			label: 'Source Retry Interval',
+			path: 'spec.retryIntervalSource',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry source refresh after a failure',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'patches',
+			label: 'Strategic Merge Patches',
+			path: 'spec.patches',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'target',
+					label: 'Target',
+					path: 'target',
+					type: 'textarea',
+					placeholder: 'group: apps\nversion: v1\nkind: Deployment\nname: my-app'
+				},
+				{
+					name: 'patch',
+					label: 'Patch',
+					path: 'patch',
+					type: 'textarea',
+					placeholder: 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: my-app'
+				}
+			],
+			description: 'Strategic merge patches to apply'
+		},
+		{
+			name: 'patchesJson6902',
+			label: 'JSON 6902 Patches',
+			path: 'spec.patchesJson6902',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'target',
+					label: 'Target',
+					path: 'target',
+					type: 'textarea',
+					placeholder: 'group: apps\nversion: v1\nkind: Deployment\nname: my-app'
+				},
+				{
+					name: 'patch',
+					label: 'Patch Operations',
+					path: 'patch',
+					type: 'textarea',
+					placeholder: '- op: replace\n  path: /spec/replicas\n  value: 3'
+				}
+			],
+			description: 'JSON 6902 patches to apply'
 		}
 	]
 };
@@ -1125,7 +1369,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to reconcile the release',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -1253,7 +1497,7 @@ spec:
 			placeholder: '5m',
 			description: 'Timeout for Helm operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1284,7 +1528,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1349,6 +1593,33 @@ spec:
 			section: 'remote',
 			placeholder: 'remote-cluster-kubeconfig',
 			description: 'Secret containing KubeConfig for remote cluster'
+		},
+		{
+			name: 'postRenderers',
+			label: 'Post Renderers',
+			path: 'spec.postRenderers',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'kustomize',
+					label: 'Kustomize Config',
+					path: 'kustomize',
+					type: 'textarea',
+					placeholder: 'patches:\n  - target:\n      group: apps'
+				}
+			],
+			description: 'Post-renderers to apply to rendered manifests'
+		},
+		{
+			name: 'configValuesAsDefaults',
+			label: 'Values as Defaults',
+			path: 'spec.config.valuesAsDefaults',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Treat values as defaults (use with Helm 3.13+)'
 		}
 	]
 };
@@ -1485,7 +1756,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for new chart versions',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -1511,6 +1782,33 @@ spec:
 			description: 'List of values files to merge (YAML array format)'
 		},
 		{
+			name: 'valuesFile',
+			label: 'Values File (Single)',
+			path: 'spec.valuesFile',
+			type: 'string',
+			section: 'advanced',
+			placeholder: 'values.yaml',
+			description: 'Single values file to use (alternative to valuesFiles)'
+		},
+		{
+			name: 'verify',
+			label: 'Verify Chart',
+			path: 'spec.verify',
+			type: 'string',
+			section: 'advanced',
+			placeholder: 'helm-plugin-signer',
+			description: 'Enable chart verification using the specified provider'
+		},
+		{
+			name: 'secretRefName',
+			label: 'Secret Name',
+			path: 'spec.secretRef.name',
+			type: 'string',
+			section: 'advanced',
+			placeholder: 'chart-credentials',
+			description: 'Secret containing credentials for private registries'
+		},
+		{
 			name: 'retryInterval',
 			label: 'Retry Interval',
 			path: 'spec.retryInterval',
@@ -1519,7 +1817,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		}
@@ -1634,6 +1932,15 @@ spec:
 			description: 'Name of the S3 bucket'
 		},
 		{
+			name: 'prefix',
+			label: 'Prefix',
+			path: 'spec.prefix',
+			type: 'string',
+			section: 'bucket',
+			placeholder: 'path/to/artifacts/',
+			description: 'Object prefix to filter objects in the bucket'
+		},
+		{
 			name: 'endpoint',
 			label: 'Endpoint',
 			path: 'spec.endpoint',
@@ -1663,13 +1970,26 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for changes',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 
 		// Authentication
+		{
+			name: 's3AuthenticationMethod',
+			label: 'S3 Auth Method',
+			path: 'spec.s3AuthenticationMethod',
+			type: 'select',
+			section: 'auth',
+			default: 'keys',
+			options: [
+				{ label: 'Access Keys', value: 'keys' },
+				{ label: 'IAM Role', value: 'iam' }
+			],
+			description: 'S3 authentication method (for AWS provider)'
+		},
 		{
 			name: 'secretRefName',
 			label: 'Secret Name',
@@ -1678,6 +1998,15 @@ spec:
 			section: 'auth',
 			placeholder: 's3-credentials',
 			description: 'Secret containing access key and secret key'
+		},
+		{
+			name: 's3SecretRefName',
+			label: 'S3 Secret Name',
+			path: 'spec.s3SecretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 's3-alt-credentials',
+			description: 'Alternative S3 secret (when using s3SecretRef instead of secretRef)'
 		},
 		{
 			name: 'proxySecretRef',
@@ -1717,7 +2046,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for bucket operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1730,7 +2059,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1910,7 +2239,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for changes',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -1955,7 +2284,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for OCI operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1968,7 +2297,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1980,6 +2309,83 @@ spec:
 			section: 'advanced',
 			placeholder: '# .gitignore format\n*.md',
 			description: 'Paths to ignore when calculating artifact checksum'
+		},
+		{
+			name: 'caFile',
+			label: 'CA Certificate',
+			path: 'spec.caFile',
+			type: 'textarea',
+			section: 'advanced',
+			placeholder: '-----BEGIN CERTIFICATE-----\n...',
+			description: 'CA certificate to verify server certificate'
+		},
+		{
+			name: 'certFile',
+			label: 'Client Certificate',
+			path: 'spec.certFile',
+			type: 'textarea',
+			section: 'advanced',
+			placeholder: '-----BEGIN CERTIFICATE-----\n...',
+			description: 'Client certificate for mutual TLS authentication'
+		},
+		{
+			name: 'keyFile',
+			label: 'Client Key',
+			path: 'spec.keyFile',
+			type: 'textarea',
+			section: 'advanced',
+			placeholder: '-----BEGIN PRIVATE KEY-----\n...',
+			description: 'Client private key for mutual TLS authentication'
+		},
+		{
+			name: 'insecureHttp',
+			label: 'Insecure HTTP',
+			path: 'spec.insecureHttp',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Allow insecure HTTP connections (skip TLS verification)'
+		},
+		{
+			name: 'layers',
+			label: 'Layers',
+			path: 'spec.layers',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'mediaType',
+					label: 'Media Type',
+					path: 'mediaType',
+					type: 'string',
+					placeholder: 'application/vnd.custom.layer.v1+json'
+				},
+				{
+					name: 'operation',
+					label: 'Operation',
+					path: 'operation',
+					type: 'select',
+					options: [
+						{ label: 'Extract', value: 'Extract' },
+						{ label: 'Copy', value: 'Copy' }
+					]
+				}
+			],
+			description: 'Layer selection configuration'
+		},
+		{
+			name: 'referrers',
+			label: 'Referrers Mode',
+			path: 'spec.referrers',
+			type: 'select',
+			section: 'advanced',
+			default: '',
+			options: [
+				{ label: 'Disabled', value: '' },
+				{ label: 'AWS ECR', value: 'aws/ecr' }
+			],
+			description: 'Enable referrers mode for OCI 1.1+ registries'
 		}
 	]
 };
@@ -2104,6 +2510,39 @@ spec:
 			section: 'advanced',
 			placeholder: 'Production cluster alerts',
 			description: 'Optional summary to include in notifications'
+		},
+		{
+			name: 'inclusionList',
+			label: 'Inclusion List',
+			path: 'spec.inclusionList',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'string',
+			placeholder: 'Succeeded',
+			description: 'Specific events to include (if empty, all events are included)'
+		},
+		{
+			name: 'exclusionList',
+			label: 'Exclusion List',
+			path: 'spec.exclusionList',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'string',
+			placeholder: 'Progressing',
+			description: 'Events to exclude from notifications'
+		},
+		{
+			name: 'resumeInterval',
+			label: 'Resume Interval',
+			path: 'spec.resumeInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '5m',
+			description: 'Interval between sending notifications for the same event',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
 		}
 	]
 };
@@ -2238,6 +2677,42 @@ spec:
 			section: 'provider',
 			placeholder: 'http://proxy.example.com:8080',
 			description: 'Proxy address to use for notifications'
+		},
+		{
+			name: 'importTimeout',
+			label: 'Import Timeout',
+			path: 'spec.importTimeout',
+			type: 'duration',
+			section: 'provider',
+			placeholder: '30s',
+			description: 'Timeout for importing provider-specific settings',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 30s, 1m, 5m)'
+			}
+		},
+		{
+			name: 'alertProvider',
+			label: 'Alert Provider',
+			path: 'spec.alert.provider',
+			type: 'select',
+			section: 'provider',
+			default: '',
+			options: [
+				{ label: 'None', value: '' },
+				{ label: 'Opsgenie', value: 'opsgenie' },
+				{ label: 'PagerDuty', value: 'pagerduty' }
+			],
+			description: 'Alert management provider'
+		},
+		{
+			name: 'tlsCertSecret',
+			label: 'TLS Certificate Secret',
+			path: 'spec.tls.secretRef.name',
+			type: 'string',
+			section: 'provider',
+			placeholder: 'tls-cert',
+			description: 'Secret containing TLS certificate'
 		}
 	]
 };
@@ -2330,6 +2805,16 @@ spec:
 				{ label: 'Generic', value: 'generic' }
 			],
 			description: 'Type of webhook receiver'
+		},
+		{
+			name: 'events',
+			label: 'Events',
+			path: 'spec.events',
+			type: 'array',
+			section: 'receiver',
+			arrayItemType: 'string',
+			placeholder: 'push',
+			description: 'Specific events to receive (if empty, all events are received)'
 		},
 		{
 			name: 'secretName',
@@ -2448,7 +2933,7 @@ spec:
 			default: '5m',
 			description: 'How often to scan for new images',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -2463,6 +2948,65 @@ spec:
 			description: 'Secret containing registry credentials'
 		},
 		{
+			name: 'scanTimeout',
+			label: 'Scan Timeout',
+			path: 'spec.scanTimeout',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'Timeout for scanning the image repository',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'serviceAccountName',
+			label: 'Service Account',
+			path: 'spec.serviceAccountName',
+			type: 'string',
+			section: 'advanced',
+			placeholder: 'default',
+			description: 'Service account to use for scanning images'
+		},
+		{
+			name: 'accessFrom',
+			label: 'Access From Namespaces',
+			path: 'spec.accessFrom.namespaceSelectors',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'matchLabels',
+					label: 'Match Labels',
+					path: 'matchLabels',
+					type: 'textarea',
+					placeholder: 'team: backend'
+				}
+			],
+			description: 'Namespaces allowed to access this ImageRepository'
+		},
+		{
+			name: 'excludeImages',
+			label: 'Exclude Images',
+			path: 'spec.excludeImages',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'string',
+			placeholder: '*-dev',
+			description: 'Image patterns to exclude from scanning'
+		},
+		{
+			name: 'concurrency',
+			label: 'Concurrency',
+			path: 'spec.concurrency',
+			type: 'number',
+			section: 'advanced',
+			placeholder: '10',
+			description: 'Number of concurrent image scans'
+		},
+		{
 			name: 'retryInterval',
 			label: 'Retry Interval',
 			path: 'spec.retryInterval',
@@ -2471,7 +3015,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2638,6 +3182,42 @@ spec:
 			section: 'policy',
 			placeholder: '$version',
 			description: 'Extraction expression to get the version from the tag'
+		},
+		{
+			name: 'semverRangeConstraint',
+			label: 'Semver Range Constraint',
+			path: 'spec.policy.semver.rangeConstraint',
+			type: 'select',
+			section: 'policy',
+			default: '',
+			options: [
+				{ label: 'None', value: '' },
+				{ label: 'Major', value: 'Major' },
+				{ label: 'Minor', value: 'Minor' },
+				{ label: 'Patch', value: 'Patch' }
+			],
+			description: 'Maximum version constraint for semver',
+			showIf: {
+				field: 'policyType',
+				value: 'semver'
+			}
+		},
+		{
+			name: 'imageDateField',
+			label: 'Image Date Field',
+			path: 'spec.policy.semver.imageDateField',
+			type: 'select',
+			section: 'policy',
+			default: 'CreatedDate',
+			options: [
+				{ label: 'Created Date', value: 'CreatedDate' },
+				{ label: 'Last Modified Date', value: 'LastModifiedDate' }
+			],
+			description: 'Date field to use for image ordering',
+			showIf: {
+				field: 'policyType',
+				value: 'semver'
+			}
 		}
 	]
 };
@@ -2771,7 +3351,7 @@ spec:
 			default: '30m',
 			description: 'How often to check for image updates',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2784,7 +3364,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2835,6 +3415,15 @@ spec:
 			section: 'commit',
 			default: 'chore: update image tags',
 			description: 'Template for commit messages'
+		},
+		{
+			name: 'signingKeySecret',
+			label: 'Signing Key Secret',
+			path: 'spec.git.commit.signingKeySecretRef.name',
+			type: 'string',
+			section: 'commit',
+			placeholder: 'git-signing-key',
+			description: 'Secret containing GPG signing key for signed commits'
 		},
 		{
 			name: 'suspend',
