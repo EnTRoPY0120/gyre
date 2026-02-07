@@ -25,7 +25,12 @@ import yaml from 'js-yaml';
 export const GET: RequestHandler = async ({ params, url, locals, request, setHeaders }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		error(401, { message: 'Authentication required' });
+	}
+
+	// Check cluster context
+	if (!locals.cluster) {
+		error(400, { message: 'Cluster context required' });
 	}
 
 	const { resourceType, namespace, name } = params;
@@ -35,7 +40,7 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
 		const validPlurals = getAllResourcePlurals();
-		return error(400, {
+		error(400, {
 			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
 		});
 	}
@@ -50,7 +55,7 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		error(403, { message: 'Permission denied' });
 	}
 
 	try {
@@ -78,7 +83,7 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 		return json(resource);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);
-		return error(status, body.error);
+		error(status, body.error);
 	}
 };
 
@@ -91,7 +96,12 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		error(401, { message: 'Authentication required' });
+	}
+
+	// Check cluster context
+	if (!locals.cluster) {
+		error(400, { message: 'Cluster context required' });
 	}
 
 	const { resourceType, namespace, name } = params;
@@ -100,7 +110,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
 		const validPlurals = getAllResourcePlurals();
-		return error(400, {
+		error(400, {
 			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
 		});
 	}
@@ -115,13 +125,13 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		error(403, { message: 'Permission denied' });
 	}
 
 	// Parse request body
 	const body = await request.json();
 	if (!body.yaml || typeof body.yaml !== 'string') {
-		return error(400, { message: 'Missing or invalid yaml field in request body' });
+		error(400, { message: 'Missing or invalid yaml field in request body' });
 	}
 
 	// Parse YAML to object
@@ -129,31 +139,31 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	try {
 		resource = yaml.load(body.yaml) as K8sResource;
 	} catch (err) {
-		return error(400, {
+		error(400, {
 			message: `Invalid YAML: ${err instanceof Error ? err.message : 'Unable to parse'}`
 		});
 	}
 
 	// Validate resource structure
 	if (!resource || typeof resource !== 'object') {
-		return error(400, { message: 'Invalid resource: must be a valid Kubernetes object' });
+		error(400, { message: 'Invalid resource: must be a valid Kubernetes object' });
 	}
 
 	if (!resource.apiVersion || !resource.kind || !resource.metadata) {
-		return error(400, {
+		error(400, {
 			message: 'Invalid resource: missing required fields (apiVersion, kind, metadata)'
 		});
 	}
 
 	// Validate name and namespace match
 	if (resource.metadata.name !== name) {
-		return error(400, {
+		error(400, {
 			message: `Resource name mismatch: expected "${name}", got "${resource.metadata.name}"`
 		});
 	}
 
 	if (resource.metadata.namespace && resource.metadata.namespace !== namespace) {
-		return error(400, {
+		error(400, {
 			message: `Namespace mismatch: expected "${namespace}", got "${resource.metadata.namespace}"`
 		});
 	}
@@ -171,6 +181,6 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		return json(updated);
 	} catch (err) {
 		const { status, body } = errorToHttpResponse(err);
-		return error(status, body.error);
+		error(status, body.error);
 	}
 };
