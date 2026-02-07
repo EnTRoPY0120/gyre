@@ -175,8 +175,10 @@
 				<Tooltip.Provider delayDuration={200}>
 					<Tooltip.Root>
 						<Tooltip.Trigger class="w-full">
-							<div
-								class="group flex cursor-not-allowed items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-muted-foreground opacity-60 transition-all duration-300"
+							<button
+								type="button"
+								aria-disabled="true"
+								class="group flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-muted-foreground opacity-60 transition-all duration-300"
 							>
 								<div
 									class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors"
@@ -184,7 +186,7 @@
 									<Icon name="plus" size={14} />
 								</div>
 								Create Resource
-							</div>
+							</button>
 						</Tooltip.Trigger>
 						<Tooltip.Content side="right">
 							<p class="text-xs text-white">You need additional permissions to create resources.</p>
@@ -217,6 +219,8 @@
 				<div class="space-y-1">
 					<button
 						onclick={() => toggleGroup('Admin')}
+						aria-expanded={expandedGroups['Admin']}
+						aria-controls="admin-panel"
 						class="group flex w-full items-center justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
 					>
 						<div class="flex items-center gap-2.5">
@@ -238,7 +242,10 @@
 					</button>
 
 					{#if expandedGroups['Admin']}
-						<div class="relative ml-2 space-y-1 border-l border-sidebar-border/30 pl-3">
+						<div
+							id="admin-panel"
+							class="relative ml-2 space-y-1 border-l border-sidebar-border/30 pl-3"
+						>
 							<!-- Users -->
 							<a
 								href="/admin/users"
@@ -330,10 +337,15 @@
 			{/if}
 
 			<!-- Groups -->
+
 			{#each resourceGroups as group (group.name)}
+				{@const groupId = `panel-${group.name.toLowerCase().replace(/\s+/g, '-')}`}
+
 				<div class="space-y-1">
 					<button
 						onclick={() => toggleGroup(group.name)}
+						aria-expanded={expandedGroups[group.name]}
+						aria-controls={groupId}
 						class="group flex w-full items-center justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
 					>
 						<div class="flex items-center gap-2.5">
@@ -344,20 +356,26 @@
 									class="opacity-50 transition-all group-hover:text-primary group-hover:opacity-100"
 								/>
 							{/if}
+
 							{group.name}
 						</div>
+
 						<Icon
 							name="chevron-right"
 							size={12}
 							class={cn(
 								'text-muted-foreground/50 transition-transform duration-300 group-hover:text-primary',
+
 								expandedGroups[group.name] ? 'rotate-90' : 'rotate-0'
 							)}
 						/>
 					</button>
 
 					{#if expandedGroups[group.name]}
-						<div class="relative ml-2 space-y-1 border-l border-sidebar-border/30 pl-3">
+						<div
+							id={groupId}
+							class="relative ml-2 space-y-1 border-l border-sidebar-border/30 pl-3"
+						>
 							<!-- Active indicator line -->
 							<div
 								class="absolute top-0 bottom-0 left-[-1px] w-[1px] bg-gradient-to-b from-primary/0 via-primary/0 to-primary/0 transition-all duration-300 group-hover:via-primary/50"
@@ -446,12 +464,14 @@
 			<Tooltip.Provider delayDuration={200}>
 				<Tooltip.Root>
 					<Tooltip.Trigger>
-						<div
+						<button
+							type="button"
+							aria-disabled="true"
 							class="mb-4 cursor-not-allowed rounded-xl bg-gray-200 p-3 text-gray-400 transition-all dark:bg-gray-800"
 							title="Create Resource (Disabled)"
 						>
 							<Icon name="plus" size={20} />
-						</div>
+						</button>
 					</Tooltip.Trigger>
 					<Tooltip.Content side="right">
 						<p class="text-xs text-white">You need additional permissions to create resources.</p>
