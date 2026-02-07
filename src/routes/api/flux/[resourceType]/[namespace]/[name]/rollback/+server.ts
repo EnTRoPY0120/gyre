@@ -4,7 +4,7 @@ import { rollbackResource } from '$lib/server/kubernetes/flux/history';
 import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
-import { logResourceWrite } from '$lib/server/audit.js';
+import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 
 export const POST: RequestHandler = async ({ params, locals, request, getClientAddress }) => {
 	if (!locals.user) {
@@ -50,16 +50,23 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 		// Log the audit event
 		await logResourceWrite(locals.user, resolvedType, 'rollback', name, namespace, locals.cluster, {
 			ipAddress: getClientAddress(),
-			details: { revision }
+			revision
 		});
 
 		return json({ message: `Successfully requested rollback to ${revision}` });
 	} catch (err: unknown) {
-		// Log failed audit event with sanitized error
-		await logResourceWrite(locals.user, resolvedType, 'rollback', name, namespace, locals.cluster, {
+		// Log failed audit event with flattened details and success: false
+		await logAudit(locals.user, 'write:rollback', {
+			resourceType: resolvedType,
+			resourceName: name,
+			namespace,
+			clusterId: locals.cluster,
 			ipAddress: getClientAddress(),
-			error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err)),
-			details: { revision }
+			success: false,
+			details: {
+				revision,
+				error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
+			}
 		});
 
 		handleApiError(err, `Failed to perform rollback for ${name}`);
