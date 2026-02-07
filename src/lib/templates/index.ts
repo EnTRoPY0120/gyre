@@ -1544,15 +1544,6 @@ spec:
 				}
 			],
 			description: 'Post-renderers to apply to rendered manifests'
-		},
-		{
-			name: 'configValuesAsDefaults',
-			label: 'Values as Defaults',
-			path: 'spec.config.valuesAsDefaults',
-			type: 'boolean',
-			section: 'advanced',
-			default: false,
-			description: 'Treat values as defaults (use with Helm 3.13+)'
 		}
 	]
 };
@@ -2275,19 +2266,6 @@ spec:
 				}
 			],
 			description: 'Layer selection configuration'
-		},
-		{
-			name: 'referrers',
-			label: 'Referrers Mode',
-			path: 'spec.referrers',
-			type: 'select',
-			section: 'advanced',
-			default: '',
-			options: [
-				{ label: 'Disabled', value: '' },
-				{ label: 'AWS ECR', value: 'aws/ecr' }
-			],
-			description: 'Enable referrers mode for OCI 1.1+ registries'
 		}
 	]
 };
