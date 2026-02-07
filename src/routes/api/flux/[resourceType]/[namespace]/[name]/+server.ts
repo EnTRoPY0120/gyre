@@ -10,7 +10,7 @@ import {
 	getResourceTypeByPlural,
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
-import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 import type { K8sResource } from '$lib/types/kubernetes';
 import yaml from 'js-yaml';
@@ -82,8 +82,7 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 
 		return json(resource);
 	} catch (err) {
-		const { status, body } = errorToHttpResponse(err);
-		throw error(status, body.error);
+		handleApiError(err, `Error fetching ${resolvedType} ${namespace}/${name}`);
 	}
 };
 
@@ -180,7 +179,6 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
 		return json(updated);
 	} catch (err) {
-		const { status, body } = errorToHttpResponse(err);
-		throw error(status, body.error);
+		handleApiError(err, `Error updating ${resolvedType} ${namespace}/${name}`);
 	}
 };

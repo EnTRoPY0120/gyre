@@ -6,7 +6,7 @@ import {
 	getResourceTypeByPlural,
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
-import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 
 /**
@@ -47,7 +47,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		const resources = await listFluxResourcesInNamespace(resolvedType, namespace, locals.cluster);
 		return json(resources);
 	} catch (err) {
-		const { status, body } = errorToHttpResponse(err);
-		throw error(status, body.error);
+		handleApiError(err, `Error listing ${resolvedType} in namespace ${namespace}`);
 	}
 };

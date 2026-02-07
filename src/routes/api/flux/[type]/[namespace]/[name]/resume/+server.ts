@@ -4,7 +4,7 @@ import { toggleSuspendResource } from '$lib/server/kubernetes/flux/actions';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { logResourceWrite } from '$lib/server/audit.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
+import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 
 export const POST: RequestHandler = async ({ params, locals, getClientAddress }) => {
 	// Check authentication
@@ -37,10 +37,10 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 
 		return json({ success: true, message: `Resumed ${name}` });
 	} catch (err) {
-		// Log failed audit event
+		// Log failed audit event with sanitized error
 		await logResourceWrite(locals.user, type, 'resume', name, namespace, locals.cluster, {
 			ipAddress: getClientAddress(),
-			error: (err as Error).message
+			error: sanitizeK8sErrorMessage((err as Error).message)
 		});
 
 		handleApiError(err, `Error resuming ${name}`);
