@@ -128,7 +128,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	}
 
 	// Parse request body
-	let body;
+	let body: { yaml?: unknown };
 	try {
 		body = await request.json();
 	} catch {
