@@ -367,14 +367,14 @@
 
 <div class="flex flex-col gap-6">
 	<!-- Head -->
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div>
 			<h2 class="text-xl font-bold">{template.name} Creation</h2>
 			<p class="text-sm text-muted-foreground">{template.description}</p>
 		</div>
 
 		<div class="flex items-center gap-2">
-			<div class="flex rounded-lg border border-border bg-card p-1">
+			<div class="flex shrink-0 rounded-lg border border-border bg-card p-1">
 				<button
 					class={cn(
 						'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',

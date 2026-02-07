@@ -72,23 +72,23 @@
 		</button>
 
 		<!-- Breadcrumb Navigation -->
-		<nav class="flex items-center" aria-label="Breadcrumb">
-			<ol class="flex items-center space-x-1 sm:space-x-2">
+		<nav class="flex min-w-0 items-center" aria-label="Breadcrumb">
+			<ol class="flex items-center space-x-1 overflow-hidden text-ellipsis sm:space-x-2">
 				{#each breadcrumbs() as crumb, i (crumb.href)}
 					{#if i > 0}
 						<li
 							class={cn(
-								'flex items-center text-muted-foreground/50',
-								i < breadcrumbs().length - 1 && 'hidden sm:flex'
+								'flex shrink-0 items-center text-muted-foreground/50',
+								i < breadcrumbs().length - 1 && 'hidden md:flex'
 							)}
 						>
 							<ChevronRight class="size-3.5" />
 						</li>
 					{/if}
-					<li class={cn(i < breadcrumbs().length - 1 && 'hidden sm:block')}>
+					<li class={cn(i < breadcrumbs().length - 1 && 'hidden md:block', 'min-w-0')}>
 						{#if i === breadcrumbs().length - 1}
 							<span
-								class="animate-in fade-in slide-in-from-left-2 xs:max-w-[120px] flex max-w-[80px] items-center gap-2 truncate rounded-md bg-secondary/50 px-2 py-1 text-[10px] font-bold text-foreground shadow-sm ring-1 ring-border duration-300 sm:max-w-[150px] sm:text-xs md:max-w-none"
+								class="animate-in fade-in slide-in-from-left-2 xs:max-w-[120px] flex items-center gap-2 truncate rounded-md bg-secondary/50 px-2 py-1 text-[10px] font-bold text-foreground shadow-sm ring-1 ring-border duration-300 sm:max-w-[150px] sm:text-xs md:max-w-none"
 							>
 								{crumb.label}
 							</span>
@@ -108,7 +108,7 @@
 	</div>
 
 	<!-- Right Side: Notifications, Theme Toggle, Connection Status & Actions -->
-	<div class="flex items-center gap-1.5 sm:gap-3 md:gap-4">
+	<div class="flex shrink-0 items-center gap-1 sm:gap-3 md:gap-4">
 		<!-- Notification Bell -->
 		<NotificationBell />
 
@@ -119,9 +119,10 @@
 
 		<!-- Cluster Selector -->
 		<ClusterSwitcher current={health?.clusterName} available={health?.availableClusters} />
+
 		<!-- Flux Version Badge -->
 		{#if fluxVersion}
-			<div class="hidden sm:block">
+			<div class="hidden lg:block">
 				<span
 					class="inline-flex items-center rounded-md border border-emerald-500/20 bg-emerald-500/5 px-2 py-1 font-mono text-[10px] font-bold text-emerald-500"
 					title="Flux CD Version"

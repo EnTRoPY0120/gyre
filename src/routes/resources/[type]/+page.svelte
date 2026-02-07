@@ -156,7 +156,7 @@
 <div class="space-y-6">
 	<!-- Page Header -->
 	<div class="flex flex-col gap-4">
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+		<div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
 			<div>
 				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
 					{data.resourceInfo.displayName}
