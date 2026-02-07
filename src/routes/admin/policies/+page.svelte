@@ -328,11 +328,22 @@
 
 	<!-- Create Policy Modal -->
 	{#if showCreateModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="create-policy-title"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
 			<div
 				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
 			>
-				<h2 class="mb-4 text-xl font-bold text-white">Create New Policy</h2>
+				<h2 id="create-policy-title" class="mb-4 text-xl font-bold text-white">
+					Create New Policy
+				</h2>
 
 				<form
 					method="POST"
@@ -377,7 +388,7 @@
 						></textarea>
 					</div>
 
-					<div class="grid grid-cols-2 gap-4">
+					<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						<div>
 							<label for="policyRole" class="mb-1 block text-sm font-medium text-slate-300"
 								>Role</label
@@ -464,8 +475,19 @@
 
 	<!-- Delete Confirmation Modal -->
 	{#if deletingPolicy}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-xl border border-red-500/30 bg-slate-800 p-6 shadow-2xl">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="delete-policy-title"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-red-500/30 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
+			>
 				<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
 					<svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path
@@ -476,7 +498,7 @@
 						/>
 					</svg>
 				</div>
-				<h2 class="mb-2 text-xl font-bold text-white">Delete Policy</h2>
+				<h2 id="delete-policy-title" class="mb-2 text-xl font-bold text-white">Delete Policy</h2>
 				<p class="mb-6 text-slate-400">
 					Are you sure you want to delete <strong class="text-white">{deletingPolicy.name}</strong>?
 					This will remove the policy from all assigned users. This action cannot be undone.
@@ -506,9 +528,20 @@
 
 	<!-- Assign Policy Modal -->
 	{#if assigningPolicy}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-				<h2 class="mb-4 text-xl font-bold text-white">Assign Policy</h2>
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="assign-policy-title"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
+			>
+				<h2 id="assign-policy-title" class="mb-4 text-xl font-bold text-white">Assign Policy</h2>
 				<p class="mb-4 text-slate-400">
 					Assign <strong class="text-white">{assigningPolicy.name}</strong> to a user:
 				</p>
