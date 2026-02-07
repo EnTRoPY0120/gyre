@@ -502,6 +502,7 @@
 					}}
 					class="p-2.5 text-muted-foreground transition-colors duration-200 hover:text-primary"
 					title={group.name}
+					aria-label={group.name}
 				>
 					{#if GroupIcons[group.name]}
 						<Icon name={GroupIcons[group.name]} size={18} />
