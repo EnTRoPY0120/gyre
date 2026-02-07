@@ -101,9 +101,8 @@
 
 <aside
 	class={cn(
-		'relative z-50 flex h-screen flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground shadow-2xl backdrop-blur-xl transition-all duration-300 ease-in-out',
-		isOpen ? 'w-64' : '-ml-64 w-0 lg:ml-0 lg:w-16',
-		isMobile && 'fixed top-0 bottom-0 left-0'
+		'fixed inset-y-0 left-0 z-50 flex flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground shadow-2xl backdrop-blur-xl transition-all duration-300 ease-in-out lg:relative lg:translate-x-0',
+		isOpen ? 'w-64 translate-x-0' : 'w-64 -translate-x-full lg:w-16 lg:translate-x-0'
 	)}
 >
 	{#if isOpen || !isMobile}
