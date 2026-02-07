@@ -2388,6 +2388,26 @@ spec:
 			required: true,
 			section: 'notification',
 			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'kind',
+					label: 'Kind',
+					path: 'kind',
+					type: 'string',
+					required: true,
+					placeholder: 'GitRepository',
+					description: 'Resource kind (e.g., GitRepository, Kustomization)'
+				},
+				{
+					name: 'name',
+					label: 'Name',
+					path: 'name',
+					type: 'string',
+					required: true,
+					placeholder: '* or resource name',
+					description: 'Resource name; use * to watch all resources of that kind'
+				}
+			],
 			placeholder: 'GitRepository',
 			description:
 				'Resources to monitor for events. Use * for name to watch all resources of that kind.',
@@ -2703,6 +2723,26 @@ spec:
 			required: true,
 			section: 'receiver',
 			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'kind',
+					label: 'Kind',
+					path: 'kind',
+					type: 'string',
+					required: true,
+					placeholder: 'GitRepository',
+					description: 'Resource kind (e.g., GitRepository, Kustomization)'
+				},
+				{
+					name: 'name',
+					label: 'Name',
+					path: 'name',
+					type: 'string',
+					required: true,
+					placeholder: '* or resource name',
+					description: 'Resource name; use * to watch all resources of that kind'
+				}
+			],
 			placeholder: 'GitRepository',
 			description:
 				'FluxCD resources to reconcile when webhook is triggered. Use * for name to reconcile all resources of that kind.',
