@@ -2389,6 +2389,13 @@ spec:
 			description: 'Registry credentials',
 			collapsible: true,
 			defaultExpanded: false
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
 		}
 	],
 	fields: [
