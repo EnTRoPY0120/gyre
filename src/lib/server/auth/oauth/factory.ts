@@ -8,6 +8,7 @@ import type { IOAuthProvider } from './types';
 import { OAuthError, ProviderType } from './types';
 import { OIDCProvider } from './providers/oidc';
 import { GitHubProvider } from './providers/github';
+import { GitLabProvider } from './providers/gitlab';
 import { GoogleProvider } from './providers/google';
 import { getDb } from '$lib/server/db';
 import { authProviders } from '$lib/server/db/schema';
@@ -34,8 +35,7 @@ export function createOAuthProvider(config: AuthProvider, redirectUri?: string):
 			return new GoogleProvider(options);
 
 		case ProviderType.OAUTH2_GITLAB:
-			// TODO: Implement GitLab provider
-			throw new OAuthError('GitLab provider not yet implemented', 'PROVIDER_NOT_IMPLEMENTED');
+			return new GitLabProvider(options);
 
 		case ProviderType.OAUTH2_GENERIC:
 			// Generic OAuth2 falls back to OIDC provider
