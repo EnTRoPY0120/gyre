@@ -34,12 +34,25 @@ LABEL org.opencontainers.image.title="Gyre" \
       org.opencontainers.image.vendor="Gyre Project" \
       org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
-# Install CA certificates and transient build tools for native modules
-RUN --mount=type=cache,target=/root/.npm \
-    apk add --no-cache ca-certificates --virtual .build-deps python3 make g++ && \
-    npm install --omit=dev && \
+# Install CA certificates and build tools for native modules
+RUN apk add --no-cache ca-certificates python3 make g++
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S gyre && \
+    adduser -S -D -H -u 1001 -h /app -s /sbin/nologin -G gyre -g gyre gyre
+
+WORKDIR /app
+
+# Copy built application from builder (with proper ownership)
+COPY --from=builder --chown=gyre:gyre /build/build ./build
+COPY --from=builder --chown=gyre:gyre /build/package.json ./package.json
+COPY --from=builder --chown=gyre:gyre /build/drizzle ./drizzle
+
+# Install production dependencies
+# We omit the cache mount to avoid 'idealTree' conflict and clean up build tools in same layer
+RUN npm install --omit=dev && \
     npm cache clean --force && \
-    apk del .build-deps
+    apk del python3 make g++
 
 # Create data directory for SQLite database (PVC mount point)
 RUN mkdir -p /data && chown -R gyre:gyre /data
