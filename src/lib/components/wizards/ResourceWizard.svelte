@@ -123,6 +123,8 @@
 			const parsed = yaml.load(currentYaml) as Record<string, unknown>;
 
 			template.fields.forEach((field) => {
+				if (field.virtual) return;
+
 				const value = formValues[field.name];
 				const path = field.path.split('.');
 
@@ -151,6 +153,8 @@
 			const values: Record<string, unknown> = { ...formValues };
 
 			template.fields.forEach((field) => {
+				if (field.virtual) return;
+
 				const path = field.path.split('.');
 				let current = parsed;
 				for (let i = 0; i < path.length; i++) {

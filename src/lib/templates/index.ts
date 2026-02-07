@@ -37,6 +37,7 @@ export interface TemplateField {
 	arrayItemFields?: TemplateField[]; // For object array items
 	helpText?: string; // Detailed help text for the field
 	docsUrl?: string; // Link to FluxCD documentation
+	virtual?: boolean; // UI-only field, do not persist to YAML
 }
 
 export interface TemplateSection {
@@ -239,7 +240,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to check for repository changes (e.g., 1m, 1m30s, 1h30m)',
 			helpText:
-				'The interval at which to check the upstream repository for changes. Uses Go duration format: 1h30m, 5m, 30s, etc.',
+				'The interval at which to check the upstream repository for changes. Flux supports: 1h30m, 5m, 30s, etc.',
 			docsUrl: 'https://fluxcd.io/flux/components/source/gitrepositories/#interval',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
@@ -289,6 +290,7 @@ spec:
 			label: 'Verification Secret',
 			path: 'spec.verify.secretRef.name',
 			type: 'string',
+			required: true,
 			section: 'verification',
 			placeholder: 'git-pgp-public-keys',
 			description: 'Secret containing GPG public keys for verification',
@@ -318,7 +320,7 @@ spec:
 			description: 'Timeout for Git operations',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -331,7 +333,7 @@ spec:
 			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -572,31 +574,13 @@ spec:
 			description: 'Allow insecure HTTP connections (skip TLS verification)'
 		},
 		{
-			name: 'caFile',
-			label: 'CA Certificate',
-			path: 'spec.caFile',
-			type: 'textarea',
+			name: 'certSecretRef',
+			label: 'TLS Secret',
+			path: 'spec.certSecretRef.name',
+			type: 'string',
 			section: 'auth',
-			placeholder: '-----BEGIN CERTIFICATE-----\n...',
-			description: 'CA certificate to verify server certificate'
-		},
-		{
-			name: 'certFile',
-			label: 'Client Certificate',
-			path: 'spec.certFile',
-			type: 'textarea',
-			section: 'auth',
-			placeholder: '-----BEGIN CERTIFICATE-----\n...',
-			description: 'Client certificate for mutual TLS authentication'
-		},
-		{
-			name: 'keyFile',
-			label: 'Client Key',
-			path: 'spec.keyFile',
-			type: 'textarea',
-			section: 'auth',
-			placeholder: '-----BEGIN PRIVATE KEY-----\n...',
-			description: 'Client private key for mutual TLS authentication'
+			placeholder: 'helm-tls-certs',
+			description: 'Secret containing CA/cert/key for TLS authentication'
 		},
 
 		// Advanced Options
@@ -619,7 +603,7 @@ spec:
 			description: 'Timeout for index download operations',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -632,7 +616,7 @@ spec:
 			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		}
 	]
@@ -868,7 +852,7 @@ spec:
 			description: 'Timeout for health checks and operations',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 
@@ -910,7 +894,7 @@ spec:
 			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -1067,7 +1051,7 @@ spec:
 			description: 'How often to retry source refresh after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -1446,7 +1430,7 @@ spec:
 			description: 'Timeout for Helm operations',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -1477,7 +1461,7 @@ spec:
 			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -1775,7 +1759,7 @@ spec:
 			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		}
 	]
@@ -2004,7 +1988,7 @@ spec:
 			description: 'Timeout for bucket operations',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -2017,7 +2001,7 @@ spec:
 			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -2242,7 +2226,7 @@ spec:
 			description: 'Timeout for OCI operations',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -2255,7 +2239,7 @@ spec:
 			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -2268,36 +2252,18 @@ spec:
 			description: 'Paths to ignore when calculating artifact checksum'
 		},
 		{
-			name: 'caFile',
-			label: 'CA Certificate',
-			path: 'spec.caFile',
-			type: 'textarea',
+			name: 'certSecretRef',
+			label: 'TLS Secret',
+			path: 'spec.certSecretRef.name',
+			type: 'string',
 			section: 'advanced',
-			placeholder: '-----BEGIN CERTIFICATE-----\n...',
-			description: 'CA certificate to verify server certificate'
+			placeholder: 'oci-tls-certs',
+			description: 'Secret containing CA/cert/key for TLS authentication'
 		},
 		{
-			name: 'certFile',
-			label: 'Client Certificate',
-			path: 'spec.certFile',
-			type: 'textarea',
-			section: 'advanced',
-			placeholder: '-----BEGIN CERTIFICATE-----\n...',
-			description: 'Client certificate for mutual TLS authentication'
-		},
-		{
-			name: 'keyFile',
-			label: 'Client Key',
-			path: 'spec.keyFile',
-			type: 'textarea',
-			section: 'advanced',
-			placeholder: '-----BEGIN PRIVATE KEY-----\n...',
-			description: 'Client private key for mutual TLS authentication'
-		},
-		{
-			name: 'insecureHttp',
+			name: 'insecure',
 			label: 'Insecure HTTP',
-			path: 'spec.insecureHttp',
+			path: 'spec.insecure',
 			type: 'boolean',
 			section: 'advanced',
 			default: false,
@@ -2887,7 +2853,7 @@ spec:
 			description: 'Timeout for scanning the image repository',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -2946,7 +2912,7 @@ spec:
 			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -3038,7 +3004,7 @@ spec:
 		{
 			name: 'policyType',
 			label: 'Policy Type',
-			path: 'spec.policy.type', // Virtual field for wizard choice
+			path: 'spec.policy.type',
 			type: 'select',
 			section: 'policy',
 			default: 'semver',
@@ -3047,7 +3013,8 @@ spec:
 				{ label: 'Alphabetical', value: 'alphabetical' },
 				{ label: 'Numerical', value: 'numerical' }
 			],
-			description: 'Strategy for selecting image tags'
+			description: 'Strategy for selecting image tags',
+			virtual: true
 		},
 		{
 			name: 'semverRange',
@@ -3246,7 +3213,7 @@ spec:
 			description: 'How often to check for image updates',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
@@ -3259,7 +3226,7 @@ spec:
 			description: 'How often to retry after a failure',
 			validation: {
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
 		{
