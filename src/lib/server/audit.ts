@@ -89,7 +89,7 @@ export async function logResourceRead(
 export async function logResourceWrite(
 	user: User,
 	resourceType: string,
-	action: 'suspend' | 'resume' | 'reconcile' | 'update',
+	action: 'suspend' | 'resume' | 'reconcile' | 'update' | 'rollback',
 	resourceName: string,
 	namespace: string,
 	clusterId?: string,
