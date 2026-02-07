@@ -521,7 +521,7 @@
 							{#if showRawLogs}
 								<code>{logs}</code>
 							{:else}
-								{#each formattedLogs as line}
+								{#each formattedLogs as line, i (i)}
 									<div class="mb-1 flex gap-3 last:mb-0">
 										<span class="shrink-0 text-gray-500">[{line.ts}]</span>
 										<span class="shrink-0 {getLevelClass(line.level)}">{line.level}</span>
