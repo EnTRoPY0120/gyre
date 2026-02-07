@@ -36,7 +36,7 @@
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
-	// Fallback to textarea if Monaco fails to load
+	// Fallback to textarea if Monaco fails to load or while it's loading
 	let showFallback = $state(false);
 
 	// Store disposables for cleanup
@@ -197,40 +197,45 @@
 </script>
 
 <div class="monaco-editor-wrapper {className}" style="height: {height}">
-	{#if loading}
-		<div class="flex h-full items-center justify-center rounded bg-zinc-950">
-			<div class="flex flex-col items-center gap-3">
-				<div
-					class="h-8 w-8 animate-spin rounded-full border-2 border-zinc-800 border-t-amber-500"
-				></div>
-				<p class="text-xs font-medium tracking-widest text-zinc-500 uppercase">
-					Initialising Editor
-				</p>
-			</div>
-		</div>
-	{:else if showFallback}
-		<div class="fallback-editor h-full">
-			<textarea
-				bind:value
-				oninput={handleTextareaChange}
-				{readonly}
-				spellcheck="false"
-				class="h-full w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-sm text-zinc-300 transition-all focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 focus:outline-none"
-				placeholder="Enter {language.toUpperCase()} content..."
-			></textarea>
-			{#if error}
-				<div
-					class="absolute top-2 right-2 flex items-center gap-2 rounded border border-red-500/20 bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-400"
-				>
-					<span>Basic Mode</span>
-					<span class="opacity-50">|</span>
-					<span>{error}</span>
+	<div class="h-full w-full" class:hidden={!loading && !showFallback}>
+		<textarea
+			bind:value
+			oninput={handleTextareaChange}
+			{readonly}
+			spellcheck="false"
+			class="h-full w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 p-4 font-mono text-sm text-zinc-300 transition-all focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 focus:outline-none"
+			placeholder="Enter {language.toUpperCase()} content..."
+		></textarea>
+
+		{#if loading}
+			<div
+				class="absolute inset-0 flex items-center justify-center rounded-lg bg-zinc-950/50 backdrop-blur-[2px]"
+			>
+				<div class="flex flex-col items-center gap-3">
+					<div
+						class="h-8 w-8 animate-spin rounded-full border-2 border-zinc-800 border-t-amber-500"
+					></div>
+					<p class="text-xs font-medium tracking-widest text-zinc-500 uppercase">
+						Initialising Editor
+					</p>
 				</div>
-			{/if}
-		</div>
-	{:else}
-		<div bind:this={containerEl} class="monaco-container h-full overflow-hidden rounded-lg"></div>
-	{/if}
+			</div>
+		{:else if error}
+			<div
+				class="absolute top-2 right-2 flex items-center gap-2 rounded border border-red-500/20 bg-red-500/10 px-2 py-1 text-[10px] font-medium text-red-400"
+			>
+				<span>Basic Mode</span>
+				<span class="opacity-50">|</span>
+				<span>{error}</span>
+			</div>
+		{/if}
+	</div>
+
+	<div
+		bind:this={containerEl}
+		class="monaco-container h-full overflow-hidden rounded-lg"
+		class:hidden={loading || showFallback}
+	></div>
 </div>
 
 <style>
@@ -247,10 +252,5 @@
 	:global(.monaco-editor) {
 		--vscode-editor-background: transparent !important;
 		--vscode-editorGutter-background: transparent !important;
-	}
-
-	.fallback-editor {
-		width: 100%;
-		position: relative;
 	}
 </style>
