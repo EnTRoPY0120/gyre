@@ -87,13 +87,6 @@ spec:
 			defaultExpanded: false
 		},
 		{
-			id: 'tls',
-			title: 'TLS Configuration',
-			description: 'TLS certificate and verification settings',
-			collapsible: true,
-			defaultExpanded: false
-		},
-		{
 			id: 'verification',
 			title: 'Verification',
 			description: 'GPG signature verification settings',
@@ -158,19 +151,6 @@ spec:
 				pattern: '^(https?://|ssh://|git@)',
 				message: 'URL must start with https://, http://, ssh://, or git@'
 			}
-		},
-		{
-			name: 'gitImplementation',
-			label: 'Git Implementation',
-			path: 'spec.gitImplementation',
-			type: 'select',
-			section: 'source',
-			default: 'go-git',
-			options: [
-				{ label: 'go-git', value: 'go-git' },
-				{ label: 'libgit2', value: 'libgit2' }
-			],
-			description: 'Git implementation to use for cloning'
 		},
 		{
 			name: 'refType',
@@ -288,65 +268,33 @@ spec:
 			description: 'Secret containing proxy credentials'
 		},
 
-		// TLS Configuration
-		{
-			name: 'caFile',
-			label: 'CA File',
-			path: 'spec.caFile',
-			type: 'textarea',
-			section: 'tls',
-			placeholder: '-----BEGIN CERTIFICATE-----\n...',
-			description: 'CA certificate to verify server certificate (for HTTPS)'
-		},
-		{
-			name: 'knownHosts',
-			label: 'Known Hosts',
-			path: 'spec.knownHosts',
-			type: 'textarea',
-			section: 'tls',
-			placeholder: 'github.com ssh-rsa AAAAB3NzaC1yc2EAAAABIwAAAQEAq2A7hRGm...',
-			description: 'SSH known hosts data to verify server host key (for SSH)'
-		},
-
 		// Verification
 		{
-			name: 'verificationEnabled',
-			label: 'Enable Verification',
-			path: 'spec.verification.enabled',
-			type: 'boolean',
-			section: 'verification',
-			default: false,
-			description: 'Enable GPG signature verification'
-		},
-		{
-			name: 'verificationMode',
+			name: 'verifyMode',
 			label: 'Verification Mode',
-			path: 'spec.verification.mode',
+			path: 'spec.verify.mode',
 			type: 'select',
 			section: 'verification',
-			default: 'heads',
+			default: '',
 			options: [
+				{ label: 'Disabled', value: '' },
 				{ label: 'Heads (branches)', value: 'heads' },
 				{ label: 'Tags', value: 'tags' },
 				{ label: 'Commits', value: 'commits' }
 			],
-			description: 'Which references to verify',
-			showIf: {
-				field: 'verificationEnabled',
-				value: 'true'
-			}
+			description: 'Which references to verify with GPG'
 		},
 		{
-			name: 'verificationSecret',
+			name: 'verifySecret',
 			label: 'Verification Secret',
-			path: 'spec.verification.secretRef.name',
+			path: 'spec.verify.secretRef.name',
 			type: 'string',
 			section: 'verification',
 			placeholder: 'git-pgp-public-keys',
 			description: 'Secret containing GPG public keys for verification',
 			showIf: {
-				field: 'verificationEnabled',
-				value: 'true'
+				field: 'verifyMode',
+				value: ['heads', 'tags', 'commits']
 			}
 		},
 
@@ -1791,13 +1739,22 @@ spec:
 			description: 'Single values file to use (alternative to valuesFiles)'
 		},
 		{
-			name: 'verify',
-			label: 'Verify Chart',
-			path: 'spec.verify',
+			name: 'verifyProvider',
+			label: 'Verify Provider',
+			path: 'spec.verify.provider',
 			type: 'string',
 			section: 'advanced',
-			placeholder: 'helm-plugin-signer',
-			description: 'Enable chart verification using the specified provider'
+			placeholder: 'cosign',
+			description: 'Chart verification provider (e.g., cosign)'
+		},
+		{
+			name: 'verifySecret',
+			label: 'Verify Secret',
+			path: 'spec.verify.secretRef.name',
+			type: 'string',
+			section: 'advanced',
+			placeholder: 'verification-keys',
+			description: 'Secret containing verification public keys'
 		},
 		{
 			name: 'secretRefName',
@@ -2530,19 +2487,6 @@ spec:
 			arrayItemType: 'string',
 			placeholder: 'Progressing',
 			description: 'Events to exclude from notifications'
-		},
-		{
-			name: 'resumeInterval',
-			label: 'Resume Interval',
-			path: 'spec.resumeInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '5m',
-			description: 'Interval between sending notifications for the same event',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Go format (e.g., 60s, 1m30s, 5m)'
-			}
 		}
 	]
 };
@@ -2690,20 +2634,6 @@ spec:
 				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Go format (e.g., 30s, 1m, 5m)'
 			}
-		},
-		{
-			name: 'alertProvider',
-			label: 'Alert Provider',
-			path: 'spec.alert.provider',
-			type: 'select',
-			section: 'provider',
-			default: '',
-			options: [
-				{ label: 'None', value: '' },
-				{ label: 'Opsgenie', value: 'opsgenie' },
-				{ label: 'PagerDuty', value: 'pagerduty' }
-			],
-			description: 'Alert management provider'
 		},
 		{
 			name: 'tlsCertSecret',
@@ -3182,42 +3112,6 @@ spec:
 			section: 'policy',
 			placeholder: '$version',
 			description: 'Extraction expression to get the version from the tag'
-		},
-		{
-			name: 'semverRangeConstraint',
-			label: 'Semver Range Constraint',
-			path: 'spec.policy.semver.rangeConstraint',
-			type: 'select',
-			section: 'policy',
-			default: '',
-			options: [
-				{ label: 'None', value: '' },
-				{ label: 'Major', value: 'Major' },
-				{ label: 'Minor', value: 'Minor' },
-				{ label: 'Patch', value: 'Patch' }
-			],
-			description: 'Maximum version constraint for semver',
-			showIf: {
-				field: 'policyType',
-				value: 'semver'
-			}
-		},
-		{
-			name: 'imageDateField',
-			label: 'Image Date Field',
-			path: 'spec.policy.semver.imageDateField',
-			type: 'select',
-			section: 'policy',
-			default: 'CreatedDate',
-			options: [
-				{ label: 'Created Date', value: 'CreatedDate' },
-				{ label: 'Last Modified Date', value: 'LastModifiedDate' }
-			],
-			description: 'Date field to use for image ordering',
-			showIf: {
-				field: 'policyType',
-				value: 'semver'
-			}
 		}
 	]
 };
