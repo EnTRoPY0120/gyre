@@ -243,7 +243,7 @@ spec:
 				'The interval at which to check the upstream repository for changes. Flux supports: 1h30m, 5m, 30s, etc.',
 			docsUrl: 'https://fluxcd.io/flux/components/source/gitrepositories/#interval',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -279,7 +279,7 @@ spec:
 			default: '',
 			options: [
 				{ label: 'Disabled', value: '' },
-				{ label: 'Head (branch)', value: 'head' },
+				{ label: 'Head (branch)', value: 'HEAD' },
 				{ label: 'Tag', value: 'Tag' },
 				{ label: 'Tag and Head', value: 'TagAndHEAD' }
 			],
@@ -296,7 +296,7 @@ spec:
 			description: 'Secret containing GPG public keys for verification',
 			showIf: {
 				field: 'verifyMode',
-				value: ['head', 'Tag', 'TagAndHEAD']
+				value: ['HEAD', 'Tag', 'TagAndHEAD']
 			}
 		},
 
@@ -319,7 +319,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for Git operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -332,7 +332,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -529,7 +529,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for new chart versions',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -565,13 +565,13 @@ spec:
 			description: 'Pass credentials to all domains'
 		},
 		{
-			name: 'insecureHttp',
-			label: 'Insecure HTTP',
-			path: 'spec.insecureHttp',
+			name: 'insecure',
+			label: 'Insecure',
+			path: 'spec.insecure',
 			type: 'boolean',
 			section: 'auth',
 			default: false,
-			description: 'Allow insecure HTTP connections (skip TLS verification)'
+			description: 'Allow insecure connections (skip TLS verification)'
 		},
 		{
 			name: 'certSecretRef',
@@ -602,7 +602,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for index download operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -615,7 +615,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		}
@@ -782,7 +782,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to reconcile the Kustomization',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -851,7 +851,7 @@ spec:
 			placeholder: '5m',
 			description: 'Timeout for health checks and operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -893,7 +893,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1050,7 +1050,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry source refresh after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1301,7 +1301,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to reconcile the release',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -1429,7 +1429,7 @@ spec:
 			placeholder: '5m',
 			description: 'Timeout for Helm operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1460,7 +1460,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1688,7 +1688,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for new chart versions',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -1758,7 +1758,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		}
@@ -1911,26 +1911,13 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for changes',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
 		},
 
 		// Authentication
-		{
-			name: 's3AuthenticationMethod',
-			label: 'S3 Auth Method',
-			path: 'spec.s3AuthenticationMethod',
-			type: 'select',
-			section: 'auth',
-			default: 'keys',
-			options: [
-				{ label: 'Access Keys', value: 'keys' },
-				{ label: 'IAM Role', value: 'iam' }
-			],
-			description: 'S3 authentication method (for AWS provider)'
-		},
 		{
 			name: 'secretRefName',
 			label: 'Secret Name',
@@ -1939,15 +1926,6 @@ spec:
 			section: 'auth',
 			placeholder: 's3-credentials',
 			description: 'Secret containing access key and secret key'
-		},
-		{
-			name: 's3SecretRefName',
-			label: 'S3 Secret Name',
-			path: 'spec.s3SecretRef.name',
-			type: 'string',
-			section: 'auth',
-			placeholder: 's3-alt-credentials',
-			description: 'Alternative S3 secret (when using s3SecretRef instead of secretRef)'
 		},
 		{
 			name: 'proxySecretRef',
@@ -1987,7 +1965,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for bucket operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2000,7 +1978,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2180,7 +2158,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for changes',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -2225,7 +2203,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for OCI operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2238,7 +2216,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2262,12 +2240,12 @@ spec:
 		},
 		{
 			name: 'insecure',
-			label: 'Insecure HTTP',
+			label: 'Insecure',
 			path: 'spec.insecure',
 			type: 'boolean',
 			section: 'advanced',
 			default: false,
-			description: 'Allow insecure HTTP connections (skip TLS verification)'
+			description: 'Allow insecure connections (skip TLS verification)'
 		},
 		{
 			name: 'layers',
@@ -2596,14 +2574,14 @@ spec:
 			placeholder: '30s',
 			description: 'Timeout for importing provider-specific settings',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 30s, 1m, 5m)'
 			}
 		},
 		{
 			name: 'tlsCertSecret',
 			label: 'TLS Certificate Secret',
-			path: 'spec.tls.secretRef.name',
+			path: 'spec.certSecretRef.name',
 			type: 'string',
 			section: 'provider',
 			placeholder: 'tls-cert',
@@ -2828,7 +2806,7 @@ spec:
 			default: '5m',
 			description: 'How often to scan for new images',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -2851,7 +2829,7 @@ spec:
 			placeholder: '1m',
 			description: 'Timeout for scanning the image repository',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2910,7 +2888,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -3140,6 +3118,13 @@ spec:
 			description: 'Git commit author and message',
 			collapsible: true,
 			defaultExpanded: false
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
 		}
 	],
 	fields: [
@@ -3211,7 +3196,7 @@ spec:
 			default: '30m',
 			description: 'How often to check for image updates',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -3224,7 +3209,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(ns|us|µs|ms|s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
