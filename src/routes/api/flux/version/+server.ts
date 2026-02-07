@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
 import * as k8s from '@kubernetes/client-node';
 import { checkPermission } from '$lib/server/rbac.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 /**
  * GET /api/flux/version
@@ -65,8 +66,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 			return json({ version: 'v2.x.x' });
 		}
 	} catch (err) {
-		return error(500, {
-			message: err instanceof Error ? err.message : 'Unknown error fetching Flux version'
-		});
+		handleApiError(err, 'Error fetching Flux version');
 	}
 };

@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { getResourceHistory } from '$lib/server/kubernetes/flux/history';
 import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	if (!locals.user) {
@@ -33,6 +34,6 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		const history = await getResourceHistory(resolvedType, namespace, name, locals.cluster);
 		return json({ history });
 	} catch (err: unknown) {
-		return error(500, { message: err instanceof Error ? err.message : 'Failed to fetch history' });
+		handleApiError(err, `Failed to fetch history for ${name}`);
 	}
 };

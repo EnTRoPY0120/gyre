@@ -3,6 +3,7 @@ import type { RequestHandler } from './$types';
 import { rollbackResource } from '$lib/server/kubernetes/flux/history';
 import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const POST: RequestHandler = async ({ params, locals, request }) => {
 	if (!locals.user) {
@@ -39,8 +40,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		await rollbackResource(resolvedType, namespace, name, revision);
 		return json({ message: `Successfully requested rollback to ${revision}` });
 	} catch (err: unknown) {
-		return error(500, {
-			message: err instanceof Error ? err.message : 'Failed to perform rollback'
-		});
+		handleApiError(err, `Failed to perform rollback for ${name}`);
 	}
 };

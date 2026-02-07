@@ -2,7 +2,10 @@
 // for information about these interfaces
 declare global {
 	namespace App {
-		// interface Error {}
+		interface Error {
+			message: string;
+			code?: string;
+		}
 		interface Locals {
 			cluster: string | undefined;
 			user: import('$lib/server/db/schema').User | null;

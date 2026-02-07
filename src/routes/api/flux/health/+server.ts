@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
 import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 // Cache for connection status per cluster
 const connectionCache = new Map<string, { connected: boolean; timestamp: number }>();
@@ -61,8 +62,6 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 
 		return json(responseData);
 	} catch (err) {
-		return error(503, {
-			message: err instanceof Error ? err.message : 'Kubernetes configuration error'
-		});
+		handleApiError(err, 'Kubernetes health check failed');
 	}
 };
