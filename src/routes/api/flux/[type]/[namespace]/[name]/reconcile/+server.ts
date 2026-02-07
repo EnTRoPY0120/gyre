@@ -3,7 +3,7 @@ import type { RequestHandler } from './$types';
 import { reconcileResource } from '$lib/server/kubernetes/flux/actions';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
-import { logResourceWrite } from '$lib/server/audit.js';
+import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 
 export const POST: RequestHandler = async ({ params, locals, getClientAddress }) => {
@@ -37,10 +37,17 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 
 		return json({ success: true, message: `Reconciliation triggered for ${name}` });
 	} catch (err) {
-		// Log failed audit event with sanitized error
-		await logResourceWrite(locals.user, type, 'reconcile', name, namespace, locals.cluster, {
+		// Log failed audit event with sanitized error and success: false
+		await logAudit(locals.user, 'write:reconcile', {
+			resourceType: type,
+			resourceName: name,
+			namespace,
+			clusterId: locals.cluster,
 			ipAddress: getClientAddress(),
-			error: sanitizeK8sErrorMessage((err as Error).message)
+			success: false,
+			details: {
+				error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
+			}
 		});
 
 		handleApiError(err, `Error reconciling ${name}`);
