@@ -1,4 +1,4 @@
-import { getCustomObjectsApi, getFluxResource } from '../client';
+import { getCustomObjectsApi, getFluxResource, handleK8sError } from '../client';
 import { getResourceDef, getResourceTypeByPlural } from './resources';
 import type { FluxResourceType } from './resources';
 import type { ConfigurationOptions } from '@kubernetes/client-node';
@@ -53,8 +53,7 @@ export async function toggleSuspendResource(
 			} as ConfigurationOptions
 		);
 	} catch (error) {
-		console.error(`Failed to suspend/resume ${name}:`, error);
-		throw error;
+		throw handleK8sError(error, `suspend/resume ${name}`);
 	}
 }
 
@@ -131,7 +130,6 @@ export async function reconcileResource(
 			} as ConfigurationOptions
 		);
 	} catch (error) {
-		console.error(`Failed to reconcile ${name}:`, error);
-		throw error;
+		throw handleK8sError(error, `reconcile ${name}`);
 	}
 }
