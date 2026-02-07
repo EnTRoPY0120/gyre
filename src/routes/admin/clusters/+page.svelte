@@ -392,7 +392,6 @@
 
 	<!-- Create Cluster Modal -->
 	{#if showCreateModal}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
 			role="dialog"
@@ -527,7 +526,6 @@
 
 	<!-- Delete Confirmation Modal -->
 	{#if deletingCluster}
-		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
 			role="dialog"
