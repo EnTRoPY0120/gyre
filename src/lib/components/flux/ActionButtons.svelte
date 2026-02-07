@@ -91,6 +91,7 @@
 			disabled={!canWrite}
 			onclick={() => (showEditModal = true)}
 			class={!canWrite ? 'pointer-events-none' : ''}
+			aria-label="Edit"
 		>
 			<Pencil class="h-4 w-4 md:mr-2" />
 			<span class="hidden md:inline">Edit</span>
@@ -102,6 +103,7 @@
 			disabled={isLoading || isSuspended || !canWrite}
 			onclick={() => handleAction('reconcile')}
 			class={!canWrite ? 'pointer-events-none' : ''}
+			aria-label="Reconcile"
 		>
 			{#if isLoading}
 				<Loader2 class="h-4 w-4 animate-spin md:mr-2" />
@@ -119,6 +121,7 @@
 			class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 {!canWrite
 				? 'pointer-events-none'
 				: ''}"
+			aria-label="Resume"
 		>
 			<Play class="h-4 w-4 md:mr-2" />
 			<span class="hidden md:inline">Resume</span>
@@ -132,6 +135,7 @@
 			class="text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-950/30 {!canWrite
 				? 'pointer-events-none'
 				: ''}"
+			aria-label="Suspend"
 		>
 			<Pause class="h-4 w-4 md:mr-2" />
 			<span class="hidden md:inline">Suspend</span>
