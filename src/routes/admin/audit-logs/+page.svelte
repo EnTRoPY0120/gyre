@@ -18,6 +18,9 @@
 	} from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 
+	import { advancedSearch } from '$lib/utils/search';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+
 	interface AuditLog {
 		id: string;
 		userId: string | null;
@@ -39,6 +42,26 @@
 	let { data } = $props<{
 		data: { logs: AuditLog[] };
 	}>();
+
+	let searchQuery = $state('');
+	let statusFilter = $state<'all' | 'success' | 'failure'>('all');
+
+	let filteredLogs = $derived.by(() => {
+		let logs: AuditLog[] = data.logs;
+
+		// Apply status filter
+		if (statusFilter === 'success') {
+			logs = logs.filter((l: AuditLog) => l.success);
+		} else if (statusFilter === 'failure') {
+			logs = logs.filter((l: AuditLog) => !l.success);
+		}
+
+		// Apply search
+		return advancedSearch(logs, searchQuery, {
+			keys: ['action', 'resourceName', 'resourceType', 'namespace', 'user.username', 'ipAddress'],
+			fuzzy: true
+		}) as AuditLog[];
+	});
 
 	let expandedLogId = $state<string | null>(null);
 
@@ -72,13 +95,30 @@
 				<Search class="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-slate-500" />
 				<input
 					type="text"
+					bind:value={searchQuery}
 					placeholder="Search logs..."
 					class="h-10 w-full rounded-lg border border-slate-700 bg-slate-800/50 pr-4 pl-10 text-sm text-white placeholder-slate-500 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 focus:outline-none sm:w-64"
 				/>
 			</div>
-			<Button variant="outline" size="icon" class="border-slate-700 bg-slate-800/50 text-slate-400">
-				<Filter size={18} />
-			</Button>
+			<DropdownMenu.Root>
+				<DropdownMenu.Trigger
+					class={cn(
+						'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/50 text-slate-400 transition-colors hover:bg-slate-700/50',
+						statusFilter !== 'all' && 'border-amber-500/50 text-amber-500'
+					)}
+				>
+					<Filter size={18} />
+				</DropdownMenu.Trigger>
+				<DropdownMenu.Content align="end" class="w-48">
+					<DropdownMenu.Label>Filter by Status</DropdownMenu.Label>
+					<DropdownMenu.Separator />
+					<DropdownMenu.RadioGroup bind:value={statusFilter}>
+						<DropdownMenu.RadioItem value="all">All Logs</DropdownMenu.RadioItem>
+						<DropdownMenu.RadioItem value="success">Successful</DropdownMenu.RadioItem>
+						<DropdownMenu.RadioItem value="failure">Failed</DropdownMenu.RadioItem>
+					</DropdownMenu.RadioGroup>
+				</DropdownMenu.Content>
+			</DropdownMenu.Root>
 		</div>
 	</div>
 
@@ -89,7 +129,7 @@
 				<Activity size={18} />
 				<span class="text-sm font-medium">Total Events</span>
 			</div>
-			<p class="mt-2 text-2xl font-bold text-white">{data.logs.length}</p>
+			<p class="mt-2 text-2xl font-bold text-white">{filteredLogs.length}</p>
 		</div>
 		<div class="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
 			<div class="flex items-center gap-3 text-emerald-400">
@@ -97,7 +137,7 @@
 				<span class="text-sm font-medium">Successful Actions</span>
 			</div>
 			<p class="mt-2 text-2xl font-bold text-white">
-				{data.logs.filter((l: AuditLog) => l.success).length}
+				{filteredLogs.filter((l: AuditLog) => l.success).length}
 			</p>
 		</div>
 		<div class="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
@@ -106,7 +146,7 @@
 				<span class="text-sm font-medium">Failed Attempts</span>
 			</div>
 			<p class="mt-2 text-2xl font-bold text-white">
-				{data.logs.filter((l: AuditLog) => !l.success).length}
+				{filteredLogs.filter((l: AuditLog) => !l.success).length}
 			</p>
 		</div>
 	</div>
@@ -127,7 +167,7 @@
 					</tr>
 				</thead>
 				<tbody class="divide-y divide-slate-700/50">
-					{#each data.logs as log (log.id)}
+					{#each filteredLogs as log (log.id)}
 						<tr
 							class={cn(
 								'transition-colors hover:bg-slate-700/30',
