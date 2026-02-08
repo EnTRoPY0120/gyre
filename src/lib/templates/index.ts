@@ -996,6 +996,19 @@ spec:
 			description: 'ServiceAccount to impersonate for reconciliation'
 		},
 		{
+			name: 'retryInterval',
+			label: 'Retry Interval',
+			path: 'spec.retryInterval',
+			type: 'duration',
+			section: 'advanced',
+			placeholder: '1m',
+			description: 'How often to retry after a failure',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
 			name: 'components',
 			label: 'Components',
 			path: 'spec.components',
@@ -2685,19 +2698,16 @@ spec:
 				{ label: 'Slack', value: 'slack' },
 				{ label: 'Discord', value: 'discord' },
 				{ label: 'Microsoft Teams', value: 'msteams' },
-				{ label: 'Rocket', value: 'rocketchat' },
+				{ label: 'Rocket', value: 'rocket' },
 				{ label: 'Google Chat', value: 'googlechat' },
 				{ label: 'Webex', value: 'webex' },
-				{ label: 'Matrix', value: 'matrix' },
-				{ label: 'Lark', value: 'lark' },
-				{ label: 'Telegram', value: 'telegram' },
 				{ label: 'GitHub', value: 'github' },
 				{ label: 'GitLab', value: 'gitlab' },
+				{ label: 'Gitea', value: 'gitea' },
 				{ label: 'Bitbucket', value: 'bitbucket' },
+				{ label: 'Bitbucket Server', value: 'bitbucketserver' },
 				{ label: 'Azure DevOps', value: 'azuredevops' },
 				{ label: 'Google Pub/Sub', value: 'googlepubsub' },
-				{ label: 'Amazon SNS', value: 'amazonsns' },
-				{ label: 'Grafana', value: 'grafana' },
 				{ label: 'Generic Webhook', value: 'generic' },
 				{ label: 'Generic HMAC', value: 'generic-hmac' }
 			],
