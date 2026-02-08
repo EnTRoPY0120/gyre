@@ -3,7 +3,8 @@ import type { RequestHandler } from './$types';
 import { getFluxResource, getKubeConfig } from '$lib/server/kubernetes/client';
 import {
 	getResourceTypeByPlural,
-	type FluxResourceType
+	type FluxResourceType,
+	FLUX_RESOURCES
 } from '$lib/server/kubernetes/flux/resources';
 import { requirePermission } from '$lib/server/rbac';
 import * as k8s from '@kubernetes/client-node';
@@ -13,12 +14,103 @@ import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import http from 'node:http';
+import https from 'node:https';
 
 const execAsync = promisify(exec);
 
-export const GET: RequestHandler = async ({ params, locals }) => {
+// Helper function to download artifact using Node.js http module
+// This is more reliable in-cluster than fetch() for internal service calls
+function downloadArtifact(url: string, timeoutMs = 15000): Promise<Buffer> {
+	return new Promise((resolve, reject) => {
+		const parsedUrl = new URL(url);
+		const client = parsedUrl.protocol === 'https:' ? https : http;
+
+		const chunks: Buffer[] = [];
+		let totalBytes = 0;
+
+		const request = client.get(
+			url,
+			{
+				timeout: timeoutMs,
+				headers: {
+					Accept: 'application/gzip, application/x-gzip, application/x-tar',
+					'User-Agent': 'gyre-drift-detector'
+				}
+			},
+			(response) => {
+				if (response.statusCode !== 200) {
+					let errorBody = '';
+					response.on('data', (chunk) => {
+						errorBody += chunk.toString();
+					});
+					response.on('end', () => {
+						reject(
+							new Error(
+								`HTTP ${response.statusCode}: ${response.statusMessage}. Body: ${errorBody.slice(0, 200)}`
+							)
+						);
+					});
+					return;
+				}
+
+				response.on('data', (chunk: Buffer) => {
+					chunks.push(chunk);
+					totalBytes += chunk.length;
+
+					// Safety limit: 100MB
+					if (totalBytes > 100 * 1024 * 1024) {
+						request.destroy();
+						reject(new Error('Artifact too large (>100MB)'));
+					}
+				});
+
+				response.on('end', () => {
+					resolve(Buffer.concat(chunks));
+				});
+
+				response.on('error', reject);
+			}
+		);
+
+		request.on('error', reject);
+		request.on('timeout', () => {
+			request.destroy();
+			reject(new Error(`Request timeout after ${timeoutMs}ms`));
+		});
+	});
+}
+
+// Cache for expensive diff computations
+interface DiffCacheEntry {
+	diffs: Array<{
+		kind: string;
+		name: string;
+		namespace: string;
+		desired: string;
+		live: string | null;
+	}>;
+	timestamp: number;
+	revision: string;
+}
+
+const diffCache = new Map<string, DiffCacheEntry>();
+const DIFF_CACHE_TTL = 60000; // 1 minute cache
+
+export const GET: RequestHandler = async ({ params, locals, url }) => {
 	const { resourceType: pluralType, namespace, name } = params;
 	const clusterId = locals.cluster;
+	const forceRefresh = url.searchParams.get('force') === 'true';
+
+	// Check if running in-cluster (required for drift detection)
+	const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
+	if (!isInCluster) {
+		throw error(
+			503,
+			'Drift detection is only available when Gyre is deployed in a Kubernetes cluster. ' +
+				'This feature requires in-cluster access to the source-controller and is not supported in local development mode.'
+		);
+	}
 
 	const resourceType = getResourceTypeByPlural(pluralType);
 
@@ -48,6 +140,26 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		const spec = kustomization.spec;
 
+		// Check cache first (unless force refresh requested)
+		const currentRevision = (kustomization.status as { lastAppliedRevision?: string })
+			?.lastAppliedRevision;
+		const cacheKey = `${clusterId}:${namespace}:${name}:${currentRevision}`;
+
+		if (!forceRefresh) {
+			const cached = diffCache.get(cacheKey);
+			if (cached && Date.now() - cached.timestamp < DIFF_CACHE_TTL) {
+				console.log('✓ Returning cached diff result');
+				return json({
+					diffs: cached.diffs,
+					cached: true,
+					timestamp: cached.timestamp,
+					revision: cached.revision
+				});
+			}
+		} else {
+			console.log('ℹ Force refresh requested, bypassing cache');
+		}
+
 		// 2. Get the Source resource
 		const sourceRef = spec.sourceRef as { kind: string; name: string; namespace?: string };
 		const sourceNamespace = sourceRef.namespace || namespace;
@@ -62,109 +174,153 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		const artifactUrl = (source.status as { artifact?: { url: string } } | undefined)?.artifact
 			?.url;
 
-		// 3. Fetch the source content (Artifact or Git Clone)
+		if (!artifactUrl) {
+			throw error(
+				400,
+				`Source ${sourceRef.kind}/${sourceRef.name} has no artifact URL. ` +
+					'Ensure the source is ready and has reconciled successfully.'
+			);
+		}
+
+		// 3. Fetch the source content via artifact
 		const tempDir = await mkdtemp(join(tmpdir(), 'gyre-diff-'));
 
 		try {
-			let sourceFetched = false;
+			console.log(`ℹ Fetching artifact from: ${artifactUrl}`);
+			const artifactPath = join(tempDir, 'artifact.tar.gz');
+			let buffer: Buffer;
 
-			// Strategy A: Try to fetch the artifact from source-controller
-			if (artifactUrl) {
+			// Clean up the URL - remove trailing dot after cluster.local
+			// FluxCD URLs have format: http://source-controller.flux-system.svc.cluster.local./path
+			// But the actual HTTP server listens on: http://source-controller.flux-system.svc.cluster.local/path
+			const cleanUrl = artifactUrl.replace(/\.cluster\.local\./g, '.cluster.local');
+
+			console.log(`ℹ Cleaned URL: ${cleanUrl}`);
+
+			// Try downloading the artifact using Node.js http module
+			// This is more reliable for in-cluster service-to-service communication than fetch()
+			try {
+				buffer = await downloadArtifact(cleanUrl);
+				console.log(`✓ Artifact download successful (${buffer.length} bytes)`);
+			} catch (downloadErr) {
+				console.log(`ℹ HTTP download failed: ${(downloadErr as Error).message}`);
+				console.log(`ℹ Trying kubectl exec fallback method`);
+
+				// Fallback: Use port-forward via Kubernetes API to access the artifact
+				// This works for both in-cluster and local development
 				try {
-					const artifactPath = join(tempDir, 'artifact.tar.gz');
-					let buffer: ArrayBuffer;
+					const config = await getKubeConfig(clusterId);
+					const coreApi = config.makeApiClient(k8s.CoreV1Api);
 
-					// Handle cluster-internal URLs
-					if (artifactUrl.includes('.svc.cluster.local')) {
-						console.log(`ℹ Proxying internal artifact URL: ${artifactUrl}`);
-						const config = await getKubeConfig(clusterId);
-						const url = new URL(artifactUrl);
-						const hostParts = url.hostname.split('.');
-						const svcName = hostParts[0];
-						const svcNamespace = hostParts[1];
-						const port = url.port || '80';
+					// Get source-controller pod name
+					const pods = await coreApi.listNamespacedPod({
+						namespace: 'flux-system',
+						labelSelector: 'app=source-controller'
+					});
 
-						const coreApi = config.makeApiClient(k8s.CoreV1Api);
-						const proxyPath = `${url.pathname}${url.search}`;
-
-						// Use the client's proxy capability
-						const proxyResponse = await coreApi.connectGetNamespacedServiceProxy({
-							name: `${svcName}:${port}`,
-							namespace: svcNamespace,
-							path: proxyPath
-						});
-
-						// proxyResponse IS the body when using connectGetNamespacedServiceProxy
-						// Note: If this still fails with "not in gzip format", Strategy B will catch it
-						buffer = Buffer.from(proxyResponse as string).buffer;
-					} else {
-						// Normal external URL
-						const response = await fetch(artifactUrl);
-						if (!response.ok) throw new Error(`Artifact fetch failed: ${response.statusText}`);
-						buffer = await response.arrayBuffer();
+					if (!pods.items || pods.items.length === 0) {
+						throw new Error('No source-controller pod found in flux-system namespace');
 					}
 
-					await writeFile(artifactPath, Buffer.from(buffer));
-					await execAsync(`tar -xzf ${artifactPath} -C ${tempDir}`);
-					sourceFetched = true;
-					console.log('✓ Source fetched via artifact');
-				} catch (err) {
-					console.warn(
-						`⚠️ Artifact fetch failed, falling back to Git clone: ${(err as Error).message}`
+					const podName = pods.items[0].metadata?.name;
+					if (!podName) {
+						throw new Error('source-controller pod has no name');
+					}
+
+					console.log(`ℹ Using source-controller pod: ${podName}`);
+
+					// Use Kubernetes API to proxy HTTP request through the pod
+					// This works because we're accessing the pod's HTTP server via K8s API proxy
+					const urlPath = new URL(cleanUrl).pathname;
+
+					console.log(`ℹ Fetching via K8s pod proxy: ${urlPath}`);
+
+					try {
+						// Use connectGetNamespacedPodProxy to make HTTP request through the pod
+						// Port 9090 is the source-controller's HTTP artifact server
+						// The port is included in the 'name' parameter as podName:port
+						const proxyResponse = await coreApi.connectGetNamespacedPodProxy({
+							name: `${podName}:9090`,
+							namespace: 'flux-system',
+							path: urlPath
+						});
+
+						buffer = Buffer.isBuffer(proxyResponse)
+							? proxyResponse
+							: Buffer.from(proxyResponse as string, 'binary');
+
+						console.log(`✓ K8s pod proxy fetch successful (${buffer.length} bytes)`);
+					} catch (proxyErr) {
+						console.error(`Pod proxy error:`, proxyErr);
+						throw proxyErr;
+					}
+				} catch (execErr) {
+					throw new Error(
+						`All fetch methods failed. ` +
+							`Direct HTTP: ${(downloadErr as Error).message}. ` +
+							`K8s proxy: ${(execErr as Error).message}. ` +
+							`\n\nTroubleshooting:\n` +
+							`1. Check source-controller is running: kubectl get pod -n flux-system -l app=source-controller\n` +
+							`2. Verify artifact exists: kubectl get gitrepo -n ${sourceNamespace} ${sourceRef.name} -o jsonpath='{.status.artifact.url}'\n` +
+							`3. Test artifact URL manually: kubectl port-forward -n flux-system svc/source-controller 9090:80 && curl http://localhost:9090${new URL(cleanUrl).pathname}`
 					);
 				}
 			}
 
-			// Strategy B: Fallback to Git Clone (The "GitHub" approach suggested by user)
-			if (!sourceFetched) {
-				const repoUrl = source.spec?.url as string;
-				if (!repoUrl) {
-					throw new Error('No artifact available and no repository URL found');
-				}
-
-				console.log(`ℹ Attempting Git clone from: ${repoUrl}`);
-
-				// Clean temp dir before cloning to avoid "already exists" error
-
-				await rm(tempDir, { recursive: true, force: true });
-
-				const { mkdir } = await import('node:fs/promises');
-
-				await mkdir(tempDir, { recursive: true });
-
-				// Convert SSH to HTTPS for easier public cloning if needed
-
-				let cloneUrl = repoUrl;
-
-				// Handle standard SSH: git@github.com:user/repo
-
-				if (repoUrl.startsWith('git@')) {
-					cloneUrl = repoUrl.replace(':', '/').replace('git@', 'https://');
-				}
-
-				// Handle ssh:// protocol: ssh://git@github.com/user/repo
-				else if (repoUrl.startsWith('ssh://')) {
-					cloneUrl = repoUrl.replace('ssh://git@', 'https://');
-				}
-
-				const ref = (source.spec?.ref as { branch?: string; tag?: string }) || {};
-
-				const branch = ref.branch || 'main';
-
-				await execAsync(`git clone --depth 1 --branch ${branch} ${cloneUrl} ${tempDir}`);
-
-				sourceFetched = true;
-				console.log('✓ Source fetched via Git clone');
+			// Validate it's actually a gzip/tarball (check magic bytes)
+			if (buffer.length < 2) {
+				throw new Error(`Downloaded content too small (${buffer.length} bytes)`);
 			}
+
+			// gzip magic bytes: 0x1f 0x8b
+			const isGzip = buffer[0] === 0x1f && buffer[1] === 0x8b;
+
+			if (!isGzip) {
+				// Try to parse as JSON/HTML to get better error message
+				const text = buffer.toString('utf-8', 0, Math.min(500, buffer.length));
+				throw new Error(
+					`Downloaded content is not a gzip archive (magic bytes: 0x${buffer[0]?.toString(16)} 0x${buffer[1]?.toString(16)}). ` +
+						`Content preview: ${text}`
+				);
+			}
+
+			// Write and extract the tarball
+			await writeFile(artifactPath, buffer);
+
+			try {
+				await execAsync(`tar -tzf "${artifactPath}" > /dev/null`, {
+					timeout: 5000
+				});
+				console.log('✓ Tarball validation passed');
+			} catch (tarCheckErr) {
+				throw new Error(
+					`Downloaded file is not a valid tar.gz archive: ${(tarCheckErr as Error).message}`
+				);
+			}
+
+			await execAsync(`tar -xzf "${artifactPath}" -C "${tempDir}"`, {
+				timeout: 30000,
+				maxBuffer: 50 * 1024 * 1024 // 50MB max
+			});
+
+			console.log('✓ Source artifact extracted successfully');
 
 			// 4. Run kustomize build
 			const kustomizePath = join(tempDir, (spec.path as string) || './');
-			const { stdout: buildOutput } = await execAsync(`kustomize build ${kustomizePath}`);
+			console.log(`ℹ Running kustomize build on: ${kustomizePath}`);
 
-			// 5. Split multi-resource YAML into individual resources
+			const { stdout: buildOutput } = await execAsync(`kustomize build "${kustomizePath}"`, {
+				timeout: 30000, // 30 second timeout
+				maxBuffer: 10 * 1024 * 1024 // 10MB max output
+			});
+
+			console.log(`✓ Kustomize build completed (${buildOutput.length} bytes)`);
+
+			// 5. Parse resources and compare using Server-Side Dry-Run
 			const desiredResources = yaml.loadAll(buildOutput) as Array<Record<string, unknown>>;
+			const config = await getKubeConfig(clusterId);
+			const customApi = config.makeApiClient(k8s.CustomObjectsApi);
 
-			// 5. Compare each resource with live state
 			const diffs = await Promise.all(
 				desiredResources.map(async (desired) => {
 					if (!desired || !desired.kind || !desired.metadata) return null;
@@ -174,61 +330,189 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 					const resName = metadata.name;
 					const resNamespace = metadata.namespace || (spec.targetNamespace as string) || namespace;
 					const apiVersion = desired.apiVersion as string;
+					const [group, version] = apiVersion.includes('/')
+						? apiVersion.split('/')
+						: ['', apiVersion];
 
-					// Fetch live state
-					let liveState: unknown = null;
-					try {
-						const config = await getKubeConfig(clusterId);
-						// This is a bit simplified, we'd need a more robust way to get any resource
-						// For now, let's use a generic approach if possible
-						const group = apiVersion.includes('/') ? apiVersion.split('/')[0] : '';
-						const version = apiVersion.includes('/') ? apiVersion.split('/')[1] : apiVersion;
+					// 1. Try to get plural from our known Flux resources
+					let plural = '';
 
-						// We need the plural for the custom objects API
-						let plural = kind.toLowerCase() + 's';
-						if (kind.toLowerCase().endsWith('y')) {
-							plural = kind.toLowerCase().slice(0, -1) + 'ies';
-						} else if (kind.toLowerCase().endsWith('s')) {
-							plural = kind.toLowerCase() + 'es';
-						}
+					// Explicitly type the values to avoid inference issues
+					const fluxDefs = Object.values(FLUX_RESOURCES) as Array<{ kind: string; plural: string }>;
+					const fluxDef = fluxDefs.find((r) => r.kind === kind);
 
+					if (fluxDef) {
+						plural = fluxDef.plural;
+					} else {
+						// 2. Fallback to heuristic pluralization for core/other resources
+						plural = kind.toLowerCase() + 's';
+						if (kind.toLowerCase().endsWith('y')) plural = kind.toLowerCase().slice(0, -1) + 'ies';
+						else if (kind.toLowerCase().endsWith('s')) plural = kind.toLowerCase() + 'es';
 						if (kind === 'Ingress') plural = 'ingresses';
-
-						const api = config.makeApiClient(k8s.CustomObjectsApi);
-						const liveResponse = await api.getNamespacedCustomObject({
-							group,
-							version,
-							namespace: resNamespace,
-							plural,
-							name: resName
-						});
-						liveState = liveResponse;
-					} catch {
-						// Resource might not exist yet
-						liveState = null;
+						if (kind === 'Endpoints') plural = 'endpoints';
 					}
 
-					// To get a meaningful diff, we should use dry-run=server if possible
-					// For now, we'll return the desired and live state and let the frontend diff them
-					return {
-						kind,
-						name: resName,
-						namespace: resNamespace,
-						desired: yaml.dump(desired),
-						live: liveState ? yaml.dump(liveState) : null
-					};
+					try {
+						// A. Get Live State
+						let liveState: any = null;
+						try {
+							liveState = await customApi.getNamespacedCustomObject({
+								group,
+								version,
+								namespace: resNamespace,
+								plural,
+								name: resName
+							});
+						} catch (e) {
+							// Resource doesn't exist
+						}
+
+						// B. Get "Should Be" state via Server-Side Apply Dry-Run
+						// This returns the resource as it would look after applying, including defaults
+						let dryRunState: any = null;
+						try {
+							// We use patch with fieldManager and dryRun=All
+							// The JS client expects dryRun as a string 'All', not an array for some versions
+							const response = await customApi.patchNamespacedCustomObject(
+								{
+									group,
+									version,
+									namespace: resNamespace,
+									plural,
+									name: resName,
+									body: desired as object,
+									dryRun: 'All',
+									fieldManager: 'gyre-drift-check',
+									force: true
+								},
+								{
+									headers: { 'Content-Type': 'application/apply-patch+yaml' }
+								} as any
+							);
+							dryRunState = response;
+						} catch (e) {
+							// If dry-run fails, fall back to raw desired state
+							dryRunState = desired;
+						}
+
+						// Strip noisy fields for cleaner diff
+						const clean = (obj: any) => {
+							if (!obj) return null;
+							const c = JSON.parse(JSON.stringify(obj));
+							if (c.metadata) {
+								// Standard K8s metadata to remove
+								const toDelete = [
+									'managedFields',
+									'generation',
+									'resourceVersion',
+									'uid',
+									'creationTimestamp',
+									'selfLink'
+								];
+								toDelete.forEach((f) => delete c.metadata[f]);
+
+								// Remove noisy annotations
+								if (c.metadata.annotations) {
+									const annosToDelete = [
+										'kubectl.kubernetes.io/last-applied-configuration',
+										'deployment.kubernetes.io/revision',
+										'kustomize.toolkit.fluxcd.io/reconcile'
+									];
+									annosToDelete.forEach((a) => delete c.metadata.annotations[a]);
+									if (Object.keys(c.metadata.annotations).length === 0) {
+										delete c.metadata.annotations;
+									}
+								}
+
+								// Remove noisy labels
+								if (c.metadata.labels) {
+									delete c.metadata.labels['kustomize.toolkit.fluxcd.io/name'];
+									delete c.metadata.labels['kustomize.toolkit.fluxcd.io/namespace'];
+									if (Object.keys(c.metadata.labels).length === 0) {
+										delete c.metadata.labels;
+									}
+								}
+							}
+							delete c.status;
+							return c;
+						};
+
+						return {
+							kind,
+							name: resName,
+							namespace: resNamespace,
+							desired: yaml.dump(clean(dryRunState)),
+							live: liveState ? yaml.dump(clean(liveState)) : null
+						};
+					} catch (err) {
+						console.error(`Error diffing ${kind}/${resName}:`, err);
+						return {
+							kind,
+							name: resName,
+							namespace: resNamespace,
+							desired: yaml.dump(desired),
+							live: null,
+							error: (err as Error).message
+						};
+					}
 				})
 			);
 
+			const filteredDiffs = diffs.filter((d) => d !== null);
+
+			// Cache the results
+			if (currentRevision) {
+				diffCache.set(cacheKey, {
+					diffs: filteredDiffs,
+					timestamp: Date.now(),
+					revision: currentRevision
+				});
+
+				// Cleanup old cache entries (keep max 100 entries)
+				if (diffCache.size > 100) {
+					const sortedEntries = Array.from(diffCache.entries()).sort(
+						(a, b) => a[1].timestamp - b[1].timestamp
+					);
+					const toDelete = sortedEntries.slice(0, diffCache.size - 100);
+					toDelete.forEach(([key]) => diffCache.delete(key));
+					console.log(`♻️  Cleaned up ${toDelete.length} old cache entries`);
+				}
+			}
+
 			return json({
-				diffs: diffs.filter((d) => d !== null)
+				diffs: filteredDiffs,
+				cached: false,
+				timestamp: Date.now(),
+				revision: currentRevision
 			});
 		} finally {
-			// Cleanup temp dir
-			await rm(tempDir, { recursive: true, force: true });
+			await rm(tempDir, { recursive: true, force: true }).catch((cleanupErr) => {
+				console.warn(`⚠️  Failed to cleanup temp dir: ${cleanupErr}`);
+			});
 		}
 	} catch (err) {
 		console.error('Diff error:', err);
-		throw error(500, (err as Error).message || 'Failed to calculate diff');
+		const message = err instanceof Error ? err.message : 'Failed to calculate diff';
+
+		// Provide more helpful error messages based on common failures
+		if (message.includes('not in gzip format')) {
+			throw error(
+				500,
+				'The artifact downloaded from source-controller is not a valid gzip archive. ' +
+					'This usually indicates the source-controller service is returning an error page instead of the artifact. ' +
+					'Check that the source-controller is running and the GitRepository/Bucket has reconciled successfully.'
+			);
+		} else if (message.includes('tar:')) {
+			throw error(500, `Failed to extract source artifact: ${message}`);
+		} else if (message.includes('kustomize')) {
+			throw error(500, `Kustomize build failed: ${message}`);
+		} else if (message.includes('timeout')) {
+			throw error(
+				504,
+				'Operation timed out. The kustomization may be too large or the source artifact is unavailable.'
+			);
+		}
+
+		throw error(500, message);
 	}
 };
