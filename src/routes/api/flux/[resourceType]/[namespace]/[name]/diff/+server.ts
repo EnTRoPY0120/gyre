@@ -61,68 +61,90 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		const artifactUrl = (source.status as { artifact?: { url: string } } | undefined)?.artifact
 			?.url;
-		if (!artifactUrl) {
-			throw error(400, 'Source has no artifact URL. Ensure it is reconciled.');
-		}
 
-		// 3. Fetch the artifact and run kustomize build
-		// Note: In a real cluster, artifactUrl might be internal (http://source-controller.flux-system.svc.cluster.local/...)
-		// If we are running outside the cluster, we need to proxy this via the K8s API.
-
-		// Create a temporary directory
+		// 3. Fetch the source content (Artifact or Git Clone)
 		const tempDir = await mkdtemp(join(tmpdir(), 'gyre-diff-'));
 
 		try {
-			// Download and extract artifact
-			const artifactPath = join(tempDir, 'artifact.tar.gz');
+			let sourceFetched = false;
 
-			let buffer: ArrayBuffer;
+			// Strategy A: Try to fetch the artifact from source-controller
+			if (artifactUrl) {
+				try {
+					const artifactPath = join(tempDir, 'artifact.tar.gz');
+					let buffer: ArrayBuffer;
 
-			// Handle cluster-internal URLs by proxying through API server
-			if (artifactUrl.includes('.svc.cluster.local')) {
-				console.log(`ℹ Proxying internal artifact URL: ${artifactUrl}`);
-				const config = await getKubeConfig(clusterId);
-				const url = new URL(artifactUrl);
-				const hostParts = url.hostname.split('.');
-				const svcName = hostParts[0];
-				const svcNamespace = hostParts[1];
+					// Handle cluster-internal URLs
+					if (artifactUrl.includes('.svc.cluster.local')) {
+						console.log(`ℹ Proxying internal artifact URL: ${artifactUrl}`);
+						const config = await getKubeConfig(clusterId);
+						const url = new URL(artifactUrl);
+						const hostParts = url.hostname.split('.');
+						const svcName = hostParts[0];
+						const svcNamespace = hostParts[1];
+						const port = url.port || '80';
 
-				const coreApi = config.makeApiClient(k8s.CoreV1Api);
+						const coreApi = config.makeApiClient(k8s.CoreV1Api);
+						const proxyPath = `${url.pathname}${url.search}`;
 
-				// Path format for proxy: {path} (starting with /)
-				// url.pathname contains the full path after the service address
-				const proxyPath = `${url.pathname}${url.search}`;
-				const port = url.port || '80';
+						// Use the client's proxy capability
+						const proxyResponse = await coreApi.connectGetNamespacedServiceProxy({
+							name: `${svcName}:${port}`,
+							namespace: svcNamespace,
+							path: proxyPath
+						});
 
-				// Use the client's proxy capability
-				// We append the port to the service name to ensure K8s proxies to the correct port
-				const proxyResponse = await coreApi.connectGetNamespacedServiceProxy({
-					name: `${svcName}:${port}`,
-					namespace: svcNamespace,
-					path: proxyPath
-				});
+						// proxyResponse IS the body when using connectGetNamespacedServiceProxy
+						// Note: If this still fails with "not in gzip format", Strategy B will catch it
+						buffer = Buffer.from(proxyResponse as string).buffer;
+					} else {
+						// Normal external URL
+						const response = await fetch(artifactUrl);
+						if (!response.ok) throw new Error(`Artifact fetch failed: ${response.statusText}`);
+						buffer = await response.arrayBuffer();
+					}
 
-				// proxyResponse IS the body when using connectGetNamespacedServiceProxy
-				buffer = Buffer.from(proxyResponse as string).buffer;
-			} else {
-				// Normal external URL
-				const response = await fetch(artifactUrl);
-				if (!response.ok) {
-					throw new Error(`Failed to fetch artifact from ${artifactUrl}: ${response.statusText}`);
+					await writeFile(artifactPath, Buffer.from(buffer));
+					await execAsync(`tar -xzf ${artifactPath} -C ${tempDir}`);
+					sourceFetched = true;
+					console.log('✓ Source fetched via artifact');
+				} catch (err) {
+					console.warn(
+						`⚠️ Artifact fetch failed, falling back to Git clone: ${(err as Error).message}`
+					);
 				}
-				buffer = await response.arrayBuffer();
 			}
 
-			await writeFile(artifactPath, Buffer.from(buffer));
+			// Strategy B: Fallback to Git Clone (The "GitHub" approach suggested by user)
+			if (!sourceFetched) {
+				const repoUrl = source.spec?.url as string;
+				if (!repoUrl) {
+					throw new Error('No artifact available and no repository URL found');
+				}
 
-			// Extract
-			await execAsync(`tar -xzf ${artifactPath} -C ${tempDir}`);
+				console.log(`ℹ Attempting Git clone from: ${repoUrl}`);
 
-			// Run kustomize build
+				// Convert SSH to HTTPS for easier public cloning if needed
+				let cloneUrl = repoUrl;
+				if (repoUrl.startsWith('ssh://git@github.com/')) {
+					cloneUrl = repoUrl.replace('ssh://git@github.com/', 'https://github.com/');
+				} else if (repoUrl.startsWith('git@github.com:')) {
+					cloneUrl = repoUrl.replace('git@github.com:', 'https://github.com/');
+				}
+
+				const ref = (source.spec?.ref as { branch?: string; tag?: string }) || {};
+				const branch = ref.branch || 'main';
+
+				await execAsync(`git clone --depth 1 --branch ${branch} ${cloneUrl} ${tempDir}`);
+				sourceFetched = true;
+				console.log('✓ Source fetched via Git clone');
+			}
+
+			// 4. Run kustomize build
 			const kustomizePath = join(tempDir, (spec.path as string) || './');
 			const { stdout: buildOutput } = await execAsync(`kustomize build ${kustomizePath}`);
 
-			// 4. Split multi-resource YAML into individual resources
+			// 5. Split multi-resource YAML into individual resources
 			const desiredResources = yaml.loadAll(buildOutput) as Array<Record<string, unknown>>;
 
 			// 5. Compare each resource with live state
