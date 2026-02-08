@@ -164,6 +164,8 @@ spec:
 			options: [
 				{ label: 'Generic Git', value: 'generic' },
 				{ label: 'GitHub', value: 'github' },
+				{ label: 'GitLab', value: 'gitlab' },
+				{ label: 'Bitbucket', value: 'bitbucket' },
 				{ label: 'Azure DevOps', value: 'azure' }
 			],
 			description: 'Git provider optimization'
@@ -359,7 +361,7 @@ spec:
 		{
 			name: 'sparseCheckout',
 			label: 'Sparse Checkout',
-			path: 'spec.sparseCheckout',
+			path: 'spec.sparseCheckout.paths',
 			type: 'array',
 			section: 'advanced',
 			arrayItemType: 'string',
@@ -994,19 +996,6 @@ spec:
 			description: 'ServiceAccount to impersonate for reconciliation'
 		},
 		{
-			name: 'retryInterval',
-			label: 'Retry Interval',
-			path: 'spec.retryInterval',
-			type: 'duration',
-			section: 'advanced',
-			placeholder: '1m',
-			description: 'How often to retry after a failure',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
-		},
-		{
 			name: 'components',
 			label: 'Components',
 			path: 'spec.components',
@@ -1407,6 +1396,16 @@ spec:
 			section: 'release',
 			placeholder: 'replicaCount: 3\nimage:\n  tag: v1.0.0',
 			description: 'Helm values to override (YAML format)'
+		},
+		{
+			name: 'valuesFiles',
+			label: 'Values Files',
+			path: 'spec.chart.spec.valuesFiles',
+			type: 'array',
+			section: 'release',
+			arrayItemType: 'string',
+			placeholder: 'values.yaml',
+			description: 'List of values files to use from the chart'
 		},
 		{
 			name: 'valuesFrom',
@@ -2686,9 +2685,21 @@ spec:
 				{ label: 'Slack', value: 'slack' },
 				{ label: 'Discord', value: 'discord' },
 				{ label: 'Microsoft Teams', value: 'msteams' },
-				{ label: 'Generic Webhook', value: 'generic' },
+				{ label: 'Rocket', value: 'rocketchat' },
+				{ label: 'Google Chat', value: 'googlechat' },
+				{ label: 'Webex', value: 'webex' },
+				{ label: 'Matrix', value: 'matrix' },
+				{ label: 'Lark', value: 'lark' },
+				{ label: 'Telegram', value: 'telegram' },
 				{ label: 'GitHub', value: 'github' },
-				{ label: 'GitLab', value: 'gitlab' }
+				{ label: 'GitLab', value: 'gitlab' },
+				{ label: 'Bitbucket', value: 'bitbucket' },
+				{ label: 'Azure DevOps', value: 'azuredevops' },
+				{ label: 'Google Pub/Sub', value: 'googlepubsub' },
+				{ label: 'Amazon SNS', value: 'amazonsns' },
+				{ label: 'Grafana', value: 'grafana' },
+				{ label: 'Generic Webhook', value: 'generic' },
+				{ label: 'Generic HMAC', value: 'generic-hmac' }
 			],
 			description: 'Type of notification provider'
 		},
