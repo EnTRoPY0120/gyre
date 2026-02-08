@@ -16,7 +16,7 @@ export interface TemplateField {
 	name: string;
 	label: string;
 	path: string; // JSON path or similar to update the YAML
-	type: 'string' | 'number' | 'boolean' | 'select' | 'duration' | 'textarea' | 'array';
+	type: 'string' | 'number' | 'boolean' | 'select' | 'duration' | 'textarea' | 'array' | 'object';
 	default?: string | number | boolean | unknown[];
 	options?: { label: string; value: string }[];
 	required?: boolean;
@@ -35,6 +35,7 @@ export interface TemplateField {
 	};
 	arrayItemType?: 'string' | 'object'; // For array fields
 	arrayItemFields?: TemplateField[]; // For object array items
+	objectFields?: TemplateField[]; // For object fields
 	helpText?: string; // Detailed help text for the field
 	docsUrl?: string; // Link to FluxCD documentation
 	virtual?: boolean; // UI-only field, do not persist to YAML
@@ -154,6 +155,20 @@ spec:
 			}
 		},
 		{
+			name: 'provider',
+			label: 'Git Provider',
+			path: 'spec.provider',
+			type: 'select',
+			section: 'source',
+			default: 'generic',
+			options: [
+				{ label: 'Generic Git', value: 'generic' },
+				{ label: 'GitHub', value: 'github' },
+				{ label: 'Azure DevOps', value: 'azure' }
+			],
+			description: 'Git provider optimization'
+		},
+		{
 			name: 'refType',
 			label: 'Reference Type',
 			path: 'spec.ref.type',
@@ -260,6 +275,15 @@ spec:
 			description: 'Name of secret containing authentication credentials'
 		},
 		{
+			name: 'serviceAccountName',
+			label: 'Service Account',
+			path: 'spec.serviceAccountName',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'git-controller',
+			description: 'ServiceAccount for impersonation'
+		},
+		{
 			name: 'proxySecretRef',
 			label: 'Proxy Secret',
 			path: 'spec.proxySecretRef.name',
@@ -331,6 +355,16 @@ spec:
 			section: 'advanced',
 			default: false,
 			description: 'Recursively clone Git submodules'
+		},
+		{
+			name: 'sparseCheckout',
+			label: 'Sparse Checkout',
+			path: 'spec.sparseCheckout',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'string',
+			placeholder: './dir1',
+			description: 'List of directories to checkout'
 		},
 		{
 			name: 'ignore',
@@ -470,6 +504,25 @@ spec:
 			description: 'Type of Helm repository'
 		},
 		{
+			name: 'provider',
+			label: 'Provider',
+			path: 'spec.provider',
+			type: 'select',
+			section: 'source',
+			default: 'generic',
+			options: [
+				{ label: 'Generic', value: 'generic' },
+				{ label: 'AWS', value: 'aws' },
+				{ label: 'Azure', value: 'azure' },
+				{ label: 'GCP', value: 'gcp' }
+			],
+			description: 'Cloud provider for OCI repository',
+			showIf: {
+				field: 'type',
+				value: 'oci'
+			}
+		},
+		{
 			name: 'url',
 			label: 'Repository URL',
 			path: 'spec.url',
@@ -570,6 +623,24 @@ spec:
 			section: 'advanced',
 			default: false,
 			description: 'Suspend reconciliation of this repository'
+		},
+		{
+			name: 'accessFrom',
+			label: 'Access From',
+			path: 'spec.accessFrom.namespaceSelectors',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'matchLabels',
+					label: 'Match Labels',
+					path: 'matchLabels',
+					type: 'textarea',
+					placeholder: 'role: frontend'
+				}
+			],
+			description: 'Cross-namespace access control'
 		},
 		{
 			name: 'timeout',
@@ -762,6 +833,21 @@ spec:
 			description: 'Delete resources removed from source'
 		},
 		{
+			name: 'deletionPolicy',
+			label: 'Deletion Policy',
+			path: 'spec.deletionPolicy',
+			type: 'select',
+			section: 'deployment',
+			default: 'MirrorPrune',
+			options: [
+				{ label: 'Mirror Prune', value: 'MirrorPrune' },
+				{ label: 'Delete', value: 'Delete' },
+				{ label: 'Wait For Termination', value: 'WaitForTermination' },
+				{ label: 'Orphan', value: 'Orphan' }
+			],
+			description: 'Control garbage collection when Kustomization is deleted'
+		},
+		{
 			name: 'targetNamespace',
 			label: 'Target Namespace',
 			path: 'spec.targetNamespace',
@@ -806,6 +892,46 @@ spec:
 			section: 'health',
 			default: false,
 			description: 'Wait for all resources to become ready'
+		},
+		{
+			name: 'healthChecks',
+			label: 'Health Checks',
+			path: 'spec.healthChecks',
+			type: 'array',
+			section: 'health',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{ name: 'kind', label: 'Kind', path: 'kind', type: 'string', required: true },
+				{ name: 'name', label: 'Name', path: 'name', type: 'string', required: true },
+				{ name: 'namespace', label: 'Namespace', path: 'namespace', type: 'string' }
+			],
+			description: 'List of resources to be included in health assessment'
+		},
+		{
+			name: 'healthCheckExprs',
+			label: 'Health Check Expressions (CEL)',
+			path: 'spec.healthCheckExprs',
+			type: 'array',
+			section: 'health',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'apiVersion',
+					label: 'API Version',
+					path: 'apiVersion',
+					type: 'string',
+					required: true
+				},
+				{ name: 'kind', label: 'Kind', path: 'kind', type: 'string', required: true },
+				{
+					name: 'expression',
+					label: 'CEL Expression',
+					path: 'expression',
+					type: 'textarea',
+					required: true
+				}
+			],
+			description: 'CEL expressions for health assessment'
 		},
 		{
 			name: 'timeout',
@@ -871,6 +997,15 @@ spec:
 			arrayItemType: 'string',
 			placeholder: './components/feature-a',
 			description: 'List of Kustomize components'
+		},
+		{
+			name: 'ignoreMissingComponents',
+			label: 'Ignore Missing Components',
+			path: 'spec.ignoreMissingComponents',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Ignore component paths not found in source'
 		},
 		{
 			name: 'commonMetadataLabels',
@@ -1293,6 +1428,24 @@ spec:
 			],
 			description: 'List of HelmReleases this depends on'
 		},
+		{
+			name: 'commonMetadataLabels',
+			label: 'Common Labels',
+			path: 'spec.commonMetadata.labels',
+			type: 'textarea',
+			section: 'release',
+			placeholder: 'app: my-app',
+			description: 'Labels to apply to all resources'
+		},
+		{
+			name: 'commonMetadataAnnotations',
+			label: 'Common Annotations',
+			path: 'spec.commonMetadata.annotations',
+			type: 'textarea',
+			section: 'release',
+			placeholder: 'team: frontend',
+			description: 'Annotations to apply to all resources'
+		},
 
 		// Upgrade & Rollback
 		{
@@ -1354,6 +1507,15 @@ spec:
 			section: 'advanced',
 			placeholder: 'helm-controller',
 			description: 'ServiceAccount to impersonate for Helm operations'
+		},
+		{
+			name: 'persistentClient',
+			label: 'Persistent Client',
+			path: 'spec.persistentClient',
+			type: 'boolean',
+			section: 'advanced',
+			default: true,
+			description: 'Use a persistent Kubernetes client for this release'
 		},
 		{
 			name: 'maxHistory',
@@ -1570,6 +1732,19 @@ spec:
 			description: 'SemVer version constraint'
 		},
 		{
+			name: 'reconcileStrategy',
+			label: 'Reconcile Strategy',
+			path: 'spec.reconcileStrategy',
+			type: 'select',
+			section: 'chart',
+			default: 'ChartVersion',
+			options: [
+				{ label: 'Chart Version', value: 'ChartVersion' },
+				{ label: 'Revision', value: 'Revision' }
+			],
+			description: 'What enables the creation of a new artifact'
+		},
+		{
 			name: 'interval',
 			label: 'Sync Interval',
 			path: 'spec.interval',
@@ -1604,6 +1779,15 @@ spec:
 			section: 'advanced',
 			placeholder: '- values.yaml\n- values-prod.yaml',
 			description: 'List of values files to merge (YAML array format)'
+		},
+		{
+			name: 'ignoreMissingValuesFiles',
+			label: 'Ignore Missing Values Files',
+			path: 'spec.ignoreMissingValuesFiles',
+			type: 'boolean',
+			section: 'advanced',
+			default: false,
+			description: 'Silently ignore missing values files rather than failing'
 		}
 	]
 };
@@ -1744,6 +1928,19 @@ spec:
 			description: 'Bucket region'
 		},
 		{
+			name: 'sts',
+			label: 'STS Configuration',
+			path: 'spec.sts',
+			type: 'array',
+			section: 'bucket',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{ name: 'endpoint', label: 'Endpoint', path: 'endpoint', type: 'string' },
+				{ name: 'region', label: 'Region', path: 'region', type: 'string' }
+			],
+			description: 'Security Token Service configuration (for AWS/Generic)'
+		},
+		{
 			name: 'interval',
 			label: 'Sync Interval',
 			path: 'spec.interval',
@@ -1769,6 +1966,24 @@ spec:
 			section: 'auth',
 			placeholder: 's3-credentials',
 			description: 'Secret containing access key and secret key'
+		},
+		{
+			name: 'serviceAccountName',
+			label: 'Service Account',
+			path: 'spec.serviceAccountName',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'bucket-puller',
+			description: 'ServiceAccount for cloud provider authentication'
+		},
+		{
+			name: 'certSecretRef',
+			label: 'TLS Secret',
+			path: 'spec.certSecretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'bucket-tls-certs',
+			description: 'Secret containing CA/cert/key for TLS authentication (Generic provider only)'
 		},
 		{
 			name: 'proxySecretRef',
@@ -1920,6 +2135,21 @@ spec:
 			}
 		},
 		{
+			name: 'provider',
+			label: 'OCI Provider',
+			path: 'spec.provider',
+			type: 'select',
+			section: 'source',
+			default: 'generic',
+			options: [
+				{ label: 'Generic', value: 'generic' },
+				{ label: 'AWS', value: 'aws' },
+				{ label: 'Azure', value: 'azure' },
+				{ label: 'GCP', value: 'gcp' }
+			],
+			description: 'Cloud provider for OCI registry authentication'
+		},
+		{
 			name: 'refType',
 			label: 'Reference Type',
 			path: 'spec.ref.type',
@@ -1978,6 +2208,25 @@ spec:
 			}
 		},
 		{
+			name: 'layerSelector',
+			label: 'Layer Selector',
+			path: 'spec.layerSelector',
+			type: 'array',
+			section: 'source',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{ name: 'mediaType', label: 'Media Type', path: 'mediaType', type: 'string' },
+				{
+					name: 'operation',
+					label: 'Operation',
+					path: 'operation',
+					type: 'select',
+					options: [{ label: 'Extract', value: 'extract' }]
+				}
+			],
+			description: 'Select specific OCI layers to extract'
+		},
+		{
 			name: 'interval',
 			label: 'Sync Interval',
 			path: 'spec.interval',
@@ -2003,6 +2252,15 @@ spec:
 			section: 'auth',
 			placeholder: 'oci-credentials',
 			description: 'Secret containing registry credentials'
+		},
+		{
+			name: 'serviceAccountName',
+			label: 'Service Account',
+			path: 'spec.serviceAccountName',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'oci-puller',
+			description: 'ServiceAccount for registry authentication'
 		},
 		{
 			name: 'proxySecretRef',
@@ -2063,6 +2321,40 @@ spec:
 			section: 'advanced',
 			default: false,
 			description: 'Allow insecure connections (skip TLS verification)'
+		},
+		{
+			name: 'verify',
+			label: 'Verify',
+			path: 'spec.verify',
+			type: 'object',
+			section: 'advanced',
+			objectFields: [
+				{
+					name: 'provider',
+					label: 'Provider',
+					path: 'provider',
+					type: 'select',
+					options: [
+						{ label: 'Cosign', value: 'cosign' },
+						{ label: 'Notation', value: 'notation' }
+					]
+				},
+				{
+					name: 'secretRef',
+					label: 'Secret',
+					path: 'secretRef',
+					type: 'object',
+					objectFields: [
+						{
+							name: 'name',
+							label: 'Secret Name',
+							path: 'name',
+							type: 'string'
+						}
+					]
+				}
+			],
+			description: 'Signature verification configuration'
 		}
 	]
 };
@@ -2221,7 +2513,17 @@ spec:
 			type: 'string',
 			section: 'advanced',
 			placeholder: 'Production cluster alerts',
-			description: 'Optional summary to include in notifications'
+			description:
+				'Optional summary to include in notifications (Deprecated: use Event Metadata instead)'
+		},
+		{
+			name: 'eventMetadata',
+			label: 'Event Metadata',
+			path: 'spec.eventMetadata',
+			type: 'textarea',
+			section: 'advanced',
+			placeholder: 'cluster: prod-1\nenv: production',
+			description: 'Additional metadata to include in alerts (YAML format)'
 		},
 		{
 			name: 'inclusionList',
@@ -2384,6 +2686,55 @@ spec:
 			section: 'provider',
 			placeholder: 'tls-cert',
 			description: 'Secret containing TLS certificate'
+		},
+		{
+			name: 'proxySecretRef',
+			label: 'Proxy Secret',
+			path: 'spec.proxySecretRef.name',
+			type: 'string',
+			section: 'provider',
+			placeholder: 'proxy-credentials',
+			description: 'Secret containing proxy credentials'
+		},
+		{
+			name: 'timeout',
+			label: 'Timeout',
+			path: 'spec.timeout',
+			type: 'duration',
+			section: 'provider',
+			placeholder: '30s',
+			description: 'Timeout for sending notifications',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'suspend',
+			label: 'Suspend',
+			path: 'spec.suspend',
+			type: 'boolean',
+			section: 'provider',
+			default: false,
+			description: 'Suspend notifications'
+		},
+		{
+			name: 'serviceAccountName',
+			label: 'Service Account',
+			path: 'spec.serviceAccountName',
+			type: 'string',
+			section: 'provider',
+			placeholder: 'notification-controller',
+			description: 'ServiceAccount for cloud provider authentication'
+		},
+		{
+			name: 'commitStatusExpr',
+			label: 'Commit Status Expression',
+			path: 'spec.commitStatusExpr',
+			type: 'textarea',
+			section: 'provider',
+			placeholder: 'event.message',
+			description: 'CEL expression for custom commit status message'
 		}
 	]
 };
@@ -2533,6 +2884,19 @@ spec:
 			description: 'Secret containing webhook validation token'
 		},
 		{
+			name: 'interval',
+			label: 'Interval',
+			path: 'spec.interval',
+			type: 'duration',
+			section: 'receiver',
+			placeholder: '10m',
+			description: 'Reconciliation interval',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
 			name: 'suspend',
 			label: 'Suspend',
 			path: 'spec.suspend',
@@ -2630,6 +2994,21 @@ spec:
 			description: 'Container image repository to scan'
 		},
 		{
+			name: 'provider',
+			label: 'Registry Provider',
+			path: 'spec.provider',
+			type: 'select',
+			section: 'repository',
+			default: 'generic',
+			options: [
+				{ label: 'Generic', value: 'generic' },
+				{ label: 'AWS', value: 'aws' },
+				{ label: 'Azure', value: 'azure' },
+				{ label: 'GCP', value: 'gcp' }
+			],
+			description: 'Cloud provider for registry authentication'
+		},
+		{
 			name: 'interval',
 			label: 'Scan Interval',
 			path: 'spec.interval',
@@ -2645,6 +3024,28 @@ spec:
 			}
 		},
 		{
+			name: 'timeout',
+			label: 'Timeout',
+			path: 'spec.timeout',
+			type: 'duration',
+			section: 'repository',
+			placeholder: '60s',
+			description: 'Timeout for scanning operations',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
+			}
+		},
+		{
+			name: 'insecure',
+			label: 'Insecure',
+			path: 'spec.insecure',
+			type: 'boolean',
+			section: 'repository',
+			default: false,
+			description: 'Allow insecure connections (skip TLS verification)'
+		},
+		{
 			name: 'secretRefName',
 			label: 'Secret Name',
 			path: 'spec.secretRef.name',
@@ -2654,6 +3055,24 @@ spec:
 			description: 'Secret containing registry credentials'
 		},
 		{
+			name: 'certSecretRef',
+			label: 'TLS Secret',
+			path: 'spec.certSecretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'registry-tls-certs',
+			description: 'Secret containing CA/cert/key for TLS authentication'
+		},
+		{
+			name: 'proxySecretRef',
+			label: 'Proxy Secret',
+			path: 'spec.proxySecretRef.name',
+			type: 'string',
+			section: 'auth',
+			placeholder: 'proxy-credentials',
+			description: 'Secret containing proxy credentials'
+		},
+		{
 			name: 'serviceAccountName',
 			label: 'Service Account',
 			path: 'spec.serviceAccountName',
@@ -2661,6 +3080,16 @@ spec:
 			section: 'advanced',
 			placeholder: 'default',
 			description: 'Service account to use for scanning images'
+		},
+		{
+			name: 'exclusionList',
+			label: 'Exclusion List',
+			path: 'spec.exclusionList',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'string',
+			placeholder: '^.*\\.sig$',
+			description: 'Regular expression patterns to exclude image tags'
 		},
 		{
 			name: 'accessFrom',
@@ -2765,6 +3194,38 @@ spec:
 			section: 'policy',
 			placeholder: 'my-app',
 			description: 'Name of the ImageRepository to apply policy to'
+		},
+		{
+			name: 'digestReflectionPolicy',
+			label: 'Digest Reflection Policy',
+			path: 'spec.digestReflectionPolicy',
+			type: 'select',
+			section: 'policy',
+			default: 'Never',
+			options: [
+				{ label: 'Never', value: 'Never' },
+				{ label: 'Always', value: 'Always' },
+				{ label: 'If Not Present', value: 'IfNotPresent' }
+			],
+			description: 'Control how the digest is reflected in status'
+		},
+		{
+			name: 'interval',
+			label: 'Interval',
+			path: 'spec.interval',
+			type: 'duration',
+			section: 'policy',
+			placeholder: '10m',
+			description: 'Refresh interval (only used when Digest Reflection Policy is Always)',
+			showIf: {
+				field: 'digestReflectionPolicy',
+				value: 'Always'
+			},
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
 		},
 		{
 			name: 'policyType',
@@ -2956,6 +3417,25 @@ spec:
 			description: 'Name of the GitRepository to update'
 		},
 		{
+			name: 'sourceKind',
+			label: 'Source Kind',
+			path: 'spec.sourceRef.kind',
+			type: 'select',
+			section: 'git',
+			default: 'GitRepository',
+			options: [{ label: 'GitRepository', value: 'GitRepository' }],
+			description: 'Kind of the source repository'
+		},
+		{
+			name: 'sourceNamespace',
+			label: 'Source Namespace',
+			path: 'spec.sourceRef.namespace',
+			type: 'string',
+			section: 'git',
+			placeholder: 'flux-system',
+			description: 'Namespace of the source repository'
+		},
+		{
 			name: 'branch',
 			label: 'Checkout Branch',
 			path: 'spec.git.checkout.ref.branch',
@@ -3037,6 +3517,15 @@ spec:
 			description: 'Template for commit messages'
 		},
 		{
+			name: 'messageTemplateValues',
+			label: 'Commit Message Values',
+			path: 'spec.git.commit.messageTemplateValues',
+			type: 'textarea',
+			section: 'commit',
+			placeholder: 'cluster: prod-1',
+			description: 'Key-value pairs for message template (YAML format)'
+		},
+		{
 			name: 'signingKeySecret',
 			label: 'Signing Key Secret',
 			path: 'spec.git.commit.signingKeySecretRef.name',
@@ -3044,6 +3533,15 @@ spec:
 			section: 'commit',
 			placeholder: 'git-signing-key',
 			description: 'Secret containing GPG signing key for signed commits'
+		},
+		{
+			name: 'policySelector',
+			label: 'Policy Selector',
+			path: 'spec.policySelector',
+			type: 'textarea',
+			section: 'advanced',
+			placeholder: 'matchLabels:\n  app: my-app',
+			description: 'Selector for ImagePolicies (YAML format)'
 		},
 		{
 			name: 'suspend',
