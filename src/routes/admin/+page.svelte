@@ -33,6 +33,14 @@
 			icon: 'shield-check',
 			color: 'text-purple-500',
 			bg: 'bg-purple-500/10'
+		},
+		{
+			title: 'Audit Logs',
+			description: 'Track system activities, security events, and changes.',
+			href: '/admin/audit-logs',
+			icon: 'history',
+			color: 'text-rose-500',
+			bg: 'bg-rose-500/10'
 		}
 	];
 </script>

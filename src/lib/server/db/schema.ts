@@ -229,10 +229,19 @@ export const userProviderRelations = relations(userProviders, ({ one }) => ({
 	})
 }));
 
-// User relations (add SSO providers)
+// User relations (add SSO providers and audit logs)
 export const userRelations = relations(users, ({ many }) => ({
 	sessions: many(sessions),
-	ssoProviders: many(userProviders)
+	ssoProviders: many(userProviders),
+	auditLogs: many(auditLogs)
+}));
+
+// Audit log relations
+export const auditLogRelations = relations(auditLogs, ({ one }) => ({
+	user: one(users, {
+		fields: [auditLogs.userId],
+		references: [users.id]
+	})
 }));
 
 export type AuthProvider = typeof authProviders.$inferSelect;
