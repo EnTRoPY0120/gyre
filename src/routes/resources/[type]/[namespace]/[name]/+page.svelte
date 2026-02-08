@@ -359,8 +359,9 @@
 					<InventoryList
 						resources={data.inventoryResources as unknown as Array<{
 							kind: string;
-							metadata: { name: string; namespace: string };
+							metadata: { name: string; namespace: string; generation?: number };
 							status?: {
+								observedGeneration?: number;
 								conditions?: Array<{ type: string; status: 'True' | 'False' | 'Unknown' }>;
 							};
 							error?: string;

@@ -15,7 +15,13 @@ export function getResourceHealth(
 ): ResourceHealth {
 	if (suspended) return 'suspended';
 
-	// 1. Check observedGeneration vs generation
+	if (!conditions || conditions.length === 0) return 'unknown';
+
+	// 1. Check for Stalled/Failed conditions (highest priority)
+	const stalled = conditions.find((c) => c.type === 'Stalled' || c.type === 'Failed');
+	if (stalled?.status === 'True') return 'failed';
+
+	// 2. Check observedGeneration vs generation
 	// If generation is known and observedGeneration is behind, it's progressing
 	if (
 		generation !== undefined &&
@@ -24,12 +30,6 @@ export function getResourceHealth(
 	) {
 		return 'progressing';
 	}
-
-	if (!conditions || conditions.length === 0) return 'unknown';
-
-	// 2. Check for Stalled/Failed conditions (highest priority)
-	const stalled = conditions.find((c) => c.type === 'Stalled' || c.type === 'Failed');
-	if (stalled?.status === 'True') return 'failed';
 
 	// 3. Check for Ready/Healthy indicators
 	// Priority order: Ready, Healthy, Succeeded, Available
