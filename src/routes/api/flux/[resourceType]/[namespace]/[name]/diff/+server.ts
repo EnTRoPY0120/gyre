@@ -1,7 +1,10 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getFluxResource, getKubeConfig } from '$lib/server/kubernetes/client';
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import {
+	getResourceTypeByPlural,
+	type FluxResourceType
+} from '$lib/server/kubernetes/flux/resources';
 import { requirePermission } from '$lib/server/rbac';
 import * as k8s from '@kubernetes/client-node';
 import yaml from 'js-yaml';
@@ -14,11 +17,13 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 const execAsync = promisify(exec);
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-	const { resourceType, namespace, name } = params;
+	const { resourceType: pluralType, namespace, name } = params;
 	const clusterId = locals.cluster;
 
+	const resourceType = getResourceTypeByPlural(pluralType);
+
 	// Only kustomizations support diffing for now
-	if (resourceType !== 'kustomizations') {
+	if (resourceType !== 'Kustomization') {
 		throw error(400, 'Diffing is only supported for Kustomizations');
 	}
 
