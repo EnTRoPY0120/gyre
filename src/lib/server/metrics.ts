@@ -42,11 +42,34 @@ export const resourceUpdatesTotal = new client.Counter({
 	labelNames: ['cluster_id', 'resource_type', 'change_type'] // change_type: 'added' | 'modified' | 'deleted'
 });
 
+// SSE Subscribers
+export const sseSubscribersGauge = new client.Gauge({
+	name: 'gyre_sse_subscribers_total',
+	help: 'Current number of active SSE subscribers',
+	labelNames: ['cluster_id']
+});
+
+// Active Polling Workers
+export const activeWorkersGauge = new client.Gauge({
+	name: 'gyre_active_workers_total',
+	help: 'Current number of active cluster polling workers'
+});
+
+// Flux Resource Status
+export const fluxResourceStatusGauge = new client.Gauge({
+	name: 'gyre_flux_resource_status',
+	help: 'Current status of Flux resources',
+	labelNames: ['cluster_id', 'resource_type', 'namespace', 'name', 'status'] // status: 'Ready' | 'NotReady' | 'Unknown'
+});
+
 // Register all metrics
 register.registerMetric(httpRequestDurationMicroseconds);
 register.registerMetric(loginAttemptsTotal);
 register.registerMetric(resourcePollsTotal);
 register.registerMetric(resourceUpdatesTotal);
+register.registerMetric(sseSubscribersGauge);
+register.registerMetric(activeWorkersGauge);
+register.registerMetric(fluxResourceStatusGauge);
 
 // Export registry for the endpoint
 export { register };
