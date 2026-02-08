@@ -51,16 +51,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		// 2. Get the Source resource
 		const sourceRef = spec.sourceRef as { kind: string; name: string; namespace?: string };
 		const sourceNamespace = sourceRef.namespace || namespace;
-		const sourcePlural = sourceRef.kind.toLowerCase() + 's';
 
 		const source = await getFluxResource(
-			sourcePlural as FluxResourceType,
+			sourceRef.kind as FluxResourceType,
 			sourceNamespace,
 			sourceRef.name,
 			clusterId
 		);
 
-		const artifactUrl = source.status?.artifact?.url;
+		const artifactUrl = (source.status as { artifact?: { url: string } } | undefined)?.artifact
+			?.url;
 		if (!artifactUrl) {
 			throw error(400, 'Source has no artifact URL. Ensure it is reconciled.');
 		}
@@ -114,11 +114,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 						const version = apiVersion.includes('/') ? apiVersion.split('/')[1] : apiVersion;
 
 						// We need the plural for the custom objects API
-						// Heuristic: lowercase kind + 's' (doesn't work for all, e.g. Ingress -> ingresses)
-						// But many work.
-						// TODO: Use a better mapping
 						let plural = kind.toLowerCase() + 's';
-						if (plural.endsWith('ys')) plural = plural.slice(0, -2) + 'ies';
+						if (kind.toLowerCase().endsWith('y')) {
+							plural = kind.toLowerCase().slice(0, -1) + 'ies';
+						} else if (kind.toLowerCase().endsWith('s')) {
+							plural = kind.toLowerCase() + 'es';
+						}
+
 						if (kind === 'Ingress') plural = 'ingresses';
 
 						const api = config.makeApiClient(k8s.CustomObjectsApi);
