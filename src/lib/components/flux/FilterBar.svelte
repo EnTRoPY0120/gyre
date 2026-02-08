@@ -6,12 +6,11 @@
 	interface Props {
 		filters: FilterState;
 		namespaces: string[];
-		onFilterChange: (filters: FilterState) => void;
 		onClearFilters: () => void;
 		hasActiveFilters: boolean;
 	}
 
-	let { filters, namespaces, onFilterChange, onClearFilters, hasActiveFilters }: Props = $props();
+	let { filters = $bindable(), namespaces, onClearFilters, hasActiveFilters }: Props = $props();
 
 	const statusOptions: { value: ResourceHealth | 'all'; label: string; color: string }[] = [
 		{ value: 'all', label: 'All Status', color: 'bg-muted text-muted-foreground' },
@@ -24,17 +23,17 @@
 
 	function handleNamespaceChange(e: Event) {
 		const target = e.target as HTMLSelectElement;
-		onFilterChange({ ...filters, namespace: target.value });
+		filters.namespace = target.value;
 	}
 
 	function handleStatusChange(e: Event) {
 		const target = e.target as HTMLSelectElement;
-		onFilterChange({ ...filters, status: target.value as ResourceHealth | 'all' });
+		filters.status = target.value as ResourceHealth | 'all';
 	}
 
 	function handleLabelsChange(e: Event) {
 		const target = e.target as HTMLInputElement;
-		onFilterChange({ ...filters, labels: target.value });
+		filters.labels = target.value;
 	}
 </script>
 
