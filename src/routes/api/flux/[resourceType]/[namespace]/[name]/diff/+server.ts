@@ -124,18 +124,35 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 				console.log(`ℹ Attempting Git clone from: ${repoUrl}`);
 
+				// Clean temp dir before cloning to avoid "already exists" error
+
+				await rm(tempDir, { recursive: true, force: true });
+
+				const { mkdir } = await import('node:fs/promises');
+
+				await mkdir(tempDir, { recursive: true });
+
 				// Convert SSH to HTTPS for easier public cloning if needed
+
 				let cloneUrl = repoUrl;
-				if (repoUrl.startsWith('ssh://git@github.com/')) {
-					cloneUrl = repoUrl.replace('ssh://git@github.com/', 'https://github.com/');
-				} else if (repoUrl.startsWith('git@github.com:')) {
-					cloneUrl = repoUrl.replace('git@github.com:', 'https://github.com/');
+
+				// Handle standard SSH: git@github.com:user/repo
+
+				if (repoUrl.startsWith('git@')) {
+					cloneUrl = repoUrl.replace(':', '/').replace('git@', 'https://');
+				}
+
+				// Handle ssh:// protocol: ssh://git@github.com/user/repo
+				else if (repoUrl.startsWith('ssh://')) {
+					cloneUrl = repoUrl.replace('ssh://git@', 'https://');
 				}
 
 				const ref = (source.spec?.ref as { branch?: string; tag?: string }) || {};
+
 				const branch = ref.branch || 'main';
 
 				await execAsync(`git clone --depth 1 --branch ${branch} ${cloneUrl} ${tempDir}`);
+
 				sourceFetched = true;
 				console.log('✓ Source fetched via Git clone');
 			}
