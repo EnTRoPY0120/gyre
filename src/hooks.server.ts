@@ -1,6 +1,7 @@
 import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/auth';
 import { initializeGyre } from '$lib/server/initialize';
+import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -12,6 +13,7 @@ const PUBLIC_ROUTES = [
 	'/api/auth/logout',
 	'/api/health',
 	'/api/flux/health',
+	'/metrics',
 	'/manifest.json',
 	'/favicon.ico',
 	'/logo.svg'
@@ -46,6 +48,7 @@ function isPublicRoute(path: string): boolean {
  * 3. RBAC checks (future enhancement)
  */
 export const handle: Handle = async ({ event, resolve }) => {
+	const start = Date.now();
 	const { url, cookies } = event;
 	const path = url.pathname;
 
@@ -109,7 +112,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 		});
 	}
 
-	return resolve(event);
+	const response = await resolve(event);
+
+	// Record metrics
+	if (path !== '/metrics') {
+		const duration = (Date.now() - start) / 1000;
+		httpRequestDurationMicroseconds
+			.labels(event.request.method, path, response.status.toString())
+			.observe(duration);
+	}
+
+	return response;
 };
 
 /**
