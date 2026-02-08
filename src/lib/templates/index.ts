@@ -946,8 +946,10 @@ spec:
 					description: 'CEL expression to check if the resource is healthy'
 				}
 			],
-			description: 'CEL expressions for health assessment. Evaluation order: inProgress → failed → current',
-			helpText: 'CEL expressions evaluated in order: inProgress (progressing), failed (unhealthy), current (healthy).'
+			description:
+				'CEL expressions for health assessment. Evaluation order: inProgress → failed → current',
+			helpText:
+				'CEL expressions evaluated in order: inProgress (progressing), failed (unhealthy), current (healthy).'
 		},
 		{
 			name: 'timeout',
