@@ -1931,14 +1931,53 @@ spec:
 			name: 'sts',
 			label: 'STS Configuration',
 			path: 'spec.sts',
-			type: 'array',
+			type: 'object',
 			section: 'bucket',
-			arrayItemType: 'object',
-			arrayItemFields: [
-				{ name: 'endpoint', label: 'Endpoint', path: 'endpoint', type: 'string' },
-				{ name: 'region', label: 'Region', path: 'region', type: 'string' }
+			objectFields: [
+				{
+					name: 'provider',
+					label: 'Provider',
+					path: 'provider',
+					type: 'string',
+					required: true
+				},
+				{
+					name: 'endpoint',
+					label: 'Endpoint',
+					path: 'endpoint',
+					type: 'string',
+					required: true
+				},
+				{
+					name: 'secretRef',
+					label: 'Secret',
+					path: 'secretRef',
+					type: 'object',
+					objectFields: [
+						{
+							name: 'name',
+							label: 'Secret Name',
+							path: 'name',
+							type: 'string'
+						}
+					]
+				},
+				{
+					name: 'certSecretRef',
+					label: 'TLS Secret',
+					path: 'certSecretRef',
+					type: 'object',
+					objectFields: [
+						{
+							name: 'name',
+							label: 'Secret Name',
+							path: 'name',
+							type: 'string'
+						}
+					]
+				}
 			],
-			description: 'Security Token Service configuration (for AWS/Generic)'
+			description: 'Security Token Service configuration'
 		},
 		{
 			name: 'interval',
@@ -2211,20 +2250,22 @@ spec:
 			name: 'layerSelector',
 			label: 'Layer Selector',
 			path: 'spec.layerSelector',
-			type: 'array',
+			type: 'object',
 			section: 'source',
-			arrayItemType: 'object',
-			arrayItemFields: [
+			objectFields: [
 				{ name: 'mediaType', label: 'Media Type', path: 'mediaType', type: 'string' },
 				{
 					name: 'operation',
 					label: 'Operation',
 					path: 'operation',
 					type: 'select',
-					options: [{ label: 'Extract', value: 'extract' }]
+					options: [
+						{ label: 'Extract', value: 'extract' },
+						{ label: 'Copy', value: 'copy' }
+					]
 				}
 			],
-			description: 'Select specific OCI layers to extract'
+			description: 'Select specific OCI layer to extract or copy'
 		},
 		{
 			name: 'interval',
