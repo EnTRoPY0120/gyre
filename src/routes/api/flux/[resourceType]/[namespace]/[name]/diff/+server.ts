@@ -67,7 +67,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		// 3. Fetch the artifact and run kustomize build
 		// Note: In a real cluster, artifactUrl might be internal (http://source-controller.flux-system.svc.cluster.local/...)
-		// We need to ensure Gyre can reach it.
+		// If we are running outside the cluster, we need to proxy this via the K8s API.
 
 		// Create a temporary directory
 		const tempDir = await mkdtemp(join(tmpdir(), 'gyre-diff-'));
@@ -75,12 +75,42 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		try {
 			// Download and extract artifact
 			const artifactPath = join(tempDir, 'artifact.tar.gz');
-			const response = await fetch(artifactUrl);
-			if (!response.ok) {
-				throw new Error(`Failed to fetch artifact from ${artifactUrl}: ${response.statusText}`);
+
+			let buffer: ArrayBuffer;
+
+			// Handle cluster-internal URLs by proxying through API server
+			if (artifactUrl.includes('.svc.cluster.local')) {
+				console.log(`ℹ Proxying internal artifact URL: ${artifactUrl}`);
+				const config = await getKubeConfig(clusterId);
+				const url = new URL(artifactUrl);
+				const hostParts = url.hostname.split('.');
+				const svcName = hostParts[0];
+				const svcNamespace = hostParts[1];
+
+				const coreApi = config.makeApiClient(k8s.CoreV1Api);
+
+				// Path format for proxy: {path} (starting with /)
+				// url.pathname contains the full path after the service address
+				const proxyPath = `${url.pathname}${url.search}`;
+
+				// Use the client's proxy capability
+				const proxyResponse = await coreApi.connectGetNamespacedServiceProxy({
+					name: svcName,
+					namespace: svcNamespace,
+					path: proxyPath
+				});
+
+				// proxyResponse IS the body when using connectGetNamespacedServiceProxy
+				buffer = Buffer.from(proxyResponse as string).buffer;
+			} else {
+				// Normal external URL
+				const response = await fetch(artifactUrl);
+				if (!response.ok) {
+					throw new Error(`Failed to fetch artifact from ${artifactUrl}: ${response.statusText}`);
+				}
+				buffer = await response.arrayBuffer();
 			}
 
-			const buffer = await response.arrayBuffer();
 			await writeFile(artifactPath, Buffer.from(buffer));
 
 			// Extract
