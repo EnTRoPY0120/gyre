@@ -1,7 +1,13 @@
 import { listFluxResources } from './kubernetes/client.js';
 import type { FluxResourceType } from './kubernetes/flux/resources.js';
 import type { FluxResource, K8sCondition } from './kubernetes/flux/types.js';
-import { resourcePollsTotal, resourceUpdatesTotal } from './metrics.js';
+import {
+	resourcePollsTotal,
+	resourceUpdatesTotal,
+	sseSubscribersGauge,
+	activeWorkersGauge,
+	fluxResourceStatusGauge
+} from './metrics.js';
 
 // Resource types to watch
 const WATCH_RESOURCES: FluxResourceType[] = [
@@ -63,6 +69,7 @@ export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluste
 	}
 
 	context.subscribers.add(subscriber);
+	sseSubscribersGauge.labels(clusterId).set(context.subscribers.size);
 
 	// Initial connection message
 	subscriber({
@@ -81,6 +88,7 @@ export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluste
 		if (!ctx) return;
 
 		ctx.subscribers.delete(subscriber);
+		sseSubscribersGauge.labels(clusterId).set(ctx.subscribers.size);
 
 		if (ctx.subscribers.size === 0) {
 			stopWorker(ctx);
@@ -92,6 +100,7 @@ export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluste
 function startWorker(context: ClusterContext) {
 	if (context.isActive) return;
 	context.isActive = true;
+	activeWorkersGauge.set(activeWorkers.size);
 	console.log(`[EventBus] Starting consolidated polling worker for cluster: ${context.clusterId}`);
 
 	poll(context);
@@ -107,6 +116,7 @@ function startWorker(context: ClusterContext) {
 
 function stopWorker(context: ClusterContext) {
 	context.isActive = false;
+	activeWorkersGauge.set(Math.max(0, activeWorkers.size - 1));
 	if (context.pollTimeout) {
 		clearTimeout(context.pollTimeout);
 		context.pollTimeout = null;
@@ -168,6 +178,18 @@ async function poll(context: ClusterContext) {
 						});
 
 						const readyCondition = conditions?.find((c: { type: string }) => c.type === 'Ready');
+
+						// Update resource status gauge
+						fluxResourceStatusGauge
+							.labels(
+								context.clusterId,
+								resourceType,
+								resource.metadata.namespace || 'unknown',
+								resource.metadata.name || 'unknown',
+								'Ready'
+							)
+							.set(readyCondition?.status === 'True' ? 1 : 0);
+
 						const revision = getResourceRevision(resource);
 
 						const notificationState = JSON.stringify({
@@ -250,6 +272,9 @@ async function poll(context: ClusterContext) {
 					for (const key of context.lastStates.keys()) {
 						if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
 							const [type, namespace, name] = key.split('/');
+
+							// Clear status gauge
+							fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
 
 							resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
 							broadcast(context, {
