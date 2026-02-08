@@ -12,6 +12,7 @@
 	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
 	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
 	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
+	import ResourceDiffViewer from '$lib/components/flux/ResourceDiffViewer.svelte';
 	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
 	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
@@ -28,6 +29,14 @@
 		source: {
 			component: string;
 		};
+	}
+
+	interface ResourceDiff {
+		kind: string;
+		name: string;
+		namespace: string;
+		desired: string;
+		live: string | null;
 	}
 
 	interface Props {
@@ -64,7 +73,7 @@
 		return unsubscribe;
 	});
 
-	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'yaml';
+	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'diff' | 'yaml';
 
 	let activeTab = $state<TabId>('overview');
 
@@ -81,6 +90,12 @@
 	let logsFetched = $state(false);
 	let showRawLogs = $state(false);
 	let logContainer = $state<HTMLDivElement | null>(null);
+
+	// Diff state
+	let diffs = $state<ResourceDiff[]>([]);
+	let diffsLoading = $state(false);
+	let diffsError = $state<string | null>(null);
+	let diffsFetched = $state(false);
 
 	const formattedLogs = $derived(
 		logs
@@ -130,15 +145,28 @@
 	let historyLoading = $state(false);
 	let historyFetched = $state(false);
 
-	const tabs: { id: TabId; label: string }[] = [
-		{ id: 'overview', label: 'Overview' },
-		{ id: 'spec', label: 'Spec' },
-		{ id: 'status', label: 'Status' },
-		{ id: 'events', label: 'Events' },
-		{ id: 'logs', label: 'Logs' },
-		{ id: 'history', label: 'History' },
-		{ id: 'yaml', label: 'YAML' }
-	];
+	// Detect resource type for specialized views
+	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
+	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
+	const isKustomization = $derived(data.resourceType === 'kustomizations');
+
+	const tabs = $derived.by(() => {
+		const base: { id: TabId; label: string }[] = [
+			{ id: 'overview', label: 'Overview' },
+			{ id: 'spec', label: 'Spec' },
+			{ id: 'status', label: 'Status' },
+			{ id: 'events', label: 'Events' },
+			{ id: 'logs', label: 'Logs' },
+			{ id: 'history', label: 'History' }
+		];
+
+		if (isKustomization) {
+			base.push({ id: 'diff', label: 'Drift (Diff)' });
+		}
+
+		base.push({ id: 'yaml', label: 'YAML' });
+		return base;
+	});
 
 	function goBack() {
 		goto(resolve(`/resources/${data.resourceType}`));
@@ -222,6 +250,33 @@
 		}
 	}
 
+	// Fetch diff when the Diff tab is selected
+	async function fetchDiff() {
+		if (diffsFetched) return;
+
+		diffsLoading = true;
+		diffsError = null;
+
+		try {
+			const response = await fetch(
+				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`
+			);
+
+			if (!response.ok) {
+				const errData = await response.json();
+				throw new Error(errData.message || `Failed to fetch diff: ${response.statusText}`);
+			}
+
+			const result = await response.json();
+			diffs = result.diffs || [];
+			diffsFetched = true;
+		} catch (err) {
+			diffsError = err instanceof Error ? err.message : 'Failed to load diff';
+		} finally {
+			diffsLoading = false;
+		}
+	}
+
 	async function handleRollback(revision: string) {
 		if (!confirm(`Are you sure you want to rollback to version v${revision}?`)) return;
 
@@ -251,7 +306,7 @@
 	// Format persisted in preferences store now
 	// handleExport moved to CodeViewer component
 
-	// Trigger fetch when switching to events tab
+	// Trigger fetch when switching to tabs
 	$effect(() => {
 		if (activeTab === 'events' && !eventsFetched) {
 			fetchEvents();
@@ -270,13 +325,14 @@
 		}
 	});
 
+	$effect(() => {
+		if (activeTab === 'diff' && !diffsFetched) {
+			fetchDiff();
+		}
+	});
+
 	// Get conditions safely
 	const conditions = $derived<K8sCondition[]>(resource.status?.conditions || []);
-
-	// Detect resource type for specialized views
-	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
-	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
-	const isKustomization = $derived(data.resourceType === 'kustomizations');
 </script>
 
 <div class="space-y-6">
@@ -569,6 +625,72 @@
 					</button>
 				</div>
 				<VersionHistory {history} loading={historyLoading} onRollback={handleRollback} />
+			</div>
+		{:else if activeTab === 'diff'}
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+			>
+				<div class="mb-4 flex items-center justify-between">
+					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Drift</h3>
+					<button
+						type="button"
+						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+						onclick={() => {
+							diffsFetched = false;
+							fetchDiff();
+						}}
+						disabled={diffsLoading}
+					>
+						<svg
+							class="h-4 w-4 {diffsLoading ? 'animate-spin' : ''}"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+							/>
+						</svg>
+						Refresh Diff
+					</button>
+				</div>
+
+				{#if diffsLoading}
+					<div class="flex h-64 flex-col items-center justify-center gap-4">
+						<div
+							class="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
+						></div>
+						<p class="animate-pulse text-sm text-gray-500">
+							Running kustomize build and fetching cluster state...
+						</p>
+					</div>
+				{:else if diffsError}
+					<div
+						class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
+					>
+						<div class="mb-1 flex items-center gap-2 font-semibold">
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							Failed to calculate drift
+						</div>
+						{diffsError}
+					</div>
+				{:else if diffs.length === 0}
+					<div class="py-12 text-center text-gray-500 dark:text-gray-400">
+						No resources found in this Kustomization to compare.
+					</div>
+				{:else}
+					<ResourceDiffViewer {diffs} />
+				{/if}
 			</div>
 		{:else if activeTab === 'yaml'}
 			<CodeViewer

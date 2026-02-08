@@ -2,11 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import YamlEditor from '$lib/components/editors/YamlEditor.svelte';
+	import MonacoDiffEditor from '$lib/components/editors/MonacoDiffEditor.svelte';
 	import ArrayField from '$lib/components/wizards/ArrayField.svelte';
 	import FieldHelp from '$lib/components/wizards/FieldHelp.svelte';
 	import type { ResourceTemplate } from '$lib/templates';
 	import { cn } from '$lib/utils';
-	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from 'lucide-svelte';
+	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown, Diff } from 'lucide-svelte';
 	import yaml from 'js-yaml';
 
 	let {
@@ -20,7 +21,7 @@
 	// LocalStorage key for remembering form values
 	const storageKey = $derived(`gyre-wizard-${template.id}`);
 
-	let mode = $state<'wizard' | 'yaml'>('wizard');
+	let mode = $state<'wizard' | 'yaml' | 'diff'>('wizard');
 	let isSubmitting = $state(false);
 	let error = $state<string | null>(null);
 	let success = $state(false);
@@ -54,9 +55,9 @@
 		yamlError = null;
 	});
 
-	// Validate YAML in real-time when in YAML mode
+	// Validate YAML in real-time when in YAML or Diff mode
 	$effect(() => {
-		if (mode === 'yaml' && currentYaml) {
+		if ((mode === 'yaml' || mode === 'diff') && currentYaml) {
 			try {
 				yaml.load(currentYaml);
 				yamlError = null;
@@ -246,10 +247,10 @@
 		}
 	}
 
-	function toggleMode(newMode: 'wizard' | 'yaml') {
-		if (newMode === 'wizard') {
+	function toggleMode(newMode: 'wizard' | 'yaml' | 'diff') {
+		if (newMode === 'wizard' && mode !== 'wizard') {
 			updateFormFromYaml();
-		} else {
+		} else if (newMode !== 'wizard' && mode === 'wizard') {
 			updateYamlFromForm();
 		}
 		mode = newMode;
@@ -344,7 +345,7 @@
 	// Check if form is valid (derived)
 	const isFormValid = $derived.by(() => {
 		if (yamlError) return false; // Invalid if YAML has syntax errors
-		if (mode === 'yaml') return true; // Skip field validation in YAML mode
+		if (mode === 'yaml' || mode === 'diff') return true; // Skip field validation in YAML/Diff mode
 		return Object.keys(validationErrors).length === 0;
 	});
 
@@ -397,7 +398,17 @@
 					onclick={() => toggleMode('yaml')}
 				>
 					<Code size={16} />
-					Edit as YAML
+					YAML
+				</button>
+				<button
+					class={cn(
+						'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+						mode === 'diff' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent'
+					)}
+					onclick={() => toggleMode('diff')}
+				>
+					<Diff size={16} />
+					Diff
 				</button>
 			</div>
 		</div>
@@ -409,7 +420,7 @@
 		<div
 			class={cn(
 				'rounded-xl border border-border bg-card/60 backdrop-blur-sm',
-				mode === 'yaml' && 'min-h-[500px]'
+				(mode === 'yaml' || mode === 'diff') && 'min-h-[500px]'
 			)}
 		>
 			{#if mode === 'wizard'}
@@ -623,7 +634,7 @@
 						</div>
 					{/if}
 				</div>
-			{:else}
+			{:else if mode === 'yaml'}
 				<YamlEditor
 					bind:value={currentYaml}
 					onCopy={copyYaml}
@@ -631,6 +642,30 @@
 					error={yamlError}
 					className="h-full min-h-[500px]"
 				/>
+			{:else if mode === 'diff'}
+				<div class="flex h-full flex-col">
+					<div class="flex items-center justify-between border-b border-border p-4">
+						<span class="text-sm font-medium">Changes from Template</span>
+						<Button variant="ghost" size="sm" onclick={copyYaml} class="h-8 gap-2">
+							{#if copySuccess}
+								<Check size={14} class="text-green-500" />
+								<span>Copied</span>
+							{:else}
+								<Code size={14} />
+								<span>Copy Current YAML</span>
+							{/if}
+						</Button>
+					</div>
+					<div class="flex-1">
+						<MonacoDiffEditor
+							original={template.yaml}
+							modified={currentYaml}
+							language="yaml"
+							height="100%"
+							className="h-full min-h-[500px]"
+						/>
+					</div>
+				</div>
 			{/if}
 		</div>
 
