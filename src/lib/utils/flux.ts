@@ -5,36 +5,65 @@ import type { ResourceHealth } from '$lib/types/view';
 export type { ResourceHealth } from '$lib/types/view';
 
 /**
- * Determine resource health status from conditions
+ * Determine resource health status from conditions and generation metadata
  */
 export function getResourceHealth(
 	conditions?: K8sCondition[],
-	suspended?: boolean
+	suspended?: boolean,
+	observedGeneration?: number,
+	generation?: number
 ): ResourceHealth {
 	if (suspended) return 'suspended';
-	if (!conditions || conditions.length === 0) return 'unknown';
 
-	// Check Ready condition first (most important)
-	const ready = conditions.find((c) => c.type === 'Ready');
-	if (ready) {
-		if (ready.status === 'True') return 'healthy';
-		if (ready.status === 'False') {
-			// Check if it's progressing or truly failed
-			if (ready.reason === 'Progressing' || ready.reason === 'ProgressingWithRetry') {
-				return 'progressing';
-			}
-			return 'failed';
-		}
-		if (ready.status === 'Unknown') return 'progressing';
+	// 1. Check observedGeneration vs generation
+	// If generation is known and observedGeneration is behind, it's progressing
+	if (
+		generation !== undefined &&
+		observedGeneration !== undefined &&
+		observedGeneration < generation
+	) {
+		return 'progressing';
 	}
 
-	// Check Reconciling condition
+	if (!conditions || conditions.length === 0) return 'unknown';
+
+	// 2. Check for Stalled/Failed conditions (highest priority)
+	const stalled = conditions.find((c) => c.type === 'Stalled' || c.type === 'Failed');
+	if (stalled?.status === 'True') return 'failed';
+
+	// 3. Check for Ready/Healthy indicators
+	// Priority order: Ready, Healthy, Succeeded, Available
+	const healthTypes = ['Ready', 'Healthy', 'Succeeded', 'Available'];
+	for (const type of healthTypes) {
+		const condition = conditions.find((c) => c.type === type);
+		if (condition) {
+			if (condition.status === 'True') return 'healthy';
+			if (condition.status === 'False') {
+				// Some resources use Ready=False with Progressing reason
+				if (
+					condition.reason === 'Progressing' ||
+					condition.reason === 'ProgressingWithRetry' ||
+					condition.reason === 'DependencyNotReady' ||
+					condition.reason === 'ReconciliationInProgress'
+				) {
+					return 'progressing';
+				}
+				// If it's False but not a known progressing reason, it's failed
+				// (unless another condition says otherwise, but usually Ready is authoritative)
+				return 'failed';
+			}
+			if (condition.status === 'Unknown') return 'progressing';
+		}
+	}
+
+	// 4. Check Reconciling condition
 	const reconciling = conditions.find((c) => c.type === 'Reconciling');
 	if (reconciling?.status === 'True') return 'progressing';
 
-	// Check Stalled condition
-	const stalled = conditions.find((c) => c.type === 'Stalled');
-	if (stalled?.status === 'True') return 'failed';
+	// 5. Special case for some resources that might not have the above
+	// but have some other indicator of success
+	const validated = conditions.find((c) => c.type === 'Validated' || c.type === 'Valid');
+	if (validated?.status === 'True') return 'healthy';
 
 	return 'unknown';
 }

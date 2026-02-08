@@ -99,7 +99,9 @@
 		for (const resource of resources) {
 			const health = getResourceHealth(
 				resource.status?.conditions,
-				resource.spec?.suspend as boolean | undefined
+				resource.spec?.suspend as boolean | undefined,
+				resource.status?.observedGeneration,
+				resource.metadata?.generation
 			);
 
 			switch (health) {

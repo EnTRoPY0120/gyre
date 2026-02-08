@@ -43,7 +43,9 @@ export function filterResources(resources: FluxResource[], filters: FilterState)
 					if (key === 'status') {
 						const health = getResourceHealth(
 							item.status?.conditions,
-							item.spec?.suspend as boolean | undefined
+							item.spec?.suspend as boolean | undefined,
+							item.status?.observedGeneration,
+							item.metadata?.generation
 						);
 						return health.toLowerCase() === value.toLowerCase();
 					}
@@ -65,7 +67,9 @@ export function filterResources(resources: FluxResource[], filters: FilterState)
 		if (filters.status !== 'all') {
 			const health = getResourceHealth(
 				resource.status?.conditions,
-				resource.spec?.suspend as boolean | undefined
+				resource.spec?.suspend as boolean | undefined,
+				resource.status?.observedGeneration,
+				resource.metadata?.generation
 			);
 			if (health !== filters.status) {
 				return false;

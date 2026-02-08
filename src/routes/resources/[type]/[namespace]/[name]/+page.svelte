@@ -296,8 +296,10 @@
 			<div class="flex items-center gap-3">
 				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{data.name}</h1>
 				<StatusBadge
-					conditions={data.resource.status?.conditions}
-					suspended={data.resource.spec?.suspend as boolean | undefined}
+					conditions={resource.status?.conditions}
+					suspended={resource.spec?.suspend as boolean | undefined}
+					observedGeneration={resource.status?.observedGeneration}
+					generation={resource.metadata?.generation}
 				/>
 			</div>
 			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
