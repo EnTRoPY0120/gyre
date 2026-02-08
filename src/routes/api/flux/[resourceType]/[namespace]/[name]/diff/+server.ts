@@ -92,10 +92,12 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 				// Path format for proxy: {path} (starting with /)
 				// url.pathname contains the full path after the service address
 				const proxyPath = `${url.pathname}${url.search}`;
+				const port = url.port || '80';
 
 				// Use the client's proxy capability
+				// We append the port to the service name to ensure K8s proxies to the correct port
 				const proxyResponse = await coreApi.connectGetNamespacedServiceProxy({
-					name: svcName,
+					name: `${svcName}:${port}`,
 					namespace: svcNamespace,
 					path: proxyPath
 				});
