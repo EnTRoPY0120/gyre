@@ -16,6 +16,7 @@
 	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
+	import { sanitizeResource } from '$lib/utils/kubernetes';
 
 	interface K8sEvent {
 		type: 'Normal' | 'Warning';
@@ -568,7 +569,7 @@
 			</div>
 		{:else if activeTab === 'yaml'}
 			<CodeViewer
-				data={data.resource as unknown as Record<string, unknown>}
+				data={sanitizeResource(resource) as unknown as Record<string, unknown>}
 				title="Full Resource Manifest"
 			/>
 		{/if}
