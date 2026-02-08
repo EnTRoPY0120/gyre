@@ -2902,7 +2902,14 @@ spec:
 				{ label: 'GitLab', value: 'gitlab' },
 				{ label: 'Bitbucket', value: 'bitbucket' },
 				{ label: 'Harbor', value: 'harbor' },
-				{ label: 'Generic', value: 'generic' }
+				{ label: 'DockerHub', value: 'dockerhub' },
+				{ label: 'Quay', value: 'quay' },
+				{ label: 'Nexus', value: 'nexus' },
+				{ label: 'ACR', value: 'acr' },
+				{ label: 'GCR', value: 'gcr' },
+				{ label: 'CDEvents', value: 'cdevents' },
+				{ label: 'Generic Webhook', value: 'generic' },
+				{ label: 'Generic HMAC', value: 'generic-hmac' }
 			],
 			description: 'Type of webhook receiver'
 		},
