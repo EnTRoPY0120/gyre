@@ -1,18 +1,13 @@
 <script lang="ts">
 	import { formatDistanceToNow } from 'date-fns';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
 	import {
 		Shield,
 		User,
-		Activity,
 		Globe,
-		Clock,
 		CheckCircle2,
 		XCircle,
 		Search,
 		Filter,
-		Info,
 		ChevronDown,
 		ChevronUp
 	} from 'lucide-svelte';
@@ -29,7 +24,7 @@
 		resourceName: string | null;
 		namespace: string | null;
 		clusterId: string | null;
-		details: any;
+		details: Record<string, unknown> | null;
 		success: boolean;
 		ipAddress: string | null;
 		createdAt: Date;
@@ -119,35 +114,6 @@
 					</DropdownMenu.RadioGroup>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
-		</div>
-	</div>
-
-	<!-- Stats (Optional summary) -->
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-		<div class="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
-			<div class="flex items-center gap-3 text-slate-400">
-				<Activity size={18} />
-				<span class="text-sm font-medium">Total Events</span>
-			</div>
-			<p class="mt-2 text-2xl font-bold text-white">{filteredLogs.length}</p>
-		</div>
-		<div class="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
-			<div class="flex items-center gap-3 text-emerald-400">
-				<CheckCircle2 size={18} />
-				<span class="text-sm font-medium">Successful Actions</span>
-			</div>
-			<p class="mt-2 text-2xl font-bold text-white">
-				{filteredLogs.filter((l: AuditLog) => l.success).length}
-			</p>
-		</div>
-		<div class="rounded-xl border border-slate-700/50 bg-slate-800/30 p-4">
-			<div class="flex items-center gap-3 text-red-400">
-				<XCircle size={18} />
-				<span class="text-sm font-medium">Failed Attempts</span>
-			</div>
-			<p class="mt-2 text-2xl font-bold text-white">
-				{filteredLogs.filter((l: AuditLog) => !l.success).length}
-			</p>
 		</div>
 	</div>
 
