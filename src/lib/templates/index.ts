@@ -924,14 +924,30 @@ spec:
 				},
 				{ name: 'kind', label: 'Kind', path: 'kind', type: 'string', required: true },
 				{
-					name: 'expression',
-					label: 'CEL Expression',
-					path: 'expression',
+					name: 'inProgress',
+					label: 'In Progress Expression',
+					path: 'inProgress',
 					type: 'textarea',
-					required: true
+					description: 'CEL expression to check if the resource is still progressing'
+				},
+				{
+					name: 'failed',
+					label: 'Failed Expression',
+					path: 'failed',
+					type: 'textarea',
+					description: 'CEL expression to check if the resource has failed'
+				},
+				{
+					name: 'current',
+					label: 'Current Expression',
+					path: 'current',
+					type: 'textarea',
+					required: true,
+					description: 'CEL expression to check if the resource is healthy'
 				}
 			],
-			description: 'CEL expressions for health assessment'
+			description: 'CEL expressions for health assessment. Evaluation order: inProgress → failed → current',
+			helpText: 'CEL expressions evaluated in order: inProgress (progressing), failed (unhealthy), current (healthy).'
 		},
 		{
 			name: 'timeout',
@@ -1798,10 +1814,10 @@ export const BUCKET_TEMPLATE: ResourceTemplate = {
 	description: 'Sources from an S3-compatible bucket',
 	kind: 'Bucket',
 	group: 'source.toolkit.fluxcd.io',
-	version: 'v1beta2',
+	version: 'v1',
 	category: 'sources',
 	plural: 'buckets',
-	yaml: `apiVersion: source.toolkit.fluxcd.io/v1beta2
+	yaml: `apiVersion: source.toolkit.fluxcd.io/v1
 kind: Bucket
 metadata:
   name: example
