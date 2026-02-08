@@ -50,7 +50,7 @@ COPY --from=builder --chown=gyre:gyre /build/drizzle ./drizzle
 
 # Install production dependencies
 # We omit the cache mount to avoid 'idealTree' conflict and clean up build tools in same layer
-RUN npm install --omit=dev --legacy-peer-deps && \
+RUN npm install --omit=dev && \
     npm cache clean --force && \
     apk del python3 make g++
 
