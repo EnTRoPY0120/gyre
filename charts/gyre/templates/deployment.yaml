@@ -55,7 +55,13 @@ spec:
         - name: NODE_ENV
           value: production
         - name: ORIGIN
+          {{- if and .Values.ingress.enabled .Values.ingress.hosts }}
+          {{- $host := (index .Values.ingress.hosts 0).host }}
+          {{- $protocol := (and .Values.ingress.tls (gt (len .Values.ingress.tls) 0)) | ternary "https" "http" }}
+          value: "{{ $protocol }}://{{ $host }}"
+          {{- else }}
           value: "http://{{ include "gyre.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
+          {{- end }}
         {{- if .Values.encryption.existingSecret }}
         - name: GYRE_ENCRYPTION_KEY
           valueFrom:
