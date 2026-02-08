@@ -1,6 +1,7 @@
 import { listFluxResources } from './kubernetes/client.js';
 import type { FluxResourceType } from './kubernetes/flux/resources.js';
 import type { FluxResource, K8sCondition } from './kubernetes/flux/types.js';
+import { resourcePollsTotal, resourceUpdatesTotal } from './metrics.js';
 
 // Resource types to watch
 const WATCH_RESOURCES: FluxResourceType[] = [
@@ -144,6 +145,8 @@ async function poll(context: ClusterContext) {
 					context.clusterId === 'in-cluster' ? undefined : context.clusterId
 				);
 
+				resourcePollsTotal.labels(context.clusterId, resourceType, 'success').inc();
+
 				if (resourceList && resourceList.items) {
 					const currentMessageKeys = new Set<string>();
 
@@ -185,6 +188,7 @@ async function poll(context: ClusterContext) {
 
 						if (!previousState) {
 							if (isSettled) {
+								resourceUpdatesTotal.labels(context.clusterId, resourceType, 'added').inc();
 								broadcast(context, {
 									type: 'ADDED',
 									clusterId: context.clusterId,
@@ -220,6 +224,7 @@ async function poll(context: ClusterContext) {
 									revisionChanged || becameFailed || (becameHealthy && revisionChanged);
 
 								if (shouldNotify && !isTransientState) {
+									resourceUpdatesTotal.labels(context.clusterId, resourceType, 'modified').inc();
 									broadcast(context, {
 										type: 'MODIFIED',
 										clusterId: context.clusterId,
@@ -246,6 +251,7 @@ async function poll(context: ClusterContext) {
 						if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
 							const [type, namespace, name] = key.split('/');
 
+							resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
 							broadcast(context, {
 								type: 'DELETED',
 								clusterId: context.clusterId,
@@ -267,6 +273,7 @@ async function poll(context: ClusterContext) {
 					}
 				}
 			} catch (err) {
+				resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();
 				console.error(
 					`[EventBus] Error polling ${resourceType} for cluster ${context.clusterId}:`,
 					err

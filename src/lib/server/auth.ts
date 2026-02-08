@@ -6,6 +6,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import * as k8s from '@kubernetes/client-node';
 import { readFileSync } from 'node:fs';
+import { loginAttemptsTotal } from './metrics.js';
 
 // In-cluster configuration paths
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
@@ -509,6 +510,7 @@ export async function authenticateUser(username: string, password: string): Prom
 	const user = await getUserByUsername(username);
 
 	if (!user || !user.active) {
+		loginAttemptsTotal.labels('failure').inc();
 		return null;
 	}
 
@@ -524,8 +526,10 @@ export async function authenticateUser(username: string, password: string): Prom
 	}
 
 	if (!isValid) {
+		loginAttemptsTotal.labels('failure').inc();
 		return null;
 	}
 
+	loginAttemptsTotal.labels('success').inc();
 	return user;
 }
