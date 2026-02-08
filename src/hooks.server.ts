@@ -53,10 +53,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const path = url.pathname;
 
 	const recordResponse = (response: Response) => {
-		if (path !== '/metrics') {
+		if (!path.startsWith('/metrics')) {
 			const duration = (Date.now() - start) / 1000;
+			const routeTemplate = event.route?.id || path;
 			httpRequestDurationMicroseconds
-				.labels(event.request.method, path, response.status.toString())
+				.labels(event.request.method, routeTemplate, response.status.toString())
 				.observe(duration);
 		}
 		return response;
