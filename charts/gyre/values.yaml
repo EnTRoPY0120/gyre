@@ -135,3 +135,13 @@ encryption:
   # Existing secret name containing encryption keys
   # Keys in secret should be named GYRE_ENCRYPTION_KEY and AUTH_ENCRYPTION_KEY
   existingSecret: ""
+
+# Metrics and Monitoring
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    path: /metrics
+    # additionalLabels:
+    #   release: prometheus
