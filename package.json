@@ -25,7 +25,7 @@
 		"@types/bcryptjs": "^3.0.0",
 		"@types/better-sqlite3": "^7.6.13",
 		"@types/js-yaml": "^4.0.9",
-		"@types/node": "^24.10.9",
+		"@types/node": "^25.2.2",
 		"bits-ui": "^2.15.5",
 		"drizzle-kit": "^0.31.8",
 		"eslint": "^9.39.2",
