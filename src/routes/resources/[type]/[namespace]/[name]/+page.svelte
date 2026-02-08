@@ -269,7 +269,10 @@
 		diffsError = null;
 
 		try {
-			const url = new URL(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`, window.location.origin);
+			const url = new URL(
+				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`,
+				window.location.origin
+			);
 			if (force) {
 				// Add cache-busting parameter to force fresh computation
 				url.searchParams.set('force', 'true');
@@ -751,11 +754,11 @@
 								<p class="text-xs font-medium text-amber-900 dark:text-amber-200">
 									💡 To use drift detection:
 								</p>
-								<ol class="mt-2 ml-4 list-decimal space-y-1 text-xs text-amber-800 dark:text-amber-300">
+								<ol
+									class="mt-2 ml-4 list-decimal space-y-1 text-xs text-amber-800 dark:text-amber-300"
+								>
 									<li>Deploy Gyre to your Kubernetes cluster using the Helm chart</li>
-									<li>
-										Ensure Gyre runs in the same cluster as your FluxCD installation
-									</li>
+									<li>Ensure Gyre runs in the same cluster as your FluxCD installation</li>
 									<li>Access Gyre via the in-cluster service or ingress</li>
 								</ol>
 							</div>
