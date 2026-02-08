@@ -52,6 +52,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const { url, cookies } = event;
 	const path = url.pathname;
 
+	const recordResponse = (response: Response) => {
+		if (path !== '/metrics') {
+			const duration = (Date.now() - start) / 1000;
+			httpRequestDurationMicroseconds
+				.labels(event.request.method, path, response.status.toString())
+				.observe(duration);
+		}
+		return response;
+	};
+
 	// Initialize Gyre on first request
 	if (!initialized) {
 		try {
@@ -82,17 +92,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (!event.locals.user && !isPublicRoute(path)) {
 		// For API routes, return 401
 		if (path.startsWith('/api/')) {
-			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-				status: 401,
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return recordResponse(
+				new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { 'Content-Type': 'application/json' }
+				})
+			);
 		}
 
 		// For page routes, redirect to login
-		return new Response(null, {
-			status: 302,
-			headers: { Location: '/login' }
-		});
+		return recordResponse(
+			new Response(null, {
+				status: 302,
+				headers: { Location: '/login' }
+			})
+		);
 	}
 
 	// Handle cluster context from cookies (for multi-cluster support)
@@ -106,23 +120,16 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	// Protect admin API routes
 	if (path.startsWith('/api/admin') && event.locals.user?.role !== 'admin') {
-		return new Response(JSON.stringify({ error: 'Forbidden' }), {
-			status: 403,
-			headers: { 'Content-Type': 'application/json' }
-		});
+		return recordResponse(
+			new Response(JSON.stringify({ error: 'Forbidden' }), {
+				status: 403,
+				headers: { 'Content-Type': 'application/json' }
+			})
+		);
 	}
 
 	const response = await resolve(event);
-
-	// Record metrics
-	if (path !== '/metrics') {
-		const duration = (Date.now() - start) / 1000;
-		httpRequestDurationMicroseconds
-			.labels(event.request.method, path, response.status.toString())
-			.observe(duration);
-	}
-
-	return response;
+	return recordResponse(response);
 };
 
 /**
