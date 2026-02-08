@@ -164,8 +164,6 @@ spec:
 			options: [
 				{ label: 'Generic Git', value: 'generic' },
 				{ label: 'GitHub', value: 'github' },
-				{ label: 'GitLab', value: 'gitlab' },
-				{ label: 'Bitbucket', value: 'bitbucket' },
 				{ label: 'Azure DevOps', value: 'azure' }
 			],
 			description: 'Git provider optimization'
