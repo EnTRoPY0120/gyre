@@ -25,6 +25,8 @@
 	import ResourceDiffViewer from '$lib/components/flux/ResourceDiffViewer.svelte';
 	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
 	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
+	import DependencyGraph from '$lib/components/graph/DependencyGraph.svelte';
+	import { buildResourceGraph } from '$lib/utils/graph';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
@@ -90,7 +92,7 @@
 		return unsubscribe;
 	});
 
-	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'diff' | 'yaml';
+	type TabId = 'overview' | 'graph' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'diff' | 'yaml';
 
 	let activeTab = $state<TabId>('overview');
 
@@ -197,9 +199,13 @@
 		isReceiver || isImageRepository || isImagePolicy || isImageUpdateAutomation
 	);
 
+	// Build graph data for the Graph tab
+	const graphData = $derived(buildResourceGraph(resource, data.inventoryResources || []));
+
 	const tabs = $derived.by(() => {
 		const base: { id: TabId; label: string }[] = [
 			{ id: 'overview', label: 'Overview' },
+			{ id: 'graph', label: 'Graph' },
 			{ id: 'spec', label: 'Spec' },
 			{ id: 'status', label: 'Status' },
 			{ id: 'events', label: 'Events' },
@@ -554,6 +560,12 @@
 				title="Resource Spec"
 				showDownload={false}
 			/>
+		{:else if activeTab === 'graph'}
+			<div
+				class="h-[600px] w-full overflow-hidden rounded-xl border border-border bg-card shadow-inner"
+			>
+				<DependencyGraph nodes={graphData.nodes} edges={graphData.edges} />
+			</div>
 		{:else if activeTab === 'status'}
 			<CodeViewer
 				data={(data.resource.status as Record<string, unknown>) || {}}

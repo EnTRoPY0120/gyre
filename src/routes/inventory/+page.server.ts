@@ -1,14 +1,12 @@
 import type { PageServerLoad } from './$types';
-import { listFluxResources } from '$lib/server/kubernetes/client';
-import { type FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import {
-	buildRelationshipMap,
 	getResourceStatus,
 	type FluxResource as RelationshipsFluxResource
 } from '$lib/utils/relationships';
 import type { FluxResource as ServerFluxResource } from '$lib/server/kubernetes/flux/types';
 import { parseInventory } from '$lib/server/kubernetes/flux/inventory';
 import type { ResourceRef } from '$lib/utils/relationships';
+import { getInventoryData } from '$lib/server/inventory-data';
 
 interface TreeNode {
 	ref: ResourceRef;
@@ -20,54 +18,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	// Get current cluster context from cookie
 	const context = cookies.get('gyre_cluster');
 
-	// Fetch all Flux resources to build the relationship map
-	const resourceTypes: FluxResourceType[] = [
-		'Kustomization',
-		'HelmRelease',
-		'GitRepository',
-		'HelmRepository',
-		'OCIRepository',
-		'Bucket',
-		'Alert',
-		'Provider',
-		'Receiver',
-		'ImagePolicy',
-		'ImageRepository',
-		'ImageUpdateAutomation'
-	];
-
-	const results = await Promise.all(
-		resourceTypes.map(async (type) => {
-			try {
-				const data = await listFluxResources(type, context);
-				return { type, items: data.items || [] };
-			} catch {
-				return { type, items: [] };
-			}
-		})
-	);
-
-	// Map results to named arrays
-	const resourceMap: Record<string, ServerFluxResource[]> = {};
-	results.forEach((r) => {
-		resourceMap[r.type] = r.items;
-	});
-
-	// Build relationships
-	const relationships = buildRelationshipMap({
-		kustomizations: resourceMap['Kustomization'] as RelationshipsFluxResource[],
-		helmReleases: resourceMap['HelmRelease'] as RelationshipsFluxResource[],
-		gitRepositories: resourceMap['GitRepository'] as RelationshipsFluxResource[],
-		helmRepositories: resourceMap['HelmRepository'] as RelationshipsFluxResource[],
-		ociRepositories: resourceMap['OCIRepository'] as RelationshipsFluxResource[],
-		buckets: resourceMap['Bucket'] as RelationshipsFluxResource[],
-		alerts: resourceMap['Alert'] as RelationshipsFluxResource[],
-		providers: resourceMap['Provider'] as RelationshipsFluxResource[],
-		receivers: resourceMap['Receiver'] as RelationshipsFluxResource[],
-		imagePolicies: resourceMap['ImagePolicy'] as RelationshipsFluxResource[],
-		imageRepositories: resourceMap['ImageRepository'] as RelationshipsFluxResource[],
-		imageUpdateAutomations: resourceMap['ImageUpdateAutomation'] as RelationshipsFluxResource[]
-	});
+	const { resourceMap, relationships, allResources } = await getInventoryData(context);
 
 	// Create nodes for trees
 	function createNode(resource: ServerFluxResource, kind: string): TreeNode {
@@ -103,24 +54,26 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	// Build categorized trees
 	// 1. Sources Tree (with Apps as children)
 	const sourceTrees = [
-		...resourceMap['GitRepository'].map((r) => createNode(r, 'GitRepository')),
-		...resourceMap['HelmRepository'].map((r) => createNode(r, 'HelmRepository')),
-		...resourceMap['OCIRepository'].map((r) => createNode(r, 'OCIRepository')),
-		...resourceMap['Bucket'].map((r) => createNode(r, 'Bucket'))
+		...(resourceMap['GitRepository'] || []).map((r) => createNode(r, 'GitRepository')),
+		...(resourceMap['HelmRepository'] || []).map((r) => createNode(r, 'HelmRepository')),
+		...(resourceMap['OCIRepository'] || []).map((r) => createNode(r, 'OCIRepository')),
+		...(resourceMap['Bucket'] || []).map((r) => createNode(r, 'Bucket'))
 	];
 
 	// 2. Applications Tree (Kustomizations and HelmReleases)
 	const appTrees = [
-		...resourceMap['Kustomization'].map((r) => createNode(r, 'Kustomization')),
-		...resourceMap['HelmRelease'].map((r) => createNode(r, 'HelmRelease'))
+		...(resourceMap['Kustomization'] || []).map((r) => createNode(r, 'Kustomization')),
+		...(resourceMap['HelmRelease'] || []).map((r) => createNode(r, 'HelmRelease'))
 	];
 
 	// 3. Image Automation Tree (Repo -> Policy -> Automation)
-	const imageRepoNodes = resourceMap['ImageRepository'].map((r) =>
+	const imageRepoNodes = (resourceMap['ImageRepository'] || []).map((r) =>
 		createNode(r, 'ImageRepository')
 	);
-	const imagePolicyNodes = resourceMap['ImagePolicy'].map((r) => createNode(r, 'ImagePolicy'));
-	const imageUpdateNodes = resourceMap['ImageUpdateAutomation'].map((r) =>
+	const imagePolicyNodes = (resourceMap['ImagePolicy'] || []).map((r) =>
+		createNode(r, 'ImagePolicy')
+	);
+	const imageUpdateNodes = (resourceMap['ImageUpdateAutomation'] || []).map((r) =>
 		createNode(r, 'ImageUpdateAutomation')
 	);
 
@@ -185,9 +138,9 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	});
 
 	// 4. Notifications Tree (Provider -> Alert)
-	const providerNodes = resourceMap['Provider'].map((r) => createNode(r, 'Provider'));
-	const alertNodes = resourceMap['Alert'].map((r) => createNode(r, 'Alert'));
-	const receiverNodes = resourceMap['Receiver'].map((r) => createNode(r, 'Receiver'));
+	const providerNodes = (resourceMap['Provider'] || []).map((r) => createNode(r, 'Provider'));
+	const alertNodes = (resourceMap['Alert'] || []).map((r) => createNode(r, 'Alert'));
+	const receiverNodes = (resourceMap['Receiver'] || []).map((r) => createNode(r, 'Receiver'));
 
 	providerNodes.forEach((pNode) => {
 		relationships
@@ -210,11 +163,13 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		sources: sourceTrees.length,
 		applications: appTrees.length,
 		notifications:
-			resourceMap['Alert'].length + resourceMap['Provider'].length + resourceMap['Receiver'].length,
+			(resourceMap['Alert']?.length || 0) +
+			(resourceMap['Provider']?.length || 0) +
+			(resourceMap['Receiver']?.length || 0),
 		imageAutomation:
-			resourceMap['ImageRepository'].length +
-			resourceMap['ImagePolicy'].length +
-			resourceMap['ImageUpdateAutomation'].length,
+			(resourceMap['ImageRepository']?.length || 0) +
+			(resourceMap['ImagePolicy']?.length || 0) +
+			(resourceMap['ImageUpdateAutomation']?.length || 0),
 		totalRelationships: relationships.length,
 		ready: 0,
 		failed: 0,

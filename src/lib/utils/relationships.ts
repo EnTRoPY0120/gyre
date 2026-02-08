@@ -41,6 +41,8 @@ export interface FluxResourceStatus {
 }
 
 export interface FluxResource {
+	apiVersion?: string;
+	kind: string;
 	metadata: FluxResourceMetadata;
 	spec?: FluxResourceSpec;
 	status?: FluxResourceStatus;
@@ -214,6 +216,22 @@ export function getReceiverResources(
 }
 
 /**
+ * Extract dependsOn references from a resource
+ */
+export function getDependsOnRefs(
+	resource: FluxResource & {
+		spec?: { dependsOn?: Array<{ name: string; namespace?: string }> };
+	}
+): ResourceRef[] {
+	const dependsOn = resource.spec?.dependsOn || [];
+	return dependsOn.map((dep) => ({
+		kind: resource.kind, // dependsOn usually implies the same kind (Kust -> Kust, HR -> HR)
+		name: dep.name,
+		namespace: dep.namespace || resource.metadata.namespace
+	}));
+}
+
+/**
  * Determine the FluxResourceType from a kind string
  */
 export function kindToFluxType(kind: string): FluxResourceType | null {
@@ -269,6 +287,21 @@ export function buildRelationshipMap(resources: {
 				label: 'uses source'
 			});
 		}
+
+		// Kustomization → dependsOn (other Kustomizations)
+		const dependsOn = getDependsOnRefs(ks);
+		dependsOn.forEach((dep) => {
+			relationships.push({
+				source: {
+					kind: 'Kustomization',
+					name: ks.metadata.name,
+					namespace: ks.metadata.namespace
+				},
+				target: dep,
+				type: 'uses',
+				label: 'depends on'
+			});
+		});
 	});
 
 	// HelmRelease → Source
@@ -286,6 +319,21 @@ export function buildRelationshipMap(resources: {
 				label: 'uses chart from'
 			});
 		}
+
+		// HelmRelease → dependsOn (other HelmReleases)
+		const dependsOn = getDependsOnRefs(hr);
+		dependsOn.forEach((dep) => {
+			relationships.push({
+				source: {
+					kind: 'HelmRelease',
+					name: hr.metadata.name,
+					namespace: hr.metadata.namespace
+				},
+				target: dep,
+				type: 'uses',
+				label: 'depends on'
+			});
+		});
 	});
 
 	// ImagePolicy → ImageRepository

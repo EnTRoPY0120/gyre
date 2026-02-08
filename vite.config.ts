@@ -21,5 +21,8 @@ export default defineConfig({
 				}
 			}
 		}
+	},
+	ssr: {
+		noExternal: ['@xyflow/svelte']
 	}
 });
