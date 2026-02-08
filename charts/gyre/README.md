@@ -227,7 +227,7 @@ kubectl delete pvc gyre-data -n flux-system
 | `metrics.serviceMonitor.enabled`   | Create a Prometheus ServiceMonitor  | `false`    |
 | `metrics.serviceMonitor.interval`  | Scraping interval                   | `30s`      |
 | `metrics.serviceMonitor.path`      | Metrics path                        | `/metrics` |
-| `metrics.serviceMonitor.labels`    | Additional labels for ServiceMonitor| `{}`       |
+| `metrics.serviceMonitor.additionalLabels` | Additional labels for ServiceMonitor | `{}`       |
 
 ## Examples
 

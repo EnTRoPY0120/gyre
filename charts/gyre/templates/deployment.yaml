@@ -55,7 +55,7 @@ spec:
         - name: NODE_ENV
           value: production
         - name: ORIGIN
-          {{- if and .Values.ingress.enabled .Values.ingress.hosts }}
+          {{- if and .Values.ingress.enabled (gt (len .Values.ingress.hosts) 0) }}
           {{- $host := (index .Values.ingress.hosts 0).host }}
           {{- $protocol := (and .Values.ingress.tls (gt (len .Values.ingress.tls) 0)) | ternary "https" "http" }}
           value: "{{ $protocol }}://{{ $host }}"
