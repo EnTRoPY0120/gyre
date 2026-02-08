@@ -92,6 +92,7 @@
 					type="text"
 					bind:value={searchQuery}
 					placeholder="Search logs..."
+					aria-label="Search logs"
 					class="h-10 w-full rounded-lg border border-slate-700 bg-slate-800/50 pr-4 pl-10 text-sm text-white placeholder-slate-500 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 focus:outline-none sm:w-64"
 				/>
 			</div>
@@ -208,6 +209,11 @@
 								<button
 									onclick={() => toggleExpand(log.id)}
 									class="text-slate-500 transition-colors hover:text-white"
+									aria-expanded={expandedLogId === log.id}
+									aria-controls={`log-details-${log.id}`}
+									aria-label={expandedLogId === log.id
+										? 'Collapse log details'
+										: 'Expand log details'}
 								>
 									{#if expandedLogId === log.id}
 										<ChevronUp size={16} />
@@ -218,7 +224,7 @@
 							</td>
 						</tr>
 						{#if expandedLogId === log.id}
-							<tr class="bg-slate-900/40">
+							<tr class="bg-slate-900/40" id={`log-details-${log.id}`}>
 								<td colspan="7" class="px-6 py-4">
 									<div class="grid grid-cols-1 gap-6 md:grid-cols-2">
 										<div class="space-y-4">
