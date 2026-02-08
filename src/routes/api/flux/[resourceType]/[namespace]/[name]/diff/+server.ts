@@ -354,7 +354,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 					try {
 						// A. Get Live State
-						let liveState: any = null;
+						let liveState: unknown = null;
 						try {
 							liveState = await customApi.getNamespacedCustomObject({
 								group,
@@ -363,13 +363,13 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 								plural,
 								name: resName
 							});
-						} catch (e) {
+						} catch {
 							// Resource doesn't exist
 						}
 
 						// B. Get "Should Be" state via Server-Side Apply Dry-Run
 						// This returns the resource as it would look after applying, including defaults
-						let dryRunState: any = null;
+						let dryRunState: unknown = null;
 						try {
 							// We use patch with fieldManager and dryRun=All
 							// The JS client expects dryRun as a string 'All', not an array for some versions
@@ -387,16 +387,16 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 								},
 								{
 									headers: { 'Content-Type': 'application/apply-patch+yaml' }
-								} as any
+								} as Record<string, unknown>
 							);
 							dryRunState = response;
-						} catch (e) {
+						} catch {
 							// If dry-run fails, fall back to raw desired state
 							dryRunState = desired;
 						}
 
 						// Strip noisy fields for cleaner diff
-						const clean = (obj: any) => {
+						const clean = (obj: unknown): unknown => {
 							if (!obj) return null;
 							const c = JSON.parse(JSON.stringify(obj));
 							if (c.metadata) {
