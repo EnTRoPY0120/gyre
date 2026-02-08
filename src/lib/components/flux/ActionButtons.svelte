@@ -8,6 +8,7 @@
 	import type { FluxResource } from '$lib/types/flux';
 	import { RefreshCw, Play, Pause, Loader2, Pencil } from 'lucide-svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
+	import { sanitizeResource } from '$lib/utils/kubernetes';
 	import yaml from 'js-yaml';
 
 	let {
@@ -30,7 +31,8 @@
 	// Serialize resource to YAML for editing
 	const resourceYaml = $derived.by(() => {
 		try {
-			return yaml.dump(resource, { noRefs: true, lineWidth: -1 });
+			const sanitized = sanitizeResource(resource);
+			return yaml.dump(sanitized, { noRefs: true, lineWidth: -1 });
 		} catch (err) {
 			console.error('Failed to serialize resource:', err);
 			return '';
