@@ -39,6 +39,13 @@
 		live: string | null;
 	}
 
+	interface DiffResponse {
+		diffs: ResourceDiff[];
+		cached?: boolean;
+		timestamp?: number;
+		revision?: string;
+	}
+
 	interface Props {
 		data: {
 			resourceType: string;
@@ -96,6 +103,9 @@
 	let diffsLoading = $state(false);
 	let diffsError = $state<string | null>(null);
 	let diffsFetched = $state(false);
+	let diffsCached = $state(false);
+	let diffsTimestamp = $state<number | null>(null);
+	let diffsRevision = $state<string | null>(null);
 
 	const formattedLogs = $derived(
 		logs
@@ -160,6 +170,7 @@
 			{ id: 'history', label: 'History' }
 		];
 
+		// Drift detection is only available for Kustomizations
 		if (isKustomization) {
 			base.push({ id: 'diff', label: 'Drift (Diff)' });
 		}
@@ -251,24 +262,31 @@
 	}
 
 	// Fetch diff when the Diff tab is selected
-	async function fetchDiff() {
-		if (diffsFetched) return;
+	async function fetchDiff(force = false) {
+		if (diffsFetched && !force) return;
 
 		diffsLoading = true;
 		diffsError = null;
 
 		try {
-			const response = await fetch(
-				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`
-			);
+			const url = new URL(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`, window.location.origin);
+			if (force) {
+				// Add cache-busting parameter to force fresh computation
+				url.searchParams.set('force', 'true');
+			}
+
+			const response = await fetch(url.toString());
 
 			if (!response.ok) {
 				const errData = await response.json();
 				throw new Error(errData.message || `Failed to fetch diff: ${response.statusText}`);
 			}
 
-			const result = await response.json();
+			const result: DiffResponse = await response.json();
 			diffs = result.diffs || [];
+			diffsCached = result.cached || false;
+			diffsTimestamp = result.timestamp || null;
+			diffsRevision = result.revision || null;
 			diffsFetched = true;
 		} catch (err) {
 			diffsError = err instanceof Error ? err.message : 'Failed to load diff';
@@ -631,13 +649,40 @@
 				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
 			>
 				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Drift</h3>
+					<div class="flex flex-col gap-1">
+						<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Drift</h3>
+						{#if diffsTimestamp}
+							<div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+								<span>
+									Last checked: {new Date(diffsTimestamp).toLocaleTimeString()}
+								</span>
+								{#if diffsCached}
+									<span
+										class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+									>
+										<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+											/>
+										</svg>
+										Cached
+									</span>
+								{/if}
+								{#if diffsRevision}
+									<span class="font-mono text-[10px]">@ {diffsRevision.slice(0, 8)}</span>
+								{/if}
+							</div>
+						{/if}
+					</div>
 					<button
 						type="button"
 						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
 						onclick={() => {
 							diffsFetched = false;
-							fetchDiff();
+							fetchDiff(true);
 						}}
 						disabled={diffsLoading}
 					>
@@ -654,7 +699,7 @@
 								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
 							/>
 						</svg>
-						Refresh Diff
+						{diffsLoading ? 'Computing...' : 'Refresh'}
 					</button>
 				</div>
 
@@ -669,10 +714,18 @@
 					</div>
 				{:else if diffsError}
 					<div
-						class="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-400"
+						class="rounded-md border {diffsError.includes('only available when')
+							? 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-900/20'
+							: 'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/20'} p-6"
 					>
-						<div class="mb-1 flex items-center gap-2 font-semibold">
-							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<div
+							class="mb-2 flex items-center gap-2 text-base font-semibold {diffsError.includes(
+								'only available when'
+							)
+								? 'text-amber-700 dark:text-amber-400'
+								: 'text-red-700 dark:text-red-400'}"
+						>
+							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path
 									stroke-linecap="round"
 									stroke-linejoin="round"
@@ -680,9 +733,33 @@
 									d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 								/>
 							</svg>
-							Failed to calculate drift
+							{diffsError.includes('only available when')
+								? 'In-Cluster Deployment Required'
+								: 'Failed to Calculate Drift'}
 						</div>
-						{diffsError}
+						<p
+							class="text-sm {diffsError.includes('only available when')
+								? 'text-amber-600 dark:text-amber-300'
+								: 'text-red-600 dark:text-red-300'}"
+						>
+							{diffsError}
+						</p>
+						{#if diffsError.includes('only available when')}
+							<div
+								class="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-900/10"
+							>
+								<p class="text-xs font-medium text-amber-900 dark:text-amber-200">
+									💡 To use drift detection:
+								</p>
+								<ol class="mt-2 ml-4 list-decimal space-y-1 text-xs text-amber-800 dark:text-amber-300">
+									<li>Deploy Gyre to your Kubernetes cluster using the Helm chart</li>
+									<li>
+										Ensure Gyre runs in the same cluster as your FluxCD installation
+									</li>
+									<li>Access Gyre via the in-cluster service or ingress</li>
+								</ol>
+							</div>
+						{/if}
 					</div>
 				{:else if diffs.length === 0}
 					<div class="py-12 text-center text-gray-500 dark:text-gray-400">

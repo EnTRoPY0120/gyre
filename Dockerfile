@@ -34,8 +34,13 @@ LABEL org.opencontainers.image.title="Gyre" \
       org.opencontainers.image.vendor="Gyre Project" \
       org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
-# Install CA certificates and build tools for native modules
-RUN apk add --no-cache ca-certificates python3 make g++
+# Install CA certificates, curl, and build tools for native modules
+RUN apk add --no-cache ca-certificates python3 make g++ curl
+
+# Install Kustomize
+RUN curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash && \
+    mv kustomize /usr/local/bin/ && \
+    chmod +x /usr/local/bin/kustomize
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S gyre && \
