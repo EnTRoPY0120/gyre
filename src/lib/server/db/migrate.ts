@@ -164,5 +164,14 @@ export function initDatabase(): void {
 		DROP TABLE IF EXISTS dashboards
 	`);
 
+	// App Settings table
+	db.run(sql`
+		CREATE TABLE IF NOT EXISTS app_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+		)
+	`);
+
 	console.log('✓ Database tables initialized');
 }
