@@ -32,6 +32,7 @@ jobs:
       attestations: write
       id-token: write
       pull-requests: write
+      security-events: write
 
     steps:
       - name: Checkout repository
@@ -90,6 +91,36 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: true
           sbom: true
+          load: ${{ github.event_name == 'pull_request' }}
+
+      # Run Trivy vulnerability scanner
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ github.event_name == 'pull_request' && format('{0}/{1}:pr-{2}', env.REGISTRY, env.IMAGE_NAME, github.event.number) || format('{0}/{1}@{2}', env.REGISTRY, env.IMAGE_NAME, steps.build-and-push.outputs.digest) }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+          ignore-unfixed: false
+          vuln-type: 'os,library'
+          scanners: 'vuln,secret,config'
+
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'container-scan'
+
+      - name: Run Trivy scanner for display results
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ github.event_name == 'pull_request' && format('{0}/{1}:pr-{2}', env.REGISTRY, env.IMAGE_NAME, github.event.number) || format('{0}/{1}@{2}', env.REGISTRY, env.IMAGE_NAME, steps.build-and-push.outputs.digest) }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: false
+          vuln-type: 'os,library'
+          exit-code: '0'
 
       # Generate artifact attestation (supply chain security)
       - name: Generate artifact attestation
@@ -111,13 +142,16 @@ jobs:
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Registry** | \`${{ env.REGISTRY }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Repository** | \`${{ env.IMAGE_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Platforms** | \`linux/amd64, linux/arm64\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Platforms** | \`linux/amd64\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Digest** | \`${{ steps.build-and-push.outputs.digest }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Published Tags" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔒 Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "Trivy vulnerability scan completed. Check the Security tab for detailed results." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔽 Pull Commands" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -148,7 +182,10 @@ jobs:
             const output = `### 🏗️ Docker Build Completed
 
             **Status:** ✅ Success
-            **Platforms:** linux/amd64, linux/arm64
+            **Platforms:** linux/amd64
+
+            ### 🔒 Security Scan
+            Trivy vulnerability scan completed. Check the workflow logs for details.
 
             > Note: Images are not pushed for pull requests. Merge to main to publish.`;
 
