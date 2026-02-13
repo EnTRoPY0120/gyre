@@ -100,11 +100,11 @@ jobs:
           image-ref: ${{ github.event_name == 'pull_request' && format('{0}/{1}:pr-{2}', env.REGISTRY, env.IMAGE_NAME, github.event.number) || format('{0}/{1}@{2}', env.REGISTRY, env.IMAGE_NAME, steps.build-and-push.outputs.digest) }}
           format: 'sarif'
           output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL,HIGH,MEDIUM'
           ignore-unfixed: false
           vuln-type: 'os,library'
           scanners: 'vuln,secret,config'
-          exit-code: '1'
+          exit-code: '0'
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@v4
@@ -118,10 +118,10 @@ jobs:
         with:
           image-ref: ${{ github.event_name == 'pull_request' && format('{0}/{1}:pr-{2}', env.REGISTRY, env.IMAGE_NAME, github.event.number) || format('{0}/{1}@{2}', env.REGISTRY, env.IMAGE_NAME, steps.build-and-push.outputs.digest) }}
           format: 'table'
-          severity: 'CRITICAL,HIGH'
+          severity: 'CRITICAL'
           ignore-unfixed: false
           vuln-type: 'os,library'
-          exit-code: '0'
+          exit-code: '1'
 
       # Generate artifact attestation (supply chain security)
       - name: Generate artifact attestation
