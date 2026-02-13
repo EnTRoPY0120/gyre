@@ -114,7 +114,10 @@ export const GET: RequestHandler = async (event) => {
 
 		// Check if user account is active
 		if (!user.active) {
-			throw error(403, { message: 'Your account has been disabled.' });
+			throw redirect(
+				302,
+				`/login?error=${encodeURIComponent('Your account has been disabled. Please contact your administrator.')}`
+			);
 		}
 
 		// Create session for the user

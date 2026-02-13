@@ -84,7 +84,8 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 		}
 
 		// Get client secret (from env var override or config)
-		const envSecretKey = `GYRE_AUTH_PROVIDER_${i}_CLIENT_SECRET`;
+		const sanitizedName = config.name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+		const envSecretKey = `GYRE_AUTH_PROVIDER_${sanitizedName}_CLIENT_SECRET`;
 		const clientSecret = process.env[envSecretKey] || config.clientSecret;
 
 		if (!clientSecret) {

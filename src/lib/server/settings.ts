@@ -105,6 +105,19 @@ export interface AuthSettings {
 }
 
 /**
+ * Helper to parse a JSON string as an array of strings.
+ */
+function parseJsonArray(value: string | null): string[] {
+	if (!value) return [];
+	try {
+		const parsed = JSON.parse(value);
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		return [];
+	}
+}
+
+/**
  * Get all auth-related settings as a typed object.
  * @returns Auth settings object
  */
@@ -113,20 +126,10 @@ export async function getAuthSettings(): Promise<AuthSettings> {
 	const allowSignupStr = await getSetting(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP);
 	const domainAllowlistStr = await getSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST);
 
-	let domainAllowlist: string[] = [];
-	try {
-		domainAllowlist = JSON.parse(domainAllowlistStr);
-		if (!Array.isArray(domainAllowlist)) {
-			domainAllowlist = [];
-		}
-	} catch {
-		domainAllowlist = [];
-	}
-
 	return {
 		localLoginEnabled: localLoginEnabledStr === 'true',
 		allowSignup: allowSignupStr === 'true',
-		domainAllowlist
+		domainAllowlist: parseJsonArray(domainAllowlistStr)
 	};
 }
 
@@ -151,12 +154,7 @@ export async function isSignupAllowed(): Promise<boolean> {
  */
 export async function getDomainAllowlist(): Promise<string[]> {
 	const value = await getSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST);
-	try {
-		const parsed = JSON.parse(value);
-		return Array.isArray(parsed) ? parsed : [];
-	} catch {
-		return [];
-	}
+	return parseJsonArray(value);
 }
 
 /**
