@@ -1,0 +1,64 @@
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "gyre.fullname" . }}
+  labels:
+    {{- include "gyre.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "gyre.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Allow ingress from pods with matching labels (e.g., ingress controller)
+    {{- if .Values.networkPolicy.ingress.podSelector }}
+    - from:
+      - podSelector:
+          {{- toYaml .Values.networkPolicy.ingress.podSelector | nindent 10 }}
+      {{- if .Values.networkPolicy.ingress.namespaceSelector }}
+      - namespaceSelector:
+          {{- toYaml .Values.networkPolicy.ingress.namespaceSelector | nindent 10 }}
+      {{- end }}
+      ports:
+      - protocol: TCP
+        port: {{ .Values.service.targetPort }}
+    {{- end }}
+    {{- if .Values.networkPolicy.ingress.additionalRules }}
+    {{- toYaml .Values.networkPolicy.ingress.additionalRules | nindent 4 }}
+    {{- end }}
+  egress:
+    # Allow DNS resolution
+    - to:
+      - namespaceSelector:
+          matchLabels:
+            kubernetes.io/metadata.name: kube-system
+      - podSelector:
+          matchLabels:
+            k8s-app: kube-dns
+      ports:
+      - protocol: UDP
+        port: 53
+    # Allow access to Kubernetes API server
+    - to:
+      - namespaceSelector: {}
+      - podSelector:
+          matchLabels:
+            component: apiserver
+      ports:
+      - protocol: TCP
+        port: 443
+      - protocol: TCP
+        port: 6443
+    # Allow egress to any destination on port 443 (for Kubernetes API via service)
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - protocol: TCP
+        port: 443
+    {{- if .Values.networkPolicy.egress.additionalRules }}
+    {{- toYaml .Values.networkPolicy.egress.additionalRules | nindent 4 }}
+    {{- end }}
+{{- end }}

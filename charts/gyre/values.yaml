@@ -40,7 +40,7 @@ securityContext:
   capabilities:
     drop:
       - ALL
-  readOnlyRootFilesystem: false # Required for SQLite
+  readOnlyRootFilesystem: true # Enabled with dedicated emptyDir mounts
 
 service:
   type: ClusterIP
@@ -145,3 +145,52 @@ metrics:
     path: /metrics
     # additionalLabels:
     #   release: prometheus
+
+# Network Policy
+networkPolicy:
+  enabled: false
+  ingress:
+    # Allow ingress from pods with matching labels
+    podSelector: {}
+      # Example: Allow from ingress-nginx
+      # matchLabels:
+      #   app.kubernetes.io/name: ingress-nginx
+    namespaceSelector: {}
+      # Example: Allow from specific namespace
+      # matchLabels:
+      #   kubernetes.io/metadata.name: ingress-nginx
+    additionalRules: []
+      # Example additional ingress rules:
+      # - from:
+      #   - podSelector:
+      #       matchLabels:
+      #         app: monitoring
+      #   ports:
+      #   - protocol: TCP
+      #     port: 3000
+  egress:
+    additionalRules: []
+      # Example additional egress rules:
+      # - to:
+      #   - podSelector:
+      #       matchLabels:
+      #         app: external-service
+      #   ports:
+      #   - protocol: TCP
+      #     port: 8080
+
+# Application Configuration
+config:
+  create: true
+  # Log level: debug, info, warn, error
+  logLevel: "info"
+  # Session timeout in milliseconds (default: 7 days)
+  sessionTimeout: "604800000"
+  # WebSocket ping interval in milliseconds
+  wsPingInterval: "30000"
+  # Cache TTL for dashboard data in seconds
+  cacheTtl: "30"
+  # Additional configuration key-value pairs
+  additionalConfig: {}
+    # Example:
+    # CUSTOM_VAR: "value"
