@@ -265,6 +265,7 @@
 							<!-- Users -->
 							<a
 								href="/admin/users"
+								onclick={closeMobile}
 								class={cn(
 									'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
 									currentPath === '/admin/users'
@@ -286,6 +287,7 @@
 							<!-- Clusters -->
 							<a
 								href="/admin/clusters"
+								onclick={closeMobile}
 								class={cn(
 									'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
 									currentPath === '/admin/clusters'
@@ -307,6 +309,7 @@
 							<!-- Auth Providers -->
 							<a
 								href="/admin/auth-providers"
+								onclick={closeMobile}
 								class={cn(
 									'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
 									currentPath === '/admin/auth-providers'
@@ -328,6 +331,7 @@
 							<!-- Settings -->
 							<a
 								href="/admin/settings"
+								onclick={closeMobile}
 								class={cn(
 									'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
 									currentPath === '/admin/settings'
@@ -349,6 +353,7 @@
 							<!-- Policies -->
 							<a
 								href="/admin/policies"
+								onclick={closeMobile}
 								class={cn(
 									'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
 									currentPath === '/admin/policies'
@@ -372,8 +377,6 @@
 
 				<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
 			{/if}
-
-			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
 
 			<!-- Groups -->
 
