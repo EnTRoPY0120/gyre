@@ -72,6 +72,10 @@ jobs:
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Language** | \`${{ matrix.language }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Queries** | Security Extended + Quality |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Status** | ✅ Analysis Complete |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "| **Status** | ✅ Analysis Complete |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| **Status** | ⚠️ Analysis completed with issues |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Results are uploaded to the Security tab." >> $GITHUB_STEP_SUMMARY
