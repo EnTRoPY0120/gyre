@@ -4,6 +4,7 @@
 	import { cn } from '$lib/utils';
 	import { Check, Copy, FileCode, Download } from 'lucide-svelte';
 	import { downloadFile, formatResourceForExport } from '$lib/utils/export';
+	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
 
 	let {
 		data,
@@ -18,6 +19,7 @@
 	let copied = $state(false);
 
 	const formattedCode = $derived(preferences.format === 'yaml' ? toYaml(data) : toJson(data));
+	const language = $derived(preferences.format as 'yaml' | 'json');
 
 	async function handleCopy() {
 		const success = await copyToClipboard(formattedCode);
@@ -116,19 +118,14 @@
 	</div>
 
 	<!-- Code Area -->
-	<div class="relative flex-1 overflow-auto bg-slate-950 p-4">
-		<pre class="scrollbar-hide font-mono text-sm leading-relaxed text-slate-300"><code
-				>{formattedCode}</code
-			></pre>
+	<div class="relative flex-1 overflow-hidden">
+		<MonacoEditor
+			value={formattedCode}
+			{language}
+			readonly={true}
+			height="100%"
+			minimap={false}
+			lineNumbers="on"
+		/>
 	</div>
 </div>
-
-<style>
-	/* Hide scrollbar but keep functionality for the code area if requested */
-	.scrollbar-hide::-webkit-scrollbar {
-		display: none;
-	}
-	pre {
-		tab-size: 2;
-	}
-</style>
