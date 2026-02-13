@@ -4,20 +4,9 @@
  */
 
 import type { PageServerLoad } from './$types';
-import { redirect } from '@sveltejs/kit';
 import { getDb } from '$lib/server/db';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw redirect(302, '/login');
-	}
-
-	// Check admin role
-	if (locals.user.role !== 'admin') {
-		throw redirect(302, '/');
-	}
-
+export const load: PageServerLoad = async () => {
 	try {
 		const db = await getDb();
 		const providers = await db.query.authProviders.findMany({

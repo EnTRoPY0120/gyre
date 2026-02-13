@@ -5,6 +5,8 @@
 	import { cn } from '$lib/utils';
 	import { FluxResourceType } from '$lib/types/flux';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { fade, fly } from 'svelte/transition';
 
 	import { onMount, onDestroy } from 'svelte';
 
@@ -14,6 +16,7 @@
 	const gyreVersion = $derived($page.data.gyreVersion || '0.0.1');
 	const userRole = $derived($page.data.user?.role || 'viewer');
 	const isAdmin = $derived(userRole === 'admin');
+	const canCreate = $derived(userRole === 'admin' || userRole === 'editor');
 
 	// Responsiveness
 	let isMobile = $state(false);
@@ -40,7 +43,6 @@
 
 	// Tracking which groups are expanded (all collapsed by default)
 	let expandedGroups = $state<Record<string, boolean>>({
-		Admin: false,
 		Sources: false,
 		Kustomize: false,
 		Helm: false,
@@ -79,17 +81,37 @@
 	function isActive(type: string): boolean {
 		return currentPath.includes(`/resources/${type}`);
 	}
+
+	function closeMobile() {
+		if (isMobile) {
+			sidebarOpen.set(false);
+		}
+	}
 </script>
 
 {#if isOpen}
+	{#if isMobile}
+		<!-- eslint-disable-next-line -->
+		<div
+			transition:fade={{ duration: 200 }}
+			class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
+			onclick={() => sidebarOpen.set(false)}
+			onkeydown={(e) => e.key === 'Escape' && sidebarOpen.set(false)}
+			role="button"
+			tabindex="0"
+			aria-label="Close sidebar"
+		></div>
+	{/if}
+
 	<aside
-		class="relative z-50 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground shadow-2xl backdrop-blur-xl transition-all duration-300 ease-in-out"
+		transition:fly={{ x: -280, duration: 300 }}
+		class="fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground shadow-2xl backdrop-blur-xl transition-all duration-300 ease-in-out lg:relative"
 	>
 		<!-- Header -->
 		<div class="flex h-20 flex-col justify-center border-b border-sidebar-border px-6">
 			<div class="flex items-center justify-between">
 				<!-- Logo & Brand -->
-				<a href="/" class="group flex items-center gap-3">
+				<a href="/" class="group flex items-center gap-3" onclick={closeMobile}>
 					<div
 						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20 transition-all group-hover:scale-105 group-hover:shadow-amber-500/30"
 					>
@@ -125,6 +147,7 @@
 			<!-- eslint-disable-next-line -->
 			<a
 				href="/"
+				onclick={closeMobile}
 				class={cn(
 					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
 					currentPath === '/'
@@ -143,32 +166,11 @@
 				Dashboard
 			</a>
 
-			<!-- Custom Dashboards -->
-			<!-- eslint-disable-next-line -->
-			<a
-				href="/dashboards"
-				class={cn(
-					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
-					currentPath.startsWith('/dashboards')
-						? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.2)]'
-						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
-				)}
-			>
-				<Icon
-					name="layout-template"
-					size={18}
-					class={cn(
-						'transition-transform group-hover:scale-110',
-						currentPath.startsWith('/dashboards') && 'animate-pulse'
-					)}
-				/>
-				Custom Views
-			</a>
-
 			<!-- Inventory -->
 			<!-- eslint-disable-next-line -->
 			<a
 				href="/inventory"
+				onclick={closeMobile}
 				class={cn(
 					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
 					currentPath === '/inventory'
@@ -191,31 +193,41 @@
 
 			<!-- Create Resource -->
 			<!-- eslint-disable-next-line -->
-			<a
-				href="/create"
-				class={cn(
-					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
-					currentPath.startsWith('/create')
-						? 'bg-blue-600 text-white shadow-[0_4px_20px_-4px_rgba(37,99,235,0.3)]'
-						: 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-blue-500'
-				)}
-			>
-				<div
-					class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white"
+			{#if !canCreate}
+				<Tooltip.Provider delayDuration={200}>
+					<Tooltip.Root>
+						<Tooltip.Trigger class="w-full">
+							<button
+								type="button"
+								aria-disabled="true"
+								class="group flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-muted-foreground opacity-60 transition-all duration-300"
+							>
+								<div
+									class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors"
+								>
+									<Icon name="plus" size={14} />
+								</div>
+								Create Resource
+							</button>
+						</Tooltip.Trigger>
+						<Tooltip.Content side="right">
+							<p class="text-xs text-white">You need additional permissions to create resources.</p>
+						</Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
+			{:else}
+				<a
+					href="/create"
+					onclick={closeMobile}
+					class={cn(
+						'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
+						currentPath.startsWith('/create')
+							? 'bg-blue-600 text-white shadow-[0_4px_20px_-4px_rgba(37,99,235,0.3)]'
+							: 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-blue-500'
+					)}
 				>
-					<Icon name="plus" size={14} />
-				</div>
-				Create Resource
-			</a>
-
-			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
-
-			<!-- Admin Section (only for admins) -->
-			{#if isAdmin}
-				<div class="space-y-1">
-					<button
-						onclick={() => toggleGroup('Admin')}
-						class="group flex w-full items-center justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
+					<div
+						class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white"
 					>
 						<div class="flex items-center gap-2.5">
 							<Icon
@@ -346,13 +358,24 @@
 				</div>
 
 				<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
+						<Icon name="plus" size={14} />
+					</div>
+					Create Resource
+				</a>
 			{/if}
 
+			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
+
 			<!-- Groups -->
+
 			{#each resourceGroups as group (group.name)}
+				{@const groupId = `panel-${group.name.toLowerCase().replace(/\s+/g, '-')}`}
+
 				<div class="space-y-1">
 					<button
 						onclick={() => toggleGroup(group.name)}
+						aria-expanded={expandedGroups[group.name]}
+						aria-controls={groupId}
 						class="group flex w-full items-center justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
 					>
 						<div class="flex items-center gap-2.5">
@@ -363,20 +386,26 @@
 									class="opacity-50 transition-all group-hover:text-primary group-hover:opacity-100"
 								/>
 							{/if}
+
 							{group.name}
 						</div>
+
 						<Icon
 							name="chevron-right"
 							size={12}
 							class={cn(
 								'text-muted-foreground/50 transition-transform duration-300 group-hover:text-primary',
+
 								expandedGroups[group.name] ? 'rotate-90' : 'rotate-0'
 							)}
 						/>
 					</button>
 
 					{#if expandedGroups[group.name]}
-						<div class="relative ml-2 space-y-1 border-l border-sidebar-border/30 pl-3">
+						<div
+							id={groupId}
+							class="relative ml-2 space-y-1 border-l border-sidebar-border/30 pl-3"
+						>
 							<!-- Active indicator line -->
 							<div
 								class="absolute top-0 bottom-0 left-[-1px] w-[1px] bg-gradient-to-b from-primary/0 via-primary/0 to-primary/0 transition-all duration-300 group-hover:via-primary/50"
@@ -388,6 +417,7 @@
 								<!-- eslint-disable-next-line -->
 								<a
 									href="/resources/{resource.type}"
+									onclick={closeMobile}
 									class={cn(
 										'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
 										active
@@ -419,11 +449,37 @@
 				</div>
 			{/each}
 		</div>
+
+		<!-- Footer (Pinned) -->
+		{#if isAdmin}
+			<div class="mt-auto border-t border-sidebar-border/20 px-4 py-4">
+				<a
+					href="/admin"
+					onclick={closeMobile}
+					class={cn(
+						'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
+						currentPath.startsWith('/admin')
+							? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.2)]'
+							: 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+					)}
+				>
+					<Icon
+						name="settings"
+						size={18}
+						class={cn(
+							'transition-transform group-hover:scale-110',
+							currentPath.startsWith('/admin') && 'animate-pulse'
+						)}
+					/>
+					Settings
+				</a>
+			</div>
+		{/if}
 	</aside>
 {:else}
-	<!-- Collapsed -->
+	<!-- Collapsed (Desktop only) -->
 	<aside
-		class="flex h-screen w-16 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 transition-all duration-300 ease-in-out"
+		class="hidden h-screen w-16 flex-col items-center border-r border-sidebar-border bg-sidebar py-4 transition-all duration-300 ease-in-out lg:flex"
 	>
 		<button
 			onclick={() => sidebarOpen.toggle()}
@@ -432,78 +488,105 @@
 			<Icon name="menu" size={22} />
 		</button>
 
-		<!-- eslint-disable-next-line -->
-		<a
-			href="/"
-			class={cn(
-				'mb-4 rounded-xl p-3 transition-all active:scale-95',
-				currentPath === '/'
-					? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-					: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-			)}
-			title="Dashboard"
-		>
-			<Icon name="dashboard" size={20} />
-		</a>
+		<div class="custom-scrollbar flex flex-1 flex-col items-center overflow-y-auto">
+			<!-- eslint-disable-next-line -->
+			<a
+				href="/"
+				class={cn(
+					'mb-4 rounded-xl p-3 transition-all active:scale-95',
+					currentPath === '/'
+						? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+				)}
+				title="Dashboard"
+			>
+				<Icon name="dashboard" size={20} />
+			</a>
 
-		<!-- eslint-disable-next-line -->
-		<a
-			href="/dashboards"
-			class={cn(
-				'mb-4 rounded-xl p-3 transition-all active:scale-95',
-				currentPath.startsWith('/dashboards')
-					? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-					: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-			)}
-			title="Custom Views"
-		>
-			<Icon name="layout-template" size={20} />
-		</a>
+			<!-- eslint-disable-next-line -->
+			<a
+				href="/inventory"
+				class={cn(
+					'mb-4 rounded-xl p-3 transition-all active:scale-95',
+					currentPath === '/inventory'
+						? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+				)}
+				title="Inventory"
+			>
+				<Icon name="network" size={20} />
+			</a>
 
-		<!-- eslint-disable-next-line -->
-		<a
-			href="/inventory"
-			class={cn(
-				'mb-4 rounded-xl p-3 transition-all active:scale-95',
-				currentPath === '/inventory'
-					? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-					: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-			)}
-			title="Inventory"
-		>
-			<Icon name="network" size={20} />
-		</a>
-
-		<!-- eslint-disable-next-line -->
-		<a
-			href="/create"
-			class={cn(
-				'mb-4 rounded-xl p-3 transition-all active:scale-95',
-				currentPath.startsWith('/create')
-					? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-					: 'text-muted-foreground hover:bg-sidebar-accent hover:text-blue-500'
-			)}
-			title="Create Resource"
-		>
-			<Icon name="plus" size={20} />
-		</a>
-
-		<div class="mt-6 flex w-full flex-col items-center gap-1 px-2">
-			{#each resourceGroups as group (group.name)}
-				<button
-					onclick={() => {
-						sidebarOpen.set(true);
-						expandedGroups[group.name] = true;
-					}}
-					class="p-2.5 text-muted-foreground transition-colors duration-200 hover:text-primary"
-					title={group.name}
+			<!-- eslint-disable-next-line -->
+			{#if !canCreate}
+				<Tooltip.Provider delayDuration={200}>
+					<Tooltip.Root>
+						<Tooltip.Trigger>
+							<button
+								type="button"
+								aria-disabled="true"
+								class="mb-4 cursor-not-allowed rounded-xl bg-gray-200 p-3 text-gray-400 transition-all dark:bg-gray-800"
+								title="Create Resource (Disabled)"
+							>
+								<Icon name="plus" size={20} />
+							</button>
+						</Tooltip.Trigger>
+						<Tooltip.Content side="right">
+							<p class="text-xs text-white">You need additional permissions to create resources.</p>
+						</Tooltip.Content>
+					</Tooltip.Root>
+				</Tooltip.Provider>
+			{:else}
+				<a
+					href="/create"
+					class={cn(
+						'mb-4 rounded-xl p-3 transition-all active:scale-95',
+						currentPath.startsWith('/create')
+							? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+							: 'text-muted-foreground hover:bg-sidebar-accent hover:text-blue-500'
+					)}
+					title="Create Resource"
 				>
-					{#if GroupIcons[group.name]}
-						<Icon name={GroupIcons[group.name]} size={18} />
-					{/if}
-				</button>
-			{/each}
+					<Icon name="plus" size={20} />
+				</a>
+			{/if}
+
+			<div class="mt-6 flex w-full flex-col items-center gap-1 px-2">
+				{#each resourceGroups as group (group.name)}
+					<button
+						onclick={() => {
+							sidebarOpen.set(true);
+							expandedGroups[group.name] = true;
+						}}
+						class="p-2.5 text-muted-foreground transition-colors duration-200 hover:text-primary"
+						title={group.name}
+						aria-label={group.name}
+					>
+						{#if GroupIcons[group.name]}
+							<Icon name={GroupIcons[group.name]} size={18} />
+						{/if}
+					</button>
+				{/each}
+			</div>
 		</div>
+
+		<!-- Footer (Pinned) -->
+		{#if isAdmin}
+			<div class="mt-auto border-t border-sidebar-border/20 py-4">
+				<a
+					href="/admin"
+					class={cn(
+						'rounded-xl p-3 transition-all active:scale-95',
+						currentPath.startsWith('/admin')
+							? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+							: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+					)}
+					title="Settings"
+				>
+					<Icon name="settings" size={20} />
+				</a>
+			</div>
+		{/if}
 	</aside>
 {/if}
 

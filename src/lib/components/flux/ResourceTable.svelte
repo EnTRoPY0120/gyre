@@ -44,8 +44,8 @@
 	<div
 		class="overflow-hidden rounded-xl border border-border bg-card/60 shadow-sm backdrop-blur-sm"
 	>
-		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm">
+		<div class="scrollbar-thin overflow-x-auto">
+			<table class="w-full min-w-[700px] text-left text-sm">
 				<thead class="border-b border-border bg-muted/30">
 					<tr>
 						<th
@@ -121,6 +121,8 @@
 									<StatusBadge
 										conditions={resource.status?.conditions}
 										suspended={resource.spec?.suspend as boolean | undefined}
+										observedGeneration={resource.status?.observedGeneration}
+										generation={resource.metadata?.generation}
 										size="sm"
 									/>
 								</td>

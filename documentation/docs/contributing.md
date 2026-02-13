@@ -6,12 +6,16 @@ sidebar_position: 6
 
 We welcome contributions to Gyre! This guide will help you get started.
 
+:::tip
+For the complete contributing guide with detailed information on commit conventions, PR process, and code standards, see the [CONTRIBUTING.md](https://github.com/entropy0120/gyre/blob/main/CONTRIBUTING.md) file in the repository.
+:::
+
 ## Development Setup
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) 1.1+
-- [Node.js](https://nodejs.org/) 20+ (for documentation)
+- [Bun](https://bun.sh/) (latest version)
+- [Node.js](https://nodejs.org/) 18+ (for some dev tools)
 - Kubernetes cluster with FluxCD (for testing)
 - kubectl configured
 
@@ -50,9 +54,23 @@ gyre/
 
 ### 1. Create a Branch
 
+Name your branch based on the type of change:
+
 ```bash
-git checkout -b feature/my-feature
+# Format: <type>/<short-description>
+git checkout -b feat/add-oci-repository
+git checkout -b fix/session-timeout-bug
+git checkout -b docs/update-install-guide
 ```
+
+**Branch prefixes:**
+
+- `feat/` - New features
+- `fix/` - Bug fixes
+- `docs/` - Documentation changes
+- `refactor/` - Code refactoring
+- `chore/` - Maintenance tasks
+- `ci/` - CI/CD changes
 
 ### 2. Make Changes
 
@@ -212,12 +230,12 @@ docker build -t gyre:test .
 kind load docker-image gyre:test --name gyre-test
 
 # Install via Helm
-helm install gyre charts/gyre \
+helm install gyre charts/gyre -n flux-system \
   --set image.tag=test \
   --set image.pullPolicy=Never
 
 # Port forward
-kubectl port-forward -n flux-system svc/gyre 3000:80
+kubectl port-forward -n flux-system svc/gyre 9999:80
 ```
 
 ### Test Checklist

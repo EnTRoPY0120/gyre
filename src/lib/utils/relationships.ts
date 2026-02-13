@@ -13,6 +13,7 @@
  */
 
 import { FluxResourceType } from '$lib/types/flux';
+import { getResourceHealth } from './flux';
 
 export interface FluxResourceMetadata {
 	name: string;
@@ -30,7 +31,13 @@ export interface FluxResourceSpec {
 }
 
 export interface FluxResourceStatus {
-	conditions?: Array<{ type: string; status: string; reason?: string; message?: string }>;
+	conditions?: Array<{
+		type: string;
+		status: 'True' | 'False' | 'Unknown';
+		reason?: string;
+		message?: string;
+	}>;
+	observedGeneration?: number;
 }
 
 export interface FluxResource {
@@ -375,15 +382,25 @@ export function buildRelationshipMap(resources: {
 export function getResourceStatus(
 	resource: FluxResource
 ): 'ready' | 'pending' | 'failed' | 'suspended' {
-	if (resource.spec?.suspend) return 'suspended';
+	const health = getResourceHealth(
+		resource.status?.conditions,
+		resource.spec?.suspend,
+		resource.status?.observedGeneration,
+		resource.metadata.generation
+	);
 
-	const conditions = resource.status?.conditions || [];
-	const readyCondition = conditions.find((c) => c.type === 'Ready');
-
-	if (!readyCondition) return 'pending';
-	if (readyCondition.status === 'True') return 'ready';
-	if (readyCondition.status === 'False') return 'failed';
-	return 'pending';
+	switch (health) {
+		case 'healthy':
+			return 'ready';
+		case 'progressing':
+			return 'pending';
+		case 'failed':
+			return 'failed';
+		case 'suspended':
+			return 'suspended';
+		default:
+			return 'pending';
+	}
 }
 
 /**

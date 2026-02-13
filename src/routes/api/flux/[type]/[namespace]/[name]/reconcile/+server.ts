@@ -3,12 +3,13 @@ import type { RequestHandler } from './$types';
 import { reconcileResource } from '$lib/server/kubernetes/flux/actions';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
-import { logResourceWrite } from '$lib/server/audit.js';
+import { logResourceWrite, logAudit } from '$lib/server/audit.js';
+import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 
 export const POST: RequestHandler = async ({ params, locals, getClientAddress }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
 	}
 
 	const { type, namespace, name } = params;
@@ -23,7 +24,7 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	try {
@@ -36,14 +37,19 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 
 		return json({ success: true, message: `Reconciliation triggered for ${name}` });
 	} catch (err) {
-		console.error(`Error reconciling ${name}:`, err);
-
-		// Log failed audit event
-		await logResourceWrite(locals.user, type, 'reconcile', name, namespace, locals.cluster, {
+		// Log failed audit event with sanitized error and success: false
+		await logAudit(locals.user, 'write:reconcile', {
+			resourceType: type,
+			resourceName: name,
+			namespace,
+			clusterId: locals.cluster,
 			ipAddress: getClientAddress(),
-			error: (err as Error).message
+			success: false,
+			details: {
+				error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
+			}
 		});
 
-		return error(500, `Failed to trigger reconciliation: ${(err as Error).message}`);
+		handleApiError(err, `Error reconciling ${name}`);
 	}
 };

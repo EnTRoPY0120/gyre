@@ -178,3 +178,12 @@ auth:
   # If set, clientSecret values in providers[] are ignored
   # Secret should have keys like: PROVIDER_0_CLIENT_SECRET, PROVIDER_1_CLIENT_SECRET, etc.
   providersExistingSecret: ""
+# Metrics and Monitoring
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    path: /metrics
+    # additionalLabels:
+    #   release: prometheus

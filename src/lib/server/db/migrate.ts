@@ -156,36 +156,12 @@ export function initDatabase(): void {
 		)
 	`);
 
-	// Dashboards table
+	// Migration: Drop dashboard tables if they exist (cleanup from removed feature)
 	db.run(sql`
-		CREATE TABLE IF NOT EXISTS dashboards (
-			id TEXT PRIMARY KEY,
-			name TEXT NOT NULL,
-			description TEXT,
-			is_default INTEGER NOT NULL DEFAULT 0,
-			is_shared INTEGER NOT NULL DEFAULT 0,
-			owner_id TEXT,
-			layout TEXT,
-			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-			updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
-			FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE SET NULL
-		)
+		DROP TABLE IF EXISTS dashboard_widgets
 	`);
-
-	// Dashboard Widgets table
 	db.run(sql`
-		CREATE TABLE IF NOT EXISTS dashboard_widgets (
-			id TEXT PRIMARY KEY,
-			dashboard_id TEXT NOT NULL,
-			type TEXT NOT NULL,
-			title TEXT NOT NULL,
-			resource_type TEXT,
-			query TEXT,
-			config TEXT,
-			position TEXT,
-			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-			FOREIGN KEY (dashboard_id) REFERENCES dashboards(id) ON DELETE CASCADE
-		)
+		DROP TABLE IF EXISTS dashboards
 	`);
 
 	// App Settings table

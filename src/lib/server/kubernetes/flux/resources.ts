@@ -9,6 +9,7 @@ export interface FluxResourceDef {
 	kind: string;
 	apiVersion: string;
 	namespaced: boolean;
+	controller: string;
 }
 
 /**
@@ -22,7 +23,8 @@ export const FLUX_RESOURCES = {
 		plural: 'gitrepositories',
 		kind: 'GitRepository',
 		apiVersion: 'source.toolkit.fluxcd.io/v1',
-		namespaced: true
+		namespaced: true,
+		controller: 'source-controller'
 	},
 	HelmRepository: {
 		group: 'source.toolkit.fluxcd.io',
@@ -30,7 +32,8 @@ export const FLUX_RESOURCES = {
 		plural: 'helmrepositories',
 		kind: 'HelmRepository',
 		apiVersion: 'source.toolkit.fluxcd.io/v1',
-		namespaced: true
+		namespaced: true,
+		controller: 'source-controller'
 	},
 	HelmChart: {
 		group: 'source.toolkit.fluxcd.io',
@@ -38,7 +41,8 @@ export const FLUX_RESOURCES = {
 		plural: 'helmcharts',
 		kind: 'HelmChart',
 		apiVersion: 'source.toolkit.fluxcd.io/v1',
-		namespaced: true
+		namespaced: true,
+		controller: 'source-controller'
 	},
 	Bucket: {
 		group: 'source.toolkit.fluxcd.io',
@@ -46,7 +50,8 @@ export const FLUX_RESOURCES = {
 		plural: 'buckets',
 		kind: 'Bucket',
 		apiVersion: 'source.toolkit.fluxcd.io/v1',
-		namespaced: true
+		namespaced: true,
+		controller: 'source-controller'
 	},
 	OCIRepository: {
 		group: 'source.toolkit.fluxcd.io',
@@ -54,7 +59,8 @@ export const FLUX_RESOURCES = {
 		plural: 'ocirepositories',
 		kind: 'OCIRepository',
 		apiVersion: 'source.toolkit.fluxcd.io/v1beta2',
-		namespaced: true
+		namespaced: true,
+		controller: 'source-controller'
 	},
 
 	// Kustomize Controller (kustomize.toolkit.fluxcd.io/v1)
@@ -64,7 +70,8 @@ export const FLUX_RESOURCES = {
 		plural: 'kustomizations',
 		kind: 'Kustomization',
 		apiVersion: 'kustomize.toolkit.fluxcd.io/v1',
-		namespaced: true
+		namespaced: true,
+		controller: 'kustomize-controller'
 	},
 
 	// Helm Controller (helm.toolkit.fluxcd.io/v2)
@@ -74,7 +81,8 @@ export const FLUX_RESOURCES = {
 		plural: 'helmreleases',
 		kind: 'HelmRelease',
 		apiVersion: 'helm.toolkit.fluxcd.io/v2',
-		namespaced: true
+		namespaced: true,
+		controller: 'helm-controller'
 	},
 
 	// Notification Controller (notification.toolkit.fluxcd.io)
@@ -84,7 +92,8 @@ export const FLUX_RESOURCES = {
 		plural: 'alerts',
 		kind: 'Alert',
 		apiVersion: 'notification.toolkit.fluxcd.io/v1beta3',
-		namespaced: true
+		namespaced: true,
+		controller: 'notification-controller'
 	},
 	Provider: {
 		group: 'notification.toolkit.fluxcd.io',
@@ -92,7 +101,8 @@ export const FLUX_RESOURCES = {
 		plural: 'providers',
 		kind: 'Provider',
 		apiVersion: 'notification.toolkit.fluxcd.io/v1beta3',
-		namespaced: true
+		namespaced: true,
+		controller: 'notification-controller'
 	},
 	Receiver: {
 		group: 'notification.toolkit.fluxcd.io',
@@ -100,7 +110,8 @@ export const FLUX_RESOURCES = {
 		plural: 'receivers',
 		kind: 'Receiver',
 		apiVersion: 'notification.toolkit.fluxcd.io/v1',
-		namespaced: true
+		namespaced: true,
+		controller: 'notification-controller'
 	},
 
 	// Image Automation Controller (image.toolkit.fluxcd.io/v1)
@@ -110,7 +121,8 @@ export const FLUX_RESOURCES = {
 		plural: 'imagerepositories',
 		kind: 'ImageRepository',
 		apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
-		namespaced: true
+		namespaced: true,
+		controller: 'image-reflector-controller'
 	},
 	ImagePolicy: {
 		group: 'image.toolkit.fluxcd.io',
@@ -118,7 +130,8 @@ export const FLUX_RESOURCES = {
 		plural: 'imagepolicies',
 		kind: 'ImagePolicy',
 		apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
-		namespaced: true
+		namespaced: true,
+		controller: 'image-reflector-controller'
 	},
 	ImageUpdateAutomation: {
 		group: 'image.toolkit.fluxcd.io',
@@ -126,7 +139,8 @@ export const FLUX_RESOURCES = {
 		plural: 'imageupdateautomations',
 		kind: 'ImageUpdateAutomation',
 		apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
-		namespaced: true
+		namespaced: true,
+		controller: 'image-automation-controller'
 	}
 } as const;
 

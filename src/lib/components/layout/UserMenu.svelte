@@ -14,7 +14,7 @@
 
 	let { user }: Props = $props();
 	let isOpen = $state(false);
-	let isLocalUser = $derived(user?.isLocal !== false); // Default to true for backward compatibility
+	let isLocalUser = $derived(user?.isLocal !== false);
 
 	async function handleLogout() {
 		try {

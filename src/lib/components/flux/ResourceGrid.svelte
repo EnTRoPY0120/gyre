@@ -64,6 +64,8 @@
 						<StatusBadge
 							conditions={resource.status?.conditions}
 							suspended={resource.spec?.suspend as boolean | undefined}
+							observedGeneration={resource.status?.observedGeneration}
+							generation={resource.metadata?.generation}
 							size="sm"
 						/>
 					</div>

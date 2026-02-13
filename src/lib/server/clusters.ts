@@ -3,6 +3,7 @@ import { getDbSync } from './db/index.js';
 import { clusters, clusterContexts, type NewCluster, type NewClusterContext } from './db/schema.js';
 import * as k8s from '@kubernetes/client-node';
 import crypto from 'node:crypto';
+import { sanitizeK8sErrorMessage } from './kubernetes/errors.js';
 
 /**
  * Get the encryption key for kubeconfigs from environment.
@@ -37,7 +38,14 @@ function getEncryptionKey(): string {
 	return key;
 }
 
-const ENCRYPTION_KEY = getEncryptionKey();
+let _encryptionKey: string | null = null;
+
+function getEncryptionKeyLazy(): string {
+	if (!_encryptionKey) {
+		_encryptionKey = getEncryptionKey();
+	}
+	return _encryptionKey;
+}
 
 /**
  * Check if the encryption key is the insecure development default.
@@ -68,7 +76,7 @@ const ALGORITHM = 'aes-256-gcm';
  */
 function encryptKubeconfig(kubeconfig: string): string {
 	const iv = crypto.randomBytes(16);
-	const key = Buffer.from(ENCRYPTION_KEY, 'hex'); // We validated it's 32 bytes hex
+	const key = Buffer.from(getEncryptionKeyLazy(), 'hex'); // We validated it's 32 bytes hex
 
 	const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
 
@@ -94,7 +102,7 @@ function decryptKubeconfig(encrypted: string): string {
 		}
 
 		const [, ivHex, ciphertext, authTagHex] = parts;
-		const key = Buffer.from(ENCRYPTION_KEY, 'hex');
+		const key = Buffer.from(getEncryptionKeyLazy(), 'hex');
 		const iv = Buffer.from(ivHex, 'hex');
 		const authTag = Buffer.from(authTagHex, 'hex');
 
@@ -110,7 +118,8 @@ function decryptKubeconfig(encrypted: string): string {
 	const buffer = Buffer.from(encrypted, 'base64');
 	const decrypted = Buffer.alloc(buffer.length);
 	for (let i = 0; i < buffer.length; i++) {
-		decrypted[i] = buffer[i] ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+		const key = getEncryptionKeyLazy();
+		decrypted[i] = buffer[i] ^ key.charCodeAt(i % key.length);
 	}
 	return decrypted.toString('utf-8');
 }
@@ -324,23 +333,24 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 			});
 		} catch (parseError) {
 			const error = parseError instanceof Error ? parseError.message : 'Invalid kubeconfig format';
+			const sanitizedError = sanitizeK8sErrorMessage(error);
 			checks.push({
 				name: 'Kubeconfig Parse',
 				passed: false,
 				message: 'Failed to parse kubeconfig',
-				details: error,
+				details: sanitizedError,
 				duration: Date.now() - parseStart
 			});
 
 			if (cluster) {
-				await updateCluster(id, { lastError: error });
+				await updateCluster(id, { lastError: sanitizedError });
 			}
 
 			return {
 				connected: false,
 				clusterName,
 				checks,
-				error,
+				error: sanitizedError,
 				timestamp: new Date()
 			};
 		}
@@ -372,23 +382,25 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 				details = 'Connection timed out. Check network connectivity and firewall rules.';
 			}
 
+			const sanitizedDetails = sanitizeK8sErrorMessage(details);
+
 			checks.push({
 				name: 'API Server Reachability',
 				passed: false,
 				message: 'Failed to reach Kubernetes API server',
-				details,
+				details: sanitizedDetails,
 				duration: Date.now() - networkStart
 			});
 
 			if (cluster) {
-				await updateCluster(id, { lastError: details });
+				await updateCluster(id, { lastError: sanitizedDetails });
 			}
 
 			return {
 				connected: false,
 				clusterName,
 				checks,
-				error: details,
+				error: sanitizedDetails,
 				timestamp: new Date()
 			};
 		}
@@ -468,23 +480,25 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 			const isAuthFailure =
 				error.includes('Unauthorized') || error.includes('401') || error.includes('certificate');
 
+			const sanitizedDetails = sanitizeK8sErrorMessage(details);
+
 			checks.push({
 				name: isAuthFailure ? 'Authentication' : 'Authorization',
 				passed: false,
 				message: isAuthFailure ? 'Authentication failed' : 'Authorization failed',
-				details,
+				details: sanitizedDetails,
 				duration: Date.now() - authStart
 			});
 
 			if (cluster) {
-				await updateCluster(id, { lastError: details });
+				await updateCluster(id, { lastError: sanitizedDetails });
 			}
 
 			return {
 				connected: false,
 				clusterName,
 				checks,
-				error: details,
+				error: sanitizedDetails,
 				timestamp: new Date()
 			};
 		}
@@ -506,16 +520,17 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 		};
 	} catch (unexpectedError) {
 		const error = unexpectedError instanceof Error ? unexpectedError.message : 'Unexpected error';
+		const sanitizedError = sanitizeK8sErrorMessage(error);
 
 		if (cluster) {
-			await updateCluster(id, { lastError: error });
+			await updateCluster(id, { lastError: sanitizedError });
 		}
 
 		return {
 			connected: false,
 			clusterName,
 			checks,
-			error,
+			error: sanitizedError,
 			timestamp: new Date()
 		};
 	}

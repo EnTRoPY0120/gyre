@@ -3,23 +3,32 @@ import type { RequestHandler } from './$types';
 import { rollbackResource } from '$lib/server/kubernetes/flux/history';
 import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac';
+import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
+import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 
-export const POST: RequestHandler = async ({ params, locals, request }) => {
+export const POST: RequestHandler = async ({ params, locals, request, getClientAddress }) => {
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
 	}
 
 	const { resourceType, namespace, name } = params;
-	const { revision } = await request.json();
+	let revision: string;
+
+	try {
+		const body = await request.json();
+		revision = body.revision;
+	} catch {
+		throw error(400, { message: 'Invalid JSON payload' });
+	}
 
 	if (!revision) {
-		return error(400, { message: 'Revision is required for rollback' });
+		throw error(400, { message: 'Revision is required for rollback' });
 	}
 
 	const resolvedType = getResourceTypeByPlural(resourceType);
 
 	if (!resolvedType) {
-		return error(400, { message: `Invalid resource type: ${resourceType}` });
+		throw error(400, { message: `Invalid resource type: ${resourceType}` });
 	}
 
 	// Check permission (admin/write access needed for rollback)
@@ -32,15 +41,34 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	try {
 		await rollbackResource(resolvedType, namespace, name, revision);
+
+		// Log the audit event
+		await logResourceWrite(locals.user, resolvedType, 'rollback', name, namespace, locals.cluster, {
+			ipAddress: getClientAddress(),
+			revision
+		});
+
 		return json({ message: `Successfully requested rollback to ${revision}` });
 	} catch (err: unknown) {
-		return error(500, {
-			message: err instanceof Error ? err.message : 'Failed to perform rollback'
+		// Log failed audit event with flattened details and success: false
+		await logAudit(locals.user, 'write:rollback', {
+			resourceType: resolvedType,
+			resourceName: name,
+			namespace,
+			clusterId: locals.cluster,
+			ipAddress: getClientAddress(),
+			success: false,
+			details: {
+				revision,
+				error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
+			}
 		});
+
+		handleApiError(err, `Failed to perform rollback for ${name}`);
 	}
 };

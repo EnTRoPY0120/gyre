@@ -36,7 +36,7 @@
 	<title>Create Resource | Gyre</title>
 </svelte:head>
 
-<div class="space-y-8 p-8">
+<div class="space-y-8 p-4 sm:p-8">
 	<!-- Header -->
 	<div class="flex items-center justify-between">
 		<div>
@@ -60,7 +60,6 @@
 					{#each category.templates as template (template.id)}
 						<a
 							href="/create/{template.id}"
-							rel="external"
 							class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card/60 p-6 transition-all hover:border-blue-500/50 hover:bg-card hover:shadow-lg hover:shadow-blue-500/5"
 						>
 							<div

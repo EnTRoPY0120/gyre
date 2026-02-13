@@ -14,6 +14,7 @@ import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
 import { generateState, generateCodeVerifier } from '$lib/server/auth/pkce';
+import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
 // State cookie TTL: 10 minutes (enough time to complete OAuth flow)
 const STATE_COOKIE_MAX_AGE = 60 * 10;
@@ -22,10 +23,22 @@ const STATE_COOKIE_MAX_AGE = 60 * 10;
  * GET /api/auth/[providerId]/login
  * Initiates OAuth login flow
  */
-export const GET: RequestHandler = async ({ params, cookies }) => {
+export const GET: RequestHandler = async (event) => {
+	const { params, cookies, getClientAddress, setHeaders } = event;
 	const { providerId } = params;
 
 	try {
+		// Rate limit: 10 attempts per minute per IP
+		const ipAddress = getClientAddress();
+		const rateLimit = tryCheckRateLimit({ setHeaders }, `oauth_login:${ipAddress}`, 10, 60 * 1000);
+
+		if (rateLimit.limited) {
+			throw redirect(
+				302,
+				`/login?error=${encodeURIComponent(`Too many requests. Please try again in ${rateLimit.retryAfter} seconds.`)}`
+			);
+		}
+
 		// Get provider configuration and create OAuth client
 		const provider = await getOAuthProvider(providerId);
 

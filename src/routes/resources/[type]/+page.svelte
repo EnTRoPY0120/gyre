@@ -99,7 +99,9 @@
 		for (const resource of resources) {
 			const health = getResourceHealth(
 				resource.status?.conditions,
-				resource.spec?.suspend as boolean | undefined
+				resource.spec?.suspend as boolean | undefined,
+				resource.status?.observedGeneration,
+				resource.metadata?.generation
 			);
 
 			switch (health) {
@@ -133,30 +135,50 @@
 		goto(resolve(`/resources/${data.resourceType}/${namespace}/${name}`));
 	}
 
-	function updateFilters(newFilters: FilterState) {
-		// Update URL with new filters
-		const params = filtersToSearchParams(newFilters);
-		void goto(`?${params.toString()}`, { replaceState: true, noScroll: true });
+	// Sync filters to URL with debounce to avoid focus loss during typing
+	$effect(() => {
+		// Capture all reactive dependencies we want to track
+		const currentFilters = {
+			search: filters.search,
+			namespace: filters.namespace,
+			status: filters.status,
+			labels: filters.labels,
+			useRegex: filters.useRegex
+		};
+
+		const timeoutId = setTimeout(() => {
+			const params = filtersToSearchParams(currentFilters);
+			const newSearch = params.toString();
+
+			if (newSearch !== $page.url.search.toString().replace(/^\?/, '')) {
+				void goto(`?${newSearch}`, {
+					replaceState: true,
+					noScroll: true,
+					keepFocus: true
+				});
+				lastSearchParams = `?${newSearch}`;
+			}
+		}, 300); // 300ms debounce
+
+		return () => clearTimeout(timeoutId);
+	});
+
+	function clearFilters() {
+		filters.search = defaultFilterState.search;
+		filters.namespace = defaultFilterState.namespace;
+		filters.status = defaultFilterState.status;
+		filters.labels = defaultFilterState.labels;
 	}
 
 	function handleSearch() {
-		// handleSearch is now handled by the filteredItems binding,
-		// but we still need it for URL sync if we want to keep that
-	}
-
-	function handleFilterChange(newFilters: FilterState) {
-		updateFilters(newFilters);
-	}
-
-	function clearFilters() {
-		updateFilters({ ...defaultFilterState });
+		// Search is handled by reactive filtering of filteredResources
 	}
 </script>
 
 <div class="space-y-6">
 	<!-- Page Header -->
 	<div class="flex flex-col gap-4">
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+		<div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
 			<div>
 				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
 					{data.resourceInfo.displayName}
@@ -197,13 +219,7 @@
 			</div>
 		</div>
 		<!-- Filter Bar -->
-		<FilterBar
-			{filters}
-			{namespaces}
-			onFilterChange={handleFilterChange}
-			onClearFilters={clearFilters}
-			{hasActiveFilters}
-		/>
+		<FilterBar bind:filters {namespaces} onClearFilters={clearFilters} {hasActiveFilters} />
 	</div>
 
 	<!-- Error Alert -->
@@ -224,7 +240,7 @@
 	{/if}
 
 	<!-- Statistics Cards -->
-	<div class="grid grid-cols-2 gap-4 sm:grid-cols-5">
+	<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-5">
 		<div
 			class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
 		>

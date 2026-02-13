@@ -1,63 +1,133 @@
 import * as k8s from '@kubernetes/client-node';
 import { loadKubeConfig } from './config.js';
-import { getResourceDef, type FluxResourceType } from './flux/resources.js';
+import { getClusterKubeconfig } from '../clusters.js';
+import {
+	getResourceDef,
+	getResourceTypeByPlural,
+	type FluxResourceType
+} from './flux/resources.js';
 import type { FluxResource, FluxResourceList } from './flux/types.js';
+import {
+	KubernetesError,
+	ResourceNotFoundError,
+	AuthenticationError,
+	AuthorizationError
+} from './errors.js';
 
-// Cached kubeconfig (single in-cluster config)
-let cachedConfig: k8s.KubeConfig | null = null;
-let currentContext: string | null = null;
+// Cache for Kubernetes configurations to ensure atomic access and performance
+// Maps clusterId or contextName to a fully configured KubeConfig instance
+const MAX_CACHED_CONFIGS = 50;
+const configCache = new Map<string, { config: k8s.KubeConfig; lastAccess: number }>();
+
+function getFromCache(key: string): k8s.KubeConfig | undefined {
+	const entry = configCache.get(key);
+	if (entry) {
+		entry.lastAccess = Date.now();
+		return entry.config;
+	}
+	return undefined;
+}
+
+function setInCache(key: string, config: k8s.KubeConfig): void {
+	if (configCache.size >= MAX_CACHED_CONFIGS) {
+		// Evict least recently accessed
+		let oldestKey: string | null = null;
+		let oldestTime = Infinity;
+		for (const [k, v] of configCache) {
+			if (v.lastAccess < oldestTime) {
+				oldestTime = v.lastAccess;
+				oldestKey = k;
+			}
+		}
+		if (oldestKey) configCache.delete(oldestKey);
+	}
+	configCache.set(key, { config, lastAccess: Date.now() });
+}
+
+// Store the base default config separately to avoid reloading it constantly
+let baseConfig: k8s.KubeConfig | null = null;
 
 /**
- * Get or create cached KubeConfig with optional context switching
- * @param context - Optional context name to switch to
+ * Get or create KubeConfig for a specific cluster or context
+ * This function is now asynchronous and atomic per-request.
+ * @param clusterIdOrContext - Optional cluster ID (UUID) or context name
  */
-export function getKubeConfig(context?: string): k8s.KubeConfig {
-	if (!cachedConfig) {
-		cachedConfig = loadKubeConfig();
-		currentContext = cachedConfig.getCurrentContext();
+export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.KubeConfig> {
+	const key = clusterIdOrContext || 'in-cluster';
+
+	// 1. Check cache first
+	const cached = getFromCache(key);
+	if (cached) {
+		return cached;
 	}
 
-	// Switch context if a different one is requested
-	if (context && context !== currentContext) {
-		const availableContexts = cachedConfig.getContexts().map((c) => c.name);
-		if (availableContexts.includes(context)) {
-			cachedConfig.setCurrentContext(context);
-			currentContext = context;
-			console.log(`✓ Switched Kubernetes context to: ${context}`);
+	// 2. Load the base configuration if not already loaded
+	if (!baseConfig) {
+		baseConfig = loadKubeConfig();
+	}
+
+	let config: k8s.KubeConfig;
+
+	// 3. Determine if it's a cluster ID (UUID), a context name, or default
+	const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+
+	if (isUuid) {
+		// Load from database
+		const kubeconfigYaml = await getClusterKubeconfig(key);
+		if (!kubeconfigYaml) {
+			throw new Error(`Cluster with ID "${key}" not found or has no valid configuration`);
+		}
+		config = new k8s.KubeConfig();
+		config.loadFromString(kubeconfigYaml);
+		console.log(`✓ Loaded Kubernetes configuration from database for cluster: ${key}`);
+	} else if (key !== 'in-cluster' && key !== 'default') {
+		// It's a context name - check if it exists in the base config
+		const availableContexts = baseConfig.getContexts().map((c) => c.name);
+		if (availableContexts.includes(key)) {
+			// Create a clone of the base config and switch context
+			config = new k8s.KubeConfig();
+			config.loadFromString(baseConfig.exportConfig());
+			config.setCurrentContext(key);
+			console.log(`✓ Switched to Kubernetes context: ${key}`);
 		} else {
-			console.warn(
-				`Context "${context}" not found in kubeconfig. Available: ${availableContexts.join(', ')}`
+			throw new Error(
+				`Context "${key}" not found in kubeconfig. Available: ${availableContexts.join(', ')}`
 			);
 		}
+	} else {
+		// Default context
+		config = baseConfig;
 	}
 
-	return cachedConfig;
+	// 4. Cache and return
+	setInCache(key, config);
+	return config;
 }
 
 /**
  * Create CustomObjectsApi client
- * @param context - Optional context name to use
+ * @param context - Optional cluster ID or context name
  */
-export function getCustomObjectsApi(context?: string): k8s.CustomObjectsApi {
-	const config = getKubeConfig(context);
+export async function getCustomObjectsApi(context?: string): Promise<k8s.CustomObjectsApi> {
+	const config = await getKubeConfig(context);
 	return config.makeApiClient(k8s.CustomObjectsApi);
 }
 
 /**
  * Create CoreV1Api client
- * @param context - Optional context name to use
+ * @param context - Optional cluster ID or context name
  */
-export function getCoreV1Api(context?: string): k8s.CoreV1Api {
-	const config = getKubeConfig(context);
+export async function getCoreV1Api(context?: string): Promise<k8s.CoreV1Api> {
+	const config = await getKubeConfig(context);
 	return config.makeApiClient(k8s.CoreV1Api);
 }
 
 /**
  * Create AppsV1Api client
- * @param context - Optional context name to use
+ * @param context - Optional cluster ID or context name
  */
-export function getAppsV1Api(context?: string): k8s.AppsV1Api {
-	const config = getKubeConfig(context);
+export async function getAppsV1Api(context?: string): Promise<k8s.AppsV1Api> {
+	const config = await getKubeConfig(context);
 	return config.makeApiClient(k8s.AppsV1Api);
 }
 
@@ -94,10 +164,9 @@ export async function listFluxResources(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
-
 	const fetchPromise = (async () => {
 		try {
+			const api = await getCustomObjectsApi(context);
 			const response = await api.listClusterCustomObject({
 				group: resourceDef.group,
 				version: resourceDef.version,
@@ -142,10 +211,9 @@ export async function listFluxResourcesInNamespace(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
-
 	const fetchPromise = (async () => {
 		try {
+			const api = await getCustomObjectsApi(context);
 			const response = await api.listNamespacedCustomObject({
 				group: resourceDef.group,
 				version: resourceDef.version,
@@ -192,10 +260,9 @@ export async function getFluxResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
-
 	const fetchPromise = (async () => {
 		try {
+			const api = await getCustomObjectsApi(context);
 			const response = await api.getNamespacedCustomObject({
 				group: resourceDef.group,
 				version: resourceDef.version,
@@ -232,7 +299,7 @@ export async function getFluxResourceStatus(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = await getCustomObjectsApi(context);
 
 	try {
 		const response = await api.getNamespacedCustomObjectStatus({
@@ -264,7 +331,7 @@ export async function getGenericResource(
 
 	try {
 		if (normalizedGroup === '') {
-			const coreApi = getCoreV1Api(context);
+			const coreApi = await getCoreV1Api(context);
 			// Mapped types
 			switch (kind) {
 				case 'Service':
@@ -287,7 +354,7 @@ export async function getGenericResource(
 					};
 			}
 		} else if (normalizedGroup === 'apps') {
-			const appsApi = getAppsV1Api(context);
+			const appsApi = await getAppsV1Api(context);
 			switch (kind) {
 				case 'Deployment':
 					return await appsApi.readNamespacedDeployment({ name, namespace });
@@ -350,7 +417,7 @@ export async function createFluxResource(
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = getCustomObjectsApi(context);
+	const api = await getCustomObjectsApi(context);
 
 	try {
 		const response = await api.createNamespacedCustomObject({
@@ -368,29 +435,148 @@ export async function createFluxResource(
 }
 
 /**
+ * Update (replace) a FluxCD resource
+ */
+export async function updateFluxResource(
+	resourceType: string,
+	namespace: string,
+	name: string,
+	body: Record<string, unknown>,
+	context?: string
+): Promise<FluxResource> {
+	const resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	const api = await getCustomObjectsApi(context);
+
+	try {
+		const response = await api.replaceNamespacedCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural,
+			name,
+			body: body as object
+		});
+
+		return response as unknown as FluxResource;
+	} catch (error) {
+		throw handleK8sError(error, `update ${resourceType} ${namespace}/${name}`);
+	}
+}
+
+/**
+ * Get logs for a FluxCD controller responsible for a specific resource
+ */
+export async function getControllerLogs(
+	resourceType: string,
+	namespace: string,
+	name: string,
+	context?: string
+): Promise<string> {
+	let resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		const key = getResourceTypeByPlural(resourceType);
+		if (key) {
+			resourceDef = getResourceDef(key);
+		}
+	}
+
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	const controllerName = resourceDef.controller;
+	const coreApi = await getCoreV1Api(context);
+
+	try {
+		// 1. Find the controller pod in flux-system namespace
+		// Most Flux installations use the app label
+		const podsResponse = await coreApi.listNamespacedPod({
+			namespace: 'flux-system',
+			labelSelector: `app=${controllerName}`
+		});
+
+		const pods = podsResponse.items;
+		if (pods.length === 0) {
+			// Fallback: try app.kubernetes.io/name label
+			const podsResponseAlt = await coreApi.listNamespacedPod({
+				namespace: 'flux-system',
+				labelSelector: `app.kubernetes.io/name=${controllerName}`
+			});
+			if (podsResponseAlt.items.length === 0) {
+				throw new Error(`No pods found for controller ${controllerName} in namespace flux-system`);
+			}
+			pods.push(...podsResponseAlt.items);
+		}
+
+		// Pick the first running pod
+		const pod = pods.find((p) => p.status?.phase === 'Running') || pods[0];
+		const podName = pod.metadata?.name;
+
+		if (!podName) {
+			throw new Error(`Could not determine pod name for controller ${controllerName}`);
+		}
+
+		// 2. Fetch logs (last 500 lines)
+		const logsResponse = await coreApi.readNamespacedPodLog({
+			name: podName,
+			namespace: 'flux-system',
+			tailLines: 1000
+		});
+
+		const logs = logsResponse;
+
+		// 3. Filter logs for the specific resource
+		// Flux logs are JSON and typically contain "name" and "namespace" fields for the resource being processed.
+		// We grep for both to be as specific as possible.
+		const lines = logs.split('\n');
+		const filteredLines = lines.filter((line) => {
+			if (!line.trim()) return false;
+			// Match both name and namespace of the resource
+			return line.includes(`"${name}"`) && line.includes(`"${namespace}"`);
+		});
+
+		// If filtering yields too little, return more context or all logs
+		if (filteredLines.length < 10) {
+			return logs;
+		}
+
+		return filteredLines.join('\n');
+	} catch (error) {
+		throw handleK8sError(error, `fetch logs for ${controllerName}`);
+	}
+}
+
+/**
  * Handle Kubernetes API errors
  */
-function handleK8sError(error: unknown, operation: string): Error {
+export function handleK8sError(error: unknown, operation: string): Error {
+	// Log the full error server-side for debugging
+	console.error(`Kubernetes API error during ${operation}:`, error);
+
 	if (error instanceof Error) {
 		const k8sError = error as Error & {
 			response?: { statusCode: number; body?: { message?: string } };
 		};
+
 		if (k8sError.response) {
 			const status = k8sError.response.statusCode;
-			const message = k8sError.response.body?.message || error.message;
 
 			switch (status) {
 				case 404:
-					return new Error(`Resource not found: ${operation}`);
+					return new ResourceNotFoundError(operation);
 				case 401:
-					return new Error(`Authentication failed: ${operation}`);
+					return new AuthenticationError(`Authentication failed: ${operation}`);
 				case 403:
-					return new Error(`Permission denied: ${operation}`);
+					return new AuthorizationError(`Permission denied: ${operation}`);
 				default:
-					return new Error(`Kubernetes API error (${status}): ${message}`);
+					return new KubernetesError(`Kubernetes API error (${status})`, status, 'ApiError');
 			}
 		}
-		return new Error(`Failed to ${operation}: ${error.message}`);
+		return new KubernetesError(`Failed to ${operation}: Internal Error`, 500, 'InternalError');
 	}
-	return new Error(`Failed to ${operation}: Unknown error`);
+	return new KubernetesError(`Failed to ${operation}: Unknown error`, 500, 'UnknownError');
 }

@@ -97,14 +97,14 @@
 
 <div class="space-y-6">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="text-2xl font-bold text-white">User Management</h1>
 			<p class="text-slate-400">Manage users and their permissions</p>
 		</div>
-		<Button onclick={openCreateModal} class="gap-2">
+		<Button onclick={openCreateModal} class="w-full gap-2 sm:w-auto" aria-label="Add User">
 			<UserPlus size={16} />
-			Add User
+			<span class="hidden sm:inline">Add User</span>
 		</Button>
 	</div>
 
@@ -142,8 +142,12 @@
 				<tr class="border-b border-slate-700/50">
 					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">User</th>
 					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Role</th>
-					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Status</th>
-					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Created</th>
+					<th class="hidden px-4 py-3 text-left text-sm font-medium text-slate-400 md:table-cell"
+						>Status</th
+					>
+					<th class="hidden px-4 py-3 text-left text-sm font-medium text-slate-400 sm:table-cell"
+						>Created</th
+					>
 					<th class="px-4 py-3 text-right text-sm font-medium text-slate-400">Actions</th>
 				</tr>
 			</thead>
@@ -202,7 +206,7 @@
 								{user.role}
 							</span>
 						</td>
-						<td class="px-4 py-3">
+						<td class="hidden px-4 py-3 md:table-cell">
 							{#if user.active}
 								<span class="inline-flex items-center gap-1.5 text-sm text-emerald-400">
 									<CheckCircle2 size={14} />
@@ -215,7 +219,7 @@
 								</span>
 							{/if}
 						</td>
-						<td class="px-4 py-3 text-sm text-slate-400">
+						<td class="hidden px-4 py-3 text-sm text-slate-400 sm:table-cell">
 							{formatDate(user.createdAt)}
 						</td>
 						<td class="px-4 py-3">
@@ -275,9 +279,19 @@
 
 	<!-- Create User Modal -->
 	{#if showCreateModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-				<h2 class="mb-4 text-xl font-bold text-white">Create New User</h2>
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="create-user-title"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
+			>
+				<h2 id="create-user-title" class="mb-4 text-xl font-bold text-white">Create New User</h2>
 
 				<form
 					method="POST"
@@ -378,9 +392,21 @@
 
 	<!-- Edit User Modal -->
 	{#if editingUser}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-				<h2 class="mb-4 text-xl font-bold text-white">Edit User: {editingUser.username}</h2>
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="edit-user-title"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
+			>
+				<h2 id="edit-user-title" class="mb-4 text-xl font-bold text-white">
+					Edit User: {editingUser.username}
+				</h2>
 
 				<form
 					method="POST"
@@ -453,8 +479,18 @@
 
 	<!-- Delete Confirmation Modal -->
 	{#if deletingUser}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-xl border border-red-500/30 bg-slate-800 p-6 shadow-2xl">
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="delete-user-title"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-red-500/30 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
+			>
 				<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
 					<svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path
@@ -465,7 +501,7 @@
 						/>
 					</svg>
 				</div>
-				<h2 class="mb-2 text-xl font-bold text-white">Delete User</h2>
+				<h2 id="delete-user-title" class="mb-2 text-xl font-bold text-white">Delete User</h2>
 				<p class="mb-6 text-slate-400">
 					Are you sure you want to delete <strong class="text-white">{deletingUser.username}</strong
 					>? This action cannot be undone.

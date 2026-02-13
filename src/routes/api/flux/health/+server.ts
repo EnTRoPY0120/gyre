@@ -2,38 +2,47 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
 import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
-// Cache for connection status
-const connectionCache = { connected: false, timestamp: 0 };
+// Cache for connection status per cluster
+const connectionCache = new Map<string, { connected: boolean; timestamp: number }>();
 const CONNECTION_CACHE_TTL = 30 * 1000; // 30 seconds
 
 /**
  * GET /api/flux/health
  * Health check endpoint that validates K8s connection
  */
-export const GET: RequestHandler = async ({ setHeaders, cookies }) => {
+export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 	try {
-		// Get the current cluster from cookie (for multi-cluster support)
-		const selectedCluster = cookies.get('gyre_cluster');
-		const config = getKubeConfig(selectedCluster);
+		// Get the current cluster from locals (for multi-cluster support)
+		const selectedCluster = locals.cluster;
+		const config = await getKubeConfig(selectedCluster);
 		const currentContext = config.getCurrentContext();
+
+		const cacheKey = selectedCluster || 'default';
+		const cached = connectionCache.get(cacheKey) || { connected: false, timestamp: 0 };
 
 		// Check connection - use cache if recent, otherwise validate
 		let isValid = false;
 		let connectionSource = 'fresh';
-		if (Date.now() - connectionCache.timestamp < CONNECTION_CACHE_TTL) {
-			isValid = connectionCache.connected;
+		if (Date.now() - cached.timestamp < CONNECTION_CACHE_TTL) {
+			isValid = cached.connected;
 			connectionSource = 'cached';
 		} else {
 			isValid = await validateKubeConfig(config);
-			connectionCache.connected = isValid;
-			connectionCache.timestamp = Date.now();
+			connectionCache.set(cacheKey, { connected: isValid, timestamp: Date.now() });
 		}
 
 		if (!isValid) {
-			return error(503, {
+			throw error(503, {
 				message: 'Unable to connect to Kubernetes cluster'
 			});
+		}
+
+		// If not authenticated, return only basic status to prevent information leakage.
+		// Detailed cluster information is restricted to authenticated users.
+		if (!locals.user) {
+			return json({ status: 'healthy' });
 		}
 
 		// Detect mode
@@ -59,8 +68,6 @@ export const GET: RequestHandler = async ({ setHeaders, cookies }) => {
 
 		return json(responseData);
 	} catch (err) {
-		return error(503, {
-			message: err instanceof Error ? err.message : 'Kubernetes configuration error'
-		});
+		handleApiError(err, 'Kubernetes health check failed');
 	}
 };

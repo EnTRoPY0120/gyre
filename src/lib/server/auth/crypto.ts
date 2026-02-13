@@ -42,6 +42,15 @@ function getEncryptionKey(): Buffer {
 	return Buffer.from(keyHex, 'hex');
 }
 
+let _authEncryptionKey: Buffer | null = null;
+
+function getAuthEncryptionKeyLazy(): Buffer {
+	if (!_authEncryptionKey) {
+		_authEncryptionKey = getEncryptionKey();
+	}
+	return _authEncryptionKey;
+}
+
 /**
  * Generate a random encryption key suitable for AUTH_ENCRYPTION_KEY.
  * @returns 64 hex characters (32 bytes)
@@ -58,7 +67,7 @@ export function generateEncryptionKey(): string {
  * @returns Encrypted string in format "iv:ciphertext:authTag"
  */
 export function encryptSecret(plaintext: string): string {
-	const key = getEncryptionKey();
+	const key = getAuthEncryptionKeyLazy();
 	const iv = crypto.randomBytes(16); // 128-bit IV for GCM
 
 	const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
@@ -81,7 +90,7 @@ export function encryptSecret(plaintext: string): string {
  * @throws Error if decryption fails (wrong key, tampered data, etc.)
  */
 export function decryptSecret(ciphertext: string): string {
-	const key = getEncryptionKey();
+	const key = getAuthEncryptionKeyLazy();
 
 	// Parse the encrypted format
 	const parts = ciphertext.split(':');

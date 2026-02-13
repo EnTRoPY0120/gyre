@@ -219,6 +219,16 @@ kubectl delete pvc gyre-data -n flux-system
 | `admin.autoGenerate` | Auto-generate admin password | `true`                      |
 | `admin.secretName`   | Admin password secret name   | `gyre-initial-admin-secret` |
 
+### Metrics & Monitoring
+
+| Parameter                          | Description                         | Default    |
+| ---------------------------------- | ----------------------------------- | ---------- |
+| `metrics.enabled`                  | Enable application metrics          | `true`     |
+| `metrics.serviceMonitor.enabled`   | Create a Prometheus ServiceMonitor  | `false`    |
+| `metrics.serviceMonitor.interval`  | Scraping interval                   | `30s`      |
+| `metrics.serviceMonitor.path`      | Metrics path                        | `/metrics` |
+| `metrics.serviceMonitor.additionalLabels` | Additional labels for ServiceMonitor | `{}`       |
+
 ## Examples
 
 ### Production Deployment with Ingress and TLS
@@ -568,7 +578,7 @@ spec:
 
 ### Prometheus Integration
 
-Gyre exposes a health endpoint suitable for monitoring:
+Gyre exposes Prometheus metrics at `/metrics`:
 
 ```yaml
 # ServiceMonitor example (if using Prometheus Operator)
@@ -583,7 +593,7 @@ spec:
       app.kubernetes.io/name: gyre
   endpoints:
     - port: http
-      path: /api/flux/health
+      path: /metrics
       interval: 30s
 ```
 

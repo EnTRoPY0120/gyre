@@ -1,10 +1,15 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { Button } from '$lib/components/ui/button';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
+	import EditResourceModal from '$lib/components/flux/EditResourceModal.svelte';
 	import type { FluxResource } from '$lib/types/flux';
-	import { RefreshCw, Play, Pause, Loader2 } from 'lucide-svelte';
+	import { RefreshCw, Play, Pause, Loader2, Pencil } from 'lucide-svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
+	import { sanitizeResource } from '$lib/utils/kubernetes';
+	import yaml from 'js-yaml';
 
 	let {
 		resource,
@@ -21,10 +26,26 @@
 	let isLoading = $state(false);
 	let error = $state<string | null>(null);
 	let showSuspendDialog = $state(false);
+	let showEditModal = $state(false);
 
+	// Serialize resource to YAML for editing
+	const resourceYaml = $derived.by(() => {
+		try {
+			const sanitized = sanitizeResource(resource);
+			return yaml.dump(sanitized, { noRefs: true, lineWidth: -1 });
+		} catch (err) {
+			console.error('Failed to serialize resource:', err);
+			return '';
+		}
+	});
+
+	const userRole = $derived($page.data.user?.role || 'viewer');
+	const canWrite = $derived(userRole === 'admin' || userRole === 'editor');
 	const isSuspended = $derived(resource.spec?.suspend === true);
 
 	async function handleAction(action: 'suspend' | 'resume' | 'reconcile') {
+		if (!canWrite) return;
+
 		isLoading = true;
 		error = null;
 
@@ -64,49 +85,107 @@
 	}
 </script>
 
-<div class="flex items-center gap-2">
-	{#if error}
-		<span class="animate-in fade-in slide-in-from-right-2 text-sm text-red-600">{error}</span>
-	{/if}
-
-	<!-- Reconcile Button -->
-	<Button
-		variant="outline"
-		size="sm"
-		disabled={isLoading || isSuspended}
-		onclick={() => handleAction('reconcile')}
-	>
-		{#if isLoading}
-			<Loader2 class="mr-2 h-4 w-4 animate-spin" />
-		{:else}
-			<RefreshCw class="mr-2 h-4 w-4" />
-		{/if}
-		Reconcile
-	</Button>
-
-	<!-- Suspend/Resume Button -->
-	{#if isSuspended}
+{#snippet actionButton(action: 'edit' | 'reconcile' | 'suspend' | 'resume')}
+	{#if action === 'edit'}
+		<Button
+			variant="outline"
+			size="sm"
+			disabled={!canWrite}
+			onclick={() => (showEditModal = true)}
+			class={!canWrite ? 'pointer-events-none' : ''}
+			aria-label="Edit"
+		>
+			<Pencil class="h-4 w-4 md:mr-2" />
+			<span class="hidden md:inline">Edit</span>
+		</Button>
+	{:else if action === 'reconcile'}
+		<Button
+			variant="outline"
+			size="sm"
+			disabled={isLoading || isSuspended || !canWrite}
+			onclick={() => handleAction('reconcile')}
+			class={!canWrite ? 'pointer-events-none' : ''}
+			aria-label="Reconcile"
+		>
+			{#if isLoading}
+				<Loader2 class="h-4 w-4 animate-spin md:mr-2" />
+			{:else}
+				<RefreshCw class="h-4 w-4 md:mr-2" />
+			{/if}
+			<span class="hidden md:inline">Reconcile</span>
+		</Button>
+	{:else if action === 'resume'}
 		<Button
 			variant="default"
 			size="sm"
-			disabled={isLoading}
+			disabled={isLoading || !canWrite}
 			onclick={() => handleAction('resume')}
-			class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800"
+			class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 {!canWrite
+				? 'pointer-events-none'
+				: ''}"
+			aria-label="Resume"
 		>
-			<Play class="mr-2 h-4 w-4" />
-			Resume
+			<Play class="h-4 w-4 md:mr-2" />
+			<span class="hidden md:inline">Resume</span>
 		</Button>
-	{:else}
+	{:else if action === 'suspend'}
 		<Button
 			variant="ghost"
 			size="sm"
-			disabled={isLoading}
+			disabled={isLoading || !canWrite}
 			onclick={() => (showSuspendDialog = true)}
-			class="text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-950/30"
+			class="text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-950/30 {!canWrite
+				? 'pointer-events-none'
+				: ''}"
+			aria-label="Suspend"
 		>
-			<Pause class="mr-2 h-4 w-4" />
-			Suspend
+			<Pause class="h-4 w-4 md:mr-2" />
+			<span class="hidden md:inline">Suspend</span>
 		</Button>
+	{/if}
+{/snippet}
+
+{#snippet withPermissionTooltip(action: 'edit' | 'reconcile' | 'suspend' | 'resume')}
+	{#if !canWrite}
+		<Tooltip.Provider delayDuration={200}>
+			<Tooltip.Root>
+				<Tooltip.Trigger>
+					{@render actionButton(action)}
+				</Tooltip.Trigger>
+				<Tooltip.Content side="top">
+					<p class="text-xs">
+						You need additional permissions to {action === 'reconcile' ? 'reconcile' : action} resources.
+					</p>
+				</Tooltip.Content>
+			</Tooltip.Root>
+		</Tooltip.Provider>
+	{:else}
+		{@render actionButton(action)}
+	{/if}
+{/snippet}
+
+<div class="flex items-center gap-2">
+	{#if error}
+		<span
+			role="alert"
+			aria-live="assertive"
+			class="animate-in fade-in slide-in-from-right-2 text-sm text-red-600"
+		>
+			{error}
+		</span>
+	{/if}
+
+	<!-- Edit Button -->
+	{@render withPermissionTooltip('edit')}
+
+	<!-- Reconcile Button -->
+	{@render withPermissionTooltip('reconcile')}
+
+	<!-- Suspend/Resume Button -->
+	{#if isSuspended}
+		{@render withPermissionTooltip('resume')}
+	{:else}
+		{@render withPermissionTooltip('suspend')}
 	{/if}
 </div>
 
@@ -117,4 +196,14 @@
 	confirmLabel="Suspend"
 	variant="destructive"
 	onConfirm={() => handleAction('suspend')}
+/>
+
+<EditResourceModal
+	bind:open={showEditModal}
+	resourceType={type}
+	{namespace}
+	{name}
+	initialYaml={resourceYaml}
+	onClose={() => (showEditModal = false)}
+	onSuccess={() => invalidate(`flux:resource:${type}:${namespace}:${name}`)}
 />
