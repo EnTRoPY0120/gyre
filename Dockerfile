@@ -2,7 +2,7 @@
 # =============================================================================
 # Stage 1: Builder - Build the SvelteKit application
 # =============================================================================
-FROM oven/bun:1.3-alpine AS builder
+FROM oven/bun:1.3-alpine3.21 AS builder
 
 WORKDIR /build
 
@@ -26,7 +26,7 @@ RUN bun run build
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:25-alpine AS runtime
+FROM node:25-alpine3.21 AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
