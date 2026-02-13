@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { getEnabledAuthProviders } from '$lib/server/auth/oauth';
+import { getAuthSettings } from '$lib/server/settings';
 
 /**
  * Load function for login page
@@ -26,8 +27,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// Continue without SSO providers - local login should still work
 	}
 
+	// Get auth settings
+	let localLoginEnabled = true;
+	try {
+		const authSettings = await getAuthSettings();
+		localLoginEnabled = authSettings.localLoginEnabled;
+	} catch (error) {
+		console.error('Failed to load auth settings:', error);
+		// Continue with local login enabled as fallback
+	}
+
 	return {
 		mode: locals.cluster ? 'in-cluster' : 'local',
-		providers
+		providers,
+		localLoginEnabled
 	};
 };

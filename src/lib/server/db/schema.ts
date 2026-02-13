@@ -248,3 +248,15 @@ export type AuthProvider = typeof authProviders.$inferSelect;
 export type NewAuthProvider = typeof authProviders.$inferInsert;
 export type UserProvider = typeof userProviders.$inferSelect;
 export type NewUserProvider = typeof userProviders.$inferInsert;
+
+// App Settings table (key-value store for application configuration)
+export const appSettings = sqliteTable('app_settings', {
+	key: text('key').primaryKey(),
+	value: text('value').notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.default(sql`(unixepoch())`)
+});
+
+export type AppSetting = typeof appSettings.$inferSelect;
+export type NewAppSetting = typeof appSettings.$inferInsert;

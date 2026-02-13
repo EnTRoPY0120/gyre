@@ -83,6 +83,32 @@ spec:
           value: {{ .Values.encryption.authKey | quote }}
         {{- end }}
         {{- end }}
+        # Authentication settings
+        {{- if .Values.auth }}
+        - name: GYRE_AUTH_LOCAL_LOGIN_ENABLED
+          value: {{ .Values.auth.localLoginEnabled | default true | quote }}
+        - name: GYRE_AUTH_ALLOW_SIGNUP
+          value: {{ .Values.auth.allowSignup | default true | quote }}
+        {{- if .Values.auth.domainAllowlist }}
+        - name: GYRE_AUTH_DOMAIN_ALLOWLIST
+          value: {{ .Values.auth.domainAllowlist | toJson | quote }}
+        {{- end }}
+        {{- if .Values.auth.providers }}
+        - name: GYRE_AUTH_PROVIDERS
+          value: {{ .Values.auth.providers | toJson | quote }}
+        {{- end }}
+        # Provider client secrets from existing secret
+        {{- if .Values.auth.providersExistingSecret }}
+        {{- range $provider := .Values.auth.providers }}
+        - name: GYRE_AUTH_PROVIDER_{{ $provider.name | upper | replace "-" "_" | replace " " "_" }}_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ $.Values.auth.providersExistingSecret }}
+              key: PROVIDER_{{ $provider.name | upper | replace "-" "_" | replace " " "_" }}_CLIENT_SECRET
+              optional: true
+        {{- end }}
+        {{- end }}
+        {{- end }}
       volumes:
       - name: data
         {{- if .Values.persistence.enabled }}
