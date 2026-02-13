@@ -18,10 +18,10 @@ spec:
     - from:
       - podSelector:
           {{- toYaml .Values.networkPolicy.ingress.podSelector | nindent 10 }}
-      {{- if .Values.networkPolicy.ingress.namespaceSelector }}
-      - namespaceSelector:
+        {{- if .Values.networkPolicy.ingress.namespaceSelector }}
+        namespaceSelector:
           {{- toYaml .Values.networkPolicy.ingress.namespaceSelector | nindent 10 }}
-      {{- end }}
+        {{- end }}
       ports:
       - protocol: TCP
         port: {{ .Values.service.targetPort }}
@@ -35,29 +35,24 @@ spec:
       - namespaceSelector:
           matchLabels:
             kubernetes.io/metadata.name: kube-system
-      - podSelector:
+        podSelector:
           matchLabels:
             k8s-app: kube-dns
       ports:
       - protocol: UDP
         port: 53
-    # Allow access to Kubernetes API server
+      - protocol: TCP
+        port: 53
+    # Allow access to Kubernetes API server in default namespace
     - to:
-      - namespaceSelector: {}
-      - podSelector:
+      - namespaceSelector:
           matchLabels:
-            component: apiserver
+            kubernetes.io/metadata.name: default
       ports:
       - protocol: TCP
         port: 443
       - protocol: TCP
         port: 6443
-    # Allow egress to any destination on port 443 (for Kubernetes API via service)
-    - to:
-      - namespaceSelector: {}
-      ports:
-      - protocol: TCP
-        port: 443
     {{- if .Values.networkPolicy.egress.additionalRules }}
     {{- toYaml .Values.networkPolicy.egress.additionalRules | nindent 4 }}
     {{- end }}
