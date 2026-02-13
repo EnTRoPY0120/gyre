@@ -306,7 +306,22 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			console.log('✓ Source artifact extracted successfully');
 
 			// 4. Run kustomize build
-			const kustomizePath = join(tempDir, (spec.path as string) || './');
+			// Validate spec.path to prevent command injection
+			const specPath = (spec.path as string) || './';
+
+			// Reject absolute paths and path traversal attempts
+			if (specPath.startsWith('/') || specPath.includes('..')) {
+				throw new Error(`Invalid path: ${specPath}. Path must be relative and cannot contain ".."`);
+			}
+
+			// Resolve and normalize the path
+			const kustomizePath = join(tempDir, specPath);
+
+			// Ensure the resolved path is still inside tempDir
+			if (!kustomizePath.startsWith(tempDir)) {
+				throw new Error(`Path traversal detected: ${specPath}`);
+			}
+
 			console.log(`ℹ Running kustomize build on: ${kustomizePath}`);
 
 			const { stdout: buildOutput } = await execAsync(`kustomize build "${kustomizePath}"`, {
@@ -409,7 +424,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 									'creationTimestamp',
 									'selfLink'
 								];
-								toDelete.forEach((f) => delete c.metadata[f]);
+								toDelete.forEach((f) => {
+									delete c.metadata[f];
+								});
 
 								// Remove noisy annotations
 								if (c.metadata.annotations) {
@@ -418,7 +435,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 										'deployment.kubernetes.io/revision',
 										'kustomize.toolkit.fluxcd.io/reconcile'
 									];
-									annosToDelete.forEach((a) => delete c.metadata.annotations[a]);
+									annosToDelete.forEach((a) => {
+										delete c.metadata.annotations[a];
+									});
 									if (Object.keys(c.metadata.annotations).length === 0) {
 										delete c.metadata.annotations;
 									}
@@ -474,7 +493,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 						(a, b) => a[1].timestamp - b[1].timestamp
 					);
 					const toDelete = sortedEntries.slice(0, diffCache.size - 100);
-					toDelete.forEach(([key]) => diffCache.delete(key));
+					toDelete.forEach(([key]) => {
+						diffCache.delete(key);
+					});
 					console.log(`♻️  Cleaned up ${toDelete.length} old cache entries`);
 				}
 			}
