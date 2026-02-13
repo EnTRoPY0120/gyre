@@ -61,14 +61,7 @@ jobs:
         with:
           category: "/language:${{ matrix.language }}"
           upload: true
-          output: sarif-results
           add-snippets: true
-
-      - name: Upload SARIF results
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: sarif-results/${{ matrix.language }}.sarif
 
       - name: Create security summary
         if: always()
