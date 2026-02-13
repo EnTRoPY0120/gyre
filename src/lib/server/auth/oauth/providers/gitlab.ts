@@ -21,6 +21,7 @@ interface GitLabUser {
 	name?: string;
 	avatar_url?: string;
 	state?: string;
+	confirmed_at?: string; // ISO 8601 timestamp when email was confirmed
 }
 
 export class GitLabProvider implements IOAuthProvider {
@@ -79,8 +80,10 @@ export class GitLabProvider implements IOAuthProvider {
 
 			return {
 				accessToken: tokens.accessToken(),
-				// Access tokens usually have expiry in OAuth2
-				expiresIn: Math.floor((tokens.accessTokenExpiresAt().getTime() - Date.now()) / 1000),
+				// Handle token expiration null-safely (GitLab may omit expires_in)
+				expiresIn: tokens.accessTokenExpiresAt()
+					? Math.floor((tokens.accessTokenExpiresAt()!.getTime() - Date.now()) / 1000)
+					: undefined,
 				tokenType: 'Bearer'
 			};
 		} catch (error) {
@@ -106,7 +109,9 @@ export class GitLabProvider implements IOAuthProvider {
 			return {
 				sub: user.id.toString(),
 				email: user.email,
-				emailVerified: true, // GitLab requires email verification for account
+				// Derive email verification from confirmed_at field
+				// GitLab.com requires email verification, but self-hosted instances may not
+				emailVerified: !!user.confirmed_at,
 				username: user.username,
 				name: user.name || user.username,
 				picture: user.avatar_url,
@@ -125,18 +130,30 @@ export class GitLabProvider implements IOAuthProvider {
 	 * Fetch from GitLab API
 	 */
 	private async fetchGitLabAPI<T>(url: string, accessToken: string): Promise<T> {
-		const response = await fetch(url, {
-			headers: {
-				Authorization: `Bearer ${accessToken}`,
-				Accept: 'application/json'
+		// Add timeout to prevent hanging requests
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+		try {
+			const response = await fetch(url, {
+				headers: {
+					Authorization: `Bearer ${accessToken}`,
+					Accept: 'application/json'
+				},
+				signal: controller.signal
+			});
+
+			clearTimeout(timeoutId);
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`GitLab API error: ${response.status} ${errorText}`);
 			}
-		});
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(`GitLab API error: ${response.status} ${errorText}`);
+			return response.json() as Promise<T>;
+		} catch (error) {
+			clearTimeout(timeoutId);
+			throw error;
 		}
-
-		return response.json() as Promise<T>;
 	}
 }
