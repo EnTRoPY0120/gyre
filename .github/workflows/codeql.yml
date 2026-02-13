@@ -1,0 +1,81 @@
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - 'documentation/**'
+      - '**.md'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - 'documentation/**'
+      - '**.md'
+  schedule:
+    # Run every Monday at 00:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze Code
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language:
+          - javascript-typescript
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-extended,security-and-quality
+          config: |
+            paths-ignore:
+              - node_modules
+              - dist
+              - build
+              - .svelte-kit
+              - documentation/node_modules
+              - documentation/build
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
+        with:
+          category: '/language:${{ matrix.language }}'
+          upload: true
+
+      - name: Create security summary
+        if: always()
+        run: |
+          echo "## 🔒 CodeQL Security Analysis Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Scan Details" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Language** | \`${{ matrix.language }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Queries** | Security Extended + Quality |" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "| **Status** | ✅ Analysis Complete |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| **Status** | ⚠️ Analysis completed with issues |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Results are uploaded to the Security tab." >> $GITHUB_STEP_SUMMARY
