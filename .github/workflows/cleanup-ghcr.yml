@@ -1,0 +1,85 @@
+name: Cleanup GHCR Images
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    name: Cleanup Old Container Images
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - name: Cleanup untagged images
+        uses: snok/container-retention-policy@v3.0.1
+        with:
+          image-names: gyre
+          cut-off: 7 days ago UTC
+          account: entropy0120
+          token: ${{ secrets.GITHUB_TOKEN }}
+          untagged-only: true
+          skip-tags: latest,main
+          timestamp-to-use: created_at
+
+      - name: Cleanup old PR images
+        uses: snok/container-retention-policy@v3.0.1
+        with:
+          image-names: gyre
+          cut-off: 7 days ago UTC
+          account: entropy0120
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag-selection: '^pr-\d+$'
+          skip-tags: latest,main
+          keep-n-most-recent: 5
+          timestamp-to-use: created_at
+
+      - name: Cleanup old branch images
+        uses: snok/container-retention-policy@v3.0.1
+        with:
+          image-names: gyre
+          cut-off: 30 days ago UTC
+          account: entropy0120
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag-selection: '^(develop|feature|fix|chore|docs|refactor|ci).*$'
+          skip-tags: latest,main,develop
+          timestamp-to-use: created_at
+
+      - name: Cleanup old SHA-tagged releases
+        uses: snok/container-retention-policy@v3.0.1
+        with:
+          image-names: gyre
+          cut-off: 14 days ago UTC
+          account: entropy0120
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag-selection: '^v\d+\.\d+\.\d+-[a-f0-9]+$'
+          skip-tags: latest,main
+          keep-n-most-recent: 3
+          timestamp-to-use: created_at
+
+      - name: Cleanup summary
+        if: always()
+        run: |
+          echo "## 🧹 GHCR Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Retention Policy Applied" >> $GITHUB_STEP_SUMMARY
+          echo "| Type | Retention Period | Notes |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------------------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Untagged images** | 7 days | Automatically removed |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PR tags** | 7 days | Keep 5 most recent |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch tags** | 30 days | Excludes main/develop |" >> $GITHUB_STEP_SUMMARY
+          echo "| **SHA-tagged releases** | 14 days | Keep 3 most recent |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Release tags** | Forever | Protected: v*.*.* |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Latest/Main tags** | Forever | Always protected |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Protected Tags" >> $GITHUB_STEP_SUMMARY
+          echo "- \`latest\` - Always kept" >> $GITHUB_STEP_SUMMARY
+          echo "- \`main\` - Always kept" >> $GITHUB_STEP_SUMMARY
+          echo "- \`develop\` - Always kept" >> $GITHUB_STEP_SUMMARY
+          echo "- \`v*.*.*\` - Semantic version tags (releases)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Cleanup completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
