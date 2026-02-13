@@ -31,6 +31,8 @@
 	let containerEl: HTMLDivElement | undefined = $state();
 	let diffEditor: Monaco.editor.IStandaloneDiffEditor | undefined = $state();
 	let monaco: typeof Monaco | undefined = $state();
+	let originalModel: Monaco.editor.ITextModel | undefined = $state();
+	let modifiedModel: Monaco.editor.ITextModel | undefined = $state();
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
@@ -82,9 +84,9 @@
 					renderSideBySide: true
 				});
 
-				// Create models
-				const originalModel = monaco.editor.createModel(original, language);
-				const modifiedModel = monaco.editor.createModel(modified, language);
+				// Create models and store references for cleanup
+				originalModel = monaco.editor.createModel(original, language);
+				modifiedModel = monaco.editor.createModel(modified, language);
 
 				diffEditor.setModel({
 					original: originalModel,
@@ -101,6 +103,9 @@
 
 		// Cleanup on unmount
 		return () => {
+			// Dispose models and editor
+			originalModel?.dispose();
+			modifiedModel?.dispose();
 			diffEditor?.dispose();
 		};
 	});

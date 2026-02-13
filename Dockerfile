@@ -37,12 +37,16 @@ LABEL org.opencontainers.image.title="Gyre" \
 # Install CA certificates, curl, and build tools for native modules
 RUN apk add --no-cache ca-certificates python3 make g++ curl
 
-# Install Kustomize (direct binary download for Alpine)
-RUN KUSTOMIZE_VERSION=v5.6.0 && \
-    curl -L "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" | \
-    tar xz -C /usr/local/bin && \
+# Install Kustomize (direct binary download for Alpine with checksum verification)
+ARG KUSTOMIZE_VERSION=v5.6.0
+ARG KUSTOMIZE_SHA256=54e4031ddc4e7fc59e408da29e7c646e8e57b8088c51b84b3df0864f47b5148f
+RUN curl -sSL -o /tmp/kustomize.tgz \
+      "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" && \
+    echo "${KUSTOMIZE_SHA256}  /tmp/kustomize.tgz" | sha256sum -c - && \
+    tar -xzf /tmp/kustomize.tgz -C /usr/local/bin && \
     chmod +x /usr/local/bin/kustomize && \
-    kustomize version
+    kustomize version && \
+    rm -f /tmp/kustomize.tgz
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S gyre && \
