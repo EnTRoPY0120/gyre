@@ -191,8 +191,6 @@
 
 			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
 
-			<!-- Create Resource -->
-			<!-- eslint-disable-next-line -->
 			{#if !canCreate}
 				<Tooltip.Provider delayDuration={200}>
 					<Tooltip.Root>
@@ -228,6 +226,21 @@
 				>
 					<div
 						class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white"
+					>
+						<Icon name="plus" size={14} />
+					</div>
+					Create Resource
+				</a>
+			{/if}
+
+			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
+
+			<!-- Admin Section (only for admins) -->
+			{#if isAdmin}
+				<div class="space-y-1">
+					<button
+						onclick={() => toggleGroup('Admin')}
+						class="group flex w-full items-center justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
 					>
 						<div class="flex items-center gap-2.5">
 							<Icon
@@ -358,10 +371,6 @@
 				</div>
 
 				<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
-						<Icon name="plus" size={14} />
-					</div>
-					Create Resource
-				</a>
 			{/if}
 
 			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
