@@ -96,7 +96,6 @@ jobs:
       # Run Trivy vulnerability scanner
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@0.34.0
-        continue-on-error: true
         with:
           image-ref: ${{ github.event_name == 'pull_request' && format('{0}/{1}:pr-{2}', env.REGISTRY, env.IMAGE_NAME, github.event.number) || format('{0}/{1}@{2}', env.REGISTRY, env.IMAGE_NAME, steps.build-and-push.outputs.digest) }}
           format: 'sarif'
