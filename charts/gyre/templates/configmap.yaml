@@ -1,0 +1,20 @@
+{{- if .Values.config.create -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "gyre.fullname" . }}-config
+  labels:
+    {{- include "gyre.labels" . | nindent 4 }}
+data:
+  # Application log level
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  # Session timeout in milliseconds
+  SESSION_TIMEOUT: {{ .Values.config.sessionTimeout | quote }}
+  # WebSocket ping interval in milliseconds
+  WS_PING_INTERVAL: {{ .Values.config.wsPingInterval | quote }}
+  # Cache TTL for dashboard data in seconds
+  CACHE_TTL: {{ .Values.config.cacheTtl | quote }}
+  {{- if .Values.config.additionalConfig }}
+  {{- toYaml .Values.config.additionalConfig | nindent 2 }}
+  {{- end }}
+{{- end }}

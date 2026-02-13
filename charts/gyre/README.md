@@ -2,7 +2,7 @@
 
 Modern WebUI for FluxCD with real-time monitoring, RBAC, and comprehensive resource management.
 
-[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](Chart.yaml)
+[![Version](https://img.shields.io/badge/version-0.2.0-blue.svg)](Chart.yaml)
 [![Type](https://img.shields.io/badge/type-application-informational.svg)](Chart.yaml)
 [![AppVersion](https://img.shields.io/badge/app%20version-0.1.0-informational.svg)](Chart.yaml)
 
@@ -184,7 +184,7 @@ kubectl delete pvc gyre-data -n flux-system
 | `podSecurityContext.fsGroup`               | Filesystem group           | `1001`    |
 | `securityContext.allowPrivilegeEscalation` | Allow privilege escalation | `false`   |
 | `securityContext.capabilities.drop`        | Drop capabilities          | `["ALL"]` |
-| `securityContext.readOnlyRootFilesystem`   | Read-only root FS          | `false`   |
+| `securityContext.readOnlyRootFilesystem`   | Read-only root FS          | `true`    |
 
 ### Resource Limits
 
@@ -228,6 +228,35 @@ kubectl delete pvc gyre-data -n flux-system
 | `metrics.serviceMonitor.interval`  | Scraping interval                   | `30s`      |
 | `metrics.serviceMonitor.path`      | Metrics path                        | `/metrics` |
 | `metrics.serviceMonitor.additionalLabels` | Additional labels for ServiceMonitor | `{}`       |
+
+### Network Policy
+
+| Parameter                                  | Description                               | Default |
+| ------------------------------------------ | ----------------------------------------- | ------- |
+| `networkPolicy.enabled`                    | Enable NetworkPolicy                      | `false` |
+| `networkPolicy.ingress.podSelector`        | Pod selector for ingress rules            | `{}`    |
+| `networkPolicy.ingress.namespaceSelector`  | Namespace selector for ingress rules      | `{}`    |
+| `networkPolicy.ingress.additionalRules`    | Additional ingress rules                  | `[]`    |
+| `networkPolicy.egress.additionalRules`     | Additional egress rules                   | `[]`    |
+
+### Application Configuration
+
+| Parameter                    | Description                                | Default       |
+| ---------------------------- | ------------------------------------------ | ------------- |
+| `config.create`              | Create ConfigMap for app configuration     | `true`        |
+| `config.logLevel`            | Application log level (debug/info/warn/error) | `info`        |
+| `config.sessionTimeout`      | Session timeout in milliseconds            | `604800000`   |
+| `config.wsPingInterval`      | WebSocket ping interval in milliseconds    | `30000`       |
+| `config.cacheTtl`            | Cache TTL for dashboard data in seconds    | `30`          |
+| `config.additionalConfig`    | Additional configuration key-value pairs   | `{}`          |
+
+### Encryption Configuration
+
+| Parameter                    | Description                                | Default |
+| ---------------------------- | ------------------------------------------ | ------- |
+| `encryption.gyreKey`         | Key for encrypting cluster kubeconfigs     | `""`    |
+| `encryption.authKey`         | Key for encrypting OAuth client secrets    | `""`    |
+| `encryption.existingSecret`  | Existing secret with encryption keys       | `""`    |
 
 ## Examples
 
