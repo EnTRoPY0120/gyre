@@ -11,6 +11,7 @@ import { authProviders, type NewAuthProvider } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { randomBytes } from 'node:crypto';
+import { checkPermission } from '$lib/server/rbac.js';
 
 /**
  * Generate a unique provider ID
@@ -29,8 +30,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 		throw error(401, { message: 'Unauthorized' });
 	}
 
-	// Check admin role
-	if (locals.user.role !== 'admin') {
+	// Check permission (admin action needed for auth providers)
+	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
+	if (!hasPermission) {
 		throw error(403, { message: 'Admin access required' });
 	}
 
@@ -63,8 +65,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(401, { message: 'Unauthorized' });
 	}
 
-	// Check admin role
-	if (locals.user.role !== 'admin') {
+	// Check permission (admin action needed for auth providers)
+	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
+	if (!hasPermission) {
 		throw error(403, { message: 'Admin access required' });
 	}
 

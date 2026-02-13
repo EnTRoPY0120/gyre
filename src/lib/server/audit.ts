@@ -89,7 +89,7 @@ export async function logResourceRead(
 export async function logResourceWrite(
 	user: User,
 	resourceType: string,
-	action: 'suspend' | 'resume' | 'reconcile' | 'update',
+	action: 'suspend' | 'resume' | 'reconcile' | 'update' | 'rollback',
 	resourceName: string,
 	namespace: string,
 	clusterId?: string,
@@ -157,7 +157,12 @@ export async function logClusterChange(
 /**
  * Get recent audit logs
  */
-export async function getRecentAuditLogs(userId?: string, action?: string, limit: number = 100) {
+export async function getRecentAuditLogs(
+	userId?: string,
+	action?: string,
+	limit: number = 100,
+	includeUser: boolean = true
+) {
 	const db = getDbSync();
 
 	// Build where conditions
@@ -174,6 +179,7 @@ export async function getRecentAuditLogs(userId?: string, action?: string, limit
 	// Use the query helper from Drizzle
 	const logs = await db.query.auditLogs.findMany({
 		where: conditions.length > 0 ? and(...conditions) : undefined,
+		with: includeUser ? { user: true } : undefined,
 		orderBy: [desc(auditLogs.createdAt)],
 		limit
 	});

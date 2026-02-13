@@ -212,57 +212,6 @@ export const userProviders = sqliteTable(
 	}
 );
 
-// Dashboards table
-export const dashboards = sqliteTable('dashboards', {
-	id: text('id').primaryKey(),
-	name: text('name').notNull(),
-	description: text('description'),
-	isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
-	isShared: integer('is_shared', { mode: 'boolean' }).notNull().default(false),
-	ownerId: text('owner_id').references(() => users.id, { onDelete: 'set null' }),
-	layout: text('layout'), // JSON string describing layout/settings
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.default(sql`(unixepoch())`),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
-		.notNull()
-		.default(sql`(unixepoch())`)
-});
-
-// Dashboard Widgets table
-export const dashboardWidgets = sqliteTable('dashboard_widgets', {
-	id: text('id').primaryKey(),
-	dashboardId: text('dashboard_id')
-		.notNull()
-		.references(() => dashboards.id, { onDelete: 'cascade' }),
-	type: text('type').notNull(), // 'metric', 'list', 'chart', 'log', 'markdown'
-	title: text('title').notNull(),
-	resourceType: text('resource_type'), // For list/metric widgets
-	query: text('query'), // For metrics or advanced filters
-	config: text('config'), // JSON string with specific widget config
-	position: text('position'), // JSON string { x, y, w, h }
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.default(sql`(unixepoch())`)
-});
-
-// Dashboard relations
-export const dashboardRelations = relations(dashboards, ({ one, many }) => ({
-	owner: one(users, {
-		fields: [dashboards.ownerId],
-		references: [users.id]
-	}),
-	widgets: many(dashboardWidgets)
-}));
-
-// Dashboard Widget relations
-export const dashboardWidgetRelations = relations(dashboardWidgets, ({ one }) => ({
-	dashboard: one(dashboards, {
-		fields: [dashboardWidgets.dashboardId],
-		references: [dashboards.id]
-	})
-}));
-
 // Auth Provider relations
 export const authProviderRelations = relations(authProviders, ({ many }) => ({
 	userProviders: many(userProviders)
@@ -280,16 +229,21 @@ export const userProviderRelations = relations(userProviders, ({ one }) => ({
 	})
 }));
 
-// User relations (add SSO providers)
+// User relations (add SSO providers and audit logs)
 export const userRelations = relations(users, ({ many }) => ({
 	sessions: many(sessions),
-	ssoProviders: many(userProviders)
+	ssoProviders: many(userProviders),
+	auditLogs: many(auditLogs)
 }));
 
-export type Dashboard = typeof dashboards.$inferSelect;
-export type NewDashboard = typeof dashboards.$inferInsert;
-export type DashboardWidget = typeof dashboardWidgets.$inferSelect;
-export type NewDashboardWidget = typeof dashboardWidgets.$inferInsert;
+// Audit log relations
+export const auditLogRelations = relations(auditLogs, ({ one }) => ({
+	user: one(users, {
+		fields: [auditLogs.userId],
+		references: [users.id]
+	})
+}));
+
 export type AuthProvider = typeof authProviders.$inferSelect;
 export type NewAuthProvider = typeof authProviders.$inferInsert;
 export type UserProvider = typeof userProviders.$inferSelect;

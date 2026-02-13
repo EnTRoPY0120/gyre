@@ -26,7 +26,7 @@ RUN bun run build
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:24-alpine AS runtime
+FROM node:25-alpine AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
@@ -34,8 +34,8 @@ LABEL org.opencontainers.image.title="Gyre" \
       org.opencontainers.image.vendor="Gyre Project" \
       org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
-# Install CA certificates for TLS verification (required for in-cluster K8s API access)
-RUN apk add --no-cache ca-certificates
+# Install CA certificates and build tools for native modules
+RUN apk add --no-cache ca-certificates python3 make g++
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S gyre && \
@@ -48,10 +48,11 @@ COPY --from=builder --chown=gyre:gyre /build/build ./build
 COPY --from=builder --chown=gyre:gyre /build/package.json ./package.json
 COPY --from=builder --chown=gyre:gyre /build/drizzle ./drizzle
 
-# Install production dependencies only with cache mount
-RUN --mount=type=cache,target=/root/.npm \
-    npm install --omit=dev && \
-    npm cache clean --force
+# Install production dependencies
+# We omit the cache mount to avoid 'idealTree' conflict and clean up build tools in same layer
+RUN npm install --omit=dev && \
+    npm cache clean --force && \
+    apk del python3 make g++
 
 # Create data directory for SQLite database (PVC mount point)
 RUN mkdir -p /data && chown -R gyre:gyre /data

@@ -2,15 +2,34 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
 import * as k8s from '@kubernetes/client-node';
+import { checkPermission } from '$lib/server/rbac.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 /**
  * GET /api/flux/version
  * Fetches the Flux version from the cluster by checking the 'app.kubernetes.io/version' label
  * on the flux-system deployments or namespace.
  */
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
+	// Check authentication
+	if (!locals.user) {
+		throw error(401, { message: 'Authentication required' });
+	}
+
+	// Check permission
+	const hasPermission = await checkPermission(
+		locals.user,
+		'read',
+		undefined,
+		undefined,
+		locals.cluster
+	);
+	if (!hasPermission) {
+		throw error(403, { message: 'Permission denied' });
+	}
+
 	try {
-		const config = getKubeConfig();
+		const config = await getKubeConfig(locals.cluster);
 		const appsApi = config.makeApiClient(k8s.AppsV1Api);
 		const namespace = 'flux-system';
 
@@ -47,8 +66,6 @@ export const GET: RequestHandler = async () => {
 			return json({ version: 'v2.x.x' });
 		}
 	} catch (err) {
-		return error(500, {
-			message: err instanceof Error ? err.message : 'Unknown error fetching Flux version'
-		});
+		handleApiError(err, 'Error fetching Flux version');
 	}
 };

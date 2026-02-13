@@ -7,8 +7,8 @@
 	interface Props {
 		resources: Array<{
 			kind: string;
-			metadata: { name: string; namespace: string };
-			status?: { conditions?: K8sCondition[] };
+			metadata: { name: string; namespace: string; generation?: number };
+			status?: { conditions?: K8sCondition[]; observedGeneration?: number };
 			error?: string;
 		}>;
 	}
@@ -77,7 +77,12 @@
 
 								<!-- Live Status Indicator -->
 								{#if resource.status?.conditions}
-									<StatusBadge conditions={resource.status.conditions} size="sm" />
+									<StatusBadge
+										conditions={resource.status.conditions}
+										observedGeneration={resource.status.observedGeneration}
+										generation={resource.metadata.generation}
+										size="sm"
+									/>
 								{:else if resource.error}
 									<span
 										class="rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] font-medium text-red-500"

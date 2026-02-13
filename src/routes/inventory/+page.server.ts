@@ -115,30 +115,42 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		...resourceMap['HelmRelease'].map((r) => createNode(r, 'HelmRelease'))
 	];
 
-	// Map Apps to Sources for the Sources tree
-	sourceTrees.forEach((sNode) => {
-		relationships
-			.filter(
-				(rel) =>
-					rel.type === 'source' &&
-					rel.target.kind === sNode.ref.kind &&
-					rel.target.name === sNode.ref.name &&
-					rel.target.namespace === sNode.ref.namespace
-			)
-			.forEach((rel) => {
-				const appNode = appTrees.find(
-					(an) => an.ref.name === rel.source.name && an.ref.namespace === rel.source.namespace
-				);
-				if (appNode) sNode.children.push(appNode);
-			});
-	});
-
 	// 3. Image Automation Tree (Repo -> Policy -> Automation)
 	const imageRepoNodes = resourceMap['ImageRepository'].map((r) =>
 		createNode(r, 'ImageRepository')
 	);
 	const imagePolicyNodes = resourceMap['ImagePolicy'].map((r) => createNode(r, 'ImagePolicy'));
-	resourceMap['ImageUpdateAutomation'].map((r) => createNode(r, 'ImageUpdateAutomation'));
+	const imageUpdateNodes = resourceMap['ImageUpdateAutomation'].map((r) =>
+		createNode(r, 'ImageUpdateAutomation')
+	);
+
+	// Map Apps and Automations to Sources for the Sources tree
+	sourceTrees.forEach((sNode) => {
+		relationships
+			.filter(
+				(rel) =>
+					rel.target.kind === sNode.ref.kind &&
+					rel.target.name === sNode.ref.name &&
+					rel.target.namespace === sNode.ref.namespace
+			)
+			.forEach((rel) => {
+				// Kustomizations and HelmReleases (type: 'source')
+				if (rel.type === 'source') {
+					const appNode = appTrees.find(
+						(an) => an.ref.name === rel.source.name && an.ref.namespace === rel.source.namespace
+					);
+					if (appNode) sNode.children.push(appNode);
+				}
+
+				// ImageUpdateAutomations (type: 'uses')
+				if (rel.type === 'uses' && rel.source.kind === 'ImageUpdateAutomation') {
+					const automationNode = imageUpdateNodes.find(
+						(un) => un.ref.name === rel.source.name && un.ref.namespace === rel.source.namespace
+					);
+					if (automationNode) sNode.children.push(automationNode);
+				}
+			});
+	});
 
 	imageRepoNodes.forEach((repoNode) => {
 		relationships
@@ -152,7 +164,23 @@ export const load: PageServerLoad = async ({ cookies }) => {
 				const policyNode = imagePolicyNodes.find(
 					(pn) => pn.ref.name === rel.source.name && pn.ref.namespace === rel.source.namespace
 				);
-				if (policyNode) repoNode.children.push(policyNode);
+				if (policyNode) {
+					repoNode.children.push(policyNode);
+
+					// Connect ImageUpdateAutomation to ImagePolicy if they share the same namespace
+					// This aligns with the Repo -> Policy -> Automation structure requested
+					imageUpdateNodes
+						.filter((un) => un.ref.namespace === policyNode.ref.namespace)
+						.forEach((un) => {
+							if (
+								!policyNode.children.some(
+									(c) => c.ref.name === un.ref.name && c.ref.namespace === un.ref.namespace
+								)
+							) {
+								policyNode.children.push(un);
+							}
+						});
+				}
 			});
 	});
 
@@ -201,13 +229,20 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		else if (status === 'suspended') stats.suspended++;
 	});
 
+	// Determine which image automation nodes are top-level (not children of a policy)
+	const topLevelImageUpdateNodes = imageUpdateNodes.filter((un) => {
+		return !imagePolicyNodes.some((pn) =>
+			pn.children.some((c) => c.ref.name === un.ref.name && c.ref.namespace === un.ref.namespace)
+		);
+	});
+
 	return {
 		relationships,
 		trees: {
 			sources: sourceTrees,
 			applications: appTrees,
 			notifications: [...providerNodes, ...receiverNodes],
-			imageAutomation: imageRepoNodes
+			imageAutomation: [...imageRepoNodes, ...topLevelImageUpdateNodes]
 		},
 		stats
 	};

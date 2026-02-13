@@ -1,6 +1,24 @@
-import type { RequestHandler } from '@sveltejs/kit';
+import { error, type RequestHandler } from '@sveltejs/kit';
+import { checkPermission } from '$lib/server/rbac.js';
 
-export const GET: RequestHandler = async ({ request }) => {
+export const GET: RequestHandler = async ({ request, locals }) => {
+	// Check authentication
+	if (!locals.user) {
+		throw error(401, { message: 'Authentication required' });
+	}
+
+	// Check permission
+	const hasPermission = await checkPermission(
+		locals.user,
+		'read',
+		undefined,
+		undefined,
+		locals.cluster
+	);
+	if (!hasPermission) {
+		throw error(403, { message: 'Permission denied' });
+	}
+
 	// Check if this is a WebSocket upgrade request
 	const upgradeHeader = request.headers.get('upgrade');
 	if (upgradeHeader?.toLowerCase() !== 'websocket') {

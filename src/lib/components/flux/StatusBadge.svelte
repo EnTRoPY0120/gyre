@@ -7,12 +7,20 @@
 	interface Props {
 		conditions?: K8sCondition[];
 		suspended?: boolean;
+		observedGeneration?: number;
+		generation?: number;
 		size?: 'sm' | 'md';
 	}
 
-	let { conditions, suspended = false, size = 'md' }: Props = $props();
+	let {
+		conditions,
+		suspended = false,
+		observedGeneration,
+		generation,
+		size = 'md'
+	}: Props = $props();
 
-	const health = $derived(getResourceHealth(conditions, suspended));
+	const health = $derived(getResourceHealth(conditions, suspended, observedGeneration, generation));
 	const label = $derived(getHealthLabel(health));
 
 	const styles = $derived.by(() => {

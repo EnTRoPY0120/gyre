@@ -121,12 +121,12 @@
 
 <div class="space-y-6">
 	<!-- Header -->
-	<div class="flex items-center justify-between">
+	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="text-2xl font-bold text-white">Cluster Management</h1>
 			<p class="text-slate-400">Manage Kubernetes clusters and kubeconfig uploads</p>
 		</div>
-		<Button onclick={openCreateModal} class="gap-2">
+		<Button onclick={openCreateModal} class="w-full gap-2 sm:w-auto">
 			<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
 			</svg>
@@ -392,9 +392,19 @@
 
 	<!-- Create Cluster Modal -->
 	{#if showCreateModal}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-2xl rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-				<h2 class="mb-4 text-xl font-bold text-white">Add New Cluster</h2>
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="create-cluster-title"
+			tabindex="-1"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-2xl sm:rounded-xl"
+			>
+				<h2 id="create-cluster-title" class="mb-4 text-xl font-bold text-white">Add New Cluster</h2>
 
 				<form
 					method="POST"
@@ -409,7 +419,7 @@
 					}}
 					class="space-y-4"
 				>
-					<div class="grid grid-cols-2 gap-4">
+					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<div>
 							<label for="clusterName" class="mb-1 block text-sm font-medium text-slate-300"
 								>Cluster Name</label
@@ -516,8 +526,18 @@
 
 	<!-- Delete Confirmation Modal -->
 	{#if deletingCluster}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-			<div class="w-full max-w-md rounded-xl border border-red-500/30 bg-slate-800 p-6 shadow-2xl">
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="delete-cluster-title"
+			tabindex="-1"
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
+			<div
+				class="h-full w-full overflow-y-auto border border-red-500/30 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
+			>
 				<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
 					<svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 						<path
@@ -528,7 +548,7 @@
 						/>
 					</svg>
 				</div>
-				<h2 class="mb-2 text-xl font-bold text-white">Delete Cluster</h2>
+				<h2 id="delete-cluster-title" class="mb-2 text-xl font-bold text-white">Delete Cluster</h2>
 				<p class="mb-6 text-slate-400">
 					Are you sure you want to delete <strong class="text-white">{deletingCluster.name}</strong
 					>? This will remove the cluster configuration and all associated data. This action cannot

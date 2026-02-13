@@ -1,6 +1,7 @@
 import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/auth';
 import { initializeGyre } from '$lib/server/initialize';
+import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -12,6 +13,7 @@ const PUBLIC_ROUTES = [
 	'/api/auth/logout',
 	'/api/health',
 	'/api/flux/health',
+	'/metrics',
 	'/manifest.json',
 	'/favicon.ico',
 	'/logo.svg'
@@ -46,8 +48,20 @@ function isPublicRoute(path: string): boolean {
  * 3. RBAC checks (future enhancement)
  */
 export const handle: Handle = async ({ event, resolve }) => {
+	const start = Date.now();
 	const { url, cookies } = event;
 	const path = url.pathname;
+
+	const recordResponse = (response: Response) => {
+		if (!path.startsWith('/metrics')) {
+			const duration = (Date.now() - start) / 1000;
+			const routeTemplate = event.route?.id || path;
+			httpRequestDurationMicroseconds
+				.labels(event.request.method, routeTemplate, response.status.toString())
+				.observe(duration);
+		}
+		return response;
+	};
 
 	// Initialize Gyre on first request
 	if (!initialized) {
@@ -79,17 +93,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (!event.locals.user && !isPublicRoute(path)) {
 		// For API routes, return 401
 		if (path.startsWith('/api/')) {
-			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-				status: 401,
-				headers: { 'Content-Type': 'application/json' }
-			});
+			return recordResponse(
+				new Response(JSON.stringify({ error: 'Unauthorized' }), {
+					status: 401,
+					headers: { 'Content-Type': 'application/json' }
+				})
+			);
 		}
 
 		// For page routes, redirect to login
-		return new Response(null, {
-			status: 302,
-			headers: { Location: '/login' }
-		});
+		return recordResponse(
+			new Response(null, {
+				status: 302,
+				headers: { Location: '/login' }
+			})
+		);
 	}
 
 	// Handle cluster context from cookies (for multi-cluster support)
@@ -101,7 +119,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 		event.locals.cluster = 'in-cluster';
 	}
 
-	return resolve(event);
+	// Protect admin API routes
+	if (path.startsWith('/api/admin') && event.locals.user?.role !== 'admin') {
+		return recordResponse(
+			new Response(JSON.stringify({ error: 'Forbidden' }), {
+				status: 403,
+				headers: { 'Content-Type': 'application/json' }
+			})
+		);
+	}
+
+	const response = await resolve(event);
+	return recordResponse(response);
 };
 
 /**

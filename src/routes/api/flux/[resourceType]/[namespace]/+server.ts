@@ -6,7 +6,7 @@ import {
 	getResourceTypeByPlural,
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
-import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 
 /**
@@ -16,7 +16,7 @@ import { checkPermission } from '$lib/server/rbac.js';
 export const GET: RequestHandler = async ({ params, locals }) => {
 	// Check authentication
 	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
+		throw error(401, { message: 'Authentication required' });
 	}
 
 	const { resourceType, namespace } = params;
@@ -25,7 +25,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
 		const validPlurals = getAllResourcePlurals();
-		return error(400, {
+		throw error(400, {
 			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
 		});
 	}
@@ -40,14 +40,13 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	);
 
 	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
+		throw error(403, { message: 'Permission denied' });
 	}
 
 	try {
 		const resources = await listFluxResourcesInNamespace(resolvedType, namespace, locals.cluster);
 		return json(resources);
 	} catch (err) {
-		const { status, body } = errorToHttpResponse(err);
-		return error(status, body.error);
+		handleApiError(err, `Error listing ${resolvedType} in namespace ${namespace}`);
 	}
 };

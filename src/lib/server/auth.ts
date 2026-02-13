@@ -1,11 +1,12 @@
 import bcrypt from 'bcryptjs';
 import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db/index.js';
 import { users, sessions } from './db/schema.js';
-import { eq, and, gt, sql } from 'drizzle-orm';
+import { eq, and, gt, lt, sql } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import * as k8s from '@kubernetes/client-node';
 import { readFileSync } from 'node:fs';
+import { loginAttemptsTotal } from './metrics.js';
 
 // In-cluster configuration paths
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
@@ -252,7 +253,7 @@ export async function deleteUserSessions(userId: string): Promise<void> {
 export async function cleanupExpiredSessions(): Promise<void> {
 	const db = await getDb();
 	const now = new Date();
-	await db.delete(sessions).where(gt(sessions.expiresAt, now));
+	await db.delete(sessions).where(lt(sessions.expiresAt, now));
 }
 
 // Check if any users exist (for initial setup)
@@ -509,6 +510,7 @@ export async function authenticateUser(username: string, password: string): Prom
 	const user = await getUserByUsername(username);
 
 	if (!user || !user.active) {
+		loginAttemptsTotal.labels('failure').inc();
 		return null;
 	}
 
@@ -524,8 +526,10 @@ export async function authenticateUser(username: string, password: string): Prom
 	}
 
 	if (!isValid) {
+		loginAttemptsTotal.labels('failure').inc();
 		return null;
 	}
 
+	loginAttemptsTotal.labels('success').inc();
 	return user;
 }

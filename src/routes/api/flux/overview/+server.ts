@@ -1,14 +1,32 @@
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { listFluxResources } from '$lib/server/kubernetes/client';
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { getResourceStatus } from '$lib/utils/relationships';
+import { checkPermission } from '$lib/server/rbac.js';
 
-export const GET: RequestHandler = async ({ cookies, setHeaders }) => {
+export const GET: RequestHandler = async ({ locals, setHeaders }) => {
+	// Check authentication
+	if (!locals.user) {
+		throw error(401, { message: 'Authentication required' });
+	}
+
+	// Check permission
+	const hasPermission = await checkPermission(
+		locals.user,
+		'read',
+		undefined,
+		undefined,
+		locals.cluster
+	);
+	if (!hasPermission) {
+		throw error(403, { message: 'Permission denied' });
+	}
+
 	setHeaders({
 		'Cache-Control': 'private, max-age=15, stale-while-revalidate=45'
 	});
-	const context = cookies.get('gyre_cluster');
+	const context = locals.cluster;
 	const resourceTypes = getAllResourceTypes();
 
 	const results = await Promise.all(
