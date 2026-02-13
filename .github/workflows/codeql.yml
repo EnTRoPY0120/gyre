@@ -61,7 +61,6 @@ jobs:
         with:
           category: '/language:${{ matrix.language }}'
           upload: true
-          add-snippets: true
 
       - name: Create security summary
         if: always()
