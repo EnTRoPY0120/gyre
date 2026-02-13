@@ -28,11 +28,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	// Get auth settings
-	const authSettings = await getAuthSettings();
+	let localLoginEnabled = true;
+	try {
+		const authSettings = await getAuthSettings();
+		localLoginEnabled = authSettings.localLoginEnabled;
+	} catch (error) {
+		console.error('Failed to load auth settings:', error);
+		// Continue with local login enabled as fallback
+	}
 
 	return {
 		mode: locals.cluster ? 'in-cluster' : 'local',
 		providers,
-		localLoginEnabled: authSettings.localLoginEnabled
+		localLoginEnabled
 	};
 };

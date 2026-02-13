@@ -78,24 +78,18 @@ export async function getSetting(key: string): Promise<string> {
 export async function setSetting(key: string, value: string): Promise<void> {
 	const db = await getDb();
 
-	// Upsert setting
-	const existing = await db.query.appSettings.findFirst({
-		where: eq(appSettings.key, key)
-	});
-
-	if (existing) {
-		await db
-			.update(appSettings)
-			.set({ value, updatedAt: new Date() })
-			.where(eq(appSettings.key, key));
-	} else {
-		const newSetting: NewAppSetting = {
+	// Atomic upsert using ON CONFLICT
+	await db
+		.insert(appSettings)
+		.values({
 			key,
 			value,
 			updatedAt: new Date()
-		};
-		await db.insert(appSettings).values(newSetting);
-	}
+		})
+		.onConflictDoUpdate({
+			target: appSettings.key,
+			set: { value, updatedAt: new Date() }
+		});
 
 	// Invalidate cache
 	cache.delete(key);
@@ -140,24 +134,29 @@ export async function getAuthSettings(): Promise<AuthSettings> {
  * Convenience: Check if local login is enabled.
  */
 export async function isLocalLoginEnabled(): Promise<boolean> {
-	const settings = await getAuthSettings();
-	return settings.localLoginEnabled;
+	const value = await getSetting(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED);
+	return value === 'true';
 }
 
 /**
  * Convenience: Check if signup is allowed.
  */
 export async function isSignupAllowed(): Promise<boolean> {
-	const settings = await getAuthSettings();
-	return settings.allowSignup;
+	const value = await getSetting(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP);
+	return value === 'true';
 }
 
 /**
  * Convenience: Get domain allowlist.
  */
 export async function getDomainAllowlist(): Promise<string[]> {
-	const settings = await getAuthSettings();
-	return settings.domainAllowlist;
+	const value = await getSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST);
+	try {
+		const parsed = JSON.parse(value);
+		return Array.isArray(parsed) ? parsed : [];
+	} catch {
+		return [];
+	}
 }
 
 /**

@@ -17,7 +17,7 @@ import { getAuthSettings } from '../settings.js';
  */
 export interface SSOUserResult {
 	user: User | null;
-	reason?: 'signup_disabled' | 'domain_not_allowed' | 'auto_provision_disabled';
+	reason?: 'signup_disabled' | 'domain_not_allowed' | 'auto_provision_disabled' | 'user_not_found';
 }
 
 /**
@@ -59,7 +59,12 @@ export async function createOrUpdateSSOUser(
 			where: eq(users.id, existingLink.userId)
 		});
 
-		return { user: user || null };
+		if (!user) {
+			console.warn(`Orphaned provider link found for userId ${existingLink.userId}`);
+			return { user: null, reason: 'user_not_found' };
+		}
+
+		return { user };
 	}
 
 	// User doesn't exist - check auth settings and provider config
@@ -91,7 +96,10 @@ export async function createOrUpdateSSOUser(
 		}
 
 		const domain = email.split('@')[1]?.toLowerCase();
-		if (!domain || !authSettings.domainAllowlist.includes(domain)) {
+		// Normalize allowlist for comparison
+		const normalizedAllowlist = authSettings.domainAllowlist.map((d) => d.trim().toLowerCase());
+
+		if (!domain || !normalizedAllowlist.includes(domain)) {
 			console.log(`Domain ${domain} not in allowlist for user ${userInfo.sub}`);
 			return { user: null, reason: 'domain_not_allowed' };
 		}

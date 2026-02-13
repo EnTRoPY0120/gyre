@@ -100,6 +100,12 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 			// Generate provider ID
 			const providerId = `provider-${randomBytes(8).toString('hex')}`;
 
+			// Normalize roleMapping (ensure it's a string if provided)
+			let roleMapping = config.roleMapping || null;
+			if (roleMapping && typeof roleMapping === 'object') {
+				roleMapping = JSON.stringify(roleMapping);
+			}
+
 			// Create provider
 			const newProvider: NewAuthProvider = {
 				id: providerId,
@@ -115,7 +121,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 				jwksUrl: config.jwksUrl || null,
 				autoProvision: config.autoProvision ?? true,
 				defaultRole: config.defaultRole || 'viewer',
-				roleMapping: config.roleMapping || null,
+				roleMapping,
 				roleClaim: config.roleClaim || 'groups',
 				usernameClaim: config.usernameClaim || 'preferred_username',
 				emailClaim: config.emailClaim || 'email',

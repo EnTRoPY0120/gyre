@@ -85,9 +85,11 @@ export const GET: RequestHandler = async ({ params, url, cookies, getClientAddre
 				message = 'Your email domain is not authorized for this application.';
 			} else if (result.reason === 'auto_provision_disabled') {
 				message = 'Account auto-provisioning is disabled. Please contact your administrator.';
+			} else if (result.reason === 'user_not_found') {
+				message = 'Your user account could not be found. Please contact your administrator.';
 			}
 
-			throw error(403, { message });
+			throw redirect(302, `/login?error=${encodeURIComponent(message)}`);
 		}
 
 		const user = result.user;

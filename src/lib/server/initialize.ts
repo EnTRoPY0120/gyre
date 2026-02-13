@@ -163,7 +163,9 @@ export async function initializeGyre(): Promise<void> {
 			console.log(`   ✓ Seeded ${seedResult.created} auth provider(s)`);
 		}
 		if (seedResult.skipped > 0) {
-			console.log(`   ℹ Skipped ${seedResult.skipped} existing provider(s)`);
+			console.log(
+				`   ℹ Skipped ${seedResult.skipped} provider(s) (existing or invalid/missing secrets)`
+			);
 		}
 		console.log('   ✓ Authentication settings ready');
 	} catch (error) {

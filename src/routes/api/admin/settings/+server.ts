@@ -69,7 +69,12 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 	}
 
 	try {
-		const body = await request.json();
+		let body;
+		try {
+			body = await request.json();
+		} catch {
+			throw error(400, { message: 'Invalid JSON body' });
+		}
 
 		// Validate input
 		if (!body || typeof body !== 'object') {
@@ -97,7 +102,8 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 					.map((d: string) => d.trim().toLowerCase())
 					.filter((d: string) => d.length > 0);
 
-				await setSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST, JSON.stringify(domains));
+				const uniqueDomains = [...new Set(domains)];
+				await setSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST, JSON.stringify(uniqueDomains));
 			}
 		}
 
