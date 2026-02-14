@@ -17,6 +17,7 @@
 	} = $props();
 
 	let copied = $state(false);
+	let editorLoading = $state(true);
 
 	const formattedCode = $derived(preferences.format === 'yaml' ? toYaml(data) : toJson(data));
 	const language = $derived(preferences.format as 'yaml' | 'json');
@@ -119,6 +120,18 @@
 
 	<!-- Code Area -->
 	<div class="relative flex-1 overflow-hidden">
+		{#if editorLoading}
+			<div class="flex h-full items-center justify-center bg-sidebar/30">
+				<div class="flex flex-col items-center gap-3">
+					<div
+						class="h-8 w-8 animate-spin rounded-full border-2 border-sidebar-border border-t-primary"
+					></div>
+					<p class="text-xs font-medium tracking-widest text-muted-foreground uppercase">
+						Loading editor
+					</p>
+				</div>
+			</div>
+		{/if}
 		<MonacoEditor
 			value={formattedCode}
 			{language}
@@ -126,6 +139,7 @@
 			height="100%"
 			minimap={false}
 			lineNumbers="on"
+			onReady={() => (editorLoading = false)}
 		/>
 	</div>
 </div>

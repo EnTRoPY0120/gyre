@@ -14,6 +14,7 @@
 		lineNumbers?: 'on' | 'off';
 		onChange?: (value: string) => void;
 		onValidation?: (errors: Monaco.editor.IMarker[]) => void;
+		onReady?: () => void;
 		className?: string;
 	}
 
@@ -26,6 +27,7 @@
 		lineNumbers = 'on',
 		onChange,
 		onValidation,
+		onReady,
 		className = ''
 	}: Props = $props();
 
@@ -131,6 +133,7 @@
 				}
 
 				loading = false;
+				onReady?.();
 			} catch (err) {
 				console.error('Failed to load Monaco Editor:', err);
 				error = err instanceof Error ? err.message : 'Failed to load editor';
