@@ -1,0 +1,29 @@
+{
+	"plugins": ["import", "typescript", "unicorn"],
+	"env": {
+		"browser": true,
+		"node": true
+	},
+	"globals": {},
+	"ignorePatterns": [
+		"documentation/build/**",
+		"documentation/.docusaurus/**",
+		"**/node_modules/**",
+		"**/.svelte-kit/**",
+		"**/build/**",
+		"**/dist/**",
+		"**/package-lock.json",
+		"**/pnpm-lock.yaml",
+		"**/yarn.lock",
+		"**/bun.lock",
+		"**/bun.lockb",
+		"static/**",
+		"charts/**",
+		"**/*.d.ts"
+	],
+	"rules": {
+		"no-unused-vars": "warn",
+		"no-console": "off",
+		"no-debugger": "warn"
+	}
+}
