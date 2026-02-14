@@ -1,0 +1,32 @@
+# Package Managers
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+
+# Build outputs
+/.svelte-kit
+/build
+/dist
+.output
+
+# Dependencies
+node_modules
+
+# Static assets
+/static/
+
+# Helm charts (contains Go template syntax that oxfmt can't parse)
+charts/**
+
+# Documentation build
+documentation/build/**
+documentation/.docusaurus/**
+
+# Data
+data/**
+
+# Environment files
+.env
+.env.*
