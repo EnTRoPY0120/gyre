@@ -91,18 +91,33 @@ export const GET: RequestHandler = async (event) => {
 		const userInfo = await provider.getUserInfo(tokens);
 
 		// Auto-provision user or find existing user
-		const user = await createOrUpdateSSOUser(providerId, userInfo, provider.config);
+		const result = await createOrUpdateSSOUser(providerId, userInfo, provider.config);
 
 		// Check if user creation/retrieval was successful
-		if (!user) {
-			throw error(403, {
-				message: 'Account auto-provisioning is disabled. Please contact your administrator.'
-			});
+		if (!result.user) {
+			// Provide specific error message based on reason
+			let message = 'Authentication failed. Please contact your administrator.';
+			if (result.reason === 'signup_disabled') {
+				message = 'New account registration is not available. Please contact your administrator.';
+			} else if (result.reason === 'domain_not_allowed') {
+				message = 'Your email domain is not authorized for this application.';
+			} else if (result.reason === 'auto_provision_disabled') {
+				message = 'Account auto-provisioning is disabled. Please contact your administrator.';
+			} else if (result.reason === 'user_not_found') {
+				message = 'Your user account could not be found. Please contact your administrator.';
+			}
+
+			throw redirect(302, `/login?error=${encodeURIComponent(message)}`);
 		}
+
+		const user = result.user;
 
 		// Check if user account is active
 		if (!user.active) {
-			throw error(403, { message: 'Your account has been disabled.' });
+			throw redirect(
+				302,
+				`/login?error=${encodeURIComponent('Your account has been disabled. Please contact your administrator.')}`
+			);
 		}
 
 		// Create session for the user

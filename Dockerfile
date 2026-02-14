@@ -2,7 +2,7 @@
 # =============================================================================
 # Stage 1: Builder - Build the SvelteKit application
 # =============================================================================
-FROM oven/bun:1.3-alpine3.21 AS builder
+FROM oven/bun:1.3.9-alpine AS builder
 
 WORKDIR /build
 
@@ -26,7 +26,7 @@ RUN bun run build
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:25-alpine3.21 AS runtime
+FROM node:25-alpine3.23 AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
@@ -34,8 +34,19 @@ LABEL org.opencontainers.image.title="Gyre" \
       org.opencontainers.image.vendor="Gyre Project" \
       org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
-# Install CA certificates and build tools for native modules
-RUN apk add --no-cache ca-certificates python3 make g++
+# Install CA certificates, curl, and build tools for native modules
+RUN apk add --no-cache ca-certificates python3 make g++ curl
+
+# Install Kustomize (direct binary download for Alpine with checksum verification)
+ARG KUSTOMIZE_VERSION=v5.8.1
+ARG KUSTOMIZE_SHA256=029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a819d
+RUN curl -sSL -o /tmp/kustomize.tgz \
+      "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" && \
+    echo "${KUSTOMIZE_SHA256}  /tmp/kustomize.tgz" | sha256sum -c - && \
+    tar -xzf /tmp/kustomize.tgz -C /usr/local/bin && \
+    chmod +x /usr/local/bin/kustomize && \
+    kustomize version && \
+    rm -f /tmp/kustomize.tgz
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S gyre && \

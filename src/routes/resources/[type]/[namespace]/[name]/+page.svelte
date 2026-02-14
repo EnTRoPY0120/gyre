@@ -12,6 +12,7 @@
 	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
 	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
 	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
+	import ResourceDiffViewer from '$lib/components/flux/ResourceDiffViewer.svelte';
 	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
 	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
@@ -28,6 +29,21 @@
 		source: {
 			component: string;
 		};
+	}
+
+	interface ResourceDiff {
+		kind: string;
+		name: string;
+		namespace: string;
+		desired: string;
+		live: string | null;
+	}
+
+	interface DiffResponse {
+		diffs: ResourceDiff[];
+		cached?: boolean;
+		timestamp?: number;
+		revision?: string;
 	}
 
 	interface Props {
@@ -64,7 +80,7 @@
 		return unsubscribe;
 	});
 
-	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'yaml';
+	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'diff' | 'yaml';
 
 	let activeTab = $state<TabId>('overview');
 
@@ -81,6 +97,15 @@
 	let logsFetched = $state(false);
 	let showRawLogs = $state(false);
 	let logContainer = $state<HTMLDivElement | null>(null);
+
+	// Diff state
+	let diffs = $state<ResourceDiff[]>([]);
+	let diffsLoading = $state(false);
+	let diffsError = $state<string | null>(null);
+	let diffsFetched = $state(false);
+	let diffsCached = $state(false);
+	let diffsTimestamp = $state<number | null>(null);
+	let diffsRevision = $state<string | null>(null);
 
 	const formattedLogs = $derived(
 		logs
@@ -130,15 +155,29 @@
 	let historyLoading = $state(false);
 	let historyFetched = $state(false);
 
-	const tabs: { id: TabId; label: string }[] = [
-		{ id: 'overview', label: 'Overview' },
-		{ id: 'spec', label: 'Spec' },
-		{ id: 'status', label: 'Status' },
-		{ id: 'events', label: 'Events' },
-		{ id: 'logs', label: 'Logs' },
-		{ id: 'history', label: 'History' },
-		{ id: 'yaml', label: 'YAML' }
-	];
+	// Detect resource type for specialized views
+	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
+	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
+	const isKustomization = $derived(data.resourceType === 'kustomizations');
+
+	const tabs = $derived.by(() => {
+		const base: { id: TabId; label: string }[] = [
+			{ id: 'overview', label: 'Overview' },
+			{ id: 'spec', label: 'Spec' },
+			{ id: 'status', label: 'Status' },
+			{ id: 'events', label: 'Events' },
+			{ id: 'logs', label: 'Logs' },
+			{ id: 'history', label: 'History' }
+		];
+
+		// Drift detection is only available for Kustomizations
+		if (isKustomization) {
+			base.push({ id: 'diff', label: 'Drift (Diff)' });
+		}
+
+		base.push({ id: 'yaml', label: 'YAML' });
+		return base;
+	});
 
 	function goBack() {
 		goto(resolve(`/resources/${data.resourceType}`));
@@ -222,6 +261,43 @@
 		}
 	}
 
+	// Fetch diff when the Diff tab is selected
+	async function fetchDiff(force = false) {
+		if (diffsFetched && !force) return;
+
+		diffsLoading = true;
+		diffsError = null;
+
+		try {
+			const url = new URL(
+				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`,
+				window.location.origin
+			);
+			if (force) {
+				// Add cache-busting parameter to force fresh computation
+				url.searchParams.set('force', 'true');
+			}
+
+			const response = await fetch(url.toString());
+
+			if (!response.ok) {
+				const errData = await response.json();
+				throw new Error(errData.message || `Failed to fetch diff: ${response.statusText}`);
+			}
+
+			const result: DiffResponse = await response.json();
+			diffs = result.diffs || [];
+			diffsCached = result.cached || false;
+			diffsTimestamp = result.timestamp || null;
+			diffsRevision = result.revision || null;
+			diffsFetched = true;
+		} catch (err) {
+			diffsError = err instanceof Error ? err.message : 'Failed to load diff';
+		} finally {
+			diffsLoading = false;
+		}
+	}
+
 	async function handleRollback(revision: string) {
 		if (!confirm(`Are you sure you want to rollback to version v${revision}?`)) return;
 
@@ -251,7 +327,7 @@
 	// Format persisted in preferences store now
 	// handleExport moved to CodeViewer component
 
-	// Trigger fetch when switching to events tab
+	// Trigger fetch when switching to tabs
 	$effect(() => {
 		if (activeTab === 'events' && !eventsFetched) {
 			fetchEvents();
@@ -270,13 +346,14 @@
 		}
 	});
 
+	$effect(() => {
+		if (activeTab === 'diff' && !diffsFetched) {
+			fetchDiff();
+		}
+	});
+
 	// Get conditions safely
 	const conditions = $derived<K8sCondition[]>(resource.status?.conditions || []);
-
-	// Detect resource type for specialized views
-	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
-	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
-	const isKustomization = $derived(data.resourceType === 'kustomizations');
 </script>
 
 <div class="space-y-6">
@@ -569,6 +646,131 @@
 					</button>
 				</div>
 				<VersionHistory {history} loading={historyLoading} onRollback={handleRollback} />
+			</div>
+		{:else if activeTab === 'diff'}
+			<div
+				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+			>
+				<div class="mb-4 flex items-center justify-between">
+					<div class="flex flex-col gap-1">
+						<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Drift</h3>
+						{#if diffsTimestamp}
+							<div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+								<span>
+									Last checked: {new Date(diffsTimestamp).toLocaleTimeString()}
+								</span>
+								{#if diffsCached}
+									<span
+										class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
+									>
+										<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
+											/>
+										</svg>
+										Cached
+									</span>
+								{/if}
+								{#if diffsRevision}
+									<span class="font-mono text-[10px]">@ {diffsRevision.slice(0, 8)}</span>
+								{/if}
+							</div>
+						{/if}
+					</div>
+					<button
+						type="button"
+						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+						onclick={() => {
+							diffsFetched = false;
+							fetchDiff(true);
+						}}
+						disabled={diffsLoading}
+					>
+						<svg
+							class="h-4 w-4 {diffsLoading ? 'animate-spin' : ''}"
+							fill="none"
+							stroke="currentColor"
+							viewBox="0 0 24 24"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								stroke-width="2"
+								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+							/>
+						</svg>
+						{diffsLoading ? 'Computing...' : 'Refresh'}
+					</button>
+				</div>
+
+				{#if diffsLoading}
+					<div class="flex h-64 flex-col items-center justify-center gap-4">
+						<div
+							class="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
+						></div>
+						<p class="animate-pulse text-sm text-gray-500">
+							Running kustomize build and fetching cluster state...
+						</p>
+					</div>
+				{:else if diffsError}
+					<div
+						class="rounded-md border {diffsError.includes('only available when')
+							? 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-900/20'
+							: 'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/20'} p-6"
+					>
+						<div
+							class="mb-2 flex items-center gap-2 text-base font-semibold {diffsError.includes(
+								'only available when'
+							)
+								? 'text-amber-700 dark:text-amber-400'
+								: 'text-red-700 dark:text-red-400'}"
+						>
+							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+								/>
+							</svg>
+							{diffsError.includes('only available when')
+								? 'In-Cluster Deployment Required'
+								: 'Failed to Calculate Drift'}
+						</div>
+						<p
+							class="text-sm {diffsError.includes('only available when')
+								? 'text-amber-600 dark:text-amber-300'
+								: 'text-red-600 dark:text-red-300'}"
+						>
+							{diffsError}
+						</p>
+						{#if diffsError.includes('only available when')}
+							<div
+								class="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-900/10"
+							>
+								<p class="text-xs font-medium text-amber-900 dark:text-amber-200">
+									💡 To use drift detection:
+								</p>
+								<ol
+									class="mt-2 ml-4 list-decimal space-y-1 text-xs text-amber-800 dark:text-amber-300"
+								>
+									<li>Deploy Gyre to your Kubernetes cluster using the Helm chart</li>
+									<li>Ensure Gyre runs in the same cluster as your FluxCD installation</li>
+									<li>Access Gyre via the in-cluster service or ingress</li>
+								</ol>
+							</div>
+						{/if}
+					</div>
+				{:else if diffs.length === 0}
+					<div class="py-12 text-center text-gray-500 dark:text-gray-400">
+						No resources found in this Kustomization to compare.
+					</div>
+				{:else}
+					<ResourceDiffViewer {diffs} />
+				{/if}
 			</div>
 		{:else if activeTab === 'yaml'}
 			<CodeViewer
