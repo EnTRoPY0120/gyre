@@ -139,6 +139,7 @@
 				error = err instanceof Error ? err.message : 'Failed to load editor';
 				showFallback = true;
 				loading = false;
+				onReady?.();
 			}
 		})();
 
