@@ -81,6 +81,13 @@ spec:
             configMapKeyRef:
               name: {{ include "gyre.fullname" . }}-config
               key: CACHE_TTL
+        {{- range $key, $value := .Values.config.additionalConfig }}
+        - name: {{ $key }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gyre.fullname" . }}-config
+              key: {{ $key }}
+        {{- end }}
         {{- end }}
         - name: ORIGIN
           {{- if and .Values.ingress.enabled (gt (len .Values.ingress.hosts) 0) }}

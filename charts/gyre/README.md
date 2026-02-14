@@ -568,7 +568,7 @@ Gyre pod meets **Restricted** Pod Security Standard:
 - ✅ Drops all capabilities
 - ✅ No privilege escalation
 - ✅ Seccomp profile configured
-- ❌ Read-only root filesystem (disabled for SQLite)
+- ✅ Read-only root filesystem (with emptyDir mounts for /tmp and /.cache)
 
 ### Network Policies
 
@@ -657,6 +657,6 @@ MIT License - See LICENSE file for details
 
 ---
 
-**Chart Version**: 0.1.0
+**Chart Version**: 0.2.0
 **App Version**: 0.1.0
-**Updated**: 2026-02-04
+**Updated**: 2026-02-13
