@@ -201,10 +201,11 @@
 			e.preventDefault();
 			open = !open;
 		}
+	}
 
-		// ESC to close
-		if (e.key === 'Escape' && open) {
-			open = false;
+	// Reset search query when dialog closes
+	function handleOpenChange(isOpen: boolean) {
+		if (!isOpen) {
 			searchQuery = '';
 		}
 	}
@@ -220,7 +221,7 @@
 	});
 </script>
 
-<Dialog.Dialog bind:open>
+<Dialog.Dialog bind:open onOpenChange={handleOpenChange}>
 	<Dialog.DialogContent class="p-0 shadow-2xl max-w-2xl">
 		<Command.Command class="rounded-lg border-0">
 			<Command.CommandInput
@@ -300,7 +301,7 @@
 					<kbd
 						class="flex h-5 items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium"
 					>
-						{#if typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac')}
+						{#if typeof navigator !== 'undefined' && ((navigator as any).userAgentData?.platform ?? navigator.platform)?.toLowerCase().includes('mac')}
 							⌘K
 						{:else}
 							Ctrl+K
