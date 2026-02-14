@@ -2,6 +2,7 @@
 	import './layout.css';
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
+	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import { websocketStore } from '$lib/stores/websocket.svelte';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import { onMount } from 'svelte';
@@ -84,4 +85,7 @@
 			</main>
 		</div>
 	</div>
+
+	<!-- Global Command Palette -->
+	<CommandPalette />
 {/if}
