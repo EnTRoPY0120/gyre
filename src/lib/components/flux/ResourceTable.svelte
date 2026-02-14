@@ -2,29 +2,86 @@
 	import type { FluxResource } from '$lib/types/flux';
 	import { formatTimestamp } from '$lib/utils/flux';
 	import StatusBadge from './StatusBadge.svelte';
+	import BulkActionsToolbar from './BulkActionsToolbar.svelte';
 	import { PackageX, ChevronLeft, ChevronRight } from 'lucide-svelte';
 
 	interface Props {
 		resources: FluxResource[];
 		showNamespace?: boolean;
 		onRowClick?: (resource: FluxResource) => void;
+		onOperationComplete?: () => void;
 	}
 
-	let { resources, showNamespace = true, onRowClick }: Props = $props();
+	let { resources, showNamespace = true, onRowClick, onOperationComplete }: Props = $props();
 
 	// Pagination state
 	let currentPage = $state(1);
 	let itemsPerPage = 10;
 
+	// Selection state
+	let selectedResourceIds = $state<Set<string>>(new Set());
+
 	const totalPages = $derived(Math.ceil(resources.length / itemsPerPage));
 	const paginatedResources = $derived(
 		resources.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 	);
+	const selectedResources = $derived(
+		resources.filter((r) => selectedResourceIds.has(r.metadata.uid || ''))
+	);
+	const allCurrentPageSelected = $derived(
+		paginatedResources.length > 0 &&
+			paginatedResources.every((r) => selectedResourceIds.has(r.metadata.uid || ''))
+	);
+	const someCurrentPageSelected = $derived(
+		paginatedResources.some((r) => selectedResourceIds.has(r.metadata.uid || '')) &&
+			!allCurrentPageSelected
+	);
 
-	function handleRowClick(resource: FluxResource) {
+	function handleRowClick(resource: FluxResource, event: MouseEvent) {
+		// Don't trigger row click if clicking checkbox
+		const target = event.target as HTMLElement;
+		if (
+			target instanceof HTMLInputElement &&
+			target.type === 'checkbox' ||
+			target.closest('input[type="checkbox"]')
+		) {
+			return;
+		}
+
 		if (onRowClick) {
 			onRowClick(resource);
 		}
+	}
+
+	function toggleResourceSelection(resource: FluxResource) {
+		const uid = resource.metadata.uid || '';
+		const newSet = new Set(selectedResourceIds);
+
+		if (newSet.has(uid)) {
+			newSet.delete(uid);
+		} else {
+			newSet.add(uid);
+		}
+
+		selectedResourceIds = newSet;
+	}
+
+	function toggleSelectAll() {
+		if (allCurrentPageSelected) {
+			// Deselect all on current page
+			const newSet = new Set(selectedResourceIds);
+			paginatedResources.forEach((r) => newSet.delete(r.metadata.uid || ''));
+			selectedResourceIds = newSet;
+		} else {
+			// Select all on current page
+			const newSet = new Set(selectedResourceIds);
+			paginatedResources.forEach((r) => newSet.add(r.metadata.uid || ''));
+			selectedResourceIds = newSet;
+		}
+	}
+
+	function clearSelection() {
+		selectedResourceIds = new Set();
 	}
 
 	function getReadyMessage(resource: FluxResource): string {
@@ -38,6 +95,14 @@
 			currentPage = totalPages;
 		}
 	});
+
+	// Clear selection when resources change
+	$effect(() => {
+		// Track resources array reference
+		resources;
+		// Clear selection when resources update
+		selectedResourceIds = new Set();
+	});
 </script>
 
 <div class="flex flex-col gap-4">
@@ -48,6 +113,16 @@
 			<table class="w-full min-w-[700px] text-left text-sm">
 				<thead class="border-b border-border bg-muted/30">
 					<tr>
+						<th class="w-12 px-4 py-4">
+							<input
+								type="checkbox"
+								checked={allCurrentPageSelected}
+								indeterminate={someCurrentPageSelected}
+								onchange={toggleSelectAll}
+								class="size-4 cursor-pointer rounded border-border bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-0"
+								aria-label="Select all resources on current page"
+							/>
+						</th>
 						<th
 							class="px-6 py-4 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground/80 uppercase"
 						>
@@ -81,7 +156,7 @@
 					{#if resources.length === 0}
 						<tr>
 							<td
-								colspan={showNamespace ? 5 : 4}
+								colspan={showNamespace ? 6 : 5}
 								class="px-6 py-12 text-center text-sm text-muted-foreground"
 							>
 								<div class="flex flex-col items-center gap-3">
@@ -97,8 +172,18 @@
 						{#each paginatedResources as resource (resource.metadata.uid)}
 							<tr
 								class="group cursor-pointer transition-colors hover:bg-accent/40 hover:text-accent-foreground"
-								onclick={() => handleRowClick(resource)}
+								onclick={(e) => handleRowClick(resource, e)}
 							>
+								<td class="px-4 py-4">
+									<input
+										type="checkbox"
+										checked={selectedResourceIds.has(resource.metadata.uid || '')}
+										onchange={() => toggleResourceSelection(resource)}
+										onclick={(e) => e.stopPropagation()}
+										class="size-4 cursor-pointer rounded border-border bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-0"
+										aria-label={`Select ${resource.metadata.name}`}
+									/>
+								</td>
 								<td
 									class="px-6 py-4 whitespace-nowrap transition-all duration-200 group-hover:pl-7"
 								>
@@ -175,5 +260,13 @@
 				</button>
 			</div>
 		</div>
+	{/if}
+
+	{#if selectedResources.length > 0}
+		<BulkActionsToolbar
+			{selectedResources}
+			onClearSelection={clearSelection}
+			{onOperationComplete}
+		/>
 	{/if}
 </div>
