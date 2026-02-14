@@ -49,11 +49,46 @@ spec:
         volumeMounts:
         - name: data
           mountPath: /data
+        {{- if .Values.securityContext.readOnlyRootFilesystem }}
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /.cache
+        {{- end }}
         env:
         - name: DATABASE_URL
           value: /data/gyre.db
         - name: NODE_ENV
           value: production
+        {{- if .Values.config.create }}
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gyre.fullname" . }}-config
+              key: LOG_LEVEL
+        - name: SESSION_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gyre.fullname" . }}-config
+              key: SESSION_TIMEOUT
+        - name: WS_PING_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gyre.fullname" . }}-config
+              key: WS_PING_INTERVAL
+        - name: CACHE_TTL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gyre.fullname" . }}-config
+              key: CACHE_TTL
+        {{- range $key, $value := .Values.config.additionalConfig }}
+        - name: {{ $key }}
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gyre.fullname" . }}-config
+              key: {{ $key }}
+        {{- end }}
+        {{- end }}
         - name: ORIGIN
           {{- if and .Values.ingress.enabled (gt (len .Values.ingress.hosts) 0) }}
           {{- $host := (index .Values.ingress.hosts 0).host }}
@@ -117,6 +152,12 @@ spec:
         {{- else }}
         emptyDir: {}
         {{- end }}
+      {{- if .Values.securityContext.readOnlyRootFilesystem }}
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
