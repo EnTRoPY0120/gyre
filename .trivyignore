@@ -1,0 +1,15 @@
+# Trivy Vulnerability Ignores
+# This file lists CVEs that are intentionally ignored with justification
+
+# CVE-2025-68121: Go crypto/tls vulnerability in kustomize binary
+# Severity: CRITICAL
+# Component: /usr/local/bin/kustomize (Go stdlib v1.24.0)
+# Justification:
+#   - Kustomize is used ONLY for offline YAML processing (kustomize build)
+#   - No network connections or TLS usage in our application context
+#   - Kustomize processes local files extracted from Git artifacts
+#   - Waiting for kustomize project to rebuild with Go 1.24.13+
+# Context: src/routes/api/flux/[resourceType]/[namespace]/[name]/diff/+server.ts:327
+# Status: Monitoring for kustomize release with patched Go version
+# Date Added: 2026-02-15
+CVE-2025-68121

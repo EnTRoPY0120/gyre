@@ -38,8 +38,8 @@ LABEL org.opencontainers.image.title="Gyre" \
 RUN apk add --no-cache ca-certificates python3 make g++ curl
 
 # Install Kustomize (direct binary download for Alpine with checksum verification)
-ARG KUSTOMIZE_VERSION=v5.6.0
-ARG KUSTOMIZE_SHA256=54e4031ddc4e7fc59e408da29e7c646e8e57b8088c51b84b3df0864f47b5148f
+ARG KUSTOMIZE_VERSION=v5.8.1
+ARG KUSTOMIZE_SHA256=029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a819d
 RUN curl -sSL -o /tmp/kustomize.tgz \
       "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" && \
     echo "${KUSTOMIZE_SHA256}  /tmp/kustomize.tgz" | sha256sum -c - && \
