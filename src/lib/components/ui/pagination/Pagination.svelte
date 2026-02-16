@@ -12,13 +12,14 @@
 
 	let { total, limit, offset, onPageChange }: Props = $props();
 
-	const currentPage = $derived(Math.floor(offset / limit) + 1);
-	const totalPages = $derived(Math.ceil(total / limit));
-	const hasNext = $derived(offset + limit < total);
+	const safeLimit = $derived(Math.max(1, limit));
+	const currentPage = $derived(Math.floor(offset / safeLimit) + 1);
+	const totalPages = $derived(Math.ceil(total / safeLimit));
+	const hasNext = $derived(offset + safeLimit < total);
 	const hasPrev = $derived(offset > 0);
 
 	function goToPage(page: number) {
-		const newOffset = (page - 1) * limit;
+		const newOffset = (page - 1) * safeLimit;
 		if (onPageChange) {
 			onPageChange(newOffset);
 		}
@@ -41,7 +42,7 @@
 	<div class="flex items-center justify-between border-t border-slate-700/50 px-4 py-3">
 		<div class="flex items-center gap-2">
 			<span class="text-sm text-slate-400">
-				Showing {offset + 1} to {Math.min(offset + limit, total)} of {total}
+				Showing {offset + 1} to {Math.min(offset + safeLimit, total)} of {total}
 			</span>
 		</div>
 

@@ -48,6 +48,11 @@
 	let selectedUserId = $state('');
 	let searchValue = $state(data.search);
 
+	// Sync searchValue with data.search changes (e.g., back/forward navigation)
+	$effect(() => {
+		searchValue = data.search;
+	});
+
 	let newPolicy = $state({
 		name: '',
 		description: '',

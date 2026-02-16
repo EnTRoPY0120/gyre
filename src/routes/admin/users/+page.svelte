@@ -37,6 +37,11 @@
 	let generatedPassword = $state('');
 	let searchValue = $state(data.search);
 
+	// Sync searchValue with data.search changes (e.g., back/forward navigation)
+	$effect(() => {
+		searchValue = data.search;
+	});
+
 	let newUser = $state({
 		username: '',
 		email: '',

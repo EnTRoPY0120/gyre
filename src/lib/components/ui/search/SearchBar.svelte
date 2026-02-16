@@ -12,6 +12,11 @@
 
 	let inputValue = $state(value);
 
+	// Sync inputValue with external value changes
+	$effect(() => {
+		inputValue = value;
+	});
+
 	function handleInput(e: Event) {
 		const target = e.target as HTMLInputElement;
 		inputValue = target.value;

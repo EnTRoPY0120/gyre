@@ -2,7 +2,6 @@ import { getCustomObjectsApi } from '../client.js';
 import type { FluxResourceType } from './resources.js';
 import { getReconciliationHistory } from './reconciliation-tracker.js';
 import { getResourceDef } from './resources.js';
-import type { ConfigurationOptions } from '@kubernetes/client-node';
 
 export interface ResourceRevision {
 	revision: string;
@@ -118,7 +117,7 @@ export async function rollbackResource(
 		},
 		{
 			headers: { 'Content-Type': 'application/merge-patch+json' }
-		} as ConfigurationOptions
+		} as any
 	);
 
 	console.log(

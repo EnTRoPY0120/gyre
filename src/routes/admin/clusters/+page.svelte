@@ -56,6 +56,11 @@
 	let kubeconfigInput = $state('');
 	let isDragging = $state(false);
 	let searchValue = $state(data.search);
+
+	// Sync searchValue with data.search changes (e.g., back/forward navigation)
+	$effect(() => {
+		searchValue = data.search;
+	});
 	let newCluster = $state({
 		name: '',
 		description: ''

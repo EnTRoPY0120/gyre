@@ -17,8 +17,10 @@ import { logUserManagement } from '$lib/server/audit';
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Get pagination and search params from URL
 	const search = url.searchParams.get('search') || '';
-	const limit = parseInt(url.searchParams.get('limit') || '10');
-	const offset = parseInt(url.searchParams.get('offset') || '0');
+	const limitParam = parseInt(url.searchParams.get('limit') || '10');
+	const offsetParam = parseInt(url.searchParams.get('offset') || '0');
+	const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10;
+	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
 	// Load paginated users
 	const { users, total } = await listUsersPaginated({ search, limit, offset });
