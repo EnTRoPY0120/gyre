@@ -133,3 +133,39 @@ export async function reconcileResource(
 		throw handleK8sError(error, `reconcile ${name}`);
 	}
 }
+
+/**
+ * Delete a FluxCD resource
+ */
+export async function deleteResource(
+	resourceType: string,
+	namespace: string,
+	name: string,
+	context?: string
+): Promise<void> {
+	let resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		const key = getResourceTypeByPlural(resourceType);
+		if (key) {
+			resourceDef = getResourceDef(key);
+		}
+	}
+
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	const api = await getCustomObjectsApi(context);
+
+	try {
+		await api.deleteNamespacedCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural,
+			name
+		});
+	} catch (error) {
+		throw handleK8sError(error, `delete ${name}`);
+	}
+}
