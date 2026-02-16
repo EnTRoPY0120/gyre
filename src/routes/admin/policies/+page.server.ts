@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
-	getAllPolicies,
+	getAllPoliciesPaginated,
 	createPolicy,
 	deletePolicy,
 	getUserPolicies,
@@ -16,9 +16,19 @@ import type { RbacAction } from '$lib/server/rbac';
 /**
  * Load function for RBAC policy management page
  */
-export const load: PageServerLoad = async () => {
-	// Load all policies and users
-	const [policies, users] = await Promise.all([getAllPolicies(), listUsers()]);
+export const load: PageServerLoad = async ({ url }) => {
+	// Get pagination and search params from URL
+	const search = url.searchParams.get('search') || '';
+	const limitParam = parseInt(url.searchParams.get('limit') || '10');
+	const offsetParam = parseInt(url.searchParams.get('offset') || '0');
+	const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10;
+	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+
+	// Load paginated policies and all users
+	const [{ policies, total }, users] = await Promise.all([
+		getAllPoliciesPaginated({ search, limit, offset }),
+		listUsers()
+	]);
 
 	// Get policies for each user
 	const userPolicies: Record<string, Awaited<ReturnType<typeof getUserPolicies>>> = {};
@@ -40,6 +50,10 @@ export const load: PageServerLoad = async () => {
 			createdAt: p.createdAt,
 			updatedAt: p.updatedAt
 		})),
+		total,
+		search,
+		limit,
+		offset,
 		users: users.map((u) => ({
 			id: u.id,
 			username: u.username,
