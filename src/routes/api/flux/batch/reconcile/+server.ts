@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { reconcileResource } from '$lib/server/kubernetes/flux/actions';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { logAudit } from '$lib/server/audit.js';
 import { sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
@@ -24,6 +25,11 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 		throw error(401, { message: 'Authentication required' });
 	}
 
+	// Validate cluster context
+	if (!locals.cluster || typeof locals.cluster !== 'string') {
+		throw error(400, { message: 'Cluster context required' });
+	}
+
 	// Parse request body
 	let body: { resources?: BatchResourceItem[] };
 	try {
@@ -37,9 +43,61 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 	}
 
 	const results: BatchOperationResult[] = [];
+	const validResourceTypes = getAllResourceTypes();
 
 	// Process each resource
 	for (const resource of body.resources) {
+		// Validate resource has required fields
+		if (
+			!resource ||
+			typeof resource.type !== 'string' ||
+			typeof resource.namespace !== 'string' ||
+			typeof resource.name !== 'string' ||
+			!resource.type ||
+			!resource.namespace ||
+			!resource.name
+		) {
+			const errorMessage = 'Invalid resource: missing required fields (type, namespace, name)';
+			results.push({
+				resource: resource || { type: 'unknown', namespace: 'unknown', name: 'unknown' },
+				success: false,
+				message: errorMessage
+			});
+
+			await logAudit(locals.user, 'write:reconcile', {
+				resourceType: resource?.type || 'unknown',
+				resourceName: resource?.name || 'unknown',
+				namespace: resource?.namespace || 'unknown',
+				clusterId: locals.cluster,
+				ipAddress: getClientAddress(),
+				success: false,
+				details: { error: errorMessage }
+			});
+
+			continue;
+		}
+
+		// Validate resource type is valid FluxResourceType
+		if (!validResourceTypes.includes(resource.type as FluxResourceType)) {
+			const errorMessage = `Invalid resource type: ${resource.type}`;
+			results.push({
+				resource,
+				success: false,
+				message: errorMessage
+			});
+
+			await logAudit(locals.user, 'write:reconcile', {
+				resourceType: resource.type,
+				resourceName: resource.name,
+				namespace: resource.namespace,
+				clusterId: locals.cluster,
+				ipAddress: getClientAddress(),
+				success: false,
+				details: { error: errorMessage }
+			});
+
+			continue;
+		}
 		try {
 			// Check permission for each resource
 			const hasPermission = await checkPermission(

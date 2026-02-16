@@ -70,12 +70,16 @@
 		if (allCurrentPageSelected) {
 			// Deselect all on current page
 			const newSet = new Set(selectedResourceIds);
-			paginatedResources.forEach((r) => newSet.delete(r.metadata.uid || ''));
+			paginatedResources.forEach((r) => {
+				newSet.delete(r.metadata.uid || '');
+			});
 			selectedResourceIds = newSet;
 		} else {
 			// Select all on current page
 			const newSet = new Set(selectedResourceIds);
-			paginatedResources.forEach((r) => newSet.add(r.metadata.uid || ''));
+			paginatedResources.forEach((r) => {
+				newSet.add(r.metadata.uid || '');
+			});
 			selectedResourceIds = newSet;
 		}
 	}

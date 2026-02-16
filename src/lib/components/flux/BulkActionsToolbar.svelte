@@ -51,6 +51,14 @@
 		return resource.kind || '';
 	}
 
+	// Past tense verb map to avoid invalid words like "resumeed"
+	const pastTenseMap: Record<string, string> = {
+		suspend: 'suspended',
+		resume: 'resumed',
+		reconcile: 'reconciled',
+		delete: 'deleted'
+	};
+
 	async function performBatchOperation(action: 'suspend' | 'resume' | 'reconcile' | 'delete') {
 		if (selectedResources.length === 0) return;
 
@@ -62,6 +70,8 @@
 			namespace: r.metadata.namespace || '',
 			name: r.metadata.name || ''
 		}));
+
+		const pastTense = pastTenseMap[action] || `${action}ed`;
 
 		try {
 			const response = await fetch(`/api/flux/batch/${action}`, {
@@ -78,7 +88,7 @@
 
 			// Show results
 			if (data.summary.failed === 0) {
-				toast.success(`Successfully ${action}ed ${data.summary.successful} resource(s)`, {
+				toast.success(`Successfully ${pastTense} ${data.summary.successful} resource(s)`, {
 					description: `All operations completed successfully`
 				});
 			} else if (data.summary.successful === 0) {
