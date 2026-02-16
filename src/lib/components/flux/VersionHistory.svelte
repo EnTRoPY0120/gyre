@@ -116,7 +116,7 @@
 			class="rounded-lg px-3 py-1.5 text-sm font-medium transition-colors {filterStatus === 'failure'
 				? 'bg-red-600 text-white'
 				: 'bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50'}"
-			onclick={() => (filterStatus === 'failure')}
+			onclick={() => (filterStatus = 'failure')}
 			aria-label="Show failed reconciliations"
 		>
 			Failed ({failureCount})
