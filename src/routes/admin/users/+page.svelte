@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { UserPlus, AlertTriangle, CheckCircle2, XCircle } from 'lucide-svelte';
+	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
+	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
 
 	interface User {
 		id: string;
@@ -16,7 +19,14 @@
 	}
 
 	let { data, form } = $props<{
-		data: { users: User[]; currentUser: User };
+		data: {
+			users: User[];
+			currentUser: User;
+			total: number;
+			search: string;
+			limit: number;
+			offset: number;
+		};
 		form?: { error?: string; success?: boolean; password?: string };
 	}>();
 
@@ -25,6 +35,12 @@
 	let deletingUser = $state<User | null>(null);
 	let resettingPassword = $state<User | null>(null);
 	let generatedPassword = $state('');
+	let searchValue = $state(data.search);
+
+	// Sync searchValue with data.search changes (e.g., back/forward navigation)
+	$effect(() => {
+		searchValue = data.search;
+	});
 
 	let newUser = $state({
 		username: '',
@@ -32,6 +48,24 @@
 		role: 'viewer' as const,
 		password: ''
 	});
+
+	function handleSearch(value: string) {
+		searchValue = value;
+		const url = new URL(window.location.href);
+		if (value) {
+			url.searchParams.set('search', value);
+		} else {
+			url.searchParams.delete('search');
+		}
+		url.searchParams.set('offset', '0'); // Reset to first page on search
+		goto(url.toString());
+	}
+
+	function handlePageChange(newOffset: number) {
+		const url = new URL(window.location.href);
+		url.searchParams.set('offset', newOffset.toString());
+		goto(url.toString());
+	}
 
 	function generatePassword() {
 		const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -107,6 +141,9 @@
 			<span class="hidden sm:inline">Add User</span>
 		</Button>
 	</div>
+
+	<!-- Search Bar -->
+	<SearchBar value={searchValue} placeholder="Search users by name or email..." onSearch={handleSearch} />
 
 	<!-- Error Message -->
 	{#if form?.error}
@@ -275,6 +312,9 @@
 				{/each}
 			</tbody>
 		</table>
+
+		<!-- Pagination -->
+		<Pagination total={data.total} limit={data.limit} offset={data.offset} onPageChange={handlePageChange} />
 	</div>
 
 	<!-- Create User Modal -->

@@ -1,5 +1,7 @@
-import { getCoreV1Api } from '../client.js';
+import { getCustomObjectsApi } from '../client.js';
 import type { FluxResourceType } from './resources.js';
+import { getReconciliationHistory } from './reconciliation-tracker.js';
+import { getResourceDef } from './resources.js';
 
 export interface ResourceRevision {
 	revision: string;
@@ -10,6 +12,7 @@ export interface ResourceRevision {
 
 /**
  * Get history for a Flux resource
+ * Now uses the unified reconciliation_history table for all FluxCD resources
  */
 export async function getResourceHistory(
 	type: FluxResourceType,
@@ -17,91 +20,107 @@ export async function getResourceHistory(
 	name: string,
 	context?: string
 ): Promise<ResourceRevision[]> {
-	if (type === 'HelmRelease') {
-		return getHelmReleaseHistory(namespace, name, context);
-	}
+	// Use the new reconciliation history system for all resources
+	const clusterId = context || 'in-cluster';
+	const history = await getReconciliationHistory(type, namespace, name, clusterId);
 
-	// For other resources, we might only have the current and maybe some info from events or status
-	// For now, let's return a basic history from events?
-	// Or just the current status as the only "version" if we don't track history elsewhere.
-	// Actually, Flux status.history (for HR) or special annotations could be used.
-
-	return [];
+	// Transform to the expected format for backward compatibility
+	return history.map((entry) => ({
+		revision: entry.revision || 'unknown',
+		timestamp: entry.reconcileCompletedAt?.toISOString() || new Date().toISOString(),
+		status: entry.status,
+		message: entry.readyMessage || entry.errorMessage || undefined
+	}));
 }
 
 /**
- * Get HelmRelease history from Helm secrets
- */
-async function getHelmReleaseHistory(
-	namespace: string,
-	name: string,
-	context?: string
-): Promise<ResourceRevision[]> {
-	const coreApi = await getCoreV1Api(context);
-
-	try {
-		// Helm releases are stored in secrets with label owner=helm and name=sh.helm.release.v1.NAME.vVERSION
-		// We filter by name label if available or just list and filter ourselves.
-		const response = await coreApi.listNamespacedSecret({
-			namespace,
-			labelSelector: `owner=helm,name=${name}`
-		});
-
-		const secrets = response.items || [];
-
-		return secrets
-			.map((secret) => {
-				const version = secret.metadata?.name?.split('.v')?.pop() || '0';
-				const status = secret.metadata?.labels?.['status'] || 'unknown';
-				const timestamp = secret.metadata?.creationTimestamp?.toISOString() || '';
-
-				return {
-					revision: version,
-					timestamp,
-					status,
-					message: `Helm Release v${version}`
-				};
-			})
-			.sort((a, b) => parseInt(b.revision) - parseInt(a.revision));
-	} catch (error) {
-		console.error('Failed to fetch Helm history:', error);
-		return [];
-	}
-}
-
-/**
- * Rollback a HelmRelease to a specific version
- * This is done by patching the HelmRelease spec or triggering a helm rollback via the controller
- * Actually, for Flux HR, you'd typically change the version in the chart spec.
- * But for a "forced" rollback, we can use the HR's status to find what to rollback to.
+ * Rollback a FluxCD resource to a previous state
+ * This restores the spec from a historical snapshot and triggers reconciliation
+ *
+ * @param type - FluxCD resource type
+ * @param namespace - Kubernetes namespace
+ * @param name - Resource name
+ * @param revisionOrHistoryId - Either a revision string or history entry ID
+ * @param context - Cluster context
  */
 export async function rollbackResource(
 	type: FluxResourceType,
 	namespace: string,
 	name: string,
-	revision: string
+	revisionOrHistoryId: string,
+	context?: string
 ): Promise<void> {
-	if (type !== 'HelmRelease') {
-		throw new Error('Rollback only supported for HelmRelease currently');
+	const clusterId = context || 'in-cluster';
+
+	// 1. Fetch history entry to get spec snapshot
+	const history = await getReconciliationHistory(type, namespace, name, clusterId);
+
+	// Find the history entry by revision or ID
+	const historyEntry = history.find(
+		(entry) => entry.id === revisionOrHistoryId || entry.revision === revisionOrHistoryId
+	);
+
+	if (!historyEntry) {
+		throw new Error(
+			`No history entry found for revision/ID: ${revisionOrHistoryId}. Cannot rollback.`
+		);
 	}
 
-	// For HelmRelease, we can annotate it to trigger a rollback?
-	// Flux doesn't have a built-in "rollback to version X" annotation that works this way.
-	// Usually you'd modify the Git source.
-	// However, we can "suspend" and then manually perform helm operations? No, that's complex.
-	// A better way is to provide a "Rollback" that just reverts the Spec to a known good state.
-	// But we don't have the full spec history in DB yet.
+	if (!historyEntry.specSnapshot) {
+		throw new Error(`History entry ${revisionOrHistoryId} has no spec snapshot. Cannot rollback.`);
+	}
 
-	// For now, let's implement it as a "Reconcile" with a specific annotation if Flux supports it?
-	// Actually, Flux has 'reconcile.fluxcd.io/requestedAt'.
+	// 2. Parse the spec snapshot
+	let spec;
+	try {
+		spec = JSON.parse(historyEntry.specSnapshot);
+	} catch (error) {
+		console.error(
+			`[Rollback] Failed to parse spec snapshot for history entry ${historyEntry.id}:`,
+			error
+		);
+		throw new Error(
+			`Invalid spec snapshot in history entry ${revisionOrHistoryId}. Cannot rollback.`
+		);
+	}
 
-	// If we want to support actual rollback, we might need to talk to the helm-controller
-	// or perform the helm operation ourselves.
+	// 3. Get resource definition and API client
+	const resourceDef = getResourceDef(type);
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${type}`);
+	}
 
-	// Suppress unused parameter warnings temporarily for this unimplemented function
-	void namespace;
-	void name;
-	void revision;
+	const api = await getCustomObjectsApi(context);
 
-	throw new Error('Not implemented: Rollback requires specific version patching logic');
+	// 4. Prepare the patch: update spec and add reconciliation annotation
+	const now = new Date().toISOString();
+	const patch = {
+		spec,
+		metadata: {
+			annotations: {
+				'reconcile.fluxcd.io/requestedAt': now,
+				'gyre.io/rolledBackFrom': historyEntry.revision || 'unknown',
+				'gyre.io/rolledBackAt': now
+			}
+		}
+	};
+
+	// 5. Patch the resource using merge-patch strategy
+	await api.patchNamespacedCustomObject(
+		{
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural,
+			name,
+			body: patch
+		},
+		{
+			headers: { 'Content-Type': 'application/merge-patch+json' }
+		} as any
+	);
+
+	console.log(
+		`[Rollback] Rolled back ${type}/${namespace}/${name} to revision ${historyEntry.revision}`
+	);
 }

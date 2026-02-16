@@ -12,17 +12,20 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 	}
 
 	const { resourceType, namespace, name } = params;
-	let revision: string;
+	let revision: string | undefined;
+	let historyId: string | undefined;
 
 	try {
 		const body = await request.json();
 		revision = body.revision;
+		historyId = body.historyId;
 	} catch {
 		throw error(400, { message: 'Invalid JSON payload' });
 	}
 
-	if (!revision) {
-		throw error(400, { message: 'Revision is required for rollback' });
+	// Either revision or historyId must be provided
+	if (!revision && !historyId) {
+		throw error(400, { message: 'Either revision or historyId is required for rollback' });
 	}
 
 	const resolvedType = getResourceTypeByPlural(resourceType);
@@ -44,16 +47,23 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 		throw error(403, { message: 'Permission denied' });
 	}
 
+	// Use historyId if provided, otherwise use revision
+	const target = historyId || revision || '';
+
 	try {
-		await rollbackResource(resolvedType, namespace, name, revision);
+		await rollbackResource(resolvedType, namespace, name, target, locals.cluster);
 
 		// Log the audit event
 		await logResourceWrite(locals.user, resolvedType, 'rollback', name, namespace, locals.cluster, {
 			ipAddress: getClientAddress(),
-			revision
+			targetRevision: revision,
+			targetHistoryId: historyId
 		});
 
-		return json({ message: `Successfully requested rollback to ${revision}` });
+		return json({
+			success: true,
+			message: `Successfully initiated rollback to ${revision || historyId}`
+		});
 	} catch (err: unknown) {
 		// Log failed audit event with flattened details and success: false
 		await logAudit(locals.user, 'write:rollback', {
@@ -64,7 +74,8 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 			ipAddress: getClientAddress(),
 			success: false,
 			details: {
-				revision,
+				targetRevision: revision,
+				targetHistoryId: historyId,
 				error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
 			}
 		});

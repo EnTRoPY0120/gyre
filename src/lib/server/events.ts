@@ -8,6 +8,7 @@ import {
 	activeWorkersGauge,
 	fluxResourceStatusGauge
 } from './metrics.js';
+import { captureReconciliation } from './kubernetes/flux/reconciliation-tracker.js';
 
 // Resource types to watch
 const WATCH_RESOURCES: FluxResourceType[] = [
@@ -211,6 +212,22 @@ async function poll(context: ClusterContext) {
 						if (!previousState) {
 							if (isSettled) {
 								resourceUpdatesTotal.labels(context.clusterId, resourceType, 'added').inc();
+
+								// Capture initial reconciliation history
+								try {
+									await captureReconciliation({
+										resourceType,
+										namespace: resource.metadata.namespace || '',
+										name: resource.metadata.name || '',
+										clusterId: context.clusterId,
+										resource,
+										triggerType: 'automatic'
+									});
+								} catch (err) {
+									console.error('[EventBus] Failed to capture reconciliation history:', err);
+									// Don't fail event broadcast if history capture fails
+								}
+
 								broadcast(context, {
 									type: 'ADDED',
 									clusterId: context.clusterId,
@@ -247,6 +264,22 @@ async function poll(context: ClusterContext) {
 
 								if (shouldNotify && !isTransientState) {
 									resourceUpdatesTotal.labels(context.clusterId, resourceType, 'modified').inc();
+
+									// Capture reconciliation history
+									try {
+										await captureReconciliation({
+											resourceType,
+											namespace: resource.metadata.namespace || '',
+											name: resource.metadata.name || '',
+											clusterId: context.clusterId,
+											resource,
+											triggerType: 'automatic'
+										});
+									} catch (err) {
+										console.error('[EventBus] Failed to capture reconciliation history:', err);
+										// Don't fail event broadcast if history capture fails
+									}
+
 									broadcast(context, {
 										type: 'MODIFIED',
 										clusterId: context.clusterId,
