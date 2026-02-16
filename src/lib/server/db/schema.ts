@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, primaryKey, index } from 'drizzle-orm/sqlite-core';
 import { sql, relations } from 'drizzle-orm';
 
 // Users table
@@ -260,3 +260,68 @@ export const appSettings = sqliteTable('app_settings', {
 
 export type AppSetting = typeof appSettings.$inferSelect;
 export type NewAppSetting = typeof appSettings.$inferInsert;
+
+// Reconciliation History table (tracks all reconciliation attempts for FluxCD resources)
+export const reconciliationHistory = sqliteTable(
+	'reconciliation_history',
+	{
+		id: text('id').primaryKey(),
+
+		// Resource Identifier
+		resourceType: text('resource_type').notNull(),
+		namespace: text('namespace').notNull(),
+		name: text('name').notNull(),
+		clusterId: text('cluster_id').notNull().default('in-cluster'),
+
+		// Reconciliation Metadata
+		revision: text('revision'),
+		previousRevision: text('previous_revision'),
+
+		// Status Tracking
+		status: text('status', { enum: ['success', 'failure', 'unknown'] }).notNull(),
+		readyStatus: text('ready_status', { enum: ['True', 'False', 'Unknown'] }),
+		readyReason: text('ready_reason'),
+		readyMessage: text('ready_message'),
+
+		// Timing Data
+		reconcileStartedAt: integer('reconcile_started_at', { mode: 'timestamp' }),
+		reconcileCompletedAt: integer('reconcile_completed_at', { mode: 'timestamp' }).notNull(),
+		durationMs: integer('duration_ms'),
+
+		// Snapshot Data (for rollback)
+		specSnapshot: text('spec_snapshot'), // JSON
+		metadataSnapshot: text('metadata_snapshot'), // JSON
+
+		// Trigger Tracking
+		triggerType: text('trigger_type', {
+			enum: ['automatic', 'manual', 'webhook', 'rollback']
+		})
+			.notNull()
+			.default('automatic'),
+		triggeredByUser: text('triggered_by_user').references(() => users.id, {
+			onDelete: 'set null'
+		}),
+
+		// Error Details
+		errorMessage: text('error_message'),
+		stalledReason: text('stalled_reason'),
+
+		// Timestamps
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`)
+	},
+	(table) => ({
+		resourceLookupIdx: index('idx_resource_lookup').on(
+			table.resourceType,
+			table.namespace,
+			table.name,
+			table.clusterId
+		),
+		clusterTimeIdx: index('idx_cluster_time').on(table.clusterId, table.reconcileCompletedAt),
+		statusIdx: index('idx_status').on(table.status)
+	})
+);
+
+export type ReconciliationHistory = typeof reconciliationHistory.$inferSelect;
+export type NewReconciliationHistory = typeof reconciliationHistory.$inferInsert;

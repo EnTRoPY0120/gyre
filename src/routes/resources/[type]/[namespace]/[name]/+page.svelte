@@ -149,9 +149,21 @@
 	});
 
 	// History state
-	let history = $state<
-		Array<{ revision: string; timestamp: string; status: string; message?: string }>
-	>([]);
+	interface ReconciliationEntry {
+		id: string;
+		revision: string | null;
+		status: 'success' | 'failure' | 'unknown';
+		readyStatus: string | null;
+		readyReason: string | null;
+		readyMessage: string | null;
+		reconcileCompletedAt: string;
+		durationMs: number | null;
+		triggerType: 'automatic' | 'manual' | 'webhook' | 'rollback';
+		errorMessage: string | null;
+		specSnapshot: string | null;
+	}
+
+	let timeline = $state<ReconciliationEntry[]>([]);
 	let historyLoading = $state(false);
 	let historyFetched = $state(false);
 
@@ -252,7 +264,7 @@
 			}
 
 			const result = await response.json();
-			history = result.history || [];
+			timeline = result.timeline || [];
 			historyFetched = true;
 		} catch {
 			// Silently ignore errors for now
@@ -298,8 +310,9 @@
 		}
 	}
 
-	async function handleRollback(revision: string) {
-		if (!confirm(`Are you sure you want to rollback to version v${revision}?`)) return;
+	async function handleRollback(historyId: string, revision: string | null) {
+		const displayRevision = revision ? revision.slice(0, 8) : historyId.slice(0, 8);
+		if (!confirm(`Are you sure you want to rollback to ${displayRevision}?`)) return;
 
 		try {
 			const response = await fetch(
@@ -307,7 +320,7 @@
 				{
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ revision })
+					body: JSON.stringify({ historyId, revision })
 				}
 			);
 
@@ -316,9 +329,11 @@
 				throw new Error(errorData.message || 'Rollback failed');
 			}
 
-			alert(`Successfully requested rollback to v${revision}`);
+			alert(`Successfully initiated rollback to ${displayRevision}`);
 			historyFetched = false;
 			await fetchHistory();
+			// Refresh resource data
+			await invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
 		} catch (err) {
 			alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		}
@@ -645,7 +660,7 @@
 						Refresh
 					</button>
 				</div>
-				<VersionHistory {history} loading={historyLoading} onRollback={handleRollback} />
+				<VersionHistory {timeline} loading={historyLoading} onRollback={handleRollback} />
 			</div>
 		{:else if activeTab === 'diff'}
 			<div
