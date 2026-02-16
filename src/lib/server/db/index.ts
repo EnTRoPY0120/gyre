@@ -76,5 +76,7 @@ export type {
 	RbacPolicy,
 	NewRbacPolicy,
 	RbacBinding,
-	NewRbacBinding
+	NewRbacBinding,
+	ReconciliationHistory,
+	NewReconciliationHistory
 } from './schema.js';
