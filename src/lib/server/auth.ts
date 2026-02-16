@@ -201,18 +201,13 @@ export async function listUsersPaginated(options?: {
 	// Build where clause
 	const conditions = [];
 	if (search) {
-		conditions.push(
-			or(like(users.username, `%${search}%`), like(users.email, `%${search}%`))
-		);
+		conditions.push(or(like(users.username, `%${search}%`), like(users.email, `%${search}%`)));
 	}
 
 	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
 	// Get total count
-	const [{ value: total }] = await db
-		.select({ value: count() })
-		.from(users)
-		.where(whereClause);
+	const [{ value: total }] = await db.select({ value: count() }).from(users).where(whereClause);
 
 	// Get paginated results
 	const userResults = await db.query.users.findMany({

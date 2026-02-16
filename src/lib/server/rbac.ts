@@ -230,10 +230,7 @@ export async function getAllPoliciesPaginated(options?: {
 	const conditions = [];
 	if (search) {
 		conditions.push(
-			or(
-				like(rbacPolicies.name, `%${search}%`),
-				like(rbacPolicies.description, `%${search}%`)
-			)
+			or(like(rbacPolicies.name, `%${search}%`), like(rbacPolicies.description, `%${search}%`))
 		);
 	}
 
