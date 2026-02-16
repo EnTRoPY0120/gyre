@@ -135,6 +135,8 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 
 let cleanupScheduled = false;
 let cleanupInterval: NodeJS.Timeout | null = null;
+let initialDelayTimeout: NodeJS.Timeout | null = null;
+let immediateCleanupTimeout: NodeJS.Timeout | null = null;
 
 /**
  * Schedule periodic cleanup of reconciliation history
@@ -166,7 +168,7 @@ export function scheduleCleanup(): void {
 	);
 
 	// Run initial cleanup after delay
-	setTimeout(() => {
+	initialDelayTimeout = setTimeout(() => {
 		cleanupReconciliationHistory().catch((err) => {
 			console.error('[ReconciliationCleanup] Initial cleanup failed:', err);
 		});
@@ -182,7 +184,7 @@ export function scheduleCleanup(): void {
 	cleanupScheduled = true;
 
 	// Also run an initial cleanup after 5 minutes for immediate effect
-	setTimeout(() => {
+	immediateCleanupTimeout = setTimeout(() => {
 		console.log('[ReconciliationCleanup] Running initial cleanup...');
 		cleanupReconciliationHistory().catch((err) => {
 			console.error('[ReconciliationCleanup] Initial cleanup failed:', err);
@@ -197,7 +199,15 @@ export function stopCleanup(): void {
 	if (cleanupInterval) {
 		clearInterval(cleanupInterval);
 		cleanupInterval = null;
-		cleanupScheduled = false;
-		console.log('[ReconciliationCleanup] Cleanup scheduler stopped');
 	}
+	if (initialDelayTimeout) {
+		clearTimeout(initialDelayTimeout);
+		initialDelayTimeout = null;
+	}
+	if (immediateCleanupTimeout) {
+		clearTimeout(immediateCleanupTimeout);
+		immediateCleanupTimeout = null;
+	}
+	cleanupScheduled = false;
+	console.log('[ReconciliationCleanup] Cleanup scheduler stopped');
 }

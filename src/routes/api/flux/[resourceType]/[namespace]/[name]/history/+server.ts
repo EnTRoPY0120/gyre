@@ -30,11 +30,24 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		throw error(403, { message: 'Permission denied' });
 	}
 
-	// Parse query parameters
-	const limit = parseInt(url.searchParams.get('limit') || '100');
-	const statusFilter = url.searchParams.get('status') as 'success' | 'failure' | 'unknown' | null;
+	// Parse and validate query parameters
+	const limitParam = url.searchParams.get('limit');
+	const parsedLimit = limitParam ? parseInt(limitParam, 10) : 100;
+	const limit = Number.isNaN(parsedLimit) ? 100 : Math.min(Math.max(parsedLimit, 1), 1000);
+
+	const statusParam = url.searchParams.get('status');
+	const allowedStatuses = ['success', 'failure', 'unknown'];
+	const statusFilter =
+		statusParam && allowedStatuses.includes(statusParam)
+			? (statusParam as 'success' | 'failure' | 'unknown')
+			: null;
+
 	const sinceParam = url.searchParams.get('since');
-	const since = sinceParam ? new Date(sinceParam) : undefined;
+	let since: Date | undefined;
+	if (sinceParam) {
+		const sinceDate = new Date(sinceParam);
+		since = Number.isNaN(sinceDate.getTime()) ? undefined : sinceDate;
+	}
 
 	try {
 		const timeline = await getReconciliationHistory(resolvedType, namespace, name, locals.cluster, {
