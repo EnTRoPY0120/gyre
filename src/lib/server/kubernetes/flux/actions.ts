@@ -49,7 +49,7 @@ export async function toggleSuspendResource(
 			},
 			{
 				headers: { 'Content-Type': 'application/json-patch+json' }
-			} as any
+			} as Record<string, unknown>
 		);
 	} catch (error) {
 		throw handleK8sError(error, `suspend/resume ${name}`);
@@ -126,7 +126,7 @@ export async function reconcileResource(
 			},
 			{
 				headers: { 'Content-Type': 'application/json-patch+json' }
-			} as any
+			} as Record<string, unknown>
 		);
 	} catch (error) {
 		throw handleK8sError(error, `reconcile ${name}`);

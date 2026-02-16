@@ -117,7 +117,7 @@ export async function rollbackResource(
 		},
 		{
 			headers: { 'Content-Type': 'application/merge-patch+json' }
-		} as any
+		} as Record<string, unknown>
 	);
 
 	console.log(
