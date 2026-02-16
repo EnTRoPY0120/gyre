@@ -72,7 +72,18 @@ export async function rollbackResource(
 	}
 
 	// 2. Parse the spec snapshot
-	const spec = JSON.parse(historyEntry.specSnapshot);
+	let spec;
+	try {
+		spec = JSON.parse(historyEntry.specSnapshot);
+	} catch (error) {
+		console.error(
+			`[Rollback] Failed to parse spec snapshot for history entry ${historyEntry.id}:`,
+			error
+		);
+		throw new Error(
+			`Invalid spec snapshot in history entry ${revisionOrHistoryId}. Cannot rollback.`
+		);
+	}
 
 	// 3. Get resource definition and API client
 	const resourceDef = getResourceDef(type);
