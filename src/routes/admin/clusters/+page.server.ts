@@ -1,7 +1,7 @@
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
-	getAllClusters,
+	getAllClustersPaginated,
 	createCluster,
 	updateCluster,
 	deleteCluster,
@@ -13,9 +13,14 @@ import { logClusterChange } from '$lib/server/audit';
 /**
  * Load function for cluster management page
  */
-export const load: PageServerLoad = async () => {
-	// Load all clusters
-	const clusters = await getAllClusters();
+export const load: PageServerLoad = async ({ url }) => {
+	// Get pagination and search params from URL
+	const search = url.searchParams.get('search') || '';
+	const limit = parseInt(url.searchParams.get('limit') || '10');
+	const offset = parseInt(url.searchParams.get('offset') || '0');
+
+	// Load paginated clusters
+	const { clusters, total } = await getAllClustersPaginated({ search, limit, offset });
 
 	return {
 		clusters: clusters.map((c) => ({
@@ -28,7 +33,11 @@ export const load: PageServerLoad = async () => {
 			lastConnectedAt: c.lastConnectedAt,
 			lastError: c.lastError,
 			createdAt: c.createdAt
-		}))
+		})),
+		total,
+		search,
+		limit,
+		offset
 	};
 };
 

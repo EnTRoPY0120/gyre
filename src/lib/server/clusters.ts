@@ -1,4 +1,4 @@
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, like, or, count, and } from 'drizzle-orm';
 import { getDbSync } from './db/index.js';
 import { clusters, clusterContexts, type NewCluster, type NewClusterContext } from './db/schema.js';
 import * as k8s from '@kubernetes/client-node';
@@ -207,6 +207,44 @@ export async function getAllClusters(): Promise<(typeof clusters.$inferSelect)[]
 	return db.query.clusters.findMany({
 		orderBy: [desc(clusters.createdAt)]
 	});
+}
+
+/**
+ * Get clusters with pagination and search
+ */
+export async function getAllClustersPaginated(options?: {
+	search?: string;
+	limit?: number;
+	offset?: number;
+}): Promise<{ clusters: (typeof clusters.$inferSelect)[]; total: number }> {
+	const db = getDbSync();
+	const { search, limit = 10, offset = 0 } = options || {};
+
+	// Build where clause
+	const conditions = [];
+	if (search) {
+		conditions.push(
+			or(like(clusters.name, `%${search}%`), like(clusters.description, `%${search}%`))
+		);
+	}
+
+	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+	// Get total count
+	const [{ value: total }] = await db
+		.select({ value: count() })
+		.from(clusters)
+		.where(whereClause);
+
+	// Get paginated results
+	const clusterResults = await db.query.clusters.findMany({
+		where: whereClause,
+		orderBy: [desc(clusters.createdAt)],
+		limit,
+		offset
+	});
+
+	return { clusters: clusterResults, total };
 }
 
 /**
