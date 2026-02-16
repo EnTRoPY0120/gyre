@@ -19,22 +19,20 @@ jobs:
         uses: snok/container-retention-policy@v3.0.1
         with:
           image-names: gyre
-          cut-off: 7 days ago UTC
+          cut-off: 7d
           account: entropy0120
           token: ${{ secrets.GITHUB_TOKEN }}
-          untagged-only: true
-          skip-tags: latest,main
+          tag-selection: untagged
           timestamp-to-use: created_at
 
       - name: Cleanup old PR images
         uses: snok/container-retention-policy@v3.0.1
         with:
           image-names: gyre
-          cut-off: 7 days ago UTC
+          cut-off: 7d
           account: entropy0120
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag-selection: '^pr-\d+$'
-          skip-tags: latest,main
+          image-tags: '^pr-\d+$'
           keep-n-most-recent: 5
           timestamp-to-use: created_at
 
@@ -42,22 +40,20 @@ jobs:
         uses: snok/container-retention-policy@v3.0.1
         with:
           image-names: gyre
-          cut-off: 30 days ago UTC
+          cut-off: 30d
           account: entropy0120
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag-selection: '^(develop|feature|fix|chore|docs|refactor|ci).*$'
-          skip-tags: latest,main,develop
+          image-tags: '^(feat|fix|chore|docs|refactor|ci)/.*$'
           timestamp-to-use: created_at
 
       - name: Cleanup old SHA-tagged releases
         uses: snok/container-retention-policy@v3.0.1
         with:
           image-names: gyre
-          cut-off: 14 days ago UTC
+          cut-off: 14d
           account: entropy0120
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag-selection: '^v\d+\.\d+\.\d+-[a-f0-9]+$'
-          skip-tags: latest,main
+          image-tags: '^v\d+\.\d+\.\d+-[a-f0-9]+$'
           keep-n-most-recent: 3
           timestamp-to-use: created_at
 
