@@ -68,9 +68,7 @@ export async function rollbackResource(
 	}
 
 	if (!historyEntry.specSnapshot) {
-		throw new Error(
-			`History entry ${revisionOrHistoryId} has no spec snapshot. Cannot rollback.`
-		);
+		throw new Error(`History entry ${revisionOrHistoryId} has no spec snapshot. Cannot rollback.`);
 	}
 
 	// 2. Parse the spec snapshot
