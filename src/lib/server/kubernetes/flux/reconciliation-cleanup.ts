@@ -103,11 +103,12 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 					const batchSize = 100;
 					for (let i = 0; i < idsToDelete.length; i += batchSize) {
 						const batch = idsToDelete.slice(i, i + batchSize);
-						await db
-							.delete(reconciliationHistory)
-							.where(
-								sql`${reconciliationHistory.id} IN (${sql.join(batch.map((id) => sql`${id}`), sql`, `)})`
-							);
+						await db.delete(reconciliationHistory).where(
+							sql`${reconciliationHistory.id} IN (${sql.join(
+								batch.map((id) => sql`${id}`),
+								sql`, `
+							)})`
+						);
 					}
 
 					stats.perResourceTrimmed += idsToDelete.length;
@@ -115,8 +116,7 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 			}
 		}
 
-		stats.totalDeleted =
-			stats.deletedSuccess + stats.deletedFailure + stats.perResourceTrimmed;
+		stats.totalDeleted = stats.deletedSuccess + stats.deletedFailure + stats.perResourceTrimmed;
 
 		console.log(
 			`[ReconciliationCleanup] Cleanup completed:`,
@@ -184,12 +184,15 @@ export function scheduleCleanup(): void {
 	cleanupScheduled = true;
 
 	// Also run an initial cleanup after 5 minutes for immediate effect
-	immediateCleanupTimeout = setTimeout(() => {
-		console.log('[ReconciliationCleanup] Running initial cleanup...');
-		cleanupReconciliationHistory().catch((err) => {
-			console.error('[ReconciliationCleanup] Initial cleanup failed:', err);
-		});
-	}, 5 * 60 * 1000);
+	immediateCleanupTimeout = setTimeout(
+		() => {
+			console.log('[ReconciliationCleanup] Running initial cleanup...');
+			cleanupReconciliationHistory().catch((err) => {
+				console.error('[ReconciliationCleanup] Initial cleanup failed:', err);
+			});
+		},
+		5 * 60 * 1000
+	);
 }
 
 /**

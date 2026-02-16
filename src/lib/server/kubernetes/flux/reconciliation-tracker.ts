@@ -107,9 +107,7 @@ export interface CaptureReconciliationOptions {
  * Capture a reconciliation event to the database
  * This is called whenever a FluxCD resource completes a reconciliation
  */
-export async function captureReconciliation(
-	options: CaptureReconciliationOptions
-): Promise<void> {
+export async function captureReconciliation(options: CaptureReconciliationOptions): Promise<void> {
 	try {
 		const db = getDbSync();
 
@@ -200,7 +198,7 @@ export async function getReconciliationHistory(
 	name: string,
 	clusterId: string = 'in-cluster',
 	options: GetReconciliationHistoryOptions = {}
-): Promise<typeof reconciliationHistory.$inferSelect[]> {
+): Promise<(typeof reconciliationHistory.$inferSelect)[]> {
 	const db = getDbSync();
 
 	// Build where conditions
@@ -236,7 +234,7 @@ export async function getLatestReconciliation(
 	namespace: string,
 	name: string,
 	clusterId: string = 'in-cluster'
-): Promise<(typeof reconciliationHistory.$inferSelect) | null> {
+): Promise<typeof reconciliationHistory.$inferSelect | null> {
 	const db = getDbSync();
 
 	const latest = await db.query.reconciliationHistory.findFirst({
