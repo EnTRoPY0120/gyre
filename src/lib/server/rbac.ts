@@ -1,7 +1,7 @@
 import type { User } from './db/schema.js';
 import { getDbSync } from './db/index.js';
 import { rbacPolicies, rbacBindings } from './db/schema.js';
-import { eq, and, or, sql, like, count } from 'drizzle-orm';
+import { eq, and, or, sql } from 'drizzle-orm';
 
 /**
  * RBAC Actions
@@ -213,44 +213,6 @@ export async function getAllPolicies() {
 	return db.query.rbacPolicies.findMany({
 		orderBy: (policies, { desc }) => [desc(policies.createdAt)]
 	});
-}
-
-/**
- * Get policies with pagination and search
- */
-export async function getAllPoliciesPaginated(options?: {
-	search?: string;
-	limit?: number;
-	offset?: number;
-}): Promise<{ policies: (typeof rbacPolicies.$inferSelect)[]; total: number }> {
-	const db = getDbSync();
-	const { search, limit = 10, offset = 0 } = options || {};
-
-	// Build where clause
-	const conditions = [];
-	if (search) {
-		conditions.push(
-			or(like(rbacPolicies.name, `%${search}%`), like(rbacPolicies.description, `%${search}%`))
-		);
-	}
-
-	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-	// Get total count
-	const [{ value: total }] = await db
-		.select({ value: count() })
-		.from(rbacPolicies)
-		.where(whereClause);
-
-	// Get paginated results
-	const policyResults = await db.query.rbacPolicies.findMany({
-		where: whereClause,
-		orderBy: (policies, { desc }) => [desc(policies.createdAt)],
-		limit,
-		offset
-	});
-
-	return { policies: policyResults, total };
 }
 
 /**

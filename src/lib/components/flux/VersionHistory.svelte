@@ -222,7 +222,7 @@
 										</span>
 									{/if}
 
-									{#if entry.durationMs !== undefined && entry.durationMs !== null}
+									{#if entry.durationMs}
 										<span class="text-xs text-gray-500 dark:text-gray-400">
 											{formatDurationMs(entry.durationMs)}
 										</span>
@@ -230,18 +230,13 @@
 								</div>
 
 								<!-- Reason/Message Preview -->
-								{#if entry.readyReason || entry.readyMessage || entry.errorMessage}
+								{#if entry.readyReason || entry.readyMessage}
 									<p class="mt-2 text-sm text-gray-700 dark:text-gray-300">
 										{#if entry.readyReason}
 											<span class="font-medium">{entry.readyReason}:</span>
 										{/if}
-										{#if entry.readyMessage}
-											{entry.readyMessage?.substring(0, 100)}
-										{/if}
-										{#if entry.errorMessage && !entry.readyMessage}
-											<span class="text-red-600 dark:text-red-400">{entry.errorMessage.substring(0, 100)}</span>
-										{/if}
-										{#if (entry.readyMessage && entry.readyMessage.length > 100) || entry.errorMessage}
+										{entry.readyMessage?.substring(0, 100)}
+										{#if entry.readyMessage && entry.readyMessage.length > 100}
 											<button
 												onclick={() => toggleExpand(entry.id)}
 												class="ml-1 text-primary hover:underline"

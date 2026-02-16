@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll, goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { resourceGroups } from '$lib/config/resources';
-	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
-	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
 
 	interface Policy {
 		id: string;
@@ -31,10 +29,6 @@
 		policies: Policy[];
 		users: User[];
 		userPolicies: Record<string, Policy[]>;
-		total: number;
-		search: string;
-		limit: number;
-		offset: number;
 	}
 
 	let { data, form } = $props<{
@@ -46,12 +40,6 @@
 	let deletingPolicy = $state<Policy | null>(null);
 	let assigningPolicy = $state<Policy | null>(null);
 	let selectedUserId = $state('');
-	let searchValue = $state(data.search);
-
-	// Sync searchValue with data.search changes (e.g., back/forward navigation)
-	$effect(() => {
-		searchValue = data.search;
-	});
 
 	let newPolicy = $state({
 		name: '',
@@ -61,24 +49,6 @@
 		resourceType: '',
 		namespacePattern: ''
 	});
-
-	function handleSearch(value: string) {
-		searchValue = value;
-		const url = new URL(window.location.href);
-		if (value) {
-			url.searchParams.set('search', value);
-		} else {
-			url.searchParams.delete('search');
-		}
-		url.searchParams.set('offset', '0'); // Reset to first page on search
-		goto(url.toString());
-	}
-
-	function handlePageChange(newOffset: number) {
-		const url = new URL(window.location.href);
-		url.searchParams.set('offset', newOffset.toString());
-		goto(url.toString());
-	}
 
 	// Get all resource types from config
 	const allResourceTypes = resourceGroups.flatMap((g) =>
@@ -166,9 +136,6 @@
 		</Button>
 	</div>
 
-	<!-- Search Bar -->
-	<SearchBar value={searchValue} placeholder="Search policies by name or description..." onSearch={handleSearch} />
-
 	<!-- Error Message -->
 	{#if form?.error}
 		<div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
@@ -204,9 +171,8 @@
 	{/if}
 
 	<!-- Policies Grid -->
-	{#if data.policies.length > 0}
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each data.policies as policy (policy.id)}
+	<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+		{#each data.policies as policy (policy.id)}
 			<div class="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4">
 				<div class="mb-3 flex items-start justify-between">
 					<div>
@@ -337,12 +303,10 @@
 					</Button>
 				</div>
 			</div>
-			{/each}
-		</div>
+		{/each}
+	</div>
 
-		<!-- Pagination -->
-		<Pagination total={data.total} limit={data.limit} offset={data.offset} onPageChange={handlePageChange} />
-	{:else}
+	{#if data.policies.length === 0}
 		<div class="rounded-xl border border-slate-700/50 bg-slate-800/50 p-12 text-center">
 			<div class="mb-4 flex justify-center">
 				<div class="flex h-16 w-16 items-center justify-center rounded-full bg-slate-700">

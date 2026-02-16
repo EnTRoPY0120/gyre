@@ -2,7 +2,6 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
 	listUsers,
-	listUsersPaginated,
 	createUser,
 	updateUser,
 	deleteUser,
@@ -14,16 +13,9 @@ import { logUserManagement } from '$lib/server/audit';
 /**
  * Load function for user management page
  */
-export const load: PageServerLoad = async ({ locals, url }) => {
-	// Get pagination and search params from URL
-	const search = url.searchParams.get('search') || '';
-	const limitParam = parseInt(url.searchParams.get('limit') || '10');
-	const offsetParam = parseInt(url.searchParams.get('offset') || '0');
-	const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10;
-	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
-
-	// Load paginated users
-	const { users, total } = await listUsersPaginated({ search, limit, offset });
+export const load: PageServerLoad = async ({ locals }) => {
+	// Load all users
+	const users = await listUsers();
 
 	return {
 		users: users.map((u) => ({
@@ -36,10 +28,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			createdAt: u.createdAt,
 			updatedAt: u.updatedAt
 		})),
-		total,
-		search,
-		limit,
-		offset,
 		currentUser: locals.user!
 	};
 };

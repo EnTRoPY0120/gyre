@@ -1,6 +1,7 @@
 import { getCustomObjectsApi, getFluxResource, handleK8sError } from '../client';
 import { getResourceDef, getResourceTypeByPlural } from './resources';
 import type { FluxResourceType } from './resources';
+import type { ConfigurationOptions } from '@kubernetes/client-node';
 
 /**
  * Suspend or Resume a FluxCD resource
@@ -49,7 +50,7 @@ export async function toggleSuspendResource(
 			},
 			{
 				headers: { 'Content-Type': 'application/json-patch+json' }
-			} as any
+			} as ConfigurationOptions
 		);
 	} catch (error) {
 		throw handleK8sError(error, `suspend/resume ${name}`);
@@ -126,7 +127,7 @@ export async function reconcileResource(
 			},
 			{
 				headers: { 'Content-Type': 'application/json-patch+json' }
-			} as any
+			} as ConfigurationOptions
 		);
 	} catch (error) {
 		throw handleK8sError(error, `reconcile ${name}`);
