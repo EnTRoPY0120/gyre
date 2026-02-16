@@ -82,7 +82,7 @@
 	}
 
 	function formatDurationMs(ms: number | null): string {
-		if (!ms) return 'N/A';
+		if (ms == null) return 'N/A';
 		const duration = intervalToDuration({ start: 0, end: ms });
 		return formatDuration(duration, { format: ['minutes', 'seconds'] }) || `${ms}ms`;
 	}
