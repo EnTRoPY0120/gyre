@@ -4,7 +4,8 @@ import {
 	decryptSecret,
 	generateEncryptionKey,
 	isUsingDevelopmentKey,
-	testEncryption
+	testEncryption,
+	_resetKeyCache
 } from '../lib/server/auth/crypto';
 
 describe('Encryption Module', () => {
@@ -23,6 +24,7 @@ describe('Encryption Module', () => {
 		} else {
 			delete process.env.NODE_ENV;
 		}
+		_resetKeyCache();
 	});
 
 	describe('generateEncryptionKey', () => {

@@ -35,10 +35,10 @@
 	let deletingUser = $state<User | null>(null);
 	let resettingPassword = $state<User | null>(null);
 	let generatedPassword = $state('');
-	let searchValue = $state(data.search);
+	let searchValue = $state('') as string;
 
 	// Sync searchValue with data.search changes (e.g., back/forward navigation)
-	$effect(() => {
+	$effect.pre(() => {
 		searchValue = data.search;
 	});
 

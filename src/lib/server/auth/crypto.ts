@@ -44,6 +44,14 @@ function getEncryptionKey(): Buffer {
 
 let _authEncryptionKey: Buffer | null = null;
 
+/**
+ * Internal for testing: Clear the cached encryption key.
+ * This ensures changes to AUTH_ENCRYPTION_KEY in environment are picked up.
+ */
+export function _resetKeyCache(): void {
+	_authEncryptionKey = null;
+}
+
 function getAuthEncryptionKeyLazy(): Buffer {
 	if (!_authEncryptionKey) {
 		_authEncryptionKey = getEncryptionKey();
