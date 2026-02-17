@@ -41,6 +41,14 @@
 			icon: 'history',
 			color: 'text-rose-500',
 			bg: 'bg-rose-500/10'
+		},
+		{
+			title: 'Database Backups',
+			description: 'Create, download, and restore database backups.',
+			href: '/admin/backups',
+			icon: 'hard-drive',
+			color: 'text-teal-500',
+			bg: 'bg-teal-500/10'
 		}
 	];
 </script>
