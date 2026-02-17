@@ -4,10 +4,16 @@
 
 	let { data } = $props<{ data: PageData }>();
 
-	let localLoginEnabled = $state(data.settings.localLoginEnabled.value);
-	let allowSignup = $state(data.settings.allowSignup.value);
-	let domainAllowlistText = $state(data.settings.domainAllowlist.value.join(', '));
+	let localLoginEnabled = $state(false);
+	let allowSignup = $state(false);
+	let domainAllowlistText = $state('');
 	let saving = $state(false);
+
+	$effect.pre(() => {
+		localLoginEnabled = data.settings.localLoginEnabled.value;
+		allowSignup = data.settings.allowSignup.value;
+		domainAllowlistText = data.settings.domainAllowlist.value.join(', ');
+	});
 
 	async function saveSettings() {
 		saving = true;

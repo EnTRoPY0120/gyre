@@ -1,4 +1,5 @@
 /// <reference types="@sveltejs/kit" />
+/// <reference lib="webworker" />
 import { build, files, version } from '$service-worker';
 
 const CACHE = `cache-${version}`;
@@ -9,16 +10,18 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (event) => {
+	const extendableEvent = event as ExtendableEvent;
 	// Create a new cache and add all files to it
 	async function addFilesToCache() {
 		const cache = await caches.open(CACHE);
 		await cache.addAll(ASSETS);
 	}
 
-	event.waitUntil(addFilesToCache());
+	extendableEvent.waitUntil(addFilesToCache());
 });
 
 self.addEventListener('activate', (event) => {
+	const extendableEvent = event as ExtendableEvent;
 	// Remove previous cached data from disk
 	async function deleteOldCaches() {
 		for (const key of await caches.keys()) {
@@ -26,15 +29,16 @@ self.addEventListener('activate', (event) => {
 		}
 	}
 
-	event.waitUntil(deleteOldCaches());
+	extendableEvent.waitUntil(deleteOldCaches());
 });
 
 self.addEventListener('fetch', (event) => {
+	const fetchEvent = event as FetchEvent;
 	// ignore POST requests etc
-	if (event.request.method !== 'GET') return;
+	if (fetchEvent.request.method !== 'GET') return;
 
 	async function respond() {
-		const url = new URL(event.request.url);
+		const url = new URL(fetchEvent.request.url);
 		const cache = await caches.open(CACHE);
 
 		// `build`/`files` can always be served from the cache
@@ -48,7 +52,7 @@ self.addEventListener('fetch', (event) => {
 
 		// for everything else, try the network first, but fall back to the cache if we're offline
 		try {
-			const response = await fetch(event.request);
+			const response = await fetch(fetchEvent.request);
 
 			// if we're offline, fetch can return a value that looks like it's 'ok' but has status 0.
 			// that's not a real response, so throwback to the catch
@@ -57,12 +61,12 @@ self.addEventListener('fetch', (event) => {
 			}
 
 			if (response.status === 200) {
-				cache.put(event.request, response.clone());
+				cache.put(fetchEvent.request, response.clone());
 			}
 
 			return response;
 		} catch (err) {
-			const response = await cache.match(event.request);
+			const response = await cache.match(fetchEvent.request);
 
 			if (response) {
 				return response;
@@ -73,5 +77,5 @@ self.addEventListener('fetch', (event) => {
 		}
 	}
 
-	event.respondWith(respond());
+	fetchEvent.respondWith(respond());
 });
