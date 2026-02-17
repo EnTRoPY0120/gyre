@@ -10,7 +10,7 @@ import { logAudit } from '$lib/server/audit';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user || locals.user.role !== 'admin') {
-		throw error(403, { message: 'Admin access required' });
+		throw error(403, 'Admin access required');
 	}
 
 	try {
@@ -18,19 +18,19 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const file = formData.get('file');
 
 		if (!file || !(file instanceof File)) {
-			throw error(400, { message: 'No file uploaded' });
+			throw error(400, 'No file uploaded');
 		}
 
 		// Limit file size to 500MB
 		const MAX_SIZE = 500 * 1024 * 1024;
 		if (file.size > MAX_SIZE) {
-			throw error(400, { message: 'File too large. Maximum size is 500MB.' });
+			throw error(400, 'File too large. Maximum size is 500MB.');
 		}
 
 		const arrayBuffer = await file.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
 
-		const result = restoreFromBuffer(buffer);
+		const result = await restoreFromBuffer(buffer);
 
 		await logAudit(locals.user, 'backup:restore', {
 			resourceType: 'DatabaseBackup',
@@ -52,7 +52,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			throw err;
 		}
 		console.error('Failed to restore backup:', err);
-		const message = err instanceof Error ? err.message : 'Failed to restore backup';
-		throw error(500, { message });
+		throw error(500, err instanceof Error ? err.message : 'Failed to restore backup');
 	}
 };

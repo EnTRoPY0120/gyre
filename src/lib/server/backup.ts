@@ -50,7 +50,7 @@ function generateBackupFilename(): string {
  * Create a database backup using SQLite's online backup API for atomicity.
  * Returns metadata about the created backup.
  */
-export function createBackupSync(): BackupMetadata {
+export async function createBackup(): Promise<BackupMetadata> {
 	ensureBackupDir();
 
 	const filename = generateBackupFilename();
@@ -59,7 +59,7 @@ export function createBackupSync(): BackupMetadata {
 	const source = new Database(databaseUrl);
 	try {
 		// Use built-in backup API for atomic and consistent snapshots
-		source.backup(destPath);
+		await source.backup(destPath);
 	} finally {
 		source.close();
 	}
@@ -158,7 +158,7 @@ export function deleteBackup(filename: string): boolean {
  * WARNING: This replaces the live database. The application should be
  * restarted after a restore for connections to pick up the new data.
  */
-export function restoreFromBuffer(buffer: Buffer): BackupMetadata {
+export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata> {
 	// Validate the buffer is a valid SQLite database
 	const magic = buffer.subarray(0, 16).toString('ascii');
 	if (!magic.startsWith('SQLite format 3')) {
@@ -166,7 +166,7 @@ export function restoreFromBuffer(buffer: Buffer): BackupMetadata {
 	}
 
 	// Create a safety backup before restoring
-	const safetyBackup = createBackupSync();
+	const safetyBackup = await createBackup();
 	console.log(`[Backup] Safety backup created: ${safetyBackup.filename}`);
 
 	// Write the uploaded DB to a temp file and validate it
