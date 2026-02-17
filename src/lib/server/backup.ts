@@ -222,12 +222,26 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 			testDb.close();
 		}
 
-		// Checkpoint current WAL
+		// Checkpoint current WAL and close connection
 		const currentDb = new Database(databaseUrl);
 		try {
 			currentDb.pragma('wal_checkpoint(TRUNCATE)');
+		} catch (e) {
+			console.warn('[Backup] Failed to checkpoint current DB before restore:', e);
 		} finally {
 			currentDb.close();
+		}
+
+		// Explicitly remove stale -wal and -shm files to prevent corruption of the new DB
+		for (const suffix of ['-wal', '-shm']) {
+			const artifactPath = databaseUrl + suffix;
+			try {
+				if (existsSync(artifactPath)) {
+					unlinkSync(artifactPath);
+				}
+			} catch (e) {
+				console.error(`[Backup] Failed to remove stale artifact ${artifactPath}:`, e);
+			}
 		}
 
 		// Replace the database file
