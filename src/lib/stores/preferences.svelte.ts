@@ -12,7 +12,7 @@ function createPreferencesStore() {
 		enabled: true,
 		resourceTypes: [],
 		namespaces: [],
-		events: ['success', 'failure', 'warning', 'info']
+		events: ['success', 'failure', 'warning', 'info', 'error']
 	});
 
 	return {
@@ -32,13 +32,22 @@ function createPreferencesStore() {
 			this.setFormat(_format === 'yaml' ? 'json' : 'yaml');
 		},
 		setNotifications(prefs: UserPreferences['notifications']) {
-			if (!prefs) return;
+			// If no prefs provided, reset to defaults
+			if (!prefs) {
+				_notifications = {
+					enabled: true,
+					resourceTypes: [],
+					namespaces: [],
+					events: ['success', 'failure', 'warning', 'info', 'error']
+				};
+				return;
+			}
 			// Merge with defaults to ensure we don't have partial state issues
 			_notifications = {
 				enabled: prefs.enabled ?? true,
 				resourceTypes: prefs.resourceTypes ?? [],
 				namespaces: prefs.namespaces ?? [],
-				events: prefs.events ?? ['success', 'failure', 'warning', 'info']
+				events: prefs.events ?? ['success', 'failure', 'warning', 'info', 'error']
 			};
 		},
 		shouldShowNotification(resourceType: string, namespace: string, type: string): boolean {
@@ -63,11 +72,13 @@ function createPreferencesStore() {
 			}
 
 			// Check event type
-			// internal types: 'info' | 'success' | 'warning' | 'error'
-			// user types: 'success' | 'failure' | 'warning' | 'info'
-			const checkType = type === 'error' ? 'failure' : type;
-
-			if (_notifications.events && !_notifications.events.includes(checkType as any)) {
+			// We support 'success', 'failure', 'warning', 'info', and 'error'
+			// Map 'error' to 'failure' for check if needed, but since we added 'error' to union we can just check directly
+			if (_notifications.events && !_notifications.events.includes(type as any)) {
+				// Also check 'failure' if type is 'error' for backwards compatibility/aliasing in UI
+				if (type === 'error' && _notifications.events.includes('failure')) {
+					return true;
+				}
 				return false;
 			}
 

@@ -23,6 +23,7 @@
 		{ value: 'success', label: 'Success' },
 		{ value: 'failure', label: 'Failure' },
 		{ value: 'warning', label: 'Warning' },
+		{ value: 'error', label: 'Error' },
 		{ value: 'info', label: 'Info' }
 	];
 
@@ -31,8 +32,8 @@
 	// Local state for form initialized from store
 	let enabled = $state(preferences.notifications.enabled ?? true);
 	let selectedResourceTypes = $state(preferences.notifications.resourceTypes ?? []);
-	let selectedEventTypes = $state<('success' | 'failure' | 'warning' | 'info')[]>(
-		preferences.notifications.events ?? ['success', 'failure', 'warning', 'info']
+	let selectedEventTypes = $state<('success' | 'failure' | 'warning' | 'info' | 'error')[]>(
+		preferences.notifications.events ?? ['success', 'failure', 'warning', 'info', 'error']
 	);
 	let namespaceInput = $state(preferences.notifications.namespaces?.join(', ') ?? '');
 
@@ -54,7 +55,7 @@
 			const res = await fetch('/api/user/preferences', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(newPrefs)
+				body: JSON.stringify({ notifications: newPrefs })
 			});
 
 			if (!res.ok) throw new Error('Failed to save');
@@ -77,7 +78,7 @@
 		}
 	}
 
-	function toggleEventType(type: 'success' | 'failure' | 'warning' | 'info') {
+	function toggleEventType(type: 'success' | 'failure' | 'warning' | 'info' | 'error') {
 		if (selectedEventTypes.includes(type)) {
 			selectedEventTypes = selectedEventTypes.filter((t) => t !== type);
 		} else {
