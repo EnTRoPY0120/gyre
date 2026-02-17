@@ -7,7 +7,7 @@ import { error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { getBackupPath } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
-import { readFileSync } from 'node:fs';
+import { createReadStream, statSync } from 'node:fs';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user || locals.user.role !== 'admin') {
@@ -25,19 +25,20 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	try {
-		const fileBuffer = readFileSync(filePath);
+		const stat = statSync(filePath);
+		const stream = createReadStream(filePath);
 
 		await logAudit(locals.user, 'backup:download', {
 			resourceType: 'DatabaseBackup',
 			resourceName: filename
 		});
 
-		return new Response(fileBuffer, {
+		return new Response(stream as any, {
 			status: 200,
 			headers: {
-				'Content-Type': 'application/octet-stream',
+				'Content-Type': 'application/x-sqlite3',
 				'Content-Disposition': `attachment; filename="${filename}"`,
-				'Content-Length': String(fileBuffer.length)
+				'Content-Length': String(stat.size)
 			}
 		});
 	} catch (err) {

@@ -47,7 +47,7 @@ function generateBackupFilename(): string {
 }
 
 /**
- * Create a database backup by checkpointing WAL and copying the database file.
+ * Create a database backup using SQLite's online backup API for atomicity.
  * Returns metadata about the created backup.
  */
 export function createBackupSync(): BackupMetadata {
@@ -56,15 +56,13 @@ export function createBackupSync(): BackupMetadata {
 	const filename = generateBackupFilename();
 	const destPath = join(backupDir, filename);
 
-	// Checkpoint WAL first for consistency
 	const source = new Database(databaseUrl);
 	try {
-		source.pragma('wal_checkpoint(TRUNCATE)');
+		// Use built-in backup API for atomic and consistent snapshots
+		source.backup(destPath);
 	} finally {
 		source.close();
 	}
-
-	copyFileSync(databaseUrl, destPath);
 
 	// Prune old backups beyond retention limit
 	pruneOldBackups();
@@ -73,7 +71,7 @@ export function createBackupSync(): BackupMetadata {
 	return {
 		filename,
 		sizeBytes: stat.size,
-		createdAt: stat.birthtime.toISOString()
+		createdAt: stat.birthtime.toISOString() // This will be updated in listBackups
 	};
 }
 
@@ -88,10 +86,32 @@ export function listBackups(): BackupMetadata[] {
 		.map((filename) => {
 			const filePath = join(backupDir, filename);
 			const stat = statSync(filePath);
+
+			// Extract timestamp from filename for accuracy
+			let createdAt = '';
+			try {
+				const tsPart = filename.replace('gyre-backup-', '').replace('.db', '');
+				// Convert 2026-02-17T11-15-56-353Z back to 2026-02-17T11:15:56.353Z
+				const parts = tsPart.split('T');
+				if (parts.length === 2) {
+					const datePart = parts[0];
+					const timePart = parts[1].replace(/-/g, (c, offset) => (offset < 8 ? ':' : '.'));
+					const date = new Date(`${datePart}T${timePart}`);
+					if (!isNaN(date.getTime())) {
+						createdAt = date.toISOString();
+					}
+				}
+			} catch (e) {
+				// Fallback to birthtime
+				createdAt = stat.birthtime.toISOString();
+			}
+
+			if (!createdAt) createdAt = stat.birthtime.toISOString();
+
 			return {
 				filename,
 				sizeBytes: stat.size,
-				createdAt: stat.birthtime.toISOString()
+				createdAt
 			};
 		})
 		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -166,7 +186,18 @@ export function restoreFromBuffer(buffer: Buffer): BackupMetadata {
 			}[];
 			const tableNames = tables.map((t) => t.name);
 
-			const requiredTables = ['users', 'sessions', 'app_settings'];
+			const requiredTables = [
+				'users',
+				'sessions',
+				'app_settings',
+				'clusters',
+				'cluster_contexts',
+				'audit_logs',
+				'rbac_policies',
+				'rbac_bindings',
+				'auth_providers',
+				'user_providers'
+			];
 			const missing = requiredTables.filter((t) => !tableNames.includes(t));
 			if (missing.length > 0) {
 				throw new Error(`Invalid backup: missing required tables: ${missing.join(', ')}`);

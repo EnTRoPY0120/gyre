@@ -28,6 +28,46 @@
 	let deletingFilename = $state<string | null>(null);
 	let showRestoreConfirm = $state(false);
 	let restoreFile = $state<File | null>(null);
+	let restoreInput = $state<HTMLInputElement | null>(null);
+	let modalContainer = $state<HTMLElement | null>(null);
+
+	// Handle Escape key to close modal
+	$effect(() => {
+		if (showRestoreConfirm) {
+			const handleKeyDown = (e: KeyboardEvent) => {
+				if (e.key === 'Escape' && !restoring) {
+					cancelRestore();
+				}
+
+				// Simple focus trap
+				if (e.key === 'Tab' && modalContainer) {
+					const focusables = modalContainer.querySelectorAll<HTMLElement>(
+						'button:not([disabled]), [href], input, [tabindex]:not([tabindex="-1"])'
+					);
+					const first = focusables[0];
+					const last = focusables[focusables.length - 1];
+
+					if (e.shiftKey && document.activeElement === first) {
+						e.preventDefault();
+						last.focus();
+					} else if (!e.shiftKey && document.activeElement === last) {
+						e.preventDefault();
+						first.focus();
+					}
+				}
+			};
+
+			window.addEventListener('keydown', handleKeyDown);
+
+			// Initial focus
+			setTimeout(() => {
+				const firstButton = modalContainer?.querySelector('button:not([disabled])') as HTMLElement;
+				firstButton?.focus();
+			}, 0);
+
+			return () => window.removeEventListener('keydown', handleKeyDown);
+		}
+	});
 
 	function formatBytes(bytes: number): string {
 		if (bytes === 0) return '0 B';
@@ -132,6 +172,7 @@
 			toast.success(result.message);
 			showRestoreConfirm = false;
 			restoreFile = null;
+			if (restoreInput) restoreInput.value = '';
 			await invalidateAll();
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : 'Failed to restore backup');
@@ -143,6 +184,7 @@
 	function cancelRestore() {
 		showRestoreConfirm = false;
 		restoreFile = null;
+		if (restoreInput) restoreInput.value = '';
 	}
 </script>
 
@@ -173,6 +215,7 @@
 				<Upload size={16} />
 				Restore
 				<input
+					bind:this={restoreInput}
 					type="file"
 					accept=".db,.sqlite,.sqlite3"
 					class="hidden"
@@ -189,6 +232,7 @@
 			role="dialog"
 			aria-modal="true"
 			aria-labelledby="restore-modal-title"
+			bind:this={modalContainer}
 		>
 			<div
 				class="mx-4 w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-800 p-6 shadow-2xl"
