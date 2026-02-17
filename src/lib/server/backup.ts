@@ -1,0 +1,220 @@
+/**
+ * Database Backup Service
+ * Handles creating, listing, and restoring SQLite database backups.
+ */
+
+import {
+	existsSync,
+	mkdirSync,
+	readdirSync,
+	statSync,
+	unlinkSync,
+	copyFileSync,
+	writeFileSync
+} from 'node:fs';
+import { join, basename } from 'node:path';
+import Database from 'better-sqlite3';
+
+const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
+const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
+const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups');
+
+// Maximum number of local backups to retain
+const MAX_LOCAL_BACKUPS = 10;
+
+export interface BackupMetadata {
+	filename: string;
+	sizeBytes: number;
+	createdAt: string;
+}
+
+/**
+ * Ensure the backup directory exists.
+ */
+function ensureBackupDir(): void {
+	if (!existsSync(backupDir)) {
+		mkdirSync(backupDir, { recursive: true });
+	}
+}
+
+/**
+ * Generate a timestamped backup filename.
+ */
+function generateBackupFilename(): string {
+	const now = new Date();
+	const ts = now.toISOString().replace(/[:.]/g, '-');
+	return `gyre-backup-${ts}.db`;
+}
+
+/**
+ * Create a database backup by checkpointing WAL and copying the database file.
+ * Returns metadata about the created backup.
+ */
+export function createBackupSync(): BackupMetadata {
+	ensureBackupDir();
+
+	const filename = generateBackupFilename();
+	const destPath = join(backupDir, filename);
+
+	// Checkpoint WAL first for consistency
+	const source = new Database(databaseUrl);
+	try {
+		source.pragma('wal_checkpoint(TRUNCATE)');
+	} finally {
+		source.close();
+	}
+
+	copyFileSync(databaseUrl, destPath);
+
+	// Prune old backups beyond retention limit
+	pruneOldBackups();
+
+	const stat = statSync(destPath);
+	return {
+		filename,
+		sizeBytes: stat.size,
+		createdAt: stat.birthtime.toISOString()
+	};
+}
+
+/**
+ * List all available backups sorted by date (newest first).
+ */
+export function listBackups(): BackupMetadata[] {
+	ensureBackupDir();
+
+	const files = readdirSync(backupDir)
+		.filter((f) => f.startsWith('gyre-backup-') && f.endsWith('.db'))
+		.map((filename) => {
+			const filePath = join(backupDir, filename);
+			const stat = statSync(filePath);
+			return {
+				filename,
+				sizeBytes: stat.size,
+				createdAt: stat.birthtime.toISOString()
+			};
+		})
+		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+	return files;
+}
+
+/**
+ * Get the full path to a backup file (for downloads).
+ * Returns null if the file doesn't exist or the filename is invalid.
+ */
+export function getBackupPath(filename: string): string | null {
+	// Sanitize: only allow expected filenames
+	const sanitized = basename(filename);
+	if (!sanitized.startsWith('gyre-backup-') || !sanitized.endsWith('.db')) {
+		return null;
+	}
+
+	const filePath = join(backupDir, sanitized);
+	if (!existsSync(filePath)) {
+		return null;
+	}
+
+	return filePath;
+}
+
+/**
+ * Delete a specific backup file.
+ */
+export function deleteBackup(filename: string): boolean {
+	const filePath = getBackupPath(filename);
+	if (!filePath) {
+		return false;
+	}
+
+	unlinkSync(filePath);
+	return true;
+}
+
+/**
+ * Restore the database from a backup buffer.
+ * This creates a safety backup of the current DB before restoring.
+ *
+ * WARNING: This replaces the live database. The application should be
+ * restarted after a restore for connections to pick up the new data.
+ */
+export function restoreFromBuffer(buffer: Buffer): BackupMetadata {
+	// Validate the buffer is a valid SQLite database
+	const magic = buffer.subarray(0, 16).toString('ascii');
+	if (!magic.startsWith('SQLite format 3')) {
+		throw new Error('Invalid file: not a valid SQLite database');
+	}
+
+	// Create a safety backup before restoring
+	const safetyBackup = createBackupSync();
+	console.log(`[Backup] Safety backup created: ${safetyBackup.filename}`);
+
+	// Write the uploaded DB to a temp file and validate it
+	ensureBackupDir();
+	const tempPath = join(backupDir, `_restore-temp-${Date.now()}.db`);
+
+	try {
+		// Write buffer to temp file
+		writeFileSync(tempPath, buffer);
+
+		// Open and validate the uploaded DB has the expected schema
+		const testDb = new Database(tempPath, { readonly: true });
+		try {
+			// Check for essential tables
+			const tables = testDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
+				name: string;
+			}[];
+			const tableNames = tables.map((t) => t.name);
+
+			const requiredTables = ['users', 'sessions', 'app_settings'];
+			const missing = requiredTables.filter((t) => !tableNames.includes(t));
+			if (missing.length > 0) {
+				throw new Error(`Invalid backup: missing required tables: ${missing.join(', ')}`);
+			}
+		} finally {
+			testDb.close();
+		}
+
+		// Checkpoint current WAL
+		const currentDb = new Database(databaseUrl);
+		try {
+			currentDb.pragma('wal_checkpoint(TRUNCATE)');
+		} finally {
+			currentDb.close();
+		}
+
+		// Replace the database file
+		copyFileSync(tempPath, databaseUrl);
+
+		const stat = statSync(databaseUrl);
+		return {
+			filename: 'restored-database',
+			sizeBytes: stat.size,
+			createdAt: new Date().toISOString()
+		};
+	} finally {
+		// Clean up temp file
+		if (existsSync(tempPath)) {
+			unlinkSync(tempPath);
+		}
+	}
+}
+
+/**
+ * Remove old backups beyond the retention limit.
+ */
+function pruneOldBackups(): void {
+	const backups = listBackups();
+	if (backups.length <= MAX_LOCAL_BACKUPS) return;
+
+	const toDelete = backups.slice(MAX_LOCAL_BACKUPS);
+	for (const backup of toDelete) {
+		const filePath = join(backupDir, backup.filename);
+		try {
+			unlinkSync(filePath);
+			console.log(`[Backup] Pruned old backup: ${backup.filename}`);
+		} catch {
+			console.warn(`[Backup] Failed to prune: ${backup.filename}`);
+		}
+	}
+}

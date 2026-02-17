@@ -63,7 +63,9 @@
 		History,
 		BellRing,
 		Webhook,
-		Container
+		Container,
+		HardDrive,
+		Database
 	} from 'lucide-svelte';
 
 	interface Props extends SVGAttributes<SVGSVGElement> {
@@ -177,6 +179,8 @@
 		'rerotate-ccw': RotateCcw,
 		'circle-off': CircleOff,
 		history: History,
+		'hard-drive': HardDrive,
+		database: Database,
 
 		// Resource Kind mappings (lowercase)
 		gitrepository: GitBranch,
