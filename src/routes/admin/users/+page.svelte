@@ -35,7 +35,7 @@
 	let deletingUser = $state<User | null>(null);
 	let resettingPassword = $state<User | null>(null);
 	let generatedPassword = $state('');
-	let searchValue = $state('') as string;
+	let searchValue = $state('');
 
 	// Sync searchValue with data.search changes (e.g., back/forward navigation)
 	$effect.pre(() => {
