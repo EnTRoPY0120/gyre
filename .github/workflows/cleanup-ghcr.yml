@@ -6,6 +6,12 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch:
 
+# NOTE: The `*` and `!` filter operators in image-tags/image-names only work
+# with a PAT or GitHub App token. If using GITHUB_TOKEN, you must use exact
+# names and cannot use wildcard/exclusion filters. To use filters, create a PAT
+# with `packages:write` scope and store it as a repository secret (e.g., PAT).
+# Then replace `${{ secrets.GITHUB_TOKEN }}` with `${{ secrets.PAT }}` below.
+
 jobs:
   cleanup:
     name: Cleanup Old Container Images
@@ -20,7 +26,7 @@ jobs:
         with:
           image-names: gyre
           cut-off: 7d
-          account: entropy0120
+          account: user
           token: ${{ secrets.GITHUB_TOKEN }}
           tag-selection: untagged
           timestamp-to-use: created_at
@@ -30,9 +36,10 @@ jobs:
         with:
           image-names: gyre
           cut-off: 7d
-          account: entropy0120
-          token: ${{ secrets.GITHUB_TOKEN }}
-          image-tags: '^pr-\d+$'
+          account: user
+          token: ${{ secrets.PAT }}
+          image-tags: "pr-*"
+          tag-selection: tagged
           keep-n-most-recent: 5
           timestamp-to-use: created_at
 
@@ -40,10 +47,11 @@ jobs:
         uses: snok/container-retention-policy@v3.0.1
         with:
           image-names: gyre
-          cut-off: 30d
-          account: entropy0120
-          token: ${{ secrets.GITHUB_TOKEN }}
-          image-tags: '^(feat|fix|chore|docs|refactor|ci)/.*$'
+          cut-off: 4w
+          account: user
+          token: ${{ secrets.PAT }}
+          image-tags: "feat/* fix/* chore/* docs/* refactor/* ci/*"
+          tag-selection: tagged
           timestamp-to-use: created_at
 
       - name: Cleanup old SHA-tagged releases
@@ -51,9 +59,10 @@ jobs:
         with:
           image-names: gyre
           cut-off: 14d
-          account: entropy0120
-          token: ${{ secrets.GITHUB_TOKEN }}
-          image-tags: '^v\d+\.\d+\.\d+-[a-f0-9]+$'
+          account: user
+          token: ${{ secrets.PAT }}
+          image-tags: "v*-*"
+          tag-selection: tagged
           keep-n-most-recent: 3
           timestamp-to-use: created_at
 
@@ -66,16 +75,16 @@ jobs:
           echo "| Type | Retention Period | Notes |" >> $GITHUB_STEP_SUMMARY
           echo "|------|------------------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Untagged images** | 7 days | Automatically removed |" >> $GITHUB_STEP_SUMMARY
-          echo "| **PR tags** | 7 days | Keep 5 most recent |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Branch tags** | 30 days | Excludes main/develop |" >> $GITHUB_STEP_SUMMARY
-          echo "| **SHA-tagged releases** | 14 days | Keep 3 most recent |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Release tags** | Forever | Protected: v*.*.* |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Latest/Main tags** | Forever | Always protected |" >> $GITHUB_STEP_SUMMARY
+          echo "| **PR tags** (\`pr-*\`) | 7 days | Keep 5 most recent |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Branch tags** (\`feat/* fix/*\` etc.) | 4 weeks | Feature branch images |" >> $GITHUB_STEP_SUMMARY
+          echo "| **SHA-tagged releases** (\`v*-*\`) | 14 days | Keep 3 most recent |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Release tags** (\`v*.*.*\`) | Forever | Not matched by cleanup rules |" >> $GITHUB_STEP_SUMMARY
+          echo "| **latest / main / develop** | Forever | Not matched by cleanup rules |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Protected Tags" >> $GITHUB_STEP_SUMMARY
-          echo "- \`latest\` - Always kept" >> $GITHUB_STEP_SUMMARY
-          echo "- \`main\` - Always kept" >> $GITHUB_STEP_SUMMARY
-          echo "- \`develop\` - Always kept" >> $GITHUB_STEP_SUMMARY
-          echo "- \`v*.*.*\` - Semantic version tags (releases)" >> $GITHUB_STEP_SUMMARY
+          echo "### Protected Tags (not targeted by any cleanup step)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`latest\` — only applied on main branch pushes" >> $GITHUB_STEP_SUMMARY
+          echo "- \`main\` — branch ref tag" >> $GITHUB_STEP_SUMMARY
+          echo "- \`develop\` — branch ref tag" >> $GITHUB_STEP_SUMMARY
+          echo "- \`v*.*.*\` — semver release tags (e.g. \`v1.0.0\`)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Cleanup completed at $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
