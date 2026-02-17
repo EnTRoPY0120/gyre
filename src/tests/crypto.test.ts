@@ -114,15 +114,11 @@ describe('Encryption Module', () => {
 
 	describe('invalid input handling', () => {
 		test('throws on malformed ciphertext (missing parts)', () => {
-			expect(() => decryptSecret('only-one-part')).toThrow(
-				'Invalid encrypted secret format'
-			);
+			expect(() => decryptSecret('only-one-part')).toThrow('Invalid encrypted secret format');
 		});
 
 		test('throws on malformed ciphertext (too many parts)', () => {
-			expect(() => decryptSecret('a:b:c:d')).toThrow(
-				'Invalid encrypted secret format'
-			);
+			expect(() => decryptSecret('a:b:c:d')).toThrow('Invalid encrypted secret format');
 		});
 	});
 

@@ -38,7 +38,7 @@ jobs:
           cut-off: 7d
           account: user
           token: ${{ secrets.PAT }}
-          image-tags: "pr-*"
+          image-tags: 'pr-*'
           tag-selection: tagged
           keep-n-most-recent: 5
           timestamp-to-use: created_at
@@ -50,7 +50,7 @@ jobs:
           cut-off: 4w
           account: user
           token: ${{ secrets.PAT }}
-          image-tags: "feat/* fix/* chore/* docs/* refactor/* ci/*"
+          image-tags: 'feat/* fix/* chore/* docs/* refactor/* ci/*'
           tag-selection: tagged
           timestamp-to-use: created_at
 
@@ -61,7 +61,7 @@ jobs:
           cut-off: 14d
           account: user
           token: ${{ secrets.PAT }}
-          image-tags: "v*-*"
+          image-tags: 'v*-*'
           tag-selection: tagged
           keep-n-most-recent: 3
           timestamp-to-use: created_at
