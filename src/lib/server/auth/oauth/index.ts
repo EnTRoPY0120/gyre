@@ -16,6 +16,7 @@ export { OAuthError, ProviderType } from './types';
 // Providers
 export { OIDCProvider } from './providers/oidc';
 export { GitHubProvider } from './providers/github';
+export { GitLabProvider } from './providers/gitlab';
 export { GoogleProvider } from './providers/google';
 
 // Factory functions
