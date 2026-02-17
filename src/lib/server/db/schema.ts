@@ -21,35 +21,49 @@ export const users = sqliteTable('users', {
 });
 
 // Sessions table
-export const sessions = sqliteTable('sessions', {
-	id: text('id').primaryKey(),
-	userId: text('user_id')
-		.notNull()
-		.references(() => users.id, { onDelete: 'cascade' }),
-	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
-	ipAddress: text('ip_address'),
-	userAgent: text('user_agent'),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.default(sql`(unixepoch())`)
-});
+export const sessions = sqliteTable(
+	'sessions',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+		ipAddress: text('ip_address'),
+		userAgent: text('user_agent'),
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`)
+	},
+	(table) => ({
+		expiresAtIdx: index('idx_sessions_expires_at').on(table.expiresAt)
+	})
+);
 
 // Audit logs table
-export const auditLogs = sqliteTable('audit_logs', {
-	id: text('id').primaryKey(),
-	userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
-	action: text('action').notNull(), // 'read', 'write', 'delete', 'login', 'logout', etc.
-	resourceType: text('resource_type'), // 'GitRepository', 'Kustomization', etc.
-	resourceName: text('resource_name'),
-	namespace: text('namespace'),
-	clusterId: text('cluster_id'),
-	details: text('details'), // JSON string with additional details
-	success: integer('success', { mode: 'boolean' }).notNull().default(true),
-	ipAddress: text('ip_address'),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.default(sql`(unixepoch())`)
-});
+export const auditLogs = sqliteTable(
+	'audit_logs',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id').references(() => users.id, { onDelete: 'set null' }),
+		action: text('action').notNull(), // 'read', 'write', 'delete', 'login', 'logout', etc.
+		resourceType: text('resource_type'), // 'GitRepository', 'Kustomization', etc.
+		resourceName: text('resource_name'),
+		namespace: text('namespace'),
+		clusterId: text('cluster_id'),
+		details: text('details'), // JSON string with additional details
+		success: integer('success', { mode: 'boolean' }).notNull().default(true),
+		ipAddress: text('ip_address'),
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`)
+	},
+	(table) => ({
+		userIdIdx: index('idx_audit_logs_user_id').on(table.userId),
+		actionIdx: index('idx_audit_logs_action').on(table.action),
+		createdAtIndex: index('idx_audit_logs_created_at').on(table.createdAt)
+	})
+);
 
 // Clusters table (for uploaded kubeconfigs or in-cluster)
 export const clusters = sqliteTable('clusters', {
@@ -122,7 +136,8 @@ export const rbacBindings = sqliteTable(
 	},
 	(table) => {
 		return {
-			pk: primaryKey({ columns: [table.userId, table.policyId] })
+			pk: primaryKey({ columns: [table.userId, table.policyId] }),
+			policyUserIdx: index('idx_rbac_bindings_policy_user').on(table.policyId, table.userId)
 		};
 	}
 );

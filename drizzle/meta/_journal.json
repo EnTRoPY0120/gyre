@@ -15,6 +15,13 @@
 			"when": 1739759400000,
 			"tag": "0001_add_reconciliation_history",
 			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1771328400000,
+			"tag": "0002_improve_db_indices",
+			"breakpoints": true
 		}
 	]
 }
