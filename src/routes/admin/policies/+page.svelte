@@ -46,7 +46,7 @@
 	let deletingPolicy = $state<Policy | null>(null);
 	let assigningPolicy = $state<Policy | null>(null);
 	let selectedUserId = $state('');
-	let searchValue = $state('') as string;
+	let searchValue = $state('');
 
 	// Sync searchValue with data.search changes (e.g., back/forward navigation)
 	$effect.pre(() => {

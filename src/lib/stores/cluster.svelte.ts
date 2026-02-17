@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import Cookies from 'js-cookie';
 
 /**
  * Cluster Store using Svelte 5's $state
@@ -10,9 +11,9 @@ class ClusterStore {
 	constructor() {
 		// Initialize from cookie if in browser
 		if (browser) {
-			const match = document.cookie.match(/gyre_cluster=([^;]+)/);
-			if (match) {
-				this.current = match[1];
+			const value = Cookies.get('gyre_cluster');
+			if (value) {
+				this.current = value;
 			}
 		}
 	}
@@ -20,7 +21,7 @@ class ClusterStore {
 	setCluster(name: string) {
 		this.current = name;
 		if (browser) {
-			document.cookie = `gyre_cluster=${name}; path=/; max-age=${60 * 60 * 24 * 30}`;
+			Cookies.set('gyre_cluster', name, { expires: 30, path: '/' });
 			// Reload to refresh all data from the new cluster
 			window.location.reload();
 		}

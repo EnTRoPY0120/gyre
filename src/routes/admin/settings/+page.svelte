@@ -9,10 +9,16 @@
 	let domainAllowlistText = $state('');
 	let saving = $state(false);
 
+	let initialized = $state(false);
+	let isDirty = $state(false);
+
 	$effect.pre(() => {
-		localLoginEnabled = data.settings.localLoginEnabled.value;
-		allowSignup = data.settings.allowSignup.value;
-		domainAllowlistText = data.settings.domainAllowlist.value.join(', ');
+		if (!initialized || !isDirty) {
+			localLoginEnabled = data.settings.localLoginEnabled.value;
+			allowSignup = data.settings.allowSignup.value;
+			domainAllowlistText = data.settings.domainAllowlist.value.join(', ');
+			initialized = true;
+		}
 	});
 
 	async function saveSettings() {
@@ -40,6 +46,7 @@
 			}
 
 			toast.success('Settings saved successfully');
+			isDirty = false;
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : 'Failed to save settings');
 		} finally {
@@ -81,7 +88,10 @@
 					aria-checked={localLoginEnabled}
 					aria-label="Toggle local login"
 					disabled={data.settings.localLoginEnabled.overriddenByEnv}
-					onclick={() => (localLoginEnabled = !localLoginEnabled)}
+					onclick={() => {
+						localLoginEnabled = !localLoginEnabled;
+						isDirty = true;
+					}}
 					class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 {localLoginEnabled
 						? 'bg-amber-500'
 						: 'bg-gray-200 dark:bg-gray-700'}"
@@ -117,7 +127,10 @@
 					aria-checked={allowSignup}
 					aria-label="Toggle OAuth signup"
 					disabled={data.settings.allowSignup.overriddenByEnv}
-					onclick={() => (allowSignup = !allowSignup)}
+					onclick={() => {
+						allowSignup = !allowSignup;
+						isDirty = true;
+					}}
 					class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 {allowSignup
 						? 'bg-amber-500'
 						: 'bg-gray-200 dark:bg-gray-700'}"
@@ -149,6 +162,7 @@
 				<textarea
 					id="domainAllowlist"
 					bind:value={domainAllowlistText}
+					oninput={() => (isDirty = true)}
 					disabled={data.settings.domainAllowlist.overriddenByEnv}
 					placeholder="example.com, company.org"
 					rows="3"

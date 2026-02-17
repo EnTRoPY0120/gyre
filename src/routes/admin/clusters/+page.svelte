@@ -54,9 +54,8 @@
 	let deletingCluster = $state<Cluster | null>(null);
 	let showHealthCheckModal = $state(false);
 	let kubeconfigInput = $state('');
-	let selectedUserId = $state('');
 	let isDragging = $state(false);
-	let searchValue = $state('') as string;
+	let searchValue = $state('');
 
 	// Sync searchValue with data.search changes (e.g., back/forward navigation)
 	$effect.pre(() => {
