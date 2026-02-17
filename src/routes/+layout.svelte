@@ -5,6 +5,7 @@
 	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import { websocketStore } from '$lib/stores/websocket.svelte';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
+	import { preferences } from '$lib/stores/preferences.svelte';
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { Toaster } from 'svelte-sonner';
@@ -22,6 +23,7 @@
 				username: string;
 				role: string;
 				email?: string | null;
+				preferences?: import('$lib/types/user').UserPreferences | null;
 			} | null;
 		};
 	}
@@ -31,13 +33,16 @@
 	// Check if current route is the login page
 	let isLoginPage = $derived($page.url.pathname.startsWith('/login'));
 
-	// Sync cluster store with layout data
+	// Sync cluster store and preferences with layout data
 	$effect(() => {
 		if (data.health.availableClusters) {
 			clusterStore.setAvailable(data.health.availableClusters);
 		}
 		if (data.health.clusterName) {
 			clusterStore.current = data.health.clusterName;
+		}
+		if (data.user?.preferences?.notifications) {
+			preferences.setNotifications(data.user.preferences.notifications);
 		}
 	});
 

@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, primaryKey, index } from 'drizzle-orm/sqlite-core';
 import { sql, relations } from 'drizzle-orm';
+import type { UserPreferences } from '$lib/types/user';
 
 // Users table
 export const users = sqliteTable('users', {
@@ -17,7 +18,8 @@ export const users = sqliteTable('users', {
 		.default(sql`(unixepoch())`),
 	updatedAt: integer('updated_at', { mode: 'timestamp' })
 		.notNull()
-		.default(sql`(unixepoch())`)
+		.default(sql`(unixepoch())`),
+	preferences: text('preferences', { mode: 'json' }).$type<UserPreferences>()
 });
 
 // Sessions table

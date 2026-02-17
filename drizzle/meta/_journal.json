@@ -1,27 +1,34 @@
 {
-	"version": "7",
-	"dialect": "sqlite",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "7",
-			"when": 1738682000000,
-			"tag": "0000_initial_schema",
-			"breakpoints": true
-		},
-		{
-			"idx": 1,
-			"version": "7",
-			"when": 1739759400000,
-			"tag": "0001_add_reconciliation_history",
-			"breakpoints": true
-		},
-		{
-			"idx": 2,
-			"version": "7",
-			"when": 1771328400000,
-			"tag": "0002_improve_db_indices",
-			"breakpoints": true
-		}
-	]
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1738682000000,
+      "tag": "0000_initial_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1739759400000,
+      "tag": "0001_add_reconciliation_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771328400000,
+      "tag": "0002_improve_db_indices",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1771329767518,
+      "tag": "0003_dizzy_silk_fever",
+      "breakpoints": true
+    }
+  ]
 }
