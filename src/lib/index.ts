@@ -1,2 +1,2 @@
-// Export all components from this library
+// Project-wide library entrypoint
 export {};

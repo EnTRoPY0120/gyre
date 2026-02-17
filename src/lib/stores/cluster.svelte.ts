@@ -21,7 +21,12 @@ class ClusterStore {
 	setCluster(name: string) {
 		this.current = name;
 		if (browser) {
-			Cookies.set('gyre_cluster', name, { expires: 30, path: '/' });
+			Cookies.set('gyre_cluster', name, {
+				expires: 30,
+				path: '/',
+				secure: true,
+				sameSite: 'Lax'
+			});
 			// Reload to refresh all data from the new cluster
 			window.location.reload();
 		}
