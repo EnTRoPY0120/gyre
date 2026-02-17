@@ -43,6 +43,8 @@
 		}
 		if (data.user?.preferences?.notifications) {
 			preferences.setNotifications(data.user.preferences.notifications);
+		} else {
+			preferences.setNotifications(undefined);
 		}
 	});
 

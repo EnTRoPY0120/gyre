@@ -3,7 +3,7 @@ export interface UserPreferences {
 		enabled?: boolean;
 		resourceTypes?: string[];
 		namespaces?: string[];
-		events?: ('success' | 'failure' | 'warning' | 'info')[];
+		events?: ('success' | 'failure' | 'warning' | 'info' | 'error')[];
 	};
 	theme?: 'light' | 'dark' | 'system';
 }
