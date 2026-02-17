@@ -4,6 +4,7 @@ import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
+import { requirePermission } from '$lib/server/rbac';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
@@ -13,6 +14,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.cluster) {
 		throw error(400, 'Missing cluster context');
 	}
+
+	// Ensure the user has at least 'read' permission on the cluster to manage their own notifications
+	await requirePermission(locals.user, 'read', undefined, undefined, locals.cluster);
 
 	let newPreferences: Partial<UserPreferences>;
 
