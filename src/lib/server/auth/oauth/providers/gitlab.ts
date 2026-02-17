@@ -24,6 +24,13 @@ interface GitLabUser {
 	confirmed_at?: string; // ISO 8601 timestamp when email was confirmed
 }
 
+interface GitLabGroup {
+	id: number;
+	name: string;
+	path: string;
+	full_path: string;
+}
+
 export class GitLabProvider implements IOAuthProvider {
 	public readonly config;
 	private readonly redirectUri: string;
@@ -58,7 +65,7 @@ export class GitLabProvider implements IOAuthProvider {
 	/**
 	 * Generate authorization URL
 	 */
-	async getAuthorizationUrl(state: string): Promise<URL> {
+	async getAuthorizationUrl(state: string, _codeVerifier?: string): Promise<URL> {
 		const client = this.getClient();
 
 		// Default scopes for GitLab
@@ -66,16 +73,26 @@ export class GitLabProvider implements IOAuthProvider {
 			? this.config.scopes.split(' ').filter(Boolean)
 			: ['read_user', 'openid', 'profile', 'email'];
 
+		// Add api scope if role mapping is configured (for groups fetch)
+		// GitLab api scope is required for /api/v4/groups
+		if (this.config.roleMapping && !scopes.includes('api') && !scopes.includes('read_api')) {
+			// Prefer read_api if available, otherwise fallback to read_user
+			// (GitLab.com supports read_api)
+			scopes.push('read_api');
+		}
+
+		// GitLab in arctic doesn't support PKCE parameters in createAuthorizationURL
 		return await client.createAuthorizationURL(state, scopes);
 	}
 
 	/**
 	 * Exchange authorization code for access token
 	 */
-	async validateCallback(code: string): Promise<OAuthTokens> {
+	async validateCallback(code: string, _codeVerifier?: string): Promise<OAuthTokens> {
 		const client = this.getClient();
 
 		try {
+			// GitLab in arctic doesn't support PKCE parameters in validateAuthorizationCode
 			const tokens = await client.validateAuthorizationCode(code);
 
 			return {
@@ -106,6 +123,12 @@ export class GitLabProvider implements IOAuthProvider {
 				tokens.accessToken
 			);
 
+			// Fetch groups if role mapping is configured
+			let groups: string[] = [];
+			if (this.config.roleMapping) {
+				groups = await this.fetchGroups(tokens.accessToken);
+			}
+
 			return {
 				sub: user.id.toString(),
 				email: user.email,
@@ -115,7 +138,7 @@ export class GitLabProvider implements IOAuthProvider {
 				username: user.username,
 				name: user.name || user.username,
 				picture: user.avatar_url,
-				groups: [] // Groups fetch to be implemented if needed
+				groups
 			};
 		} catch (error) {
 			throw new OAuthError(
@@ -123,6 +146,24 @@ export class GitLabProvider implements IOAuthProvider {
 				'USERINFO_FAILED',
 				error
 			);
+		}
+	}
+
+	/**
+	 * Fetch user's groups from GitLab API
+	 */
+	private async fetchGroups(accessToken: string): Promise<string[]> {
+		try {
+			// Fetch groups with min_access_level=10 (Guest or higher)
+			const groups = await this.fetchGitLabAPI<GitLabGroup[]>(
+				`${this.baseURL}/api/v4/groups?min_access_level=10`,
+				accessToken
+			);
+
+			return groups.map((g) => g.full_path);
+		} catch (error) {
+			console.error('Failed to fetch GitLab groups:', error);
+			return [];
 		}
 	}
 

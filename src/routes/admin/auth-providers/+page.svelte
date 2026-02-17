@@ -532,20 +532,23 @@
 					</div>
 				</div>
 
-				<!-- OIDC Settings -->
-				{#if formData.type === 'oidc'}
+				<!-- OIDC/GitLab Settings -->
+				{#if formData.type === 'oidc' || formData.type === 'oauth2-gitlab'}
 					<div>
-						<label for="issuer-url" class="mb-1 block text-sm font-medium text-slate-300"
-							>Issuer URL</label
-						>
+						<label for="issuer-url" class="mb-1 block text-sm font-medium text-slate-300">
+							{formData.type === 'oidc' ? 'Issuer URL' : 'GitLab Instance URL'}
+						</label>
 						<input
 							id="issuer-url"
 							type="url"
 							bind:value={formData.issuerUrl}
-							placeholder="https://accounts.google.com"
-							required
+							placeholder={formData.type === 'oidc' ? 'https://accounts.google.com' : 'https://gitlab.com'}
+							required={formData.type === 'oidc'}
 							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						/>
+						{#if formData.type === 'oauth2-gitlab'}
+							<p class="mt-1 text-xs text-slate-400">Leave empty to use gitlab.com</p>
+						{/if}
 					</div>
 				{/if}
 
@@ -687,7 +690,7 @@
 				}}
 				class="space-y-4"
 			>
-				<!-- Same form fields as Create modal, but with Update button -->
+				<!-- Basic Settings -->
 				<div class="grid grid-cols-2 gap-4">
 					<div>
 						<label for="edit-provider-name" class="mb-1 block text-sm font-medium text-slate-300"
@@ -700,6 +703,81 @@
 							required
 							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						/>
+					</div>
+					<div>
+						<label for="edit-provider-type" class="mb-1 block text-sm font-medium text-slate-300"
+							>Provider Type</label
+						>
+						<select
+							id="edit-provider-type"
+							bind:value={formData.type}
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+						>
+							<option value="oidc">OIDC (Generic)</option>
+							<option value="oauth2-google">Google OAuth</option>
+							<option value="oauth2-github">GitHub OAuth</option>
+							<option value="oauth2-gitlab">GitLab OAuth</option>
+						</select>
+					</div>
+				</div>
+
+				<!-- OAuth Credentials -->
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label for="edit-client-id" class="mb-1 block text-sm font-medium text-slate-300"
+							>Client ID</label
+						>
+						<input
+							id="edit-client-id"
+							type="text"
+							bind:value={formData.clientId}
+							required
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+						/>
+					</div>
+					<div>
+						<label for="edit-client-secret" class="mb-1 block text-sm font-medium text-slate-300">
+							Client Secret
+						</label>
+						<input
+							id="edit-client-secret"
+							type="password"
+							bind:value={formData.clientSecret}
+							placeholder="Leave blank to keep current"
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+						/>
+					</div>
+				</div>
+
+				<!-- OIDC/GitLab Settings -->
+				{#if formData.type === 'oidc' || formData.type === 'oauth2-gitlab'}
+					<div>
+						<label for="edit-issuer-url" class="mb-1 block text-sm font-medium text-slate-300">
+							{formData.type === 'oidc' ? 'Issuer URL' : 'GitLab Instance URL'}
+						</label>
+						<input
+							id="edit-issuer-url"
+							type="url"
+							bind:value={formData.issuerUrl}
+							placeholder={formData.type === 'oidc' ? 'https://accounts.google.com' : 'https://gitlab.com'}
+							required={formData.type === 'oidc'}
+							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+						/>
+					</div>
+				{/if}
+
+				<!-- Provisioning Settings -->
+				<div class="grid grid-cols-2 gap-4">
+					<div>
+						<label class="flex items-center gap-2 text-sm font-medium text-slate-300">
+							<input
+								id="edit-auto-provision"
+								type="checkbox"
+								bind:checked={formData.autoProvision}
+								class="rounded"
+							/>
+							Auto-provision users
+						</label>
 					</div>
 					<div>
 						<label for="edit-default-role" class="mb-1 block text-sm font-medium text-slate-300"
@@ -717,18 +795,47 @@
 					</div>
 				</div>
 
-				<div>
-					<label for="edit-client-secret" class="mb-1 block text-sm font-medium text-slate-300">
-						Client Secret (leave blank to keep current)
-					</label>
-					<input
-						id="edit-client-secret"
-						type="password"
-						bind:value={formData.clientSecret}
-						placeholder="Enter new secret to change"
-						class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-					/>
-				</div>
+				<!-- Advanced Settings -->
+				<details class="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
+					<summary class="cursor-pointer text-sm font-medium text-slate-300"
+						>Advanced Settings</summary
+					>
+					<div class="mt-4 space-y-4">
+						<div>
+							<label for="edit-scopes" class="mb-1 block text-sm font-medium text-slate-300"
+								>Scopes</label
+							>
+							<input
+								id="edit-scopes"
+								type="text"
+								bind:value={formData.scopes}
+								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+							/>
+						</div>
+						<div>
+							<label for="edit-role-mapping" class="mb-1 block text-sm font-medium text-slate-300"
+								>Role Mapping (JSON)</label
+							>
+							<textarea
+								id="edit-role-mapping"
+								bind:value={formData.roleMapping}
+								rows="6"
+								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+							></textarea>
+						</div>
+						<div class="flex items-center gap-2">
+							<input
+								id="edit-use-pkce"
+								type="checkbox"
+								bind:checked={formData.usePkce}
+								class="rounded"
+							/>
+							<label for="edit-use-pkce" class="text-sm text-slate-300"
+								>Enable PKCE (Recommended)</label
+							>
+						</div>
+					</div>
+				</details>
 
 				<div class="flex gap-3 pt-4">
 					<button
