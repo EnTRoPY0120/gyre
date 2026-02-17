@@ -24,7 +24,8 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 						username: locals.user.username,
 						role: locals.user.role,
 						email: locals.user.email,
-						isLocal: locals.user.isLocal
+						isLocal: locals.user.isLocal,
+						preferences: locals.user.preferences
 					}
 				: null
 		};

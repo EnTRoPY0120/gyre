@@ -3,6 +3,8 @@
  * Falls back to polling if SSE is not available
  */
 
+import { preferences } from './preferences.svelte';
+
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 export interface ResourceEvent {
@@ -218,6 +220,14 @@ class RealtimeStore {
 
 	private addNotification(event: ResourceEvent) {
 		if (!event.resource || !event.resourceType) return;
+
+		// Check preferences before processing
+		const type = this.getNotificationType(event);
+		const namespace = event.resource.metadata.namespace;
+
+		if (!preferences.shouldShowNotification(event.resourceType, namespace, type)) {
+			return;
+		}
 
 		const resourceKey = `${event.resourceType}/${event.resource.metadata.namespace}/${event.resource.metadata.name}`;
 		const readyCondition = event.resource.status?.conditions?.find((c) => c.type === 'Ready');
