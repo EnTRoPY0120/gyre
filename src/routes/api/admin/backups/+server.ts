@@ -9,24 +9,29 @@
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createBackupSync, listBackups, deleteBackup } from '$lib/server/backup';
+import { createBackup, listBackups, deleteBackup } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
+import { requirePermission } from '$lib/server/rbac';
 
 /**
  * GET /api/admin/backups
  * Returns a list of all available backups.
  */
 export const GET: RequestHandler = async ({ locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') {
-		throw error(403, { message: 'Admin access required' });
+	if (!locals.user) {
+		throw error(401, 'Unauthorized');
 	}
+
+	const clusterId = locals.cluster || 'in-cluster';
+	await requirePermission(locals.user, 'read', 'DatabaseBackup', undefined, clusterId);
 
 	try {
 		const backups = listBackups();
 		return json({ backups });
 	} catch (err) {
+		if (err && typeof err === 'object' && 'status' in err) throw err;
 		console.error('Failed to list backups:', err);
-		throw error(500, { message: 'Failed to list backups' });
+		throw error(500, 'Failed to list backups');
 	}
 };
 
@@ -35,12 +40,15 @@ export const GET: RequestHandler = async ({ locals }) => {
  * Creates a new database backup.
  */
 export const POST: RequestHandler = async ({ locals }) => {
-	if (!locals.user || locals.user.role !== 'admin') {
-		throw error(403, { message: 'Admin access required' });
+	if (!locals.user) {
+		throw error(401, 'Unauthorized');
 	}
 
+	const clusterId = locals.cluster || 'in-cluster';
+	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
+
 	try {
-		const backup = createBackupSync();
+		const backup = await createBackup();
 
 		await logAudit(locals.user, 'backup:create', {
 			resourceType: 'DatabaseBackup',
@@ -50,8 +58,9 @@ export const POST: RequestHandler = async ({ locals }) => {
 
 		return json({ backup }, { status: 201 });
 	} catch (err) {
+		if (err && typeof err === 'object' && 'status' in err) throw err;
 		console.error('Failed to create backup:', err);
-		throw error(500, { message: 'Failed to create backup' });
+		throw error(500, 'Failed to create backup');
 	}
 };
 
@@ -60,19 +69,22 @@ export const POST: RequestHandler = async ({ locals }) => {
  * Deletes a specific backup file.
  */
 export const DELETE: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user || locals.user.role !== 'admin') {
-		throw error(403, { message: 'Admin access required' });
+	if (!locals.user) {
+		throw error(401, 'Unauthorized');
 	}
+
+	const clusterId = locals.cluster || 'in-cluster';
+	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
 
 	const filename = url.searchParams.get('filename');
 	if (!filename) {
-		throw error(400, { message: 'Missing filename parameter' });
+		throw error(400, 'Missing filename parameter');
 	}
 
 	try {
 		const deleted = deleteBackup(filename);
 		if (!deleted) {
-			throw error(404, { message: 'Backup not found' });
+			throw error(404, 'Backup not found');
 		}
 
 		await logAudit(locals.user, 'backup:delete', {
@@ -86,6 +98,6 @@ export const DELETE: RequestHandler = async ({ locals, url }) => {
 			throw err;
 		}
 		console.error('Failed to delete backup:', err);
-		throw error(500, { message: 'Failed to delete backup' });
+		throw error(500, 'Failed to delete backup');
 	}
 };
