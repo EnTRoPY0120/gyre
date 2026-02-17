@@ -22,6 +22,19 @@ const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './
 // Maximum number of local backups to retain
 const MAX_LOCAL_BACKUPS = 10;
 
+/**
+ * Custom error for backup operations with HTTP status support
+ */
+export class BackupError extends Error {
+	constructor(
+		message: string,
+		public status: number = 500
+	) {
+		super(message);
+		this.name = 'BackupError';
+	}
+}
+
 export interface BackupMetadata {
 	filename: string;
 	sizeBytes: number;
@@ -162,7 +175,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 	// Validate the buffer is a valid SQLite database
 	const magic = buffer.subarray(0, 16).toString('ascii');
 	if (!magic.startsWith('SQLite format 3')) {
-		throw new Error('Invalid file: not a valid SQLite database');
+		throw new BackupError('Invalid file: not a valid SQLite database', 400);
 	}
 
 	// Create a safety backup before restoring
@@ -200,7 +213,10 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 			];
 			const missing = requiredTables.filter((t) => !tableNames.includes(t));
 			if (missing.length > 0) {
-				throw new Error(`Invalid backup: missing required tables: ${missing.join(', ')}`);
+				throw new BackupError(
+					`Invalid backup: missing required tables: ${missing.join(', ')}`,
+					400
+				);
 			}
 		} finally {
 			testDb.close();
