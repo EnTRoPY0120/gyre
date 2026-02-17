@@ -26,6 +26,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		throw error(400, 'Invalid JSON');
 	}
 
+	// Validate that newPreferences is a plain object
+
+	if (
+		typeof newPreferences !== 'object' ||
+		newPreferences === null ||
+		Array.isArray(newPreferences)
+	) {
+		throw error(400, 'Invalid preferences payload');
+	}
+
 	try {
 		const db = await getDb();
 
