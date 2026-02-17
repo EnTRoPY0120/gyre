@@ -101,7 +101,7 @@ export function listBackups(): BackupMetadata[] {
 						createdAt = date.toISOString();
 					}
 				}
-			} catch (e) {
+			} catch {
 				// Fallback to birthtime
 				createdAt = stat.birthtime.toISOString();
 			}
