@@ -25,12 +25,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const context = locals.cluster;
 
+	const IMAGE_REPOSITORY: FluxResourceType = 'ImageRepository';
+	const IMAGE_POLICY: FluxResourceType = 'ImagePolicy';
+	const IMAGE_UPDATE_AUTOMATION: FluxResourceType = 'ImageUpdateAutomation';
+
 	try {
 		// Fetch all relevant resources in parallel
 		const [imageRepos, imagePolicies, imageAutomations] = await Promise.all([
-			listFluxResources('ImageRepository' as FluxResourceType, context),
-			listFluxResources('ImagePolicy' as FluxResourceType, context),
-			listFluxResources('ImageUpdateAutomation' as FluxResourceType, context)
+			listFluxResources(IMAGE_REPOSITORY, context),
+			listFluxResources(IMAGE_POLICY, context),
+			listFluxResources(IMAGE_UPDATE_AUTOMATION, context)
 		]);
 
 		return {
