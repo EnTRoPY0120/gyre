@@ -266,24 +266,59 @@ ls -t $BACKUP_DIR/gyre-*.db | tail -n +11 | xargs -r rm
 
 NAMESPACE="flux-system"
 BACKUP_FILE=$1
+PVC_NAME="gyre-data" # Adjust if your PVC name is different
 
 if [ -z "$BACKUP_FILE" ]; then
   echo "Usage: $0 <backup-file>"
   exit 1
 fi
 
+if [ ! -f "$BACKUP_FILE" ]; then
+  echo "Error: Backup file $BACKUP_FILE not found"
+  exit 1
+fi
+
 # Scale down
+echo "Scaling down Gyre deployment..."
 kubectl scale deployment gyre -n $NAMESPACE --replicas=0
 kubectl wait --for=delete pod -l app.kubernetes.io/name=gyre -n $NAMESPACE --timeout=60s
 
+# Create helper pod to mount the PVC
+echo "Creating restore helper pod..."
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: gyre-restore-helper
+  namespace: $NAMESPACE
+spec:
+  containers:
+  - name: helper
+    image: alpine
+    command: ["sleep", "3600"]
+    volumeMounts:
+    - name: data
+      mountPath: /data
+  volumes:
+  - name: data
+    persistentVolumeClaim:
+      claimName: $PVC_NAME
+EOF
+
+kubectl wait --for=condition=ready pod gyre-restore-helper -n $NAMESPACE --timeout=60s
+
+# Restore database
+echo "Copying database file..."
+kubectl cp $BACKUP_FILE $NAMESPACE/gyre-restore-helper:/data/gyre.db
+
+# Cleanup helper
+echo "Removing helper pod..."
+kubectl delete pod gyre-restore-helper -n $NAMESPACE
+
 # Scale up
+echo "Scaling up Gyre deployment..."
 kubectl scale deployment gyre -n $NAMESPACE --replicas=1
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=gyre -n $NAMESPACE --timeout=120s
 
-POD=$(kubectl get pod -n $NAMESPACE -l app.kubernetes.io/name=gyre -o jsonpath='{.items[0].metadata.name}')
-
-# Restore database
-kubectl cp $BACKUP_FILE $NAMESPACE/$POD:/data/gyre.db
-
-echo "Database restored from: $BACKUP_FILE"
+echo "Database restored successfully from: $BACKUP_FILE"
 ```
