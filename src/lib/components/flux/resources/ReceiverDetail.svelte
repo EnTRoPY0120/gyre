@@ -120,7 +120,7 @@
 		>
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Watched Events</h3>
 			<div class="flex flex-wrap gap-2">
-				{#each events as event (event)}
+				{#each events as event, i (i)}
 					<span
 						class="inline-flex items-center rounded-md bg-cyan-100 px-2 py-1 text-xs font-medium text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300"
 					>

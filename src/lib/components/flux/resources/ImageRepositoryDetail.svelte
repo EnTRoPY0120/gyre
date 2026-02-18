@@ -159,7 +159,7 @@
 				<div class="mt-4">
 					<h4 class="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">Latest Tags</h4>
 					<div class="flex flex-wrap gap-2">
-						{#each lastScanResult.latestTags.slice(0, 20) as tag (tag)}
+						{#each lastScanResult.latestTags.slice(0, 20) as tag, i (i)}
 							<span
 								class="inline-flex items-center rounded-md bg-emerald-100 px-2 py-1 font-mono text-xs text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300"
 							>
@@ -204,6 +204,28 @@
 						</dd>
 					</div>
 				{/if}
+				{#if certSecretRef}
+					<div>
+						<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
+							Certificate Secret
+						</dt>
+						<dd class="mt-1">
+							<span
+								class="inline-flex items-center gap-1 rounded-md bg-teal-100 px-2 py-1 text-xs font-medium text-teal-800 dark:bg-teal-900/50 dark:text-teal-300"
+							>
+								<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+									/>
+								</svg>
+								{certSecretRef.name}
+							</span>
+						</dd>
+					</div>
+				{/if}
 				{#if serviceAccountName}
 					<div>
 						<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Service Account</dt>
@@ -229,7 +251,7 @@
 				Tag Exclusion Patterns
 			</h3>
 			<div class="flex flex-wrap gap-2">
-				{#each exclusionList as pattern (pattern)}
+				{#each exclusionList as pattern, i (i)}
 					<span
 						class="inline-flex items-center rounded-md bg-red-100 px-2 py-1 font-mono text-xs text-red-800 dark:bg-red-900/50 dark:text-red-300"
 					>

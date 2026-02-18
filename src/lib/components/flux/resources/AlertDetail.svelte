@@ -140,7 +140,7 @@
 							Include (match any)
 						</h4>
 						<div class="flex flex-wrap gap-2">
-							{#each inclusionList as pattern (pattern)}
+							{#each inclusionList as pattern, i (i)}
 								<span
 									class="inline-flex items-center rounded-md bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/50 dark:text-green-300"
 								>
@@ -156,7 +156,7 @@
 							Exclude (skip matching)
 						</h4>
 						<div class="flex flex-wrap gap-2">
-							{#each exclusionList as pattern (pattern)}
+							{#each exclusionList as pattern, i (i)}
 								<span
 									class="inline-flex items-center rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-800 dark:bg-red-900/50 dark:text-red-300"
 								>
