@@ -45,6 +45,8 @@ Then open http://localhost:3000 in your browser.
 ## Documentation Sections
 
 - **[Getting Started](/getting-started)** - Installation and first steps
+- **[User Guides](/user-guide/resource-wizard)** - How to use Gyre effectively
+  - [Resource Creation Wizard](/user-guide/resource-wizard)
 - **[Installation](/installation)** - Detailed installation options
 - **[Configuration](/configuration)** - Configure Gyre for your needs
 - **[Architecture](/architecture)** - Understand how Gyre works
