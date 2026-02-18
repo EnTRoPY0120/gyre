@@ -38,8 +38,45 @@ export const metadata = {
 					}
 				}
 			},
+			400: {
+				description: 'Username and password are required',
+				content: {
+					'application/json': {
+						schema: z.object({ message: z.string() })
+					}
+				}
+			},
 			401: {
-				description: 'Invalid credentials'
+				description: 'Invalid credentials',
+				content: {
+					'application/json': {
+						schema: z.object({ message: z.string() })
+					}
+				}
+			},
+			403: {
+				description: 'Account is disabled',
+				content: {
+					'application/json': {
+						schema: z.object({ message: z.string() })
+					}
+				}
+			},
+			429: {
+				description: 'Too many login attempts',
+				content: {
+					'application/json': {
+						schema: z.object({ message: z.string() })
+					}
+				}
+			},
+			500: {
+				description: 'Internal server error',
+				content: {
+					'application/json': {
+						schema: z.object({ message: z.string() })
+					}
+				}
 			}
 		}
 	}

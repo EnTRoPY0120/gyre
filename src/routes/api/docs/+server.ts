@@ -1,6 +1,10 @@
 import type { RequestHandler } from './$types';
 
-export const GET: RequestHandler = () => {
+export const GET: RequestHandler = ({ locals }) => {
+	if (!locals.user) {
+		return new Response('Authentication required', { status: 401 });
+	}
+
 	const html = `
 <!DOCTYPE html>
 <html>
