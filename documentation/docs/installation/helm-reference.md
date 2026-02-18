@@ -46,7 +46,7 @@ This guide provides a detailed reference for all configuration options available
 | --------------------- | --------------------------- | --------------- |
 | `ingress.enabled`     | Enable ingress              | `false`         |
 | `ingress.className`   | Ingress class name          | `""`            |
-| `ingress.annotations` | Ingress annotations         | `{}`    |
+| `ingress.annotations` | Ingress annotations         | `{}`            |
 | `ingress.hosts`       | Ingress hosts configuration | See values.yaml |
 | `ingress.tls`         | Ingress TLS configuration   | `[]`            |
 
@@ -107,42 +107,42 @@ This guide provides a detailed reference for all configuration options available
 
 ## Metrics & Monitoring
 
-| Parameter                          | Description                         | Default    |
-| ---------------------------------- | ----------------------------------- | ---------- |
-| `metrics.enabled`                  | Enable application metrics          | `true`     |
-| `metrics.serviceMonitor.enabled`   | Create a Prometheus ServiceMonitor  | `false`    |
-| `metrics.serviceMonitor.interval`  | Scraping interval                   | `30s`      |
-| `metrics.serviceMonitor.path`      | Metrics path                        | `/metrics` |
+| Parameter                                 | Description                          | Default    |
+| ----------------------------------------- | ------------------------------------ | ---------- |
+| `metrics.enabled`                         | Enable application metrics           | `true`     |
+| `metrics.serviceMonitor.enabled`          | Create a Prometheus ServiceMonitor   | `false`    |
+| `metrics.serviceMonitor.interval`         | Scraping interval                    | `30s`      |
+| `metrics.serviceMonitor.path`             | Metrics path                         | `/metrics` |
 | `metrics.serviceMonitor.additionalLabels` | Additional labels for ServiceMonitor | `{}`       |
 
 ## Network Policy
 
-| Parameter                                  | Description                               | Default |
-| ------------------------------------------ | ----------------------------------------- | ------- |
-| `networkPolicy.enabled`                    | Enable NetworkPolicy                      | `false` |
-| `networkPolicy.ingress.podSelector`        | Pod selector for ingress rules            | `{}`    |
-| `networkPolicy.ingress.namespaceSelector`  | Namespace selector for ingress rules      | `{}`    |
-| `networkPolicy.ingress.additionalRules`    | Additional ingress rules                  | `[]`    |
-| `networkPolicy.egress.additionalRules`     | Additional egress rules                   | `[]`    |
+| Parameter                                 | Description                          | Default |
+| ----------------------------------------- | ------------------------------------ | ------- |
+| `networkPolicy.enabled`                   | Enable NetworkPolicy                 | `false` |
+| `networkPolicy.ingress.podSelector`       | Pod selector for ingress rules       | `{}`    |
+| `networkPolicy.ingress.namespaceSelector` | Namespace selector for ingress rules | `{}`    |
+| `networkPolicy.ingress.additionalRules`   | Additional ingress rules             | `[]`    |
+| `networkPolicy.egress.additionalRules`    | Additional egress rules              | `[]`    |
 
 ## Application Configuration
 
-| Parameter                    | Description                                | Default       |
-| ---------------------------- | ------------------------------------------ | ------------- |
-| `config.create`              | Create ConfigMap for app configuration     | `true`        |
-| `config.logLevel`            | Application log level (debug/info/warn/error) | `info`        |
-| `config.sessionTimeout`      | Session timeout in milliseconds            | `604800000`   |
-| `config.wsPingInterval`      | WebSocket ping interval in milliseconds    | `30000`       |
-| `config.cacheTtl`            | Cache TTL for dashboard data in seconds    | `30`          |
-| `config.additionalConfig`    | Additional configuration key-value pairs   | `{}`          |
+| Parameter                 | Description                                   | Default     |
+| ------------------------- | --------------------------------------------- | ----------- |
+| `config.create`           | Create ConfigMap for app configuration        | `true`      |
+| `config.logLevel`         | Application log level (debug/info/warn/error) | `info`      |
+| `config.sessionTimeout`   | Session timeout in milliseconds               | `604800000` |
+| `config.wsPingInterval`   | WebSocket ping interval in milliseconds       | `30000`     |
+| `config.cacheTtl`         | Cache TTL for dashboard data in seconds       | `30`        |
+| `config.additionalConfig` | Additional configuration key-value pairs      | `{}`        |
 
 ## Encryption Configuration
 
-| Parameter                    | Description                                | Default |
-| ---------------------------- | ------------------------------------------ | ------- |
-| `encryption.gyreKey`         | Key for encrypting cluster kubeconfigs     | `""`    |
-| `encryption.authKey`         | Key for encrypting OAuth client secrets    | `""`    |
-| `encryption.existingSecret`  | Existing secret with encryption keys       | `""`    |
+| Parameter                   | Description                             | Default |
+| --------------------------- | --------------------------------------- | ------- |
+| `encryption.gyreKey`        | Key for encrypting cluster kubeconfigs  | `""`    |
+| `encryption.authKey`        | Key for encrypting OAuth client secrets | `""`    |
+| `encryption.existingSecret` | Existing secret with encryption keys    | `""`    |
 
 ## Upgrade Procedure
 
@@ -153,7 +153,7 @@ To upgrade Gyre:
 helm repo update
 
 # Upgrade release
-helm upgrade gyre gyre/gyre 
+helm upgrade gyre gyre/gyre
   --namespace flux-system
 ```
 
@@ -204,6 +204,7 @@ kubectl logs -n flux-system -l app.kubernetes.io/name=gyre --tail=100
 ```
 
 **Common Issues**:
+
 - PVC not bound: Check `StorageClass` and `PV` availability.
 - Image pull errors: Verify `image.repository` and `imagePullSecrets`.
 - Insufficient resources: Check node capacity.
@@ -223,8 +224,8 @@ kubectl describe pvc gyre-data -n flux-system
 
 ```bash
 # Check if SA can list FluxCD resources
-kubectl auth can-i get gitrepositories.source.toolkit.fluxcd.io 
-  --as=system:serviceaccount:flux-system:gyre 
+kubectl auth can-i get gitrepositories.source.toolkit.fluxcd.io
+  --as=system:serviceaccount:flux-system:gyre
   --all-namespaces
 ```
 

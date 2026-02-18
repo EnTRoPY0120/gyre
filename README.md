@@ -47,9 +47,11 @@ kubectl get secret gyre-initial-admin-secret -n flux-system \
 ```
 
 Visit [http://localhost:3000](http://localhost:3000) after port-forwarding with:
+
 ```bash
 kubectl port-forward -n flux-system svc/gyre 3000:80
 ```
+
 and login with `admin` and the password from above.
 
 ---
