@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import YamlEditor from '$lib/components/editors/YamlEditor.svelte';
 	import ArrayField from '$lib/components/wizards/ArrayField.svelte';
+	import ReferenceField from '$lib/components/wizards/ReferenceField.svelte';
 	import FieldHelp from '$lib/components/wizards/FieldHelp.svelte';
 	import type { ResourceTemplate } from '$lib/templates';
 	import { cn } from '$lib/utils';
@@ -501,7 +502,17 @@
 															<ArrayField
 																bind:value={formValues[field.name] as unknown[]}
 																itemType={field.arrayItemType || 'string'}
+																itemFields={field.arrayItemFields || []}
 																placeholder={field.placeholder}
+																error={validationErrors[field.name]}
+															/>
+														{:else if field.referenceType || field.referenceTypeField}
+															<ReferenceField
+																bind:value={formValues[field.name] as string}
+																referenceType={field.referenceType}
+																referenceTypeField={field.referenceTypeField}
+																{formValues}
+																placeholder={field.placeholder || field.description}
 																error={validationErrors[field.name]}
 															/>
 														{:else}
@@ -594,7 +605,17 @@
 												<ArrayField
 													bind:value={formValues[field.name] as unknown[]}
 													itemType={field.arrayItemType || 'string'}
+													itemFields={field.arrayItemFields || []}
 													placeholder={field.placeholder}
+													error={validationErrors[field.name]}
+												/>
+											{:else if field.referenceType || field.referenceTypeField}
+												<ReferenceField
+													bind:value={formValues[field.name] as string}
+													referenceType={field.referenceType}
+													referenceTypeField={field.referenceTypeField}
+													{formValues}
+													placeholder={field.placeholder || field.description}
 													error={validationErrors[field.name]}
 												/>
 											{:else}
