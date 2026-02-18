@@ -13,7 +13,7 @@
 
 	let { current, available }: Props = $props();
 
-	const currentCluster = $derived(current || clusterStore.current || 'default');
+	const currentCluster = $derived(current || clusterStore.current || 'in-cluster');
 	// Merge prop data with store data, preferring store if it has data
 	const availableClusters = $derived(
 		clusterStore.available.length > 0 ? clusterStore.available : (available ?? [])
