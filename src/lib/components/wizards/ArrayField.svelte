@@ -111,7 +111,7 @@
 								{#if field.referenceType || field.referenceTypeField}
 									<ReferenceField
 										id="item-{item.id}-{field.name}"
-										value={String((item.val as any)[field.name] || '')}
+										value={String((item.val as any)[field.name] ?? '')}
 										onValueChange={(v) => updateObjectItem(item.id, field.name, v)}
 										referenceType={field.referenceType}
 										referenceTypeField={field.referenceTypeField}
@@ -122,7 +122,7 @@
 								{:else if field.type === 'select'}
 									<select
 										id="item-{item.id}-{field.name}"
-										value={(item.val as any)[field.name] || ''}
+										value={(item.val as any)[field.name] ?? ''}
 										onchange={(e) =>
 											updateObjectItem(item.id, field.name, (e.target as HTMLSelectElement).value)}
 										class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -135,7 +135,7 @@
 									<input
 										id="item-{item.id}-{field.name}"
 										type="text"
-										value={(item.val as any)[field.name] || ''}
+										value={(item.val as any)[field.name] ?? ''}
 										oninput={(e) =>
 											updateObjectItem(item.id, field.name, (e.target as HTMLInputElement).value)}
 										placeholder={field.placeholder}
