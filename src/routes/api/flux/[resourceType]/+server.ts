@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { z } from 'zod';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { listFluxResources, createFluxResource } from '$lib/server/kubernetes/client.js';
 import {
@@ -10,7 +10,7 @@ import {
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 
-export const metadata = {
+export const _metadata = {
 	GET: {
 		summary: 'List FluxCD resources',
 		description: 'Retrieve a list of all resources of a specific type across all namespaces.',

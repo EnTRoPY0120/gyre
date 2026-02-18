@@ -32,6 +32,7 @@
 	let searchQuery = $state('');
 	let focusedIndex = $state(-1);
 	let container: HTMLDivElement | undefined = $state();
+	let searchInput: HTMLInputElement | undefined = $state();
 
 	// Resolve the actual resource types to fetch
 	const activeReferenceTypes = $derived.by(() => {
@@ -101,6 +102,10 @@
 			searchQuery = '';
 			focusedIndex = -1;
 			fetchResources();
+			// Focus search input on next tick
+			setTimeout(() => {
+				searchInput?.focus();
+			}, 0);
 		}
 	}
 
@@ -159,7 +164,16 @@
 	});
 </script>
 
-<div class="relative w-full" bind:this={container} onkeydown={handleKeydown}>
+<div
+	class="relative w-full"
+	bind:this={container}
+	onkeydown={handleKeydown}
+	role="combobox"
+	tabindex="-1"
+	aria-controls={open ? 'resource-listbox' : undefined}
+	aria-expanded={open}
+	aria-haspopup="listbox"
+>
 	<button
 		{id}
 		type="button"
@@ -169,8 +183,6 @@
 		)}
 		onclick={handleToggle}
 		{disabled}
-		aria-haspopup="listbox"
-		aria-expanded={open}
 	>
 		<span class={cn('truncate', !value && 'text-muted-foreground')}>
 			{value || placeholder}
@@ -180,16 +192,17 @@
 
 	{#if open}
 		<div
+			id="resource-listbox"
 			class="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-zinc-800 bg-zinc-900 shadow-xl"
 			role="listbox"
 		>
 			<div class="flex items-center border-b border-zinc-800 px-3">
 				<Search class="mr-2 h-4 w-4 shrink-0 opacity-50" />
 				<input
+					bind:this={searchInput}
 					class="flex h-10 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-zinc-500 disabled:cursor-not-allowed disabled:opacity-50"
 					placeholder="Search resources..."
 					bind:value={searchQuery}
-					autofocus
 				/>
 			</div>
 			<div class="max-h-[200px] overflow-y-auto p-1">
