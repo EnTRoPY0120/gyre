@@ -39,6 +39,8 @@ export interface TemplateField {
 	helpText?: string; // Detailed help text for the field
 	docsUrl?: string; // Link to FluxCD documentation
 	virtual?: boolean; // UI-only field, do not persist to YAML
+	referenceType?: string | string[]; // Resource type(s) to autocomplete from
+	referenceTypeField?: string; // Field to get the reference type from
 }
 
 export interface TemplateSection {
@@ -389,7 +391,8 @@ spec:
 					path: 'repository',
 					type: 'string',
 					required: true,
-					placeholder: 'other-repo'
+					placeholder: 'other-repo',
+					referenceType: 'GitRepository'
 				},
 				{
 					name: 'toPath',
@@ -784,7 +787,8 @@ spec:
 			required: true,
 			section: 'source',
 			placeholder: 'flux-system',
-			description: 'Name of the source resource'
+			description: 'Name of the source resource',
+			referenceTypeField: 'sourceKind'
 		},
 		{
 			name: 'sourceNamespace',
@@ -1323,7 +1327,8 @@ spec:
 			required: true,
 			section: 'chart',
 			placeholder: 'bitnami',
-			description: 'Name of the source resource'
+			description: 'Name of the source resource',
+			referenceTypeField: 'chartSourceKind'
 		},
 		{
 			name: 'chartSourceNamespace',
@@ -1737,7 +1742,8 @@ spec:
 			required: true,
 			section: 'chart',
 			placeholder: 'podinfo',
-			description: 'Name of the source resource'
+			description: 'Name of the source resource',
+			referenceTypeField: 'sourceKind'
 		},
 		{
 			name: 'chart',
@@ -2514,7 +2520,8 @@ spec:
 			required: true,
 			section: 'notification',
 			placeholder: 'slack',
-			description: 'Name of the Provider resource to send notifications to'
+			description: 'Name of the Provider resource to send notifications to',
+			referenceType: 'Provider'
 		},
 		{
 			name: 'eventSources',
@@ -2541,7 +2548,8 @@ spec:
 					type: 'string',
 					required: true,
 					placeholder: '* or resource name',
-					description: 'Resource name; use * to watch all resources of that kind'
+					description: 'Resource name; use * to watch all resources of that kind',
+					referenceTypeField: 'kind'
 				}
 			],
 			placeholder: 'GitRepository',
@@ -2938,7 +2946,8 @@ spec:
 					type: 'string',
 					required: true,
 					placeholder: '* or resource name',
-					description: 'Resource name; use * to watch all resources of that kind'
+					description: 'Resource name; use * to watch all resources of that kind',
+					referenceTypeField: 'kind'
 				}
 			],
 			placeholder: 'GitRepository',
@@ -3278,7 +3287,8 @@ spec:
 			required: true,
 			section: 'policy',
 			placeholder: 'my-app',
-			description: 'Name of the ImageRepository to apply policy to'
+			description: 'Name of the ImageRepository to apply policy to',
+			referenceType: 'ImageRepository'
 		},
 		{
 			name: 'digestReflectionPolicy',
@@ -3499,7 +3509,8 @@ spec:
 			required: true,
 			section: 'git',
 			placeholder: 'flux-system',
-			description: 'Name of the GitRepository to update'
+			description: 'Name of the GitRepository to update',
+			referenceTypeField: 'sourceKind'
 		},
 		{
 			name: 'sourceKind',
@@ -3655,3 +3666,10 @@ export const templates: ResourceTemplate[] = [
 	IMAGE_POLICY_TEMPLATE,
 	IMAGE_UPDATE_AUTOMATION_TEMPLATE
 ];
+
+/**
+ * Get the plural form of a resource kind from the template definitions
+ */
+export function getPluralByKind(kind: string): string | undefined {
+	return templates.find((t) => t.kind === kind)?.plural;
+}
