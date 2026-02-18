@@ -10,7 +10,7 @@ This guide provides technical information for developers working on the Gyre cod
 
 Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit and Bun. It provides real-time monitoring, multi-cluster management, built-in RBAC, and comprehensive FluxCD resource management.
 
-**Deployment**: In-cluster-only deployment via Helm chart. Runs as a standard Node.js application in Kubernetes with ServiceAccount authentication. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
+**Deployment**: In-cluster-only deployment via Helm chart. Built and run with Bun in production for improved performance and native TypeScript support. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
 
 **Current Status**: Core functionality complete with dashboard, all FluxCD resources, real-time updates, multi-cluster support, authentication/RBAC, Monaco Editor integration, and comprehensive resource templates with complete FluxCD CRD field coverage.
 

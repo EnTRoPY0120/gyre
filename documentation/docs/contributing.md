@@ -50,7 +50,7 @@ bun run dev --open
 
 ### Project Structure
 
-```
+```text
 gyre/
 ├── src/
 │   ├── lib/
@@ -84,7 +84,7 @@ gyre/
    </script>
    ```
 
-3. **In-Cluster Only**: Gyre is designed to run inside Kubernetes clusters only. It cannot run locally with kubeconfig.
+3. **In-Cluster Only**: Gyre is designed to run inside Kubernetes clusters only for production. However, local development is supported by using a local `~/.kube/config` as detailed in the [Development Guide](./development.md).
 
 ## Code Standards
 
@@ -134,7 +134,7 @@ bun run format
 
 We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
 
-```
+```text
 <type>(<scope>): <description>
 
 [optional body]
@@ -146,7 +146,7 @@ We follow the [Conventional Commits](https://www.conventionalcommits.org/) speci
 
 - **feat**: A new feature
 - **fix**: A bug fix
-- **docs**: Documentation only changes
+- **docs**: Documentation-only changes
 - **style**: Code style changes (formatting, semicolons, etc.)
 - **refactor**: Code change that neither fixes a bug nor adds a feature
 - **perf**: Performance improvement
@@ -169,11 +169,39 @@ Common scopes in this project:
 - `flux` - FluxCD resource handling
 - `helm` - Helm chart
 
+### Examples
+
+```text
+feat(templates): add validation for GitRepository URL format
+
+fix(auth): resolve session timeout handling for SSO users
+
+docs: update README with new installation instructions
+
+refactor(api): consolidate Flux resource API endpoints
+
+chore: bump dependencies to latest versions
+
+ci: add multi-arch Docker build workflow
+```
+
+### Footer for Co-Authors
+
+If multiple people contributed to a commit:
+
+```text
+feat(ui): add dark mode toggle
+
+Implemented dark mode support across all components.
+
+Co-Authored-By: Jane Doe <jane@example.com>
+```
+
 ## Branch Naming Convention
 
 Name your branch based on the type of change you're making:
 
-```
+```text
 <type>/<short-description>
 ```
 
