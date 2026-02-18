@@ -54,6 +54,18 @@ Then open http://localhost:3000 in your browser.
 - **[API Reference](/api)** - API documentation
 - **[Contributing](/contributing)** - How to contribute
 
+## 🛠️ Tech Stack
+
+- **Runtime:** [Bun](https://bun.sh) (v1.1+)
+- **Framework:** [Svelte 5](https://svelte.dev) + SvelteKit
+- **Styling:** TailwindCSS v4 + shadcn-svelte
+- **Database:** SQLite with [Drizzle ORM](https://orm.drizzle.team)
+- **Kubernetes:** Native client with WebSocket support
+
+## 📄 License
+
+Distributed under the MIT License. See [LICENSE](https://github.com/entropy0120/gyre/blob/main/LICENSE) for more information.
+
 ## Support
 
 - 💬 [GitHub Issues](https://github.com/entropy0120/gyre/issues)

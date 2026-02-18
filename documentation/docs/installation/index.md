@@ -27,6 +27,8 @@ helm install gyre gyre/gyre \
   --create-namespace
 ```
 
+For more detailed configuration options, see the [Helm Chart Reference](./helm-reference.md).
+
 ### Custom Configuration
 
 Create a `values.yaml` file:

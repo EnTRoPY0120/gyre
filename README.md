@@ -26,12 +26,6 @@
 
 ## 🚀 Quick Start
 
-### Prerequisites
-
-- Kubernetes 1.25+ cluster
-- FluxCD v2+ installed
-- Helm 3.10+
-
 ### Installation
 
 ```bash
@@ -52,17 +46,7 @@ kubectl get secret gyre-initial-admin-secret -n flux-system \
   -o jsonpath='{.data.password}' | base64 -d && echo
 ```
 
-### Access the Dashboard
-
-```bash
-# Port-forward for local access
-kubectl port-forward -n flux-system svc/gyre 3000:80
-```
-
-Visit [http://localhost:3000](http://localhost:3000) and login with:
-
-- **Username:** `admin`
-- **Password:** (from command above)
+Visit [http://localhost:3000](http://localhost:3000) (after port-forwarding) and login with `admin` and the password from above.
 
 ---
 
@@ -75,30 +59,8 @@ Comprehensive documentation is available at **[entropy0120.github.io/gyre](https
 - **[Configuration](https://entropy0120.github.io/gyre/configuration)** - Customization options
 - **[Features](https://entropy0120.github.io/gyre/features)** - Complete feature overview
 - **[Contributing](https://entropy0120.github.io/gyre/contributing)** - How to contribute
+- **[Development](https://entropy0120.github.io/gyre/development)** - Technical development guide
 - **[API Reference](https://entropy0120.github.io/gyre/api/)** - API documentation
-
----
-
-## 🛠️ Tech Stack
-
-- **Runtime:** [Bun](https://bun.sh) (v1.1+)
-- **Framework:** [Svelte 5](https://svelte.dev) + SvelteKit
-- **Styling:** TailwindCSS v4 + shadcn-svelte
-- **Database:** SQLite with [Drizzle ORM](https://orm.drizzle.team)
-- **Kubernetes:** Native client with WebSocket support
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](./CONTRIBUTING.md) for details on:
-
-- Branch naming conventions
-- Commit message standards
-- Code quality requirements
-- Pull request process
-
-You can also view the guide in our [online documentation](https://entropy0120.github.io/gyre/contributing).
 
 ---
 
