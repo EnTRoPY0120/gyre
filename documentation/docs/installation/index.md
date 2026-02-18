@@ -6,6 +6,10 @@ sidebar_position: 3
 
 Gyre can be installed in several ways depending on your environment and requirements.
 
+:::tip
+For production environments, please refer to the [Production Access & Ingress Guide](./production-access.md) for detailed configuration examples.
+:::
+
 ## Helm Installation (Recommended)
 
 Helm is the recommended way to install Gyre as it provides easy configuration and upgrades.

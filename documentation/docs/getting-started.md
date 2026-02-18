@@ -50,29 +50,9 @@ kubectl port-forward -n flux-system svc/gyre 3000:80
 
 Then open http://localhost:3000
 
-### Ingress (Production)
+### Production Access (Ingress / LoadBalancer)
 
-Configure an Ingress resource:
-
-```yaml
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: gyre
-  namespace: flux-system
-spec:
-  rules:
-    - host: gyre.example.com
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: gyre
-                port:
-                  number: 80
-```
+For production deployments, you should use an Ingress Controller or a LoadBalancer service. See the [Production Access & Ingress Guide](/installation/production-access) for detailed configuration examples for Nginx, Traefik, and more.
 
 ## First Login
 
