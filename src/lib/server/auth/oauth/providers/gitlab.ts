@@ -31,170 +31,205 @@ interface GitLabGroup {
 	full_path: string;
 }
 
-export class GitLabProvider implements IOAuthProvider {
-	public readonly config;
-	private readonly redirectUri: string;
-	private client: GitLab | null = null;
-	private readonly baseURL: string;
+/**
+ * Fetch from GitLab API
+ */
+async function fetchGitLabAPI<T>(
+	url: string,
+	accessToken: string
+): Promise<{ data: T; headers: Headers }> {
+	// Add timeout to prevent hanging requests
+	const controller = new AbortController();
+	const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-	constructor(options: OAuthProviderOptions) {
-		this.config = options.config;
-		this.redirectUri = options.redirectUri || `/api/auth/${this.config.id}/callback`;
+	try {
+		const response = await fetch(url, {
+			headers: {
+				Authorization: `Bearer ${accessToken}`,
+				Accept: 'application/json'
+			},
+			signal: controller.signal
+		});
 
-		// Default to gitlab.com if no issuer provided
-		// Remove trailing slash if present
-		const issuer = this.config.issuerUrl?.trim() || 'https://gitlab.com';
-		this.baseURL = issuer.endsWith('/') ? issuer.slice(0, -1) : issuer;
+		clearTimeout(timeoutId);
+
+		if (!response.ok) {
+			const errorText = await response.text();
+			throw new Error(`GitLab API error: ${response.status} ${errorText}`);
+		}
+
+		const data = (await response.json()) as T;
+		return { data, headers: response.headers };
+	} catch (error) {
+		clearTimeout(timeoutId);
+		throw error;
 	}
+}
+
+/**
+ * Fetch user's groups from GitLab API with full pagination
+ */
+async function fetchGitLabGroups(
+	baseURL: string,
+	accessToken: string,
+	userSub: string,
+	providerId: string
+): Promise<string[]> {
+	try {
+		const allGroups: GitLabGroup[] = [];
+		let nextPage: string | null = '1';
+
+		// Loop calling /api/v4/groups?min_access_level=10&per_page=100 and follow pagination headers
+		while (nextPage) {
+			const gitLabGroupsUrl: string = `${baseURL}/api/v4/groups?min_access_level=10&per_page=100&page=${nextPage}`;
+			const result: { data: GitLabGroup[]; headers: Headers } = await fetchGitLabAPI<GitLabGroup[]>(
+				gitLabGroupsUrl,
+				accessToken
+			);
+
+			allGroups.push(...result.data);
+
+			// GitLab pagination headers: x-next-page or Link
+			const next: string | null = result.headers.get('x-next-page');
+			nextPage = next && next !== '' ? next : null;
+		}
+
+		return allGroups.map((g) => g.full_path);
+	} catch (error) {
+		// Structured log containing the provider ID and the user subject (user.sub) plus the error object
+		console.error({
+			message: 'Failed to fetch GitLab groups',
+			providerId,
+			userSub,
+			error: error instanceof Error ? { message: error.message, stack: error.stack } : error
+		});
+		return [];
+	}
+}
+
+/**
+ * GitLab OAuth2 Provider Factory
+ * Supports both GitLab.com and self-hosted GitLab instances.
+ */
+export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
+	const config = options.config;
+	const redirectUri = options.redirectUri || `/api/auth/${config.id}/callback`;
+
+	// Default to gitlab.com if no issuer provided
+	// Remove trailing slash if present
+	const issuer = config.issuerUrl?.trim() || 'https://gitlab.com';
+	const baseURL = issuer.endsWith('/') ? issuer.slice(0, -1) : issuer;
+
+	let client: GitLab | null = null;
 
 	/**
 	 * Get or create GitLab client
 	 */
-	private getClient(): GitLab {
-		if (this.client) {
-			return this.client;
+	const getClient = (): GitLab => {
+		if (client) {
+			return client;
 		}
 
-		const clientSecret = decryptSecret(this.config.clientSecretEncrypted);
+		const clientSecret = decryptSecret(config.clientSecretEncrypted);
 
-		this.client = new GitLab(this.baseURL, this.config.clientId, clientSecret, this.redirectUri);
+		client = new GitLab(baseURL, config.clientId, clientSecret, redirectUri);
 
-		return this.client;
-	}
+		return client;
+	};
 
-	/**
-	 * Generate authorization URL
-	 */
-	async getAuthorizationUrl(state: string, _codeVerifier?: string): Promise<URL> {
-		const client = this.getClient();
+	return {
+		config,
 
-		// Default scopes for GitLab
-		const scopes = this.config.scopes
-			? this.config.scopes.split(' ').filter(Boolean)
-			: ['read_user', 'openid', 'profile', 'email'];
+		/**
+		 * Generate authorization URL
+		 */
+		async getAuthorizationUrl(state: string, _codeVerifier?: string): Promise<URL> {
+			const client = getClient();
 
-		// Add api scope if role mapping is configured (for groups fetch)
-		// GitLab api scope is required for /api/v4/groups
-		if (this.config.roleMapping && !scopes.includes('api') && !scopes.includes('read_api')) {
-			// Prefer read_api if available, otherwise fallback to read_user
-			// (GitLab.com supports read_api)
-			scopes.push('read_api');
-		}
-
-		// GitLab in arctic doesn't support PKCE parameters in createAuthorizationURL
-		return await client.createAuthorizationURL(state, scopes);
-	}
-
-	/**
-	 * Exchange authorization code for access token
-	 */
-	async validateCallback(code: string, _codeVerifier?: string): Promise<OAuthTokens> {
-		const client = this.getClient();
-
-		try {
-			// GitLab in arctic doesn't support PKCE parameters in validateAuthorizationCode
-			const tokens = await client.validateAuthorizationCode(code);
-
-			return {
-				accessToken: tokens.accessToken(),
-				// Handle token expiration null-safely (GitLab may omit expires_in)
-				expiresIn: tokens.accessTokenExpiresAt()
-					? Math.floor((tokens.accessTokenExpiresAt()!.getTime() - Date.now()) / 1000)
-					: undefined,
-				tokenType: 'Bearer'
-			};
-		} catch (error) {
-			throw new OAuthError(
-				`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
-				'TOKEN_EXCHANGE_FAILED',
-				error
-			);
-		}
-	}
-
-	/**
-	 * Fetch user information from GitLab API
-	 */
-	async getUserInfo(tokens: OAuthTokens): Promise<OAuthUserInfo> {
-		try {
-			// Fetch user profile from API
-			const user = await this.fetchGitLabAPI<GitLabUser>(
-				`${this.baseURL}/api/v4/user`,
-				tokens.accessToken
-			);
-
-			// Fetch groups if role mapping is configured
-			let groups: string[] = [];
-			if (this.config.roleMapping) {
-				groups = await this.fetchGroups(tokens.accessToken);
+			// GitLab in arctic doesn't support PKCE. Surface a warning if requested.
+			if (config.usePkce) {
+				console.warn(
+					`[GitLabProvider] PKCE is enabled for provider "${config.id}", but GitLab provider silently ignores PKCE. This setting will be ignored.`
+				);
 			}
 
-			return {
-				sub: user.id.toString(),
-				email: user.email,
-				// Derive email verification from confirmed_at field
-				// GitLab.com requires email verification, but self-hosted instances may not
-				emailVerified: !!user.confirmed_at,
-				username: user.username,
-				name: user.name || user.username,
-				picture: user.avatar_url,
-				groups
-			};
-		} catch (error) {
-			throw new OAuthError(
-				`Failed to fetch user info: ${error instanceof Error ? error.message : 'Unknown error'}`,
-				'USERINFO_FAILED',
-				error
-			);
-		}
-	}
+			// Default scopes for GitLab
+			const scopes = config.scopes
+				? config.scopes.split(' ').filter(Boolean)
+				: ['read_user', 'openid', 'profile', 'email'];
 
-	/**
-	 * Fetch user's groups from GitLab API
-	 */
-	private async fetchGroups(accessToken: string): Promise<string[]> {
-		try {
-			// Fetch groups with min_access_level=10 (Guest or higher)
-			const groups = await this.fetchGitLabAPI<GitLabGroup[]>(
-				`${this.baseURL}/api/v4/groups?min_access_level=10`,
-				accessToken
-			);
-
-			return groups.map((g) => g.full_path);
-		} catch (error) {
-			console.error('Failed to fetch GitLab groups:', error);
-			return [];
-		}
-	}
-
-	/**
-	 * Fetch from GitLab API
-	 */
-	private async fetchGitLabAPI<T>(url: string, accessToken: string): Promise<T> {
-		// Add timeout to prevent hanging requests
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-		try {
-			const response = await fetch(url, {
-				headers: {
-					Authorization: `Bearer ${accessToken}`,
-					Accept: 'application/json'
-				},
-				signal: controller.signal
-			});
-
-			clearTimeout(timeoutId);
-
-			if (!response.ok) {
-				const errorText = await response.text();
-				throw new Error(`GitLab API error: ${response.status} ${errorText}`);
+			// Add read_api scope if role mapping is configured (required for /api/v4/groups access)
+			if (config.roleMapping && !scopes.includes('api') && !scopes.includes('read_api')) {
+				// Unconditionally add 'read_api' when role mapping is configured and neither 'api' nor 'read_api' are present.
+				scopes.push('read_api');
 			}
 
-			return response.json() as Promise<T>;
-		} catch (error) {
-			clearTimeout(timeoutId);
-			throw error;
+			// GitLab in arctic doesn't support PKCE parameters in createAuthorizationURL
+			return await client.createAuthorizationURL(state, scopes);
+		},
+
+		/**
+		 * Exchange authorization code for access token
+		 */
+		async validateCallback(code: string, _codeVerifier?: string): Promise<OAuthTokens> {
+			const client = getClient();
+
+			try {
+				// GitLab in arctic doesn't support PKCE parameters in validateAuthorizationCode
+				const tokens = await client.validateAuthorizationCode(code);
+
+				return {
+					accessToken: tokens.accessToken(),
+					// Handle token expiration null-safely (GitLab may omit expires_in)
+					expiresIn: tokens.accessTokenExpiresAt()
+						? Math.floor((tokens.accessTokenExpiresAt()!.getTime() - Date.now()) / 1000)
+						: undefined,
+					tokenType: 'Bearer'
+				};
+			} catch (error) {
+				throw new OAuthError(
+					`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
+					'TOKEN_EXCHANGE_FAILED',
+					error
+				);
+			}
+		},
+
+		/**
+		 * Fetch user information from GitLab API
+		 */
+		async getUserInfo(tokens: OAuthTokens): Promise<OAuthUserInfo> {
+			try {
+				// Fetch user profile from API
+				const { data: user } = await fetchGitLabAPI<GitLabUser>(
+					`${baseURL}/api/v4/user`,
+					tokens.accessToken
+				);
+
+				// Fetch groups if role mapping is configured
+				let groups: string[] = [];
+				if (config.roleMapping) {
+					groups = await fetchGitLabGroups(baseURL, tokens.accessToken, user.id.toString(), config.id);
+				}
+
+				return {
+					sub: user.id.toString(),
+					email: user.email,
+					// Derive email verification from confirmed_at field
+					// GitLab.com requires email verification, but self-hosted instances may not
+					emailVerified: !!user.confirmed_at,
+					username: user.username,
+					name: user.name || user.username,
+					picture: user.avatar_url,
+					groups
+				};
+			} catch (error) {
+				throw new OAuthError(
+					`Failed to fetch user info: ${error instanceof Error ? error.message : 'Unknown error'}`,
+					'USERINFO_FAILED',
+					error
+				);
+			}
 		}
-	}
+	};
 }

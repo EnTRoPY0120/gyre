@@ -20,6 +20,26 @@
 	let error = $state('');
 	let success = $state('');
 	let loading = $state(false);
+	let roleMappingError = $state('');
+
+	$effect(() => {
+		const mapping = formData.roleMapping?.trim();
+		if (!mapping) {
+			roleMappingError = '';
+			return;
+		}
+
+		try {
+			const parsed = JSON.parse(mapping);
+			if (typeof parsed !== 'object' || parsed === null) {
+				roleMappingError = 'Role mapping must be a JSON object';
+			} else {
+				roleMappingError = '';
+			}
+		} catch (e) {
+			roleMappingError = 'Invalid JSON: ' + (e instanceof Error ? e.message : 'Parse error');
+		}
+	});
 
 	// Form fields
 	let formData = $state({
@@ -100,6 +120,7 @@
 	}
 
 	async function handleCreate() {
+		if (roleMappingError) return;
 		error = '';
 		success = '';
 		loading = true;
@@ -127,7 +148,7 @@
 	}
 
 	async function handleUpdate() {
-		if (!selectedProvider) return;
+		if (!selectedProvider || roleMappingError) return;
 
 		error = '';
 		success = '';
@@ -606,17 +627,37 @@
 								id="role-mapping"
 								bind:value={formData.roleMapping}
 								rows="6"
-								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+								class="w-full rounded-lg border {roleMappingError
+									? 'border-red-500 focus:ring-red-500/20'
+									: 'border-slate-600 focus:border-amber-500 focus:ring-amber-500/20'} bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:ring-2 focus:outline-none"
 							></textarea>
+							{#if roleMappingError}
+								<p class="mt-1 text-xs text-red-400">{roleMappingError}</p>
+							{/if}
 						</div>
-						<div class="flex items-center gap-2">
-							<input
-								id="use-pkce"
-								type="checkbox"
-								bind:checked={formData.usePkce}
-								class="rounded"
-							/>
-							<label for="use-pkce" class="text-sm text-slate-300">Enable PKCE (Recommended)</label>
+						<div class="flex flex-col gap-1">
+							<div class="flex items-center gap-2">
+								<input
+									id="use-pkce"
+									type="checkbox"
+									bind:checked={formData.usePkce}
+									disabled={formData.type === 'oauth2-gitlab'}
+									class="rounded disabled:opacity-50"
+								/>
+								<label
+									for="use-pkce"
+									class="text-sm text-slate-300 {formData.type === 'oauth2-gitlab'
+										? 'opacity-50'
+										: ''}"
+								>
+									Enable PKCE (Recommended)
+								</label>
+							</div>
+							{#if formData.type === 'oauth2-gitlab'}
+								<p class="text-xs text-amber-400/80">
+									PKCE is not supported by the GitLab provider and will be ignored.
+								</p>
+							{/if}
 						</div>
 					</div>
 				</details>
@@ -625,7 +666,7 @@
 				<div class="flex gap-3 pt-4">
 					<button
 						type="submit"
-						disabled={loading}
+						disabled={loading || !!roleMappingError}
 						class="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-900 transition-colors hover:bg-amber-400 disabled:opacity-50"
 					>
 						{loading ? 'Creating...' : 'Create Provider'}
@@ -820,19 +861,36 @@
 								id="edit-role-mapping"
 								bind:value={formData.roleMapping}
 								rows="6"
-								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+								class="w-full rounded-lg border {roleMappingError
+									? 'border-red-500 focus:ring-red-500/20'
+									: 'border-slate-600 focus:border-amber-500 focus:ring-amber-500/20'} bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:ring-2 focus:outline-none"
 							></textarea>
+							{#if roleMappingError}
+								<p class="mt-1 text-xs text-red-400">{roleMappingError}</p>
+							{/if}
 						</div>
-						<div class="flex items-center gap-2">
-							<input
-								id="edit-use-pkce"
-								type="checkbox"
-								bind:checked={formData.usePkce}
-								class="rounded"
-							/>
-							<label for="edit-use-pkce" class="text-sm text-slate-300"
-								>Enable PKCE (Recommended)</label
-							>
+						<div class="flex flex-col gap-1">
+							<div class="flex items-center gap-2">
+								<input
+									id="edit-use-pkce"
+									type="checkbox"
+									bind:checked={formData.usePkce}
+									disabled={formData.type === 'oauth2-gitlab'}
+									class="rounded disabled:opacity-50"
+								/>
+								<label
+									for="edit-use-pkce"
+									class="text-sm text-slate-300 {formData.type === 'oauth2-gitlab'
+										? 'opacity-50'
+										: ''}"
+									>Enable PKCE (Recommended)</label
+								>
+							</div>
+							{#if formData.type === 'oauth2-gitlab'}
+								<p class="text-xs text-amber-400/80">
+									PKCE is not supported by the GitLab provider and will be ignored.
+								</p>
+							{/if}
 						</div>
 					</div>
 				</details>
@@ -840,7 +898,7 @@
 				<div class="flex gap-3 pt-4">
 					<button
 						type="submit"
-						disabled={loading}
+						disabled={loading || !!roleMappingError}
 						class="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-900 transition-colors hover:bg-amber-400 disabled:opacity-50"
 					>
 						{loading ? 'Updating...' : 'Update Provider'}
