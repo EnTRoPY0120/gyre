@@ -73,6 +73,35 @@ ingress:
 
 ---
 
+## Kubernetes Gateway API (Future Standard)
+
+The [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/) is the evolution of the Ingress API, providing more powerful and expressive routing capabilities.
+
+### HTTPRoute Configuration
+
+To use the Gateway API, enable it in your `values.yaml` and reference your existing `Gateway`:
+
+```yaml
+gatewayApi:
+  enabled: true
+  parentRefs:
+    - name: my-gateway
+      namespace: gateway-namespace
+  hostnames:
+    - gyre.example.com
+  # Default rule points to the Gyre service, but you can override it:
+  # rules:
+  #   - matches:
+  #       - path: { type: PathPrefix, value: / }
+  #     backendRefs:
+  #       - name: gyre
+  #         port: 80
+```
+
+**Note:** Ensure your cluster has a Gateway API implementation installed (e.g., GKE Gateway, Istio, Linkerd, or an updated Nginx/Traefik controller with Gateway API support).
+
+---
+
 ## Service Type: LoadBalancer
 
 If your Kubernetes environment is in a cloud provider (AWS, GCP, Azure) and you want a dedicated IP address for Gyre without an Ingress Controller, you can use a `LoadBalancer` service.

@@ -65,6 +65,22 @@ ingress:
   #    hosts:
   #      - gyre.local
 
+gatewayApi:
+  enabled: false
+  annotations: {}
+  parentRefs: []
+    # - name: my-gateway
+    #   namespace: gateway-namespace
+  hostnames:
+    - gyre.local
+  # Optional: HTTPRoute rules customization
+  rules: []
+    # - matches:
+    #     - path:
+    #         type: PathPrefix
+    #         value: /
+
+
 resources:
   limits:
     cpu: 500m
