@@ -21,7 +21,11 @@ export const metadata = {
 							notifications: z
 								.object({
 									enabled: z.boolean().optional(),
-									subscriptions: z.array(z.string()).optional()
+									resourceTypes: z.array(z.string()).optional(),
+									namespaces: z.array(z.string()).optional(),
+									events: z
+										.array(z.enum(['success', 'failure', 'warning', 'info', 'error']))
+										.optional()
 								})
 								.optional()
 						})
@@ -36,7 +40,19 @@ export const metadata = {
 					'application/json': {
 						schema: z.object({
 							success: z.boolean(),
-							preferences: z.any()
+							preferences: z.object({
+								theme: z.enum(['light', 'dark', 'system']).optional(),
+								notifications: z
+									.object({
+										enabled: z.boolean().optional(),
+										resourceTypes: z.array(z.string()).optional(),
+										namespaces: z.array(z.string()).optional(),
+										events: z
+											.array(z.enum(['success', 'failure', 'warning', 'info', 'error']))
+											.optional()
+									})
+									.optional()
+							})
 						})
 					}
 				}
