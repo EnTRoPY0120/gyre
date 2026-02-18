@@ -5,6 +5,7 @@
 	import { onMount } from 'svelte';
 
 	let {
+		id,
 		value = $bindable(''),
 		referenceType,
 		referenceTypeField,
@@ -14,6 +15,7 @@
 		error = '',
 		onValueChange
 	}: {
+		id?: string;
 		value: string;
 		referenceType?: string | string[];
 		referenceTypeField?: string;
@@ -28,6 +30,7 @@
 	let loading = $state(false);
 	let resources = $state<string[]>([]);
 	let searchQuery = $state('');
+	let focusedIndex = $state(-1);
 	let container: HTMLDivElement | undefined = $state();
 
 	// Resolve the actual resource types to fetch
@@ -41,6 +44,12 @@
 		return [];
 	});
 
+	const filteredResources = $derived(
+		searchQuery === ''
+			? resources
+			: resources.filter((r) => r.toLowerCase().includes(searchQuery.toLowerCase()))
+	);
+
 	async function fetchResources() {
 		if (activeReferenceTypes.length === 0) {
 			resources = [];
@@ -48,6 +57,7 @@
 		}
 
 		loading = true;
+		resources = []; // Clear resources before starting fetch
 		try {
 			const allNames: string[] = [];
 			for (const kind of activeReferenceTypes) {
@@ -78,6 +88,7 @@
 			resources = [...new Set(allNames)].sort();
 		} catch (err) {
 			console.error('Failed to fetch resources:', err);
+			resources = []; // Clear on error
 		} finally {
 			loading = false;
 		}
@@ -88,6 +99,7 @@
 		open = !open;
 		if (open) {
 			searchQuery = '';
+			focusedIndex = -1;
 			fetchResources();
 		}
 	}
@@ -96,6 +108,40 @@
 		value = resource;
 		open = false;
 		onValueChange?.(resource);
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (!open) {
+			if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+				e.preventDefault();
+				handleToggle();
+			}
+			return;
+		}
+
+		switch (e.key) {
+			case 'ArrowDown':
+				e.preventDefault();
+				focusedIndex = (focusedIndex + 1) % filteredResources.length;
+				break;
+			case 'ArrowUp':
+				e.preventDefault();
+				focusedIndex = (focusedIndex - 1 + filteredResources.length) % filteredResources.length;
+				break;
+			case 'Enter':
+				e.preventDefault();
+				if (focusedIndex >= 0 && focusedIndex < filteredResources.length) {
+					handleSelect(filteredResources[focusedIndex]);
+				}
+				break;
+			case 'Escape':
+				e.preventDefault();
+				open = false;
+				break;
+			case 'Tab':
+				open = false;
+				break;
+		}
 	}
 
 	// Close on click outside
@@ -111,16 +157,11 @@
 			document.removeEventListener('click', handleClickOutside);
 		};
 	});
-
-	const filteredResources = $derived(
-		searchQuery === ''
-			? resources
-			: resources.filter((r) => r.toLowerCase().includes(searchQuery.toLowerCase()))
-	);
 </script>
 
-<div class="relative w-full" bind:this={container}>
+<div class="relative w-full" bind:this={container} onkeydown={handleKeydown}>
 	<button
+		{id}
 		type="button"
 		class={cn(
 			'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
@@ -128,6 +169,8 @@
 		)}
 		onclick={handleToggle}
 		{disabled}
+		aria-haspopup="listbox"
+		aria-expanded={open}
 	>
 		<span class={cn('truncate', !value && 'text-muted-foreground')}>
 			{value || placeholder}
@@ -138,6 +181,7 @@
 	{#if open}
 		<div
 			class="absolute z-50 mt-1 w-full overflow-hidden rounded-md border border-zinc-800 bg-zinc-900 shadow-xl"
+			role="listbox"
 		>
 			<div class="flex items-center border-b border-zinc-800 px-3">
 				<Search class="mr-2 h-4 w-4 shrink-0 opacity-50" />
@@ -157,11 +201,17 @@
 				{:else if filteredResources.length === 0}
 					<div class="py-6 text-center text-sm text-zinc-500">No resources found.</div>
 				{:else}
-					{#each filteredResources as resource}
+					{#each filteredResources as resource, i}
 						<button
 							type="button"
-							class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-zinc-800 hover:text-zinc-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+							class={cn(
+								'relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-zinc-800 hover:text-zinc-50 data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+								focusedIndex === i && 'bg-zinc-800 text-zinc-50'
+							)}
 							onclick={() => handleSelect(resource)}
+							role="option"
+							aria-selected={value === resource}
+							tabindex="-1"
 						>
 							<Check
 								class={cn('mr-2 h-4 w-4', value === resource ? 'opacity-100' : 'opacity-0')}

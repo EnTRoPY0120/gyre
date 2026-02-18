@@ -24,10 +24,20 @@
 	// Internal state with stable IDs for the each loop
 	let items = $state<{ id: string; val: unknown }[]>([]);
 
-	// Initialize items from value
+	// Synchronize items with external value changes
 	$effect(() => {
-		if (items.length === 0 && value.length > 0) {
-			items = value.map((v) => ({ id: Math.random().toString(36).substring(2, 11), val: v }));
+		const newItems = value.map((v, i) => {
+			const existingItem = items[i];
+			// If value at this index is the same as internal val, keep the ID
+			if (existingItem && JSON.stringify(existingItem.val) === JSON.stringify(v)) {
+				return existingItem;
+			}
+			// Otherwise create a new entry (preferring existing ID if structure matches)
+			return { id: existingItem?.id || Math.random().toString(36).substring(2, 11), val: v };
+		});
+
+		if (JSON.stringify(newItems.map((i) => i.val)) !== JSON.stringify(items.map((i) => i.val))) {
+			items = newItems;
 		}
 	});
 
@@ -100,6 +110,7 @@
 								</label>
 								{#if field.referenceType || field.referenceTypeField}
 									<ReferenceField
+										id="item-{item.id}-{field.name}"
 										value={String((item.val as any)[field.name] || '')}
 										onValueChange={(v) => updateObjectItem(item.id, field.name, v)}
 										referenceType={field.referenceType}
