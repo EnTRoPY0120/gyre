@@ -4,219 +4,212 @@ sidebar_position: 6
 
 # Contributing
 
-We welcome contributions to Gyre! This guide will help you get started.
+Thank you for your interest in contributing to Gyre! This document outlines the standards and processes for contributing to this project.
 
-:::tip
-For the complete contributing guide with detailed information on commit conventions, PR process, and code standards, see the [CONTRIBUTING.md](https://github.com/entropy0120/gyre/blob/main/CONTRIBUTING.md) file in the repository.
-:::
-
-## Development Setup
+## Getting Started
 
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (latest version)
 - [Node.js](https://nodejs.org/) 18+ (for some dev tools)
-- Kubernetes cluster with FluxCD (for testing)
-- kubectl configured
+- A Kubernetes cluster with FluxCD installed (for testing)
+- Git
 
-### Clone and Install
+### Quick Start (DevContainer - Recommended)
+
+The easiest way to start developing is using the provided devcontainer:
+
+1. Open the repository in VS Code with the Dev Containers extension
+2. Press `F1` → "Dev Containers: Reopen in Container"
+3. The devcontainer automatically installs Bun, VS Code extensions, mounts `~/.kube`, and runs setup
+4. Optional: Create a local kind cluster with FluxCD for testing
 
 ```bash
-# Clone the repository
-git clone https://github.com/entropy0120/gyre.git
-cd gyre
+# Inside devcontainer, start development server
+bun run dev
 
+# Optional: Create test cluster
+kind create cluster
+flux install
+```
+
+### Manual Setup
+
+```bash
 # Install dependencies
 bun install
 
 # Start development server
 bun run dev
+
+# Or start with auto-open
+bun run dev --open
 ```
 
-## Project Structure
+## Development Setup
+
+### Project Structure
 
 ```
 gyre/
 ├── src/
-│   ├── routes/          # SvelteKit routes
 │   ├── lib/
-│   │   ├── components/  # Svelte components
-│   │   ├── server/      # Server-only code
-│   │   ├── stores/      # Svelte stores
-│   │   └── utils/       # Utilities
-│   └── app.html
-├── documentation/       # Docusaurus docs
-├── charts/             # Helm chart
-└── .github/workflows/  # CI/CD
+│   │   ├── components/     # Reusable UI components
+│   │   ├── server/         # Server-only code (DB, auth, K8s)
+│   │   ├── templates/      # Resource creation templates
+│   │   └── stores/         # Svelte 5 runes-based stores
+│   └── routes/             # SvelteKit routes
+├── charts/gyre/            # Helm chart for deployment
+├── documentation/          # Docusaurus docs site
+└── data/                   # SQLite database (dev)
 ```
 
-## Development Workflow
+### Important Architecture Notes
 
-### 1. Create a Branch
+1. **Server vs Client Code**: Code in `src/lib/server/` ONLY runs server-side. Never import from there in `.svelte` component `<script>` tags—use SvelteKit load functions instead.
 
-Name your branch based on the type of change:
+2. **Svelte 5 Runes**: This project uses Svelte 5 with runes (`$state`, `$derived`, `$effect`, `$props`). Do NOT use legacy Svelte syntax:
 
-```bash
-# Format: <type>/<short-description>
-git checkout -b feat/add-oci-repository
-git checkout -b fix/session-timeout-bug
-git checkout -b docs/update-install-guide
-```
+   ```svelte
+   <!-- Good -->
+   <script>
+     let count = $state(0);
+     let doubled = $derived(count * 2);
+   </script>
 
-**Branch prefixes:**
+   <!-- Bad -->
+   <script>
+     let count = 0;
+     $: doubled = count * 2;
+   </script>
+   ```
 
-- `feat/` - New features
-- `fix/` - Bug fixes
-- `docs/` - Documentation changes
-- `refactor/` - Code refactoring
-- `chore/` - Maintenance tasks
-- `ci/` - CI/CD changes
+3. **In-Cluster Only**: Gyre is designed to run inside Kubernetes clusters only. It cannot run locally with kubeconfig.
 
-### 2. Make Changes
-
-- Follow existing code style
-- Add tests if applicable
-- Update documentation
-
-### 3. Test Locally
-
-```bash
-# Run type checks
-bun run check
-
-# Run linting
-bun run lint
-
-# Format code
-bun run format
-
-# Test in browser
-bun run dev
-```
-
-### 4. Commit
-
-```bash
-git add .
-git commit -m "feat: add my feature"
-```
-
-Use [conventional commits](https://www.conventionalcommits.org/):
-
-- `feat:` - New feature
-- `fix:` - Bug fix
-- `docs:` - Documentation
-- `style:` - Formatting
-- `refactor:` - Code refactoring
-- `test:` - Tests
-- `chore:` - Maintenance
-
-### 5. Push and Create PR
-
-```bash
-git push origin feature/my-feature
-```
-
-Create a Pull Request on GitHub.
-
-## Code Style
+## Code Standards
 
 ### TypeScript
 
-- Use strict mode
-- Prefer explicit types
-- Document public APIs
+- **Strict mode enabled**: All code must pass TypeScript strict checks
+- Use explicit types for function parameters and return values
+- Avoid `any` type—use `unknown` with type guards when necessary
 
-### Svelte
+### Code Quality Commands
 
-- Use Svelte 5 Runes API
-- Prefer `$state()`, `$derived()`, `$effect()`
-- No legacy reactive syntax
-
-### CSS/Tailwind
-
-- Use Tailwind classes
-- Follow existing color scheme
-- Dark mode first
-
-### Example
-
-```svelte
-<script lang="ts">
-	let count = $state(0);
-	let doubled = $derived(count * 2);
-
-	function increment() {
-		count++;
-	}
-</script>
-
-<button class="rounded bg-primary px-4 py-2 text-white" onclick={increment}>
-	Count: {count} (doubled: {doubled})
-</button>
-```
-
-## Adding New Features
-
-### Adding Flux Resource Support
-
-1. **Define Types**
-
-   ```typescript
-   // src/lib/server/kubernetes/flux/types.ts
-   export interface MyResource {
-   	// ... type definition
-   }
-   ```
-
-2. **Add Resource Utilities**
-
-   ```typescript
-   // src/lib/server/kubernetes/flux/resources.ts
-   export async function getMyResources(...) {
-     // ... implementation
-   }
-   ```
-
-3. **Create API Routes**
-
-   ```typescript
-   // src/routes/api/flux/myresource/+server.ts
-   export async function GET({ locals }) {
-   	// ... handler
-   }
-   ```
-
-4. **Add UI Components**
-
-   ```svelte
-   <!-- src/lib/components/flux/resources/MyResource.svelte -->
-   ```
-
-5. **Update Navigation**
-   - Add to sidebar in `src/routes/+layout.svelte`
-
-## Documentation
-
-Update documentation for any changes:
-
-- Update relevant `.md` files in `/documentation/docs/`
-- Add examples if applicable
-- Update API docs
-
-To preview docs locally:
+Always run these before committing:
 
 ```bash
-cd documentation
-npm install
-npm run start
+# Type-check
+bun run check
+
+# Lint and format check
+bun run lint
+
+# Auto-format code
+bun run format
 ```
+
+### Styling
+
+- **TailwindCSS v4**: Uses the Vite plugin (not PostCSS)
+- Use Tailwind utility classes for styling
+- Follow the existing zinc/gold theme color palette
+- Use shadcn-svelte components for consistency
+
+### Component Guidelines
+
+1. Use TypeScript for all `.svelte` files: `<script lang="ts">`
+2. Keep components focused and single-responsibility
+3. Use Svelte 5 snippets for reusable template blocks
+4. Properly type props with `$props()` rune
+5. Use the `class` prop pattern for component customization:
+
+   ```typescript
+   import { cn } from '$lib/utils.js';
+
+   let { class: className, ...props }: { class?: string } = $props();
+   ```
+
+## Commit Message Convention
+
+We follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Types
+
+- **feat**: A new feature
+- **fix**: A bug fix
+- **docs**: Documentation only changes
+- **style**: Code style changes (formatting, semicolons, etc.)
+- **refactor**: Code change that neither fixes a bug nor adds a feature
+- **perf**: Performance improvement
+- **test**: Adding or correcting tests
+- **chore**: Changes to build process or auxiliary tools
+- **ci**: Changes to CI configuration files
+
+### Scopes
+
+Common scopes in this project:
+
+- `templates` - Resource creation templates
+- `wizard` - Resource wizard system
+- `auth` - Authentication and authorization
+- `ui` - User interface components
+- `api` - API routes and server endpoints
+- `server` - Server-side utilities
+- `db` - Database schema and queries
+- `k8s` - Kubernetes integration
+- `flux` - FluxCD resource handling
+- `helm` - Helm chart
+
+## Branch Naming Convention
+
+Name your branch based on the type of change you're making:
+
+```
+<type>/<short-description>
+```
+
+### Branch Type Prefixes
+
+Use the same type prefixes as commit messages:
+
+- **feat/** - New features
+- **fix/** - Bug fixes
+- **docs/** - Documentation changes
+- **refactor/** - Code refactoring
+- **chore/** - Maintenance tasks
+- **ci/** - CI/CD changes
+
+## Pull Request Process
+
+1. **Create a branch** from `main` following the naming convention above.
+2. **Make your changes** following the code standards.
+3. **Test your changes** manually in a cluster.
+4. **Run quality checks** (`bun run check`, `bun run lint`).
+5. **Commit** using conventional commit format.
+6. **Push** your branch and open a Pull Request.
 
 ## Testing
 
-### Manual Testing
+**Important**: This project currently does not have automated tests. All testing is manual.
 
-Test in a real Kubernetes cluster:
+### Before Submitting a PR
+
+1. **Test in a real Kubernetes cluster** with FluxCD installed.
+2. **Test both success and error paths**.
+3. **Check browser console** for client-side errors.
+4. **Review server logs** for backend issues.
+5. **Test on different screen sizes** for UI changes.
+
+### Setting Up a Test Environment
 
 ```bash
 # Create test cluster
@@ -234,48 +227,32 @@ helm install gyre charts/gyre -n flux-system \
   --set image.tag=test \
   --set image.pullPolicy=Never
 
-# Port forward
+# Port forward to test
 kubectl port-forward -n flux-system svc/gyre 9999:80
 ```
 
-### Test Checklist
-
-- [ ] Feature works as expected
-- [ ] No console errors
-- [ ] Responsive on mobile
-- [ ] Dark mode works
-- [ ] Authentication works
-- [ ] RBAC permissions respected
-
 ## Reporting Issues
 
-When reporting bugs, include:
+When reporting bugs, please include:
 
-1. **Description** - What happened?
-2. **Steps to Reproduce** - How to trigger it?
-3. **Expected Behavior** - What should happen?
-4. **Actual Behavior** - What actually happened?
-5. **Environment** - Version, browser, cluster info
-6. **Logs** - Relevant error messages
+1. **Gyre version**
+2. **Kubernetes version**
+3. **FluxCD version**
+4. **Steps to reproduce**
+5. **Expected vs Actual behavior**
+6. **Screenshots & Logs**
 
-## Security
+## Adding New Features
 
-Report security vulnerabilities privately:
+### Adding a New FluxCD Resource Type
 
-- Email: security@entropy0120.dev (example)
-- Do NOT open public issues
-
-## Code of Conduct
-
-- Be respectful
-- Welcome newcomers
-- Focus on constructive feedback
-- Respect different viewpoints
-
-## Questions?
-
-- Open a [GitHub Discussion](https://github.com/entropy0120/gyre/discussions)
-- Join our community (coming soon)
+1. **Define types** in `src/lib/server/kubernetes/flux/types.ts`.
+2. **Add resource utilities** in `src/lib/server/kubernetes/flux/resources.ts`.
+3. **Create API routes** in `src/routes/api/flux/[resourceType]/`.
+4. **Add UI components** in `src/lib/components/flux/resources/`.
+5. **Update navigation** in `src/routes/+layout.svelte`.
+6. **Add resource template** in `src/lib/templates/index.ts`.
+7. **Update RBAC permissions** in `charts/gyre/templates/rbac.yaml`.
 
 ## License
 
