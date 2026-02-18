@@ -59,9 +59,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			...newPreferences,
 
 			notifications: {
-				...existingPreferences.notifications,
+				...(existingPreferences.notifications || {}),
 
-				...newPreferences.notifications
+				...(newPreferences.notifications || {})
 			}
 		};
 
