@@ -164,16 +164,7 @@
 	});
 </script>
 
-<div
-	class="relative w-full"
-	bind:this={container}
-	onkeydown={handleKeydown}
-	role="combobox"
-	tabindex="-1"
-	aria-controls={open ? 'resource-listbox' : undefined}
-	aria-expanded={open}
-	aria-haspopup="listbox"
->
+<div class="relative w-full" bind:this={container} tabindex="-1">
 	<button
 		{id}
 		type="button"
@@ -182,7 +173,12 @@
 			error && 'border-red-500'
 		)}
 		onclick={handleToggle}
+		onkeydown={handleKeydown}
 		{disabled}
+		role="combobox"
+		aria-controls={open ? 'resource-listbox' : undefined}
+		aria-expanded={open}
+		aria-haspopup="listbox"
 	>
 		<span class={cn('truncate', !value && 'text-muted-foreground')}>
 			{value || placeholder}

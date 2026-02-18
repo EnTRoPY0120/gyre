@@ -12,6 +12,7 @@ import {
 	SETTINGS_KEYS,
 	isSettingOverriddenByEnv
 } from '$lib/server/settings';
+import { requirePermission } from '$lib/server/rbac';
 
 export const _metadata = {
 	GET: {
@@ -36,6 +37,7 @@ export const _metadata = {
 					}
 				}
 			},
+			400: { description: 'Missing cluster context' },
 			401: { description: 'Unauthorized' },
 			403: { description: 'Admin access required' }
 		}
@@ -66,7 +68,7 @@ export const _metadata = {
 					}
 				}
 			},
-			400: { description: 'Invalid request' },
+			400: { description: 'Invalid request or missing cluster context' },
 			401: { description: 'Unauthorized' },
 			403: { description: 'Admin access required' }
 		}
@@ -83,10 +85,17 @@ export const GET: RequestHandler = async ({ locals }) => {
 		throw error(401, { message: 'Unauthorized' });
 	}
 
+	if (!locals.cluster) {
+		throw error(400, { message: 'Missing cluster context' });
+	}
+
 	// Check admin role
 	if (locals.user.role !== 'admin') {
 		throw error(403, { message: 'Admin access required' });
 	}
+
+	// Enforce RBAC
+	await requirePermission(locals.user, 'admin', undefined, undefined, locals.cluster);
 
 	try {
 		const authSettings = await getAuthSettings();
@@ -124,10 +133,17 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		throw error(401, { message: 'Unauthorized' });
 	}
 
+	if (!locals.cluster) {
+		throw error(400, { message: 'Missing cluster context' });
+	}
+
 	// Check admin role
 	if (locals.user.role !== 'admin') {
 		throw error(403, { message: 'Admin access required' });
 	}
+
+	// Enforce RBAC
+	await requirePermission(locals.user, 'admin', undefined, undefined, locals.cluster);
 
 	try {
 		let body;

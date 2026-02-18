@@ -87,7 +87,12 @@ export const _metadata = {
  * Authenticate user and create session
  */
 export const POST: RequestHandler = async (event) => {
-	const { request, cookies, getClientAddress, setHeaders } = event;
+	const { request, cookies, getClientAddress, setHeaders, locals } = event;
+
+	if (!locals.cluster) {
+		throw error(400, { message: 'Missing cluster context' });
+	}
+
 	try {
 		const body = await request.json();
 		const { username, password } = body;

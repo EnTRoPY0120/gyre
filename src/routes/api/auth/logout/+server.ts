@@ -27,7 +27,15 @@ export const _metadata = {
  * POST /api/auth/logout
  * Logout user and clear session
  */
-export const POST: RequestHandler = async ({ cookies }) => {
+export const POST: RequestHandler = async ({ cookies, locals }) => {
+	if (!locals.user) {
+		throw error(401, { message: 'Unauthorized' });
+	}
+
+	if (!locals.cluster) {
+		throw error(400, { message: 'Missing cluster context' });
+	}
+
 	try {
 		const sessionId = cookies.get('gyre_session');
 
