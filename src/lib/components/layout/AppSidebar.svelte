@@ -189,6 +189,29 @@
 				Inventory
 			</a>
 
+			<!-- Image Automation Dashboard -->
+			<!-- eslint-disable-next-line -->
+			<a
+				href="/image-automation"
+				onclick={closeMobile}
+				class={cn(
+					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
+					currentPath === '/image-automation'
+						? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.2)]'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+				)}
+			>
+				<Icon
+					name="refresh-cw"
+					size={18}
+					class={cn(
+						'transition-transform group-hover:scale-110',
+						currentPath === '/image-automation' && 'animate-pulse'
+					)}
+				/>
+				Image Automation
+			</a>
+
 			<div class="mx-2 my-2 h-px bg-sidebar-border/50"></div>
 
 			{#if !canCreate}
@@ -527,6 +550,20 @@
 				title="Inventory"
 			>
 				<Icon name="network" size={20} />
+			</a>
+
+			<!-- eslint-disable-next-line -->
+			<a
+				href="/image-automation"
+				class={cn(
+					'mb-4 rounded-xl p-3 transition-all active:scale-95',
+					currentPath === '/image-automation'
+						? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+				)}
+				title="Image Automation"
+			>
+				<Icon name="refresh-cw" size={20} />
 			</a>
 
 			<!-- eslint-disable-next-line -->
