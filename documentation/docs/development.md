@@ -173,6 +173,7 @@ The `ResourceWizard` is a core component that allows users to create FluxCD reso
 #### Wizard Configuration
 
 Templates are defined in `src/lib/templates/index.ts`. Each `ResourceTemplate` includes:
+
 - `id`: Unique identifier
 - `title`: Display name
 - `description`: Short summary
@@ -181,6 +182,7 @@ Templates are defined in `src/lib/templates/index.ts`. Each `ResourceTemplate` i
 - `fields`: Individual form inputs with validation and help text
 
 #### Key Field Properties:
+
 - `path`: JSON path to the value in the manifest (e.g., `spec.interval`).
 - `required`: Boolean or function for conditional requirements.
 - `showIf`: Function to control field visibility based on other values.
@@ -188,6 +190,7 @@ Templates are defined in `src/lib/templates/index.ts`. Each `ResourceTemplate` i
 - `referenceType`: Enable resource lookup in the wizard.
 
 #### Bidirectional Sync
+
 The `ResourceWizard` component manages the synchronization between the form state (`formValues`) and the raw YAML manifest using the `yaml` library's `parseDocument` and `setIn` methods to preserve comments.
 
 ### Monaco Editor Integration
@@ -195,10 +198,12 @@ The `ResourceWizard` component manages the synchronization between the form stat
 The project uses Monaco Editor (VS Code's editor) for YAML/JSON editing throughout the application.
 
 **Components:**
+
 - `src/lib/components/editors/MonacoEditor.svelte` - Main Monaco wrapper component
 - `src/lib/components/editors/YamlEditor.svelte` - Legacy simple editor (kept for fallback)
 
 **Features:**
+
 - Syntax highlighting for YAML and JSON
 - Real-time validation with error markers
 - Bidirectional value binding with `$bindable()`
@@ -208,6 +213,7 @@ The project uses Monaco Editor (VS Code's editor) for YAML/JSON editing througho
 ### SSO/OAuth Integration
 
 The project includes full SSO support via Arctic and OIDC:
+
 - **Providers supported**: GitHub, Google, Generic OIDC
 - **Configuration**: Admin UI for provider setup (no restart required)
 - **User flow**: Login → OAuth redirect → Callback → Auto-provision user
@@ -217,6 +223,7 @@ The project includes full SSO support via Arctic and OIDC:
 The real-time notification system uses Server-Sent Events (SSE) located in `src/routes/api/ws/events/+server.ts` with client store at `src/lib/stores/websocket.svelte.ts`.
 
 **Deduplication Strategy:**
+
 - Track notification state: `{revision, readyStatus, readyReason, messagePreview}`
 - Only trigger on meaningful changes (Revision change, Failure, Recovery)
 - 30s settling period for `ADDED` events to avoid initial sync spam
