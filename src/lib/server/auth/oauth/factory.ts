@@ -35,7 +35,7 @@ export function createOAuthProvider(config: AuthProvider, redirectUri?: string):
 			return new GoogleProvider(options);
 
 		case ProviderType.OAUTH2_GITLAB:
-			return new GitLabProvider(options);
+			return GitLabProvider(options);
 
 		case ProviderType.OAUTH2_GENERIC:
 			// Generic OAuth2 falls back to OIDC provider
