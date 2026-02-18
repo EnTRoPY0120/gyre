@@ -6,21 +6,20 @@ import { checkPermission } from '$lib/server/rbac';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Check authentication
-	if (!locals.user) {
+	const user = locals.user;
+	if (!user) {
 		throw error(401, { message: 'Authentication required' });
 	}
 
-	// Check permission for image automation resources
-	// We check for 'read' permission on 'imagerepositories' as a proxy for the whole group
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		'imagerepositories',
-		undefined,
-		locals.cluster
+	// Check permission for all image automation resources
+	const requiredResources = ['imagerepositories', 'imagepolicies', 'imageupdateautomations'];
+	const permissionResults = await Promise.all(
+		requiredResources.map((resource) =>
+			checkPermission(user, 'read', resource, undefined, locals.cluster)
+		)
 	);
 
-	if (!hasPermission) {
+	if (permissionResults.some((hasPerm) => !hasPerm)) {
 		throw error(403, { message: 'Permission denied' });
 	}
 
