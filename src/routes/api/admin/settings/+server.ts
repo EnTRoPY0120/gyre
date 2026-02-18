@@ -95,7 +95,13 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	// Enforce RBAC
-	const hasPermission = await checkPermission(locals.user, 'admin', undefined, undefined, locals.cluster);
+	const hasPermission = await checkPermission(
+		locals.user,
+		'admin',
+		undefined,
+		undefined,
+		locals.cluster
+	);
 	if (!hasPermission) {
 		throw error(403, { message: 'Forbidden: admin permission required' });
 	}
@@ -146,7 +152,13 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 	}
 
 	// Enforce RBAC
-	const hasPermission = await checkPermission(locals.user, 'admin', undefined, undefined, locals.cluster);
+	const hasPermission = await checkPermission(
+		locals.user,
+		'admin',
+		undefined,
+		undefined,
+		locals.cluster
+	);
 	if (!hasPermission) {
 		throw error(403, { message: 'Forbidden: admin permission required' });
 	}
