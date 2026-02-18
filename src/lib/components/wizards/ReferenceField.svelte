@@ -134,7 +134,8 @@
 			case 'ArrowUp':
 				e.preventDefault();
 				if (filteredResources.length > 0) {
-					focusedIndex = (focusedIndex - 1 + filteredResources.length) % filteredResources.length;
+					focusedIndex =
+						focusedIndex <= 0 ? filteredResources.length - 1 : focusedIndex - 1;
 				}
 				break;
 			case 'Enter':
