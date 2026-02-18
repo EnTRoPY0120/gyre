@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit and Bun. It provides real-time monitoring, multi-cluster management, built-in RBAC, and comprehensive FluxCD resource management.
 
-**Deployment**: In-cluster only deployment via Helm chart. Runs as a standard Node.js application in Kubernetes with ServiceAccount authentication. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
+**Deployment**: In-cluster-only deployment via Helm chart. Runs as a standard Node.js application in Kubernetes with ServiceAccount authentication. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
 
 **Current Status**: Core functionality complete with dashboard, all FluxCD resources, real-time updates, multi-cluster support, authentication/RBAC, Monaco Editor integration, and comprehensive resource templates with complete FluxCD CRD field coverage.
 
@@ -76,7 +76,7 @@ kubectl get secret gyre-initial-admin-secret -n flux-system -o jsonpath='{.data.
 kubectl port-forward -n flux-system svc/gyre 3000:80
 ```
 
-**Architecture**: In-cluster only deployment with ServiceAccount authentication. All Kubernetes API access uses the pod's ServiceAccount credentials.
+**Architecture**: In-cluster-only deployment with ServiceAccount authentication. All Kubernetes API access uses the pod's ServiceAccount credentials.
 
 ### Database Management
 
@@ -141,7 +141,7 @@ git push origin v0.2.0
 **Branch Naming Convention:**
 
 Branch names follow the pattern `<type>/<short-description>`:
-```
+```text
 feat/add-oci-repository-support
 fix/session-timeout-issue
 docs/update-install-guide
@@ -153,7 +153,7 @@ ci/add-multi-arch-build
 **Commit Message Convention:**
 
 The project follows conventional commits format:
-```
+```text
 <type>(<scope>): <description>
 
 [optional body]
@@ -186,7 +186,7 @@ Gyre follows a standard SvelteKit architecture with a unique deployment model:
 
 ### Key Architectural Points
 
-1. **Deployment Model**: In-cluster only deployment using Helm chart. Runs in Kubernetes pods with ServiceAccount authentication. Uses SvelteKit's adapter-node for standard Node.js runtime with embedded SQLite database mounted on PersistentVolume (`/data`). Docker image published to ghcr.io via GitHub Actions.
+1. **Deployment Model**: In-cluster-only deployment using Helm chart. Runs in Kubernetes pods with ServiceAccount authentication. Uses SvelteKit's adapter-node for standard Node.js runtime with embedded SQLite database mounted on PersistentVolume (`/data`). Docker image published to ghcr.io via GitHub Actions.
 
 2. **Server-Side Architecture**: FluxCD/Kubernetes integration via SvelteKit API routes + server modules:
    - `src/lib/server/kubernetes/` - K8s client and Flux resource utilities
@@ -218,9 +218,10 @@ Gyre follows a standard SvelteKit architecture with a unique deployment model:
    - Fine-grained permissions per resource type, namespace, and cluster
    - Audit logging for all actions
 
-7. **Kubernetes Access**: In-cluster only configuration:
-   - Uses pod ServiceAccount for authentication
-   - ClusterRole with permissions for all FluxCD resources
+7. **Kubernetes Access**: In-cluster-only configuration:
+    - Uses pod ServiceAccount for authentication
+    - ClusterRole with permissions for all FluxCD resources
+
    - Access to core Kubernetes resources (namespaces, events, pods, etc.)
    - Runs in `flux-system` namespace by default
 
@@ -231,7 +232,7 @@ Gyre follows a standard SvelteKit architecture with a unique deployment model:
    - 15s TTL for individual API responses
    - WebSocket invalidation for changed resources
 
-10. **Environment Configuration**: In-cluster only - no support for local kubeconfig:
+10. **Environment Configuration**: In-cluster-only - no support for local kubeconfig:
     - Detects in-cluster via `KUBERNETES_SERVICE_HOST` environment variable
     - Uses `/var/run/secrets/kubernetes.io/serviceaccount/` for auth
     - Falls back gracefully with error messages for local development
@@ -535,7 +536,7 @@ kubectl port-forward -n flux-system svc/gyre 9999:80
 
 ### Known Limitations
 
-- **In-cluster only**: Cannot run locally with kubeconfig (by design)
+- **In-cluster-only**: Cannot run locally with kubeconfig (by design)
 - **Single database file**: SQLite at `/data/gyre.db` - not suitable for horizontal scaling
 - **WebSocket limitations**: Watch API may miss events during reconnection
 - **No automated backups**: Database backup is user's responsibility via PV snapshots

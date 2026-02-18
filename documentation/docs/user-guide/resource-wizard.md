@@ -67,20 +67,20 @@ Use the wizard to create each of these in order, ensuring the `policyRef` in the
 
 ## Resource Field Reference
 
-Gyre supports all 13 FluxCD resource types. For detailed information on specific fields for each resource, please refer to the official FluxCD documentation:
+Gyre supports all 13 FluxCD resource types. Click on a resource type below for detailed information on its specific fields, or refer to the official FluxCD documentation.
 
-| Resource Type | FluxCD Component | Field Reference |
-|---------------|------------------|-----------------|
-| **GitRepository** | Source Controller | [Official Docs](https://fluxcd.io/flux/components/source/gitrepositories/) |
-| **HelmRepository** | Source Controller | [Official Docs](https://fluxcd.io/flux/components/source/helmrepositories/) |
-| **HelmChart** | Source Controller | [Official Docs](https://fluxcd.io/flux/components/source/helmcharts/) |
-| **Bucket** | Source Controller | [Official Docs](https://fluxcd.io/flux/components/source/buckets/) |
-| **OCIRepository** | Source Controller | [Official Docs](https://fluxcd.io/flux/components/source/ocirepositories/) |
-| **Kustomization** | Kustomize Controller | [Official Docs](https://fluxcd.io/flux/components/kustomize/kustomizations/) |
-| **HelmRelease** | Helm Controller | [Official Docs](https://fluxcd.io/flux/components/helm/helmreleases/) |
-| **Alert** | Notification Controller | [Official Docs](https://fluxcd.io/flux/components/notification/alerts/) |
-| **Provider** | Notification Controller | [Official Docs](https://fluxcd.io/flux/components/notification/providers/) |
-| **Receiver** | Notification Controller | [Official Docs](https://fluxcd.io/flux/components/notification/receivers/) |
-| **ImageRepository** | Image Automation | [Official Docs](https://fluxcd.io/flux/components/image/imagerepositories/) |
-| **ImagePolicy** | Image Automation | [Official Docs](https://fluxcd.io/flux/components/image/imagepolicies/) |
-| **ImageUpdateAutomation** | Image Automation | [Official Docs](https://fluxcd.io/flux/components/image/imageupdateautomations/) |
+| Resource Type | FluxCD Component | Internal Reference | Official Docs |
+|---------------|------------------|--------------------|---------------|
+| **GitRepository** | Source Controller | [Local Docs](./resources/GitRepository) | [Official](https://fluxcd.io/flux/components/source/gitrepositories/) |
+| **HelmRepository** | Source Controller | [Local Docs](./resources/HelmRepository) | [Official](https://fluxcd.io/flux/components/source/helmrepositories/) |
+| **HelmChart** | Source Controller | [Local Docs](./resources/HelmChart) | [Official](https://fluxcd.io/flux/components/source/helmcharts/) |
+| **Bucket** | Source Controller | [Local Docs](./resources/Bucket) | [Official](https://fluxcd.io/flux/components/source/buckets/) |
+| **OCIRepository** | Source Controller | [Local Docs](./resources/OCIRepository) | [Official](https://fluxcd.io/flux/components/source/ocirepositories/) |
+| **Kustomization** | Kustomize Controller | [Local Docs](./resources/Kustomization) | [Official](https://fluxcd.io/flux/components/kustomize/kustomizations/) |
+| **HelmRelease** | Helm Controller | [Local Docs](./resources/HelmRelease) | [Official](https://fluxcd.io/flux/components/helm/helmreleases/) |
+| **Alert** | Notification Controller | [Local Docs](./resources/Alert) | [Official](https://fluxcd.io/flux/components/notification/alerts/) |
+| **Provider** | Notification Controller | [Local Docs](./resources/Provider) | [Official](https://fluxcd.io/flux/components/notification/providers/) |
+| **Receiver** | Notification Controller | [Local Docs](./resources/Receiver) | [Official](https://fluxcd.io/flux/components/notification/receivers/) |
+| **ImageRepository** | Image Automation | [Local Docs](./resources/ImageRepository) | [Official](https://fluxcd.io/flux/components/image/imagerepositories/) |
+| **ImagePolicy** | Image Automation | [Local Docs](./resources/ImagePolicy) | [Official](https://fluxcd.io/flux/components/image/imagepolicies/) |
+| **ImageUpdateAutomation** | Image Automation | [Local Docs](./resources/ImageUpdateAutomation) | [Official](https://fluxcd.io/flux/components/image/imageupdateautomations/) |
