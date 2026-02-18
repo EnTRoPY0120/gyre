@@ -7,13 +7,13 @@ Scans container image repositories.
 
 ## Fields
 
-| Field | Label | Type | Required | Description |
-|-------|-------|------|----------|-------------|
-| `metadata.name` | Name | `string` | Yes | Unique name for this ImageRepository resource. |
-| `metadata.namespace` | Namespace | `string` | Yes | Namespace where the resource will be created. |
-| `spec.image` | Image | `string` | Yes | Container image repository to scan. |
-| `spec.interval` | Scan Interval | `duration` | Yes | How often to scan for new images. |
-| `spec.secretRef.name` | Secret Name | `string` | No | Secret containing registry credentials. |
+| Field                 | Label         | Type       | Required | Description                                    |
+| --------------------- | ------------- | ---------- | -------- | ---------------------------------------------- |
+| `metadata.name`       | Name          | `string`   | Yes      | Unique name for this ImageRepository resource. |
+| `metadata.namespace`  | Namespace     | `string`   | Yes      | Namespace where the resource will be created.  |
+| `spec.image`          | Image         | `string`   | Yes      | Container image repository to scan.            |
+| `spec.interval`       | Scan Interval | `duration` | Yes      | How often to scan for new images.              |
+| `spec.secretRef.name` | Secret Name   | `string`   | No       | Secret containing registry credentials.        |
 
 ## Example
 
