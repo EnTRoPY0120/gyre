@@ -150,10 +150,10 @@
 			>
 				<div class="flex items-center justify-between mb-2">
 					<h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
-					<div class="flex items-center gap-3">
+					<div class="flex items-center gap-1 sm:gap-3">
 						<a
 							href="/settings/notifications"
-							class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+							class="flex h-11 w-11 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-accent hover:text-gray-700 dark:text-gray-400 dark:hover:bg-accent dark:hover:text-gray-200"
 							onclick={closeDropdown}
 							title="Notification Settings"
 							aria-label="Notification Settings"
@@ -176,14 +176,14 @@
 						{#if notifications.length > 0}
 							<button
 								type="button"
-								class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+								class="flex h-11 items-center px-2 text-xs text-blue-600 transition-colors hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 sm:px-3"
 								onclick={markAllAsRead}
 							>
 								Mark read
 							</button>
 							<button
 								type="button"
-								class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+								class="flex h-11 items-center px-2 text-xs text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 sm:px-3"
 								onclick={clearAll}
 							>
 								Clear
@@ -196,7 +196,7 @@
 				<div class="flex items-center gap-2 rounded-md bg-secondary/30 p-1">
 					<button
 						type="button"
-						class="flex-1 rounded-sm px-2 py-1 text-[10px] font-medium transition-colors {showAllClusters
+						class="flex h-11 flex-1 items-center justify-center rounded-sm px-2 py-1 text-[10px] font-medium transition-colors {showAllClusters
 							? 'text-muted-foreground hover:bg-secondary/50'
 							: 'bg-background text-foreground shadow-sm'}"
 						onclick={() => (showAllClusters = false)}
@@ -205,7 +205,7 @@
 					</button>
 					<button
 						type="button"
-						class="flex-1 rounded-sm px-2 py-1 text-[10px] font-medium transition-colors {!showAllClusters
+						class="flex h-11 flex-1 items-center justify-center rounded-sm px-2 py-1 text-[10px] font-medium transition-colors {!showAllClusters
 							? 'text-muted-foreground hover:bg-secondary/50'
 							: 'bg-background text-foreground shadow-sm'}"
 						onclick={() => (showAllClusters = true)}

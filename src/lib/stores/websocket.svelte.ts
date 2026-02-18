@@ -123,8 +123,8 @@ class RealtimeStore {
 		if (typeof window === 'undefined') return;
 
 		try {
-			// Save only the most recent notifications to avoid localStorage quota issues
-			// We increase this to 200 to accommodate multiple clusters in the same storage
+			// Save only the most recent notifications to avoid localStorage quota issues.
+			// We increase this to 500 to accommodate multiple clusters in the same storage.
 			const MAX_GLOBAL_NOTIFICATIONS = 500;
 			const toSave = this.notifications.slice(0, MAX_GLOBAL_NOTIFICATIONS);
 			localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(toSave));
@@ -250,7 +250,8 @@ class RealtimeStore {
 			return;
 		}
 
-		const resourceKey = `${event.resourceType}/${event.resource.metadata.namespace}/${event.resource.metadata.name}`;
+		const clusterId = event.clusterId || 'in-cluster';
+		const resourceKey = `${clusterId}/${event.resourceType}/${event.resource.metadata.namespace}/${event.resource.metadata.name}`;
 		const readyCondition = event.resource.status?.conditions?.find((c) => c.type === 'Ready');
 
 		// Build a state signature matching server-side logic
@@ -299,7 +300,7 @@ class RealtimeStore {
 
 		const notification: NotificationMessage = {
 			id: crypto.randomUUID(),
-			clusterId: event.clusterId || 'in-cluster',
+			clusterId,
 			type: this.getNotificationType(event),
 			title: this.getNotificationTitle(event),
 			message: this.getNotificationMessage(event),
@@ -415,6 +416,12 @@ class RealtimeStore {
 	clearAll(clusterId?: string) {
 		if (clusterId) {
 			this.notifications = this.notifications.filter((n) => n.clusterId !== clusterId);
+			// Purge per-cluster entries from lastNotificationState
+			for (const key of this.lastNotificationState.keys()) {
+				if (key.startsWith(`${clusterId}/`)) {
+					this.lastNotificationState.delete(key);
+				}
+			}
 		} else {
 			this.notifications = [];
 			this.lastNotificationState.clear();
