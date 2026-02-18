@@ -11,6 +11,16 @@
 	import GitRepositoryDetail from '$lib/components/flux/resources/GitRepositoryDetail.svelte';
 	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
 	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
+	import HelmRepositoryDetail from '$lib/components/flux/resources/HelmRepositoryDetail.svelte';
+	import HelmChartDetail from '$lib/components/flux/resources/HelmChartDetail.svelte';
+	import BucketDetail from '$lib/components/flux/resources/BucketDetail.svelte';
+	import OCIRepositoryDetail from '$lib/components/flux/resources/OCIRepositoryDetail.svelte';
+	import AlertDetail from '$lib/components/flux/resources/AlertDetail.svelte';
+	import ProviderDetail from '$lib/components/flux/resources/ProviderDetail.svelte';
+	import ReceiverDetail from '$lib/components/flux/resources/ReceiverDetail.svelte';
+	import ImageRepositoryDetail from '$lib/components/flux/resources/ImageRepositoryDetail.svelte';
+	import ImagePolicyDetail from '$lib/components/flux/resources/ImagePolicyDetail.svelte';
+	import ImageUpdateAutomationDetail from '$lib/components/flux/resources/ImageUpdateAutomationDetail.svelte';
 	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
 	import ResourceDiffViewer from '$lib/components/flux/ResourceDiffViewer.svelte';
 	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
@@ -171,6 +181,21 @@
 	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
 	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
 	const isKustomization = $derived(data.resourceType === 'kustomizations');
+	const isHelmRepository = $derived(data.resourceType === 'helmrepositories');
+	const isHelmChart = $derived(data.resourceType === 'helmcharts');
+	const isBucket = $derived(data.resourceType === 'buckets');
+	const isOCIRepository = $derived(data.resourceType === 'ocirepositories');
+	const isAlert = $derived(data.resourceType === 'alerts');
+	const isProvider = $derived(data.resourceType === 'providers');
+	const isReceiver = $derived(data.resourceType === 'receivers');
+	const isImageRepository = $derived(data.resourceType === 'imagerepositories');
+	const isImagePolicy = $derived(data.resourceType === 'imagepolicies');
+	const isImageUpdateAutomation = $derived(data.resourceType === 'imageupdateautomations');
+	const hasSpecializedView = $derived(
+		isGitRepository || isHelmRelease || isKustomization || isHelmRepository ||
+		isHelmChart || isBucket || isOCIRepository || isAlert || isProvider ||
+		isReceiver || isImageRepository || isImagePolicy || isImageUpdateAutomation
+	);
 
 	const tabs = $derived.by(() => {
 		const base: { id: TabId; label: string }[] = [
@@ -468,8 +493,28 @@
 					<HelmReleaseDetail resource={data.resource} />
 				{:else if isKustomization}
 					<KustomizationDetail resource={data.resource} />
+				{:else if isHelmRepository}
+					<HelmRepositoryDetail resource={data.resource} />
+				{:else if isHelmChart}
+					<HelmChartDetail resource={data.resource} />
+				{:else if isBucket}
+					<BucketDetail resource={data.resource} />
+				{:else if isOCIRepository}
+					<OCIRepositoryDetail resource={data.resource} />
+				{:else if isAlert}
+					<AlertDetail resource={data.resource} />
+				{:else if isProvider}
+					<ProviderDetail resource={data.resource} />
+				{:else if isReceiver}
+					<ReceiverDetail resource={data.resource} />
+				{:else if isImageRepository}
+					<ImageRepositoryDetail resource={data.resource} />
+				{:else if isImagePolicy}
+					<ImagePolicyDetail resource={data.resource} />
+				{:else if isImageUpdateAutomation}
+					<ImageUpdateAutomationDetail resource={data.resource} />
 				{:else if data.resource.spec}
-					<!-- Generic Configuration Card for other resource types -->
+					<!-- Generic Configuration Card for unknown resource types -->
 					<div
 						class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
 					>
