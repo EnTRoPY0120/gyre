@@ -1,12 +1,12 @@
 import { json, error } from '@sveltejs/kit';
-import { z } from 'zod';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { listFluxResources } from '$lib/server/kubernetes/client';
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { getResourceStatus } from '$lib/utils/relationships';
 import { checkPermission } from '$lib/server/rbac.js';
 
-export const metadata = {
+export const _metadata = {
 	GET: {
 		summary: 'Get FluxCD overview',
 		description: 'Retrieve status summaries for all FluxCD resource types.',

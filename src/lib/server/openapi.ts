@@ -7,6 +7,8 @@ import {
 
 extendZodWithOpenApi(z);
 
+export { z };
+
 /**
  * Creates a new OpenAPI registry
  */

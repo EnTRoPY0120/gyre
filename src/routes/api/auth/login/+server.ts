@@ -1,10 +1,10 @@
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
-import { z } from 'zod';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { authenticateUser, createSession, getUserByUsername } from '$lib/server/auth';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
-export const metadata = {
+export const _metadata = {
 	POST: {
 		summary: 'Authenticate user and create session',
 		description: 'Log in with a username and password to start a session.',

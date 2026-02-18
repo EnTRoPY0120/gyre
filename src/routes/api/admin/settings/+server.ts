@@ -4,7 +4,7 @@
  */
 
 import { json, error } from '@sveltejs/kit';
-import { z } from 'zod';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import {
 	getAuthSettings,
@@ -13,7 +13,7 @@ import {
 	isSettingOverriddenByEnv
 } from '$lib/server/settings';
 
-export const metadata = {
+export const _metadata = {
 	GET: {
 		summary: 'Get application settings',
 		description: 'Retrieve all application settings. Admin access required.',

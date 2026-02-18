@@ -21,7 +21,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const registry = createRegistry();
 
 	for (const [path, module] of Object.entries(apiRoutes)) {
-		const metadata = (module as any).metadata;
+		const metadata = (module as any)._metadata;
 		if (!metadata) continue;
 
 		// Convert file path to API path

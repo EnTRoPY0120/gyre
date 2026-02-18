@@ -1,5 +1,5 @@
 import { json, error } from '@sveltejs/kit';
-import { z } from 'zod';
+import { z } from '$lib/server/openapi';
 import { getDb } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -7,7 +7,7 @@ import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
 import { requirePermission } from '$lib/server/rbac';
 
-export const metadata = {
+export const _metadata = {
 	POST: {
 		summary: 'Update user preferences',
 		description: "Update the current user's preferences like theme and notifications.",
