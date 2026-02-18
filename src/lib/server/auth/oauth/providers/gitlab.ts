@@ -209,7 +209,12 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 				// Fetch groups if role mapping is configured
 				let groups: string[] = [];
 				if (config.roleMapping) {
-					groups = await fetchGitLabGroups(baseURL, tokens.accessToken, user.id.toString(), config.id);
+					groups = await fetchGitLabGroups(
+						baseURL,
+						tokens.accessToken,
+						user.id.toString(),
+						config.id
+					);
 				}
 
 				return {
