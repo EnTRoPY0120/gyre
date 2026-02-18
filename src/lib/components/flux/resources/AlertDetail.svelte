@@ -106,7 +106,7 @@
 		>
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Event Sources</h3>
 			<div class="space-y-2">
-				{#each eventSources as source, i (i)}
+				{#each eventSources as source (source.kind + (source.namespace ?? '') + source.name)}
 					<div
 						class="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-700/50"
 					>
@@ -140,7 +140,7 @@
 							Include (match any)
 						</h4>
 						<div class="flex flex-wrap gap-2">
-							{#each inclusionList as pattern, i (i)}
+							{#each inclusionList as pattern (pattern)}
 								<span
 									class="inline-flex items-center rounded-md bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900/50 dark:text-green-300"
 								>
@@ -156,7 +156,7 @@
 							Exclude (skip matching)
 						</h4>
 						<div class="flex flex-wrap gap-2">
-							{#each exclusionList as pattern, i (i)}
+							{#each exclusionList as pattern (pattern)}
 								<span
 									class="inline-flex items-center rounded-md bg-red-100 px-2 py-1 text-xs font-medium text-red-800 dark:bg-red-900/50 dark:text-red-300"
 								>
