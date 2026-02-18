@@ -66,6 +66,12 @@
 							allNames.push(item.metadata.name);
 						});
 					}
+				} else {
+					const errorBody = await res.text();
+					console.error(
+						`Failed to fetch ${pluralToUse}: ${res.status} ${res.statusText}`,
+						errorBody
+					);
 				}
 			}
 			// Deduplicate and sort
