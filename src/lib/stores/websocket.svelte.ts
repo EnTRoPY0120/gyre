@@ -9,6 +9,7 @@ export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'er
 
 export interface ResourceEvent {
 	type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'CONNECTED' | 'HEARTBEAT' | 'ERROR';
+	clusterId?: string;
 	resourceType?: string;
 	resource?: {
 		metadata: {
@@ -31,6 +32,7 @@ export interface ResourceEvent {
 
 export interface NotificationMessage {
 	id: string;
+	clusterId: string;
 	type: 'info' | 'success' | 'warning' | 'error';
 	title: string;
 	message: string;
@@ -46,7 +48,6 @@ type StatusCallback = (status: ConnectionStatus) => void;
 
 const NOTIFICATIONS_STORAGE_KEY = 'gyre_notifications';
 const NOTIFICATION_STATE_STORAGE_KEY = 'gyre_notification_state';
-const MAX_STORED_NOTIFICATIONS = 100;
 
 class RealtimeStore {
 	private eventSource: EventSource | null = null;
@@ -66,6 +67,20 @@ class RealtimeStore {
 	notifications = $state<NotificationMessage[]>([]);
 	unreadCount = $derived(this.notifications.filter((n) => !n.read).length);
 
+	/**
+	 * Derived unread count per cluster
+	 * Returns a map of clusterId to unread count
+	 */
+	clusterUnreadCounts = $derived.by(() => {
+		const counts: Record<string, number> = {};
+		this.notifications.forEach((n) => {
+			if (!n.read) {
+				counts[n.clusterId] = (counts[n.clusterId] || 0) + 1;
+			}
+		});
+		return counts;
+	});
+
 	constructor() {
 		// Load persisted notifications and state on initialization (browser only)
 		if (typeof window !== 'undefined') {
@@ -76,12 +91,16 @@ class RealtimeStore {
 	private loadFromStorage() {
 		try {
 			// Load notifications
+			// We now support both the old global key and new per-cluster keys indirectly
+			// For simplicity and backward compatibility, we'll load the main key
+			// but future versions could migrate to a more granular approach if needed
 			const storedNotifications = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
 			if (storedNotifications) {
 				const parsed = JSON.parse(storedNotifications);
-				// Convert timestamp strings back to Date objects
+				// Convert timestamp strings back to Date objects and ensure clusterId exists
 				this.notifications = parsed.map((n: NotificationMessage) => ({
 					...n,
+					clusterId: n.clusterId || 'in-cluster',
 					timestamp: new Date(n.timestamp)
 				}));
 			}
@@ -105,7 +124,9 @@ class RealtimeStore {
 
 		try {
 			// Save only the most recent notifications to avoid localStorage quota issues
-			const toSave = this.notifications.slice(0, MAX_STORED_NOTIFICATIONS);
+			// We increase this to 200 to accommodate multiple clusters in the same storage
+			const MAX_GLOBAL_NOTIFICATIONS = 500;
+			const toSave = this.notifications.slice(0, MAX_GLOBAL_NOTIFICATIONS);
 			localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(toSave));
 
 			// Save notification state cache
@@ -278,6 +299,7 @@ class RealtimeStore {
 
 		const notification: NotificationMessage = {
 			id: crypto.randomUUID(),
+			clusterId: event.clusterId || 'in-cluster',
 			type: this.getNotificationType(event),
 			title: this.getNotificationTitle(event),
 			message: this.getNotificationMessage(event),
@@ -288,8 +310,10 @@ class RealtimeStore {
 			read: false
 		};
 
-		// Add to beginning of array and limit to 50 notifications
-		this.notifications = [notification, ...this.notifications.slice(0, 49)];
+		// Add to beginning of array and limit total notifications
+		// We use a larger limit now that we have multiple clusters
+		const MAX_GLOBAL_LIMIT = 500;
+		this.notifications = [notification, ...this.notifications.slice(0, MAX_GLOBAL_LIMIT - 1)];
 
 		// Persist to localStorage
 		this.saveToStorage();
@@ -380,15 +404,21 @@ class RealtimeStore {
 	}
 
 	// Mark all as read
-	markAllAsRead() {
-		this.notifications = this.notifications.map((n) => ({ ...n, read: true }));
+	markAllAsRead(clusterId?: string) {
+		this.notifications = this.notifications.map((n) =>
+			!clusterId || n.clusterId === clusterId ? { ...n, read: true } : n
+		);
 		this.saveToStorage();
 	}
 
 	// Clear all notifications
-	clearAll() {
-		this.notifications = [];
-		this.lastNotificationState.clear();
+	clearAll(clusterId?: string) {
+		if (clusterId) {
+			this.notifications = this.notifications.filter((n) => n.clusterId !== clusterId);
+		} else {
+			this.notifications = [];
+			this.lastNotificationState.clear();
+		}
 		this.saveToStorage();
 	}
 

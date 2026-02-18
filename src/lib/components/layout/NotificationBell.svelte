@@ -1,11 +1,22 @@
 <script lang="ts">
 	import { websocketStore, type NotificationMessage } from '$lib/stores/websocket.svelte';
+	import { clusterStore } from '$lib/stores/cluster.svelte';
 
 	let isOpen = $state(false);
+	let showAllClusters = $state(false);
 	let dropdownRef = $state<HTMLDivElement | null>(null);
 
-	const notifications = $derived(websocketStore.notifications);
-	const unreadCount = $derived(websocketStore.unreadCount);
+	const currentCluster = $derived(clusterStore.current || 'in-cluster');
+	const notifications = $derived(
+		showAllClusters
+			? websocketStore.notifications
+			: websocketStore.notifications.filter((n) => n.clusterId === currentCluster)
+	);
+	const unreadCount = $derived(
+		showAllClusters
+			? websocketStore.unreadCount
+			: (websocketStore.clusterUnreadCounts[currentCluster] || 0)
+	);
 	const status = $derived(websocketStore.status);
 
 	function toggleDropdown() {
@@ -27,12 +38,12 @@
 	}
 
 	function markAllAsRead() {
-		websocketStore.markAllAsRead();
+		websocketStore.markAllAsRead(showAllClusters ? undefined : currentCluster);
 	}
 
 	function clearAll() {
-		websocketStore.clearAll();
-		closeDropdown();
+		websocketStore.clearAll(showAllClusters ? undefined : currentCluster);
+		if (notifications.length === 0) closeDropdown();
 	}
 
 	function removeNotification(id: string, event: MouseEvent) {
@@ -135,48 +146,72 @@
 		>
 			<!-- Header -->
 			<div
-				class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-700"
+				class="flex flex-col border-b border-gray-200 px-4 py-3 dark:border-gray-700"
 			>
-				<h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
-				<div class="flex items-center gap-3">
-					<a
-						href="/settings/notifications"
-						class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-						onclick={closeDropdown}
-						title="Notification Settings"
-						aria-label="Notification Settings"
+				<div class="flex items-center justify-between mb-2">
+					<h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
+					<div class="flex items-center gap-3">
+						<a
+							href="/settings/notifications"
+							class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+							onclick={closeDropdown}
+							title="Notification Settings"
+							aria-label="Notification Settings"
+						>
+							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z"
+								/>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+								/>
+							</svg>
+						</a>
+						{#if notifications.length > 0}
+							<button
+								type="button"
+								class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+								onclick={markAllAsRead}
+							>
+								Mark read
+							</button>
+							<button
+								type="button"
+								class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+								onclick={clearAll}
+							>
+								Clear
+							</button>
+						{/if}
+					</div>
+				</div>
+
+				<!-- Cluster Filter Toggle -->
+				<div class="flex items-center gap-2 rounded-md bg-secondary/30 p-1">
+					<button
+						type="button"
+						class="flex-1 rounded-sm px-2 py-1 text-[10px] font-medium transition-colors {showAllClusters
+							? 'text-muted-foreground hover:bg-secondary/50'
+							: 'bg-background text-foreground shadow-sm'}"
+						onclick={() => (showAllClusters = false)}
 					>
-						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37a1.724 1.724 0 002.572-1.065z"
-							/>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-							/>
-						</svg>
-					</a>
-					{#if notifications.length > 0}
-						<button
-							type="button"
-							class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
-							onclick={markAllAsRead}
-						>
-							Mark all read
-						</button>
-						<button
-							type="button"
-							class="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-							onclick={clearAll}
-						>
-							Clear all
-						</button>
-					{/if}
+						Current Cluster
+					</button>
+					<button
+						type="button"
+						class="flex-1 rounded-sm px-2 py-1 text-[10px] font-medium transition-colors {!showAllClusters
+							? 'text-muted-foreground hover:bg-secondary/50'
+							: 'bg-background text-foreground shadow-sm'}"
+						onclick={() => (showAllClusters = true)}
+					>
+						All Clusters
+					</button>
 				</div>
 			</div>
 
@@ -197,7 +232,9 @@
 								d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
 							/>
 						</svg>
-						<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">No notifications</p>
+						<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+							{showAllClusters ? 'No notifications' : 'No notifications in this cluster'}
+						</p>
 					</div>
 				{:else}
 					{#each notifications as notification (notification.id)}
@@ -262,9 +299,18 @@
 									<p class="mt-0.5 line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
 										{notification.message}
 									</p>
-									<p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
-										{formatTime(notification.timestamp)}
-									</p>
+									<div class="mt-1 flex items-center justify-between">
+										<p class="text-[10px] text-gray-400 dark:text-gray-500">
+											{formatTime(notification.timestamp)}
+										</p>
+										{#if showAllClusters}
+											<span
+												class="rounded bg-secondary/50 px-1 py-0.5 font-mono text-[9px] text-muted-foreground"
+											>
+												{notification.clusterId === 'in-cluster' ? 'In-cluster' : notification.clusterId}
+											</span>
+										{/if}
+									</div>
 								</div>
 
 								<!-- Unread indicator -->
