@@ -1,10 +1,50 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from 'zod';
 import { getDb } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
 import { requirePermission } from '$lib/server/rbac';
+
+export const metadata = {
+	POST: {
+		summary: 'Update user preferences',
+		description: "Update the current user's preferences like theme and notifications.",
+		tags: ['User'],
+		request: {
+			body: {
+				content: {
+					'application/json': {
+						schema: z.object({
+							theme: z.enum(['light', 'dark', 'system']).optional(),
+							notifications: z
+								.object({
+									enabled: z.boolean().optional(),
+									subscriptions: z.array(z.string()).optional()
+								})
+								.optional()
+						})
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Preferences updated successfully',
+				content: {
+					'application/json': {
+						schema: z.object({
+							success: z.boolean(),
+							preferences: z.any()
+						})
+					}
+				}
+			},
+			401: { description: 'Unauthorized' }
+		}
+	}
+};
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!locals.user) {
