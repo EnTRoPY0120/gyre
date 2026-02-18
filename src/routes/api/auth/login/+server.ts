@@ -1,7 +1,49 @@
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
+import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { authenticateUser, createSession, getUserByUsername } from '$lib/server/auth';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+
+export const metadata = {
+	POST: {
+		summary: 'Authenticate user and create session',
+		description: 'Log in with a username and password to start a session.',
+		tags: ['Auth'],
+		request: {
+			body: {
+				content: {
+					'application/json': {
+						schema: z.object({
+							username: z.string().min(1).openapi({ example: 'admin' }),
+							password: z.string().min(1).openapi({ example: 'password123' })
+						})
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Successful login',
+				content: {
+					'application/json': {
+						schema: z.object({
+							success: z.boolean(),
+							user: z.object({
+								id: z.string(),
+								username: z.string(),
+								email: z.string().nullable(),
+								role: z.string()
+							})
+						})
+					}
+				}
+			},
+			401: {
+				description: 'Invalid credentials'
+			}
+		}
+	}
+};
 
 /**
  * POST /api/auth/login

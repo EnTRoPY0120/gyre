@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { listFluxResources, createFluxResource } from '$lib/server/kubernetes/client.js';
 import {
@@ -8,6 +9,72 @@ import {
 } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
+
+export const metadata = {
+	GET: {
+		summary: 'List FluxCD resources',
+		description: 'Retrieve a list of all resources of a specific type across all namespaces.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				resourceType: z.string().openapi({ example: 'gitrepositories' })
+			})
+		},
+		responses: {
+			200: {
+				description: 'List of resources',
+				content: {
+					'application/json': {
+						schema: z.object({
+							items: z.array(z.any())
+						})
+					}
+				}
+			},
+			400: { description: 'Invalid resource type' },
+			401: { description: 'Unauthorized' },
+			403: { description: 'Permission denied' }
+		}
+	},
+	POST: {
+		summary: 'Create FluxCD resource',
+		description: 'Create a new FluxCD resource of a specific type.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				resourceType: z.string().openapi({ example: 'gitrepositories' })
+			}),
+			body: {
+				content: {
+					'application/json': {
+						schema: z.object({
+							apiVersion: z.string(),
+							kind: z.string(),
+							metadata: z.object({
+								name: z.string(),
+								namespace: z.string().optional()
+							}),
+							spec: z.record(z.string(), z.any())
+						})
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Resource created successfully',
+				content: {
+					'application/json': {
+						schema: z.any()
+					}
+				}
+			},
+			400: { description: 'Invalid request' },
+			401: { description: 'Unauthorized' },
+			403: { description: 'Permission denied' }
+		}
+	}
+};
 
 /**
  * GET /api/flux/{resourceType}

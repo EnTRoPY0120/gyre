@@ -4,6 +4,7 @@
  */
 
 import { json, error } from '@sveltejs/kit';
+import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import {
 	getAuthSettings,
@@ -11,6 +12,66 @@ import {
 	SETTINGS_KEYS,
 	isSettingOverriddenByEnv
 } from '$lib/server/settings';
+
+export const metadata = {
+	GET: {
+		summary: 'Get application settings',
+		description: 'Retrieve all application settings. Admin access required.',
+		tags: ['Admin'],
+		responses: {
+			200: {
+				description: 'Application settings',
+				content: {
+					'application/json': {
+						schema: z.object({
+							settings: z.object({
+								localLoginEnabled: z.object({ value: z.boolean(), overriddenByEnv: z.boolean() }),
+								allowSignup: z.object({ value: z.boolean(), overriddenByEnv: z.boolean() }),
+								domainAllowlist: z.object({
+									value: z.array(z.string()),
+									overriddenByEnv: z.boolean()
+								})
+							})
+						})
+					}
+				}
+			},
+			401: { description: 'Unauthorized' },
+			403: { description: 'Admin access required' }
+		}
+	},
+	PATCH: {
+		summary: 'Update application settings',
+		description: 'Update application settings. Admin access required.',
+		tags: ['Admin'],
+		request: {
+			body: {
+				content: {
+					'application/json': {
+						schema: z.object({
+							localLoginEnabled: z.boolean().optional(),
+							allowSignup: z.boolean().optional(),
+							domainAllowlist: z.array(z.string()).optional()
+						})
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Settings updated successfully',
+				content: {
+					'application/json': {
+						schema: z.any()
+					}
+				}
+			},
+			400: { description: 'Invalid request' },
+			401: { description: 'Unauthorized' },
+			403: { description: 'Admin access required' }
+		}
+	}
+};
 
 /**
  * GET /api/admin/settings

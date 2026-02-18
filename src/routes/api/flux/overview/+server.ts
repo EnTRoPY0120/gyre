@@ -1,9 +1,42 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from 'zod';
 import type { RequestHandler } from './$types';
 import { listFluxResources } from '$lib/server/kubernetes/client';
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { getResourceStatus } from '$lib/utils/relationships';
 import { checkPermission } from '$lib/server/rbac.js';
+
+export const metadata = {
+	GET: {
+		summary: 'Get FluxCD overview',
+		description: 'Retrieve status summaries for all FluxCD resource types.',
+		tags: ['Flux'],
+		responses: {
+			200: {
+				description: 'Overview status',
+				content: {
+					'application/json': {
+						schema: z.object({
+							timestamp: z.string(),
+							results: z.array(
+								z.object({
+									type: z.string(),
+									total: z.number(),
+									healthy: z.number(),
+									failed: z.number(),
+									suspended: z.number(),
+									error: z.boolean().optional()
+								})
+							)
+						})
+					}
+				}
+			},
+			401: { description: 'Unauthorized' },
+			403: { description: 'Permission denied' }
+		}
+	}
+};
 
 export const GET: RequestHandler = async ({ locals, setHeaders }) => {
 	// Check authentication
