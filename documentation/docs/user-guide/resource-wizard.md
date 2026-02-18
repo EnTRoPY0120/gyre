@@ -7,7 +7,7 @@ The Gyre Resource Creation Wizard provides a guided, user-friendly interface for
 You can access the Resource Creation Wizard in several ways:
 1. **Global "Create" Button**: Click the "+" or "Create Resource" button in the sidebar or top navigation.
 2. **Resource List Pages**: On any resource list page (e.g., GitRepositories), click the "Create" button in the header.
-3. **Command Palette**: Press `Ctrl+K` and type "Create [Resource Type]".
+3. **Command Palette**: Press `Ctrl+K` (or `Cmd+K` on macOS) and type "Create [Resource Type]".
 
 ## Guided Workflow
 
