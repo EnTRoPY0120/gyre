@@ -30,12 +30,12 @@ ingress:
   className: nginx
   annotations:
     # Important for real-time monitoring via WebSocket/SSE
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
     # Enable SSL redirection
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: 'true'
     # Ensure large payloads can be sent (e.g., for large kubeconfigs)
-    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-body-size: '10m'
   hosts:
     - host: gyre.example.com
       paths:
@@ -57,9 +57,9 @@ ingress:
   className: traefik
   annotations:
     # Traefik-specific middleware (e.g., for HTTPS redirect)
-    traefik.ingress.kubernetes.io/router.middlewares: "flux-system-redirect-https@kubernetescrd"
+    traefik.ingress.kubernetes.io/router.middlewares: 'flux-system-redirect-https@kubernetescrd'
     # Ensure WebSocket support
-    traefik.ingress.kubernetes.io/router.entrypoints: "websecure"
+    traefik.ingress.kubernetes.io/router.entrypoints: 'websecure'
   hosts:
     - host: gyre.example.com
       paths:
@@ -86,7 +86,7 @@ service:
   # Cloud provider-specific annotations
   annotations:
     # Example for AWS: Use a Network Load Balancer (NLB)
-    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    service.beta.kubernetes.io/aws-load-balancer-type: 'nlb'
     # Example for GCP: Assign a static IP
     # kubernetes.io/ingress.global-static-ip-name: "gyre-static-ip"
 ```
