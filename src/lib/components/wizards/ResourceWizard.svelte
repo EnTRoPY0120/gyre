@@ -8,7 +8,7 @@
 	import type { ResourceTemplate } from '$lib/templates';
 	import { cn } from '$lib/utils';
 	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from 'lucide-svelte';
-	import yaml from 'js-yaml';
+	import { parse, parseDocument, YAMLError } from 'yaml';
 
 	let {
 		template,
@@ -59,10 +59,10 @@
 	$effect(() => {
 		if (mode === 'yaml' && currentYaml) {
 			try {
-				yaml.load(currentYaml);
+				parse(currentYaml);
 				yamlError = null;
 			} catch (err) {
-				if (err instanceof yaml.YAMLException) {
+				if (err instanceof YAMLError) {
 					yamlError = `YAML Syntax Error: ${err.message}`;
 				} else {
 					yamlError = 'Invalid YAML syntax';
@@ -74,7 +74,7 @@
 	// Initialize form values from initial YAML, localStorage, and defaults
 	$effect(() => {
 		try {
-			const parsed = yaml.load(template.yaml) as Record<string, unknown> & {
+			const parsed = parse(template.yaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
 			const values: Record<string, unknown> = {};
@@ -121,7 +121,7 @@
 	// Synchronize YAML when form values change (Wizard -> YAML)
 	function updateYamlFromForm() {
 		try {
-			const parsed = yaml.load(currentYaml) as Record<string, unknown>;
+			const doc = parseDocument(currentYaml);
 
 			template.fields.forEach((field) => {
 				if (field.virtual) return;
@@ -129,18 +129,10 @@
 				const value = formValues[field.name];
 				const path = field.path.split('.');
 
-				let current = parsed;
-				for (let i = 0; i < path.length; i++) {
-					if (i === path.length - 1) {
-						current[path[i]] = value;
-					} else {
-						if (!current[path[i]]) current[path[i]] = {};
-						current = current[path[i]] as Record<string, unknown>;
-					}
-				}
+				doc.setIn(path, value);
 			});
 
-			currentYaml = yaml.dump(parsed);
+			currentYaml = doc.toString();
 		} catch {
 			console.error('Failed to update YAML from form');
 		}
@@ -149,7 +141,7 @@
 	// Synchronize form values when YAML changes (YAML -> Wizard)
 	function updateFormFromYaml() {
 		try {
-			const parsed = yaml.load(currentYaml) as Record<string, unknown>;
+			const parsed = parse(currentYaml) as Record<string, unknown>;
 			yamlError = null;
 			const values: Record<string, unknown> = { ...formValues };
 
@@ -169,7 +161,7 @@
 			});
 			formValues = values;
 		} catch (err) {
-			if (err instanceof yaml.YAMLException) {
+			if (err instanceof YAMLError) {
 				yamlError = `YAML Syntax Error: ${err.message}`;
 			} else {
 				yamlError = 'Invalid YAML syntax';
@@ -194,7 +186,7 @@
 		error = null;
 
 		try {
-			const parsed = yaml.load(currentYaml) as Record<string, unknown> & {
+			const parsed = parse(currentYaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
 			const response = await fetch(`/api/flux/${template.plural}`, {
