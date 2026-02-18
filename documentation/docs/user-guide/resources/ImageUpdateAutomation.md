@@ -3,7 +3,7 @@
 Automates image updates to Git.
 
 - **Group**: `image.toolkit.fluxcd.io`
-- **Version**: `v1beta2`
+- **Version**: `v1`
 
 ## Fields
 
@@ -15,12 +15,14 @@ Automates image updates to Git.
 | `spec.git.checkout.ref.branch` | Checkout Branch | `string` | Yes | Branch to checkout. |
 | `spec.interval` | Update Interval | `duration` | Yes | How often to check for image updates. |
 | `spec.update.path` | Update Path | `string` | Yes | Path in repository to update. |
-| `spec.git.commit.messageTemplate` | Commit Message Template | `textarea` | No | Template for commit messages. |
+| `spec.update.strategy` | Update Strategy | `string` | Yes | Strategy for updating images (e.g., Setters). |
+| `spec.git.push.branch` | Push Branch | `string` | No | Branch to push changes to. |
+| `spec.git.commit.messageTemplate` | Commit Message Template | `string` | No | Template for commit messages. |
 
 ## Example
 
 ```yaml
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageUpdateAutomation
 metadata:
   name: example
