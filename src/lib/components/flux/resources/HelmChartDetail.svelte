@@ -20,6 +20,7 @@
 	);
 	const valuesFiles = $derived(spec.valuesFiles as string[] | undefined);
 	const valuesFile = $derived(spec.valuesFile as string | undefined);
+	const allValues = $derived([...(valuesFile ? [valuesFile] : []), ...(valuesFiles || [])]);
 	const reconcileStrategy = $derived(spec.reconcileStrategy as string | undefined);
 	const suspend = $derived(spec.suspend as boolean | undefined);
 
@@ -139,13 +140,13 @@
 	</div>
 
 	<!-- Values Files -->
-	{#if (valuesFiles && valuesFiles.length > 0) || valuesFile}
+	{#if allValues.length > 0}
 		<div
 			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
 		>
 			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Values Files</h3>
 			<div class="space-y-2">
-				{#if valuesFile}
+				{#each allValues as file (file)}
 					<div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-700/50">
 						<svg
 							class="h-4 w-4 text-gray-400 dark:text-gray-500"
@@ -160,31 +161,9 @@
 								d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
 							/>
 						</svg>
-						<code class="text-sm text-gray-900 dark:text-gray-100">{valuesFile}</code>
+						<code class="text-sm text-gray-900 dark:text-gray-100">{file}</code>
 					</div>
-				{/if}
-				{#if valuesFiles}
-					{#each valuesFiles as file, i (i)}
-						<div
-							class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-700/50"
-						>
-							<svg
-								class="h-4 w-4 text-gray-400 dark:text-gray-500"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-								/>
-							</svg>
-							<code class="text-sm text-gray-900 dark:text-gray-100">{file}</code>
-						</div>
-					{/each}
-				{/if}
+				{/each}
 			</div>
 		</div>
 	{/if}
