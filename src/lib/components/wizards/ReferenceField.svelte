@@ -127,11 +127,15 @@
 		switch (e.key) {
 			case 'ArrowDown':
 				e.preventDefault();
-				focusedIndex = (focusedIndex + 1) % filteredResources.length;
+				if (filteredResources.length > 0) {
+					focusedIndex = (focusedIndex + 1) % filteredResources.length;
+				}
 				break;
 			case 'ArrowUp':
 				e.preventDefault();
-				focusedIndex = (focusedIndex - 1 + filteredResources.length) % filteredResources.length;
+				if (filteredResources.length > 0) {
+					focusedIndex = (focusedIndex - 1 + filteredResources.length) % filteredResources.length;
+				}
 				break;
 			case 'Enter':
 				e.preventDefault();
