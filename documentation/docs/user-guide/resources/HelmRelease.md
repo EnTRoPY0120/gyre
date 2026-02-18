@@ -7,16 +7,16 @@ Deploys a Helm chart.
 
 ## Fields
 
-| Field | Label | Type | Required | Description |
-|-------|-------|------|----------|-------------|
-| `metadata.name` | Name | `string` | Yes | Unique name for this HelmRelease resource. |
-| `metadata.namespace` | Namespace | `string` | Yes | Namespace where the resource will be created. |
-| `spec.chart.spec.sourceRef.kind` | Chart Source Kind | `select` | Yes | Type of source containing the chart. |
-| `spec.chart.spec.sourceRef.name` | Chart Source Name | `string` | Yes | Name of the source resource. |
-| `spec.chart.spec.chart` | Chart Name | `string` | Yes | Name of the Helm chart. |
-| `spec.chart.spec.version` | Chart Version | `string` | No | SemVer version constraint or specific version. |
-| `spec.interval` | Sync Interval | `duration` | Yes | How often to reconcile the release. |
-| `spec.values` | Values | `textarea` | No | Helm values to override (YAML format). |
+| Field                            | Label             | Type       | Required | Description                                    |
+| -------------------------------- | ----------------- | ---------- | -------- | ---------------------------------------------- |
+| `metadata.name`                  | Name              | `string`   | Yes      | Unique name for this HelmRelease resource.     |
+| `metadata.namespace`             | Namespace         | `string`   | Yes      | Namespace where the resource will be created.  |
+| `spec.chart.spec.sourceRef.kind` | Chart Source Kind | `select`   | Yes      | Type of source containing the chart.           |
+| `spec.chart.spec.sourceRef.name` | Chart Source Name | `string`   | Yes      | Name of the source resource.                   |
+| `spec.chart.spec.chart`          | Chart Name        | `string`   | Yes      | Name of the Helm chart.                        |
+| `spec.chart.spec.version`        | Chart Version     | `string`   | No       | SemVer version constraint or specific version. |
+| `spec.interval`                  | Sync Interval     | `duration` | Yes      | How often to reconcile the release.            |
+| `spec.values`                    | Values            | `textarea` | No       | Helm values to override (YAML format).         |
 
 ## Example
 
@@ -31,7 +31,7 @@ spec:
   chart:
     spec:
       chart: podinfo
-      version: ">=1.0.0"
+      version: '>=1.0.0'
       sourceRef:
         kind: HelmRepository
         name: bitnami

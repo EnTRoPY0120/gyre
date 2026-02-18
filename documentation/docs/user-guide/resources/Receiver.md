@@ -7,14 +7,14 @@ Webhook receiver for external events.
 
 ## Fields
 
-| Field | Label | Type | Required | Description |
-|-------|-------|------|----------|-------------|
-| `metadata.name` | Name | `string` | Yes | Unique name for this Receiver resource. |
-| `metadata.namespace` | Namespace | `string` | Yes | Namespace where the resource will be created. |
-| `spec.type` | Receiver Type | `string` | Yes | Type of webhook receiver (github, gitlab, bitbucket, etc.). |
-| `spec.events` | Events | `array[string]` | Yes | List of webhook events to listen for (e.g., push, pull_request, merge) that trigger reconciliation of the specified resources. |
-| `spec.resources` | Resources | `array[object]` | Yes | FluxCD resources to reconcile when webhook is triggered. |
-| `spec.secretRef.name` | Secret Name | `string` | Yes | Secret containing webhook validation token. |
+| Field                 | Label         | Type            | Required | Description                                                                                                                    |
+| --------------------- | ------------- | --------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `metadata.name`       | Name          | `string`        | Yes      | Unique name for this Receiver resource.                                                                                        |
+| `metadata.namespace`  | Namespace     | `string`        | Yes      | Namespace where the resource will be created.                                                                                  |
+| `spec.type`           | Receiver Type | `string`        | Yes      | Type of webhook receiver (github, gitlab, bitbucket, etc.).                                                                    |
+| `spec.events`         | Events        | `array[string]` | Yes      | List of webhook events to listen for (e.g., push, pull_request, merge) that trigger reconciliation of the specified resources. |
+| `spec.resources`      | Resources     | `array[object]` | Yes      | FluxCD resources to reconcile when webhook is triggered.                                                                       |
+| `spec.secretRef.name` | Secret Name   | `string`        | Yes      | Secret containing webhook validation token.                                                                                    |
 
 ## Example
 
@@ -27,8 +27,8 @@ metadata:
 spec:
   type: github
   events:
-    - "ping"
-    - "push"
+    - 'ping'
+    - 'push'
   secretRef:
     name: webhook-token
   resources:

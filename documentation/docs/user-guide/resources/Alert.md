@@ -7,13 +7,13 @@ Sends notifications for FluxCD events.
 
 ## Fields
 
-| Field | Label | Type | Required | Description |
-|-------|-------|------|----------|-------------|
-| `metadata.name` | Name | `string` | Yes | Unique name for this Alert resource. |
-| `metadata.namespace` | Namespace | `string` | Yes | Namespace where the resource will be created. |
-| `spec.providerRef.name` | Provider Name | `string` | Yes | Name of the Provider resource to send notifications to. |
-| `spec.eventSources` | Event Sources | `array` | Yes | Resources to monitor for events. |
-| `spec.eventSeverity` | Event Severity | `select` | No | Minimum severity level to trigger alerts (info, error). |
+| Field                   | Label          | Type     | Required | Description                                             |
+| ----------------------- | -------------- | -------- | -------- | ------------------------------------------------------- |
+| `metadata.name`         | Name           | `string` | Yes      | Unique name for this Alert resource.                    |
+| `metadata.namespace`    | Namespace      | `string` | Yes      | Namespace where the resource will be created.           |
+| `spec.providerRef.name` | Provider Name  | `string` | Yes      | Name of the Provider resource to send notifications to. |
+| `spec.eventSources`     | Event Sources  | `array`  | Yes      | Resources to monitor for events.                        |
+| `spec.eventSeverity`    | Event Severity | `select` | No       | Minimum severity level to trigger alerts (info, error). |
 
 ## Example
 
