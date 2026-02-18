@@ -169,7 +169,7 @@
 	});
 </script>
 
-<div class="relative w-full" bind:this={container} tabindex="-1">
+<div class="relative w-full" bind:this={container} tabindex="-1" onkeydown={handleKeydown}>
 	<button
 		{id}
 		type="button"
@@ -178,7 +178,6 @@
 			error && 'border-red-500'
 		)}
 		onclick={handleToggle}
-		onkeydown={handleKeydown}
 		{disabled}
 		role="combobox"
 		aria-controls={open ? 'resource-listbox' : undefined}
