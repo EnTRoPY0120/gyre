@@ -3,6 +3,7 @@
 	import { browser } from '$app/environment';
 	import { theme } from '$lib/stores/theme.svelte';
 	import type * as Monaco from 'monaco-editor';
+	import { defineMonacoThemes } from './monacoTheme';
 
 	// Props
 	interface Props {
@@ -45,6 +46,9 @@
 				const monacoModule = await import('monaco-editor');
 				monaco = monacoModule;
 
+				// Register custom Gyre themes
+				defineMonacoThemes(monaco);
+
 				// Configure Monaco environment if not already done
 				if (!self.MonacoEnvironment) {
 					self.MonacoEnvironment = {
@@ -59,7 +63,7 @@
 
 				// Create diff editor instance
 				diffEditor = monaco.editor.createDiffEditor(containerEl, {
-					theme: theme.resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light',
+					theme: theme.resolvedTheme === 'dark' ? 'gyre-dark' : 'gyre-light',
 					readOnly: readonly,
 					automaticLayout: true,
 					minimap: { enabled: minimap },
@@ -128,7 +132,7 @@
 	// Update theme when it changes
 	$effect(() => {
 		if (!monaco || !diffEditor) return;
-		const monacoTheme = theme.resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light';
+		const monacoTheme = theme.resolvedTheme === 'dark' ? 'gyre-dark' : 'gyre-light';
 		monaco.editor.setTheme(monacoTheme);
 	});
 

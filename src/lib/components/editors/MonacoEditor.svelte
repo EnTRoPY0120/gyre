@@ -3,6 +3,8 @@
 	import { browser } from '$app/environment';
 	import { theme } from '$lib/stores/theme.svelte';
 	import type * as Monaco from 'monaco-editor';
+	import { defineMonacoThemes } from './monacoTheme';
+	import { registerFluxLanguageFeatures } from './fluxCompletions';
 
 	// Props
 	interface Props {
@@ -55,6 +57,10 @@
 				const monacoModule = await import('monaco-editor');
 				monaco = monacoModule;
 
+				// Register custom Gyre themes and FluxCD language features
+				defineMonacoThemes(monaco);
+				registerFluxLanguageFeatures(monaco);
+
 				// Configure Monaco environment - use CDN for workers in production
 				self.MonacoEnvironment = {
 					getWorkerUrl: function (_moduleId: string, label: string) {
@@ -82,7 +88,7 @@
 				editor = monaco.editor.create(containerEl, {
 					value: value,
 					language: language,
-					theme: theme.resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light',
+					theme: theme.resolvedTheme === 'dark' ? 'gyre-dark' : 'gyre-light',
 					readOnly: readonly,
 					automaticLayout: true,
 					minimap: { enabled: minimap },
@@ -173,7 +179,7 @@
 	// Update theme when it changes
 	$effect(() => {
 		if (!monaco || !editor) return;
-		const monacoTheme = theme.resolvedTheme === 'dark' ? 'vs-dark' : 'vs-light';
+		const monacoTheme = theme.resolvedTheme === 'dark' ? 'gyre-dark' : 'gyre-light';
 		monaco.editor.setTheme(monacoTheme);
 	});
 
