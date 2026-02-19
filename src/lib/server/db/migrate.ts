@@ -19,9 +19,17 @@ export function initDatabase(): void {
 			active INTEGER NOT NULL DEFAULT 1,
 			is_local INTEGER NOT NULL DEFAULT 1,
 			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			preferences TEXT
 		)
 	`);
+
+	// Add preferences column if it doesn't exist (for existing databases)
+	try {
+		db.run(sql`ALTER TABLE users ADD COLUMN preferences TEXT`);
+	} catch (e) {
+		// Column might already exist
+	}
 
 	// Sessions table
 	db.run(sql`
@@ -170,6 +178,34 @@ export function initDatabase(): void {
 			key TEXT PRIMARY KEY,
 			value TEXT NOT NULL,
 			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+		)
+	`);
+
+	// Reconciliation History table
+	db.run(sql`
+		CREATE TABLE IF NOT EXISTS reconciliation_history (
+			id TEXT PRIMARY KEY,
+			resource_type TEXT NOT NULL,
+			namespace TEXT NOT NULL,
+			name TEXT NOT NULL,
+			cluster_id TEXT NOT NULL DEFAULT 'in-cluster',
+			revision TEXT,
+			previous_revision TEXT,
+			status TEXT NOT NULL,
+			ready_status TEXT,
+			ready_reason TEXT,
+			ready_message TEXT,
+			reconcile_started_at INTEGER,
+			reconcile_completed_at INTEGER NOT NULL,
+			duration_ms INTEGER,
+			spec_snapshot TEXT,
+			metadata_snapshot TEXT,
+			trigger_type TEXT NOT NULL DEFAULT 'automatic',
+			triggered_by_user TEXT,
+			error_message TEXT,
+			stalled_reason TEXT,
+			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			FOREIGN KEY (triggered_by_user) REFERENCES users(id) ON DELETE SET NULL
 		)
 	`);
 

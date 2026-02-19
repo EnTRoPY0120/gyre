@@ -42,15 +42,43 @@ const VALUE_COMPLETIONS: Record<string, string[]> = {
 const VALUE_COMPLETIONS_BY_PATH: Record<string, string[]> = {
 	// Notification provider types
 	'Provider.spec.type': [
-		'slack', 'discord', 'msteams', 'googlechat', 'telegram', 'matrix',
-		'lark', 'rocket', 'webex', 'sentry', 'pagerduty', 'opsgenie',
-		'datadog', 'grafana', 'github', 'gitlab', 'gitea', 'bitbucketserver',
-		'bitbucket', 'azuredevops', 'azureeventhub', 'githubdispatch',
-		'alertmanager', 'generic', 'generic-hmac'
+		'slack',
+		'discord',
+		'msteams',
+		'googlechat',
+		'telegram',
+		'matrix',
+		'lark',
+		'rocket',
+		'webex',
+		'sentry',
+		'pagerduty',
+		'opsgenie',
+		'datadog',
+		'grafana',
+		'github',
+		'gitlab',
+		'gitea',
+		'bitbucketserver',
+		'bitbucket',
+		'azuredevops',
+		'azureeventhub',
+		'githubdispatch',
+		'alertmanager',
+		'generic',
+		'generic-hmac'
 	],
 	// Webhook receiver platforms
 	'Receiver.spec.type': [
-		'generic', 'github', 'gitlab', 'bitbucket', 'harbor', 'quay', 'gcr', 'nexus', 'acr'
+		'generic',
+		'github',
+		'gitlab',
+		'bitbucket',
+		'harbor',
+		'quay',
+		'gcr',
+		'nexus',
+		'acr'
 	],
 	// Kustomization secret decryption — only sops is currently supported
 	'Kustomization.spec.decryption.provider': ['sops']
@@ -1484,8 +1512,7 @@ export function registerFluxLanguageFeatures(monaco: typeof Monaco): void {
 			if (fieldName && kind) {
 				const valParentPath = getParentPath(lines, lineIndex, lineIndent);
 				const pathKey = `${kind}.${valParentPath}.${fieldName}`;
-				const enumValues =
-					VALUE_COMPLETIONS_BY_PATH[pathKey] ?? VALUE_COMPLETIONS[fieldName];
+				const enumValues = VALUE_COMPLETIONS_BY_PATH[pathKey] ?? VALUE_COMPLETIONS[fieldName];
 				if (enumValues) {
 					const range = new monaco.Range(
 						position.lineNumber,
@@ -1581,8 +1608,7 @@ export function registerFluxLanguageFeatures(monaco: typeof Monaco): void {
 
 			// Use schema documentation as primary; fall back to generic FIELD_HOVER_DOCS
 			const markdownDoc =
-				schemaEntry?.documentation ??
-				FIELD_HOVER_DOCS[word.word as keyof typeof FIELD_HOVER_DOCS];
+				schemaEntry?.documentation ?? FIELD_HOVER_DOCS[word.word as keyof typeof FIELD_HOVER_DOCS];
 			if (!markdownDoc) return null;
 
 			return {
