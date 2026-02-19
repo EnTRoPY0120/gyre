@@ -36,6 +36,26 @@ const VALUE_COMPLETIONS: Record<string, string[]> = {
 	type: ['default', 'oci'] // overridden per context where needed
 };
 
+// Path-specific value overrides keyed by "Kind.parentPath.fieldName".
+// Checked before VALUE_COMPLETIONS so overloaded fields (provider, type)
+// return context-correct suggestions.
+const VALUE_COMPLETIONS_BY_PATH: Record<string, string[]> = {
+	// Notification provider types
+	'Provider.spec.type': [
+		'slack', 'discord', 'msteams', 'googlechat', 'telegram', 'matrix',
+		'lark', 'rocket', 'webex', 'sentry', 'pagerduty', 'opsgenie',
+		'datadog', 'grafana', 'github', 'gitlab', 'gitea', 'bitbucketserver',
+		'bitbucket', 'azuredevops', 'azureeventhub', 'githubdispatch',
+		'alertmanager', 'generic', 'generic-hmac'
+	],
+	// Webhook receiver platforms
+	'Receiver.spec.type': [
+		'generic', 'github', 'gitlab', 'bitbucket', 'harbor', 'quay', 'gcr', 'nexus', 'acr'
+	],
+	// Kustomization secret decryption — only sops is currently supported
+	'Kustomization.spec.decryption.provider': ['sops']
+};
+
 // Hover documentation for common FluxCD fields
 const FIELD_HOVER_DOCS: Record<string, string> = {
 	interval:
@@ -1456,11 +1476,16 @@ export function registerFluxLanguageFeatures(monaco: typeof Monaco): void {
 			const lines = model.getLinesContent();
 			const lineIndex = position.lineNumber - 1;
 			const currentLine = lines[lineIndex];
+			const kind = extractKind(lines);
+			const lineIndent = currentLine.match(/^(\s*)/)?.[1].length ?? 0;
 
 			// ── Value completion (after `key: `) ────────────────────────────
 			const fieldName = getValueCompletionContext(currentLine, position.column);
-			if (fieldName) {
-				const enumValues = VALUE_COMPLETIONS[fieldName as keyof typeof VALUE_COMPLETIONS];
+			if (fieldName && kind) {
+				const valParentPath = getParentPath(lines, lineIndex, lineIndent);
+				const pathKey = `${kind}.${valParentPath}.${fieldName}`;
+				const enumValues =
+					VALUE_COMPLETIONS_BY_PATH[pathKey] ?? VALUE_COMPLETIONS[fieldName];
 				if (enumValues) {
 					const range = new monaco.Range(
 						position.lineNumber,
@@ -1487,10 +1512,8 @@ export function registerFluxLanguageFeatures(monaco: typeof Monaco): void {
 
 			// Determine the effective indentation (may differ from line content
 			// when the user has typed spaces but not yet a key)
-			const lineIndent = currentLine.match(/^(\s*)/)?.[1].length ?? 0;
 			const currentIndent = Math.max(lineIndent, position.column - 1);
 
-			const kind = extractKind(lines);
 			if (!kind || !SCHEMA[kind]) return { suggestions: [] };
 
 			const parentPath = getParentPath(lines, lineIndex, currentIndent);
@@ -1549,18 +1572,18 @@ export function registerFluxLanguageFeatures(monaco: typeof Monaco): void {
 			const afterWord = currentLine.substring(word.endColumn - 1).trimStart();
 			if (!afterWord.startsWith(':')) return null;
 
-			// Look up documentation for this field name
-			const doc = FIELD_HOVER_DOCS[word.word as keyof typeof FIELD_HOVER_DOCS];
-			if (!doc) return null;
-
-			// Also try to find the field in the schema for richer context
+			// Look up schema entry for context-specific documentation
 			const kind = extractKind(lines);
 			const lineIndent = currentLine.match(/^(\s*)/)?.[1].length ?? 0;
 			const parentPath = getParentPath(lines, lineIndex, lineIndent);
 			const schemaCompletions = kind && SCHEMA[kind] ? SCHEMA[kind][parentPath] : [];
 			const schemaEntry = schemaCompletions?.find((c) => c.label === word.word);
 
-			const markdownDoc = schemaEntry?.documentation ?? doc;
+			// Use schema documentation as primary; fall back to generic FIELD_HOVER_DOCS
+			const markdownDoc =
+				schemaEntry?.documentation ??
+				FIELD_HOVER_DOCS[word.word as keyof typeof FIELD_HOVER_DOCS];
+			if (!markdownDoc) return null;
 
 			return {
 				range: new monaco.Range(
