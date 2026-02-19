@@ -169,7 +169,13 @@
 	});
 </script>
 
-<div class="relative w-full" bind:this={container} tabindex="-1" onkeydown={handleKeydown}>
+<div
+	role="presentation"
+	class="relative w-full"
+	bind:this={container}
+	tabindex="-1"
+	onkeydown={handleKeydown}
+>
 	<button
 		{id}
 		type="button"

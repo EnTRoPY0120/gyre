@@ -27,7 +27,7 @@ export function initDatabase(): void {
 	// Add preferences column if it doesn't exist (for existing databases)
 	try {
 		db.run(sql`ALTER TABLE users ADD COLUMN preferences TEXT`);
-	} catch (e) {
+	} catch {
 		// Column might already exist
 	}
 
