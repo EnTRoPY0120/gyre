@@ -2,6 +2,9 @@ import { error, json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getControllerLogs } from '$lib/server/kubernetes/client';
+import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import { checkPermission } from '$lib/server/rbac.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const _metadata = {
 	GET: {
@@ -30,9 +33,6 @@ export const _metadata = {
 		}
 	}
 };
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
-import { checkPermission } from '$lib/server/rbac.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const GET: RequestHandler = async ({ params, locals }) => {
 	// Check authentication

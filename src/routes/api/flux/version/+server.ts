@@ -2,6 +2,9 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
+import * as k8s from '@kubernetes/client-node';
+import { checkPermission } from '$lib/server/rbac.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const _metadata = {
 	GET: {
@@ -25,9 +28,6 @@ export const _metadata = {
 		}
 	}
 };
-import * as k8s from '@kubernetes/client-node';
-import { checkPermission } from '$lib/server/rbac.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 /**
  * GET /api/flux/version

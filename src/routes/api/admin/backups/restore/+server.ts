@@ -7,6 +7,7 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { restoreFromBuffer } from '$lib/server/backup';
+import { logAudit } from '$lib/server/audit';
 
 export const _metadata = {
 	POST: {
@@ -37,7 +38,8 @@ export const _metadata = {
 							message: z.string(),
 							backup: z.object({
 								filename: z.string(),
-								sizeBytes: z.number()
+								sizeBytes: z.number(),
+								createdAt: z.string()
 							})
 						})
 					}
@@ -51,7 +53,6 @@ export const _metadata = {
 		}
 	}
 };
-import { logAudit } from '$lib/server/audit';
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user || locals.user.role !== 'admin') {

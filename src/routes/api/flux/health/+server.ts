@@ -2,6 +2,8 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
+import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const _metadata = {
 	GET: {
@@ -24,7 +26,8 @@ export const _metadata = {
 									configStrategy: z.enum(['in-cluster', 'local-kubeconfig']),
 									configSource: z.enum(['ServiceAccount', 'kubeconfig']),
 									currentContext: z.string(),
-									availableContexts: z.array(z.string())
+									availableContexts: z.array(z.string()),
+									_debug: z.any().optional()
 								})
 							})
 						])
@@ -38,9 +41,6 @@ export const _metadata = {
 		}
 	}
 };
-import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
-
 // Cache for connection status per cluster
 const connectionCache = new Map<string, { connected: boolean; timestamp: number }>();
 const CONNECTION_CACHE_TTL = 30 * 1000; // 30 seconds
