@@ -13,7 +13,7 @@ const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: nu
 mock.module('../lib/server/db/index.js', () => ({
 	getDb: async () => state.db,
 	getDbSync: () => state.db,
-	schema,
+	schema
 }));
 
 import {
@@ -23,7 +23,7 @@ import {
 	deleteSession,
 	deleteUserSessions,
 	generateSessionId,
-	generateUserId,
+	generateUserId
 } from '../lib/server/auth.js';
 
 // ---------------------------------------------------------------------------
@@ -67,14 +67,16 @@ type TestDb = ReturnType<typeof setupInMemoryDb>;
 
 async function insertUser(db: TestDb, overrides: Partial<typeof users.$inferInsert> = {}) {
 	const id = overrides.id ?? generateUserId();
-	db.insert(users).values({
-		id,
-		username: overrides.username ?? `user_${id.slice(0, 8)}`,
-		passwordHash: 'hashed',
-		role: 'viewer',
-		active: true,
-		...overrides,
-	}).run();
+	db.insert(users)
+		.values({
+			id,
+			username: overrides.username ?? `user_${id.slice(0, 8)}`,
+			passwordHash: 'hashed',
+			role: 'viewer',
+			active: true,
+			...overrides
+		})
+		.run();
 	return id;
 }
 
@@ -230,16 +232,21 @@ describe('createSession', () => {
 	test('session expiry is approximately 7 days in the future', async () => {
 		const db = state.db!;
 		const userId = await insertUser(db);
-		const before = Date.now();
+		const beforeDate = new Date();
 		const sessionId = await createSession(userId);
-		const after = Date.now();
+		const afterDate = new Date();
 
 		const row = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
 		const expiresMs = row!.expiresAt.getTime();
-		const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
 
-		expect(expiresMs).toBeGreaterThanOrEqual(before + sevenDaysMs - 1000);
-		expect(expiresMs).toBeLessThanOrEqual(after + sevenDaysMs + 1000);
+		// Mirror createSession's setDate(getDate() + 7) to avoid DST skew
+		const expectedBefore = new Date(beforeDate);
+		expectedBefore.setDate(expectedBefore.getDate() + 7);
+		const expectedAfter = new Date(afterDate);
+		expectedAfter.setDate(expectedAfter.getDate() + 7);
+
+		expect(expiresMs).toBeGreaterThanOrEqual(expectedBefore.getTime() - 1000);
+		expect(expiresMs).toBeLessThanOrEqual(expectedAfter.getTime() + 1000);
 	});
 
 	test('stores optional IP address and user agent', async () => {
@@ -314,11 +321,13 @@ describe('getSession', () => {
 	test('returns null when session exists but user does not', async () => {
 		const db = state.db!;
 		const orphanId = generateSessionId();
-		db.insert(sessions).values({
-			id: orphanId,
-			userId: 'ghost-user-id',
-			expiresAt: daysFromNow(7),
-		}).run();
+		db.insert(sessions)
+			.values({
+				id: orphanId,
+				userId: 'ghost-user-id',
+				expiresAt: daysFromNow(7)
+			})
+			.run();
 
 		const result = await getSession(orphanId);
 		expect(result).toBeNull();
