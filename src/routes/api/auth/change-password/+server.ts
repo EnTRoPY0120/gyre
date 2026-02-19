@@ -16,7 +16,11 @@ export const _metadata = {
 					'application/json': {
 						schema: z.object({
 							currentPassword: z.string().min(1).openapi({ example: 'OldPassword123!' }),
-							newPassword: z.string().min(8).openapi({ example: 'NewPassword123!' })
+							newPassword: z.string().min(8).openapi({
+								example: 'NewPassword123!',
+								description:
+									'Must be at least 8 characters and include uppercase, lowercase, a number, and a special character (e.g., !@#$%^&*)'
+							})
 						})
 					}
 				}

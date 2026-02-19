@@ -61,12 +61,10 @@ export const _metadata = {
 		tags: ['Admin'],
 		request: {
 			query: z.object({
-				filename: z
-					.string()
-					.openapi({
-						example: 'gyre-backup-2024-01-15T10-30-00.db',
-						description: 'Backup filename to delete'
-					})
+				filename: z.string().openapi({
+					example: 'gyre-backup-2024-01-15T10-30-00.db',
+					description: 'Backup filename to delete'
+				})
 			})
 		},
 		responses: {

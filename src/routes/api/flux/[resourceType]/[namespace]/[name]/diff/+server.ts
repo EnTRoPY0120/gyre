@@ -2,6 +2,21 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getFluxResource, getKubeConfig } from '$lib/server/kubernetes/client';
+import {
+	getResourceTypeByPlural,
+	type FluxResourceType,
+	FLUX_RESOURCES
+} from '$lib/server/kubernetes/flux/resources';
+import { requirePermission } from '$lib/server/rbac';
+import * as k8s from '@kubernetes/client-node';
+import yaml from 'js-yaml';
+import { exec } from 'node:child_process';
+import { promisify } from 'node:util';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import http from 'node:http';
+import https from 'node:https';
 
 export const _metadata = {
 	GET: {
@@ -34,7 +49,8 @@ export const _metadata = {
 									name: z.string(),
 									namespace: z.string(),
 									desired: z.string(),
-									live: z.string().nullable()
+									live: z.string().nullable(),
+									error: z.string().optional()
 								})
 							),
 							cached: z.boolean(),
@@ -51,21 +67,6 @@ export const _metadata = {
 		}
 	}
 };
-import {
-	getResourceTypeByPlural,
-	type FluxResourceType,
-	FLUX_RESOURCES
-} from '$lib/server/kubernetes/flux/resources';
-import { requirePermission } from '$lib/server/rbac';
-import * as k8s from '@kubernetes/client-node';
-import yaml from 'js-yaml';
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import http from 'node:http';
-import https from 'node:https';
 
 const execAsync = promisify(exec);
 

@@ -7,6 +7,9 @@ import { error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getBackupPath } from '$lib/server/backup';
+import { logAudit } from '$lib/server/audit';
+import { requirePermission } from '$lib/server/rbac';
+import { createReadStream, statSync } from 'node:fs';
 
 export const _metadata = {
 	GET: {
@@ -16,12 +19,10 @@ export const _metadata = {
 		tags: ['Admin'],
 		request: {
 			query: z.object({
-				filename: z
-					.string()
-					.openapi({
-						example: 'gyre-backup-2024-01-15T10-30-00.db',
-						description: 'Backup filename to download'
-					})
+				filename: z.string().openapi({
+					example: 'gyre-backup-2024-01-15T10-30-00.db',
+					description: 'Backup filename to download'
+				})
 			})
 		},
 		responses: {
@@ -36,9 +37,6 @@ export const _metadata = {
 		}
 	}
 };
-import { logAudit } from '$lib/server/audit';
-import { requirePermission } from '$lib/server/rbac';
-import { createReadStream, statSync } from 'node:fs';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {

@@ -2,6 +2,13 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { listFluxResourcesInNamespace } from '$lib/server/kubernetes/client.js';
+import {
+	getAllResourcePlurals,
+	getResourceTypeByPlural,
+	type FluxResourceType
+} from '$lib/server/kubernetes/flux/resources.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
+import { checkPermission } from '$lib/server/rbac.js';
 
 export const _metadata = {
 	GET: {
@@ -32,13 +39,6 @@ export const _metadata = {
 		}
 	}
 };
-import {
-	getAllResourcePlurals,
-	getResourceTypeByPlural,
-	type FluxResourceType
-} from '$lib/server/kubernetes/flux/resources.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { checkPermission } from '$lib/server/rbac.js';
 
 /**
  * GET /api/flux/{resourceType}/{namespace}

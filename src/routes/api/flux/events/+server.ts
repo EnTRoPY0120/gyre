@@ -2,6 +2,8 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getAllRecentEvents } from '$lib/server/kubernetes/events';
+import { checkPermission } from '$lib/server/rbac.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const _metadata = {
 	GET: {
@@ -11,13 +13,10 @@ export const _metadata = {
 		tags: ['Flux'],
 		request: {
 			query: z.object({
-				limit: z
-					.string()
-					.optional()
-					.openapi({
-						description: 'Maximum number of events to return (default: 20, max: 1000)',
-						example: '50'
-					})
+				limit: z.string().optional().openapi({
+					description: 'Maximum number of events to return (default: 20, max: 1000)',
+					example: '50'
+				})
 			})
 		},
 		responses: {
@@ -36,8 +35,6 @@ export const _metadata = {
 		}
 	}
 };
-import { checkPermission } from '$lib/server/rbac.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
@@ -56,7 +53,10 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		throw error(403, { message: 'Permission denied' });
 	}
 
-	const limit = Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20);
+	const limit = Math.min(
+		1000,
+		Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20)
+	);
 
 	try {
 		const events = await getAllRecentEvents(limit, locals.cluster);

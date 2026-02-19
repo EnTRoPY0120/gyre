@@ -2,6 +2,10 @@ import { error, json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { toggleSuspendResource } from '$lib/server/kubernetes/flux/actions';
+import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import { checkPermission } from '$lib/server/rbac.js';
+import { logResourceWrite, logAudit } from '$lib/server/audit.js';
+import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 
 export const _metadata = {
 	POST: {
@@ -26,14 +30,11 @@ export const _metadata = {
 				}
 			},
 			401: { description: 'Authentication required' },
-			403: { description: 'Permission denied' }
+			403: { description: 'Permission denied' },
+			500: { description: 'Internal server error' }
 		}
 	}
 };
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
-import { checkPermission } from '$lib/server/rbac.js';
-import { logResourceWrite, logAudit } from '$lib/server/audit.js';
-import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 
 export const POST: RequestHandler = async ({ params, locals, getClientAddress }) => {
 	// Check authentication

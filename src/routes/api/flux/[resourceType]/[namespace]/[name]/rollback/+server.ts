@@ -2,6 +2,10 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { rollbackResource } from '$lib/server/kubernetes/flux/history';
+import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
+import { checkPermission } from '$lib/server/rbac';
+import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
+import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 
 export const _metadata = {
 	POST: {
@@ -18,10 +22,15 @@ export const _metadata = {
 			body: {
 				content: {
 					'application/json': {
-						schema: z.object({
-							revision: z.string().optional().openapi({ example: 'main@sha1:abc123' }),
-							historyId: z.string().optional().openapi({ example: '01J...' })
-						})
+						schema: z
+							.object({
+								revision: z.string().optional().openapi({ example: 'main@sha1:abc123' }),
+								historyId: z.string().optional().openapi({ example: '01J...' })
+							})
+							.openapi({
+								description:
+									'At least one of "revision" or "historyId" must be provided. "historyId" takes precedence if both are given.'
+							})
 					}
 				}
 			}
@@ -44,10 +53,6 @@ export const _metadata = {
 		}
 	}
 };
-import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
-import { checkPermission } from '$lib/server/rbac';
-import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
-import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 
 export const POST: RequestHandler = async ({ params, locals, request, getClientAddress }) => {
 	if (!locals.user) {
