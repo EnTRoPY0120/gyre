@@ -154,7 +154,7 @@ function validateSpecMap(
 			}
 		}
 
-		// Recurse into nested maps (one level deep covers the common nested cases)
+		// Recurse into all nested maps (deep recursion)
 		if (isMap(item.value)) {
 			validateSpecMap(item.value, kind, content, markers, errorSev, warnSev, specPair, fieldPath);
 		}
@@ -297,8 +297,15 @@ export function registerFluxValidation(
 
 	run();
 
-	return editor.onDidChangeModelContent(() => {
+	const subscription = editor.onDidChangeModelContent(() => {
 		if (timer) clearTimeout(timer);
 		timer = setTimeout(run, DEBOUNCE_MS);
 	});
+
+	return {
+		dispose: () => {
+			if (timer) clearTimeout(timer);
+			subscription.dispose();
+		}
+	};
 }
