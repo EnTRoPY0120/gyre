@@ -4,8 +4,38 @@
  */
 
 import { error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getBackupPath } from '$lib/server/backup';
+
+export const _metadata = {
+	GET: {
+		summary: 'Download database backup',
+		description:
+			'Download a specific database backup file as a SQLite binary. Read permission required.',
+		tags: ['Admin'],
+		request: {
+			query: z.object({
+				filename: z
+					.string()
+					.openapi({
+						example: 'gyre-backup-2024-01-15T10-30-00.db',
+						description: 'Backup filename to download'
+					})
+			})
+		},
+		responses: {
+			200: {
+				description: 'SQLite database file download',
+				content: { 'application/x-sqlite3': { schema: z.any() } }
+			},
+			400: { description: 'Missing filename parameter' },
+			401: { description: 'Unauthorized' },
+			403: { description: 'Permission denied' },
+			404: { description: 'Backup not found' }
+		}
+	}
+};
 import { logAudit } from '$lib/server/audit';
 import { requirePermission } from '$lib/server/rbac';
 import { createReadStream, statSync } from 'node:fs';

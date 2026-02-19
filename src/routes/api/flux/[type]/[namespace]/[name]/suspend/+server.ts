@@ -1,6 +1,35 @@
 import { error, json } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { toggleSuspendResource } from '$lib/server/kubernetes/flux/actions';
+
+export const _metadata = {
+	POST: {
+		summary: 'Suspend resource',
+		description:
+			'Suspend reconciliation for a specific FluxCD resource. The resource will not be reconciled until resumed.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				type: z.string().openapi({ example: 'GitRepository' }),
+				namespace: z.string().openapi({ example: 'flux-system' }),
+				name: z.string().openapi({ example: 'my-repo' })
+			})
+		},
+		responses: {
+			200: {
+				description: 'Resource suspended successfully',
+				content: {
+					'application/json': {
+						schema: z.object({ success: z.boolean(), message: z.string() })
+					}
+				}
+			},
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' }
+		}
+	}
+};
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { logResourceWrite, logAudit } from '$lib/server/audit.js';

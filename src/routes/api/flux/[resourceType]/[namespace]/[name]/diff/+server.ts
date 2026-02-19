@@ -1,6 +1,56 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getFluxResource, getKubeConfig } from '$lib/server/kubernetes/client';
+
+export const _metadata = {
+	GET: {
+		summary: 'Get resource drift diff',
+		description:
+			'Compare the desired state (from source artifact) against the live cluster state for a Kustomization. Only available when Gyre is deployed in-cluster. Results are cached for 1 minute.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				resourceType: z.string().openapi({ example: 'kustomizations' }),
+				namespace: z.string().openapi({ example: 'flux-system' }),
+				name: z.string().openapi({ example: 'my-app' })
+			}),
+			query: z.object({
+				force: z
+					.string()
+					.optional()
+					.openapi({ description: 'Set to "true" to bypass the cache and recompute the diff' })
+			})
+		},
+		responses: {
+			200: {
+				description: 'Drift diff results',
+				content: {
+					'application/json': {
+						schema: z.object({
+							diffs: z.array(
+								z.object({
+									kind: z.string(),
+									name: z.string(),
+									namespace: z.string(),
+									desired: z.string(),
+									live: z.string().nullable()
+								})
+							),
+							cached: z.boolean(),
+							timestamp: z.number(),
+							revision: z.string().nullable().optional()
+						})
+					}
+				}
+			},
+			400: { description: 'Unsupported resource type or missing sourceRef' },
+			401: { description: 'Unauthorized' },
+			403: { description: 'Permission denied' },
+			503: { description: 'Drift detection only available in-cluster' }
+		}
+	}
+};
 import {
 	getResourceTypeByPlural,
 	type FluxResourceType,

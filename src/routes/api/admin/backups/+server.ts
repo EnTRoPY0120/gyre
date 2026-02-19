@@ -8,8 +8,83 @@
  */
 
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { createBackup, listBackups, deleteBackup } from '$lib/server/backup';
+
+const backupSchema = z.object({
+	filename: z.string().openapi({ example: 'gyre-backup-2024-01-15T10-30-00.db' }),
+	sizeBytes: z.number().openapi({ example: 1048576 }),
+	createdAt: z.string().openapi({ example: '2024-01-15T10:30:00.000Z' })
+});
+
+export const _metadata = {
+	GET: {
+		summary: 'List database backups',
+		description:
+			'Retrieve a list of all available database backup files. Read permission required.',
+		tags: ['Admin'],
+		responses: {
+			200: {
+				description: 'List of backup files',
+				content: {
+					'application/json': {
+						schema: z.object({ backups: z.array(backupSchema) })
+					}
+				}
+			},
+			401: { description: 'Unauthorized' },
+			403: { description: 'Permission denied' }
+		}
+	},
+	POST: {
+		summary: 'Create database backup',
+		description:
+			'Create a new database backup file. The backup is stored on the server filesystem. Admin permission required.',
+		tags: ['Admin'],
+		responses: {
+			201: {
+				description: 'Backup created successfully',
+				content: {
+					'application/json': {
+						schema: z.object({ backup: backupSchema })
+					}
+				}
+			},
+			401: { description: 'Unauthorized' },
+			403: { description: 'Admin permission required' }
+		}
+	},
+	DELETE: {
+		summary: 'Delete database backup',
+		description: 'Delete a specific backup file by filename. Admin permission required.',
+		tags: ['Admin'],
+		request: {
+			query: z.object({
+				filename: z
+					.string()
+					.openapi({
+						example: 'gyre-backup-2024-01-15T10-30-00.db',
+						description: 'Backup filename to delete'
+					})
+			})
+		},
+		responses: {
+			200: {
+				description: 'Backup deleted successfully',
+				content: {
+					'application/json': {
+						schema: z.object({ success: z.boolean() })
+					}
+				}
+			},
+			400: { description: 'Missing filename parameter' },
+			401: { description: 'Unauthorized' },
+			403: { description: 'Admin permission required' },
+			404: { description: 'Backup not found' }
+		}
+	}
+};
 import { logAudit } from '$lib/server/audit';
 import { requirePermission } from '$lib/server/rbac';
 

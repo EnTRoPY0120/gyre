@@ -1,4 +1,5 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import {
 	getFluxResource,
@@ -14,6 +15,77 @@ import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 import type { K8sResource } from '$lib/types/kubernetes';
 import yaml from 'js-yaml';
+
+export const _metadata = {
+	GET: {
+		summary: 'Get FluxCD resource',
+		description:
+			'Retrieve a specific FluxCD resource by type, namespace, and name. Supports ETag caching via If-None-Match header. Use ?status=true to fetch only the status subresource.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				resourceType: z.string().openapi({ example: 'gitrepositories' }),
+				namespace: z.string().openapi({ example: 'flux-system' }),
+				name: z.string().openapi({ example: 'my-repo' })
+			}),
+			query: z.object({
+				status: z
+					.string()
+					.optional()
+					.openapi({ description: 'Set to "true" to return only the status subresource' })
+			})
+		},
+		responses: {
+			200: {
+				description: 'The requested resource',
+				content: { 'application/json': { schema: z.any() } }
+			},
+			304: { description: 'Not modified (ETag matched)' },
+			400: { description: 'Invalid resource type or missing cluster context' },
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' },
+			404: { description: 'Resource not found' }
+		}
+	},
+	PUT: {
+		summary: 'Update FluxCD resource',
+		description:
+			'Replace a FluxCD resource with the provided YAML. Validates that the name and namespace in the YAML match the URL parameters.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				resourceType: z.string().openapi({ example: 'gitrepositories' }),
+				namespace: z.string().openapi({ example: 'flux-system' }),
+				name: z.string().openapi({ example: 'my-repo' })
+			}),
+			body: {
+				content: {
+					'application/json': {
+						schema: z.object({
+							yaml: z.string().openapi({
+								description: 'Complete Kubernetes resource manifest in YAML format',
+								example:
+									'apiVersion: source.toolkit.fluxcd.io/v1\nkind: GitRepository\nmetadata:\n  name: my-repo\n  namespace: flux-system\nspec:\n  url: https://github.com/org/repo'
+							})
+						})
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Updated resource',
+				content: { 'application/json': { schema: z.any() } }
+			},
+			400: {
+				description: 'Invalid YAML, resource structure, or name/namespace mismatch',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			},
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' }
+		}
+	}
+};
 
 /**
  * GET /api/flux/{resourceType}/{namespace}/{name}

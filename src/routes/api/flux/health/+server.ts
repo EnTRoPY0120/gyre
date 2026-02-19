@@ -1,6 +1,43 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
+
+export const _metadata = {
+	GET: {
+		summary: 'Health check',
+		description:
+			'Check Kubernetes cluster connectivity. Returns basic status when unauthenticated, or detailed cluster info when authenticated. Results are cached for 30 seconds.',
+		tags: ['Flux'],
+		security: [],
+		responses: {
+			200: {
+				description: 'Cluster is healthy',
+				content: {
+					'application/json': {
+						schema: z.union([
+							z.object({ status: z.literal('healthy') }),
+							z.object({
+								status: z.literal('healthy'),
+								kubernetes: z.object({
+									connected: z.boolean(),
+									configStrategy: z.enum(['in-cluster', 'local-kubeconfig']),
+									configSource: z.enum(['ServiceAccount', 'kubeconfig']),
+									currentContext: z.string(),
+									availableContexts: z.array(z.string())
+								})
+							})
+						])
+					}
+				}
+			},
+			503: {
+				description: 'Unable to connect to Kubernetes cluster',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			}
+		}
+	}
+};
 import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 

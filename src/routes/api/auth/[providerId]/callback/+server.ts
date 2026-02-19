@@ -14,8 +14,39 @@
  */
 
 import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
+
+export const _metadata = {
+	GET: {
+		summary: 'OAuth/OIDC callback',
+		description:
+			'Handle the callback from the identity provider after user authentication. Validates the state parameter (CSRF protection), exchanges the authorization code for tokens, provisions/finds the user, creates a session, and redirects to the home page.',
+		tags: ['Auth'],
+		security: [],
+		request: {
+			params: z.object({
+				providerId: z.string().openapi({ example: 'my-oidc-provider' })
+			}),
+			query: z.object({
+				code: z.string().openapi({ description: 'Authorization code from identity provider' }),
+				state: z.string().openapi({ description: 'CSRF state parameter' })
+			})
+		},
+		responses: {
+			302: { description: 'Redirect to home page on success, or login page with error on failure' },
+			400: {
+				description: 'Missing or invalid state/code parameters',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			},
+			500: {
+				description: 'Authentication failed',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			}
+		}
+	}
+};
 import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
 import { createSession } from '$lib/server/auth';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
