@@ -5,6 +5,7 @@
 	import type * as Monaco from 'monaco-editor';
 	import { defineMonacoThemes } from './monacoTheme';
 	import { registerFluxLanguageFeatures } from './fluxCompletions';
+	import { registerFluxValidation } from './yamlValidator';
 
 	// Props
 	interface Props {
@@ -46,6 +47,7 @@
 	// Store disposables for cleanup
 	let contentChangeDisposable: Monaco.IDisposable | undefined = $state();
 	let markersDisposable: Monaco.IDisposable | undefined = $state();
+	let fluxValidationDisposable: Monaco.IDisposable | undefined = $state();
 
 	// Initialize Monaco Editor
 	onMount(() => {
@@ -118,6 +120,9 @@
 					}
 				});
 
+				// Register FluxCD semantic validation for this editor instance
+				fluxValidationDisposable = registerFluxValidation(monaco, editor);
+
 				// Listen for content changes and store disposable
 				contentChangeDisposable = editor.onDidChangeModelContent(() => {
 					if (!editor) return;
@@ -153,6 +158,7 @@
 		return () => {
 			contentChangeDisposable?.dispose();
 			markersDisposable?.dispose();
+			fluxValidationDisposable?.dispose();
 			editor?.dispose();
 		};
 	});
