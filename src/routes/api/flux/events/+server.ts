@@ -1,6 +1,41 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getAllRecentEvents } from '$lib/server/kubernetes/events';
+
+export const _metadata = {
+	GET: {
+		summary: 'List recent cluster events',
+		description:
+			'Retrieve recent Kubernetes events across all namespaces. Use the limit parameter to control how many events are returned.',
+		tags: ['Flux'],
+		request: {
+			query: z.object({
+				limit: z
+					.string()
+					.optional()
+					.openapi({
+						description: 'Maximum number of events to return (default: 20, max: 1000)',
+						example: '50'
+					})
+			})
+		},
+		responses: {
+			200: {
+				description: 'List of recent events',
+				content: {
+					'application/json': {
+						schema: z.object({
+							events: z.array(z.any())
+						})
+					}
+				}
+			},
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' }
+		}
+	}
+};
 import { checkPermission } from '$lib/server/rbac.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 

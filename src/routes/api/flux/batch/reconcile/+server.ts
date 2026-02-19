@@ -1,6 +1,56 @@
 import { error, json } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { reconcileResource } from '$lib/server/kubernetes/flux/actions';
+
+const batchResourceSchema = z.object({
+	type: z.string().openapi({ example: 'GitRepository' }),
+	namespace: z.string().openapi({ example: 'flux-system' }),
+	name: z.string().openapi({ example: 'my-repo' })
+});
+
+const batchResultSchema = z.object({
+	resource: batchResourceSchema,
+	success: z.boolean(),
+	message: z.string()
+});
+
+export const _metadata = {
+	POST: {
+		summary: 'Batch reconcile resources',
+		description:
+			'Trigger immediate reconciliation for multiple FluxCD resources in a single request. Per-resource permission checks are applied.',
+		tags: ['Flux'],
+		request: {
+			body: {
+				content: {
+					'application/json': {
+						schema: z.object({ resources: z.array(batchResourceSchema) })
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Batch operation results',
+				content: {
+					'application/json': {
+						schema: z.object({
+							results: z.array(batchResultSchema),
+							summary: z.object({
+								total: z.number(),
+								successful: z.number(),
+								failed: z.number()
+							})
+						})
+					}
+				}
+			},
+			400: { description: 'Invalid request body or missing cluster context' },
+			401: { description: 'Authentication required' }
+		}
+	}
+};
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';

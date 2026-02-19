@@ -1,7 +1,54 @@
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { updateUserPassword, verifyPassword } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
+
+export const _metadata = {
+	POST: {
+		summary: 'Change user password',
+		description:
+			"Change the authenticated user's password. Requires current password and validates new password strength (min 8 chars, uppercase, lowercase, number, special character).",
+		tags: ['Auth'],
+		request: {
+			body: {
+				content: {
+					'application/json': {
+						schema: z.object({
+							currentPassword: z.string().min(1).openapi({ example: 'OldPassword123!' }),
+							newPassword: z.string().min(8).openapi({ example: 'NewPassword123!' })
+						})
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Password changed successfully',
+				content: {
+					'application/json': {
+						schema: z.object({
+							success: z.boolean(),
+							message: z.string()
+						})
+					}
+				}
+			},
+			400: {
+				description: 'Validation error (missing fields, weak password, same as current)',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			},
+			401: {
+				description: 'Authentication required or current password incorrect',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			},
+			500: {
+				description: 'Internal server error',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			}
+		}
+	}
+};
 
 /**
  * POST /api/auth/change-password

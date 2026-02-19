@@ -1,6 +1,37 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { listFluxResourcesInNamespace } from '$lib/server/kubernetes/client.js';
+
+export const _metadata = {
+	GET: {
+		summary: 'List FluxCD resources in namespace',
+		description: 'Retrieve all FluxCD resources of a specific type within a given namespace.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				resourceType: z.string().openapi({ example: 'gitrepositories' }),
+				namespace: z.string().openapi({ example: 'flux-system' })
+			})
+		},
+		responses: {
+			200: {
+				description: 'List of resources in the namespace',
+				content: {
+					'application/json': {
+						schema: z.object({
+							items: z.array(z.any()),
+							metadata: z.any().optional()
+						})
+					}
+				}
+			},
+			400: { description: 'Invalid resource type' },
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' }
+		}
+	}
+};
 import {
 	getAllResourcePlurals,
 	getResourceTypeByPlural,

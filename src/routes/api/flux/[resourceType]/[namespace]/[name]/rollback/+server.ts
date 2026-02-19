@@ -1,6 +1,49 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { rollbackResource } from '$lib/server/kubernetes/flux/history';
+
+export const _metadata = {
+	POST: {
+		summary: 'Rollback resource',
+		description:
+			'Roll back a FluxCD resource to a previous revision. Provide either a revision string or a historyId from the reconciliation history.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				resourceType: z.string().openapi({ example: 'kustomizations' }),
+				namespace: z.string().openapi({ example: 'flux-system' }),
+				name: z.string().openapi({ example: 'my-app' })
+			}),
+			body: {
+				content: {
+					'application/json': {
+						schema: z.object({
+							revision: z.string().optional().openapi({ example: 'main@sha1:abc123' }),
+							historyId: z.string().optional().openapi({ example: '01J...' })
+						})
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Rollback initiated successfully',
+				content: {
+					'application/json': {
+						schema: z.object({ success: z.boolean(), message: z.string() })
+					}
+				}
+			},
+			400: {
+				description: 'Invalid resource type or missing revision/historyId',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			},
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' }
+		}
+	}
+};
 import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';

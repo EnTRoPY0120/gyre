@@ -4,8 +4,53 @@
  */
 
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { restoreFromBuffer } from '$lib/server/backup';
+
+export const _metadata = {
+	POST: {
+		summary: 'Restore database from backup',
+		description:
+			'Upload and restore the database from a backup file. Maximum file size is 500MB. The application should be restarted after a successful restore. Admin role required.',
+		tags: ['Admin'],
+		request: {
+			body: {
+				content: {
+					'multipart/form-data': {
+						schema: z.object({
+							file: z
+								.any()
+								.openapi({ description: 'SQLite database backup file (.db)', format: 'binary' })
+						})
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Database restored successfully',
+				content: {
+					'application/json': {
+						schema: z.object({
+							success: z.boolean(),
+							message: z.string(),
+							backup: z.object({
+								filename: z.string(),
+								sizeBytes: z.number()
+							})
+						})
+					}
+				}
+			},
+			400: {
+				description: 'No file uploaded or file too large (max 500MB)',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			},
+			403: { description: 'Admin role required' }
+		}
+	}
+};
 import { logAudit } from '$lib/server/audit';
 
 export const POST: RequestHandler = async ({ locals, request }) => {

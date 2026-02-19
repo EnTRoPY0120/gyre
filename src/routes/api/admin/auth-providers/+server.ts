@@ -5,8 +5,109 @@
  */
 
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
+
+const providerTypeSchema = z.enum([
+	'oidc',
+	'oauth2-github',
+	'oauth2-google',
+	'oauth2-gitlab',
+	'oauth2-generic'
+]);
+
+const authProviderSchema = z.object({
+	id: z.string(),
+	name: z.string().openapi({ example: 'My OIDC Provider' }),
+	type: providerTypeSchema,
+	enabled: z.boolean(),
+	clientId: z.string().openapi({ example: 'my-client-id' }),
+	clientSecretEncrypted: z.string().openapi({ example: '***' }),
+	issuerUrl: z.string().nullable().optional().openapi({ example: 'https://accounts.example.com' }),
+	authorizationUrl: z.string().nullable().optional(),
+	tokenUrl: z.string().nullable().optional(),
+	userInfoUrl: z.string().nullable().optional(),
+	jwksUrl: z.string().nullable().optional(),
+	autoProvision: z.boolean(),
+	defaultRole: z.enum(['admin', 'editor', 'viewer']),
+	roleMapping: z.record(z.string(), z.string()).nullable().optional(),
+	roleClaim: z.string().openapi({ example: 'groups' }),
+	usernameClaim: z.string().openapi({ example: 'preferred_username' }),
+	emailClaim: z.string().openapi({ example: 'email' }),
+	usePkce: z.boolean(),
+	scopes: z.string().openapi({ example: 'openid profile email' })
+});
+
+export const _metadata = {
+	GET: {
+		summary: 'List auth providers',
+		description: 'Retrieve all configured SSO/OAuth providers. Admin access required.',
+		tags: ['Admin'],
+		responses: {
+			200: {
+				description: 'List of auth providers (client secrets are redacted)',
+				content: {
+					'application/json': {
+						schema: z.object({ providers: z.array(authProviderSchema) })
+					}
+				}
+			},
+			401: { description: 'Unauthorized' },
+			403: { description: 'Admin access required' }
+		}
+	},
+	POST: {
+		summary: 'Create auth provider',
+		description:
+			'Create a new SSO/OAuth provider configuration. The client secret is encrypted at rest. Admin access required.',
+		tags: ['Admin'],
+		request: {
+			body: {
+				content: {
+					'application/json': {
+						schema: z.object({
+							name: z.string().openapi({ example: 'My OIDC Provider' }),
+							type: providerTypeSchema,
+							enabled: z.boolean().optional(),
+							clientId: z.string().openapi({ example: 'my-client-id' }),
+							clientSecret: z.string().openapi({ example: 'my-client-secret' }),
+							issuerUrl: z.string().optional().openapi({ example: 'https://accounts.example.com' }),
+							authorizationUrl: z.string().optional(),
+							tokenUrl: z.string().optional(),
+							userInfoUrl: z.string().optional(),
+							jwksUrl: z.string().optional(),
+							autoProvision: z.boolean().optional(),
+							defaultRole: z.enum(['admin', 'editor', 'viewer']).optional(),
+							roleMapping: z.record(z.string(), z.string()).optional(),
+							roleClaim: z.string().optional(),
+							usernameClaim: z.string().optional(),
+							emailClaim: z.string().optional(),
+							usePkce: z.boolean().optional(),
+							scopes: z.string().optional()
+						})
+					}
+				}
+			}
+		},
+		responses: {
+			200: {
+				description: 'Provider created successfully',
+				content: {
+					'application/json': {
+						schema: z.object({ success: z.boolean(), provider: authProviderSchema })
+					}
+				}
+			},
+			400: {
+				description: 'Missing required fields or invalid configuration',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			},
+			401: { description: 'Unauthorized' },
+			403: { description: 'Admin access required' }
+		}
+	}
+};
 import { authProviders, type NewAuthProvider } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';

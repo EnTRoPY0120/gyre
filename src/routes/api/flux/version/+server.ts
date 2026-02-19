@@ -1,6 +1,30 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
+
+export const _metadata = {
+	GET: {
+		summary: 'Get Flux version',
+		description:
+			'Retrieve the Flux version installed in the cluster by inspecting deployment labels in the flux-system namespace.',
+		tags: ['Flux'],
+		responses: {
+			200: {
+				description: 'Flux version',
+				content: {
+					'application/json': {
+						schema: z.object({
+							version: z.string().openapi({ example: 'v2.3.0' })
+						})
+					}
+				}
+			},
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' }
+		}
+	}
+};
 import * as k8s from '@kubernetes/client-node';
 import { checkPermission } from '$lib/server/rbac.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';

@@ -11,8 +11,39 @@
  */
 
 import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
+
+export const _metadata = {
+	GET: {
+		summary: 'Initiate OAuth/OIDC login',
+		description:
+			'Start the OAuth/OIDC authorization flow for the given provider. Redirects the user to the identity provider authorization URL. Rate limited to 10 requests per minute per IP.',
+		tags: ['Auth'],
+		security: [],
+		request: {
+			params: z.object({
+				providerId: z.string().openapi({ example: 'my-oidc-provider' })
+			})
+		},
+		responses: {
+			302: { description: 'Redirect to identity provider authorization URL' },
+			403: {
+				description: 'Provider is disabled',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			},
+			404: {
+				description: 'Provider not found',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			},
+			500: {
+				description: 'Failed to initiate login',
+				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+			}
+		}
+	}
+};
 import { generateState, generateCodeVerifier } from '$lib/server/auth/pkce';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 

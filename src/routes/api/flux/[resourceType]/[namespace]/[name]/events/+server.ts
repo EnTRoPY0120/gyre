@@ -1,6 +1,35 @@
 import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getResourceEvents } from '$lib/server/kubernetes/events';
+
+export const _metadata = {
+	GET: {
+		summary: 'Get resource events',
+		description: 'Retrieve Kubernetes events associated with a specific FluxCD resource.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				resourceType: z.string().openapi({ example: 'gitrepositories' }),
+				namespace: z.string().openapi({ example: 'flux-system' }),
+				name: z.string().openapi({ example: 'my-repo' })
+			})
+		},
+		responses: {
+			200: {
+				description: 'Events for the resource',
+				content: {
+					'application/json': {
+						schema: z.object({ events: z.array(z.any()) })
+					}
+				}
+			},
+			400: { description: 'Invalid resource type' },
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' }
+		}
+	}
+};
 import { getResourceTypeByPlural, FLUX_RESOURCES } from '$lib/server/kubernetes/flux/resources';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
