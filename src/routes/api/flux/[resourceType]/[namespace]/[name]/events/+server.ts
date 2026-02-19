@@ -7,6 +7,32 @@ import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
+const eventSchema = z.object({
+	type: z.string(),
+	reason: z.string().optional(),
+	message: z.string().optional(),
+	firstTimestamp: z.string().optional(),
+	lastTimestamp: z.string().optional(),
+	count: z.number().optional(),
+	involvedObject: z
+		.object({
+			apiVersion: z.string().optional(),
+			kind: z.string().optional(),
+			name: z.string().optional(),
+			namespace: z.string().optional(),
+			uid: z.string().optional()
+		})
+		.optional(),
+	source: z.object({ component: z.string().optional(), host: z.string().optional() }).optional(),
+	metadata: z
+		.object({
+			name: z.string().optional(),
+			namespace: z.string().optional(),
+			uid: z.string().optional()
+		})
+		.optional()
+});
+
 export const _metadata = {
 	GET: {
 		summary: 'Get resource events',
@@ -24,13 +50,14 @@ export const _metadata = {
 				description: 'Events for the resource',
 				content: {
 					'application/json': {
-						schema: z.object({ events: z.array(z.any()) })
+						schema: z.object({ events: z.array(eventSchema) })
 					}
 				}
 			},
 			400: { description: 'Invalid resource type' },
 			401: { description: 'Authentication required' },
-			403: { description: 'Permission denied' }
+			403: { description: 'Permission denied' },
+			500: { description: 'Internal server error' }
 		}
 	}
 };

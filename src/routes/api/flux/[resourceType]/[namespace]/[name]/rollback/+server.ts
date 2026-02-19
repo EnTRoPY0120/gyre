@@ -49,7 +49,8 @@ export const _metadata = {
 				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
 			},
 			401: { description: 'Authentication required' },
-			403: { description: 'Permission denied' }
+			403: { description: 'Permission denied' },
+			500: { description: 'Internal server error' }
 		}
 	}
 };
