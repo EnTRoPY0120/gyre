@@ -82,8 +82,16 @@ function validateSpecMap(
 		const fieldPath = parentPath ? `${parentPath}.${key}` : key;
 
 		// Boolean field validation
-		if (SPEC_BOOLEAN_FIELDS.has(key) && isScalar(item.value)) {
-			if (typeof item.value.value !== 'boolean') {
+		if (SPEC_BOOLEAN_FIELDS.has(key)) {
+			if (!isScalar(item.value)) {
+				const m = pairKeyMarker(
+					content,
+					item,
+					`"${key}" must be a boolean (true or false)`,
+					errorSev
+				);
+				if (m) markers.push(m);
+			} else if (typeof item.value.value !== 'boolean') {
 				markers.push(
 					scalarMarker(
 						content,
@@ -96,17 +104,27 @@ function validateSpecMap(
 		}
 
 		// Duration field validation
-		if (SPEC_DURATION_FIELDS.has(key) && isScalar(item.value)) {
-			const val = String(item.value.value ?? '');
-			if (val && !DURATION_PATTERN.test(val)) {
-				markers.push(
-					scalarMarker(
-						content,
-						item.value,
-						`"${key}" must be a duration string (e.g., 30s, 5m, 1h), got: "${val}"`,
-						errorSev
-					)
+		if (SPEC_DURATION_FIELDS.has(key)) {
+			if (!isScalar(item.value)) {
+				const m = pairKeyMarker(
+					content,
+					item,
+					`"${key}" must be a duration string (e.g., 30s, 5m, 1h30m)`,
+					errorSev
 				);
+				if (m) markers.push(m);
+			} else {
+				const val = String(item.value.value ?? '');
+				if (val && !DURATION_PATTERN.test(val)) {
+					markers.push(
+						scalarMarker(
+							content,
+							item.value,
+							`"${key}" must be a duration string (e.g., 30s, 5m, 1h30m), got: "${val}"`,
+							errorSev
+						)
+					);
+				}
 			}
 		}
 
@@ -246,7 +264,7 @@ export function registerFluxValidation(
 	monacoInstance: typeof Monaco,
 	editor: Monaco.editor.IStandaloneCodeEditor
 ): Monaco.IDisposable {
-	let timer: ReturnType<typeof setTimeout>;
+	let timer: ReturnType<typeof setTimeout> | undefined;
 
 	const run = () => {
 		const model = editor.getModel();
@@ -264,7 +282,7 @@ export function registerFluxValidation(
 	run();
 
 	return editor.onDidChangeModelContent(() => {
-		clearTimeout(timer);
+		if (timer) clearTimeout(timer);
 		timer = setTimeout(run, DEBOUNCE_MS);
 	});
 }
