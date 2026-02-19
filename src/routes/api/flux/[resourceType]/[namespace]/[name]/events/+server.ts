@@ -9,21 +9,19 @@ import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 const eventSchema = z.object({
 	type: z.string().openapi({ example: 'Normal' }),
-	reason: z.string().optional().openapi({ example: 'ReconciliationSucceeded' }),
-	message: z.string().optional().openapi({ example: 'Applied revision: main@sha1:abc1234' }),
-	firstTimestamp: z.string().optional().openapi({ example: '2024-01-15T10:00:00Z' }),
-	lastTimestamp: z.string().optional().openapi({ example: '2024-01-15T10:30:00Z' }),
-	count: z.number().optional().openapi({ example: 3 }),
-	involvedObject: z
-		.object({
-			apiVersion: z.string().optional(),
-			kind: z.string().optional().openapi({ example: 'Kustomization' }),
-			name: z.string().optional().openapi({ example: 'my-app' }),
-			namespace: z.string().optional(),
-			uid: z.string().optional()
-		})
-		.optional(),
-	source: z.object({ component: z.string().optional(), host: z.string().optional() }).optional(),
+	reason: z.string().openapi({ example: 'ReconciliationSucceeded' }),
+	message: z.string().openapi({ example: 'Applied revision: main@sha1:abc1234' }),
+	firstTimestamp: z.string().nullable().optional().openapi({ example: '2024-01-15T10:00:00Z' }),
+	lastTimestamp: z.string().nullable().optional().openapi({ example: '2024-01-15T10:30:00Z' }),
+	count: z.number().openapi({ example: 3 }),
+	involvedObject: z.object({
+		apiVersion: z.string().optional(),
+		kind: z.string().optional().openapi({ example: 'Kustomization' }),
+		name: z.string().optional().openapi({ example: 'my-app' }),
+		namespace: z.string().optional(),
+		uid: z.string().optional()
+	}),
+	source: z.object({ component: z.string().optional() }),
 	metadata: z
 		.object({
 			name: z.string().optional().openapi({ example: 'my-app.17a2b3c4d5e6f' }),
