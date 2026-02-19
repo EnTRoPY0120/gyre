@@ -111,5 +111,5 @@ export const SPEC_DURATION_FIELDS: ReadonlySet<string> = new Set([
 	'ttl'
 ]);
 
-/** Duration string pattern: a positive number followed by a time unit. */
-export const DURATION_PATTERN = /^\d+(\.\d+)?(ms|s|m|h)$/;
+/** Duration string pattern: one or more number+unit segments (Go time.Duration format). */
+export const DURATION_PATTERN = /^(\d+(\.\d+)?(ns|us|µs|ms|s|m|h))+$/;
