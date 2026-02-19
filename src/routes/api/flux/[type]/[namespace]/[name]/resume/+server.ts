@@ -29,7 +29,8 @@ export const _metadata = {
 				}
 			},
 			401: { description: 'Authentication required' },
-			403: { description: 'Permission denied' }
+			403: { description: 'Permission denied' },
+			500: { description: 'Internal server error' }
 		}
 	}
 };

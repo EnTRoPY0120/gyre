@@ -8,6 +8,11 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
+import { authProviders } from '$lib/server/db/schema';
+import { encryptSecret } from '$lib/server/auth/crypto';
+import { validateProviderConfig } from '$lib/server/auth/oauth';
+import { eq } from 'drizzle-orm';
+import { checkPermission } from '$lib/server/rbac.js';
 
 const authProviderSchema = z.object({
 	id: z.string(),
@@ -50,7 +55,8 @@ export const _metadata = {
 			},
 			401: { description: 'Unauthorized' },
 			403: { description: 'Admin access required' },
-			404: { description: 'Provider not found' }
+			404: { description: 'Provider not found' },
+			500: { description: 'Internal server error' }
 		}
 	},
 	PATCH: {
@@ -78,7 +84,7 @@ export const _metadata = {
 							jwksUrl: z.string().optional(),
 							autoProvision: z.boolean().optional(),
 							defaultRole: z.enum(['admin', 'editor', 'viewer']).optional(),
-							roleMapping: z.union([z.record(z.string(), z.string()), z.null()]).optional(),
+							roleMapping: z.record(z.string(), z.string()).nullable().optional(),
 							roleClaim: z.string().optional(),
 							usernameClaim: z.string().optional(),
 							emailClaim: z.string().optional(),
@@ -101,7 +107,8 @@ export const _metadata = {
 			400: { description: 'Invalid configuration' },
 			401: { description: 'Unauthorized' },
 			403: { description: 'Admin access required' },
-			404: { description: 'Provider not found' }
+			404: { description: 'Provider not found' },
+			500: { description: 'Internal server error' }
 		}
 	},
 	DELETE: {
@@ -123,15 +130,11 @@ export const _metadata = {
 			},
 			401: { description: 'Unauthorized' },
 			403: { description: 'Admin access required' },
-			404: { description: 'Provider not found' }
+			404: { description: 'Provider not found' },
+			500: { description: 'Internal server error' }
 		}
 	}
 };
-import { authProviders } from '$lib/server/db/schema';
-import { encryptSecret } from '$lib/server/auth/crypto';
-import { validateProviderConfig } from '$lib/server/auth/oauth';
-import { eq } from 'drizzle-orm';
-import { checkPermission } from '$lib/server/rbac.js';
 
 /**
  * GET /api/admin/auth-providers/[id]
