@@ -130,17 +130,27 @@ function validateSpecMap(
 
 		// Enum validation
 		const enumVals = KIND_SPEC_ENUMS[`${kind}.${fieldPath}`];
-		if (enumVals && isScalar(item.value)) {
-			const val = String(item.value.value ?? '');
-			if (val && !enumVals.includes(val)) {
-				markers.push(
-					scalarMarker(
-						content,
-						item.value,
-						`"${val}" is not a valid value for "${key}". Valid values: ${enumVals.join(', ')}`,
-						errorSev
-					)
+		if (enumVals) {
+			if (!isScalar(item.value)) {
+				const m = pairKeyMarker(
+					content,
+					item,
+					`non-scalar value is not valid for enum field "${key}"`,
+					errorSev
 				);
+				if (m) markers.push(m);
+			} else {
+				const val = String(item.value.value ?? '');
+				if (val && !enumVals.includes(val)) {
+					markers.push(
+						scalarMarker(
+							content,
+							item.value,
+							`"${val}" is not a valid value for "${key}". Valid values: ${enumVals.join(', ')}`,
+							errorSev
+						)
+					);
+				}
 			}
 		}
 
@@ -243,6 +253,9 @@ export function validateFluxYaml(
 			);
 			if (m) markers.push(m);
 		}
+	} else {
+		const m = pairKeyMarker(content, metadataPair, '"metadata" must be a map', sev.Error);
+		if (m) markers.push(m);
 	}
 
 	// Validate spec
@@ -250,6 +263,9 @@ export function validateFluxYaml(
 		markers.push(makeMarker(1, 1, 1, 2, 'Missing required field: "spec"', sev.Warning));
 	} else if (isMap(specPair.value)) {
 		validateSpecMap(specPair.value, kind, content, markers, sev.Error, sev.Warning, specPair);
+	} else {
+		const m = pairKeyMarker(content, specPair, '"spec" must be a map', sev.Error);
+		if (m) markers.push(m);
 	}
 
 	return markers;
