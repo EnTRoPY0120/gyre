@@ -1506,16 +1506,28 @@ export function registerFluxLanguageFeatures(monaco: typeof Monaco): void {
 				wordInfo.endColumn
 			);
 
+			const baseIndent = ' '.repeat(currentIndent);
 			return {
-				suggestions: completions.map((item) => ({
-					label: item.label,
-					kind: monaco.languages.CompletionItemKind.Field,
-					detail: item.detail,
-					documentation: { value: item.documentation },
-					insertText: item.insertText,
-					insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
-					range: replaceRange
-				}))
+				suggestions: completions.map((item) => {
+					// Re-indent multiline snippets so continuation lines align
+					// with the surrounding document indentation.
+					const insertText = item.insertText.includes('\n')
+						? item.insertText
+								.split('\n')
+								.map((line, i) => (i === 0 ? line : baseIndent + line))
+								.join('\n')
+						: item.insertText;
+
+					return {
+						label: item.label,
+						kind: monaco.languages.CompletionItemKind.Field,
+						detail: item.detail,
+						documentation: { value: item.documentation },
+						insertText,
+						insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
+						range: replaceRange
+					};
+				})
 			};
 		}
 	});
