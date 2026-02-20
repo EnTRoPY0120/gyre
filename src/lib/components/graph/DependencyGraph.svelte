@@ -68,6 +68,7 @@
 	};
 
 	function onNodeClick({ node }: { node: Node }) {
+		if (!node.data) return;
 		const d = node.data as {
 			kind: string;
 			namespace?: string;

@@ -28,7 +28,8 @@ export async function getInventoryData(context: string | undefined) {
 			try {
 				const data = await listFluxResources(type, context);
 				return { type, items: data.items || [] };
-			} catch {
+			} catch (error) {
+				console.warn(`Failed to list ${type}`, error);
 				return { type, items: [] };
 			}
 		})

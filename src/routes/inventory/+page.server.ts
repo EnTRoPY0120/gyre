@@ -42,7 +42,6 @@ export const load: PageServerLoad = async ({ cookies }) => {
 						name: item.name,
 						namespace: item.namespace
 					},
-					status: 'ready' as const,
 					children: []
 				}))
 			);
@@ -120,11 +119,22 @@ export const load: PageServerLoad = async ({ cookies }) => {
 				if (policyNode) {
 					repoNode.children.push(policyNode);
 
-					// Connect ImageUpdateAutomation to ImagePolicy if they share the same namespace
-					// This aligns with the Repo -> Policy -> Automation structure requested
-					imageUpdateNodes
-						.filter((un) => un.ref.namespace === policyNode.ref.namespace)
-						.forEach((un) => {
+					// Connect ImageUpdateAutomation to ImagePolicy via explicit 'uses' relationships
+					relationships
+						.filter(
+							(rel) =>
+								rel.type === 'uses' &&
+								rel.source.kind === 'ImageUpdateAutomation' &&
+								rel.target.kind === 'ImagePolicy' &&
+								rel.target.name === policyNode.ref.name &&
+								rel.target.namespace === policyNode.ref.namespace
+						)
+						.forEach((rel) => {
+							const un = imageUpdateNodes.find(
+								(node) =>
+									node.ref.name === rel.source.name && node.ref.namespace === rel.source.namespace
+							);
+							if (!un) return;
 							if (
 								!policyNode.children.some(
 									(c) => c.ref.name === un.ref.name && c.ref.namespace === un.ref.namespace
