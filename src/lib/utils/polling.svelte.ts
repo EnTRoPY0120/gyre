@@ -1,7 +1,6 @@
 import { onDestroy } from 'svelte';
-import { get } from 'svelte/store';
 import { SvelteDate } from 'svelte/reactivity';
-import { preferences } from '$lib/stores/preferences';
+import { preferences } from '$lib/stores/preferences.svelte';
 import { invalidateAll } from '$app/navigation';
 
 /**
@@ -15,12 +14,11 @@ export function createAutoRefresh() {
 
 	function startPolling() {
 		stopPolling();
-		const prefs = get(preferences);
 
-		if (prefs.autoRefresh && prefs.refreshInterval > 0) {
+		if (preferences.autoRefresh && preferences.refreshInterval > 0) {
 			intervalId = setInterval(async () => {
 				await refresh();
-			}, prefs.refreshInterval * 1000);
+			}, preferences.refreshInterval * 1000);
 		}
 	}
 
@@ -43,25 +41,22 @@ export function createAutoRefresh() {
 		}
 	}
 
-	// Subscribe to preference changes
-	const unsubscribe = preferences.subscribe((prefs) => {
-		if (prefs.autoRefresh) {
+	// Use $effect to reactively start/stop polling
+	$effect(() => {
+		if (preferences.autoRefresh) {
 			startPolling();
 		} else {
 			stopPolling();
 		}
-	});
 
-	// Initial start if auto-refresh is enabled
-	const initialPrefs = get(preferences);
-	if (initialPrefs.autoRefresh) {
-		startPolling();
-	}
+		return () => {
+			stopPolling();
+		};
+	});
 
 	// Cleanup on destroy
 	onDestroy(() => {
 		stopPolling();
-		unsubscribe();
 	});
 
 	return {
