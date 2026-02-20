@@ -89,6 +89,7 @@
 	}
 
 	function minimapNodeColor(node: Node): string {
+		if (!node.data) return '#6b7280';
 		const d = node.data as { status?: string; kindColor?: string };
 		if (d.status === 'ready') return '#22c55e';
 		if (d.status === 'failed') return '#ef4444';
