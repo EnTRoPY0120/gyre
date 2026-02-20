@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { listFluxResources } from '$lib/server/kubernetes/client';
+import { listFluxResources, type ReqCache } from '$lib/server/kubernetes/client';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac';
 
@@ -30,7 +30,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const IMAGE_UPDATE_AUTOMATION: FluxResourceType = 'ImageUpdateAutomation';
 
 	try {
-		const reqCache = new Map();
+		const reqCache: ReqCache = new Map();
 
 		// Fetch all relevant resources in parallel
 		const [imageRepos, imagePolicies, imageAutomations] = await Promise.all([
