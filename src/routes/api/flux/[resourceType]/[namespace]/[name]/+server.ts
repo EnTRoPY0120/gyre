@@ -4,7 +4,8 @@ import type { RequestHandler } from './$types';
 import {
 	getFluxResource,
 	getFluxResourceStatus,
-	updateFluxResource
+	updateFluxResource,
+	type ReqCache
 } from '$lib/server/kubernetes/client.js';
 import {
 	getAllResourcePlurals,
@@ -130,10 +131,12 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 		throw error(403, { message: 'Permission denied' });
 	}
 
+	const reqCache: ReqCache = new Map();
+
 	try {
 		const resource = getStatus
-			? await getFluxResourceStatus(resolvedType, namespace, name, locals.cluster)
-			: await getFluxResource(resolvedType, namespace, name, locals.cluster);
+			? await getFluxResourceStatus(resolvedType, namespace, name, locals.cluster, reqCache)
+			: await getFluxResource(resolvedType, namespace, name, locals.cluster, reqCache);
 
 		// Generate ETag from resourceVersion if available
 		const resourceVersion = resource.metadata?.resourceVersion;
@@ -245,6 +248,8 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		});
 	}
 
+	const reqCache: ReqCache = new Map();
+
 	try {
 		// Update the resource
 		const updated = await updateFluxResource(
@@ -252,7 +257,8 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 			namespace,
 			name,
 			resource,
-			locals.cluster
+			locals.cluster,
+			reqCache
 		);
 
 		return json(updated);
