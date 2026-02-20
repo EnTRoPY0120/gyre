@@ -2,7 +2,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
-	import { preferences } from '$lib/stores/preferences';
+	import { preferences } from '$lib/stores/preferences.svelte';
 	import { websocketStore } from '$lib/stores/websocket.svelte';
 	import { onMount } from 'svelte';
 	import { getResourceHealth } from '$lib/utils/flux';
@@ -39,8 +39,8 @@
 
 	let { data }: Props = $props();
 
-	const viewMode = $derived($preferences.viewMode);
-	const showNamespace = $derived($preferences.showNamespace);
+	const viewMode = $derived(preferences.viewMode);
+	const showNamespace = $derived(preferences.showNamespace);
 
 	// Auto-refresh setup
 	const autoRefresh = createAutoRefresh();

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { preferences } from '$lib/stores/preferences';
+	import { preferences } from '$lib/stores/preferences.svelte';
 	import { formatLastRefresh } from '$lib/utils/polling.svelte';
 
 	interface Props {
@@ -10,8 +10,8 @@
 
 	let { isRefreshing, lastRefreshTime, onRefresh }: Props = $props();
 
-	const autoRefreshEnabled = $derived($preferences.autoRefresh);
-	const refreshInterval = $derived($preferences.refreshInterval);
+	const autoRefreshEnabled = $derived(preferences.autoRefresh);
+	const refreshInterval = $derived(preferences.refreshInterval);
 </script>
 
 <div class="flex flex-wrap items-center gap-3">

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { preferences } from '$lib/stores/preferences';
+	import { preferences } from '$lib/stores/preferences.svelte';
 
-	const viewMode = $derived($preferences.viewMode);
+	const viewMode = $derived(preferences.viewMode);
 </script>
 
 <div class="inline-flex shrink-0 self-start rounded-lg border border-border bg-card p-1">
