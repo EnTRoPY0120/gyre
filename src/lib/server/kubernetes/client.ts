@@ -60,7 +60,8 @@ export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.Ku
 		}
 	} else {
 		// Default context
-		config = baseConfig;
+		config = new k8s.KubeConfig();
+		config.loadFromString(baseConfig.exportConfig());
 	}
 
 	// 3. Return configuration
@@ -93,7 +94,6 @@ export async function getAppsV1Api(context?: string): Promise<k8s.AppsV1Api> {
 	const config = await getKubeConfig(context);
 	return config.makeApiClient(k8s.AppsV1Api);
 }
-
 
 /**
  * List FluxCD resources of a specific type across all namespaces
