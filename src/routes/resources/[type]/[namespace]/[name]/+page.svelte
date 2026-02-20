@@ -561,10 +561,12 @@
 				showDownload={false}
 			/>
 		{:else if activeTab === 'graph'}
-			<div
-				class="h-[600px] w-full overflow-hidden rounded-xl border border-border bg-card shadow-inner"
-			>
-				<DependencyGraph nodes={graphData.nodes} edges={graphData.edges} />
+			<div class="h-[640px] w-full overflow-hidden rounded-xl border border-border bg-card shadow-inner">
+				<DependencyGraph
+					nodes={graphData.nodes}
+					edges={graphData.edges}
+					showControls={false}
+				/>
 			</div>
 		{:else if activeTab === 'status'}
 			<CodeViewer

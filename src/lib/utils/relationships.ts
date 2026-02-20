@@ -457,3 +457,49 @@ export function getResourceStatus(
 export function resourceRefKey(ref: ResourceRef): string {
 	return `${ref.kind}/${ref.namespace || 'cluster-scoped'}/${ref.name}`;
 }
+
+/**
+ * Detect circular dependencies in a set of relationships using DFS cycle detection.
+ * Returns an array of node id strings (resourceRefKey format) involved in cycles.
+ */
+export function detectCircularDependencies(relationships: ResourceRelationship[]): string[] {
+	const adj = new Map<string, string[]>();
+	for (const rel of relationships) {
+		const srcKey = resourceRefKey(rel.source);
+		const tgtKey = resourceRefKey(rel.target);
+		if (!adj.has(srcKey)) adj.set(srcKey, []);
+		adj.get(srcKey)!.push(tgtKey);
+	}
+
+	const visited = new Set<string>();
+	const inStack = new Set<string>();
+	const cycleNodes = new Set<string>();
+
+	function dfs(node: string): boolean {
+		if (inStack.has(node)) {
+			cycleNodes.add(node);
+			return true;
+		}
+		if (visited.has(node)) return false;
+
+		visited.add(node);
+		inStack.add(node);
+
+		for (const neighbor of adj.get(node) || []) {
+			if (dfs(neighbor)) {
+				cycleNodes.add(node);
+			}
+		}
+
+		inStack.delete(node);
+		return false;
+	}
+
+	for (const node of adj.keys()) {
+		if (!visited.has(node)) {
+			dfs(node);
+		}
+	}
+
+	return Array.from(cycleNodes);
+}

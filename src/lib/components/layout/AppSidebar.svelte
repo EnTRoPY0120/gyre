@@ -189,6 +189,29 @@
 				Inventory
 			</a>
 
+			<!-- Dependency Graph -->
+			<!-- eslint-disable-next-line -->
+			<a
+				href="/graph"
+				onclick={closeMobile}
+				class={cn(
+					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
+					currentPath === '/graph'
+						? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.2)]'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+				)}
+			>
+				<Icon
+					name="git-merge"
+					size={18}
+					class={cn(
+						'transition-transform group-hover:scale-110',
+						currentPath === '/graph' && 'animate-pulse'
+					)}
+				/>
+				Dependency Graph
+			</a>
+
 			<!-- Image Automation Dashboard -->
 			<!-- eslint-disable-next-line -->
 			<a
@@ -550,6 +573,20 @@
 				title="Inventory"
 			>
 				<Icon name="network" size={20} />
+			</a>
+
+			<!-- eslint-disable-next-line -->
+			<a
+				href="/graph"
+				class={cn(
+					'mb-4 rounded-xl p-3 transition-all active:scale-95',
+					currentPath === '/graph'
+						? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
+						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+				)}
+				title="Dependency Graph"
+			>
+				<Icon name="git-merge" size={20} />
 			</a>
 
 			<!-- eslint-disable-next-line -->

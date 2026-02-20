@@ -177,14 +177,12 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	};
 
 	// Calculate overall stats
-	results
-		.flatMap((r) => r.items)
-		.forEach((item) => {
-			const status = getResourceStatus(item as RelationshipsFluxResource);
-			if (status === 'ready') stats.ready++;
-			else if (status === 'failed') stats.failed++;
-			else if (status === 'suspended') stats.suspended++;
-		});
+	allResources.forEach((item) => {
+		const status = getResourceStatus(item as RelationshipsFluxResource);
+		if (status === 'ready') stats.ready++;
+		else if (status === 'failed') stats.failed++;
+		else if (status === 'suspended') stats.suspended++;
+	});
 
 	// Determine which image automation nodes are top-level (not children of a policy)
 	const topLevelImageUpdateNodes = imageUpdateNodes.filter((un) => {
