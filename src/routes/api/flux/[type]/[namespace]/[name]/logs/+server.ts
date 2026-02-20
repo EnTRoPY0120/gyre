@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { getControllerLogs } from '$lib/server/kubernetes/client';
+import { getControllerLogs, type ReqCache } from '$lib/server/kubernetes/client';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
@@ -55,8 +55,16 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(403, { message: 'Permission denied' });
 	}
 
+	const reqCache: ReqCache = new Map();
+
 	try {
-		const logs = await getControllerLogs(type as FluxResourceType, namespace, name, locals.cluster);
+		const logs = await getControllerLogs(
+			type as FluxResourceType,
+			namespace,
+			name,
+			locals.cluster,
+			reqCache
+		);
 		return json({ logs });
 	} catch (err) {
 		handleApiError(err, `Error fetching logs for ${name}`);

@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { listFluxResourcesInNamespace } from '$lib/server/kubernetes/client.js';
+import { listFluxResourcesInNamespace, type ReqCache } from '$lib/server/kubernetes/client.js';
 import {
 	getAllResourcePlurals,
 	getResourceTypeByPlural,
@@ -74,8 +74,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		throw error(403, { message: 'Permission denied' });
 	}
 
+	const reqCache: ReqCache = new Map();
+
 	try {
-		const resources = await listFluxResourcesInNamespace(resolvedType, namespace, locals.cluster);
+		const resources = await listFluxResourcesInNamespace(
+			resolvedType,
+			namespace,
+			locals.cluster,
+			reqCache
+		);
 		return json(resources);
 	} catch (err) {
 		handleApiError(err, `Error listing ${resolvedType} in namespace ${namespace}`);

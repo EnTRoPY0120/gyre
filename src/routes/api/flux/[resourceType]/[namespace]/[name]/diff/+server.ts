@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { getFluxResource, getKubeConfig } from '$lib/server/kubernetes/client';
+import { getFluxResource, getKubeConfig, type ReqCache } from '$lib/server/kubernetes/client';
 import {
 	getResourceTypeByPlural,
 	type FluxResourceType,
@@ -176,13 +176,16 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 	await requirePermission(locals.user, 'read', 'Kustomization', namespace, clusterId);
 
+	const reqCache: ReqCache = new Map();
+
 	try {
 		// 1. Get the Kustomization resource
 		const kustomization = await getFluxResource(
 			resourceType as FluxResourceType,
 			namespace,
 			name,
-			clusterId
+			clusterId,
+			reqCache
 		);
 
 		if (!kustomization.spec?.sourceRef) {
@@ -219,7 +222,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			sourceRef.kind as FluxResourceType,
 			sourceNamespace,
 			sourceRef.name,
-			clusterId
+			clusterId,
+			reqCache
 		);
 
 		const artifactUrl = (source.status as { artifact?: { url: string } } | undefined)?.artifact
@@ -260,7 +264,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 				// Fallback: Use port-forward via Kubernetes API to access the artifact
 				// This works for both in-cluster and local development
 				try {
-					const config = await getKubeConfig(clusterId);
+					const config = await getKubeConfig(clusterId, reqCache);
 					const coreApi = config.makeApiClient(k8s.CoreV1Api);
 
 					// Get source-controller pod name
@@ -384,7 +388,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 			// 5. Parse resources and compare using Server-Side Dry-Run
 			const desiredResources = yaml.loadAll(buildOutput) as Array<Record<string, unknown>>;
-			const config = await getKubeConfig(clusterId);
+			const config = await getKubeConfig(clusterId, reqCache);
 			const customApi = config.makeApiClient(k8s.CustomObjectsApi);
 
 			const diffs = await Promise.all(

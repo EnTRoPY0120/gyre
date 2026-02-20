@@ -1,7 +1,11 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { listFluxResources, createFluxResource } from '$lib/server/kubernetes/client.js';
+import {
+	listFluxResources,
+	createFluxResource,
+	type ReqCache
+} from '$lib/server/kubernetes/client.js';
 import {
 	getAllResourcePlurals,
 	getResourceTypeByPlural,
@@ -114,8 +118,10 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 		throw error(403, { message: 'Permission denied' });
 	}
 
+	const reqCache: ReqCache = new Map();
+
 	try {
-		const resources = await listFluxResources(resolvedType, locals.cluster);
+		const resources = await listFluxResources(resolvedType, locals.cluster, reqCache);
 
 		// Generate ETag from resourceVersion
 		const resourceVersion = resources.metadata?.resourceVersion;
@@ -172,8 +178,16 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		throw error(403, { message: 'Permission denied' });
 	}
 
+	const reqCache: ReqCache = new Map();
+
 	try {
-		const result = await createFluxResource(resolvedType, namespace, body, locals.cluster);
+		const result = await createFluxResource(
+			resolvedType,
+			namespace,
+			body,
+			locals.cluster,
+			reqCache
+		);
 
 		return json(result);
 	} catch (err) {
