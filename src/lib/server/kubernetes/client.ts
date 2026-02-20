@@ -14,36 +14,6 @@ import {
 	AuthorizationError
 } from './errors.js';
 
-// Cache for Kubernetes configurations to ensure atomic access and performance
-// Maps clusterId or contextName to a fully configured KubeConfig instance
-const MAX_CACHED_CONFIGS = 50;
-const configCache = new Map<string, { config: k8s.KubeConfig; lastAccess: number }>();
-
-function getFromCache(key: string): k8s.KubeConfig | undefined {
-	const entry = configCache.get(key);
-	if (entry) {
-		entry.lastAccess = Date.now();
-		return entry.config;
-	}
-	return undefined;
-}
-
-function setInCache(key: string, config: k8s.KubeConfig): void {
-	if (configCache.size >= MAX_CACHED_CONFIGS) {
-		// Evict least recently accessed
-		let oldestKey: string | null = null;
-		let oldestTime = Infinity;
-		for (const [k, v] of configCache) {
-			if (v.lastAccess < oldestTime) {
-				oldestTime = v.lastAccess;
-				oldestKey = k;
-			}
-		}
-		if (oldestKey) configCache.delete(oldestKey);
-	}
-	configCache.set(key, { config, lastAccess: Date.now() });
-}
-
 // Store the base default config separately to avoid reloading it constantly
 let baseConfig: k8s.KubeConfig | null = null;
 
@@ -55,20 +25,14 @@ let baseConfig: k8s.KubeConfig | null = null;
 export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.KubeConfig> {
 	const key = clusterIdOrContext || 'in-cluster';
 
-	// 1. Check cache first
-	const cached = getFromCache(key);
-	if (cached) {
-		return cached;
-	}
-
-	// 2. Load the base configuration if not already loaded
+	// 1. Load the base configuration if not already loaded
 	if (!baseConfig) {
 		baseConfig = loadKubeConfig();
 	}
 
 	let config: k8s.KubeConfig;
 
-	// 3. Determine if it's a cluster ID (UUID), a context name, or default
+	// 2. Determine if it's a cluster ID (UUID), a context name, or default
 	const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
 
 	if (isUuid) {
@@ -99,8 +63,7 @@ export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.Ku
 		config = baseConfig;
 	}
 
-	// 4. Cache and return
-	setInCache(key, config);
+	// 3. Return configuration
 	return config;
 }
 
@@ -131,13 +94,6 @@ export async function getAppsV1Api(context?: string): Promise<k8s.AppsV1Api> {
 	return config.makeApiClient(k8s.AppsV1Api);
 }
 
-// Cache for Kubernetes resources
-const resourceCache = new Map<
-	string,
-	{ data: FluxResource | FluxResourceList; timestamp: number }
->();
-const pendingRequests = new Map<string, Promise<FluxResource | FluxResourceList>>();
-const CACHE_TTL = 5000; // 5 seconds cache for K8s resources
 
 /**
  * List FluxCD resources of a specific type across all namespaces
@@ -146,45 +102,23 @@ export async function listFluxResources(
 	resourceType: FluxResourceType,
 	context?: string
 ): Promise<FluxResourceList> {
-	const cacheKey = `list:${resourceType}:${context || 'default'}`;
-
-	// Check cache
-	const cached = resourceCache.get(cacheKey);
-	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		return cached.data as FluxResourceList;
-	}
-
-	// Check pending requests (deduplication)
-	if (pendingRequests.has(cacheKey)) {
-		return pendingRequests.get(cacheKey) as Promise<FluxResourceList>;
-	}
-
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const fetchPromise = (async () => {
-		try {
-			const api = await getCustomObjectsApi(context);
-			const response = await api.listClusterCustomObject({
-				group: resourceDef.group,
-				version: resourceDef.version,
-				plural: resourceDef.plural
-			});
+	try {
+		const api = await getCustomObjectsApi(context);
+		const response = await api.listClusterCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			plural: resourceDef.plural
+		});
 
-			const data = response as unknown as FluxResourceList;
-			resourceCache.set(cacheKey, { data, timestamp: Date.now() });
-			return data;
-		} catch (error) {
-			throw handleK8sError(error, `list ${resourceType}`);
-		} finally {
-			pendingRequests.delete(cacheKey);
-		}
-	})();
-
-	pendingRequests.set(cacheKey, fetchPromise);
-	return fetchPromise;
+		return response as unknown as FluxResourceList;
+	} catch (error) {
+		throw handleK8sError(error, `list ${resourceType}`);
+	}
 }
 
 /**
@@ -195,44 +129,24 @@ export async function listFluxResourcesInNamespace(
 	namespace: string,
 	context?: string
 ): Promise<FluxResourceList> {
-	const cacheKey = `list:${resourceType}:${namespace}:${context || 'default'}`;
-
-	const cached = resourceCache.get(cacheKey);
-	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		return cached.data as FluxResourceList;
-	}
-
-	if (pendingRequests.has(cacheKey)) {
-		return pendingRequests.get(cacheKey) as Promise<FluxResourceList>;
-	}
-
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const fetchPromise = (async () => {
-		try {
-			const api = await getCustomObjectsApi(context);
-			const response = await api.listNamespacedCustomObject({
-				group: resourceDef.group,
-				version: resourceDef.version,
-				namespace,
-				plural: resourceDef.plural
-			});
+	try {
+		const api = await getCustomObjectsApi(context);
+		const response = await api.listNamespacedCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural
+		});
 
-			const data = response as unknown as FluxResourceList;
-			resourceCache.set(cacheKey, { data, timestamp: Date.now() });
-			return data;
-		} catch (error) {
-			throw handleK8sError(error, `list ${resourceType} in namespace ${namespace}`);
-		} finally {
-			pendingRequests.delete(cacheKey);
-		}
-	})();
-
-	pendingRequests.set(cacheKey, fetchPromise);
-	return fetchPromise;
+		return response as unknown as FluxResourceList;
+	} catch (error) {
+		throw handleK8sError(error, `list ${resourceType} in namespace ${namespace}`);
+	}
 }
 
 /**
@@ -244,45 +158,25 @@ export async function getFluxResource(
 	name: string,
 	context?: string
 ): Promise<FluxResource> {
-	const cacheKey = `get:${resourceType}:${namespace}:${name}:${context || 'default'}`;
-
-	const cached = resourceCache.get(cacheKey);
-	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		return cached.data as FluxResource;
-	}
-
-	if (pendingRequests.has(cacheKey)) {
-		return pendingRequests.get(cacheKey) as Promise<FluxResource>;
-	}
-
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const fetchPromise = (async () => {
-		try {
-			const api = await getCustomObjectsApi(context);
-			const response = await api.getNamespacedCustomObject({
-				group: resourceDef.group,
-				version: resourceDef.version,
-				namespace,
-				plural: resourceDef.plural,
-				name
-			});
+	try {
+		const api = await getCustomObjectsApi(context);
+		const response = await api.getNamespacedCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural,
+			name
+		});
 
-			const data = response as unknown as FluxResource;
-			resourceCache.set(cacheKey, { data, timestamp: Date.now() });
-			return data;
-		} catch (error) {
-			throw handleK8sError(error, `get ${resourceType} ${namespace}/${name}`);
-		} finally {
-			pendingRequests.delete(cacheKey);
-		}
-	})();
-
-	pendingRequests.set(cacheKey, fetchPromise);
-	return fetchPromise;
+		return response as unknown as FluxResource;
+	} catch (error) {
+		throw handleK8sError(error, `get ${resourceType} ${namespace}/${name}`);
+	}
 }
 
 /**

@@ -81,9 +81,7 @@ export const _metadata = {
  * List all resources of a specific type across all namespaces
  * Accepts both plural names (e.g., 'gitrepositories') and PascalCase (e.g., 'GitRepository')
  */
-// Simple in-memory cache for API responses
-const apiCache = new Map<string, { data: unknown; timestamp: number }>();
-const API_CACHE_TTL = 15 * 1000; // 15 seconds
+
 
 export const GET: RequestHandler = async ({ params, locals, setHeaders, request }) => {
 	// Check authentication
@@ -117,18 +115,7 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 		throw error(403, { message: 'Permission denied' });
 	}
 
-	// Create cache key
-	const cacheKey = `${resolvedType}-${locals.cluster || 'default'}-${locals.user.id}`;
-	const cached = apiCache.get(cacheKey);
 
-	// Return cached data if still valid
-	if (cached && Date.now() - cached.timestamp < API_CACHE_TTL) {
-		setHeaders({
-			'Cache-Control': 'private, max-age=15, stale-while-revalidate=45',
-			'X-Cache': 'HIT'
-		});
-		return json(cached.data);
-	}
 
 	try {
 		const resources = await listFluxResources(resolvedType, locals.cluster);
@@ -145,12 +132,8 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 			setHeaders({ ETag: etag });
 		}
 
-		// Store in cache
-		apiCache.set(cacheKey, { data: resources, timestamp: Date.now() });
-
 		setHeaders({
-			'Cache-Control': 'private, max-age=15, stale-while-revalidate=45',
-			'X-Cache': 'MISS'
+			'Cache-Control': 'private, max-age=15, stale-while-revalidate=45'
 		});
 
 		return json(resources);
@@ -195,9 +178,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	try {
 		const result = await createFluxResource(resolvedType, namespace, body, locals.cluster);
 
-		// Invalidate cache
-		const cacheKey = `${resolvedType}-${locals.cluster || 'default'}-${locals.user.id}`;
-		apiCache.delete(cacheKey);
+
 
 		return json(result);
 	} catch (err) {
