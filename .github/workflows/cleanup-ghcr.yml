@@ -3,14 +3,8 @@ name: Cleanup GHCR Images
 on:
   schedule:
     # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
+    - cron: "0 2 * * *"
   workflow_dispatch:
-
-# NOTE: The `*` and `!` filter operators in image-tags/image-names only work
-# with a PAT or GitHub App token. If using GITHUB_TOKEN, you must use exact
-# names and cannot use wildcard/exclusion filters. To use filters, create a PAT
-# with `packages:write` scope and store it as a repository secret (e.g., PAT).
-# Then replace `${{ secrets.GITHUB_TOKEN }}` with `${{ secrets.PAT }}` below.
 
 jobs:
   cleanup:
@@ -38,7 +32,7 @@ jobs:
           cut-off: 7d
           account: user
           token: ${{ secrets.PAT }}
-          image-tags: 'pr-*'
+          image-tags: "pr-*"
           tag-selection: tagged
           keep-n-most-recent: 5
           timestamp-to-use: created_at
@@ -50,7 +44,7 @@ jobs:
           cut-off: 4w
           account: user
           token: ${{ secrets.PAT }}
-          image-tags: 'feat/* fix/* chore/* docs/* refactor/* ci/*'
+          image-tags: "feat/* fix/* chore/* docs/* refactor/* ci/*"
           tag-selection: tagged
           timestamp-to-use: created_at
 
@@ -61,7 +55,7 @@ jobs:
           cut-off: 14d
           account: user
           token: ${{ secrets.PAT }}
-          image-tags: 'v*-*'
+          image-tags: "v*-*"
           tag-selection: tagged
           keep-n-most-recent: 3
           timestamp-to-use: created_at
