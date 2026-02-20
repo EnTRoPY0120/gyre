@@ -22,8 +22,15 @@ let baseConfig: k8s.KubeConfig | null = null;
  * This function is now asynchronous and atomic per-request.
  * @param clusterIdOrContext - Optional cluster ID (UUID) or context name
  */
-export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.KubeConfig> {
+export async function getKubeConfig(
+	clusterIdOrContext?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
+): Promise<k8s.KubeConfig> {
 	const key = clusterIdOrContext || 'in-cluster';
+
+	if (reqCache && reqCache.has(key)) {
+		return reqCache.get(key)!;
+	}
 
 	// 1. Load the base configuration if not already loaded
 	if (!baseConfig) {
@@ -65,6 +72,9 @@ export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.Ku
 	}
 
 	// 3. Return configuration
+	if (reqCache) {
+		reqCache.set(key, config);
+	}
 	return config;
 }
 
@@ -72,8 +82,11 @@ export async function getKubeConfig(clusterIdOrContext?: string): Promise<k8s.Ku
  * Create CustomObjectsApi client
  * @param context - Optional cluster ID or context name
  */
-export async function getCustomObjectsApi(context?: string): Promise<k8s.CustomObjectsApi> {
-	const config = await getKubeConfig(context);
+export async function getCustomObjectsApi(
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
+): Promise<k8s.CustomObjectsApi> {
+	const config = await getKubeConfig(context, reqCache);
 	return config.makeApiClient(k8s.CustomObjectsApi);
 }
 
@@ -81,8 +94,11 @@ export async function getCustomObjectsApi(context?: string): Promise<k8s.CustomO
  * Create CoreV1Api client
  * @param context - Optional cluster ID or context name
  */
-export async function getCoreV1Api(context?: string): Promise<k8s.CoreV1Api> {
-	const config = await getKubeConfig(context);
+export async function getCoreV1Api(
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
+): Promise<k8s.CoreV1Api> {
+	const config = await getKubeConfig(context, reqCache);
 	return config.makeApiClient(k8s.CoreV1Api);
 }
 
@@ -90,8 +106,11 @@ export async function getCoreV1Api(context?: string): Promise<k8s.CoreV1Api> {
  * Create AppsV1Api client
  * @param context - Optional cluster ID or context name
  */
-export async function getAppsV1Api(context?: string): Promise<k8s.AppsV1Api> {
-	const config = await getKubeConfig(context);
+export async function getAppsV1Api(
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
+): Promise<k8s.AppsV1Api> {
+	const config = await getKubeConfig(context, reqCache);
 	return config.makeApiClient(k8s.AppsV1Api);
 }
 
@@ -100,7 +119,8 @@ export async function getAppsV1Api(context?: string): Promise<k8s.AppsV1Api> {
  */
 export async function listFluxResources(
 	resourceType: FluxResourceType,
-	context?: string
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
 ): Promise<FluxResourceList> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -108,7 +128,7 @@ export async function listFluxResources(
 	}
 
 	try {
-		const api = await getCustomObjectsApi(context);
+		const api = await getCustomObjectsApi(context, reqCache);
 		const response = await api.listClusterCustomObject({
 			group: resourceDef.group,
 			version: resourceDef.version,
@@ -127,7 +147,8 @@ export async function listFluxResources(
 export async function listFluxResourcesInNamespace(
 	resourceType: FluxResourceType,
 	namespace: string,
-	context?: string
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
 ): Promise<FluxResourceList> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -135,7 +156,7 @@ export async function listFluxResourcesInNamespace(
 	}
 
 	try {
-		const api = await getCustomObjectsApi(context);
+		const api = await getCustomObjectsApi(context, reqCache);
 		const response = await api.listNamespacedCustomObject({
 			group: resourceDef.group,
 			version: resourceDef.version,
@@ -156,7 +177,8 @@ export async function getFluxResource(
 	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,
-	context?: string
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -164,7 +186,7 @@ export async function getFluxResource(
 	}
 
 	try {
-		const api = await getCustomObjectsApi(context);
+		const api = await getCustomObjectsApi(context, reqCache);
 		const response = await api.getNamespacedCustomObject({
 			group: resourceDef.group,
 			version: resourceDef.version,
@@ -186,16 +208,16 @@ export async function getFluxResourceStatus(
 	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,
-	context?: string
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = await getCustomObjectsApi(context);
-
 	try {
+		const api = await getCustomObjectsApi(context, reqCache);
 		const response = await api.getNamespacedCustomObjectStatus({
 			group: resourceDef.group,
 			version: resourceDef.version,
@@ -218,14 +240,15 @@ export async function getGenericResource(
 	kind: string,
 	namespace: string,
 	name: string,
-	context?: string
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
 ): Promise<unknown> {
 	// Normalize group for core resources (often empty or "core")
 	const normalizedGroup = group === 'core' || group === '' ? '' : group;
 
 	try {
 		if (normalizedGroup === '') {
-			const coreApi = await getCoreV1Api(context);
+			const coreApi = await getCoreV1Api(context, reqCache);
 			// Mapped types
 			switch (kind) {
 				case 'Service':
@@ -248,7 +271,7 @@ export async function getGenericResource(
 					};
 			}
 		} else if (normalizedGroup === 'apps') {
-			const appsApi = await getAppsV1Api(context);
+			const appsApi = await getAppsV1Api(context, reqCache);
 			switch (kind) {
 				case 'Deployment':
 					return await appsApi.readNamespacedDeployment({ name, namespace });
@@ -304,16 +327,16 @@ export async function createFluxResource(
 	resourceType: string,
 	namespace: string,
 	body: Record<string, unknown>,
-	context?: string
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = await getCustomObjectsApi(context);
-
 	try {
+		const api = await getCustomObjectsApi(context, reqCache);
 		const response = await api.createNamespacedCustomObject({
 			group: resourceDef.group,
 			version: resourceDef.version,
@@ -336,16 +359,16 @@ export async function updateFluxResource(
 	namespace: string,
 	name: string,
 	body: Record<string, unknown>,
-	context?: string
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
 	}
 
-	const api = await getCustomObjectsApi(context);
-
 	try {
+		const api = await getCustomObjectsApi(context, reqCache);
 		const response = await api.replaceNamespacedCustomObject({
 			group: resourceDef.group,
 			version: resourceDef.version,
@@ -368,7 +391,8 @@ export async function getControllerLogs(
 	resourceType: string,
 	namespace: string,
 	name: string,
-	context?: string
+	context?: string,
+	reqCache?: Map<string, k8s.KubeConfig>
 ): Promise<string> {
 	let resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -383,9 +407,9 @@ export async function getControllerLogs(
 	}
 
 	const controllerName = resourceDef.controller;
-	const coreApi = await getCoreV1Api(context);
 
 	try {
+		const coreApi = await getCoreV1Api(context, reqCache);
 		// 1. Find the controller pod in flux-system namespace
 		// Most Flux installations use the app label
 		const podsResponse = await coreApi.listNamespacedPod({
