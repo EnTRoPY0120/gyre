@@ -82,7 +82,6 @@ export const _metadata = {
  * Accepts both plural names (e.g., 'gitrepositories') and PascalCase (e.g., 'GitRepository')
  */
 
-
 export const GET: RequestHandler = async ({ params, locals, setHeaders, request }) => {
 	// Check authentication
 	if (!locals.user) {
@@ -114,8 +113,6 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 	if (!hasPermission) {
 		throw error(403, { message: 'Permission denied' });
 	}
-
-
 
 	try {
 		const resources = await listFluxResources(resolvedType, locals.cluster);
@@ -177,8 +174,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
 	try {
 		const result = await createFluxResource(resolvedType, namespace, body, locals.cluster);
-
-
 
 		return json(result);
 	} catch (err) {
