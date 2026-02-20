@@ -61,11 +61,12 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
 	});
 	const context = locals.cluster;
 	const resourceTypes = getAllResourceTypes();
+	const reqCache = new Map();
 
 	const results = await Promise.all(
 		resourceTypes.map(async (type) => {
 			try {
-				const data = await listFluxResources(type, context);
+				const data = await listFluxResources(type, context, reqCache);
 				const items = data.items || [];
 
 				let healthy = 0;

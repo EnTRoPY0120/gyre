@@ -36,10 +36,11 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		'ImageUpdateAutomation'
 	];
 
+	const reqCache = new Map();
 	const results = await Promise.all(
 		resourceTypes.map(async (type) => {
 			try {
-				const data = await listFluxResources(type, context);
+				const data = await listFluxResources(type, context, reqCache);
 				return { type, items: data.items || [] };
 			} catch {
 				return { type, items: [] };
