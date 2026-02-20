@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { listFluxResources } from '$lib/server/kubernetes/client';
+import { listFluxResources, type ReqCache } from '$lib/server/kubernetes/client';
 import { type FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import {
 	buildRelationshipMap,
@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		'ImageUpdateAutomation'
 	];
 
-	const reqCache = new Map();
+	const reqCache: ReqCache = new Map();
 	const results = await Promise.all(
 		resourceTypes.map(async (type) => {
 			try {

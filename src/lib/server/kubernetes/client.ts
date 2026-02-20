@@ -17,6 +17,8 @@ import {
 // Store the base default config separately to avoid reloading it constantly
 let baseConfig: k8s.KubeConfig | null = null;
 
+export type ReqCache = Map<string, Promise<k8s.KubeConfig>>;
+
 /**
  * Get or create KubeConfig for a specific cluster or context
  * This function is now asynchronous and atomic per-request.
@@ -24,7 +26,7 @@ let baseConfig: k8s.KubeConfig | null = null;
  */
 export async function getKubeConfig(
 	clusterIdOrContext?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<k8s.KubeConfig> {
 	const key = clusterIdOrContext || 'in-cluster';
 
@@ -32,50 +34,55 @@ export async function getKubeConfig(
 		return reqCache.get(key)!;
 	}
 
-	// 1. Load the base configuration if not already loaded
-	if (!baseConfig) {
-		baseConfig = loadKubeConfig();
-	}
-
-	let config: k8s.KubeConfig;
-
-	// 2. Determine if it's a cluster ID (UUID), a context name, or default
-	const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
-
-	if (isUuid) {
-		// Load from database
-		const kubeconfigYaml = await getClusterKubeconfig(key);
-		if (!kubeconfigYaml) {
-			throw new Error(`Cluster with ID "${key}" not found or has no valid configuration`);
+	const loadConfig = async () => {
+		// 1. Load the base configuration if not already loaded
+		if (!baseConfig) {
+			baseConfig = loadKubeConfig();
 		}
-		config = new k8s.KubeConfig();
-		config.loadFromString(kubeconfigYaml);
-		console.log(`✓ Loaded Kubernetes configuration from database for cluster: ${key}`);
-	} else if (key !== 'in-cluster' && key !== 'default') {
-		// It's a context name - check if it exists in the base config
-		const availableContexts = baseConfig.getContexts().map((c) => c.name);
-		if (availableContexts.includes(key)) {
-			// Create a clone of the base config and switch context
+
+		let config: k8s.KubeConfig;
+
+		// 2. Determine if it's a cluster ID (UUID), a context name, or default
+		const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+
+		if (isUuid) {
+			// Load from database
+			const kubeconfigYaml = await getClusterKubeconfig(key);
+			if (!kubeconfigYaml) {
+				throw new Error(`Cluster with ID "${key}" not found or has no valid configuration`);
+			}
+			config = new k8s.KubeConfig();
+			config.loadFromString(kubeconfigYaml);
+			console.debug(`✓ Loaded Kubernetes configuration from database for cluster: ${key}`);
+		} else if (key !== 'in-cluster' && key !== 'default') {
+			// It's a context name - check if it exists in the base config
+			const availableContexts = baseConfig.getContexts().map((c) => c.name);
+			if (availableContexts.includes(key)) {
+				// Create a clone of the base config and switch context
+				config = new k8s.KubeConfig();
+				config.loadFromString(baseConfig.exportConfig());
+				config.setCurrentContext(key);
+				console.debug(`✓ Switched to Kubernetes context: ${key}`);
+			} else {
+				throw new Error(
+					`Context "${key}" not found in kubeconfig. Available: ${availableContexts.join(', ')}`
+				);
+			}
+		} else {
+			// Default context
 			config = new k8s.KubeConfig();
 			config.loadFromString(baseConfig.exportConfig());
-			config.setCurrentContext(key);
-			console.log(`✓ Switched to Kubernetes context: ${key}`);
-		} else {
-			throw new Error(
-				`Context "${key}" not found in kubeconfig. Available: ${availableContexts.join(', ')}`
-			);
 		}
-	} else {
-		// Default context
-		config = new k8s.KubeConfig();
-		config.loadFromString(baseConfig.exportConfig());
-	}
 
-	// 3. Return configuration
+		// 3. Return configuration
+		return config;
+	};
+
+	const promise = loadConfig();
 	if (reqCache) {
-		reqCache.set(key, config);
+		reqCache.set(key, promise);
 	}
-	return config;
+	return promise;
 }
 
 /**
@@ -84,7 +91,7 @@ export async function getKubeConfig(
  */
 export async function getCustomObjectsApi(
 	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<k8s.CustomObjectsApi> {
 	const config = await getKubeConfig(context, reqCache);
 	return config.makeApiClient(k8s.CustomObjectsApi);
@@ -94,10 +101,7 @@ export async function getCustomObjectsApi(
  * Create CoreV1Api client
  * @param context - Optional cluster ID or context name
  */
-export async function getCoreV1Api(
-	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
-): Promise<k8s.CoreV1Api> {
+export async function getCoreV1Api(context?: string, reqCache?: ReqCache): Promise<k8s.CoreV1Api> {
 	const config = await getKubeConfig(context, reqCache);
 	return config.makeApiClient(k8s.CoreV1Api);
 }
@@ -106,10 +110,7 @@ export async function getCoreV1Api(
  * Create AppsV1Api client
  * @param context - Optional cluster ID or context name
  */
-export async function getAppsV1Api(
-	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
-): Promise<k8s.AppsV1Api> {
+export async function getAppsV1Api(context?: string, reqCache?: ReqCache): Promise<k8s.AppsV1Api> {
 	const config = await getKubeConfig(context, reqCache);
 	return config.makeApiClient(k8s.AppsV1Api);
 }
@@ -120,7 +121,7 @@ export async function getAppsV1Api(
 export async function listFluxResources(
 	resourceType: FluxResourceType,
 	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<FluxResourceList> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -148,7 +149,7 @@ export async function listFluxResourcesInNamespace(
 	resourceType: FluxResourceType,
 	namespace: string,
 	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<FluxResourceList> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -178,7 +179,7 @@ export async function getFluxResource(
 	namespace: string,
 	name: string,
 	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -209,7 +210,7 @@ export async function getFluxResourceStatus(
 	namespace: string,
 	name: string,
 	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -241,7 +242,7 @@ export async function getGenericResource(
 	namespace: string,
 	name: string,
 	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<unknown> {
 	// Normalize group for core resources (often empty or "core")
 	const normalizedGroup = group === 'core' || group === '' ? '' : group;
@@ -328,7 +329,7 @@ export async function createFluxResource(
 	namespace: string,
 	body: Record<string, unknown>,
 	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -360,7 +361,7 @@ export async function updateFluxResource(
 	name: string,
 	body: Record<string, unknown>,
 	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<FluxResource> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
@@ -392,7 +393,7 @@ export async function getControllerLogs(
 	namespace: string,
 	name: string,
 	context?: string,
-	reqCache?: Map<string, k8s.KubeConfig>
+	reqCache?: ReqCache
 ): Promise<string> {
 	let resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {

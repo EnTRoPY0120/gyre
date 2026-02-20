@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { listFluxResources } from '$lib/server/kubernetes/client';
+import { listFluxResources, type ReqCache } from '$lib/server/kubernetes/client';
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { getResourceStatus } from '$lib/utils/relationships';
 import { checkPermission } from '$lib/server/rbac.js';
@@ -61,7 +61,7 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
 	});
 	const context = locals.cluster;
 	const resourceTypes = getAllResourceTypes();
-	const reqCache = new Map();
+	const reqCache: ReqCache = new Map();
 
 	const results = await Promise.all(
 		resourceTypes.map(async (type) => {
