@@ -10,7 +10,7 @@ import {
 import { requirePermission } from '$lib/server/rbac';
 import * as k8s from '@kubernetes/client-node';
 import yaml from 'js-yaml';
-import { exec, execFile } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,13 +31,10 @@ export const _metadata = {
 				name: z.string().openapi({ example: 'my-app' })
 			}),
 			query: z.object({
-				force: z
-					.string()
-					.optional()
-					.openapi({
-						description:
-							"Set to 'true' to set `Cache-Control: no-store` on the response, preventing client-side caching."
-					})
+				force: z.string().optional().openapi({
+					description:
+						"Set to 'true' to set `Cache-Control: no-store` on the response, preventing client-side caching."
+				})
 			})
 		},
 		responses: {
@@ -70,7 +67,6 @@ export const _metadata = {
 	}
 };
 
-const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 // Helper function to download artifact using Node.js http module
@@ -313,7 +309,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			await writeFile(artifactPath, buffer);
 
 			try {
-				await execAsync(`tar -tzf "${artifactPath}" > /dev/null`, {
+				await execFileAsync('tar', ['-tzf', artifactPath], {
 					timeout: 5000
 				});
 				console.log('✓ Tarball validation passed');
@@ -323,7 +319,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 				);
 			}
 
-			await execAsync(`tar -xzf "${artifactPath}" -C "${tempDir}"`, {
+			await execFileAsync('tar', ['-C', tempDir, '-xzf', artifactPath], {
 				timeout: 30000,
 				maxBuffer: 50 * 1024 * 1024 // 50MB max
 			});
