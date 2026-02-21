@@ -22,7 +22,7 @@ export const _metadata = {
 	GET: {
 		summary: 'Get resource drift diff',
 		description:
-			'Compare the desired state (from source artifact) against the live cluster state for a Kustomization. Only available when Gyre is deployed in-cluster. Results are cached for 1 minute.',
+			'Compare the desired state (from source artifact) against the live cluster state for a Kustomization. Only available when Gyre is deployed in-cluster.',
 		tags: ['Flux'],
 		request: {
 			params: z.object({
@@ -53,7 +53,6 @@ export const _metadata = {
 									error: z.string().optional()
 								})
 							),
-							cached: z.boolean(),
 							timestamp: z.number(),
 							revision: z.string().nullable().optional()
 						})
@@ -132,22 +131,6 @@ function downloadArtifact(url: string, timeoutMs = 15000): Promise<Buffer> {
 	});
 }
 
-// Cache for expensive diff computations
-interface DiffCacheEntry {
-	diffs: Array<{
-		kind: string;
-		name: string;
-		namespace: string;
-		desired: string;
-		live: string | null;
-	}>;
-	timestamp: number;
-	revision: string;
-}
-
-const diffCache = new Map<string, DiffCacheEntry>();
-const DIFF_CACHE_TTL = 60000; // 1 minute cache
-
 export const GET: RequestHandler = async ({ params, locals, url }) => {
 	const { resourceType: pluralType, namespace, name } = params;
 	const clusterId = locals.cluster;
@@ -194,25 +177,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 		const spec = kustomization.spec;
 
-		// Check cache first (unless force refresh requested)
 		const currentRevision = (kustomization.status as { lastAppliedRevision?: string })
 			?.lastAppliedRevision;
-		const cacheKey = `${clusterId}:${namespace}:${name}:${currentRevision}`;
-
-		if (!forceRefresh) {
-			const cached = diffCache.get(cacheKey);
-			if (cached && Date.now() - cached.timestamp < DIFF_CACHE_TTL) {
-				console.log('✓ Returning cached diff result');
-				return json({
-					diffs: cached.diffs,
-					cached: true,
-					timestamp: cached.timestamp,
-					revision: cached.revision
-				});
-			}
-		} else {
-			console.log('ℹ Force refresh requested, bypassing cache');
-		}
 
 		// 2. Get the Source resource
 		const sourceRef = spec.sourceRef as { kind: string; name: string; namespace?: string };
@@ -534,33 +500,16 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 			const filteredDiffs = diffs.filter((d) => d !== null);
 
-			// Cache the results
-			if (currentRevision) {
-				diffCache.set(cacheKey, {
+			const cacheControl = forceRefresh ? 'no-cache, private' : 'max-age=60, private';
+
+			return json(
+				{
 					diffs: filteredDiffs,
 					timestamp: Date.now(),
 					revision: currentRevision
-				});
-
-				// Cleanup old cache entries (keep max 100 entries)
-				if (diffCache.size > 100) {
-					const sortedEntries = Array.from(diffCache.entries()).sort(
-						(a, b) => a[1].timestamp - b[1].timestamp
-					);
-					const toDelete = sortedEntries.slice(0, diffCache.size - 100);
-					toDelete.forEach(([key]) => {
-						diffCache.delete(key);
-					});
-					console.log(`♻️  Cleaned up ${toDelete.length} old cache entries`);
-				}
-			}
-
-			return json({
-				diffs: filteredDiffs,
-				cached: false,
-				timestamp: Date.now(),
-				revision: currentRevision
-			});
+				},
+				{ headers: { 'Cache-Control': cacheControl } }
+			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true }).catch((cleanupErr) => {
 				console.warn(`⚠️  Failed to cleanup temp dir: ${cleanupErr}`);
