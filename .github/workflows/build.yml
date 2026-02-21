@@ -95,7 +95,7 @@ jobs:
 
       # Run Trivy vulnerability scanner
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@0.34.0
+        uses: aquasecurity/trivy-action@0.34.1
         with:
           image-ref: ${{ github.event_name == 'pull_request' && format('{0}/{1}:pr-{2}', env.REGISTRY, env.IMAGE_NAME, github.event.number) || format('{0}/{1}@{2}', env.REGISTRY, env.IMAGE_NAME, steps.build-and-push.outputs.digest) }}
           format: 'sarif'
@@ -115,7 +115,7 @@ jobs:
           category: 'container-scan'
 
       - name: Run Trivy scanner for display results
-        uses: aquasecurity/trivy-action@0.34.0
+        uses: aquasecurity/trivy-action@0.34.1
         with:
           image-ref: ${{ github.event_name == 'pull_request' && format('{0}/{1}:pr-{2}', env.REGISTRY, env.IMAGE_NAME, github.event.number) || format('{0}/{1}@{2}', env.REGISTRY, env.IMAGE_NAME, steps.build-and-push.outputs.digest) }}
           format: 'table'
