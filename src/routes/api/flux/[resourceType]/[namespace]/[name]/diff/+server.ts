@@ -1,4 +1,4 @@
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getFluxResource, getKubeConfig, type ReqCache } from '$lib/server/kubernetes/client';
@@ -10,7 +10,7 @@ import {
 import { requirePermission } from '$lib/server/rbac';
 import * as k8s from '@kubernetes/client-node';
 import yaml from 'js-yaml';
-import { exec } from 'node:child_process';
+import { exec, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -34,7 +34,10 @@ export const _metadata = {
 				force: z
 					.string()
 					.optional()
-					.openapi({ description: 'Set to "true" to bypass the cache and recompute the diff' })
+					.openapi({
+						description:
+							"Set to 'true' to set `Cache-Control: no-store` on the response, preventing client-side caching."
+					})
 			})
 		},
 		responses: {
@@ -68,6 +71,7 @@ export const _metadata = {
 };
 
 const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 // Helper function to download artifact using Node.js http module
 // This is more reliable in-cluster than fetch() for internal service calls
@@ -345,7 +349,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 			console.log(`ℹ Running kustomize build on: ${kustomizePath}`);
 
-			const { stdout: buildOutput } = await execAsync(`kustomize build "${kustomizePath}"`, {
+			const { stdout: buildOutput } = await execFileAsync('kustomize', ['build', kustomizePath], {
 				timeout: 30000, // 30 second timeout
 				maxBuffer: 10 * 1024 * 1024 // 10MB max output
 			});
@@ -500,7 +504,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 			const filteredDiffs = diffs.filter((d) => d !== null);
 
-			const cacheControl = forceRefresh ? 'no-cache, private' : 'max-age=60, private';
+			const cacheControl = forceRefresh ? 'no-store, private' : 'max-age=60, private';
 
 			return json(
 				{
@@ -516,8 +520,12 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			});
 		}
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) {
+			throw err;
+		}
+
 		console.error('Diff error:', err);
-		const message = err instanceof Error ? err.message : 'Failed to calculate diff';
+		const message = err instanceof Error ? err.message : String(err);
 
 		// Provide more helpful error messages based on common failures
 		if (message.includes('not in gzip format')) {
