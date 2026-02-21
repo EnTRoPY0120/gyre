@@ -310,7 +310,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 			try {
 				await execFileAsync('tar', ['-tzf', artifactPath], {
-					timeout: 5000
+					timeout: 5000,
+					maxBuffer: 50 * 1024 * 1024 // 50MB max
 				});
 				console.log('✓ Tarball validation passed');
 			} catch (tarCheckErr) {
