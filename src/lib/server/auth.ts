@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db/index.js';
 import { users, sessions } from './db/schema.js';
-import { eq, and, gt, lt, sql, or, like, count } from 'drizzle-orm';
+import { getPaginatedItems } from './db/utils.js';
+import { eq, and, gt, lt, sql, or, like } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import * as k8s from '@kubernetes/client-node';
@@ -195,29 +196,14 @@ export async function listUsersPaginated(options?: {
 	limit?: number;
 	offset?: number;
 }): Promise<{ users: User[]; total: number }> {
-	const db = await getDb();
-	const { search, limit = 10, offset = 0 } = options || {};
+	const result = await getPaginatedItems<typeof users, User>(
+		users,
+		(db) => db.query.users,
+		options,
+		(search) => or(like(users.username, `%${search}%`), like(users.email, `%${search}%`))
+	);
 
-	// Build where clause
-	const conditions = [];
-	if (search) {
-		conditions.push(or(like(users.username, `%${search}%`), like(users.email, `%${search}%`)));
-	}
-
-	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-	// Get total count
-	const [{ value: total }] = await db.select({ value: count() }).from(users).where(whereClause);
-
-	// Get paginated results
-	const userResults = await db.query.users.findMany({
-		where: whereClause,
-		orderBy: (users, { desc }) => [desc(users.createdAt)],
-		limit,
-		offset
-	});
-
-	return { users: userResults, total };
+	return { users: result.items, total: result.total };
 }
 
 // Session management

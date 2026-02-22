@@ -1,5 +1,6 @@
-import { eq, desc, like, or, count, and } from 'drizzle-orm';
+import { eq, desc, like, or } from 'drizzle-orm';
 import { getDbSync } from './db/index.js';
+import { getPaginatedItems } from './db/utils.js';
 import { clusters, clusterContexts, type NewCluster, type NewClusterContext } from './db/schema.js';
 import * as k8s from '@kubernetes/client-node';
 import crypto from 'node:crypto';
@@ -217,31 +218,14 @@ export async function getAllClustersPaginated(options?: {
 	limit?: number;
 	offset?: number;
 }): Promise<{ clusters: (typeof clusters.$inferSelect)[]; total: number }> {
-	const db = getDbSync();
-	const { search, limit = 10, offset = 0 } = options || {};
+	const result = await getPaginatedItems<typeof clusters, typeof clusters.$inferSelect>(
+		clusters,
+		(db) => db.query.clusters,
+		options,
+		(search) => or(like(clusters.name, `%${search}%`), like(clusters.description, `%${search}%`))
+	);
 
-	// Build where clause
-	const conditions = [];
-	if (search) {
-		conditions.push(
-			or(like(clusters.name, `%${search}%`), like(clusters.description, `%${search}%`))
-		);
-	}
-
-	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-	// Get total count
-	const [{ value: total }] = await db.select({ value: count() }).from(clusters).where(whereClause);
-
-	// Get paginated results
-	const clusterResults = await db.query.clusters.findMany({
-		where: whereClause,
-		orderBy: [desc(clusters.createdAt)],
-		limit,
-		offset
-	});
-
-	return { clusters: clusterResults, total };
+	return { clusters: result.items, total: result.total };
 }
 
 /**
