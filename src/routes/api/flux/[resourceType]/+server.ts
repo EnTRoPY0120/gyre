@@ -15,19 +15,15 @@ import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 
 /** Zod schema for POST create FluxCD resource request body – used for OpenAPI and runtime validation */
-const createFluxResourceBodySchema = z
-	.object({
-		apiVersion: z.string(),
-		kind: z.string(),
-		metadata: z
-			.object({
-				name: z.string(),
-				namespace: z.string().optional()
-			})
-			.passthrough(),
-		spec: z.record(z.string(), z.unknown()).optional()
-	})
-	.passthrough();
+const createFluxResourceBodySchema = z.looseObject({
+	apiVersion: z.string(),
+	kind: z.string(),
+	metadata: z.looseObject({
+		name: z.string(),
+		namespace: z.string().optional()
+	}),
+	spec: z.record(z.string(), z.unknown()).optional()
+});
 
 export const _metadata = {
 	GET: {
@@ -184,6 +180,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
 	const body = parsed.data;
 	const namespace = body.metadata.namespace ?? 'default';
+
+	// Ensure body.metadata.namespace is normalized to match the resolved namespace
+	if (body.metadata.namespace == null) {
+		body.metadata.namespace = namespace;
+	}
 
 	// Resolve resource type
 	const resolvedType = getResourceTypeByPlural(resourceType);
