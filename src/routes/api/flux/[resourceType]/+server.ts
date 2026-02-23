@@ -14,6 +14,17 @@ import {
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 
+/** Zod schema for POST create FluxCD resource request body – used for OpenAPI and runtime validation */
+const createFluxResourceBodySchema = z.object({
+	apiVersion: z.string(),
+	kind: z.string(),
+	metadata: z.object({
+		name: z.string(),
+		namespace: z.string().optional()
+	}),
+	spec: z.record(z.string(), z.unknown())
+});
+
 export const _metadata = {
 	GET: {
 		summary: 'List FluxCD resources',
@@ -51,15 +62,7 @@ export const _metadata = {
 			body: {
 				content: {
 					'application/json': {
-						schema: z.object({
-							apiVersion: z.string(),
-							kind: z.string(),
-							metadata: z.object({
-								name: z.string(),
-								namespace: z.string().optional()
-							}),
-							spec: z.record(z.string(), z.any())
-						})
+						schema: createFluxResourceBodySchema
 					}
 				}
 			}
@@ -156,8 +159,24 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	}
 
 	const { resourceType } = params;
-	const body = await request.json();
-	const namespace = body.metadata?.namespace || 'default';
+
+	let rawBody: unknown;
+	try {
+		rawBody = await request.json();
+	} catch {
+		throw error(400, { message: 'Invalid JSON in request body' });
+	}
+
+	const parsed = createFluxResourceBodySchema.safeParse(rawBody);
+	if (!parsed.success) {
+		const message = parsed.error.issues
+			.map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+			.join('; ');
+		throw error(400, { message: `Invalid request body: ${message}` });
+	}
+
+	const body = parsed.data;
+	const namespace = body.metadata.namespace ?? 'default';
 
 	// Resolve resource type
 	const resolvedType = getResourceTypeByPlural(resourceType);

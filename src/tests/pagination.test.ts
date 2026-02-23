@@ -57,21 +57,16 @@ describe('Pagination Logic', () => {
 
 	beforeEach(async () => {
 		state.db = setupInMemoryDb();
-		
+
 		// Create some test users
 		prefix = `pagetest_${Date.now()}`;
 		// We insert directly using helper or createUser function?
 		// createUser uses getDb(), which is mocked to return state.db.
 		// So we can use createUser.
-		
+
 		for (let i = 0; i < 15; i++) {
 			try {
-				await createUser(
-					`${prefix}_${i}`,
-					'password123',
-					'viewer',
-					`${prefix}_${i}@example.com`
-				);
+				await createUser(`${prefix}_${i}`, 'password123', 'viewer', `${prefix}_${i}@example.com`);
 			} catch (e) {
 				console.error('Failed to create test user', e);
 			}
@@ -90,30 +85,30 @@ describe('Pagination Logic', () => {
 
 		expect(page1.users.length).toBe(5);
 		expect(page2.users.length).toBe(5);
-		
+
 		expect(page1.users[0]).toBeDefined();
 		expect(page2.users[0]).toBeDefined();
-        
-        // Basic check that we are getting different users
-        // Since we are creating them in a loop, IDs should be different.
-        // We can check IDs.
-        const ids1 = page1.users.map(u => u.id);
-        const ids2 = page2.users.map(u => u.id);
-        
-        // Ensure no intersection
-        for (const id of ids1) {
-            expect(ids2).not.toContain(id);
-        }
+
+		// Basic check that we are getting different users
+		// Since we are creating them in a loop, IDs should be different.
+		// We can check IDs.
+		const ids1 = page1.users.map((u) => u.id);
+		const ids2 = page2.users.map((u) => u.id);
+
+		// Ensure no intersection
+		for (const id of ids1) {
+			expect(ids2).not.toContain(id);
+		}
 	});
 
 	test('listUsersPaginated handles search', async () => {
 		const result = await listUsersPaginated({ search: prefix });
 		expect(result.total).toBeGreaterThanOrEqual(15);
 		expect(result.users.length).toBeGreaterThan(0);
-        
-        // Verify we only got our test users
-        for (const user of result.users) {
-            expect(user.username).toContain(prefix);
-        }
+
+		// Verify we only got our test users
+		for (const user of result.users) {
+			expect(user.username).toContain(prefix);
+		}
 	});
 });
