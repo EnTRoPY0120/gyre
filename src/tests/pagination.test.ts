@@ -2,7 +2,6 @@ import { describe, test, expect, beforeEach, mock } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from '../lib/server/db/schema.js';
-import { users } from '../lib/server/db/schema.js';
 
 // Mutable reference shared with the mock closure so each test gets a fresh DB
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
