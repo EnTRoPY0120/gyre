@@ -25,7 +25,7 @@
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each resourceGroups as group}
 				<div
-					class="group relative overflow-hidden rounded-3xl border border-border bg-card/30 p-6 shadow-sm"
+					class="relative overflow-hidden rounded-3xl border border-border bg-card/30 p-6 shadow-sm"
 				>
 					<div class="mb-6 flex items-center gap-4">
 						<div class="size-10 animate-pulse rounded-xl bg-muted/50"></div>
@@ -106,7 +106,7 @@
 							<div
 								class="flex items-center gap-2 rounded-lg border border-destructive/10 bg-destructive/5 p-3 text-destructive"
 							>
-								<Icon name="shield-alert" size={16} />
+								<Icon name="shield-alert" size={16} aria-hidden="true" />
 								<p class="text-[11px] font-black tracking-wider uppercase">
 									Sync Pipeline Interrupted
 								</p>
