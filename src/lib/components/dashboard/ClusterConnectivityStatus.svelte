@@ -55,12 +55,11 @@
 					<Icon name="x" size={28} />
 				</div>
 				<div>
-					<p class="font-display text-xl leading-none font-extrabold">Down</p>
-											<p
-												class="mt-1.5 font-mono text-[11px] font-bold text-destructive uppercase"
-											>
-												Offline
-											</p>				</div>
+					<p class="font-display text-xl leading-none font-extrabold text-foreground">Down</p>
+					<p class="mt-1.5 font-mono text-[11px] font-bold text-destructive uppercase">
+						Offline
+					</p>
+				</div>
 			{/if}
 		</div>
 	</div>

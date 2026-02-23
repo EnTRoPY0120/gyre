@@ -47,7 +47,7 @@ export enum FluxResourceType {
 export interface ResourceGroup {
 	name: string;
 	icon: string;
-	primaryRoute?: string;
+	primaryRoute?: FluxResourceType;
 	resources: ResourceInfo[];
 }
 

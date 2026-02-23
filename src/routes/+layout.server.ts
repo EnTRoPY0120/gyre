@@ -15,7 +15,8 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 			health: {
 				connected: healthData?.kubernetes?.connected ?? false,
 				clusterName: healthData?.kubernetes?.currentContext ?? undefined,
-				availableClusters: healthData?.kubernetes?.availableContexts ?? []
+				availableClusters: healthData?.kubernetes?.availableContexts ?? [],
+				error: healthRes.ok ? undefined : 'Failed to retrieve cluster health status'
 			},
 			fluxVersion: versionData.version,
 			gyreVersion: pkg.version,
@@ -29,14 +30,15 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 					}
 				: null
 		};
-	} catch {
+	} catch (error) {
 		// Ignore errors and return disconnected status
+		return {
+			health: {
+				connected: false,
+				clusterName: undefined,
+				availableClusters: [],
+				error: error instanceof Error ? error.message : 'Failed to connect to cluster API'
+			}
+		};
 	}
-
-	return {
-		health: {
-			connected: false,
-			clusterName: undefined
-		}
-	};
 };

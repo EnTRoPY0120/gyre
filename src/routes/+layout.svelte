@@ -17,6 +17,7 @@
 				connected: boolean;
 				clusterName?: string;
 				availableClusters: string[];
+				error?: string;
 			};
 			fluxVersion?: string;
 			user: {
@@ -35,9 +36,14 @@
 
 	// Sync cluster store and preferences with layout data
 	$effect(() => {
-		if (data.health.availableClusters) {
+		if (data.health.error) {
+			clusterStore.setError(data.health.error);
+		} else if (data.health.availableClusters && data.health.availableClusters.length > 0) {
 			clusterStore.setAvailable(data.health.availableClusters);
+		} else {
+			clusterStore.setError('No available clusters found');
 		}
+
 		if (data.health.clusterName) {
 			clusterStore.current = data.health.clusterName;
 		}
