@@ -22,7 +22,7 @@ const createFluxResourceBodySchema = z.looseObject({
 		name: z.string(),
 		namespace: z.string().optional()
 	}),
-	spec: z.record(z.string(), z.unknown()).optional()
+	spec: z.record(z.string(), z.unknown())
 });
 
 export const _metadata = {
@@ -68,7 +68,7 @@ export const _metadata = {
 			}
 		},
 		responses: {
-			200: {
+			201: {
 				description: 'Resource created successfully',
 				content: {
 					'application/json': {
@@ -179,12 +179,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	}
 
 	const body = parsed.data;
-	const namespace = body.metadata.namespace ?? 'default';
-
-	// Ensure body.metadata.namespace is normalized to match the resolved namespace
-	if (body.metadata.namespace == null) {
-		body.metadata.namespace = namespace;
-	}
+	const namespace = (body.metadata.namespace ??= 'default');
 
 	// Resolve resource type
 	const resolvedType = getResourceTypeByPlural(resourceType);
@@ -222,7 +217,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 			reqCache
 		);
 
-		return json(result);
+		return json(result, { status: 201 });
 	} catch (err) {
 		handleApiError(err, `Error creating ${resolvedType} resource`);
 	}
