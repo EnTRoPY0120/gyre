@@ -60,9 +60,9 @@
 					href={route ? `/resources/${route}` : undefined}
 					aria-disabled={!route}
 					class={cn(
-						"group relative overflow-hidden rounded-3xl border border-border bg-card/30 shadow-sm transition-all duration-500",
+						"relative overflow-hidden rounded-3xl border border-border bg-card/30 shadow-sm transition-all duration-500",
 						route 
-							? "hover:-translate-y-1 hover:border-primary/40 hover:bg-card/50 hover:shadow-xl" 
+							? "group hover:-translate-y-1 hover:border-primary/40 hover:bg-card/50 hover:shadow-xl" 
 							: "cursor-default opacity-80"
 					)}
 				>
