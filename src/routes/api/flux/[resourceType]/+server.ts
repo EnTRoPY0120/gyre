@@ -16,10 +16,10 @@ import { checkPermission } from '$lib/server/rbac.js';
 
 /** Zod schema for POST create FluxCD resource request body – used for OpenAPI and runtime validation */
 const createFluxResourceBodySchema = z.looseObject({
-	apiVersion: z.string(),
-	kind: z.string(),
+	apiVersion: z.string().min(1),
+	kind: z.string().min(1),
 	metadata: z.looseObject({
-		name: z.string(),
+		name: z.string().min(1),
 		namespace: z.string().optional()
 	}),
 	spec: z.record(z.string(), z.unknown())
