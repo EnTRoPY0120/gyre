@@ -54,14 +54,6 @@
 		expandedGroups[name] = !expandedGroups[name];
 	}
 
-	const GroupIcons: Record<string, string> = {
-		Sources: 'sideways-git',
-		Kustomize: 'kustomize',
-		Helm: 'helm',
-		Notifications: 'bell',
-		'Image Automation': 'layers'
-	};
-
 	const ResourceIcons: Record<string, string> = {
 		[FluxResourceType.GitRepository]: 'git-branch',
 		[FluxResourceType.HelmRepository]: 'library',
@@ -414,9 +406,9 @@
 						class="group flex w-full items-center justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
 					>
 						<div class="flex items-center gap-2.5">
-							{#if GroupIcons[group.name]}
+							{#if group.icon}
 								<Icon
-									name={GroupIcons[group.name]}
+									name={group.icon}
 									size={14}
 									class="opacity-50 transition-all group-hover:text-primary group-hover:opacity-100"
 								/>
@@ -611,8 +603,8 @@
 						title={group.name}
 						aria-label={group.name}
 					>
-						{#if GroupIcons[group.name]}
-							<Icon name={GroupIcons[group.name]} size={18} />
+						{#if group.icon}
+							<Icon name={group.icon} size={18} />
 						{/if}
 					</button>
 				{/each}
