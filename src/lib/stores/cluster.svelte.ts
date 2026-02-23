@@ -43,6 +43,7 @@ class ClusterStore {
 	setError(message: string) {
 		this.error = message;
 		this.loaded = true;
+		this.available = [];
 	}
 
 	resetLoading() {

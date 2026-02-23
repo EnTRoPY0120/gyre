@@ -22,12 +22,23 @@
 	let { data }: Props = $props();
 
 	// Show loading while cluster contexts are being fetched
-	const isLoading = $derived(!clusterStore.loaded && clusterStore.available.length === 0);
+	const isLoading = $derived(!clusterStore.loaded);
+	const clusterError = $derived(clusterStore.error);
 </script>
 
 <div class="animate-in fade-in space-y-6 duration-700 md:space-y-8">
 	<!-- Welcome Header -->
 	<DashboardHeader {isLoading} />
+
+	{#if clusterError}
+		<div class="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive">
+			<div class="flex items-center gap-2 font-semibold">
+				<span class="text-lg">⚠️</span>
+				<p>Failed to load cluster details</p>
+			</div>
+			<p class="mt-1 text-sm opacity-80">{clusterError}</p>
+		</div>
+	{/if}
 
 	<!-- Stats Grid -->
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">

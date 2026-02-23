@@ -7,7 +7,7 @@ export const resourceGroups: ResourceGroup[] = [
 	{
 		name: 'Sources',
 		icon: 'sideways-git',
-		primaryRoute: 'gitrepositories',
+		primaryRoute: FluxResourceType.GitRepository,
 		resources: [
 			{
 				type: FluxResourceType.GitRepository,
@@ -54,7 +54,7 @@ export const resourceGroups: ResourceGroup[] = [
 	{
 		name: 'Kustomize',
 		icon: 'kustomize',
-		primaryRoute: 'kustomizations',
+		primaryRoute: FluxResourceType.Kustomization,
 		resources: [
 			{
 				type: FluxResourceType.Kustomization,
@@ -69,7 +69,7 @@ export const resourceGroups: ResourceGroup[] = [
 	{
 		name: 'Helm',
 		icon: 'helm',
-		primaryRoute: 'helmreleases',
+		primaryRoute: FluxResourceType.HelmRelease,
 		resources: [
 			{
 				type: FluxResourceType.HelmRelease,
@@ -84,7 +84,7 @@ export const resourceGroups: ResourceGroup[] = [
 	{
 		name: 'Notifications',
 		icon: 'bell',
-		primaryRoute: 'alerts',
+		primaryRoute: FluxResourceType.Alert,
 		resources: [
 			{
 				type: FluxResourceType.Alert,
@@ -115,7 +115,7 @@ export const resourceGroups: ResourceGroup[] = [
 	{
 		name: 'Image Automation',
 		icon: 'layers',
-		primaryRoute: 'imagerepositories',
+		primaryRoute: FluxResourceType.ImageRepository,
 		resources: [
 			{
 				type: FluxResourceType.ImageRepository,
