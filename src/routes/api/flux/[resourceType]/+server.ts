@@ -25,7 +25,7 @@ const createFluxResourceBodySchema = z
 				namespace: z.string().optional()
 			})
 			.passthrough(),
-		spec: z.record(z.string(), z.unknown())
+		spec: z.record(z.string(), z.unknown()).optional()
 	})
 	.passthrough();
 
