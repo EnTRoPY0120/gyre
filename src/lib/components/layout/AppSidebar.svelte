@@ -43,11 +43,8 @@
 
 	// Tracking which groups are expanded (all collapsed by default)
 	let expandedGroups = $state<Record<string, boolean>>({
-		Sources: false,
-		Kustomize: false,
-		Helm: false,
-		Notifications: false,
-		'Image Automation': false
+		Admin: false,
+		...Object.fromEntries(resourceGroups.map((g) => [g.name, false]))
 	});
 
 	function toggleGroup(name: string) {
@@ -594,19 +591,18 @@
 
 			<div class="mt-6 flex w-full flex-col items-center gap-1 px-2">
 				{#each resourceGroups as group (group.name)}
-					{#if group.icon}
-						<button
-							onclick={() => {
-								sidebarOpen.set(true);
-								expandedGroups[group.name] = true;
-							}}
-							class="p-2.5 text-muted-foreground transition-colors duration-200 hover:text-primary"
-							title={group.name}
-							aria-label={group.name}
-						>
-							<Icon name={group.icon} size={18} />
-						</button>
-					{/if}
+					<button
+						type="button"
+						onclick={() => {
+							sidebarOpen.set(true);
+							expandedGroups[group.name] = true;
+						}}
+						class="p-2.5 text-muted-foreground transition-colors duration-200 hover:text-primary"
+						title={group.name}
+						aria-label={group.name}
+					>
+						<Icon name={group.icon || 'layers'} size={18} />
+					</button>
 				{/each}
 			</div>
 		</div>
