@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resourceGroups } from '$lib/config/resources';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import { cn } from '$lib/utils';
 
 	interface Props {
 		isLoading: boolean;
@@ -37,7 +38,7 @@
 						<div class="h-2 w-full animate-pulse rounded-full bg-muted/50"></div>
 					</div>
 					<div class="mt-8 flex flex-wrap gap-2">
-						{#each Array(3) as _}
+						{#each Array.from({ length: 3 }) as _}
 							<div class="h-8 w-24 animate-pulse rounded-xl bg-muted/50"></div>
 						{/each}
 					</div>
@@ -54,9 +55,16 @@
 					error: false
 				}}
 				{@const route = group.primaryRoute}
+				{@const boundedPercent = Math.max(0, Math.min(100, (counts.healthy / (counts.total || 1)) * 100))}
 				<a
-					href={route ? `/resources/${route}` : '/'}
-					class="group relative overflow-hidden rounded-3xl border border-border bg-card/30 shadow-sm transition-all duration-500 hover:-translate-y-1 hover:border-primary/40 hover:bg-card/50 hover:shadow-xl"
+					href={route ? `/resources/${route}` : undefined}
+					aria-disabled={!route}
+					class={cn(
+						"group relative overflow-hidden rounded-3xl border border-border bg-card/30 shadow-sm transition-all duration-500",
+						route 
+							? "hover:-translate-y-1 hover:border-primary/40 hover:bg-card/50 hover:shadow-xl" 
+							: "cursor-default opacity-80"
+					)}
 				>
 					<!-- Card Background Accent -->
 					<div
@@ -78,16 +86,18 @@
 								</h3>
 							</div>
 							<!-- External link indicator -->
-							<div class="text-muted-foreground/50 transition-all group-hover:text-primary">
-								<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-									/>
-								</svg>
-							</div>
+							{#if route}
+								<div class="text-muted-foreground/50 transition-all group-hover:text-primary">
+									<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+										/>
+									</svg>
+								</div>
+							{/if}
 						</div>
 					</div>
 
@@ -119,12 +129,12 @@
 										class="flex items-center justify-between font-display text-[11px] font-black tracking-widest text-muted-foreground uppercase"
 									>
 										<span>Healthy State</span>
-										<span>{Math.round((counts.healthy / (counts.total || 1)) * 100)}%</span>
+										<span>{Math.round(boundedPercent)}%</span>
 									</div>
 									<div class="h-2 w-full overflow-hidden rounded-full bg-muted/50 p-[1px]">
 										<div
 											class="h-full rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)] transition-all duration-1000 ease-out"
-											style="width: {(counts.healthy / (counts.total || 1)) * 100}%"
+											style="width: {boundedPercent}%"
 										></div>
 									</div>
 								</div>

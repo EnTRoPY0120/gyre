@@ -1,5 +1,13 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import { invalidateAll } from '$app/navigation';
+	import { resourceGroups } from '$lib/config/resources';
+
+	// Helper to find primary route for a group name
+	function getRoute(groupName: string, fallback: string): string {
+		const group = resourceGroups.find((g) => g.name === groupName);
+		return group?.primaryRoute ? `/resources/${group.primaryRoute}` : fallback;
+	}
 </script>
 
 <!-- System Shortcuts -->
@@ -23,21 +31,21 @@
 		</div>
 		<div class="flex flex-wrap gap-3 md:gap-4">
 			<a
-				href="/resources/gitrepositories"
+				href={getRoute('Sources', '/resources/gitrepositories')}
 				class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-black tracking-widest text-primary-foreground uppercase shadow-2xl shadow-primary/20 transition-all hover:translate-y-[-4px] hover:shadow-primary/40 active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 			>
 				<Icon name="git-branch" size={18} />
 				Sources
 			</a>
 			<a
-				href="/resources/kustomizations"
+				href={getRoute('Kustomize', '/resources/kustomizations')}
 				class="inline-flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar px-4 py-3 text-xs font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 			>
 				<Icon name="file-cog" size={18} />
 				Kustomize
 			</a>
 			<a
-				href="/resources/helmreleases"
+				href={getRoute('Helm', '/resources/helmreleases')}
 				class="inline-flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar px-4 py-3 text-xs font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 			>
 				<Icon name="ship" size={18} />
@@ -46,7 +54,7 @@
 			<button
 				type="button"
 				class="group/btn inline-flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar px-4 py-3 text-xs font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
-				onclick={() => window.location.reload()}
+				onclick={() => invalidateAll()}
 			>
 				<Icon
 					name="refresh-cw"

@@ -7,6 +7,8 @@ import Cookies from 'js-cookie';
 class ClusterStore {
 	current = $state<string | undefined>(undefined);
 	available = $state<string[]>([]);
+	loaded = $state<boolean>(false);
+	error = $state<string | null>(null);
 
 	constructor() {
 		// Initialize from cookie if in browser
@@ -34,6 +36,13 @@ class ClusterStore {
 
 	setAvailable(clusters: string[]) {
 		this.available = clusters;
+		this.loaded = true;
+		this.error = null;
+	}
+
+	setError(message: string) {
+		this.error = message;
+		this.loaded = true;
 	}
 }
 

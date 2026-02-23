@@ -594,19 +594,19 @@
 
 			<div class="mt-6 flex w-full flex-col items-center gap-1 px-2">
 				{#each resourceGroups as group (group.name)}
-					<button
-						onclick={() => {
-							sidebarOpen.set(true);
-							expandedGroups[group.name] = true;
-						}}
-						class="p-2.5 text-muted-foreground transition-colors duration-200 hover:text-primary"
-						title={group.name}
-						aria-label={group.name}
-					>
-						{#if group.icon}
+					{#if group.icon}
+						<button
+							onclick={() => {
+								sidebarOpen.set(true);
+								expandedGroups[group.name] = true;
+							}}
+							class="p-2.5 text-muted-foreground transition-colors duration-200 hover:text-primary"
+							title={group.name}
+							aria-label={group.name}
+						>
 							<Icon name={group.icon} size={18} />
-						{/if}
-					</button>
+						</button>
+					{/if}
 				{/each}
 			</div>
 		</div>
