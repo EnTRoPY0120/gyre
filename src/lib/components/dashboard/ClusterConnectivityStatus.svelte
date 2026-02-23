@@ -56,12 +56,11 @@
 				</div>
 				<div>
 					<p class="font-display text-xl leading-none font-extrabold">Down</p>
-					<p
-						class="mt-1.5 font-mono text-[11px] font-bold text-destructive text-muted-foreground uppercase"
-					>
-						Offline
-					</p>
-				</div>
+											<p
+												class="mt-1.5 font-mono text-[11px] font-bold text-destructive uppercase"
+											>
+												Offline
+											</p>				</div>
 			{/if}
 		</div>
 	</div>

@@ -22,7 +22,7 @@
 	let { data }: Props = $props();
 
 	// Show loading while cluster contexts are being fetched
-	const isLoading = $derived(clusterStore.available.length === 0);
+	const isLoading = $derived(!clusterStore.loaded && clusterStore.available.length === 0);
 </script>
 
 <div class="animate-in fade-in space-y-6 duration-700 md:space-y-8">
