@@ -6,7 +6,8 @@ import { FluxResourceType, type ResourceGroup } from '$lib/types/flux';
 export const resourceGroups: ResourceGroup[] = [
 	{
 		name: 'Sources',
-		icon: '',
+		icon: 'sideways-git',
+		primaryRoute: 'gitrepositories',
 		resources: [
 			{
 				type: FluxResourceType.GitRepository,
@@ -52,7 +53,8 @@ export const resourceGroups: ResourceGroup[] = [
 	},
 	{
 		name: 'Kustomize',
-		icon: '',
+		icon: 'kustomize',
+		primaryRoute: 'kustomizations',
 		resources: [
 			{
 				type: FluxResourceType.Kustomization,
@@ -66,7 +68,8 @@ export const resourceGroups: ResourceGroup[] = [
 	},
 	{
 		name: 'Helm',
-		icon: '',
+		icon: 'helm',
+		primaryRoute: 'helmreleases',
 		resources: [
 			{
 				type: FluxResourceType.HelmRelease,
@@ -80,7 +83,8 @@ export const resourceGroups: ResourceGroup[] = [
 	},
 	{
 		name: 'Notifications',
-		icon: '',
+		icon: 'bell',
+		primaryRoute: 'alerts',
 		resources: [
 			{
 				type: FluxResourceType.Alert,
@@ -110,7 +114,8 @@ export const resourceGroups: ResourceGroup[] = [
 	},
 	{
 		name: 'Image Automation',
-		icon: '',
+		icon: 'layers',
+		primaryRoute: 'imagerepositories',
 		resources: [
 			{
 				type: FluxResourceType.ImageRepository,
