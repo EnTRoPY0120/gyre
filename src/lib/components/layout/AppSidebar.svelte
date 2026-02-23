@@ -403,13 +403,11 @@
 						class="group flex w-full items-center justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
 					>
 						<div class="flex items-center gap-2.5">
-							{#if group.icon}
-								<Icon
-									name={group.icon}
-									size={14}
-									class="opacity-50 transition-all group-hover:text-primary group-hover:opacity-100"
-								/>
-							{/if}
+							<Icon
+								name={group.icon || 'layers'}
+								size={14}
+								class="opacity-50 transition-all group-hover:text-primary group-hover:opacity-100"
+							/>
 
 							{group.name}
 						</div>
