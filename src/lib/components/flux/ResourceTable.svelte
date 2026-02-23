@@ -102,9 +102,7 @@
 
 	// Clear selection when resources change
 	$effect(() => {
-		// Track resources array reference
-		resources;
-		// Clear selection when resources update
+		void resources;
 		selectedResourceIds = new Set();
 	});
 </script>

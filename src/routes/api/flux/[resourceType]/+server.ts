@@ -15,15 +15,19 @@ import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
 
 /** Zod schema for POST create FluxCD resource request body – used for OpenAPI and runtime validation */
-const createFluxResourceBodySchema = z.object({
-	apiVersion: z.string(),
-	kind: z.string(),
-	metadata: z.object({
-		name: z.string(),
-		namespace: z.string().optional()
-	}),
-	spec: z.record(z.string(), z.unknown())
-});
+const createFluxResourceBodySchema = z
+	.object({
+		apiVersion: z.string(),
+		kind: z.string(),
+		metadata: z
+			.object({
+				name: z.string(),
+				namespace: z.string().optional()
+			})
+			.passthrough(),
+		spec: z.record(z.string(), z.unknown())
+	})
+	.passthrough();
 
 export const _metadata = {
 	GET: {
@@ -170,7 +174,10 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const parsed = createFluxResourceBodySchema.safeParse(rawBody);
 	if (!parsed.success) {
 		const message = parsed.error.issues
-			.map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+			.map((issue) => {
+				const pathLabel = issue.path.length > 0 ? issue.path.join('.') : 'body';
+				return `${pathLabel}: ${issue.message}`;
+			})
 			.join('; ');
 		throw error(400, { message: `Invalid request body: ${message}` });
 	}
@@ -182,6 +189,12 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	const resolvedType = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
 		throw error(400, { message: `Invalid resource type: ${resourceType}` });
+	}
+
+	if (body.kind !== resolvedType) {
+		throw error(400, {
+			message: `kind mismatch: body declares "${body.kind}" but endpoint handles "${resolvedType}"`
+		});
 	}
 
 	// Check permission
