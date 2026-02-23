@@ -179,12 +179,16 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	}
 
 	const body = parsed.data;
-	const namespace = (body.metadata.namespace ??= 'default');
+	const namespace = body.metadata.namespace ?? 'default';
+	body.metadata.namespace = namespace;
 
 	// Resolve resource type
 	const resolvedType = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
-		throw error(400, { message: `Invalid resource type: ${resourceType}` });
+		const validPlurals = getAllResourcePlurals();
+		throw error(400, {
+			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
+		});
 	}
 
 	if (body.kind !== resolvedType) {
