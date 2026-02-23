@@ -191,12 +191,6 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		});
 	}
 
-	if (body.kind !== resolvedType) {
-		throw error(400, {
-			message: `kind mismatch: body declares "${body.kind}" but endpoint handles "${resolvedType}"`
-		});
-	}
-
 	// Check permission
 	const hasPermission = await checkPermission(
 		locals.user,
@@ -208,6 +202,12 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
 	if (!hasPermission) {
 		throw error(403, { message: 'Permission denied' });
+	}
+
+	if (body.kind !== resolvedType) {
+		throw error(400, {
+			message: `kind mismatch: body declares "${body.kind}" but endpoint handles "${resolvedType}"`
+		});
 	}
 
 	const reqCache: ReqCache = new Map();
