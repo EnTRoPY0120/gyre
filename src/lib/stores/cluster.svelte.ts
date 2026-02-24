@@ -45,11 +45,6 @@ class ClusterStore {
 		this.loaded = true;
 		this.available = [];
 	}
-
-	resetLoading() {
-		this.loaded = false;
-		this.error = null;
-	}
 }
 
 export const clusterStore = new ClusterStore();
