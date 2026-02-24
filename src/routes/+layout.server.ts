@@ -31,14 +31,17 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 				: null
 		};
 	} catch (error) {
-		// Ignore errors and return disconnected status
+		// Surface cluster connection error in health.error side-channel
 		return {
 			health: {
 				connected: false,
 				clusterName: undefined,
 				availableClusters: [],
 				error: error instanceof Error ? error.message : 'Failed to connect to cluster API'
-			}
+			},
+			fluxVersion: undefined,
+			gyreVersion: pkg.version,
+			user: null
 		};
 	}
 };
