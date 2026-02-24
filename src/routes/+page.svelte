@@ -32,7 +32,12 @@
 	<DashboardHeader {isLoading} />
 
 	{#if clusterError}
-		<div class="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive">
+		<div
+			class="rounded-xl border border-destructive/20 bg-destructive/5 p-4 text-destructive"
+			role="alert"
+			aria-live="assertive"
+			aria-atomic="true"
+		>
 			<div class="flex items-center gap-2 font-semibold">
 				<span class="text-lg"><AlertTriangle size="20" aria-hidden="true" /></span>
 				<p>Failed to load cluster details</p>
