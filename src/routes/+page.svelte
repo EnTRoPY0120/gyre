@@ -39,7 +39,7 @@
 			aria-atomic="true"
 		>
 			<div class="flex items-center gap-2 font-semibold">
-				<span class="text-lg"><AlertTriangle size="20" aria-hidden="true" /></span>
+				<span><AlertTriangle size="20" aria-hidden="true" /></span>
 				<p>Failed to load cluster details</p>
 			</div>
 			<p class="mt-1 text-sm opacity-80">{clusterError}</p>
