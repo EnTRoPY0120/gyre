@@ -5,7 +5,7 @@
 	import ResourceGroupTotals from '$lib/components/dashboard/ResourceGroupTotals.svelte';
 	import InventoryArchitecture from '$lib/components/dashboard/InventoryArchitecture.svelte';
 	import SystemShortcuts from '$lib/components/dashboard/SystemShortcuts.svelte';
-	import { AlertTriangle } from 'lucide-svelte';
+	import { TriangleAlert } from 'lucide-svelte';
 
 	interface Props {
 		data: {
@@ -39,7 +39,7 @@
 			aria-atomic="true"
 		>
 			<div class="flex items-center gap-2 font-semibold">
-				<span><AlertTriangle size="20" aria-hidden="true" /></span>
+				<span><TriangleAlert size="20" aria-hidden="true" /></span>
 				<p>Failed to load cluster details</p>
 			</div>
 			<p class="mt-1 text-sm opacity-80">{clusterError}</p>
