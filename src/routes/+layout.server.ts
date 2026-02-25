@@ -32,7 +32,7 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 				availableClusters: [],
 				error: error instanceof Error ? error.message : 'Failed to connect to cluster API'
 			},
-			fluxVersion: undefined,
+			fluxVersion: 'v2.x.x',
 			gyreVersion: pkg.version,
 			user: serializeUser(locals.user)
 		};
