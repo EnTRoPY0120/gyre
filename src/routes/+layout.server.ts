@@ -2,6 +2,8 @@ import type { LayoutServerLoad } from './$types';
 import pkg from '../../package.json';
 import { serializeUser } from '$lib/server/auth';
 
+const DEFAULT_FLUX_VERSION = 'v2.x.x';
+
 export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 	try {
 		const [healthRes, versionRes] = await Promise.all([
@@ -10,7 +12,7 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 		]);
 
 		const healthData = healthRes.ok ? await healthRes.json() : null;
-		const versionData = versionRes.ok ? await versionRes.json() : { version: 'v2.x.x' };
+		const versionData = versionRes.ok ? await versionRes.json() : { version: DEFAULT_FLUX_VERSION };
 
 		return {
 			health: {
@@ -32,7 +34,7 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 				availableClusters: [],
 				error: error instanceof Error ? error.message : 'Failed to connect to cluster API'
 			},
-			fluxVersion: 'v2.x.x',
+			fluxVersion: DEFAULT_FLUX_VERSION,
 			gyreVersion: pkg.version,
 			user: serializeUser(locals.user)
 		};
