@@ -549,3 +549,25 @@ export async function authenticateUser(username: string, password: string): Prom
 	loginAttemptsTotal.labels('success').inc();
 	return user;
 }
+
+import type { UserPreferences } from '$lib/types/user';
+
+/**
+ * Shape user object for public consumption (e.g., in layout data)
+ */
+export function serializeUser(user: User | null): {
+	username: string;
+	role: string;
+	email: string | null;
+	isLocal: boolean;
+	preferences: UserPreferences | null;
+} | null {
+	if (!user) return null;
+	return {
+		username: user.username,
+		role: user.role,
+		email: user.email,
+		isLocal: user.isLocal,
+		preferences: user.preferences || null
+	};
+}

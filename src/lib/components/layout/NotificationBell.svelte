@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { websocketStore, type NotificationMessage } from '$lib/stores/websocket.svelte';
+	import { eventsStore, type NotificationMessage } from '$lib/stores/events.svelte';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 
 	let isOpen = $state(false);
@@ -9,15 +9,15 @@
 	const currentCluster = $derived(clusterStore.current || 'in-cluster');
 	const notifications = $derived(
 		showAllClusters
-			? websocketStore.notifications
-			: websocketStore.notifications.filter((n) => n.clusterId === currentCluster)
+			? eventsStore.notifications
+			: eventsStore.notifications.filter((n) => n.clusterId === currentCluster)
 	);
 	const unreadCount = $derived(
 		showAllClusters
-			? websocketStore.unreadCount
-			: (websocketStore.clusterUnreadCounts[currentCluster] || 0)
+			? eventsStore.unreadCount
+			: (eventsStore.clusterUnreadCounts[currentCluster] || 0)
 	);
-	const status = $derived(websocketStore.status);
+	const status = $derived(eventsStore.status);
 
 	function toggleDropdown() {
 		isOpen = !isOpen;
@@ -34,21 +34,21 @@
 	}
 
 	function markAsRead(id: string) {
-		websocketStore.markAsRead(id);
+		eventsStore.markAsRead(id);
 	}
 
 	function markAllAsRead() {
-		websocketStore.markAllAsRead(showAllClusters ? undefined : currentCluster);
+		eventsStore.markAllAsRead(showAllClusters ? undefined : currentCluster);
 	}
 
 	function clearAll() {
-		websocketStore.clearAll(showAllClusters ? undefined : currentCluster);
+		eventsStore.clearAll(showAllClusters ? undefined : currentCluster);
 		if (notifications.length === 0) closeDropdown();
 	}
 
 	function removeNotification(id: string, event: MouseEvent) {
 		event.stopPropagation();
-		websocketStore.removeNotification(id);
+		eventsStore.removeNotification(id);
 	}
 
 	function getNotificationIcon(type: NotificationMessage['type']) {

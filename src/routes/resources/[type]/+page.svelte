@@ -3,7 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
 	import { preferences } from '$lib/stores/preferences.svelte';
-	import { websocketStore } from '$lib/stores/websocket.svelte';
+	import { eventsStore } from '$lib/stores/events.svelte';
 	import { onMount } from 'svelte';
 	import { getResourceHealth } from '$lib/utils/flux';
 	import { createAutoRefresh } from '$lib/utils/polling.svelte';
@@ -47,7 +47,7 @@
 
 	// Real-time updates via SSE
 	onMount(() => {
-		const unsubscribe = websocketStore.onEvent((event) => {
+		const unsubscribe = eventsStore.onEvent((event) => {
 			// Check if event is relevant to current view
 			// Event resourceType is e.g., 'GitRepository'
 			// Page resourceType is e.g., 'gitrepositories'

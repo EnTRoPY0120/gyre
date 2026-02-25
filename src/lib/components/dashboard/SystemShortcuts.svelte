@@ -3,11 +3,18 @@
 	import { invalidateAll } from '$app/navigation';
 	import { resourceGroups } from '$lib/config/resources';
 
-	// Helper to find primary route for a group name
-	function getRoute(groupName: string, fallback: string): string {
+	// Helper to find primary route and icon for a group name
+	function getShortcut(groupName: string, fallbackRoute: string, fallbackIcon: string) {
 		const group = resourceGroups.find((g) => g.name === groupName);
-		return group?.primaryRoute ? `/resources/${group.primaryRoute}` : fallback;
+		return {
+			route: group?.primaryRoute ? `/resources/${group.primaryRoute}` : fallbackRoute,
+			icon: group?.icon || fallbackIcon
+		};
 	}
+
+	const sourcesShortcut = getShortcut('Sources', '/resources/gitrepositories', 'git-branch');
+	const kustomizeShortcut = getShortcut('Kustomize', '/resources/kustomizations', 'file-cog');
+	const helmShortcut = getShortcut('Helm', '/resources/helmreleases', 'ship');
 </script>
 
 <!-- System Shortcuts -->
@@ -31,24 +38,24 @@
 		</div>
 		<div class="flex flex-wrap gap-3 md:gap-4">
 			<a
-				href={getRoute('Sources', '/resources/gitrepositories')}
+				href={sourcesShortcut.route}
 				class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-black tracking-widest text-primary-foreground uppercase shadow-2xl shadow-primary/20 transition-all hover:translate-y-[-4px] hover:shadow-primary/40 active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 			>
-				<Icon name="git-branch" size={18} />
+				<Icon name={sourcesShortcut.icon} size={18} />
 				Sources
 			</a>
 			<a
-				href={getRoute('Kustomize', '/resources/kustomizations')}
+				href={kustomizeShortcut.route}
 				class="inline-flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar px-4 py-3 text-xs font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 			>
-				<Icon name="file-cog" size={18} />
+				<Icon name={kustomizeShortcut.icon} size={18} />
 				Kustomize
 			</a>
 			<a
-				href={getRoute('Helm', '/resources/helmreleases')}
+				href={helmShortcut.route}
 				class="inline-flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar px-4 py-3 text-xs font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
 			>
-				<Icon name="ship" size={18} />
+				<Icon name={helmShortcut.icon} size={18} />
 				Helm
 			</a>
 			<button

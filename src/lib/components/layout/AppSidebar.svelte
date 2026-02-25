@@ -251,6 +251,7 @@
 			{#if isAdmin}
 				<div class="space-y-1">
 					<button
+						type="button"
 						onclick={() => toggleGroup('Admin')}
 						class="group flex w-full items-center justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
 					>
@@ -397,6 +398,7 @@
 
 				<div class="space-y-1">
 					<button
+						type="button"
 						onclick={() => toggleGroup(group.name)}
 						aria-expanded={expandedGroups[group.name]}
 						aria-controls={groupId}

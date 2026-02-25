@@ -1,4 +1,4 @@
-import { websocketStore } from './websocket.svelte';
+import { eventsStore } from './events.svelte';
 import type { FluxResource } from '$lib/types/flux';
 
 interface CacheEntry<T> {
@@ -18,7 +18,7 @@ class ResourceCacheStore {
 	}
 
 	private setupRealtimeInvalidation() {
-		websocketStore.onEvent((event) => {
+		eventsStore.onEvent((event) => {
 			if (!event.resource || !event.resourceType) return;
 
 			const { name, namespace } = event.resource.metadata;
