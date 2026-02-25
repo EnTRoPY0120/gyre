@@ -4,7 +4,8 @@ import { serializeUser } from '$lib/server/auth';
 
 const DEFAULT_FLUX_VERSION = 'v2.x.x';
 
-export const load: LayoutServerLoad = async ({ fetch, locals }) => {
+export const load: LayoutServerLoad = async ({ fetch, locals, depends }) => {
+	depends('gyre:layout');
 	try {
 		const [healthRes, versionRes] = await Promise.all([
 			fetch('/api/flux/health'),

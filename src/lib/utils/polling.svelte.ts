@@ -3,11 +3,18 @@ import { SvelteDate } from 'svelte/reactivity';
 import { preferences } from '$lib/stores/preferences.svelte';
 import { invalidateAll } from '$app/navigation';
 
+export interface AutoRefreshOptions {
+	/**
+	 * Custom invalidation function. If not provided, invalidateAll() is used.
+	 */
+	invalidate?: () => Promise<void>;
+}
+
 /**
  * Creates an auto-refresh mechanism that polls data based on user preferences.
  * Returns a cleanup function and state management utilities.
  */
-export function createAutoRefresh() {
+export function createAutoRefresh(options: AutoRefreshOptions = {}) {
 	let intervalId: ReturnType<typeof setInterval> | null = null;
 	let isRefreshing = $state(false);
 	let lastRefreshTime = $state<Date | null>(null);
@@ -34,7 +41,11 @@ export function createAutoRefresh() {
 
 		isRefreshing = true;
 		try {
-			await invalidateAll();
+			if (options.invalidate) {
+				await options.invalidate();
+			} else {
+				await invalidateAll();
+			}
 			lastRefreshTime = new SvelteDate();
 		} finally {
 			isRefreshing = false;

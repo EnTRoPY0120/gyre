@@ -43,7 +43,11 @@
 	const showNamespace = $derived(preferences.showNamespace);
 
 	// Auto-refresh setup
-	const autoRefresh = createAutoRefresh();
+	const autoRefresh = createAutoRefresh({
+		invalidate: async () => {
+			await Promise.all([invalidate(`flux:${data.resourceType}`), invalidate('gyre:layout')]);
+		}
+	});
 
 	// Real-time updates via SSE
 	onMount(() => {
