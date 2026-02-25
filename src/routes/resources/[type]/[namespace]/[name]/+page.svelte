@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { websocketStore } from '$lib/stores/websocket.svelte';
+	import { eventsStore } from '$lib/stores/events.svelte';
 	import { onMount } from 'svelte';
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
@@ -77,7 +77,7 @@
 	onMount(() => {
 		resourceCache.setResource(data.resourceType, data.namespace, data.name, data.resource);
 
-		const unsubscribe = websocketStore.onEvent((event) => {
+		const unsubscribe = eventsStore.onEvent((event) => {
 			if (
 				event.resource &&
 				event.resource.metadata.name === data.name &&

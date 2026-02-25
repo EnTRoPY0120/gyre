@@ -46,14 +46,16 @@
 		</div>
 	{/if}
 
-	<!-- Stats Grid -->
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
-		<ClusterConnectivityStatus {isLoading} health={data.health} />
-		<ResourceGroupTotals {isLoading} groupCounts={data.groupCounts} />
-	</div>
+	{#if !clusterError}
+		<!-- Stats Grid -->
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
+			<ClusterConnectivityStatus {isLoading} health={data.health} />
+			<ResourceGroupTotals {isLoading} groupCounts={data.groupCounts} />
+		</div>
 
-	<!-- Resource Groups Section -->
-	<InventoryArchitecture {isLoading} groupCounts={data.groupCounts} />
+		<!-- Resource Groups Section -->
+		<InventoryArchitecture {isLoading} groupCounts={data.groupCounts} />
+	{/if}
 
 	<!-- System Shortcuts -->
 	<SystemShortcuts />

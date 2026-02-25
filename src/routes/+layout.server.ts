@@ -1,5 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 import pkg from '../../package.json';
+import { serializeUser } from '$lib/server/auth';
 
 export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 	try {
@@ -20,15 +21,7 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 			},
 			fluxVersion: versionData.version,
 			gyreVersion: pkg.version,
-			user: locals.user
-				? {
-						username: locals.user.username,
-						role: locals.user.role,
-						email: locals.user.email,
-						isLocal: locals.user.isLocal,
-						preferences: locals.user.preferences
-					}
-				: null
+			user: serializeUser(locals.user)
 		};
 	} catch (error) {
 		// Surface cluster connection error in health.error side-channel
@@ -41,7 +34,7 @@ export const load: LayoutServerLoad = async ({ fetch, locals }) => {
 			},
 			fluxVersion: undefined,
 			gyreVersion: pkg.version,
-			user: null
+			user: serializeUser(locals.user)
 		};
 	}
 };

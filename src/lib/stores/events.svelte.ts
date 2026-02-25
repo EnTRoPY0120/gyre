@@ -150,7 +150,7 @@ class RealtimeStore {
 		this.status = 'connecting';
 		this.notifyStatusChange('connecting');
 
-		const sseUrl = '/api/ws/events';
+		const sseUrl = '/api/events';
 
 		try {
 			this.eventSource = new EventSource(sseUrl);
@@ -437,7 +437,7 @@ class RealtimeStore {
 }
 
 // Singleton instance
-export const websocketStore = new RealtimeStore();
+export const eventsStore = new RealtimeStore();
 
 // Legacy alias for backwards compatibility
 export type WebSocketStatus = ConnectionStatus;

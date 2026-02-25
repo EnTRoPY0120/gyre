@@ -2,7 +2,7 @@
 	/* eslint-disable @typescript-eslint/no-unused-vars */
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
-	import { websocketStore } from '$lib/stores/websocket.svelte';
+	import { eventsStore } from '$lib/stores/events.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { cn } from '$lib/utils';
 
@@ -36,13 +36,13 @@
 			class="xs:max-w-[100px] max-w-[60px] truncate font-mono text-[9px] tracking-tight sm:max-w-[150px] sm:text-[10px]"
 			>{currentCluster === 'in-cluster' ? 'In-cluster' : currentCluster}</span
 		>
-		{#if websocketStore.clusterUnreadCounts[currentCluster] > 0}
+		{#if eventsStore.clusterUnreadCounts[currentCluster] > 0}
 			<span
 				class="ml-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 text-[8px] font-bold text-white shadow-sm sm:h-4 sm:min-w-[16px] sm:text-[9px]"
 			>
-				{websocketStore.clusterUnreadCounts[currentCluster] > 9
+				{eventsStore.clusterUnreadCounts[currentCluster] > 9
 					? '9+'
-					: websocketStore.clusterUnreadCounts[currentCluster]}
+					: eventsStore.clusterUnreadCounts[currentCluster]}
 			</span>
 		{/if}
 		<Icon
@@ -107,11 +107,11 @@
 							>
 						{/if}
 					</div>
-					{#if websocketStore.clusterUnreadCounts[cluster] > 0}
+					{#if eventsStore.clusterUnreadCounts[cluster] > 0}
 						<span
 							class="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-sm"
 						>
-							{websocketStore.clusterUnreadCounts[cluster]}
+							{eventsStore.clusterUnreadCounts[cluster]}
 						</span>
 					{/if}
 					{#if cluster === currentCluster}

@@ -3,12 +3,12 @@
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import CommandPalette from '$lib/components/CommandPalette.svelte';
-	import { websocketStore } from '$lib/stores/websocket.svelte';
+	import { eventsStore } from '$lib/stores/events.svelte';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import { preferences } from '$lib/stores/preferences.svelte';
-	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 	import { Toaster } from 'svelte-sonner';
+	import { onDestroy } from 'svelte';
 
 	interface Props {
 		children: import('svelte').Snippet;
@@ -54,15 +54,22 @@
 		}
 	});
 
-	// Connect to SSE on mount
-	onMount(() => {
-		if (data.health.connected) {
-			websocketStore.connect();
+	// Connect to SSE when cluster is connected
+	let prevConnected = false;
+	$effect(() => {
+		const isConnected = data.health.connected;
+		if (isConnected !== prevConnected) {
+			if (isConnected) {
+				eventsStore.connect();
+			} else {
+				eventsStore.disconnect();
+			}
+			prevConnected = isConnected;
 		}
+	});
 
-		return () => {
-			websocketStore.disconnect();
-		};
+	onDestroy(() => {
+		eventsStore.disconnect();
 	});
 </script>
 
