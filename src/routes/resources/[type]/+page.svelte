@@ -88,6 +88,10 @@
 
 	$effect(() => {
 		const search = filters.search;
+		if (search === '') {
+			debouncedSearch = '';
+			return;
+		}
 		const timeoutId = setTimeout(() => {
 			debouncedSearch = search;
 		}, 200);
