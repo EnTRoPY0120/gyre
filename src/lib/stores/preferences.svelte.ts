@@ -94,6 +94,7 @@ function createPreferencesStore() {
 			saveViewPrefs();
 		},
 		setItemsPerPage(count: number) {
+			if (count !== 10 && count !== 25 && count !== 50) return;
 			_viewPrefs.itemsPerPage = count;
 			saveViewPrefs();
 		},

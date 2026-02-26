@@ -240,14 +240,12 @@
 		<div class="flex items-center justify-between px-2">
 			<div class="flex items-center gap-3">
 				<div class="text-xs text-muted-foreground">
-					{#if resources.length > 0}
-						Showing <span class="font-medium"
-							>{Math.min((currentPage - 1) * itemsPerPage + 1, resources.length)}</span
-						>
-						to
-						<span class="font-medium">{Math.min(currentPage * itemsPerPage, resources.length)}</span>
-						of <span class="font-medium">{resources.length}</span> results
-					{/if}
+					Showing <span class="font-medium"
+						>{Math.min((currentPage - 1) * itemsPerPage + 1, resources.length)}</span
+					>
+					to
+					<span class="font-medium">{Math.min(currentPage * itemsPerPage, resources.length)}</span>
+					of <span class="font-medium">{resources.length}</span> results
 				</div>
 				<div class="flex items-center gap-1.5">
 					<span class="text-xs text-muted-foreground">Per page:</span>
