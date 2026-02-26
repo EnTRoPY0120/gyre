@@ -39,7 +39,20 @@
 	}>();
 
 	let searchQuery = $state('');
+	let debouncedQuery = $state('');
 	let statusFilter = $state<'all' | 'success' | 'failure'>('all');
+
+	$effect(() => {
+		const query = searchQuery;
+		if (query === '') {
+			debouncedQuery = '';
+			return;
+		}
+		const timeoutId = setTimeout(() => {
+			debouncedQuery = query;
+		}, 300);
+		return () => clearTimeout(timeoutId);
+	});
 
 	let filteredLogs = $derived.by(() => {
 		let logs: AuditLog[] = data.logs;
@@ -52,7 +65,7 @@
 		}
 
 		// Apply search
-		return advancedSearch(logs, searchQuery, {
+		return advancedSearch(logs, debouncedQuery, {
 			keys: ['action', 'resourceName', 'resourceType', 'namespace', 'user.username', 'ipAddress'],
 			fuzzy: true
 		}) as AuditLog[];
