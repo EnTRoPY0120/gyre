@@ -2,6 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { deleteResource } from '$lib/server/kubernetes/flux/actions';
+import { MAX_BATCH_SIZE } from '$lib/server/config/limits';
 
 const batchResourceSchema = z.object({
 	type: z.string().openapi({ example: 'GitRepository' }),
@@ -18,14 +19,18 @@ const batchResultSchema = z.object({
 export const _metadata = {
 	POST: {
 		summary: 'Batch delete resources',
-		description:
-			'Delete multiple FluxCD resources in a single request. This is a destructive operation. Per-resource permission checks are applied.',
+		description: `Delete multiple FluxCD resources (up to ${MAX_BATCH_SIZE}) in a single request. This is a destructive operation. Per-resource permission checks are applied.`,
 		tags: ['Flux'],
 		request: {
 			body: {
 				content: {
 					'application/json': {
-						schema: z.object({ resources: z.array(batchResourceSchema) })
+						schema: z.object({
+							resources: z
+								.array(batchResourceSchema)
+								.max(MAX_BATCH_SIZE)
+								.openapi({ description: `List of resources to delete (max ${MAX_BATCH_SIZE})` })
+						})
 					}
 				}
 			}
@@ -90,6 +95,13 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress }
 
 	if (!body.resources || !Array.isArray(body.resources)) {
 		throw error(400, { message: 'Missing or invalid resources array in request body' });
+	}
+
+	// Check batch size limit
+	if (body.resources.length > MAX_BATCH_SIZE) {
+		throw error(400, {
+			message: `Batch size exceeded: maximum ${MAX_BATCH_SIZE} resources allowed per request`
+		});
 	}
 
 	const results: BatchOperationResult[] = [];
