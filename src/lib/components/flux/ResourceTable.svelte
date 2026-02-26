@@ -226,18 +226,20 @@
 
 <div class="flex flex-col gap-4">
 	<div
-		class="overflow-hidden rounded-xl border border-border bg-card/60 shadow-sm backdrop-blur-sm"
+		class="rounded-xl border border-border bg-card/60 shadow-sm backdrop-blur-sm"
 	>
 		<div
-			class="scrollbar-thin overflow-x-auto {showAll ? 'max-h-[480px] overflow-y-auto' : ''}"
+			class="scrollbar-thin overflow-x-auto {showAll
+				? 'max-h-[480px] overflow-y-auto'
+				: 'overflow-hidden'}"
 			onscroll={handleScroll}
 			bind:clientHeight={containerHeight}
 		>
 			<table class="w-full min-w-[700px] text-left text-sm">
 				<thead
 					class="{showAll
-						? 'sticky top-0 z-10'
-						: ''} border-b border-border bg-muted/30"
+						? 'sticky top-0 z-10 shadow-[0_1px_0_0_hsl(var(--border))]'
+						: ''} border-b border-border bg-card"
 				>
 					<tr>
 						<th class="w-12 px-4 py-4">
