@@ -15,37 +15,66 @@
 
 	let { resources, showNamespace = true, onRowClick, onOperationComplete }: Props = $props();
 
-	const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+	const PAGE_SIZE_OPTIONS = [10, 25, 50, 0] as const;
+
+	// Virtual scroll constants
+	const VIRTUAL_ROW_HEIGHT = 57; // estimated px per row
+	const VIRTUAL_OVERSCAN = 3; // extra rows rendered above/below visible area
 
 	// Pagination state
 	let currentPage = $state(1);
 	const itemsPerPage = $derived(preferences.itemsPerPage);
+	const showAll = $derived(itemsPerPage === 0);
 
 	// Selection state
 	let selectedResourceIds = $state<Set<string>>(new Set());
 
-	const totalPages = $derived(Math.ceil(resources.length / itemsPerPage));
+	// Virtual scroll state
+	let scrollTop = $state(0);
+	let containerHeight = $state(480);
+
+	const totalPages = $derived(showAll ? 0 : Math.ceil(resources.length / itemsPerPage));
 	const paginatedResources = $derived(
-		resources.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+		showAll ? [] : resources.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
 	);
+
+	// Virtual scroll derived values
+	const visibleStart = $derived(
+		showAll ? Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN) : 0
+	);
+	const visibleEnd = $derived(
+		showAll
+			? Math.min(
+					resources.length,
+					Math.ceil((scrollTop + containerHeight) / VIRTUAL_ROW_HEIGHT) + VIRTUAL_OVERSCAN
+				)
+			: 0
+	);
+	const virtualRows = $derived(showAll ? resources.slice(visibleStart, visibleEnd) : []);
+	const topSpacerHeight = $derived(showAll ? visibleStart * VIRTUAL_ROW_HEIGHT : 0);
+	const bottomSpacerHeight = $derived(
+		showAll ? Math.max(0, resources.length - visibleEnd) * VIRTUAL_ROW_HEIGHT : 0
+	);
+
+	// In virtual mode, selection targets all resources; in paginated mode, current page only
+	const displayedRows = $derived(showAll ? resources : paginatedResources);
 	const selectedResources = $derived(
 		resources.filter((r) => selectedResourceIds.has(r.metadata.uid || ''))
 	);
-	const allCurrentPageSelected = $derived(
-		paginatedResources.length > 0 &&
-			paginatedResources.every((r) => selectedResourceIds.has(r.metadata.uid || ''))
+	const allDisplayedSelected = $derived(
+		displayedRows.length > 0 &&
+			displayedRows.every((r) => selectedResourceIds.has(r.metadata.uid || ''))
 	);
-	const someCurrentPageSelected = $derived(
-		paginatedResources.some((r) => selectedResourceIds.has(r.metadata.uid || '')) &&
-			!allCurrentPageSelected
+	const someDisplayedSelected = $derived(
+		displayedRows.some((r) => selectedResourceIds.has(r.metadata.uid || '')) &&
+			!allDisplayedSelected
 	);
 
 	function handleRowClick(resource: FluxResource, event: MouseEvent) {
 		// Don't trigger row click if clicking checkbox
 		const target = event.target as HTMLElement;
 		if (
-			target instanceof HTMLInputElement &&
-			target.type === 'checkbox' ||
+			(target instanceof HTMLInputElement && target.type === 'checkbox') ||
 			target.closest('input[type="checkbox"]')
 		) {
 			return;
@@ -70,17 +99,16 @@
 	}
 
 	function toggleSelectAll() {
-		if (allCurrentPageSelected) {
-			// Deselect all on current page
+		const targets = showAll ? resources : paginatedResources;
+		if (allDisplayedSelected) {
 			const newSet = new Set(selectedResourceIds);
-			paginatedResources.forEach((r) => {
+			targets.forEach((r) => {
 				newSet.delete(r.metadata.uid || '');
 			});
 			selectedResourceIds = newSet;
 		} else {
-			// Select all on current page
 			const newSet = new Set(selectedResourceIds);
-			paginatedResources.forEach((r) => {
+			targets.forEach((r) => {
 				newSet.add(r.metadata.uid || '');
 			});
 			selectedResourceIds = newSet;
@@ -96,9 +124,15 @@
 		return ready?.message || '-';
 	}
 
-	// Reset page when resources change
+	function handleScroll(e: Event) {
+		if (showAll) {
+			scrollTop = (e.target as HTMLElement).scrollTop;
+		}
+	}
+
+	// Reset page when resources change (not applicable in virtual mode)
 	$effect(() => {
-		if (currentPage > totalPages && totalPages > 0) {
+		if (!showAll && currentPage > totalPages && totalPages > 0) {
 			currentPage = totalPages;
 		}
 	});
@@ -110,22 +144,85 @@
 	});
 </script>
 
+{#snippet tableRow(resource: FluxResource)}
+	<tr
+		class="group cursor-pointer transition-colors hover:bg-accent/40 hover:text-accent-foreground"
+		onclick={(e) => handleRowClick(resource, e)}
+	>
+		<td class="px-4 py-4">
+			<input
+				type="checkbox"
+				checked={selectedResourceIds.has(resource.metadata.uid || '')}
+				onchange={() => toggleResourceSelection(resource)}
+				onclick={(e) => e.stopPropagation()}
+				class="size-4 cursor-pointer rounded border-border bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-0"
+				aria-label={`Select ${resource.metadata.name}`}
+			/>
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap transition-all duration-200 group-hover:pl-7">
+			<div
+				class="font-mono text-[13px] font-medium text-foreground transition-colors group-hover:text-primary"
+			>
+				{resource.metadata.name}
+			</div>
+		</td>
+		{#if showNamespace}
+			<td class="px-6 py-4 whitespace-nowrap">
+				<div
+					class="inline-flex items-center rounded-md border border-transparent bg-secondary/40 px-2 py-1 text-[11px] font-medium text-muted-foreground transition-all group-hover:border-border/50"
+				>
+					{resource.metadata.namespace || '-'}
+				</div>
+			</td>
+		{/if}
+		<td class="px-6 py-4 whitespace-nowrap">
+			<StatusBadge
+				conditions={resource.status?.conditions}
+				suspended={resource.spec?.suspend as boolean | undefined}
+				observedGeneration={resource.status?.observedGeneration}
+				generation={resource.metadata?.generation}
+				size="sm"
+			/>
+		</td>
+		<td class="px-6 py-4 whitespace-nowrap">
+			<div class="font-mono text-xs font-medium text-muted-foreground">
+				{formatTimestamp(resource.metadata.creationTimestamp)}
+			</div>
+		</td>
+		<td class="max-w-[300px] px-6 py-4">
+			<div class="truncate text-xs text-muted-foreground/80 group-hover:text-muted-foreground">
+				{getReadyMessage(resource)}
+			</div>
+		</td>
+	</tr>
+{/snippet}
+
 <div class="flex flex-col gap-4">
 	<div
 		class="overflow-hidden rounded-xl border border-border bg-card/60 shadow-sm backdrop-blur-sm"
 	>
-		<div class="scrollbar-thin overflow-x-auto">
+		<div
+			class="scrollbar-thin overflow-x-auto {showAll ? 'max-h-[480px] overflow-y-auto' : ''}"
+			onscroll={handleScroll}
+			bind:clientHeight={containerHeight}
+		>
 			<table class="w-full min-w-[700px] text-left text-sm">
-				<thead class="border-b border-border bg-muted/30">
+				<thead
+					class="{showAll
+						? 'sticky top-0 z-10'
+						: ''} border-b border-border bg-muted/30"
+				>
 					<tr>
 						<th class="w-12 px-4 py-4">
 							<input
 								type="checkbox"
-								checked={allCurrentPageSelected}
-								indeterminate={someCurrentPageSelected}
+								checked={allDisplayedSelected}
+								indeterminate={someDisplayedSelected}
 								onchange={toggleSelectAll}
 								class="size-4 cursor-pointer rounded border-border bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-0"
-								aria-label="Select all resources on current page"
+								aria-label={showAll
+									? 'Select all resources'
+									: 'Select all resources on current page'}
 							/>
 						</th>
 						<th
@@ -173,62 +270,23 @@
 								</div>
 							</td>
 						</tr>
+					{:else if showAll}
+						{#if topSpacerHeight > 0}
+							<tr style="height: {topSpacerHeight}px" aria-hidden="true">
+								<td colspan={showNamespace ? 6 : 5}></td>
+							</tr>
+						{/if}
+						{#each virtualRows as resource (resource.metadata.uid)}
+							{@render tableRow(resource)}
+						{/each}
+						{#if bottomSpacerHeight > 0}
+							<tr style="height: {bottomSpacerHeight}px" aria-hidden="true">
+								<td colspan={showNamespace ? 6 : 5}></td>
+							</tr>
+						{/if}
 					{:else}
 						{#each paginatedResources as resource (resource.metadata.uid)}
-							<tr
-								class="group cursor-pointer transition-colors hover:bg-accent/40 hover:text-accent-foreground"
-								onclick={(e) => handleRowClick(resource, e)}
-							>
-								<td class="px-4 py-4">
-									<input
-										type="checkbox"
-										checked={selectedResourceIds.has(resource.metadata.uid || '')}
-										onchange={() => toggleResourceSelection(resource)}
-										onclick={(e) => e.stopPropagation()}
-										class="size-4 cursor-pointer rounded border-border bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-0"
-										aria-label={`Select ${resource.metadata.name}`}
-									/>
-								</td>
-								<td
-									class="px-6 py-4 whitespace-nowrap transition-all duration-200 group-hover:pl-7"
-								>
-									<div
-										class="font-mono text-[13px] font-medium text-foreground transition-colors group-hover:text-primary"
-									>
-										{resource.metadata.name}
-									</div>
-								</td>
-								{#if showNamespace}
-									<td class="px-6 py-4 whitespace-nowrap">
-										<div
-											class="inline-flex items-center rounded-md border border-transparent bg-secondary/40 px-2 py-1 text-[11px] font-medium text-muted-foreground transition-all group-hover:border-border/50"
-										>
-											{resource.metadata.namespace || '-'}
-										</div>
-									</td>
-								{/if}
-								<td class="px-6 py-4 whitespace-nowrap">
-									<StatusBadge
-										conditions={resource.status?.conditions}
-										suspended={resource.spec?.suspend as boolean | undefined}
-										observedGeneration={resource.status?.observedGeneration}
-										generation={resource.metadata?.generation}
-										size="sm"
-									/>
-								</td>
-								<td class="px-6 py-4 whitespace-nowrap">
-									<div class="font-mono text-xs font-medium text-muted-foreground">
-										{formatTimestamp(resource.metadata.creationTimestamp)}
-									</div>
-								</td>
-								<td class="max-w-[300px] px-6 py-4">
-									<div
-										class="truncate text-xs text-muted-foreground/80 group-hover:text-muted-foreground"
-									>
-										{getReadyMessage(resource)}
-									</div>
-								</td>
-							</tr>
+							{@render tableRow(resource)}
 						{/each}
 					{/if}
 				</tbody>
@@ -239,14 +297,20 @@
 	{#if resources.length > PAGE_SIZE_OPTIONS[0]}
 		<div class="flex items-center justify-between px-2">
 			<div class="flex items-center gap-3">
-				<div class="text-xs text-muted-foreground">
-					Showing <span class="font-medium"
-						>{Math.min((currentPage - 1) * itemsPerPage + 1, resources.length)}</span
-					>
-					to
-					<span class="font-medium">{Math.min(currentPage * itemsPerPage, resources.length)}</span>
-					of <span class="font-medium">{resources.length}</span> results
-				</div>
+				{#if showAll}
+					<div class="text-xs text-muted-foreground">
+						Showing all <span class="font-medium">{resources.length}</span> results
+					</div>
+				{:else}
+					<div class="text-xs text-muted-foreground">
+						Showing <span class="font-medium"
+							>{Math.min((currentPage - 1) * itemsPerPage + 1, resources.length)}</span
+						>
+						to
+						<span class="font-medium">{Math.min(currentPage * itemsPerPage, resources.length)}</span>
+						of <span class="font-medium">{resources.length}</span> results
+					</div>
+				{/if}
 				<div class="flex items-center gap-1.5">
 					<span class="text-xs text-muted-foreground">Per page:</span>
 					{#each PAGE_SIZE_OPTIONS as size (size)}
@@ -260,12 +324,12 @@
 							}}
 							aria-pressed={itemsPerPage === size}
 						>
-							{size}
+							{size === 0 ? 'All' : size}
 						</button>
 					{/each}
 				</div>
 			</div>
-			{#if totalPages > 1}
+			{#if !showAll && totalPages > 1}
 				<div class="flex items-center gap-2">
 					<button
 						class="flex size-8 items-center justify-center rounded-md border border-border bg-card/60 text-muted-foreground transition-all hover:bg-accent disabled:opacity-30"
