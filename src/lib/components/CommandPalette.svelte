@@ -127,19 +127,22 @@
 		return items;
 	});
 
-	// Fuse.js configuration for fuzzy search
-	const fuse = $derived(
-		new Fuse(allItems, {
-			keys: [
-				{ name: 'label', weight: 2 },
-				{ name: 'description', weight: 1 },
-				{ name: 'category', weight: 0.5 },
-				{ name: 'keywords', weight: 1.5 }
-			],
-			threshold: 0.4,
-			includeScore: true
-		})
-	);
+	// Fuse.js configuration for fuzzy search — instance is created once and collection
+	// is updated via setCollection() to avoid recreating the instance on every allItems change.
+	const fuse = new Fuse<CommandItem>([], {
+		keys: [
+			{ name: 'label', weight: 2 },
+			{ name: 'description', weight: 1 },
+			{ name: 'category', weight: 0.5 },
+			{ name: 'keywords', weight: 1.5 }
+		],
+		threshold: 0.4,
+		includeScore: true
+	});
+
+	$effect(() => {
+		fuse.setCollection(allItems);
+	});
 
 	// Filter items based on search query
 	$effect(() => {
