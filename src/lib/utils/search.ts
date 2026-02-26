@@ -11,8 +11,19 @@ export interface SearchOptions {
 // WeakMap allows entries to be garbage collected when the items array is no longer in use.
 const fuseCache = new WeakMap<object, Map<string, Fuse<unknown>>>();
 
+/**
+ * Returns a cached Fuse instance for the given items array and options.
+ *
+ * **Callers must treat `items` as immutable.** The cache ({@link fuseCache}) is
+ * keyed by the `items` array reference, so mutating the array in place will
+ * cause {@link getFuseInstance} to return a stale index without rebuilding it.
+ * Pass a new array reference whenever the contents change.
+ *
+ * Future improvement: include a content hash in the options key to
+ * auto-detect in-place mutations.
+ */
 function getFuseInstance<T>(items: T[], keys: string[], caseSensitive: boolean): Fuse<T> {
-	const optionsKey = JSON.stringify([...keys].sort()) + String(caseSensitive);
+	const optionsKey = JSON.stringify({ keys: [...keys].sort(), caseSensitive });
 
 	let byOptions = fuseCache.get(items as object);
 	if (!byOptions) {
