@@ -37,6 +37,7 @@
 	let containerHeight = $state(480);
 	let rowHeight = $state(57); // updated by measurement effect below
 	let tbodyEl = $state<HTMLElement | null>(null);
+	let scrollContainer = $state<HTMLElement | null>(null);
 
 	const totalPages = $derived(showAll ? 0 : Math.ceil(resources.length / itemsPerPage));
 	const paginatedResources = $derived(
@@ -234,6 +235,7 @@
 				: 'overflow-hidden'}"
 			onscroll={handleScroll}
 			bind:clientHeight={containerHeight}
+			bind:this={scrollContainer}
 		>
 			<table class="w-full min-w-[700px] text-left text-sm">
 				<thead
@@ -305,7 +307,7 @@
 								<td colspan={showNamespace ? 6 : 5}></td>
 							</tr>
 						{/if}
-						{#each virtualRows as resource (resource.metadata.uid)}
+						{#each virtualRows as resource (resource.metadata.uid || '')}
 							{@render tableRow(resource)}
 						{/each}
 						{#if bottomSpacerHeight > 0}
@@ -314,7 +316,7 @@
 							</tr>
 						{/if}
 					{:else}
-						{#each paginatedResources as resource (resource.metadata.uid)}
+						{#each paginatedResources as resource (resource.metadata.uid || '')}
 							{@render tableRow(resource)}
 						{/each}
 					{/if}
@@ -350,7 +352,10 @@
 							onclick={() => {
 								preferences.setItemsPerPage(size);
 								currentPage = 1;
-								if (size === 0) scrollTop = 0;
+								if (size === 0) {
+									scrollTop = 0;
+									if (scrollContainer) scrollContainer.scrollTop = 0;
+								}
 							}}
 							aria-pressed={itemsPerPage === size}
 						>
