@@ -5,8 +5,9 @@
 	import NotificationBell from './NotificationBell.svelte';
 	import ClusterSwitcher from './ClusterSwitcher.svelte';
 	import UserMenu from './UserMenu.svelte';
-	import { ChevronRight, Menu } from 'lucide-svelte';
+	import { ChevronRight, Menu, Search } from 'lucide-svelte';
 	import { sidebarOpen } from '$lib/stores/sidebar';
+	import { commandPaletteOpen } from '$lib/stores/commandPalette';
 	import { cn } from '$lib/utils';
 
 	interface Props {
@@ -132,6 +133,20 @@
 
 	<!-- Right Side: Notifications, Theme Toggle, Connection Status & Actions -->
 	<div class="flex shrink-0 items-center gap-1 sm:gap-3 md:gap-4">
+		<!-- Search Button -->
+		<button
+			type="button"
+			onclick={() => commandPaletteOpen.open()}
+			class="flex items-center gap-2 rounded-md border border-border/60 bg-secondary/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-all hover:bg-secondary hover:text-foreground"
+			aria-label="Search (Ctrl+K)"
+		>
+			<Search class="size-3.5 shrink-0" />
+			<span class="hidden sm:inline">Search</span>
+			<kbd class="hidden items-center gap-0.5 rounded border border-border/60 bg-background/60 px-1 py-0.5 font-mono text-[10px] sm:flex">
+				Ctrl+K
+			</kbd>
+		</button>
+
 		<!-- Notification Bell -->
 		<NotificationBell />
 
