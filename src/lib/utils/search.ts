@@ -11,11 +11,7 @@ export interface SearchOptions {
 // WeakMap allows entries to be garbage collected when the items array is no longer in use.
 const fuseCache = new WeakMap<object, Map<string, Fuse<unknown>>>();
 
-function getFuseInstance<T>(
-	items: T[],
-	keys: string[],
-	caseSensitive: boolean
-): Fuse<T> {
+function getFuseInstance<T>(items: T[], keys: string[], caseSensitive: boolean): Fuse<T> {
 	const optionsKey = JSON.stringify([...keys].sort()) + String(caseSensitive);
 
 	let byOptions = fuseCache.get(items as object);
