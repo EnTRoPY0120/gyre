@@ -7,6 +7,39 @@ export interface SearchOptions {
 	keys?: string[];
 }
 
+// Cache Fuse instances keyed by items reference then by serialized options.
+// WeakMap allows entries to be garbage collected when the items array is no longer in use.
+const fuseCache = new WeakMap<object, Map<string, Fuse<unknown>>>();
+
+function getFuseInstance<T>(
+	items: T[],
+	keys: string[],
+	caseSensitive: boolean
+): Fuse<T> {
+	const optionsKey = JSON.stringify([...keys].sort()) + String(caseSensitive);
+
+	let byOptions = fuseCache.get(items as object);
+	if (!byOptions) {
+		byOptions = new Map();
+		fuseCache.set(items as object, byOptions);
+	}
+
+	let fuse = byOptions.get(optionsKey) as Fuse<T> | undefined;
+	if (!fuse) {
+		fuse = new Fuse(items, {
+			keys,
+			threshold: 0.3,
+			distance: 100,
+			ignoreLocation: true,
+			useExtendedSearch: true,
+			isCaseSensitive: caseSensitive
+		});
+		byOptions.set(optionsKey, fuse as Fuse<unknown>);
+	}
+
+	return fuse;
+}
+
 /**
  * Advanced search utility supporting fuzzy, regex, and literal matching
  */
@@ -37,14 +70,7 @@ export function advancedSearch<T>(items: T[], query: string, options: SearchOpti
 
 	// Handle Fuzzy search
 	if (fuzzy) {
-		const fuse = new Fuse(items, {
-			keys,
-			threshold: 0.3,
-			distance: 100,
-			ignoreLocation: true,
-			useExtendedSearch: true,
-			isCaseSensitive: caseSensitive
-		});
+		const fuse = getFuseInstance(items, keys, caseSensitive);
 		return fuse.search(query).map((result) => result.item);
 	}
 
