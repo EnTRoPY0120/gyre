@@ -73,7 +73,7 @@
 
 	// Reset selection when search changes
 	$effect(() => {
-		filteredItems; // depend on filtered list
+		void filteredItems; // depend on filtered list
 		selectedIndex = 0;
 	});
 
