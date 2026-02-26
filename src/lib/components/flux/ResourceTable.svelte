@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { FluxResource } from '$lib/types/flux';
 	import { formatTimestamp } from '$lib/utils/flux';
 	import StatusBadge from './StatusBadge.svelte';
@@ -18,7 +19,9 @@
 	const PAGE_SIZE_OPTIONS = [10, 25, 50, 0] as const;
 
 	// Virtual scroll constants
-	const VIRTUAL_ROW_HEIGHT = 57; // estimated px per row
+	// rowHeight is measured from the first rendered data row after mount;
+	// 57 is the pre-mount fallback (py-4 top + py-4 bottom + ~25 px content).
+	// All rows share the same structure so a single measurement is sufficient.
 	const VIRTUAL_OVERSCAN = 3; // extra rows rendered above/below visible area
 
 	// Pagination state
@@ -32,6 +35,8 @@
 	// Virtual scroll state
 	let scrollTop = $state(0);
 	let containerHeight = $state(480);
+	let rowHeight = $state(57); // updated by measurement effect below
+	let tbodyEl = $state<HTMLElement | null>(null);
 
 	const totalPages = $derived(showAll ? 0 : Math.ceil(resources.length / itemsPerPage));
 	const paginatedResources = $derived(
@@ -40,20 +45,20 @@
 
 	// Virtual scroll derived values
 	const visibleStart = $derived(
-		showAll ? Math.max(0, Math.floor(scrollTop / VIRTUAL_ROW_HEIGHT) - VIRTUAL_OVERSCAN) : 0
+		showAll ? Math.max(0, Math.floor(scrollTop / rowHeight) - VIRTUAL_OVERSCAN) : 0
 	);
 	const visibleEnd = $derived(
 		showAll
 			? Math.min(
 					resources.length,
-					Math.ceil((scrollTop + containerHeight) / VIRTUAL_ROW_HEIGHT) + VIRTUAL_OVERSCAN
+					Math.ceil((scrollTop + containerHeight) / rowHeight) + VIRTUAL_OVERSCAN
 				)
 			: 0
 	);
 	const virtualRows = $derived(showAll ? resources.slice(visibleStart, visibleEnd) : []);
-	const topSpacerHeight = $derived(showAll ? visibleStart * VIRTUAL_ROW_HEIGHT : 0);
+	const topSpacerHeight = $derived(showAll ? visibleStart * rowHeight : 0);
 	const bottomSpacerHeight = $derived(
-		showAll ? Math.max(0, resources.length - visibleEnd) * VIRTUAL_ROW_HEIGHT : 0
+		showAll ? Math.max(0, resources.length - visibleEnd) * rowHeight : 0
 	);
 
 	// In virtual mode, selection targets all resources; in paginated mode, current page only
@@ -137,10 +142,26 @@
 		}
 	});
 
-	// Clear selection when resources change
+	// Measure actual row height from the first rendered data row so the virtual
+	// scroll calculations stay accurate regardless of font size or padding changes.
 	$effect(() => {
-		void resources;
-		selectedResourceIds = new Set();
+		void resources; // re-measure whenever the resource list changes
+		if (!tbodyEl) return;
+		const firstDataRow = tbodyEl.querySelector<HTMLElement>('tr.group');
+		if (firstDataRow && firstDataRow.offsetHeight > 0) {
+			rowHeight = firstDataRow.offsetHeight;
+		}
+	});
+
+	// Drop selections for UIDs that no longer exist; preserve everything else.
+	$effect(() => {
+		const currentUids = new Set(resources.map((r) => r.metadata.uid || ''));
+		const prev = untrack(() => selectedResourceIds);
+		if (prev.size === 0) return;
+		const filtered = new Set([...prev].filter((id) => currentUids.has(id)));
+		if (filtered.size !== prev.size) {
+			selectedResourceIds = filtered;
+		}
 	});
 </script>
 
@@ -254,7 +275,7 @@
 						</th>
 					</tr>
 				</thead>
-				<tbody class="divide-y divide-border/40">
+				<tbody class="divide-y divide-border/40" bind:this={tbodyEl}>
 					{#if resources.length === 0}
 						<tr>
 							<td
