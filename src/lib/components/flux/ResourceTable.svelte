@@ -4,6 +4,7 @@
 	import StatusBadge from './StatusBadge.svelte';
 	import BulkActionsToolbar from './BulkActionsToolbar.svelte';
 	import { PackageX, ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { preferences } from '$lib/stores/preferences.svelte';
 
 	interface Props {
 		resources: FluxResource[];
@@ -14,9 +15,11 @@
 
 	let { resources, showNamespace = true, onRowClick, onOperationComplete }: Props = $props();
 
+	const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+
 	// Pagination state
 	let currentPage = $state(1);
-	let itemsPerPage = 10;
+	const itemsPerPage = $derived(preferences.itemsPerPage);
 
 	// Selection state
 	let selectedResourceIds = $state<Set<string>>(new Set());
@@ -233,34 +236,60 @@
 		</div>
 	</div>
 
-	{#if totalPages > 1}
+	{#if resources.length > PAGE_SIZE_OPTIONS[0]}
 		<div class="flex items-center justify-between px-2">
-			<div class="text-xs text-muted-foreground">
-				Showing <span class="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to
-				<span class="font-medium">{Math.min(currentPage * itemsPerPage, resources.length)}</span>
-				of <span class="font-medium">{resources.length}</span> results
-			</div>
-			<div class="flex items-center gap-2">
-				<button
-					class="flex size-8 items-center justify-center rounded-md border border-border bg-card/60 text-muted-foreground transition-all hover:bg-accent disabled:opacity-30"
-					onclick={() => (currentPage = Math.max(1, currentPage - 1))}
-					disabled={currentPage === 1}
-					aria-label="Previous page"
-				>
-					<ChevronLeft size={16} />
-				</button>
-				<div class="text-xs font-medium">
-					Page {currentPage} of {totalPages}
+			<div class="flex items-center gap-3">
+				<div class="text-xs text-muted-foreground">
+					{#if resources.length > 0}
+						Showing <span class="font-medium"
+							>{Math.min((currentPage - 1) * itemsPerPage + 1, resources.length)}</span
+						>
+						to
+						<span class="font-medium">{Math.min(currentPage * itemsPerPage, resources.length)}</span>
+						of <span class="font-medium">{resources.length}</span> results
+					{/if}
 				</div>
-				<button
-					class="flex size-8 items-center justify-center rounded-md border border-border bg-card/60 text-muted-foreground transition-all hover:bg-accent disabled:opacity-30"
-					onclick={() => (currentPage = Math.min(totalPages, currentPage + 1))}
-					disabled={currentPage === totalPages}
-					aria-label="Next page"
-				>
-					<ChevronRight size={16} />
-				</button>
+				<div class="flex items-center gap-1.5">
+					<span class="text-xs text-muted-foreground">Per page:</span>
+					{#each PAGE_SIZE_OPTIONS as size (size)}
+						<button
+							class="rounded px-2 py-0.5 text-xs transition-colors {itemsPerPage === size
+								? 'bg-primary text-primary-foreground'
+								: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'}"
+							onclick={() => {
+								preferences.setItemsPerPage(size);
+								currentPage = 1;
+							}}
+							aria-pressed={itemsPerPage === size}
+						>
+							{size}
+						</button>
+					{/each}
+				</div>
 			</div>
+			{#if totalPages > 1}
+				<div class="flex items-center gap-2">
+					<button
+						class="flex size-8 items-center justify-center rounded-md border border-border bg-card/60 text-muted-foreground transition-all hover:bg-accent disabled:opacity-30"
+						onclick={() => (currentPage = Math.max(1, currentPage - 1))}
+						disabled={currentPage === 1}
+						aria-label="Previous page"
+					>
+						<ChevronLeft size={16} />
+					</button>
+					<div class="text-xs font-medium">
+						Page {currentPage} of {totalPages}
+					</div>
+					<button
+						class="flex size-8 items-center justify-center rounded-md border border-border bg-card/60 text-muted-foreground transition-all hover:bg-accent disabled:opacity-30"
+						onclick={() => (currentPage = Math.min(totalPages, currentPage + 1))}
+						disabled={currentPage === totalPages}
+						aria-label="Next page"
+					>
+						<ChevronRight size={16} />
+					</button>
+				</div>
+			{/if}
 		</div>
 	{/if}
 

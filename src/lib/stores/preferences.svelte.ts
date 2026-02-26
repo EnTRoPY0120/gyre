@@ -9,7 +9,8 @@ const DEFAULT_VIEW_PREFERENCES: ViewPreferences = {
 	showNamespace: true,
 	compactMode: false,
 	autoRefresh: false,
-	refreshInterval: 30
+	refreshInterval: 30,
+	itemsPerPage: 10
 };
 
 function createPreferencesStore() {
@@ -67,6 +68,9 @@ function createPreferencesStore() {
 		get refreshInterval() {
 			return _viewPrefs.refreshInterval;
 		},
+		get itemsPerPage() {
+			return _viewPrefs.itemsPerPage;
+		},
 
 		// --- View Preferences Actions ---
 		setViewMode(viewMode: 'table' | 'grid') {
@@ -87,6 +91,10 @@ function createPreferencesStore() {
 		},
 		setRefreshInterval(interval: number) {
 			_viewPrefs.refreshInterval = Math.max(5, Math.min(300, interval));
+			saveViewPrefs();
+		},
+		setItemsPerPage(count: number) {
+			_viewPrefs.itemsPerPage = count;
 			saveViewPrefs();
 		},
 		resetViewPrefs() {

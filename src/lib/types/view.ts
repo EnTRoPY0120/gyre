@@ -17,4 +17,5 @@ export interface ViewPreferences {
 	compactMode: boolean;
 	autoRefresh: boolean;
 	refreshInterval: number; // in seconds
+	itemsPerPage: number;
 }
