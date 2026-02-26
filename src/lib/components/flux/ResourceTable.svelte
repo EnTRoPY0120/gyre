@@ -67,12 +67,13 @@
 	const selectedResources = $derived(
 		resources.filter((r) => selectedResourceIds.has(r.metadata.uid || ''))
 	);
+	const selectableDisplayedRows = $derived(displayedRows.filter((r) => !!r.metadata.uid));
 	const allDisplayedSelected = $derived(
-		displayedRows.length > 0 &&
-			displayedRows.every((r) => selectedResourceIds.has(r.metadata.uid || ''))
+		selectableDisplayedRows.length > 0 &&
+			selectableDisplayedRows.every((r) => selectedResourceIds.has(r.metadata.uid!))
 	);
 	const someDisplayedSelected = $derived(
-		displayedRows.some((r) => selectedResourceIds.has(r.metadata.uid || '')) &&
+		selectableDisplayedRows.some((r) => selectedResourceIds.has(r.metadata.uid!)) &&
 			!allDisplayedSelected
 	);
 
