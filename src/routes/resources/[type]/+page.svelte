@@ -83,11 +83,24 @@
 		}
 	});
 
+	// Debounced search term to avoid rebuilding Fuse.js index on every keystroke
+	let debouncedSearch = $state($page.url.searchParams.get('q') ?? '');
+
+	$effect(() => {
+		const search = filters.search;
+		const timeoutId = setTimeout(() => {
+			debouncedSearch = search;
+		}, 200);
+		return () => clearTimeout(timeoutId);
+	});
+
 	// Available namespaces for filter dropdown
 	const namespaces = $derived(getUniqueNamespaces(data.resources || []));
 
-	// Apply filters to resources
-	const filteredResources = $derived(filterResources(data.resources || [], filters));
+	// Apply filters to resources — use debouncedSearch for the expensive fuzzy/Fuse.js path
+	const filteredResources = $derived(
+		filterResources(data.resources || [], { ...filters, search: debouncedSearch })
+	);
 
 	// Check if filters are active
 	const hasActiveFilters = $derived(checkActiveFilters(filters));
