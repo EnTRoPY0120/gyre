@@ -91,7 +91,8 @@
 	}
 
 	function toggleResourceSelection(resource: FluxResource) {
-		const uid = resource.metadata.uid || '';
+		const uid = resource.metadata.uid;
+		if (!uid) return;
 		const newSet = new Set(selectedResourceIds);
 
 		if (newSet.has(uid)) {
@@ -108,13 +109,15 @@
 		if (allDisplayedSelected) {
 			const newSet = new Set(selectedResourceIds);
 			targets.forEach((r) => {
-				newSet.delete(r.metadata.uid || '');
+				if (!r.metadata.uid) return;
+				newSet.delete(r.metadata.uid);
 			});
 			selectedResourceIds = newSet;
 		} else {
 			const newSet = new Set(selectedResourceIds);
 			targets.forEach((r) => {
-				newSet.add(r.metadata.uid || '');
+				if (!r.metadata.uid) return;
+				newSet.add(r.metadata.uid);
 			});
 			selectedResourceIds = newSet;
 		}
@@ -142,14 +145,17 @@
 		}
 	});
 
-	// Measure actual row height from the first rendered data row so the virtual
-	// scroll calculations stay accurate regardless of font size or padding changes.
+	// Measure actual row stride from the vertical distance between two consecutive
+	// rendered rows so that divide-y borders are included in the calculation.
+	// Falls back to offsetHeight when only one row is visible.
 	$effect(() => {
 		void resources; // re-measure whenever the resource list changes
 		if (!tbodyEl) return;
-		const firstDataRow = tbodyEl.querySelector<HTMLElement>('tr.group');
-		if (firstDataRow && firstDataRow.offsetHeight > 0) {
-			rowHeight = firstDataRow.offsetHeight;
+		const rows = tbodyEl.querySelectorAll<HTMLElement>('tr.group');
+		if (rows.length >= 2) {
+			rowHeight = rows[1].offsetTop - rows[0].offsetTop;
+		} else if (rows.length === 1 && rows[0].offsetHeight > 0) {
+			rowHeight = rows[0].offsetHeight;
 		}
 	});
 
@@ -173,7 +179,7 @@
 		<td class="px-4 py-4">
 			<input
 				type="checkbox"
-				checked={selectedResourceIds.has(resource.metadata.uid || '')}
+				checked={!!resource.metadata.uid && selectedResourceIds.has(resource.metadata.uid)}
 				onchange={() => toggleResourceSelection(resource)}
 				onclick={(e) => e.stopPropagation()}
 				class="size-4 cursor-pointer rounded border-border bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-0"
@@ -342,6 +348,7 @@
 							onclick={() => {
 								preferences.setItemsPerPage(size);
 								currentPage = 1;
+								if (size === 0) scrollTop = 0;
 							}}
 							aria-pressed={itemsPerPage === size}
 						>
