@@ -3,18 +3,11 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { toggleSuspendResource } from '$lib/server/kubernetes/flux/actions';
 import { MAX_BATCH_SIZE } from '$lib/server/config/limits';
-
-const batchResourceSchema = z.object({
-	type: z.string().openapi({ example: 'GitRepository' }),
-	namespace: z.string().openapi({ example: 'flux-system' }),
-	name: z.string().openapi({ example: 'my-repo' })
-});
-
-const batchResultSchema = z.object({
-	resource: batchResourceSchema,
-	success: z.boolean(),
-	message: z.string()
-});
+import {
+	batchResourceSchema,
+	batchResultSchema
+} from '$lib/server/kubernetes/flux/batch-schemas';
+import type { BatchResourceItem, BatchOperationResult } from '$lib/server/kubernetes/flux/batch-schemas';
 
 export const _metadata = {
 	POST: {
@@ -61,18 +54,6 @@ import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { logAudit } from '$lib/server/audit.js';
 import { sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
-
-interface BatchResourceItem {
-	type: string;
-	namespace: string;
-	name: string;
-}
-
-interface BatchOperationResult {
-	resource: BatchResourceItem;
-	success: boolean;
-	message: string;
-}
 
 export const POST: RequestHandler = async ({ request, locals, getClientAddress }) => {
 	// Check authentication
