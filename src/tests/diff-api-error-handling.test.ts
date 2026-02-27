@@ -7,7 +7,7 @@
  * is always called with the original error.
  */
 
-import { describe, test, expect, mock, beforeEach, afterEach } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 
 // ---------------------------------------------------------------------------
 // Reproduce the catch-block logic verbatim so tests stay in sync with the fix
