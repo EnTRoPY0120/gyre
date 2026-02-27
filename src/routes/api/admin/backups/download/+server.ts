@@ -64,7 +64,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		await logAudit(locals.user, 'backup:download', {
 			resourceType: 'DatabaseBackup',
-			resourceName: filename
+			resourceName: safeFilename
 		});
 
 		return new Response(stream as any, {
