@@ -10,6 +10,7 @@ import { getBackupPath } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
 import { requirePermission } from '$lib/server/rbac';
 import { createReadStream, statSync } from 'node:fs';
+import { basename } from 'node:path';
 
 export const _metadata = {
 	GET: {
@@ -59,6 +60,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	try {
 		const stat = statSync(filePath);
 		const stream = createReadStream(filePath);
+		const safeFilename = basename(filePath);
 
 		await logAudit(locals.user, 'backup:download', {
 			resourceType: 'DatabaseBackup',
@@ -69,7 +71,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			status: 200,
 			headers: {
 				'Content-Type': 'application/x-sqlite3',
-				'Content-Disposition': `attachment; filename="${filename}"`,
+				'Content-Disposition': `attachment; filename="${safeFilename}"`,
 				'Content-Length': String(stat.size)
 			}
 		});
