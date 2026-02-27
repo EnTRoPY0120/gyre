@@ -533,9 +533,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 					'Check that the source-controller is running and the GitRepository/Bucket has reconciled successfully.'
 			);
 		} else if (message.includes('tar:')) {
-			throw error(500, `Failed to extract source artifact: ${message}`);
+			throw error(500, 'Failed to extract source artifact. Check server logs for details.');
 		} else if (message.includes('kustomize')) {
-			throw error(500, `Kustomize build failed: ${message}`);
+			throw error(500, 'Kustomize build failed. Check server logs for details.');
 		} else if (message.includes('timeout')) {
 			throw error(
 				504,
@@ -543,6 +543,6 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			);
 		}
 
-		throw error(500, message);
+		throw error(500, 'Failed to compute diff. Please try again or check the source artifact.');
 	}
 };
