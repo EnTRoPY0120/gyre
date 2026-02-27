@@ -8,53 +8,7 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-
-// ---------------------------------------------------------------------------
-// Reproduce the catch-block logic verbatim so tests stay in sync with the fix
-// ---------------------------------------------------------------------------
-
-type DiffError = { status: number; body: { message: string } };
-
-function classifyDiffError(err: unknown): DiffError {
-	const message = err instanceof Error ? err.message : String(err);
-
-	if (message.includes('not in gzip format')) {
-		return {
-			status: 500,
-			body: {
-				message:
-					'The artifact downloaded from source-controller is not a valid gzip archive. ' +
-					'This usually indicates the source-controller service is returning an error page instead of the artifact. ' +
-					'Check that the source-controller is running and the GitRepository/Bucket has reconciled successfully.'
-			}
-		};
-	} else if (message.includes('tar:')) {
-		return {
-			status: 500,
-			body: { message: 'Failed to extract source artifact. Check server logs for details.' }
-		};
-	} else if (message.includes('kustomize')) {
-		return {
-			status: 500,
-			body: { message: 'Kustomize build failed. Check server logs for details.' }
-		};
-	} else if (message.includes('timeout')) {
-		return {
-			status: 504,
-			body: {
-				message:
-					'Operation timed out. The kustomization may be too large or the source artifact is unavailable.'
-			}
-		};
-	}
-
-	return {
-		status: 500,
-		body: {
-			message: 'Failed to compute diff. Please try again or check the source artifact.'
-		}
-	};
-}
+import { classifyDiffError } from '../lib/server/kubernetes/flux/diff-errors.js';
 
 // ---------------------------------------------------------------------------
 // console.error spy
@@ -75,7 +29,7 @@ afterEach(() => {
 });
 
 // Simulate how the handler logs then classifies
-function handleDiffError(err: unknown): DiffError {
+function handleDiffError(err: unknown) {
 	console.error('Diff error:', err);
 	return classifyDiffError(err);
 }
@@ -92,7 +46,7 @@ describe('diff API error handling', () => {
 		test('returns generic message — raw tar output not exposed', () => {
 			const result = handleDiffError(new Error(rawMessage));
 
-			expect(result.body.message).toBe(
+			expect(result.message).toBe(
 				'Failed to extract source artifact. Check server logs for details.'
 			);
 			expect(result.status).toBe(500);
@@ -101,9 +55,9 @@ describe('diff API error handling', () => {
 		test('response body does not contain raw tar output or file paths', () => {
 			const result = handleDiffError(new Error(rawMessage));
 
-			expect(result.body.message).not.toContain('tar:');
-			expect(result.body.message).not.toContain('/tmp/');
-			expect(result.body.message).not.toContain('artifact.tar.gz');
+			expect(result.message).not.toContain('tar:');
+			expect(result.message).not.toContain('/tmp/');
+			expect(result.message).not.toContain('artifact.tar.gz');
 		});
 
 		test('full error is logged server-side', () => {
@@ -121,16 +75,16 @@ describe('diff API error handling', () => {
 		test('returns generic message — raw kustomize output not exposed', () => {
 			const result = handleDiffError(new Error(rawMessage));
 
-			expect(result.body.message).toBe('Kustomize build failed. Check server logs for details.');
+			expect(result.message).toBe('Kustomize build failed. Check server logs for details.');
 			expect(result.status).toBe(500);
 		});
 
 		test('response body does not contain raw kustomize output or paths', () => {
 			const result = handleDiffError(new Error(rawMessage));
 
-			expect(result.body.message).not.toContain('exit status');
-			expect(result.body.message).not.toContain('/home/user/');
-			expect(result.body.message).not.toContain('kustomize build failed:');
+			expect(result.message).not.toContain('exit status');
+			expect(result.message).not.toContain('/home/user/');
+			expect(result.message).not.toContain('kustomize build failed:');
 		});
 
 		test('full error is logged server-side', () => {
@@ -148,7 +102,7 @@ describe('diff API error handling', () => {
 		test('returns generic fallback message', () => {
 			const result = handleDiffError(new Error(rawMessage));
 
-			expect(result.body.message).toBe(
+			expect(result.message).toBe(
 				'Failed to compute diff. Please try again or check the source artifact.'
 			);
 			expect(result.status).toBe(500);
@@ -157,9 +111,9 @@ describe('diff API error handling', () => {
 		test('response body does not contain raw error details, IPs, or stack fragments', () => {
 			const result = handleDiffError(new Error(rawMessage));
 
-			expect(result.body.message).not.toContain('ECONNREFUSED');
-			expect(result.body.message).not.toContain('10.96.0.1');
-			expect(result.body.message).not.toContain('node_modules');
+			expect(result.message).not.toContain('ECONNREFUSED');
+			expect(result.message).not.toContain('10.96.0.1');
+			expect(result.message).not.toContain('node_modules');
 		});
 
 		test('full error is logged server-side', () => {
@@ -172,10 +126,10 @@ describe('diff API error handling', () => {
 		test('non-Error thrown values are also handled safely', () => {
 			const result = handleDiffError('some unexpected string throw');
 
-			expect(result.body.message).toBe(
+			expect(result.message).toBe(
 				'Failed to compute diff. Please try again or check the source artifact.'
 			);
-			expect(result.body.message).not.toContain('some unexpected string throw');
+			expect(result.message).not.toContain('some unexpected string throw');
 		});
 	});
 
@@ -194,7 +148,7 @@ describe('diff API error handling', () => {
 
 				expect(capturedErrors.length).toBe(1);
 				// The raw message must appear in logs, never in the client response
-				const clientMsg = classifyDiffError(new Error(errMsg)).body.message;
+				const clientMsg = classifyDiffError(new Error(errMsg)).message;
 				expect(clientMsg).not.toContain(errMsg);
 				expect(String(capturedErrors[0])).toContain(errMsg);
 			});
