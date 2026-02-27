@@ -3,11 +3,11 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { toggleSuspendResource } from '$lib/server/kubernetes/flux/actions';
 import { MAX_BATCH_SIZE } from '$lib/server/config/limits';
-import {
-	batchResourceSchema,
-	batchResultSchema
+import { batchResourceSchema, batchResultSchema } from '$lib/server/kubernetes/flux/batch-schemas';
+import type {
+	BatchResourceItem,
+	BatchOperationResult
 } from '$lib/server/kubernetes/flux/batch-schemas';
-import type { BatchResourceItem, BatchOperationResult } from '$lib/server/kubernetes/flux/batch-schemas';
 
 export const _metadata = {
 	POST: {
