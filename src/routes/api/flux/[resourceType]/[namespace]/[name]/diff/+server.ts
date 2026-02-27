@@ -8,6 +8,7 @@ import {
 	FLUX_RESOURCES
 } from '$lib/server/kubernetes/flux/resources';
 import { requirePermission } from '$lib/server/rbac';
+import { classifyDiffError } from '$lib/server/kubernetes/flux/diff-errors';
 import * as k8s from '@kubernetes/client-node';
 import yaml from 'js-yaml';
 import { execFile } from 'node:child_process';
@@ -522,27 +523,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		}
 
 		console.error('Diff error:', err);
-		const message = err instanceof Error ? err.message : String(err);
-
-		// Provide more helpful error messages based on common failures
-		if (message.includes('not in gzip format')) {
-			throw error(
-				500,
-				'The artifact downloaded from source-controller is not a valid gzip archive. ' +
-					'This usually indicates the source-controller service is returning an error page instead of the artifact. ' +
-					'Check that the source-controller is running and the GitRepository/Bucket has reconciled successfully.'
-			);
-		} else if (message.includes('tar:')) {
-			throw error(500, 'Failed to extract source artifact. Check server logs for details.');
-		} else if (message.includes('kustomize')) {
-			throw error(500, 'Kustomize build failed. Check server logs for details.');
-		} else if (message.includes('timeout')) {
-			throw error(
-				504,
-				'Operation timed out. The kustomization may be too large or the source artifact is unavailable.'
-			);
-		}
-
-		throw error(500, 'Failed to compute diff. Please try again or check the source artifact.');
+		const { status, message: clientMessage } = classifyDiffError(err);
+		throw error(status, clientMessage);
 	}
 };
