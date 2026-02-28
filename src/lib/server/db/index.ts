@@ -1,6 +1,7 @@
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
-import { mkdir, mkdirSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import * as schema from './schema.js';
 
@@ -15,7 +16,7 @@ console.log(`[DB] Database location: ${databaseUrl}`);
 async function ensureDbDirectory() {
 	const dir = dirname(databaseUrl);
 	try {
-		await mkdir(dir, { recursive: true }, () => {});
+		await mkdir(dir, { recursive: true });
 	} catch {
 		// Directory might already exist
 	}
