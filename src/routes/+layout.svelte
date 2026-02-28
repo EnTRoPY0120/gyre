@@ -19,7 +19,8 @@
 				availableClusters: string[];
 				error?: string;
 			};
-			fluxVersion?: string;
+			fluxVersion: string;
+			gyreVersion: string;
 			user: {
 				username: string;
 				role: string;
