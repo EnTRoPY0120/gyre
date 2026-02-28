@@ -58,9 +58,9 @@ export async function checkPermission(
 		or(
 			eq(rbacPolicies.action, action),
 			// Admin action allows everything below it
-			and(eq(rbacPolicies.action, 'admin'), sql`${action} IN ('read', 'write')`),
+			and(eq(rbacPolicies.action, 'admin'), sql`${sql.param(action)} IN ('read', 'write')`),
 			// Write action allows read
-			and(eq(rbacPolicies.action, 'write'), eq(sql`${action}`, 'read'))
+			and(eq(rbacPolicies.action, 'write'), eq(sql`${sql.param(action)}`, 'read'))
 		)
 	];
 
@@ -82,7 +82,7 @@ export async function checkPermission(
 				// null pattern means all namespaces
 				sql`${rbacPolicies.namespacePattern} IS NULL`,
 				// Match namespace against pattern (supports wildcards)
-				sql`${namespace} GLOB ${rbacPolicies.namespacePattern}`
+				sql`${sql.param(namespace)} GLOB ${rbacPolicies.namespacePattern}`
 			)
 		);
 	}
