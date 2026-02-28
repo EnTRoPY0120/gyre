@@ -12,11 +12,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		throw error(401, 'Authentication required');
 	}
 
-	if (!locals.cluster) {
-		throw error(400, 'Missing cluster context');
-	}
-
-	await requirePermission(locals.user, 'read', undefined, undefined, locals.cluster);
+	await requirePermission(locals.user, 'read');
 
 	const registry = createRegistry();
 
