@@ -2,6 +2,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { eventsStore } from '$lib/stores/events.svelte';
+	import { createAutoRefresh } from '$lib/utils/polling.svelte';
 	import { onMount } from 'svelte';
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
@@ -72,6 +73,16 @@
 	const resource = $derived(
 		resourceCache.getResource(data.resourceType, data.namespace, data.name) || data.resource
 	);
+
+	// Auto-refresh setup with targeted invalidation
+	createAutoRefresh({
+		invalidate: async () => {
+			await Promise.all([
+				invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`),
+				invalidate('gyre:layout')
+			]);
+		}
+	});
 
 	// Sync initial data to cache on mount
 	onMount(() => {
