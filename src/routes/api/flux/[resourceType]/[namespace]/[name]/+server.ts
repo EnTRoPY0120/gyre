@@ -330,28 +330,34 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 	try {
 		await deleteResource(resolvedType, namespace, name, locals.cluster);
 
-		await logAudit(locals.user, 'write:delete', {
+		logAudit(locals.user, 'write:delete', {
 			resourceType: resolvedType,
 			resourceName: name,
 			namespace,
 			clusterId: locals.cluster,
 			ipAddress: getClientAddress(),
 			success: true
+		}).catch((auditErr) => {
+			console.error('Failed to log audit event for delete:', auditErr);
 		});
 
 		return new Response(null, { status: 204 });
 	} catch (err) {
-		await logAudit(locals.user, 'write:delete', {
-			resourceType: resolvedType,
-			resourceName: name,
-			namespace,
-			clusterId: locals.cluster,
-			ipAddress: getClientAddress(),
-			success: false,
-			details: {
-				error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
-			}
-		});
+		try {
+			await logAudit(locals.user, 'write:delete', {
+				resourceType: resolvedType,
+				resourceName: name,
+				namespace,
+				clusterId: locals.cluster,
+				ipAddress: getClientAddress(),
+				success: false,
+				details: {
+					error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
+				}
+			});
+		} catch (auditErr) {
+			console.error('Failed to log audit event for delete failure:', auditErr);
+		}
 
 		throw handleApiError(err, `Error deleting ${resolvedType} ${namespace}/${name}`);
 	}

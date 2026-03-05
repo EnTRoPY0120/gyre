@@ -34,7 +34,9 @@
 		error = null;
 
 		try {
-			const response = await fetch(`/api/flux/${resourceType}/${namespace}/${name}`, {
+			const response = await fetch(
+			`/api/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+			{
 				method: 'DELETE'
 			});
 
