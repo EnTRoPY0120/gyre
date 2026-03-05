@@ -4,6 +4,9 @@ import type { ViewPreferences } from '$lib/types/view';
 
 type CodeFormat = 'yaml' | 'json';
 
+const VALID_ITEMS_PER_PAGE = [0, 10, 25, 50] as const;
+type ValidItemsPerPage = (typeof VALID_ITEMS_PER_PAGE)[number];
+
 const DEFAULT_VIEW_PREFERENCES: ViewPreferences = {
 	viewMode: 'table',
 	showNamespace: true,
@@ -13,6 +16,14 @@ const DEFAULT_VIEW_PREFERENCES: ViewPreferences = {
 	itemsPerPage: 10
 };
 
+function sanitizeViewPrefs(raw: Partial<ViewPreferences>): ViewPreferences {
+	const base = { ...DEFAULT_VIEW_PREFERENCES, ...raw };
+	if (!VALID_ITEMS_PER_PAGE.includes(base.itemsPerPage as ValidItemsPerPage)) {
+		base.itemsPerPage = DEFAULT_VIEW_PREFERENCES.itemsPerPage;
+	}
+	return base;
+}
+
 function createPreferencesStore() {
 	// --- View Preferences ---
 	let _viewPrefs = $state<ViewPreferences>(
@@ -21,7 +32,7 @@ function createPreferencesStore() {
 				const stored = localStorage.getItem('gyre:preferences');
 				if (stored) {
 					try {
-						return { ...DEFAULT_VIEW_PREFERENCES, ...JSON.parse(stored) };
+						return sanitizeViewPrefs(JSON.parse(stored));
 					} catch {
 						// Fallback if parsing fails
 					}
@@ -94,7 +105,7 @@ function createPreferencesStore() {
 			saveViewPrefs();
 		},
 		setItemsPerPage(count: number) {
-			if (count !== 0 && count !== 10 && count !== 25 && count !== 50) return;
+			if (!VALID_ITEMS_PER_PAGE.includes(count as ValidItemsPerPage)) return;
 			_viewPrefs.itemsPerPage = count;
 			saveViewPrefs();
 		},
