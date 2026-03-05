@@ -5,8 +5,9 @@
 	import * as Tooltip from '$lib/components/ui/tooltip';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
 	import EditResourceModal from '$lib/components/flux/EditResourceModal.svelte';
+	import DeleteResourceModal from '$lib/components/flux/DeleteResourceModal.svelte';
 	import type { FluxResource } from '$lib/types/flux';
-	import { RefreshCw, Play, Pause, Loader2, Pencil } from 'lucide-svelte';
+	import { RefreshCw, Play, Pause, Loader2, Pencil, Trash2 } from 'lucide-svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
 	import yaml from 'js-yaml';
@@ -27,6 +28,7 @@
 	let error = $state<string | null>(null);
 	let showSuspendDialog = $state(false);
 	let showEditModal = $state(false);
+	let showDeleteModal = $state(false);
 
 	// Serialize resource to YAML for editing
 	const resourceYaml = $derived.by(() => {
@@ -85,7 +87,7 @@
 	}
 </script>
 
-{#snippet actionButton(action: 'edit' | 'reconcile' | 'suspend' | 'resume')}
+{#snippet actionButton(action: 'edit' | 'reconcile' | 'suspend' | 'resume' | 'delete')}
 	{#if action === 'edit'}
 		<Button
 			variant="outline"
@@ -142,10 +144,24 @@
 			<Pause class="h-4 w-4 md:mr-2" />
 			<span class="hidden md:inline">Suspend</span>
 		</Button>
+	{:else if action === 'delete'}
+		<Button
+			variant="ghost"
+			size="sm"
+			disabled={!canWrite}
+			onclick={() => (showDeleteModal = true)}
+			class="text-red-600 hover:bg-red-50 hover:text-red-700 dark:text-red-500 dark:hover:bg-red-950/30 {!canWrite
+				? 'pointer-events-none'
+				: ''}"
+			aria-label="Delete"
+		>
+			<Trash2 class="h-4 w-4 md:mr-2" />
+			<span class="hidden md:inline">Delete</span>
+		</Button>
 	{/if}
 {/snippet}
 
-{#snippet withPermissionTooltip(action: 'edit' | 'reconcile' | 'suspend' | 'resume')}
+{#snippet withPermissionTooltip(action: 'edit' | 'reconcile' | 'suspend' | 'resume' | 'delete')}
 	{#if !canWrite}
 		<Tooltip.Provider delayDuration={200}>
 			<Tooltip.Root>
@@ -154,7 +170,9 @@
 				</Tooltip.Trigger>
 				<Tooltip.Content side="top">
 					<p class="text-xs">
-						You need additional permissions to {action === 'reconcile' ? 'reconcile' : action} resources.
+						You need additional permissions to {action === 'reconcile'
+						? 'reconcile'
+						: action} resources.
 					</p>
 				</Tooltip.Content>
 			</Tooltip.Root>
@@ -187,6 +205,9 @@
 	{:else}
 		{@render withPermissionTooltip('suspend')}
 	{/if}
+
+	<!-- Delete Button -->
+	{@render withPermissionTooltip('delete')}
 </div>
 
 <ConfirmDialog
@@ -206,4 +227,12 @@
 	initialYaml={resourceYaml}
 	onClose={() => (showEditModal = false)}
 	onSuccess={() => invalidate(`flux:resource:${type}:${namespace}:${name}`)}
+/>
+
+<DeleteResourceModal
+	bind:open={showDeleteModal}
+	resourceType={type}
+	{namespace}
+	{name}
+	onClose={() => (showDeleteModal = false)}
 />

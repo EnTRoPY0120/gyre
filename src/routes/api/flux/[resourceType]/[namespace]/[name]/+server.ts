@@ -12,8 +12,10 @@ import {
 	getResourceTypeByPlural,
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
+import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
+import { logAudit } from '$lib/server/audit.js';
+import { deleteResource } from '$lib/server/kubernetes/flux/actions.js';
 import type { K8sResource } from '$lib/types/kubernetes';
 import yaml from 'js-yaml';
 
@@ -84,6 +86,25 @@ export const _metadata = {
 			},
 			401: { description: 'Authentication required' },
 			403: { description: 'Permission denied' }
+		}
+	},
+	DELETE: {
+		summary: 'Delete FluxCD resource',
+		description: 'Delete a specific FluxCD resource by type, namespace, and name.',
+		tags: ['Flux'],
+		request: {
+			params: z.object({
+				resourceType: z.string().openapi({ example: 'gitrepositories' }),
+				namespace: z.string().openapi({ example: 'flux-system' }),
+				name: z.string().openapi({ example: 'my-repo' })
+			})
+		},
+		responses: {
+			204: { description: 'Resource deleted successfully' },
+			400: { description: 'Invalid resource type or missing cluster context' },
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' },
+			404: { description: 'Resource not found' }
 		}
 	}
 };
@@ -264,5 +285,74 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		return json(updated);
 	} catch (err) {
 		throw handleApiError(err, `Error updating ${resolvedType} ${namespace}/${name}`);
+	}
+};
+
+/**
+ * DELETE /api/flux/{resourceType}/{namespace}/{name}
+ * Delete a specific resource
+ */
+export const DELETE: RequestHandler = async ({ params, locals, getClientAddress }) => {
+	// Check authentication
+	if (!locals.user) {
+		throw error(401, { message: 'Authentication required' });
+	}
+
+	// Check cluster context
+	if (!locals.cluster) {
+		throw error(400, { message: 'Cluster context required' });
+	}
+
+	const { resourceType, namespace, name } = params;
+
+	// Resolve resource type from plural name
+	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
+	if (!resolvedType) {
+		const validPlurals = getAllResourcePlurals();
+		throw error(400, {
+			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
+		});
+	}
+
+	// Check permission for write action
+	const hasPermission = await checkPermission(
+		locals.user,
+		'write',
+		resolvedType,
+		namespace,
+		locals.cluster
+	);
+
+	if (!hasPermission) {
+		throw error(403, { message: 'Permission denied' });
+	}
+
+	try {
+		await deleteResource(resolvedType, namespace, name, locals.cluster);
+
+		await logAudit(locals.user, 'write:delete', {
+			resourceType: resolvedType,
+			resourceName: name,
+			namespace,
+			clusterId: locals.cluster,
+			ipAddress: getClientAddress(),
+			success: true
+		});
+
+		return new Response(null, { status: 204 });
+	} catch (err) {
+		await logAudit(locals.user, 'write:delete', {
+			resourceType: resolvedType,
+			resourceName: name,
+			namespace,
+			clusterId: locals.cluster,
+			ipAddress: getClientAddress(),
+			success: false,
+			details: {
+				error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
+			}
+		});
+
+		throw handleApiError(err, `Error deleting ${resolvedType} ${namespace}/${name}`);
 	}
 };
