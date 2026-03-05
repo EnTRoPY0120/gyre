@@ -7,6 +7,8 @@
 	import { PackageX, ChevronLeft, ChevronRight } from 'lucide-svelte';
 	import { preferences, ITEMS_PER_PAGE_OPTIONS } from '$lib/stores/preferences.svelte';
 
+	const MIN_PAGE_SIZE = Math.min(...ITEMS_PER_PAGE_OPTIONS.filter((n) => n > 0));
+
 	interface Props {
 		resources: FluxResource[];
 		showNamespace?: boolean;
@@ -324,7 +326,7 @@
 		</div>
 	</div>
 
-	{#if resources.length > ITEMS_PER_PAGE_OPTIONS[0]}
+	{#if resources.length > MIN_PAGE_SIZE}
 		<div class="flex items-center justify-between px-2">
 			<div class="flex items-center gap-3">
 				{#if showAll}
