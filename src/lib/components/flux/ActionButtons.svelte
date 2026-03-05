@@ -170,9 +170,7 @@
 				</Tooltip.Trigger>
 				<Tooltip.Content side="top">
 					<p class="text-xs">
-						You need additional permissions to {action === 'reconcile'
-						? 'reconcile'
-						: action} resources.
+						You need additional permissions to {action} resources.
 					</p>
 				</Tooltip.Content>
 			</Tooltip.Root>
