@@ -5,7 +5,7 @@
 	import StatusBadge from './StatusBadge.svelte';
 	import BulkActionsToolbar from './BulkActionsToolbar.svelte';
 	import { PackageX, ChevronLeft, ChevronRight } from 'lucide-svelte';
-	import { preferences } from '$lib/stores/preferences.svelte';
+	import { preferences, ITEMS_PER_PAGE_OPTIONS } from '$lib/stores/preferences.svelte';
 
 	interface Props {
 		resources: FluxResource[];
@@ -15,8 +15,6 @@
 	}
 
 	let { resources, showNamespace = true, onRowClick, onOperationComplete }: Props = $props();
-
-	const PAGE_SIZE_OPTIONS = [10, 25, 50, 0] as const;
 
 	// Virtual scroll constants
 	// rowHeight is measured from the first rendered data row after mount;
@@ -326,7 +324,7 @@
 		</div>
 	</div>
 
-	{#if resources.length > PAGE_SIZE_OPTIONS[0]}
+	{#if resources.length > ITEMS_PER_PAGE_OPTIONS[0]}
 		<div class="flex items-center justify-between px-2">
 			<div class="flex items-center gap-3">
 				{#if showAll}
@@ -345,7 +343,7 @@
 				{/if}
 				<div class="flex items-center gap-1.5">
 					<span class="text-xs text-muted-foreground">Per page:</span>
-					{#each PAGE_SIZE_OPTIONS as size (size)}
+					{#each ITEMS_PER_PAGE_OPTIONS as size (size)}
 						<button
 							class="rounded px-2 py-0.5 text-xs transition-colors {itemsPerPage === size
 								? 'bg-primary text-primary-foreground'

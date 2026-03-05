@@ -4,8 +4,8 @@ import type { ViewPreferences } from '$lib/types/view';
 
 type CodeFormat = 'yaml' | 'json';
 
-const VALID_ITEMS_PER_PAGE = [0, 10, 25, 50] as const;
-type ValidItemsPerPage = (typeof VALID_ITEMS_PER_PAGE)[number];
+export const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 0] as const;
+type ValidItemsPerPage = (typeof ITEMS_PER_PAGE_OPTIONS)[number];
 
 const DEFAULT_VIEW_PREFERENCES: ViewPreferences = {
 	viewMode: 'table',
@@ -16,12 +16,29 @@ const DEFAULT_VIEW_PREFERENCES: ViewPreferences = {
 	itemsPerPage: 10
 };
 
-function sanitizeViewPrefs(raw: Partial<ViewPreferences>): ViewPreferences {
-	const base = { ...DEFAULT_VIEW_PREFERENCES, ...raw };
-	if (!VALID_ITEMS_PER_PAGE.includes(base.itemsPerPage as ValidItemsPerPage)) {
-		base.itemsPerPage = DEFAULT_VIEW_PREFERENCES.itemsPerPage;
-	}
-	return base;
+function sanitizeViewPrefs(raw: unknown): ViewPreferences {
+	const r = raw as Record<string, unknown>;
+	return {
+		viewMode:
+			r.viewMode === 'table' || r.viewMode === 'grid'
+				? r.viewMode
+				: DEFAULT_VIEW_PREFERENCES.viewMode,
+		showNamespace:
+			typeof r.showNamespace === 'boolean'
+				? r.showNamespace
+				: DEFAULT_VIEW_PREFERENCES.showNamespace,
+		compactMode:
+			typeof r.compactMode === 'boolean' ? r.compactMode : DEFAULT_VIEW_PREFERENCES.compactMode,
+		autoRefresh:
+			typeof r.autoRefresh === 'boolean' ? r.autoRefresh : DEFAULT_VIEW_PREFERENCES.autoRefresh,
+		refreshInterval:
+			typeof r.refreshInterval === 'number'
+				? Math.max(5, Math.min(300, r.refreshInterval))
+				: DEFAULT_VIEW_PREFERENCES.refreshInterval,
+		itemsPerPage: ITEMS_PER_PAGE_OPTIONS.includes(r.itemsPerPage as ValidItemsPerPage)
+			? (r.itemsPerPage as number)
+			: DEFAULT_VIEW_PREFERENCES.itemsPerPage
+	};
 }
 
 function createPreferencesStore() {
@@ -105,7 +122,7 @@ function createPreferencesStore() {
 			saveViewPrefs();
 		},
 		setItemsPerPage(count: number) {
-			if (!VALID_ITEMS_PER_PAGE.includes(count as ValidItemsPerPage)) return;
+			if (!ITEMS_PER_PAGE_OPTIONS.includes(count as ValidItemsPerPage)) return;
 			_viewPrefs.itemsPerPage = count;
 			saveViewPrefs();
 		},
