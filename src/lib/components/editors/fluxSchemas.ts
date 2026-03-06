@@ -18,10 +18,7 @@ export const KIND_API_VERSIONS: Readonly<Record<string, string[]>> = {
 	Bucket: ['source.toolkit.fluxcd.io/v1', 'source.toolkit.fluxcd.io/v1beta2'],
 	Alert: ['notification.toolkit.fluxcd.io/v1beta3', 'notification.toolkit.fluxcd.io/v1beta2'],
 	Provider: ['notification.toolkit.fluxcd.io/v1beta3', 'notification.toolkit.fluxcd.io/v1beta2'],
-	Receiver: ['notification.toolkit.fluxcd.io/v1', 'notification.toolkit.fluxcd.io/v1beta2'],
-	ImageRepository: ['image.toolkit.fluxcd.io/v1beta2'],
-	ImagePolicy: ['image.toolkit.fluxcd.io/v1beta2'],
-	ImageUpdateAutomation: ['image.toolkit.fluxcd.io/v1beta2']
+	Receiver: ['notification.toolkit.fluxcd.io/v1', 'notification.toolkit.fluxcd.io/v1beta2']
 };
 
 /** Required fields within spec for each FluxCD Kind. */
@@ -35,10 +32,7 @@ export const KIND_REQUIRED_SPEC: Readonly<Record<string, string[]>> = {
 	Bucket: ['endpoint', 'interval', 'bucketName'],
 	Alert: ['eventSources', 'providerRef'],
 	Provider: ['type'],
-	Receiver: ['type', 'events', 'resources'],
-	ImageRepository: ['image', 'interval'],
-	ImagePolicy: ['imageRepositoryRef'],
-	ImageUpdateAutomation: ['interval', 'sourceRef', 'git']
+	Receiver: ['type', 'events', 'resources']
 };
 
 /**

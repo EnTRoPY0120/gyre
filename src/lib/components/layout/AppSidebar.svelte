@@ -61,10 +61,7 @@
 		[FluxResourceType.HelmRelease]: 'ship',
 		[FluxResourceType.Alert]: 'shield-alert',
 		[FluxResourceType.Provider]: 'radio',
-		[FluxResourceType.Receiver]: 'activity',
-		[FluxResourceType.ImageRepository]: 'cloud',
-		[FluxResourceType.ImagePolicy]: 'shield-alert',
-		[FluxResourceType.ImageUpdateAutomation]: 'refresh-cw'
+		[FluxResourceType.Receiver]: 'activity'
 	};
 
 	function isActive(type: string): boolean {

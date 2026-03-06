@@ -13,10 +13,7 @@
 		'HelmRelease',
 		'HelmRepository',
 		'OCIRepository',
-		'Bucket',
-		'ImageUpdateAutomation',
-		'ImagePolicy',
-		'ImageRepository'
+		'Bucket'
 	];
 
 	const eventTypes = [

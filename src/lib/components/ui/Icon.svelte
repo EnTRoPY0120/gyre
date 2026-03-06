@@ -191,10 +191,7 @@
 		helmrelease: Ship,
 		alert: BellRing,
 		provider: Radio,
-		receiver: Webhook,
-		imagerepository: Container,
-		imagepolicy: Shield,
-		imageupdateautomation: RefreshCw
+		receiver: Webhook
 	};
 
 	const IconComponent = $derived(lucideIcons[name]);
