@@ -45,8 +45,8 @@ const FeatureList: FeatureItem[] = [
 		icon: '⚡',
 		description: (
 			<>
-				Full support for all FluxCD resources including Kustomizations, HelmReleases, Sources,
-				and Notifications. Everything you need in one place.
+				Full support for all FluxCD resources including Kustomizations, HelmReleases, Sources, and
+				Notifications. Everything you need in one place.
 			</>
 		)
 	},
