@@ -56,7 +56,7 @@
 </script>
 
 <AlertDialog.Root bind:open>
-	<AlertDialog.Content>
+	<AlertDialog.Content onEscapeKeydown={(e) => { if (isDeleting) e.preventDefault(); }}>
 		<AlertDialog.Header>
 			<div class="flex items-start gap-3">
 				<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/10">
