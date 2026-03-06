@@ -56,7 +56,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="flex flex-col overflow-hidden rounded-xl border border-sidebar-border bg-sidebar/30">
+<div class="flex min-h-[600px] flex-col overflow-hidden rounded-xl border border-sidebar-border bg-sidebar/30">
 	<!-- Toolbar -->
 	<div
 		class="flex items-center justify-between border-b border-sidebar-border bg-sidebar-accent/20 px-4 py-2"

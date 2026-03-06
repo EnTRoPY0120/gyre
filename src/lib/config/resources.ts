@@ -111,37 +111,6 @@ export const resourceGroups: ResourceGroup[] = [
 				description: 'Webhook receivers for external events'
 			}
 		]
-	},
-	{
-		name: 'Image Automation',
-		icon: 'layers',
-		primaryRoute: FluxResourceType.ImageRepository,
-		resources: [
-			{
-				type: FluxResourceType.ImageRepository,
-				displayName: 'Image Repositories',
-				singularName: 'Image Repository',
-				apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
-				kind: 'ImageRepository',
-				description: 'Container image repositories to scan'
-			},
-			{
-				type: FluxResourceType.ImagePolicy,
-				displayName: 'Image Policies',
-				singularName: 'Image Policy',
-				apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
-				kind: 'ImagePolicy',
-				description: 'Policies for selecting image versions'
-			},
-			{
-				type: FluxResourceType.ImageUpdateAutomation,
-				displayName: 'Image Update Automations',
-				singularName: 'Image Update Automation',
-				apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
-				kind: 'ImageUpdateAutomation',
-				description: 'Automated image updates to Git'
-			}
-		]
 	}
 ];
 

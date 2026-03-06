@@ -66,8 +66,6 @@
 					href: `/admin/${parts[1]}`
 				});
 			}
-		} else if (parts[0] === 'inventory') {
-			crumbs.push({ label: 'Inventory', href: '/inventory' });
 		} else if (parts[0] === 'create') {
 			crumbs.push({ label: 'Create Resource', href: '/create' });
 			if (parts[1]) {

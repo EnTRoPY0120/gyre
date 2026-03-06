@@ -51,12 +51,6 @@ The main dashboard provides a high-level view of your cluster's health and statu
 - Providers
 - Receivers
 
-**Image Automation:**
-
-- ImageRepositories
-- ImagePolicies
-- ImageUpdateAutomation
-
 ### Resource Views
 
 **List View:**
@@ -207,7 +201,6 @@ Visualize relationships between Flux resources:
 
 - Source → Kustomization → Deployments
 - HelmRepository → HelmChart → HelmRelease
-- ImageRepository → ImagePolicy → ImageUpdateAutomation
 
 ### Tree View
 

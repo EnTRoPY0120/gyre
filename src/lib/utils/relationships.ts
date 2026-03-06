@@ -4,10 +4,6 @@
  * Relationship types in FluxCD:
  * - Source → Kustomization: Kustomization references a source (GitRepository, OCIRepository, Bucket)
  * - Source → HelmRelease: HelmRelease references a HelmRepository or GitRepository
- * - Kustomization → Managed Resources: Kustomization manages K8s resources via inventory
- * - HelmRelease → Managed Resources: HelmRelease manages K8s resources via inventory
- * - ImagePolicy → ImageRepository: Policy uses repository for scanning
- * - ImageUpdateAutomation → GitRepository: Updates commits to git repo
  * - Alert → Provider: Alert sends to a provider
  * - Receiver → Resources: Receiver can trigger reconciliation on resources
  */
@@ -114,42 +110,6 @@ export function getHelmReleaseSourceRef(
 }
 
 /**
- * Extract ImageRepository reference from an ImagePolicy
- */
-export function getImagePolicyRepositoryRef(
-	imagePolicy: FluxResource & {
-		spec?: { imageRepositoryRef?: { name: string; namespace?: string } };
-	}
-): ResourceRef | null {
-	const imageRepoRef = imagePolicy.spec?.imageRepositoryRef;
-	if (!imageRepoRef) return null;
-
-	return {
-		kind: 'ImageRepository',
-		name: imageRepoRef.name,
-		namespace: imageRepoRef.namespace || imagePolicy.metadata.namespace
-	};
-}
-
-/**
- * Extract GitRepository reference from ImageUpdateAutomation
- */
-export function getImageUpdateAutomationGitRef(
-	imageUpdateAutomation: FluxResource & {
-		spec?: { sourceRef?: { kind?: string; name: string; namespace?: string } };
-	}
-): ResourceRef | null {
-	const gitRepoRef = imageUpdateAutomation.spec?.sourceRef;
-	if (!gitRepoRef) return null;
-
-	return {
-		kind: gitRepoRef.kind || 'GitRepository',
-		name: gitRepoRef.name,
-		namespace: gitRepoRef.namespace || imageUpdateAutomation.metadata.namespace
-	};
-}
-
-/**
  * Extract Provider reference from an Alert
  */
 export function getAlertProviderRef(
@@ -227,10 +187,7 @@ export function kindToFluxType(kind: string): FluxResourceType | null {
 		HelmRelease: FluxResourceType.HelmRelease,
 		Alert: FluxResourceType.Alert,
 		Provider: FluxResourceType.Provider,
-		Receiver: FluxResourceType.Receiver,
-		ImageRepository: FluxResourceType.ImageRepository,
-		ImagePolicy: FluxResourceType.ImagePolicy,
-		ImageUpdateAutomation: FluxResourceType.ImageUpdateAutomation
+		Receiver: FluxResourceType.Receiver
 	};
 	return mapping[kind] || null;
 }
@@ -248,9 +205,6 @@ export function buildRelationshipMap(resources: {
 	alerts?: FluxResource[];
 	providers?: FluxResource[];
 	receivers?: FluxResource[];
-	imagePolicies?: FluxResource[];
-	imageRepositories?: FluxResource[];
-	imageUpdateAutomations?: FluxResource[];
 }): ResourceRelationship[] {
 	const relationships: ResourceRelationship[] = [];
 
@@ -284,40 +238,6 @@ export function buildRelationshipMap(resources: {
 				target: sourceRef,
 				type: 'source',
 				label: 'uses chart from'
-			});
-		}
-	});
-
-	// ImagePolicy → ImageRepository
-	resources.imagePolicies?.forEach((ip) => {
-		const repoRef = getImagePolicyRepositoryRef(ip);
-		if (repoRef) {
-			relationships.push({
-				source: {
-					kind: 'ImagePolicy',
-					name: ip.metadata.name,
-					namespace: ip.metadata.namespace
-				},
-				target: repoRef,
-				type: 'uses',
-				label: 'scans'
-			});
-		}
-	});
-
-	// ImageUpdateAutomation → GitRepository
-	resources.imageUpdateAutomations?.forEach((iua) => {
-		const gitRef = getImageUpdateAutomationGitRef(iua);
-		if (gitRef) {
-			relationships.push({
-				source: {
-					kind: 'ImageUpdateAutomation',
-					name: iua.metadata.name,
-					namespace: iua.metadata.namespace
-				},
-				target: gitRef,
-				type: 'uses',
-				label: 'commits to'
 			});
 		}
 	});

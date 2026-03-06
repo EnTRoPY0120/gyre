@@ -32,7 +32,6 @@
 	const allItems = $derived.by(() => {
 		const items: CommandItem[] = [];
 		items.push({ id: 'nav-dashboard', label: 'Dashboard', description: 'View cluster overview and status', icon: 'dashboard', href: '/', category: 'Navigation' });
-		items.push({ id: 'nav-inventory', label: 'Inventory', description: 'View resource inventory tree', icon: 'network', href: '/inventory', category: 'Navigation' });
 		if (canCreate) items.push({ id: 'nav-create', label: 'Create Resource', description: 'Create a new FluxCD resource', icon: 'plus', href: '/create', category: 'Navigation', keywords: ['new', 'add'] });
 
 		for (const group of resourceGroups) {
@@ -124,7 +123,7 @@
 	}
 
 	function getResourceIcon(type: string): string {
-		const iconMap: Record<string, string> = { gitrepositories: 'git-branch', helmrepositories: 'library', helmcharts: 'package', buckets: 'bucket', ocirepositories: 'cloud', kustomizations: 'file-cog', helmreleases: 'ship', alerts: 'shield-alert', providers: 'radio', receivers: 'activity', imagerepositories: 'cloud', imagepolicies: 'shield-alert', imageupdateautomations: 'refresh-cw' };
+		const iconMap: Record<string, string> = { gitrepositories: 'git-branch', helmrepositories: 'library', helmcharts: 'package', buckets: 'bucket', ocirepositories: 'cloud', kustomizations: 'file-cog', helmreleases: 'ship', alerts: 'shield-alert', providers: 'radio', receivers: 'activity' };
 		return iconMap[type] || 'file';
 	}
 

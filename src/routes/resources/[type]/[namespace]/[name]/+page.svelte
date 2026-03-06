@@ -19,10 +19,6 @@
 	import AlertDetail from '$lib/components/flux/resources/AlertDetail.svelte';
 	import ProviderDetail from '$lib/components/flux/resources/ProviderDetail.svelte';
 	import ReceiverDetail from '$lib/components/flux/resources/ReceiverDetail.svelte';
-	import ImageRepositoryDetail from '$lib/components/flux/resources/ImageRepositoryDetail.svelte';
-	import ImagePolicyDetail from '$lib/components/flux/resources/ImagePolicyDetail.svelte';
-	import ImageUpdateAutomationDetail from '$lib/components/flux/resources/ImageUpdateAutomationDetail.svelte';
-	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
 	import ResourceDiffViewer from '$lib/components/flux/ResourceDiffViewer.svelte';
 	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
 	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
@@ -63,7 +59,6 @@
 			namespace: string;
 			name: string;
 			resource: FluxResource;
-			inventoryResources?: FluxResource[];
 		};
 	}
 
@@ -199,13 +194,10 @@
 	const isAlert = $derived(data.resourceType === 'alerts');
 	const isProvider = $derived(data.resourceType === 'providers');
 	const isReceiver = $derived(data.resourceType === 'receivers');
-	const isImageRepository = $derived(data.resourceType === 'imagerepositories');
-	const isImagePolicy = $derived(data.resourceType === 'imagepolicies');
-	const isImageUpdateAutomation = $derived(data.resourceType === 'imageupdateautomations');
 	const hasSpecializedView = $derived(
 		isGitRepository || isHelmRelease || isKustomization || isHelmRepository ||
 		isHelmChart || isBucket || isOCIRepository || isAlert || isProvider ||
-		isReceiver || isImageRepository || isImagePolicy || isImageUpdateAutomation
+		isReceiver
 	);
 
 	const tabs = $derived.by(() => {
@@ -484,20 +476,6 @@
 
 			<!-- Resource-Specific Details -->
 			<div class="mt-6 space-y-6">
-				{#if data.inventoryResources && data.inventoryResources.length > 0}
-					<InventoryList
-						resources={data.inventoryResources as unknown as Array<{
-							kind: string;
-							metadata: { name: string; namespace: string; generation?: number };
-							status?: {
-								observedGeneration?: number;
-								conditions?: Array<{ type: string; status: 'True' | 'False' | 'Unknown' }>;
-							};
-							error?: string;
-						}>}
-					/>
-				{/if}
-
 				{#if isGitRepository}
 					<GitRepositoryDetail resource={data.resource} />
 				{:else if isHelmRelease}
@@ -518,12 +496,6 @@
 					<ProviderDetail resource={data.resource} />
 				{:else if isReceiver}
 					<ReceiverDetail resource={data.resource} />
-				{:else if isImageRepository}
-					<ImageRepositoryDetail resource={data.resource} />
-				{:else if isImagePolicy}
-					<ImagePolicyDetail resource={data.resource} />
-				{:else if isImageUpdateAutomation}
-					<ImageUpdateAutomationDetail resource={data.resource} />
 				{:else if data.resource.spec}
 					<!-- Generic Configuration Card for unknown resource types -->
 					<div

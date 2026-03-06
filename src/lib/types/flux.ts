@@ -33,12 +33,7 @@ export enum FluxResourceType {
 	// Notification Controller
 	Alert = 'alerts',
 	Provider = 'providers',
-	Receiver = 'receivers',
-
-	// Image Automation
-	ImageRepository = 'imagerepositories',
-	ImagePolicy = 'imagepolicies',
-	ImageUpdateAutomation = 'imageupdateautomations'
+	Receiver = 'receivers'
 }
 
 /**

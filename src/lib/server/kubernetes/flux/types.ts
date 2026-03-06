@@ -52,12 +52,6 @@ export interface FluxResourceStatus {
 		checksum?: string;
 		lastUpdateTime?: string;
 	};
-	inventory?: {
-		entries: Array<{
-			id: string;
-			v: string;
-		}>;
-	};
 }
 
 /**

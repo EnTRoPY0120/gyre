@@ -22,12 +22,6 @@
 			name: 'Notifications',
 			description: 'Configure alerts and notification channels',
 			templates: templates.filter((t) => t.category === 'notifications')
-		},
-		{
-			id: 'image-automation',
-			name: 'Image Automation',
-			description: 'Automate container image updates',
-			templates: templates.filter((t) => t.category === 'image-automation')
 		}
 	];
 </script>

@@ -235,6 +235,5 @@ The real-time notification system uses Server-Sent Events (SSE) located in `src/
 2. **Svelte 5 Runes**: Use `$state()`, `$derived()`, `$effect()`, `$props()`.
 3. **Database Migrations**: Use `drizzle-kit generate` for schema changes.
 4. **ServiceAccount Permissions**: Update `charts/gyre/templates/rbac.yaml` for new resources.
-5. **Inventory System**: Check `src/lib/server/kubernetes/flux/inventory.ts` for resource relationships.
-6. **Documentation Folder**: Uses npm (not Bun).
-7. **Monaco Editor Lazy Loading**: Loaded via dynamic import. Always check `browser` environment.
+5. **Documentation Folder**: Uses npm (not Bun).
+6. **Monaco Editor Lazy Loading**: Loaded via dynamic import. Always check `browser` environment.
