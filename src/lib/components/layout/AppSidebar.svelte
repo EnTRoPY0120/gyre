@@ -102,9 +102,9 @@
 				<!-- Logo & Brand -->
 				<a href="/" class="group flex items-center gap-3" onclick={closeMobile}>
 					<div
-						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20 transition-all group-hover:scale-105 group-hover:shadow-primary/30"
+						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20 transition-all group-hover:scale-105 group-hover:shadow-amber-500/30"
 					>
-						<svg class="h-6 w-6 text-primary-foreground" viewBox="0 0 24 24" fill="currentColor">
+						<svg class="h-6 w-6 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
 							<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
 						</svg>
 					</div>
@@ -112,7 +112,7 @@
 						<span class="text-xl leading-tight font-bold tracking-tight text-foreground">Gyre</span>
 						<div class="mt-0.5">
 							<span
-								class="inline-flex items-center rounded-md border border-amber-500/20 bg-amber-500/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-500"
+								class="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary"
 							>
 								v{gyreVersion}
 							</span>
@@ -140,8 +140,8 @@
 				class={cn(
 					'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
 					currentPath === '/'
-						? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.2)]'
-						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
+						? 'bg-primary text-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.3)]'
+						: 'text-muted-foreground hover:bg-muted hover:text-foreground'
 				)}
 			>
 				<Icon
@@ -186,8 +186,8 @@
 					class={cn(
 						'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
 						currentPath.startsWith('/create')
-							? 'bg-blue-600 text-white shadow-[0_4px_20px_-4px_rgba(37,99,235,0.3)]'
-							: 'text-muted-foreground hover:bg-muted hover:text-blue-600'
+							? 'bg-blue-600 text-white shadow-[0_4px_20px_-4px_rgba(37,99,235,0.4)]'
+							: 'text-muted-foreground hover:bg-blue-500/10 hover:text-blue-600'
 					)}
 				>
 					<div
@@ -255,8 +255,8 @@
 									class={cn(
 										'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
 										active
-											? 'border border-primary/20 bg-primary/10 text-primary'
-											: 'text-muted-foreground/80 hover:bg-muted hover:text-foreground'
+											? 'border border-primary/20 bg-primary/10 text-primary shadow-sm'
+											: 'text-muted-foreground/80 hover:bg-primary/5 hover:text-primary'
 									)}
 								>
 									{#if active}
@@ -329,8 +329,8 @@
 				class={cn(
 					'mb-4 rounded-xl p-3 transition-all active:scale-95',
 					currentPath === '/'
-						? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+						? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
+						: 'text-muted-foreground hover:bg-muted hover:text-primary'
 				)}
 				title="Dashboard"
 			>
@@ -397,8 +397,8 @@
 					class={cn(
 						'rounded-xl p-3 transition-all active:scale-95',
 						currentPath.startsWith('/admin')
-							? 'bg-primary text-primary-foreground shadow-lg shadow-primary/20'
-							: 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+							? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
+							: 'text-muted-foreground hover:bg-muted hover:text-primary'
 					)}
 					title="Settings"
 				>

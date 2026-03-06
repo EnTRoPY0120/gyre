@@ -91,7 +91,7 @@
 	{@render children()}
 {:else}
 	<!-- Normal app layout with sidebar and header -->
-	<div class="flex h-screen bg-gray-50 dark:bg-gray-950">
+	<div class="flex h-screen bg-background text-foreground transition-colors duration-200">
 		<!-- Sidebar -->
 		<AppSidebar />
 
@@ -101,7 +101,7 @@
 			<AppHeader health={data.health} fluxVersion={data.fluxVersion} user={data.user} />
 
 			<!-- Scrollable Content -->
-			<main class="flex-1 overflow-y-auto p-4 md:p-6 dark:bg-gray-900">
+			<main class="flex-1 overflow-y-auto p-4 md:p-6">
 				{@render children()}
 			</main>
 		</div>
