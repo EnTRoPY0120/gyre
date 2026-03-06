@@ -35,7 +35,7 @@ The main dashboard provides a high-level view of your cluster's health and statu
 - HelmRepositories
 - HelmCharts
 - Buckets
-- ExternalArtifacts
+- OCIRepositories
 
 **Kustomize Controller:**
 
@@ -192,22 +192,6 @@ Create new resources with guided forms:
 - YAML preview
 - Template suggestions
 - One-click apply
-
-## Inventory System
-
-### Resource Relationships
-
-Visualize relationships between Flux resources:
-
-- Source → Kustomization → Deployments
-- HelmRepository → HelmChart → HelmRelease
-
-### Tree View
-
-- Hierarchical resource display
-- Expand/collapse branches
-- Click to navigate
-- See downstream impacts
 
 ## Search & Filter
 
