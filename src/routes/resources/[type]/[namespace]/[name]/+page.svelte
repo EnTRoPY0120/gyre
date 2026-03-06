@@ -23,10 +23,12 @@
 	import ImagePolicyDetail from '$lib/components/flux/resources/ImagePolicyDetail.svelte';
 	import ImageUpdateAutomationDetail from '$lib/components/flux/resources/ImageUpdateAutomationDetail.svelte';
 	import InventoryList from '$lib/components/flux/resources/InventoryList.svelte';
+	import ResourceGraph from '$lib/components/flux/ResourceGraph.svelte';
 	import ResourceDiffViewer from '$lib/components/flux/ResourceDiffViewer.svelte';
 	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
 	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
+	import type { GraphNode } from '$lib/types/view';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
 
@@ -101,7 +103,7 @@
 		return unsubscribe;
 	});
 
-	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'diff' | 'yaml';
+	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'diff' | 'graph' | 'yaml';
 
 	let activeTab = $state<TabId>('overview');
 
@@ -188,6 +190,12 @@
 	let historyLoading = $state(false);
 	let historyFetched = $state(false);
 
+	// Graph state
+	let graphRoot = $state<GraphNode | null>(null);
+	let graphLoading = $state(false);
+	let graphError = $state<string | null>(null);
+	let graphFetched = $state(false);
+
 	// Detect resource type for specialized views
 	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
 	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
@@ -221,6 +229,11 @@
 		// Drift detection is only available for Kustomizations
 		if (isKustomization) {
 			base.push({ id: 'diff', label: 'Drift (Diff)' });
+		}
+
+		// Object tree graph is available for Kustomizations and HelmReleases
+		if (isKustomization || isHelmRelease) {
+			base.push({ id: 'graph', label: 'Graph' });
 		}
 
 		base.push({ id: 'yaml', label: 'YAML' });
@@ -346,6 +359,32 @@
 		}
 	}
 
+	async function fetchGraph() {
+		if (graphFetched) return;
+
+		graphLoading = true;
+		graphError = null;
+
+		try {
+			const response = await fetch(
+				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/tree`
+			);
+
+			if (!response.ok) {
+				const errData = await response.json().catch(() => ({ message: response.statusText }));
+				throw new Error(errData.message || `Failed to fetch object tree: ${response.statusText}`);
+			}
+
+			const result = await response.json();
+			graphRoot = result.root || null;
+			graphFetched = true;
+		} catch (err) {
+			graphError = err instanceof Error ? err.message : 'Failed to load object tree';
+		} finally {
+			graphLoading = false;
+		}
+	}
+
 	async function handleRollback(historyId: string, revision: string | null) {
 		const displayRevision = revision ? revision.slice(0, 8) : historyId.slice(0, 8);
 		if (!confirm(`Are you sure you want to rollback to ${displayRevision}?`)) return;
@@ -400,6 +439,12 @@
 	$effect(() => {
 		if (activeTab === 'diff' && !diffsFetched) {
 			fetchDiff();
+		}
+	});
+
+	$effect(() => {
+		if (activeTab === 'graph' && !graphFetched) {
+			fetchGraph();
 		}
 	});
 
@@ -841,6 +886,86 @@
 					</div>
 				{:else}
 					<ResourceDiffViewer {diffs} />
+				{/if}
+			</div>
+		{:else if activeTab === 'graph'}
+			<div
+				class="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800"
+				style="height: 600px"
+			>
+				{#if graphLoading}
+					<div class="flex h-full flex-col items-center justify-center gap-4">
+						<div
+							class="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
+						></div>
+						<p class="animate-pulse text-sm text-gray-500">Loading object tree...</p>
+					</div>
+				{:else if graphError}
+					<div class="flex h-full items-center justify-center p-6">
+						<div
+							class="max-w-md rounded-md border border-red-200 bg-red-50 p-6 dark:border-red-900/50 dark:bg-red-900/20"
+						>
+							<div
+								class="mb-2 flex items-center gap-2 text-base font-semibold text-red-700 dark:text-red-400"
+							>
+								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+									/>
+								</svg>
+								Failed to load object tree
+							</div>
+							<p class="text-sm text-red-600 dark:text-red-300">{graphError}</p>
+							<button
+								type="button"
+								class="mt-4 inline-flex items-center gap-1.5 rounded-md bg-red-100 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300"
+								onclick={() => {
+									graphFetched = false;
+									fetchGraph();
+								}}
+							>
+								Retry
+							</button>
+						</div>
+					</div>
+				{:else if !graphRoot}
+					<div
+						class="flex h-full items-center justify-center py-12 text-gray-500 dark:text-gray-400"
+					>
+						No managed resources found for this resource.
+					</div>
+				{:else}
+					<div class="flex h-full flex-col">
+						<div
+							class="flex items-center justify-between border-b border-gray-200 px-4 py-2 dark:border-gray-700"
+						>
+							<h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Object Tree</h3>
+							<button
+								type="button"
+								class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+								onclick={() => {
+									graphFetched = false;
+									fetchGraph();
+								}}
+							>
+								<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+									/>
+								</svg>
+								Refresh
+							</button>
+						</div>
+						<div class="min-h-0 flex-1">
+							<ResourceGraph root={graphRoot} />
+						</div>
+					</div>
 				{/if}
 			</div>
 		{:else if activeTab === 'yaml'}
