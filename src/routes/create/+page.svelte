@@ -54,20 +54,20 @@
 					{#each category.templates as template (template.id)}
 						<a
 							href="/create/{template.id}"
-							class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card/60 p-6 transition-all hover:border-blue-500/50 hover:bg-card hover:shadow-lg hover:shadow-blue-500/5"
+							class="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card/60 p-6 transition-all hover:border-primary/50 hover:bg-card hover:shadow-lg hover:shadow-primary/5"
 						>
 							<div
-								class="mb-4 flex size-12 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500 transition-colors group-hover:bg-blue-500 group-hover:text-white"
+								class="mb-4 flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
 							>
 								<Icon name={template.kind.toLowerCase()} size={24} />
 							</div>
 
-							<h3 class="mb-2 text-lg font-bold group-hover:text-blue-500">{template.name}</h3>
+							<h3 class="mb-2 text-lg font-bold group-hover:text-primary">{template.name}</h3>
 							<p class="mb-6 flex-1 text-sm text-muted-foreground">
 								{template.description}
 							</p>
 
-							<div class="flex items-center gap-2 text-sm font-semibold text-blue-500">
+							<div class="flex items-center gap-2 text-sm font-semibold text-primary">
 								Create Now
 								<ArrowRight size={16} class="transition-transform group-hover:translate-x-1" />
 							</div>

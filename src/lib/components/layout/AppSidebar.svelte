@@ -186,12 +186,12 @@
 					class={cn(
 						'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
 						currentPath.startsWith('/create')
-							? 'bg-blue-600 text-white shadow-[0_4px_20px_-4px_rgba(37,99,235,0.4)]'
-							: 'text-muted-foreground hover:bg-blue-500/10 hover:text-blue-600'
+							? 'bg-primary text-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.4)]'
+							: 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
 					)}
 				>
 					<div
-						class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-600 group-hover:text-white"
+						class="flex size-5 items-center justify-center rounded-md bg-primary/10 transition-colors group-hover:bg-primary group-hover:text-primary-foreground"
 					>
 						<Icon name="plus" size={14} />
 					</div>
@@ -362,8 +362,8 @@
 					class={cn(
 						'mb-4 rounded-xl p-3 transition-all active:scale-95',
 						currentPath.startsWith('/create')
-							? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-							: 'text-muted-foreground hover:bg-muted hover:text-blue-600'
+							? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30'
+							: 'text-muted-foreground hover:bg-muted hover:text-primary'
 					)}
 					title="Create Resource"
 				>
