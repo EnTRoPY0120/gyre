@@ -18,12 +18,12 @@
 		class="absolute -top-12 -right-12 size-32 rounded-full bg-primary/5 blur-3xl transition-all duration-700 group-hover:bg-primary/20"
 	></div>
 
-	<div class="border-b border-border/50 bg-muted/20 px-7 py-5">
+	<div class="border-b border-border/50 bg-muted/50 px-7 py-5">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-4">
 				{#if group.icon}
 					<div
-						class="flex size-10 items-center justify-center rounded-xl border border-border bg-background transition-all duration-300 group-hover:scale-110 group-hover:border-primary/50"
+						class="flex size-10 items-center justify-center rounded-xl border border-border bg-background shadow-sm transition-all duration-300 group-hover:scale-110 group-hover:border-primary/50"
 					>
 						<Icon name={group.icon} size={20} class="text-primary" />
 					</div>
@@ -139,7 +139,7 @@
 		<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
 			{#each resourceGroups as group}
 				<div
-					class="relative overflow-hidden rounded-3xl border border-border bg-card/30 p-6 shadow-sm"
+					class="relative overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm"
 				>
 					<div class="mb-6 flex items-center gap-4">
 						<div class="size-10 animate-pulse rounded-xl bg-muted/50"></div>
@@ -174,9 +174,9 @@
 					Math.min(100, (counts.healthy / (counts.total || 1)) * 100)
 				)}
 				{@const cardClasses = cn(
-					'relative overflow-hidden rounded-3xl border border-border bg-card/30 shadow-sm transition-all duration-500',
+					'relative overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition-all duration-500',
 					route
-						? 'group hover:-translate-y-1 hover:border-primary/40 hover:bg-card/50 hover:shadow-xl'
+						? 'group hover:-translate-y-1 hover:border-primary/40 hover:bg-card hover:shadow-xl'
 						: 'cursor-default opacity-80'
 				)}
 

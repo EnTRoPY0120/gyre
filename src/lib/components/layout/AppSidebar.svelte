@@ -94,7 +94,7 @@
 
 	<aside
 		transition:fly={{ x: -280, duration: 300 }}
-		class="fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar/95 text-sidebar-foreground shadow-2xl backdrop-blur-xl transition-all duration-300 ease-in-out lg:relative"
+		class="fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground shadow-2xl transition-all duration-300 ease-in-out lg:relative"
 	>
 		<!-- Header -->
 		<div class="flex h-20 flex-col justify-center border-b border-sidebar-border px-6">
@@ -102,9 +102,9 @@
 				<!-- Logo & Brand -->
 				<a href="/" class="group flex items-center gap-3" onclick={closeMobile}>
 					<div
-						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20 transition-all group-hover:scale-105 group-hover:shadow-amber-500/30"
+						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20 transition-all group-hover:scale-105 group-hover:shadow-primary/30"
 					>
-						<svg class="h-6 w-6 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+						<svg class="h-6 w-6 text-primary-foreground" viewBox="0 0 24 24" fill="currentColor">
 							<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
 						</svg>
 					</div>
@@ -187,11 +187,11 @@
 						'group flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-all duration-300',
 						currentPath.startsWith('/create')
 							? 'bg-blue-600 text-white shadow-[0_4px_20px_-4px_rgba(37,99,235,0.3)]'
-							: 'text-muted-foreground hover:bg-sidebar-accent/50 hover:text-blue-500'
+							: 'text-muted-foreground hover:bg-muted hover:text-blue-600'
 					)}
 				>
 					<div
-						class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-500 group-hover:text-white"
+						class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors group-hover:bg-blue-600 group-hover:text-white"
 					>
 						<Icon name="plus" size={14} />
 					</div>
@@ -256,7 +256,7 @@
 										'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
 										active
 											? 'border border-primary/20 bg-primary/10 text-primary'
-											: 'text-muted-foreground/80 hover:bg-sidebar-accent/50 hover:text-foreground'
+											: 'text-muted-foreground/80 hover:bg-muted hover:text-foreground'
 									)}
 								>
 									{#if active}
@@ -363,7 +363,7 @@
 						'mb-4 rounded-xl p-3 transition-all active:scale-95',
 						currentPath.startsWith('/create')
 							? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
-							: 'text-muted-foreground hover:bg-sidebar-accent hover:text-blue-500'
+							: 'text-muted-foreground hover:bg-muted hover:text-blue-600'
 					)}
 					title="Create Resource"
 				>

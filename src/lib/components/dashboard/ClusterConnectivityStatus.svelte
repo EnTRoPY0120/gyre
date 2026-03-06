@@ -14,7 +14,7 @@
 
 <!-- Connection Card -->
 <div
-	class="overflow-hidden rounded-3xl border border-border bg-card/40 shadow-sm transition-all hover:bg-card/60 hover:shadow-md md:col-span-2 lg:col-span-1"
+	class="overflow-hidden rounded-3xl border border-border bg-card shadow-sm transition-all hover:bg-card/90 hover:shadow-md md:col-span-2 lg:col-span-1"
 >
 	<div class="p-6">
 		<div class="mb-4 flex items-center justify-between">
@@ -26,7 +26,7 @@
 		<div class="flex items-center gap-5">
 			{#if isLoading}
 				<div
-					class="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-muted/30"
+					class="flex h-14 w-14 items-center justify-center rounded-2xl border border-border bg-muted/50"
 				>
 					<Icon name="loader" size={28} class="animate-spin text-muted-foreground/50" />
 				</div>

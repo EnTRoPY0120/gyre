@@ -26,7 +26,7 @@
 
 <!-- Total Resources -->
 <div
-	class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:bg-card/60 hover:shadow-md"
+	class="overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm transition-all hover:bg-card/90 hover:shadow-md"
 >
 	<div class="mb-4 flex items-center justify-between">
 		<p class="text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase">Total</p>
@@ -50,7 +50,7 @@
 
 <!-- Healthy Card -->
 <div
-	class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:border-green-500/20 hover:bg-green-500/[0.02]"
+	class="overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm transition-all hover:border-green-500/20 hover:bg-green-500/[0.02]"
 >
 	<div class="mb-4 flex items-center justify-between">
 		<p
@@ -79,7 +79,7 @@
 
 <!-- Failed Card -->
 <div
-	class="overflow-hidden rounded-3xl border border-border bg-card/40 p-6 shadow-sm transition-all hover:border-destructive/20 hover:bg-destructive/[0.02]"
+	class="overflow-hidden rounded-3xl border border-border bg-card p-6 shadow-sm transition-all hover:border-destructive/20 hover:bg-destructive/[0.02]"
 >
 	<div class="mb-4 flex items-center justify-between">
 		<p class="font-display text-[10px] font-black tracking-[0.2em] text-destructive uppercase">

@@ -19,7 +19,7 @@
 
 <!-- System Shortcuts -->
 <div
-	class="group relative overflow-hidden rounded-[2rem] border border-border bg-card/20 p-6 shadow-sm backdrop-blur-xl md:rounded-[2.5rem] md:p-10"
+	class="group relative overflow-hidden rounded-[2rem] border border-border bg-card p-6 shadow-md backdrop-blur-xl md:rounded-[2.5rem] md:p-10"
 >
 	<div
 		class="absolute inset-0 bg-gradient-to-br from-primary/[0.07] via-transparent to-transparent opacity-0 transition-opacity duration-700 group-hover:opacity-100"
