@@ -112,6 +112,35 @@ export const FLUX_RESOURCES = {
 		apiVersion: 'notification.toolkit.fluxcd.io/v1',
 		namespaced: true,
 		controller: 'notification-controller'
+	},
+
+	// Image Automation Controller (image.toolkit.fluxcd.io/v1)
+	ImageRepository: {
+		group: 'image.toolkit.fluxcd.io',
+		version: 'v1beta2',
+		plural: 'imagerepositories',
+		kind: 'ImageRepository',
+		apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
+		namespaced: true,
+		controller: 'image-reflector-controller'
+	},
+	ImagePolicy: {
+		group: 'image.toolkit.fluxcd.io',
+		version: 'v1beta2',
+		plural: 'imagepolicies',
+		kind: 'ImagePolicy',
+		apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
+		namespaced: true,
+		controller: 'image-reflector-controller'
+	},
+	ImageUpdateAutomation: {
+		group: 'image.toolkit.fluxcd.io',
+		version: 'v1beta2',
+		plural: 'imageupdateautomations',
+		kind: 'ImageUpdateAutomation',
+		apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
+		namespaced: true,
+		controller: 'image-automation-controller'
 	}
 } as const;
 

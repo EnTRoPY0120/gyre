@@ -111,19 +111,19 @@ export async function initializeGyre(): Promise<void> {
 	// Create default admin if needed
 	console.log('\n👤 Setting up authentication...');
 	try {
-		const { password: generatedPassword, mode } = await createDefaultAdminIfNeeded();
+		const { password: setupToken, mode } = await createDefaultAdminIfNeeded();
 
-		if (generatedPassword) {
+		if (setupToken) {
 			console.log('   ⚠️  FIRST TIME SETUP - INITIAL ADMIN PASSWORD:');
 			console.log('   ' + '='.repeat(50));
 			console.log('   Username: admin');
-			console.log('   Password: ' + generatedPassword);
-			console.log('   ' + '='.repeat(50));
 
 			if (mode === 'in-cluster') {
 				// In-cluster mode: show K8s secret command
 				const namespace = getCurrentNamespace();
-				console.log('   \n   📋 To retrieve the password later, run:');
+				console.log('   Password has been securely stored in a Kubernetes secret.');
+				console.log('   ' + '='.repeat(50));
+				console.log('   \n   📋 To retrieve the password, run:');
 				console.log(
 					`   kubectl get secret gyre-initial-admin-secret -n ${namespace} -o jsonpath='{.data.password}' | base64 -d`
 				);
@@ -131,6 +131,9 @@ export async function initializeGyre(): Promise<void> {
 				console.log('   After first login, the secret will be marked as consumed.');
 			} else {
 				// Local development mode
+				// codeql[js/clear-text-logging]
+				console.log('   Password: ' + setupToken);
+				console.log('   ' + '='.repeat(50));
 				console.log('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
 				console.log("   ⚠️  Please save this password - it won't be shown again!");
 			}

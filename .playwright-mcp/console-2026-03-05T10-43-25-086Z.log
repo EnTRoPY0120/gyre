@@ -1,0 +1,22 @@
+[  653296ms] [ERROR] WebSocket connection to 'ws://localhost:5173/?token=95Aw-pCTzY3a' failed:  @ http://localhost:5173/@vite/client:744
+[  653300ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:5173/resources/helmreleases/__data.json?x-sveltekit-invalidated=11:0
+[  653301ms] [WARNING] The next HMR update will cause the page to reload @ http://localhost:5173/node_modules/@sveltejs/kit/src/runtime/client/client.js?v=bbb5f81c:3208
+[  653301ms] [ERROR] TypeError: Failed to fetch
+    at window.fetch (http://localhost:5173/node_modules/@sveltejs/kit/src/runtime/client/fetcher.js?v=bbb5f81c:66:10)
+    at dev_fetch (http://localhost:5173/node_modules/@sveltejs/kit/src/runtime/client/fetcher.js?v=bbb5f81c:149:16)
+    at load_data (http://localhost:5173/node_modules/@sveltejs/kit/src/runtime/client/client.js?v=bbb5f81c:2877:20)
+    at load_route (http://localhost:5173/node_modules/@sveltejs/kit/src/runtime/client/client.js?v=bbb5f81c:1067:25)
+    at _invalidate (http://localhost:5173/node_modules/@sveltejs/kit/src/runtime/client/client.js?v=bbb5f81c:401:46)
+    at async Promise.all (index 0)
+    at async Module.track_reactivity_loss (http://localhost:5173/node_modules/.vite/deps/chunk-UTYDR3E7.js?v=bbb5f81c:1554:15)
+    at async Object.invalidate (http://localhost:5173/src/routes/resources/[type]/+page.svelte:87:5)
+    at async Module.track_reactivity_loss (http://localhost:5173/node_modules/.vite/deps/chunk-UTYDR3E7.js?v=bbb5f81c:1554:15)
+    at async refresh (http://localhost:5173/src/lib/utils/polling.svelte.ts:40:6) @ http://localhost:5173/@fs/home/entropy/Personal/Code/10xdev/gyre/.svelte-kit/generated/client/app.js:50
+[  653370ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:5173/resources/helmreleases/__data.json?x-sveltekit-invalidated=1:0
+[  653471ms] [ERROR] WebSocket connection to 'ws://localhost:5173/?token=95Aw-pCTzY3a' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:744
+[  653473ms] [ERROR] WebSocket connection to 'ws://localhost:5173/?token=95Aw-pCTzY3a' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ http://localhost:5173/@vite/client:754
+[  653473ms] [ERROR] [vite] failed to connect to websocket.
+your current setup:
+  (browser) localhost:5173/ <--[HTTP]--> localhost:5173/ (server)
+  (browser) localhost:5173/ <--[WebSocket (failing)]--> localhost:5173/ (server)
+Check out your Vite / network configuration and https://vite.dev/config/server-options.html#server-hmr . @ http://localhost:5173/@vite/client:764

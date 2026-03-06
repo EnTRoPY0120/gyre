@@ -1,5 +1,12 @@
 # syntax=docker/dockerfile:1.4
 # =============================================================================
+# Stage 0: Build Kustomize from source to ensure latest Go stdlib (fixes CVEs)
+# =============================================================================
+FROM golang:1.24-alpine AS kustomize-builder
+ARG KUSTOMIZE_VERSION=v5.8.1
+RUN go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
+
+# =============================================================================
 # Stage 1: Builder - Build the SvelteKit application
 # =============================================================================
 FROM oven/bun:1.3.10-alpine AS builder
@@ -34,19 +41,11 @@ LABEL org.opencontainers.image.title="Gyre" \
       org.opencontainers.image.vendor="Gyre Project" \
       org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
-# Install CA certificates, curl, and build tools for native modules
-RUN apk add --no-cache ca-certificates python3 make g++ curl
+# Install CA certificates
+RUN apk add --no-cache ca-certificates
 
-# Install Kustomize (direct binary download for Alpine with checksum verification)
-ARG KUSTOMIZE_VERSION=v5.8.1
-ARG KUSTOMIZE_SHA256=029a7f0f4e1932c52a0476cf02a0fd855c0bb85694b82c338fc648dcb53a819d
-RUN curl -sSL -o /tmp/kustomize.tgz \
-      "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" && \
-    echo "${KUSTOMIZE_SHA256}  /tmp/kustomize.tgz" | sha256sum -c - && \
-    tar -xzf /tmp/kustomize.tgz -C /usr/local/bin && \
-    chmod +x /usr/local/bin/kustomize && \
-    kustomize version && \
-    rm -f /tmp/kustomize.tgz
+# Copy Kustomize binary from kustomize-builder
+COPY --from=kustomize-builder /go/bin/kustomize /usr/local/bin/kustomize
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S gyre && \
@@ -59,11 +58,12 @@ COPY --from=builder --chown=gyre:gyre /build/build ./build
 COPY --from=builder --chown=gyre:gyre /build/package.json ./package.json
 COPY --from=builder --chown=gyre:gyre /build/drizzle ./drizzle
 
-# Install production dependencies
-# We omit the cache mount to avoid 'idealTree' conflict and clean up build tools in same layer
-RUN npm install --omit=dev && \
+# Install production dependencies and remove npm to mitigate tar/minimatch CVEs
+RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
+    npm install --omit=dev && \
     npm cache clean --force && \
-    apk del python3 make g++
+    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx && \
+    apk del .build-deps
 
 # Create data directory for SQLite database (PVC mount point)
 RUN mkdir -p /data && chown -R gyre:gyre /data

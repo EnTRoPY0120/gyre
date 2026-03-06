@@ -11,11 +11,11 @@
 	<!-- Error Icon -->
 	<div
 		class="mb-6 flex h-24 w-24 items-center justify-center rounded-full {is404
-			? 'bg-blue-100'
+			? 'bg-primary/10'
 			: 'bg-red-100'}"
 	>
 		{#if is404}
-			<svg class="h-12 w-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="h-12 w-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -36,7 +36,7 @@
 	</div>
 
 	<!-- Error Status -->
-	<h1 class="mb-2 text-6xl font-bold {is404 ? 'text-blue-600' : 'text-red-600'}">
+	<h1 class="mb-2 text-6xl font-bold {is404 ? 'text-primary' : 'text-red-600'}">
 		{status}
 	</h1>
 
@@ -82,7 +82,7 @@
 		<a
 			href="/"
 			rel="external"
-			class="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-700"
+			class="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 		>
 			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path

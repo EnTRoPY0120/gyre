@@ -164,7 +164,7 @@
 								class="group flex w-full cursor-not-allowed items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-muted-foreground opacity-60 transition-all duration-300"
 							>
 								<div
-									class="flex size-5 items-center justify-center rounded-md bg-blue-500/10 transition-colors"
+									class="flex size-5 items-center justify-center rounded-md bg-primary/10 transition-colors"
 								>
 									<Icon name="plus" size={14} />
 								</div>

@@ -1,0 +1,2 @@
+[      45ms] [ERROR] [SSE] Connection error @ http://localhost:5173/src/lib/stores/events.svelte.ts:163
+[    4584ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/favicon.ico:0

@@ -3002,6 +3002,321 @@ spec:
 	]
 };
 
+export const IMAGE_REPOSITORY_TEMPLATE: ResourceTemplate = {
+	id: 'image-repository-base',
+	name: 'Image Repository',
+	description: 'Scans container image repositories',
+	kind: 'ImageRepository',
+	group: 'image.toolkit.fluxcd.io',
+	version: 'v1beta2',
+	category: 'image-automation',
+	plural: 'imagerepositories',
+	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: example
+  namespace: flux-system
+spec:
+  interval: 5m
+  image: ghcr.io/org/app`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'repository',
+			title: 'Repository Settings',
+			description: 'Container registry and scan configuration',
+			defaultExpanded: true
+		},
+		{
+			id: 'auth',
+			title: 'Authentication',
+			description: 'Registry credentials',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
+			id: 'advanced',
+			title: 'Advanced Options',
+			description: 'Additional configuration options',
+			collapsible: true,
+			defaultExpanded: false
+		}
+	],
+	fields: [
+		{
+			name: 'name',
+			label: 'Name',
+			path: 'metadata.name',
+			type: 'string',
+			required: true,
+			section: 'basic',
+			placeholder: 'my-app',
+			description: 'Unique name for this ImageRepository resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
+		},
+		{
+			name: 'namespace',
+			label: 'Namespace',
+			path: 'metadata.namespace',
+			type: 'string',
+			required: true,
+			section: 'basic',
+			default: 'flux-system',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
+		},
+		{
+			name: 'image',
+			label: 'Image',
+			path: 'spec.image',
+			type: 'string',
+			required: true,
+			section: 'repository',
+			placeholder: 'ghcr.io/org/app',
+			description: 'Container image repository to scan'
+		},
+		{
+			name: 'provider',
+			label: 'Registry Provider',
+			path: 'spec.provider',
+			type: 'select',
+			section: 'repository',
+			default: 'generic',
+			options: [
+				{ label: 'Generic', value: 'generic' },
+				{ label: 'AWS', value: 'aws' },
+				{ label: 'Azure', value: 'azure' },
+				{ label: 'GCP', value: 'gcp' }
+			],
+			description: 'Cloud provider for registry authentication'
+		},
+		{
+			name: 'interval',
+			label: 'Scan Interval',
+			path: 'spec.interval',
+			type: 'duration',
+			required: true,
+			section: 'repository',
+			default: '5m',
+			description: 'How often to scan for new images',
+			validation: {
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				message:
+					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
+			}
+		}
+	]
+};
+
+export const IMAGE_POLICY_TEMPLATE: ResourceTemplate = {
+	id: 'image-policy-base',
+	name: 'Image Policy',
+	description: 'Defines policies for selecting image versions',
+	kind: 'ImagePolicy',
+	group: 'image.toolkit.fluxcd.io',
+	version: 'v1beta2',
+	category: 'image-automation',
+	plural: 'imagepolicies',
+	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: example
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: example
+  policy:
+    semver:
+      range: ">=1.0.0"`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'policy',
+			title: 'Policy Configuration',
+			description: 'Rules for selecting images',
+			defaultExpanded: true
+		}
+	],
+	fields: [
+		{
+			name: 'name',
+			label: 'Name',
+			path: 'metadata.name',
+			type: 'string',
+			required: true,
+			section: 'basic',
+			placeholder: 'my-policy',
+			description: 'Unique name for this ImagePolicy resource'
+		},
+		{
+			name: 'namespace',
+			label: 'Namespace',
+			path: 'metadata.namespace',
+			type: 'string',
+			required: true,
+			section: 'basic',
+			default: 'flux-system'
+		},
+		{
+			name: 'imageRepoName',
+			label: 'Image Repository',
+			path: 'spec.imageRepositoryRef.name',
+			type: 'string',
+			required: true,
+			section: 'policy',
+			placeholder: 'my-app',
+			referenceType: 'ImageRepository',
+			description: 'ImageRepository to monitor'
+		},
+		{
+			name: 'policyType',
+			label: 'Policy Type',
+			path: 'spec.policy.type',
+			type: 'select',
+			section: 'policy',
+			default: 'semver',
+			options: [
+				{ label: 'SemVer', value: 'semver' },
+				{ label: 'Numerical', value: 'numerical' },
+				{ label: 'Alphabetical', value: 'alphabetical' }
+			]
+		},
+		{
+			name: 'semverRange',
+			label: 'Semver Range',
+			path: 'spec.policy.semver.range',
+			type: 'string',
+			section: 'policy',
+			default: '>=1.0.0',
+			showIf: { field: 'policyType', value: 'semver' }
+		}
+	]
+};
+
+export const IMAGE_UPDATE_AUTOMATION_TEMPLATE: ResourceTemplate = {
+	id: 'image-update-automation-base',
+	name: 'Image Update Automation',
+	description: 'Automates image updates to Git',
+	kind: 'ImageUpdateAutomation',
+	group: 'image.toolkit.fluxcd.io',
+	version: 'v1beta2',
+	category: 'image-automation',
+	plural: 'imageupdateautomations',
+	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: example
+  namespace: flux-system
+spec:
+  interval: 1h
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        email: fluxcdbot@example.com
+        name: fluxcdbot
+      messageTemplate: "Update image"
+  update:
+    path: ./clusters/production
+    strategy: Setters`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'git',
+			title: 'Git Configuration',
+			description: 'Repository and commit settings',
+			defaultExpanded: true
+		},
+		{
+			id: 'update',
+			title: 'Update Strategy',
+			description: 'How to apply changes in Git',
+			defaultExpanded: true
+		}
+	],
+	fields: [
+		{
+			name: 'name',
+			label: 'Name',
+			path: 'metadata.name',
+			type: 'string',
+			required: true,
+			section: 'basic'
+		},
+		{
+			name: 'namespace',
+			label: 'Namespace',
+			path: 'metadata.namespace',
+			type: 'string',
+			required: true,
+			section: 'basic',
+			default: 'flux-system'
+		},
+		{
+			name: 'sourceName',
+			label: 'Git Repository',
+			path: 'spec.sourceRef.name',
+			type: 'string',
+			required: true,
+			section: 'git',
+			referenceType: 'GitRepository'
+		},
+		{
+			name: 'branch',
+			label: 'Branch',
+			path: 'spec.git.checkout.ref.branch',
+			type: 'string',
+			section: 'git',
+			default: 'main'
+		},
+		{
+			name: 'updatePath',
+			label: 'Update Path',
+			path: 'spec.update.path',
+			type: 'string',
+			section: 'update',
+			default: './',
+			description: 'Path in Git repository to look for image markers'
+		},
+		{
+			name: 'interval',
+			label: 'Sync Interval',
+			path: 'spec.interval',
+			type: 'duration',
+			required: true,
+			section: 'basic',
+			default: '1h'
+		}
+	]
+};
+
 export const templates: ResourceTemplate[] = [
 	GIT_REPOSITORY_TEMPLATE,
 	HELM_REPOSITORY_TEMPLATE,
@@ -3012,7 +3327,10 @@ export const templates: ResourceTemplate[] = [
 	HELM_RELEASE_TEMPLATE,
 	ALERT_TEMPLATE,
 	PROVIDER_TEMPLATE,
-	RECEIVER_TEMPLATE
+	RECEIVER_TEMPLATE,
+	IMAGE_REPOSITORY_TEMPLATE,
+	IMAGE_POLICY_TEMPLATE,
+	IMAGE_UPDATE_AUTOMATION_TEMPLATE
 ];
 
 /**

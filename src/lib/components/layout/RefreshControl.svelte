@@ -46,7 +46,7 @@
 		<button
 			type="button"
 			class="relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none {autoRefreshEnabled
-				? 'bg-blue-600'
+				? 'bg-primary'
 				: 'bg-gray-200'}"
 			role="switch"
 			aria-checked={autoRefreshEnabled}
@@ -76,12 +76,12 @@
 
 	<!-- Refreshing Indicator -->
 	{#if isRefreshing}
-		<div class="flex items-center gap-1 text-xs text-blue-600">
+		<div class="flex items-center gap-1 text-xs text-primary">
 			<span class="relative flex h-2 w-2">
 				<span
-					class="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75"
+					class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/70 opacity-75"
 				></span>
-				<span class="relative inline-flex h-2 w-2 rounded-full bg-blue-500"></span>
+				<span class="relative inline-flex h-2 w-2 rounded-full bg-primary"></span>
 			</span>
 			Syncing...
 		</div>

@@ -116,7 +116,7 @@
 	function getProviderColor(type: string): string {
 		switch (type) {
 			case 'oauth2-google':
-				return 'from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500';
+				return 'from-amber-400 to-amber-600 hover:from-amber-300 hover:to-amber-500';
 			case 'oauth2-github':
 				return 'from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700';
 			case 'oauth2-gitlab':
