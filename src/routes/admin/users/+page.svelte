@@ -6,6 +6,7 @@
 	import { UserPlus, AlertTriangle, CheckCircle2, XCircle } from 'lucide-svelte';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
+	import * as Select from '$lib/components/ui/select';
 
 	interface User {
 		id: string;
@@ -45,7 +46,7 @@
 	let newUser = $state({
 		username: '',
 		email: '',
-		role: 'viewer' as const,
+		role: 'viewer' as 'admin' | 'editor' | 'viewer',
 		password: ''
 	});
 
@@ -378,17 +379,23 @@
 
 					<div>
 						<label for="role" class="mb-1 block text-sm font-medium text-slate-300">Role</label>
-						<select
-							id="role"
-							name="role"
-							bind:value={newUser.role}
-							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+						<Select.Root
+							type="single"
+							value={newUser.role}
+							onValueChange={(v) => (newUser.role = v as 'admin' | 'editor' | 'viewer')}
 						>
-							<option value="viewer">Viewer (read-only)</option>
-							<option value="editor">Editor (can modify resources)</option>
-							<option value="admin">Admin (full access)</option>
-						</select>
+							<Select.Trigger id="role" class="w-full">
+								<Select.Value placeholder="Select Role">
+									<span class="capitalize">{newUser.role}</span>
+								</Select.Value>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="viewer">Viewer (read-only)</Select.Item>
+								<Select.Item value="editor">Editor (can modify resources)</Select.Item>
+								<Select.Item value="admin">Admin (full access)</Select.Item>
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="role" value={newUser.role} />
 					</div>
 
 					<div>
@@ -479,16 +486,23 @@
 
 					<div>
 						<label for="editRole" class="mb-1 block text-sm font-medium text-slate-300">Role</label>
-						<select
-							id="editRole"
-							name="role"
+						<Select.Root
+							type="single"
 							value={editingUser.role}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+							onValueChange={(v) => (editingUser!.role = v as 'admin' | 'editor' | 'viewer')}
 						>
-							<option value="viewer">Viewer (read-only)</option>
-							<option value="editor">Editor (can modify resources)</option>
-							<option value="admin">Admin (full access)</option>
-						</select>
+							<Select.Trigger id="editRole" class="w-full">
+								<Select.Value placeholder="Select Role">
+									<span class="capitalize">{editingUser.role}</span>
+								</Select.Value>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="viewer">Viewer (read-only)</Select.Item>
+								<Select.Item value="editor">Editor (can modify resources)</Select.Item>
+								<Select.Item value="admin">Admin (full access)</Select.Item>
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="role" value={editingUser.role} />
 					</div>
 
 					<div class="flex items-center gap-2">

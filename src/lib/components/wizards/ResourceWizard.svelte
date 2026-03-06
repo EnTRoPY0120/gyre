@@ -8,6 +8,7 @@
 	import type { ResourceTemplate } from '$lib/templates';
 	import { cn } from '$lib/utils';
 	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from 'lucide-svelte';
+	import * as Select from '$lib/components/ui/select';
 	import { parse, parseDocument, YAMLError } from 'yaml';
 
 	let {
@@ -450,19 +451,35 @@
 														</div>
 
 														{#if field.type === 'select'}
-															<select
-																id="field-{field.name}"
-																bind:value={formValues[field.name]}
-																onchange={() => handleFieldChange(field)}
-																class={cn(
-																	'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-																	validationErrors[field.name] && 'border-red-500'
-																)}
+															<Select.Root
+																type="single"
+																value={formValues[field.name] as string}
+																onValueChange={(v) => {
+																	formValues[field.name] = v;
+																	handleFieldChange(field);
+																}}
 															>
-																{#each field.options || [] as opt (opt.value)}
-																	<option value={opt.value}>{opt.label}</option>
-																{/each}
-															</select>
+																<Select.Trigger
+																	id="field-{field.name}"
+																	class={cn(
+																		'w-full',
+																		validationErrors[field.name] && 'border-red-500'
+																	)}
+																>
+																	<Select.Value placeholder="Select {field.label}">
+																		{field.options?.find(
+																			(o) => String(o.value) === String(formValues[field.name])
+																		)?.label ||
+																			formValues[field.name] ||
+																			`Select ${field.label}`}
+																	</Select.Value>
+																</Select.Trigger>
+																<Select.Content>
+																	{#each field.options || [] as opt (opt.value)}
+																		<Select.Item value={opt.value}>{opt.label}</Select.Item>
+																	{/each}
+																</Select.Content>
+															</Select.Root>
 														{:else if field.type === 'boolean'}
 															<div class="flex items-center gap-2">
 																<input
@@ -553,19 +570,29 @@
 											</div>
 
 											{#if field.type === 'select'}
-												<select
-													id="field-{field.name}"
-													bind:value={formValues[field.name]}
-													onchange={() => handleFieldChange(field)}
-													class={cn(
-														'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-														validationErrors[field.name] && 'border-red-500'
-													)}
+												<Select.Root
+													type="single"
+													value={formValues[field.name] as string}
+													onValueChange={(v) => {
+														formValues[field.name] = v;
+														handleFieldChange(field);
+													}}
 												>
-													{#each field.options || [] as opt (opt.value)}
-														<option value={opt.value}>{opt.label}</option>
-													{/each}
-												</select>
+													<Select.Trigger
+														id="field-{field.name}"
+														class={cn(
+															'w-full',
+															validationErrors[field.name] && 'border-red-500'
+														)}
+													>
+														<Select.Value placeholder="Select {field.label}" />
+													</Select.Trigger>
+													<Select.Content>
+														{#each field.options || [] as opt (opt.value)}
+															<Select.Item value={opt.value}>{opt.label}</Select.Item>
+														{/each}
+													</Select.Content>
+												</Select.Root>
 											{:else if field.type === 'boolean'}
 												<div class="flex items-center gap-2">
 													<input

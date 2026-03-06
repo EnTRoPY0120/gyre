@@ -5,6 +5,7 @@
 	import { resourceGroups } from '$lib/config/resources';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
+	import * as Select from '$lib/components/ui/select';
 
 	interface Policy {
 		id: string;
@@ -56,8 +57,8 @@
 	let newPolicy = $state({
 		name: '',
 		description: '',
-		role: 'viewer' as const,
-		action: 'read' as const,
+		role: 'viewer' as 'admin' | 'editor' | 'viewer',
+		action: 'read' as 'read' | 'write' | 'admin',
 		resourceType: '',
 		namespacePattern: ''
 	});
@@ -428,34 +429,46 @@
 							<label for="policyRole" class="mb-1 block text-sm font-medium text-slate-300"
 								>Role</label
 							>
-							<select
-								id="policyRole"
-								name="role"
-								bind:value={newPolicy.role}
-								required
-								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+							<Select.Root
+								type="single"
+								value={newPolicy.role}
+								onValueChange={(v) => (newPolicy.role = v as 'admin' | 'editor' | 'viewer')}
 							>
-								<option value="viewer">Viewer</option>
-								<option value="editor">Editor</option>
-								<option value="admin">Admin</option>
-							</select>
+								<Select.Trigger id="policyRole" class="w-full">
+									<Select.Value placeholder="Select Role">
+										<span class="capitalize">{newPolicy.role}</span>
+									</Select.Value>
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="viewer">Viewer</Select.Item>
+									<Select.Item value="editor">Editor</Select.Item>
+									<Select.Item value="admin">Admin</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							<input type="hidden" name="role" value={newPolicy.role} />
 						</div>
 
 						<div>
 							<label for="policyAction" class="mb-1 block text-sm font-medium text-slate-300"
 								>Action</label
 							>
-							<select
-								id="policyAction"
-								name="action"
-								bind:value={newPolicy.action}
-								required
-								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+							<Select.Root
+								type="single"
+								value={newPolicy.action}
+								onValueChange={(v) => (newPolicy.action = v as 'read' | 'write' | 'admin')}
 							>
-								<option value="read">Read</option>
-								<option value="write">Write</option>
-								<option value="admin">Admin</option>
-							</select>
+								<Select.Trigger id="policyAction" class="w-full">
+									<Select.Value placeholder="Select Action">
+										<span class="capitalize">{newPolicy.action}</span>
+									</Select.Value>
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="read">Read</Select.Item>
+									<Select.Item value="write">Write</Select.Item>
+									<Select.Item value="admin">Admin</Select.Item>
+								</Select.Content>
+							</Select.Root>
+							<input type="hidden" name="action" value={newPolicy.action} />
 						</div>
 					</div>
 
@@ -463,17 +476,25 @@
 						<label for="resourceType" class="mb-1 block text-sm font-medium text-slate-300"
 							>Resource Type (optional)</label
 						>
-						<select
-							id="resourceType"
-							name="resourceType"
-							bind:value={newPolicy.resourceType}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+						<Select.Root
+							type="single"
+							value={newPolicy.resourceType}
+							onValueChange={(v) => (newPolicy.resourceType = v)}
 						>
-							<option value="">All Resources</option>
-							{#each allResourceTypes as rt (rt.value)}
-								<option value={rt.value}>{rt.label}</option>
-							{/each}
-						</select>
+							<Select.Trigger id="resourceType" class="w-full">
+								<Select.Value placeholder="All Resources">
+									{allResourceTypes.find((rt) => rt.value === newPolicy.resourceType)?.label ||
+										'All Resources'}
+								</Select.Value>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="">All Resources</Select.Item>
+								{#each allResourceTypes as rt (rt.value)}
+									<Select.Item value={rt.value}>{rt.label}</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="resourceType" value={newPolicy.resourceType} />
 						<p class="mt-1 text-xs text-slate-500">Leave empty to apply to all resource types</p>
 					</div>
 
@@ -599,18 +620,24 @@
 						<label for="userId" class="mb-1 block text-sm font-medium text-slate-300"
 							>Select User</label
 						>
-						<select
-							id="userId"
-							name="userId"
-							bind:value={selectedUserId}
-							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:outline-none"
+						<Select.Root
+							type="single"
+							value={selectedUserId}
+							onValueChange={(v) => (selectedUserId = v)}
 						>
-							<option value="">Choose a user...</option>
-							{#each data.users.filter((u: User) => u.active && assigningPolicy && !getUsersWithPolicy(assigningPolicy.id).find((au: User) => au.id === u.id)) as user (user.id)}
-								<option value={user.id}>{user.username} ({user.role})</option>
-							{/each}
-						</select>
+							<Select.Trigger id="userId" class="w-full">
+								<Select.Value placeholder="Choose a user...">
+									{data.users.find((u: User) => u.id === selectedUserId)?.username || 'Choose a user...'}
+								</Select.Value>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="">Choose a user...</Select.Item>
+								{#each data.users.filter((u: User) => u.active && assigningPolicy && !getUsersWithPolicy(assigningPolicy.id).find((au: User) => au.id === u.id)) as user (user.id)}
+									<Select.Item value={user.id}>{user.username} ({user.role})</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+						<input type="hidden" name="userId" value={selectedUserId} />
 					</div>
 
 					<div class="flex justify-end gap-3 pt-4">

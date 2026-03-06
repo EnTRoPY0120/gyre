@@ -4,6 +4,7 @@
 	import { cn } from '$lib/utils';
 	import ReferenceField from './ReferenceField.svelte';
 	import type { TemplateField } from '$lib/templates';
+	import * as Select from '$lib/components/ui/select';
 
 	let {
 		value = $bindable([]),
@@ -120,17 +121,30 @@
 										{disabled}
 									/>
 								{:else if field.type === 'select'}
-									<select
-										id="item-{item.id}-{field.name}"
-										value={(item.val as any)[field.name] ?? ''}
-										onchange={(e) =>
-											updateObjectItem(item.id, field.name, (e.target as HTMLSelectElement).value)}
-										class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+									<Select.Root
+										type="single"
+										value={String((item.val as any)[field.name] ?? '')}
+										onValueChange={(v) => updateObjectItem(item.id, field.name, v)}
+										{disabled}
 									>
-										{#each field.options || [] as opt}
-											<option value={opt.value}>{opt.label}</option>
-										{/each}
-									</select>
+										<Select.Trigger
+											id="item-{item.id}-{field.name}"
+											class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+										>
+											<Select.Value placeholder="Select {field.label}">
+												{field.options?.find(
+													(o) => String(o.value) === String((item.val as any)[field.name])
+												)?.label ||
+													(item.val as any)[field.name] ||
+													`Select ${field.label}`}
+											</Select.Value>
+										</Select.Trigger>
+										<Select.Content>
+											{#each field.options || [] as opt}
+												<Select.Item value={opt.value}>{opt.label}</Select.Item>
+											{/each}
+										</Select.Content>
+									</Select.Root>
 								{:else}
 									<input
 										id="item-{item.id}-{field.name}"

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
+	import * as Select from '$lib/components/ui/select';
 
 	type ProviderType =
 		| 'oidc'
@@ -512,16 +513,23 @@
 						<label for="provider-type" class="mb-1 block text-sm font-medium text-slate-300"
 							>Provider Type</label
 						>
-						<select
-							id="provider-type"
-							bind:value={formData.type}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+						<Select.Root
+							type="single"
+							value={formData.type}
+							onValueChange={(v) => (formData.type = v as ProviderType)}
 						>
-							<option value="oidc">OIDC (Generic)</option>
-							<option value="oauth2-google">Google OAuth</option>
-							<option value="oauth2-github">GitHub OAuth</option>
-							<option value="oauth2-gitlab">GitLab OAuth</option>
-						</select>
+							<Select.Trigger id="provider-type" class="w-full">
+								<Select.Value placeholder="Select Provider Type">
+									{getProviderTypeName(formData.type)}
+								</Select.Value>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="oidc">OIDC (Generic)</Select.Item>
+								<Select.Item value="oauth2-google">Google OAuth</Select.Item>
+								<Select.Item value="oauth2-github">GitHub OAuth</Select.Item>
+								<Select.Item value="oauth2-gitlab">GitLab OAuth</Select.Item>
+							</Select.Content>
+						</Select.Root>
 					</div>
 				</div>
 
@@ -590,15 +598,22 @@
 						<label for="default-role" class="mb-1 block text-sm font-medium text-slate-300"
 							>Default Role</label
 						>
-						<select
-							id="default-role"
-							bind:value={formData.defaultRole}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+						<Select.Root
+							type="single"
+							value={formData.defaultRole}
+							onValueChange={(v) => (formData.defaultRole = v as UserRole)}
 						>
-							<option value="viewer">Viewer</option>
-							<option value="editor">Editor</option>
-							<option value="admin">Admin</option>
-						</select>
+							<Select.Trigger id="default-role" class="w-full">
+								<Select.Value placeholder="Select Default Role">
+									<span class="capitalize">{formData.defaultRole}</span>
+								</Select.Value>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="viewer">Viewer</Select.Item>
+								<Select.Item value="editor">Editor</Select.Item>
+								<Select.Item value="admin">Admin</Select.Item>
+							</Select.Content>
+						</Select.Root>
 					</div>
 				</div>
 
@@ -749,16 +764,23 @@
 						<label for="edit-provider-type" class="mb-1 block text-sm font-medium text-slate-300"
 							>Provider Type</label
 						>
-						<select
-							id="edit-provider-type"
-							bind:value={formData.type}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+						<Select.Root
+							type="single"
+							value={formData.type}
+							onValueChange={(v) => (formData.type = v as ProviderType)}
 						>
-							<option value="oidc">OIDC (Generic)</option>
-							<option value="oauth2-google">Google OAuth</option>
-							<option value="oauth2-github">GitHub OAuth</option>
-							<option value="oauth2-gitlab">GitLab OAuth</option>
-						</select>
+							<Select.Trigger id="edit-provider-type" class="w-full">
+								<Select.Value placeholder="Select Provider Type">
+									{getProviderTypeName(formData.type)}
+								</Select.Value>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="oidc">OIDC (Generic)</Select.Item>
+								<Select.Item value="oauth2-google">Google OAuth</Select.Item>
+								<Select.Item value="oauth2-github">GitHub OAuth</Select.Item>
+								<Select.Item value="oauth2-gitlab">GitLab OAuth</Select.Item>
+							</Select.Content>
+						</Select.Root>
 					</div>
 				</div>
 
@@ -824,15 +846,22 @@
 						<label for="edit-default-role" class="mb-1 block text-sm font-medium text-slate-300"
 							>Default Role</label
 						>
-						<select
-							id="edit-default-role"
-							bind:value={formData.defaultRole}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
+						<Select.Root
+							type="single"
+							value={formData.defaultRole}
+							onValueChange={(v) => (formData.defaultRole = v as UserRole)}
 						>
-							<option value="viewer">Viewer</option>
-							<option value="editor">Editor</option>
-							<option value="admin">Admin</option>
-						</select>
+							<Select.Trigger id="edit-default-role" class="w-full">
+								<Select.Value placeholder="Select Default Role">
+									<span class="capitalize">{formData.defaultRole}</span>
+								</Select.Value>
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="viewer">Viewer</Select.Item>
+								<Select.Item value="editor">Editor</Select.Item>
+								<Select.Item value="admin">Admin</Select.Item>
+							</Select.Content>
+						</Select.Root>
 					</div>
 				</div>
 

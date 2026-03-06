@@ -3,6 +3,8 @@
 	import type { ResourceHealth } from '$lib/utils/flux';
 	import { X } from 'lucide-svelte';
 
+	import * as Select from '$lib/components/ui/select';
+
 	interface Props {
 		filters: FilterState;
 		namespaces: string[];
@@ -21,16 +23,6 @@
 		{ value: 'unknown', label: 'Unknown', color: 'bg-yellow-500/10 text-yellow-500' }
 	];
 
-	function handleNamespaceChange(e: Event) {
-		const target = e.target as HTMLSelectElement;
-		filters.namespace = target.value;
-	}
-
-	function handleStatusChange(e: Event) {
-		const target = e.target as HTMLSelectElement;
-		filters.status = target.value as ResourceHealth | 'all';
-	}
-
 	function handleLabelsChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		filters.labels = target.value;
@@ -44,17 +36,21 @@
 			for="namespace-filter"
 			class="text-sm font-medium whitespace-nowrap text-muted-foreground">Namespace:</label
 		>
-		<select
-			id="namespace-filter"
-			class="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+		<Select.Root
+			type="single"
 			value={filters.namespace}
-			onchange={handleNamespaceChange}
+			onValueChange={(v) => (filters.namespace = v)}
 		>
-			<option value="">All Namespaces</option>
-			{#each namespaces as ns (ns)}
-				<option value={ns}>{ns}</option>
-			{/each}
-		</select>
+			<Select.Trigger id="namespace-filter" class="w-full">
+				<Select.Value placeholder="All Namespaces">{filters.namespace || 'All Namespaces'}</Select.Value>
+			</Select.Trigger>
+			<Select.Content>
+				<Select.Item value="">All Namespaces</Select.Item>
+				{#each namespaces as ns (ns)}
+					<Select.Item value={ns}>{ns}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
 	</div>
 
 	<!-- Status Filter -->
@@ -62,16 +58,22 @@
 		<label for="status-filter" class="text-sm font-medium whitespace-nowrap text-muted-foreground"
 			>Status:</label
 		>
-		<select
-			id="status-filter"
-			class="w-full rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+		<Select.Root
+			type="single"
 			value={filters.status}
-			onchange={handleStatusChange}
+			onValueChange={(v) => (filters.status = v as ResourceHealth | 'all')}
 		>
-			{#each statusOptions as option (option.value)}
-				<option value={option.value}>{option.label}</option>
-			{/each}
-		</select>
+			<Select.Trigger id="status-filter" class="w-full">
+				<Select.Value placeholder="All Status">
+					{statusOptions.find((o) => o.value === filters.status)?.label || 'All Status'}
+				</Select.Value>
+			</Select.Trigger>
+			<Select.Content>
+				{#each statusOptions as option (option.value)}
+					<Select.Item value={option.value}>{option.label}</Select.Item>
+				{/each}
+			</Select.Content>
+		</Select.Root>
 	</div>
 
 	<!-- Labels Filter -->
