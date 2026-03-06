@@ -28,7 +28,7 @@
 	});
 
 	async function handleDelete() {
-		if (!canConfirm) return;
+		if (!canConfirm || isDeleting) return;
 
 		isDeleting = true;
 		error = null;
@@ -46,7 +46,7 @@
 			}
 
 			open = false;
-			await goto(`/resources/${resourceType}`);
+			await goto(`/resources/${encodeURIComponent(resourceType)}`);
 		} catch (err) {
 			error = (err as Error).message;
 		} finally {
