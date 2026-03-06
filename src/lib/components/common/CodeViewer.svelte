@@ -56,7 +56,7 @@
 
 <svelte:window onkeydown={handleKeydown} />
 
-<div class="flex min-h-[600px] flex-col overflow-hidden rounded-xl border border-sidebar-border bg-sidebar/30">
+<div class="flex h-[600px] flex-col overflow-hidden rounded-xl border border-sidebar-border bg-sidebar/30">
 	<!-- Toolbar -->
 	<div
 		class="flex items-center justify-between border-b border-sidebar-border bg-sidebar-accent/20 px-4 py-2"
@@ -119,7 +119,7 @@
 	</div>
 
 	<!-- Code Area -->
-	<div class="relative flex-1 overflow-hidden">
+	<div class="relative h-[550px] overflow-hidden">
 		{#if editorLoading}
 			<div class="flex h-full items-center justify-center bg-sidebar/30">
 				<div class="flex flex-col items-center gap-3">
