@@ -3,6 +3,7 @@
 	import DashboardHeader from '$lib/components/dashboard/DashboardHeader.svelte';
 	import ClusterConnectivityStatus from '$lib/components/dashboard/ClusterConnectivityStatus.svelte';
 	import ResourceGroupTotals from '$lib/components/dashboard/ResourceGroupTotals.svelte';
+	import InventoryArchitecture from '$lib/components/dashboard/InventoryArchitecture.svelte';
 	import SystemShortcuts from '$lib/components/dashboard/SystemShortcuts.svelte';
 	import { TriangleAlert } from 'lucide-svelte';
 
@@ -51,6 +52,9 @@
 			<ClusterConnectivityStatus {isLoading} health={data.health} />
 			<ResourceGroupTotals {isLoading} groupCounts={data.groupCounts} />
 		</div>
+
+		<!-- Resource Groups Section -->
+		<InventoryArchitecture {isLoading} groupCounts={data.groupCounts} />
 	{/if}
 
 	<!-- System Shortcuts -->
