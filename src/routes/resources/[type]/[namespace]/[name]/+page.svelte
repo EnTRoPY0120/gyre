@@ -1,57 +1,30 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/stores';
 	import { eventsStore } from '$lib/stores/events.svelte';
 	import { createAutoRefresh } from '$lib/utils/polling.svelte';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { toast } from 'svelte-sonner';
 	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
 	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
-	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';
-	import ConditionList from '$lib/components/flux/ConditionList.svelte';
-	import EventsList from '$lib/components/flux/EventsList.svelte';
-	import GitRepositoryDetail from '$lib/components/flux/resources/GitRepositoryDetail.svelte';
-	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
-	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
-	import HelmRepositoryDetail from '$lib/components/flux/resources/HelmRepositoryDetail.svelte';
-	import HelmChartDetail from '$lib/components/flux/resources/HelmChartDetail.svelte';
-	import BucketDetail from '$lib/components/flux/resources/BucketDetail.svelte';
-	import OCIRepositoryDetail from '$lib/components/flux/resources/OCIRepositoryDetail.svelte';
-	import AlertDetail from '$lib/components/flux/resources/AlertDetail.svelte';
-	import ProviderDetail from '$lib/components/flux/resources/ProviderDetail.svelte';
-	import ReceiverDetail from '$lib/components/flux/resources/ReceiverDetail.svelte';
-	import ResourceDiffViewer from '$lib/components/flux/ResourceDiffViewer.svelte';
-	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
 	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
+	import Breadcrumbs from '$lib/components/common/Breadcrumbs.svelte';
+	import OverviewTab from '$lib/components/resources/tabs/OverviewTab.svelte';
+	import EventsTab from '$lib/components/resources/tabs/EventsTab.svelte';
+	import LogsTab from '$lib/components/resources/tabs/LogsTab.svelte';
+	import HistoryTab from '$lib/components/resources/tabs/HistoryTab.svelte';
+	import DiffTab from '$lib/components/resources/tabs/DiffTab.svelte';
 	import type { FluxResource, K8sCondition } from '$lib/types/flux';
+	import type {
+		K8sEvent,
+		ResourceDiff,
+		DiffResponse,
+		ReconciliationEntry
+	} from '$lib/types/resource';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
-
-	interface K8sEvent {
-		type: 'Normal' | 'Warning';
-		reason: string;
-		message: string;
-		count: number;
-		firstTimestamp: string | null;
-		lastTimestamp: string | null;
-		source: {
-			component: string;
-		};
-	}
-
-	interface ResourceDiff {
-		kind: string;
-		name: string;
-		namespace: string;
-		desired: string;
-		live: string | null;
-	}
-
-	interface DiffResponse {
-		diffs: ResourceDiff[];
-		cached?: boolean;
-		timestamp?: number;
-		revision?: string;
-	}
+	import { BASE_TABS, YAML_TAB, DIFF_TAB, type TabId } from '$lib/config/tabs';
 
 	interface Props {
 		data: {
@@ -96,17 +69,23 @@
 		return unsubscribe;
 	});
 
-	type TabId = 'overview' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'diff' | 'yaml';
+	// Tab state with persistence
+	const initialTab = ($page.url.searchParams.get('tab') as TabId) || 'overview';
+	let activeTab = $state<TabId>(initialTab);
 
-	let activeTab = $state<TabId>('overview');
+	function setActiveTab(tab: TabId) {
+		activeTab = tab;
+		const url = new URL($page.url);
+		url.searchParams.set('tab', tab);
+		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+	}
 
-	// Events state
+	// Fetching states
 	let events = $state<K8sEvent[]>([]);
 	let eventsLoading = $state(false);
 	let eventsError = $state<string | null>(null);
 	let eventsFetched = $state(false);
 
-	// Logs state
 	let logs = $state<string>('');
 	let logsLoading = $state(false);
 	let logsError = $state<string | null>(null);
@@ -114,7 +93,6 @@
 	let showRawLogs = $state(false);
 	let logContainer = $state<HTMLDivElement | null>(null);
 
-	// Diff state
 	let diffs = $state<ResourceDiff[]>([]);
 	let diffsLoading = $state(false);
 	let diffsError = $state<string | null>(null);
@@ -122,6 +100,10 @@
 	let diffsCached = $state(false);
 	let diffsTimestamp = $state<number | null>(null);
 	let diffsRevision = $state<string | null>(null);
+
+	let timeline = $state<ReconciliationEntry[]>([]);
+	let historyLoading = $state(false);
+	let historyFetched = $state(false);
 
 	const formattedLogs = $derived(
 		logs
@@ -142,21 +124,6 @@
 			})
 	);
 
-	function getLevelClass(level: string) {
-		switch (level) {
-			case 'ERROR':
-			case 'FATAL':
-				return 'text-red-400 font-bold';
-			case 'WARN':
-			case 'WARNING':
-				return 'text-yellow-400 font-bold';
-			case 'DEBUG':
-				return 'text-blue-400';
-			default:
-				return 'text-green-400';
-		}
-	}
-
 	// Autoscroll to bottom when logs change
 	$effect(() => {
 		if (logs && logContainer && !showRawLogs) {
@@ -164,174 +131,118 @@
 		}
 	});
 
-	// History state
-	interface ReconciliationEntry {
-		id: string;
-		revision: string | null;
-		status: 'success' | 'failure' | 'unknown';
-		readyStatus: string | null;
-		readyReason: string | null;
-		readyMessage: string | null;
-		reconcileCompletedAt: string;
-		durationMs: number | null;
-		triggerType: 'automatic' | 'manual' | 'webhook' | 'rollback';
-		errorMessage: string | null;
-		specSnapshot: string | null;
-	}
-
-	let timeline = $state<ReconciliationEntry[]>([]);
-	let historyLoading = $state(false);
-	let historyFetched = $state(false);
-
-	// Detect resource type for specialized views
-	const isGitRepository = $derived(data.resourceType === 'gitrepositories');
-	const isHelmRelease = $derived(data.resourceType === 'helmreleases');
 	const isKustomization = $derived(data.resourceType === 'kustomizations');
-	const isHelmRepository = $derived(data.resourceType === 'helmrepositories');
-	const isHelmChart = $derived(data.resourceType === 'helmcharts');
-	const isBucket = $derived(data.resourceType === 'buckets');
-	const isOCIRepository = $derived(data.resourceType === 'ocirepositories');
-	const isAlert = $derived(data.resourceType === 'alerts');
-	const isProvider = $derived(data.resourceType === 'providers');
-	const isReceiver = $derived(data.resourceType === 'receivers');
-	const hasSpecializedView = $derived(
-		isGitRepository || isHelmRelease || isKustomization || isHelmRepository ||
-		isHelmChart || isBucket || isOCIRepository || isAlert || isProvider ||
-		isReceiver
-	);
 
 	const tabs = $derived.by(() => {
-		const base: { id: TabId; label: string }[] = [
-			{ id: 'overview', label: 'Overview' },
-			{ id: 'spec', label: 'Spec' },
-			{ id: 'status', label: 'Status' },
-			{ id: 'events', label: 'Events' },
-			{ id: 'logs', label: 'Logs' },
-			{ id: 'history', label: 'History' }
-		];
-
-		// Drift detection is only available for Kustomizations
-		if (isKustomization) {
-			base.push({ id: 'diff', label: 'Drift (Diff)' });
-		}
-
-		base.push({ id: 'yaml', label: 'YAML' });
+		const base = [...BASE_TABS];
+		if (isKustomization) base.push(DIFF_TAB);
+		base.push(YAML_TAB);
 		return base;
 	});
 
-	function goBack() {
-		goto(resolve(`/resources/${data.resourceType}`));
+	// Keyboard navigation for tabs
+	function handleKeydown(e: KeyboardEvent, index: number) {
+		if (e.key === 'ArrowRight') {
+			const nextIndex = (index + 1) % tabs.length;
+			setActiveTab(tabs[nextIndex].id);
+			(e.target as HTMLElement).parentElement?.children[nextIndex].dispatchEvent(new Event('focus'));
+		} else if (e.key === 'ArrowLeft') {
+			const prevIndex = (index - 1 + tabs.length) % tabs.length;
+			setActiveTab(tabs[prevIndex].id);
+			(e.target as HTMLElement).parentElement?.children[prevIndex].dispatchEvent(new Event('focus'));
+		}
 	}
 
-	// Fetch events when the Events tab is selected
+	let activeAbortController: AbortController | null = null;
+
+	function getNewAbortSignal() {
+		if (activeAbortController) {
+			activeAbortController.abort();
+		}
+		activeAbortController = new AbortController();
+		return activeAbortController.signal;
+	}
+
 	async function fetchEvents() {
 		if (eventsFetched) return;
-
+		const signal = getNewAbortSignal();
 		eventsLoading = true;
 		eventsError = null;
-
 		try {
-			const response = await fetch(
-				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/events`
-			);
-
-			if (!response.ok) {
-				throw new Error(`Failed to fetch events: ${response.statusText}`);
-			}
-
-			const result = await response.json();
+			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/events`, { signal });
+			if (!res.ok) throw new Error(`Failed to fetch events: ${res.statusText}`);
+			const result = await res.json();
 			events = result.events || [];
 			eventsFetched = true;
 		} catch (err) {
+			if ((err as Error).name === 'AbortError') return;
 			eventsError = err instanceof Error ? err.message : 'Failed to load events';
 		} finally {
 			eventsLoading = false;
 		}
 	}
 
-	// Fetch logs when the Logs tab is selected
 	async function fetchLogs() {
 		if (logsFetched) return;
-
+		const signal = getNewAbortSignal();
 		logsLoading = true;
 		logsError = null;
-
 		try {
-			const response = await fetch(
-				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`
-			);
-
-			if (!response.ok) {
-				const errData = await response.json();
-				throw new Error(errData.message || `Failed to fetch logs: ${response.statusText}`);
+			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`, { signal });
+			if (!res.ok) {
+				const errData = await res.json();
+				throw new Error(errData.message || `Failed to fetch logs: ${res.statusText}`);
 			}
-
-			const result = await response.json();
+			const result = await res.json();
 			logs = result.logs || '';
 			logsFetched = true;
 		} catch (err) {
+			if ((err as Error).name === 'AbortError') return;
 			logsError = err instanceof Error ? err.message : 'Failed to load logs';
 		} finally {
 			logsLoading = false;
 		}
 	}
 
-	// Fetch history when the History tab is selected
 	async function fetchHistory() {
 		if (historyFetched) return;
-
+		const signal = getNewAbortSignal();
 		historyLoading = true;
-
 		try {
-			const response = await fetch(
-				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/history`
-			);
-
-			if (!response.ok) {
-				throw new Error(`Failed to fetch history: ${response.statusText}`);
-			}
-
-			const result = await response.json();
+			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/history`, { signal });
+			if (!res.ok) throw new Error(`Failed to fetch history: ${res.statusText}`);
+			const result = await res.json();
 			timeline = result.timeline || [];
 			historyFetched = true;
-		} catch {
-			// Silently ignore errors for now
+		} catch (err) {
+			if ((err as Error).name === 'AbortError') return;
+			toast.error('Failed to load history');
 		} finally {
 			historyLoading = false;
 		}
 	}
 
-	// Fetch diff when the Diff tab is selected
 	async function fetchDiff(force = false) {
 		if (diffsFetched && !force) return;
-
+		const signal = getNewAbortSignal();
 		diffsLoading = true;
 		diffsError = null;
-
 		try {
-			const url = new URL(
-				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`,
-				window.location.origin
-			);
-			if (force) {
-				// Add cache-busting parameter to force fresh computation
-				url.searchParams.set('force', 'true');
+			const url = new URL(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`, window.location.origin);
+			if (force) url.searchParams.set('force', 'true');
+			const res = await fetch(url.toString(), { signal });
+			if (!res.ok) {
+				const errData = await res.json();
+				throw new Error(errData.message || `Failed to fetch diff: ${res.statusText}`);
 			}
-
-			const response = await fetch(url.toString());
-
-			if (!response.ok) {
-				const errData = await response.json();
-				throw new Error(errData.message || `Failed to fetch diff: ${response.statusText}`);
-			}
-
-			const result: DiffResponse = await response.json();
+			const result: DiffResponse = await res.json();
 			diffs = result.diffs || [];
 			diffsCached = result.cached || false;
 			diffsTimestamp = result.timestamp || null;
 			diffsRevision = result.revision || null;
 			diffsFetched = true;
 		} catch (err) {
+			if ((err as Error).name === 'AbortError') return;
 			diffsError = err instanceof Error ? err.message : 'Failed to load diff';
 		} finally {
 			diffsLoading = false;
@@ -341,485 +252,236 @@
 	async function handleRollback(historyId: string, revision: string | null) {
 		const displayRevision = revision ? revision.slice(0, 8) : historyId.slice(0, 8);
 		if (!confirm(`Are you sure you want to rollback to ${displayRevision}?`)) return;
-
 		try {
-			const response = await fetch(
-				`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`,
-				{
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ historyId, revision })
-				}
-			);
-
-			if (!response.ok) {
-				const errorData = await response.json();
+			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ historyId, revision })
+			});
+			if (!res.ok) {
+				const errorData = await res.json();
 				throw new Error(errorData.message || 'Rollback failed');
 			}
-
-			alert(`Successfully initiated rollback to ${displayRevision}`);
+			toast.success(`Successfully initiated rollback to ${displayRevision}`);
 			historyFetched = false;
 			await fetchHistory();
-			// Refresh resource data
 			await invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
 		} catch (err) {
-			alert(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+			toast.error(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		}
 	}
 
-	// Format persisted in preferences store now
-	// handleExport moved to CodeViewer component
+	function viewInKubectl() {
+		const kind = resource.kind;
+		const command = `kubectl get ${kind.toLowerCase()} ${data.name} -n ${data.namespace}`;
+		copyToClipboard(command);
+		toast.info('Kubectl command copied to clipboard', {
+			description: command
+		});
+	}
 
-	// Trigger fetch when switching to tabs
-	$effect(() => {
-		if (activeTab === 'events' && !eventsFetched) {
-			fetchEvents();
+	async function handleReconcile() {
+		try {
+			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/reconcile`, {
+				method: 'POST'
+			});
+			if (!res.ok) throw new Error('Reconciliation failed');
+			toast.success('Reconciliation triggered successfully');
+			await invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
+		} catch (err) {
+			toast.error('Failed to trigger reconciliation');
 		}
+	}
+
+	function copyToClipboard(text: string) {
+		navigator.clipboard.writeText(text);
+		toast.success('Copied to clipboard');
+	}
+
+	// Consolidated effect for tab data fetching
+	$effect(() => {
+		const tab = activeTab;
+		untrack(() => {
+			if (tab === 'events' && !eventsFetched) fetchEvents();
+			if (tab === 'logs' && !logsFetched) fetchLogs();
+			if (tab === 'history' && !historyFetched) fetchHistory();
+			if (tab === 'diff' && !diffsFetched) fetchDiff();
+		});
 	});
 
-	$effect(() => {
-		if (activeTab === 'logs' && !logsFetched) {
-			fetchLogs();
-		}
-	});
-
-	$effect(() => {
-		if (activeTab === 'history' && !historyFetched) {
-			fetchHistory();
-		}
-	});
-
-	$effect(() => {
-		if (activeTab === 'diff' && !diffsFetched) {
-			fetchDiff();
-		}
-	});
-
-	// Get conditions safely
 	const conditions = $derived<K8sCondition[]>(resource.status?.conditions || []);
 </script>
 
 <div class="space-y-6">
-	<!-- Header with Back Button -->
-	<div class="flex items-start gap-4">
-		<button
-			type="button"
-			class="mt-1 rounded-lg p-2 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-			onclick={goBack}
-			aria-label="Go back"
-		>
-			<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-			</svg>
-		</button>
-		<div class="flex-1">
-			<div class="flex items-center gap-3">
-				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{data.name}</h1>
-				<StatusBadge
-					conditions={resource.status?.conditions}
-					suspended={resource.spec?.suspend as boolean | undefined}
-					observedGeneration={resource.status?.observedGeneration}
-					generation={resource.metadata?.generation}
+	<!-- Breadcrumbs and Header -->
+	<div class="space-y-4">
+		<Breadcrumbs resourceType={data.resourceType} namespace={data.namespace} name={data.name} />
+		
+		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+			<div class="flex-1">
+				<div class="flex items-center gap-3">
+					<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{data.name}</h1>
+					<button
+						type="button"
+						class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+						onclick={() => copyToClipboard(data.name)}
+						aria-label="Copy resource name"
+					>
+						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+						</svg>
+					</button>
+					<StatusBadge
+						conditions={resource.status?.conditions}
+						suspended={resource.spec?.suspend as boolean | undefined}
+						observedGeneration={resource.status?.observedGeneration}
+						generation={resource.metadata?.generation}
+					/>
+				</div>
+				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+					{data.resourceType} in <span class="font-medium text-gray-700 dark:text-gray-300">{data.namespace}</span>
+				</p>
+			</div>
+			
+			<div class="flex flex-wrap items-center gap-2">
+				<button
+					type="button"
+					class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+					onclick={viewInKubectl}
+					aria-label="View in Kubernetes (copy kubectl command)"
+				>
+					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+					</svg>
+					Kubectl
+				</button>
+				<button
+					type="button"
+					class="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
+					onclick={handleReconcile}
+					aria-label="Reconcile now"
+				>
+					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+					</svg>
+					Reconcile Now
+				</button>
+				<ActionButtons
+					resource={data.resource}
+					type={data.resourceType}
+					namespace={data.namespace}
+					name={data.name}
 				/>
 			</div>
-			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-				{data.resourceType} in {data.namespace}
-			</p>
 		</div>
-		<ActionButtons
-			resource={data.resource}
-			type={data.resourceType}
-			namespace={data.namespace}
-			name={data.name}
-		/>
 	</div>
 
 	<!-- Tabs -->
 	<div class="scrollbar-none overflow-x-auto border-b border-gray-200 dark:border-gray-700">
-		<nav class="-mb-px flex min-w-max space-x-8">
-			{#each tabs as tab (tab.id)}
+		<div class="-mb-px flex min-w-max space-x-8" role="tablist" aria-label="Resource Details">
+			{#each tabs as tab, i (tab.id)}
 				<button
+					id="{tab.id}-tab"
+					role="tab"
+					aria-selected={activeTab === tab.id}
+					aria-controls="{tab.id}-panel"
+					tabindex={activeTab === tab.id ? 0 : -1}
 					type="button"
 					class="border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap transition-colors {activeTab ===
 					tab.id
 						? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
 						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'}"
-					onclick={() => (activeTab = tab.id)}
+					onclick={() => setActiveTab(tab.id)}
+					onkeydown={(e) => handleKeydown(e, i)}
 				>
 					{tab.label}
 				</button>
 			{/each}
-		</nav>
+		</div>
 	</div>
 
 	<!-- Tab Content -->
 	<div class="pt-2">
 		{#if activeTab === 'overview'}
-			<!-- Metadata and Conditions (always shown) -->
-			<div class="grid gap-6 lg:grid-cols-2">
-				<!-- Metadata Card -->
-				<div
-					class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-				>
-					<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Metadata</h3>
-					<ResourceMetadata metadata={data.resource.metadata} />
-				</div>
-
-				<!-- Conditions Card -->
-				<div
-					class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-				>
-					<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Conditions</h3>
-					<ConditionList {conditions} />
-				</div>
-			</div>
-
-			<!-- Resource-Specific Details -->
-			<div class="mt-6 space-y-6">
-				{#if isGitRepository}
-					<GitRepositoryDetail resource={data.resource} />
-				{:else if isHelmRelease}
-					<HelmReleaseDetail resource={data.resource} />
-				{:else if isKustomization}
-					<KustomizationDetail resource={data.resource} />
-				{:else if isHelmRepository}
-					<HelmRepositoryDetail resource={data.resource} />
-				{:else if isHelmChart}
-					<HelmChartDetail resource={data.resource} />
-				{:else if isBucket}
-					<BucketDetail resource={data.resource} />
-				{:else if isOCIRepository}
-					<OCIRepositoryDetail resource={data.resource} />
-				{:else if isAlert}
-					<AlertDetail resource={data.resource} />
-				{:else if isProvider}
-					<ProviderDetail resource={data.resource} />
-				{:else if isReceiver}
-					<ReceiverDetail resource={data.resource} />
-				{:else if data.resource.spec}
-					<!-- Generic Configuration Card for unknown resource types -->
-					<div
-						class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-					>
-						<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">
-							Configuration
-						</h3>
-						<dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-							{#each Object.entries(data.resource.spec).slice(0, 9) as [key, value], index (index)}
-								<div>
-									<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{key}</dt>
-									<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
-										{#if typeof value === 'object'}
-											<code class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-gray-700"
-												>{JSON.stringify(value)}</code
-											>
-										{:else if typeof value === 'boolean'}
-											<span
-												class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {value
-													? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-													: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}"
-											>
-												{value ? 'Yes' : 'No'}
-											</span>
-										{:else}
-											{value}
-										{/if}
-									</dd>
-								</div>
-							{/each}
-						</dl>
-					</div>
-				{/if}
-			</div>
+			<OverviewTab {resource} resourceType={data.resourceType} {conditions} />
 		{:else if activeTab === 'spec'}
-			<CodeViewer
-				data={data.resource.spec as Record<string, unknown>}
-				title="Resource Spec"
-				showDownload={false}
-			/>
+			<div id="spec-panel" role="tabpanel" aria-labelledby="spec-tab">
+				<CodeViewer
+					data={data.resource.spec as Record<string, unknown>}
+					title="Resource Spec"
+					showDownload={false}
+				/>
+			</div>
 		{:else if activeTab === 'status'}
-			<CodeViewer
-				data={(data.resource.status as Record<string, unknown>) || {}}
-				title="Resource Status"
-				showDownload={false}
-			/>
+			<div id="status-panel" role="tabpanel" aria-labelledby="status-tab">
+				<CodeViewer
+					data={(data.resource.status as Record<string, unknown>) || {}}
+					title="Resource Status"
+					showDownload={false}
+				/>
+			</div>
 		{:else if activeTab === 'events'}
-			<div
-				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-			>
-				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Events</h3>
-					<button
-						type="button"
-						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-						onclick={() => {
-							eventsFetched = false;
-							fetchEvents();
-						}}
-						disabled={eventsLoading}
-					>
-						<svg
-							class="h-4 w-4 {eventsLoading ? 'animate-spin' : ''}"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-							/>
-						</svg>
-						Refresh
-					</button>
-				</div>
-				<EventsList {events} loading={eventsLoading} error={eventsError} />
+			<div id="events-panel">
+				<EventsTab
+					events={events}
+					loading={eventsLoading}
+					error={eventsError}
+					onRefresh={() => {
+						eventsFetched = false;
+						fetchEvents();
+					}}
+				/>
 			</div>
 		{:else if activeTab === 'logs'}
-			<div
-				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-			>
-				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Controller Logs</h3>
-					<div class="flex items-center gap-6">
-						<label
-							class="flex cursor-pointer items-center gap-2 text-sm text-gray-500 transition-colors select-none hover:text-gray-700 dark:hover:text-gray-300"
-						>
-							<input
-								type="checkbox"
-								class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-								bind:checked={showRawLogs}
-							/>
-							Raw JSON
-						</label>
-						<button
-							type="button"
-							class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-							onclick={() => {
-								logsFetched = false;
-								fetchLogs();
-							}}
-							disabled={logsLoading}
-						>
-							<svg
-								class="h-4 w-4 {logsLoading ? 'animate-spin' : ''}"
-								fill="none"
-								stroke="currentColor"
-								viewBox="0 0 24 24"
-							>
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-								/>
-							</svg>
-							Refresh
-						</button>
-					</div>
-				</div>
-
-				{#if logsLoading}
-					<div class="flex h-64 items-center justify-center">
-						<div
-							class="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
-						></div>
-					</div>
-				{:else if logsError}
-					<div
-						class="rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-900/20 dark:text-red-400"
-					>
-						{logsError}
-					</div>
-				{:else if !logs}
-					<div class="py-12 text-center text-gray-500 dark:text-gray-400">
-						No relevant logs found in the controller for this resource.
-					</div>
-				{:else}
-					<div class="relative rounded-lg bg-gray-950 shadow-inner">
-						<div
-							bind:this={logContainer}
-							class="scrollbar-thin scrollbar-track-gray-900 scrollbar-thumb-gray-700 max-h-[600px] overflow-auto p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap text-gray-300"
-						>
-							{#if showRawLogs}
-								<code>{logs}</code>
-							{:else}
-								{#each formattedLogs as line, i (i)}
-									<div class="mb-1 flex gap-3 last:mb-0">
-										<span class="shrink-0 text-gray-500">[{line.ts}]</span>
-										<span class="shrink-0 {getLevelClass(line.level)}">{line.level}</span>
-										<span class="break-words">{line.msg}</span>
-									</div>
-								{/each}
-							{/if}
-						</div>
-					</div>
-				{/if}
+			<div id="logs-panel">
+				<LogsTab
+					{logs}
+					{formattedLogs}
+					loading={logsLoading}
+					error={logsError}
+					{showRawLogs}
+					onRefresh={() => {
+						logsFetched = false;
+						fetchLogs();
+					}}
+					onToggleRaw={(v) => (showRawLogs = v)}
+					bind:logContainer
+				/>
 			</div>
 		{:else if activeTab === 'history'}
-			<div
-				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-			>
-				<div class="mb-4 flex items-center justify-between">
-					<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Version History</h3>
-					<button
-						type="button"
-						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-						onclick={() => {
-							historyFetched = false;
-							fetchHistory();
-						}}
-						disabled={historyLoading}
-					>
-						<svg
-							class="h-4 w-4 {historyLoading ? 'animate-spin' : ''}"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-							/>
-						</svg>
-						Refresh
-					</button>
-				</div>
-				<VersionHistory {timeline} loading={historyLoading} onRollback={handleRollback} />
+			<div id="history-panel">
+				<HistoryTab
+					{timeline}
+					loading={historyLoading}
+					onRefresh={() => {
+						historyFetched = false;
+						fetchHistory();
+					}}
+					onRollback={handleRollback}
+				/>
 			</div>
 		{:else if activeTab === 'diff'}
-			<div
-				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-			>
-				<div class="mb-4 flex items-center justify-between">
-					<div class="flex flex-col gap-1">
-						<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Drift</h3>
-						{#if diffsTimestamp}
-							<div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-								<span>
-									Last checked: {new Date(diffsTimestamp).toLocaleTimeString()}
-								</span>
-								{#if diffsCached}
-									<span
-										class="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-900/50 dark:text-blue-300"
-									>
-										<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"
-											/>
-										</svg>
-										Cached
-									</span>
-								{/if}
-								{#if diffsRevision}
-									<span class="font-mono text-[10px]">@ {diffsRevision.slice(0, 8)}</span>
-								{/if}
-							</div>
-						{/if}
-					</div>
-					<button
-						type="button"
-						class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-						onclick={() => {
-							diffsFetched = false;
-							fetchDiff(true);
-						}}
-						disabled={diffsLoading}
-					>
-						<svg
-							class="h-4 w-4 {diffsLoading ? 'animate-spin' : ''}"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-							/>
-						</svg>
-						{diffsLoading ? 'Computing...' : 'Refresh'}
-					</button>
-				</div>
-
-				{#if diffsLoading}
-					<div class="flex h-64 flex-col items-center justify-center gap-4">
-						<div
-							class="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"
-						></div>
-						<p class="animate-pulse text-sm text-gray-500">
-							Running kustomize build and fetching cluster state...
-						</p>
-					</div>
-				{:else if diffsError}
-					<div
-						class="rounded-md border {diffsError.includes('only available when')
-							? 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-900/20'
-							: 'border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/20'} p-6"
-					>
-						<div
-							class="mb-2 flex items-center gap-2 text-base font-semibold {diffsError.includes(
-								'only available when'
-							)
-								? 'text-amber-700 dark:text-amber-400'
-								: 'text-red-700 dark:text-red-400'}"
-						>
-							<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-								/>
-							</svg>
-							{diffsError.includes('only available when')
-								? 'In-Cluster Deployment Required'
-								: 'Failed to Calculate Drift'}
-						</div>
-						<p
-							class="text-sm {diffsError.includes('only available when')
-								? 'text-amber-600 dark:text-amber-300'
-								: 'text-red-600 dark:text-red-300'}"
-						>
-							{diffsError}
-						</p>
-						{#if diffsError.includes('only available when')}
-							<div
-								class="mt-4 rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-900/10"
-							>
-								<p class="text-xs font-medium text-amber-900 dark:text-amber-200">
-									💡 To use drift detection:
-								</p>
-								<ol
-									class="mt-2 ml-4 list-decimal space-y-1 text-xs text-amber-800 dark:text-amber-300"
-								>
-									<li>Deploy Gyre to your Kubernetes cluster using the Helm chart</li>
-									<li>Ensure Gyre runs in the same cluster as your FluxCD installation</li>
-									<li>Access Gyre via the in-cluster service or ingress</li>
-								</ol>
-							</div>
-						{/if}
-					</div>
-				{:else if diffs.length === 0}
-					<div class="py-12 text-center text-gray-500 dark:text-gray-400">
-						No resources found in this Kustomization to compare.
-					</div>
-				{:else}
-					<ResourceDiffViewer {diffs} />
-				{/if}
+			<div id="diff-panel">
+				<DiffTab
+					{diffs}
+					loading={diffsLoading}
+					error={diffsError}
+					timestamp={diffsTimestamp}
+					cached={diffsCached}
+					revision={diffsRevision}
+					onRefresh={() => {
+						diffsFetched = false;
+						fetchDiff(true);
+					}}
+				/>
 			</div>
 		{:else if activeTab === 'yaml'}
-			<CodeViewer
-				data={sanitizeResource(resource) as unknown as Record<string, unknown>}
-				title="Full Resource Manifest"
-			/>
+			<div id="yaml-panel" role="tabpanel" aria-labelledby="yaml-tab">
+				<CodeViewer
+					data={sanitizeResource(resource) as unknown as Record<string, unknown>}
+					title="Full Resource Manifest"
+				/>
+			</div>
 		{/if}
 	</div>
 </div>
