@@ -2,7 +2,7 @@
 # =============================================================================
 # Stage 0: Build Kustomize from source to ensure latest Go stdlib (fixes CVEs)
 # =============================================================================
-FROM golang:1.24-alpine AS kustomize-builder
+FROM golang:1.26-alpine AS kustomize-builder
 ARG KUSTOMIZE_VERSION=v5.8.1
 RUN go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
 
