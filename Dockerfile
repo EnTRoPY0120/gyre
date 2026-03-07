@@ -41,6 +41,9 @@ LABEL org.opencontainers.image.title="Gyre" \
       org.opencontainers.image.vendor="Gyre Project" \
       org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
+# Upgrade OS packages to pull in security patches (e.g. zlib CVE-2026-22184)
+RUN apk upgrade --no-cache
+
 # Install CA certificates
 RUN apk add --no-cache ca-certificates
 
