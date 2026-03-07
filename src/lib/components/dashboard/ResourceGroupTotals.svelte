@@ -3,7 +3,7 @@
 
 	interface Props {
 		isLoading: boolean;
-		groupCounts: Record<string, { total: number; healthy: number; failed: number; error: boolean }>;
+		groupCounts: Record<string, { total: number; healthy: number; failed: number; suspended: number; error: boolean }>;
 	}
 
 	let { isLoading, groupCounts }: Props = $props();
@@ -13,14 +13,16 @@
 		let total = 0;
 		let healthy = 0;
 		let failed = 0;
+		let suspended = 0;
 
 		for (const counts of Object.values(groupCounts)) {
 			total += counts.total;
 			healthy += counts.healthy;
 			failed += counts.failed;
+			suspended += counts.suspended;
 		}
 
-		return { total, healthy, failed };
+		return { total, healthy, failed, suspended };
 	});
 </script>
 

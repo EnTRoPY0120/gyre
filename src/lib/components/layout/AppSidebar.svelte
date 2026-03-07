@@ -24,13 +24,13 @@
 	function updateMobileState() {
 		const wasMobile = isMobile;
 		isMobile = window.innerWidth < 1024;
-		
+
 		// If we just crossed the breakpoint
 		if (wasMobile !== isMobile) {
 			if (isMobile && $sidebarOpen) {
 				sidebarOpen.set(false);
 			} else if (!isMobile && !$sidebarOpen) {
-				// We don't necessarily want to force it open on desktop, 
+				// We don't necessarily want to force it open on desktop,
 				// but many apps do. Let's keep it as is for now.
 			}
 		}
@@ -114,12 +114,15 @@
 			isOpen ? 'px-4' : 'px-0'
 		)}
 	>
-		<div class={cn('flex items-center overflow-hidden', isOpen ? 'justify-between' : 'justify-center')}>
+		<div
+			class={cn('flex items-center overflow-hidden', isOpen ? 'justify-between' : 'justify-center')}
+		>
 			<!-- Logo & Brand -->
 			<a
 				href="/"
 				class={cn('group flex items-center overflow-hidden', isOpen ? 'gap-3' : 'gap-0')}
 				onclick={closeMobile}
+				data-sveltekit-preload-data="hover"
 			>
 				<div
 					class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20 transition-all group-hover:scale-105 group-hover:shadow-amber-500/30"
@@ -134,8 +137,7 @@
 						isOpen ? 'opacity-100 translate-x-0' : 'pointer-events-none w-0 opacity-0 -translate-x-4'
 					)}
 				>
-					<span
-						class="text-xl leading-tight font-bold tracking-tight text-foreground whitespace-nowrap"
+					<span class="text-xl leading-tight font-bold tracking-tight text-foreground whitespace-nowrap"
 						>Gyre</span
 					>
 					<div class="mt-0.5 whitespace-nowrap">
@@ -172,6 +174,7 @@
 		<a
 			href="/"
 			onclick={closeMobile}
+			data-sveltekit-preload-data="hover"
 			class={cn(
 				'group flex items-center rounded-xl font-bold transition-all duration-300',
 				isOpen ? 'gap-3 px-4 py-3 text-sm' : 'justify-center p-2.5',
@@ -241,6 +244,7 @@
 			<a
 				href="/create"
 				onclick={closeMobile}
+				data-sveltekit-preload-data="hover"
 				class={cn(
 					'group flex items-center rounded-xl font-bold transition-all duration-300',
 					isOpen ? 'gap-3 px-4 py-3 text-sm' : 'justify-center p-2.5',
@@ -339,6 +343,7 @@
 								<a
 									href="/resources/{resource.type}"
 									onclick={closeMobile}
+									data-sveltekit-preload-data="hover"
 									class={cn(
 										'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
 										active
@@ -357,9 +362,7 @@
 											active && 'text-primary'
 										)}
 									/>
-									<span
-										class="relative z-10 whitespace-nowrap transition-opacity duration-300"
-									>
+									<span class="relative z-10 whitespace-nowrap transition-opacity duration-300">
 										{resource.displayName}
 									</span>
 									{#if active}
@@ -387,6 +390,7 @@
 			<a
 				href="/admin"
 				onclick={closeMobile}
+				data-sveltekit-preload-data="hover"
 				class={cn(
 					'group flex items-center rounded-xl font-bold transition-all duration-300',
 					isOpen ? 'gap-3 px-4 py-3 text-sm' : 'mx-auto justify-center p-2.5',
@@ -421,10 +425,14 @@
 		<div class="absolute -right-3 top-20 z-10">
 			<button
 				onclick={() => sidebarOpen.toggle()}
-				class="flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-sm transition-all hover:text-primary active:scale-90"
+				class="group flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-md transition-all hover:scale-110 hover:border-primary/50 hover:text-primary active:scale-95"
 				title="Expand Sidebar"
 			>
-				<Icon name="chevron-right" size={14} />
+				<Icon
+					name="chevron-right"
+					size={12}
+					class="transition-transform group-hover:translate-x-0.5"
+				/>
 			</button>
 		</div>
 	{/if}

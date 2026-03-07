@@ -13,10 +13,14 @@
 				connected: boolean;
 				clusterName?: string;
 			};
-			groupCounts: Record<
-				string,
-				{ total: number; healthy: number; failed: number; error: boolean }
-			>;
+			streamed: {
+				groupCounts: Promise<
+					Record<
+						string,
+						{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
+					>
+				>;
+			};
 		};
 	}
 
@@ -50,11 +54,23 @@
 		<!-- Stats Grid -->
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
 			<ClusterConnectivityStatus {isLoading} health={data.health} />
-			<ResourceGroupTotals {isLoading} groupCounts={data.groupCounts} />
+			{#await data.streamed.groupCounts}
+				<ResourceGroupTotals isLoading={true} groupCounts={{}} />
+			{:then groupCounts}
+				<ResourceGroupTotals isLoading={false} {groupCounts} />
+			{:catch}
+				<ResourceGroupTotals isLoading={false} groupCounts={{}} />
+			{/await}
 		</div>
 
 		<!-- Resource Groups Section -->
-		<InventoryArchitecture {isLoading} groupCounts={data.groupCounts} />
+		{#await data.streamed.groupCounts}
+			<InventoryArchitecture isLoading={true} groupCounts={{}} />
+		{:then groupCounts}
+			<InventoryArchitecture isLoading={false} {groupCounts} />
+		{:catch}
+			<InventoryArchitecture isLoading={false} groupCounts={{}} />
+		{/await}
 	{/if}
 
 	<!-- System Shortcuts -->

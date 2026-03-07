@@ -9,69 +9,78 @@ export const load: PageServerLoad = async ({ fetch, parent, setHeaders }) => {
 	// Get health data from parent layout
 	const parentData = await parent();
 
-	// Create cache key based on cluster
-	const cacheKey = `dashboard-${parentData.health?.clusterName || 'default'}`;
-	const cached = dashboardCache.get(cacheKey);
+	// Function to fetch data (can be returned as a promise to be streamed)
+	const fetchGroupCounts = async () => {
+		// Create cache key based on cluster
+		const cacheKey = `dashboard-${parentData.health?.clusterName || 'default'}`;
+		const cached = dashboardCache.get(cacheKey);
 
-	// Return cached data if still valid
-	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		setHeaders({
-			'Cache-Control': 'private, max-age=30'
-		});
-		return {
-			health: parentData.health,
-			groupCounts: cached.data as Record<
+		// Return cached data if still valid
+		if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+			return cached.data as Record<
 				string,
-				{ total: number; healthy: number; failed: number; error: boolean }
-			>,
-			cached: true
-		};
-	}
-
-	// Fetch batched overview results
-	const response = await fetch('/api/flux/overview');
-	if (!response.ok) {
-		return { health: parentData.health, groupCounts: {}, error: true };
-	}
-
-	const overviewData = await response.json();
-	const results = overviewData.results || [];
-
-	// Map overview results back to resourceGroups structure
-	const groupCounts: Record<
-		string,
-		{ total: number; healthy: number; failed: number; error: boolean }
-	> = {};
-
-	for (const group of resourceGroups) {
-		let groupTotal = 0;
-		let groupHealthy = 0;
-		let groupFailed = 0;
-		let hasError = false;
-
-		for (const resInfo of group.resources) {
-			const resResult = results.find(
-				(r: { type: string; total: number; healthy: number; failed: number; error: boolean }) =>
-					r.type === resInfo.kind
-			);
-			if (resResult) {
-				groupTotal += resResult.total;
-				groupHealthy += resResult.healthy;
-				groupFailed += resResult.failed;
-				if (resResult.error) hasError = true;
-			}
+				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
+			>;
 		}
 
-		groupCounts[group.name] = {
-			total: groupTotal,
-			healthy: groupHealthy,
-			failed: groupFailed,
-			error: hasError
-		};
-	}
+		// Fetch batched overview results
+		const response = await fetch('/api/flux/overview');
+		if (!response.ok) {
+			return {} as Record<
+				string,
+				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
+			>;
+		}
 
-	// Store in cache
-	dashboardCache.set(cacheKey, { data: groupCounts, timestamp: Date.now() });
+		const overviewData = await response.json();
+		const results = overviewData.results || [];
+
+		// Map overview results back to resourceGroups structure
+		const groupCounts: Record<
+			string,
+			{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
+		> = {};
+
+		for (const group of resourceGroups) {
+			let groupTotal = 0;
+			let groupHealthy = 0;
+			let groupFailed = 0;
+			let groupSuspended = 0;
+			let hasError = false;
+
+			for (const resInfo of group.resources) {
+				const resResult = results.find(
+					(r: {
+						type: string;
+						total: number;
+						healthy: number;
+						failed: number;
+						suspended: number;
+						error: boolean;
+					}) => r.type === resInfo.type
+				);
+				if (resResult) {
+					groupTotal += resResult.total;
+					groupHealthy += resResult.healthy;
+					groupFailed += resResult.failed;
+					groupSuspended += resResult.suspended;
+					if (resResult.error) hasError = true;
+				}
+			}
+
+			groupCounts[group.name] = {
+				total: groupTotal,
+				healthy: groupHealthy,
+				failed: groupFailed,
+				suspended: groupSuspended,
+				error: hasError
+			};
+		}
+
+		// Store in cache
+		dashboardCache.set(cacheKey, { data: groupCounts, timestamp: Date.now() });
+		return groupCounts;
+	};
 
 	setHeaders({
 		'Cache-Control': 'private, max-age=30'
@@ -79,7 +88,8 @@ export const load: PageServerLoad = async ({ fetch, parent, setHeaders }) => {
 
 	return {
 		health: parentData.health,
-		groupCounts,
-		cached: false
+		streamed: {
+			groupCounts: fetchGroupCounts()
+		}
 	};
 };

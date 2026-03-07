@@ -6,13 +6,13 @@
 
 	interface Props {
 		isLoading: boolean;
-		groupCounts: Record<string, { total: number; healthy: number; failed: number; error: boolean }>;
+		groupCounts: Record<string, { total: number; healthy: number; failed: number; suspended: number; error: boolean }>;
 	}
 
 	let { isLoading, groupCounts }: Props = $props();
 </script>
 
-{#snippet cardContent(group: ResourceGroup, counts: { total: number; healthy: number; failed: number; error: boolean }, route?: string, boundedPercent: number = 0)}
+{#snippet cardContent(group: ResourceGroup, counts: { total: number; healthy: number; failed: number; suspended: number; error: boolean }, route?: string, boundedPercent: number = 0)}
 	<!-- Card Background Accent -->
 	<div
 		class="absolute -top-12 -right-12 size-32 rounded-full bg-primary/5 blur-3xl transition-all duration-700 group-hover:bg-primary/20"
@@ -166,6 +166,7 @@
 					total: 0,
 					healthy: 0,
 					failed: 0,
+					suspended: 0,
 					error: false
 				}}
 				{@const route = group.primaryRoute}
