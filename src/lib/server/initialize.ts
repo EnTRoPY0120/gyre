@@ -131,8 +131,7 @@ export async function initializeGyre(): Promise<void> {
 				console.log('   After first login, the secret will be marked as consumed.');
 			} else {
 				// Local development mode
-				// codeql[js/clear-text-logging]
-				console.log('   Password: ' + setupToken);
+				console.log('   Password: ' + setupToken); // codeql[js/clear-text-logging]
 				console.log('   ' + '='.repeat(50));
 				console.log('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
 				console.log("   ⚠️  Please save this password - it won't be shown again!");
