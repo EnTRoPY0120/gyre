@@ -103,7 +103,7 @@
 <aside
 	class={cn(
 		'fixed inset-y-0 left-0 z-50 flex h-screen flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out lg:relative lg:z-auto',
-		isOpen ? 'w-64 translate-x-0 shadow-2xl lg:shadow-none' : 'w-16 translate-x-[-100%] lg:translate-x-0',
+		isOpen ? 'w-64 translate-x-0 shadow-2xl lg:shadow-none' : 'w-16 translate-x-0',
 		isMobile && isOpen ? 'translate-x-0 shadow-2xl' : isMobile && !isOpen ? 'translate-x-[-100%]' : ''
 	)}
 >
@@ -150,15 +150,17 @@
 				</div>
 			</a>
 
+			<!-- Toggle Button (Standard Hamburger) -->
 			<button
 				onclick={() => sidebarOpen.toggle()}
-				class={cn(
-					'rounded-lg p-2 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95',
-					!isOpen && 'hidden'
-				)}
-				title="Collapse Sidebar"
+				class="flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95"
+				title={isOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
 			>
-				<Icon name="chevron-right" size={16} class="rotate-180" />
+				<Icon
+					name="menu"
+					size={20}
+					class={cn('transition-all', isOpen && 'rotate-90 text-primary')}
+				/>
 			</button>
 		</div>
 	</div>
@@ -417,23 +419,6 @@
 					Settings
 				</span>
 			</a>
-		</div>
-	{/if}
-
-	<!-- Expand Button for Collapsed Mode (Desktop only) -->
-	{#if !isOpen && !isMobile}
-		<div class="absolute -right-4 top-20 z-10">
-			<button
-				onclick={() => sidebarOpen.toggle()}
-				class="group flex h-8 w-8 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-lg transition-all hover:scale-110 hover:border-primary/50 hover:text-primary active:scale-95"
-				title="Expand Sidebar"
-			>
-				<Icon
-					name="chevron-right"
-					size={16}
-					class="transition-transform group-hover:translate-x-0.5"
-				/>
-			</button>
 		</div>
 	{/if}
 </aside>
