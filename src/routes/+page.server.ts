@@ -57,7 +57,7 @@ export const load: PageServerLoad = async ({ fetch, parent, setHeaders }) => {
 						failed: number;
 						suspended: number;
 						error: boolean;
-					}) => r.type === resInfo.kind
+					}) => r.type === resInfo.type
 				);
 				if (resResult) {
 					groupTotal += resResult.total;

@@ -117,51 +117,54 @@
 		<div
 			class={cn('flex items-center overflow-hidden', isOpen ? 'justify-between' : 'justify-center')}
 		>
-			<!-- Logo & Brand -->
-			<a
-				href="/"
-				class={cn('group flex items-center overflow-hidden', isOpen ? 'gap-3' : 'gap-0')}
-				onclick={closeMobile}
-				data-sveltekit-preload-data="hover"
-			>
-				<div
-					class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20 transition-all group-hover:scale-105 group-hover:shadow-amber-500/30"
+			{#if isOpen}
+				<!-- Logo & Brand (Only visible when open) -->
+				<a
+					href="/"
+					class="group flex items-center gap-3 overflow-hidden"
+					onclick={closeMobile}
+					data-sveltekit-preload-data="hover"
 				>
-					<svg class="h-6 w-6 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
-						<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-					</svg>
-				</div>
-				<div
-					class={cn(
-						'flex flex-col transition-all duration-300',
-						isOpen ? 'opacity-100 translate-x-0' : 'pointer-events-none w-0 opacity-0 -translate-x-4'
-					)}
-				>
-					<span class="text-xl leading-tight font-bold tracking-tight text-foreground whitespace-nowrap"
-						>Gyre</span
+					<div
+						class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 shadow-lg shadow-amber-500/20 transition-all group-hover:scale-105 group-hover:shadow-amber-500/30"
 					>
-					<div class="mt-0.5 whitespace-nowrap">
-						<span
-							class="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary"
-						>
-							v{gyreVersion}
-						</span>
+						<svg class="h-6 w-6 text-slate-900" viewBox="0 0 24 24" fill="currentColor">
+							<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+						</svg>
 					</div>
-				</div>
-			</a>
+					<div class="flex flex-col transition-all duration-300">
+						<span
+							class="text-xl leading-tight font-bold tracking-tight text-foreground whitespace-nowrap"
+							>Gyre</span
+						>
+						<div class="mt-0.5 whitespace-nowrap">
+							<span
+								class="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary"
+							>
+								v{gyreVersion}
+							</span>
+						</div>
+					</div>
+				</a>
 
-			<!-- Toggle Button (Standard Hamburger) -->
-			<button
-				onclick={() => sidebarOpen.toggle()}
-				class="flex items-center justify-center rounded-lg p-2 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95"
-				title={isOpen ? 'Collapse Sidebar' : 'Expand Sidebar'}
-			>
-				<Icon
-					name="menu"
-					size={20}
-					class={cn('transition-all', isOpen && 'rotate-90 text-primary')}
-				/>
-			</button>
+				<!-- Collapse Button (Chevron) -->
+				<button
+					onclick={() => sidebarOpen.toggle()}
+					class="rounded-lg p-2 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95"
+					title="Collapse Sidebar"
+				>
+					<Icon name="chevron-left" size={20} />
+				</button>
+			{:else}
+				<!-- Expand Button (Hamburger) - Replaces logo when collapsed -->
+				<button
+					onclick={() => sidebarOpen.toggle()}
+					class="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary active:scale-95"
+					title="Expand Sidebar"
+				>
+					<Icon name="menu" size={24} />
+				</button>
+			{/if}
 		</div>
 	</div>
 
