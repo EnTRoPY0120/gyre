@@ -422,15 +422,15 @@
 
 	<!-- Expand Button for Collapsed Mode (Desktop only) -->
 	{#if !isOpen && !isMobile}
-		<div class="absolute -right-3 top-20 z-10">
+		<div class="absolute -right-4 top-20 z-10">
 			<button
 				onclick={() => sidebarOpen.toggle()}
-				class="group flex h-6 w-6 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-md transition-all hover:scale-110 hover:border-primary/50 hover:text-primary active:scale-95"
+				class="group flex h-8 w-8 items-center justify-center rounded-full border border-sidebar-border bg-sidebar text-muted-foreground shadow-lg transition-all hover:scale-110 hover:border-primary/50 hover:text-primary active:scale-95"
 				title="Expand Sidebar"
 			>
 				<Icon
 					name="chevron-right"
-					size={12}
+					size={16}
 					class="transition-transform group-hover:translate-x-0.5"
 				/>
 			</button>
