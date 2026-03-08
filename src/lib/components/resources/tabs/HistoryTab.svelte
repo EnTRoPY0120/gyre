@@ -15,8 +15,6 @@
 
 <div
 	class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-	role="tabpanel"
-	aria-labelledby="history-tab"
 >
 	<div class="mb-4 flex items-center justify-between">
 		<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Version History</h3>
