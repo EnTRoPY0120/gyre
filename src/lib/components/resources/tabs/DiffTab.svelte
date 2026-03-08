@@ -3,10 +3,15 @@
 	import Skeleton from '$lib/components/ui/Skeleton.svelte';
 	import type { ResourceDiff } from '$lib/types/resource';
 
+	export interface DiffError {
+		code?: string;
+		message: string;
+	}
+
 	interface Props {
 		diffs: ResourceDiff[];
 		loading: boolean;
-		error: string | null;
+		error: DiffError | null;
 		timestamp: number | null;
 		cached: boolean;
 		revision: string | null;
@@ -35,8 +40,6 @@
 
 <div
 	class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-	role="tabpanel"
-	aria-labelledby="diff-tab"
 >
 	<div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<div class="flex flex-col gap-1">
@@ -136,14 +139,14 @@
 						d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					/>
 				</svg>
-				{error.includes('only available when')
+				{error.code === 'IN_CLUSTER_REQUIRED'
 					? 'In-Cluster Deployment Required'
 					: 'Failed to Calculate Drift'}
 			</div>
 			<p
 				class="text-sm text-red-600 dark:text-red-300"
 			>
-				{error}
+				{error.message}
 			</p>
 			
 			<div class="mt-4 flex flex-wrap items-center gap-3">
@@ -158,7 +161,7 @@
 					Try Again
 				</button>
 				
-				{#if error.includes('only available when')}
+				{#if error.code === 'IN_CLUSTER_REQUIRED'}
 					<div
 						class="rounded-lg border border-amber-200 bg-amber-50/50 p-3 dark:border-amber-800 dark:bg-amber-900/10"
 					>

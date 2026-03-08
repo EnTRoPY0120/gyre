@@ -10,9 +10,9 @@
 	let { resourceType, namespace, name }: Props = $props();
 
 	const breadcrumbs = $derived([
-		{ label: 'Resources', href: '/resources' },
-		{ label: resourceType, href: `/resources/${resourceType}` },
-		{ label: namespace, href: `/resources/${resourceType}?namespace=${namespace}` },
+		{ label: 'Resources', href: resolve('/resources') },
+		{ label: resourceType, href: resolve(`/resources/${resourceType}`) },
+		{ label: namespace, href: resolve(`/resources/${resourceType}?namespace=${namespace}`) },
 		{ label: name, href: null }
 	]);
 </script>
@@ -55,7 +55,7 @@
 						{crumb.label}
 					</a>
 				{:else}
-					<span class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400">
+					<span aria-current="page" class="ml-1 text-sm font-medium text-gray-500 md:ml-2 dark:text-gray-400">
 						{crumb.label}
 					</span>
 				{/if}

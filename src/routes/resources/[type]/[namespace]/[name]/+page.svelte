@@ -25,6 +25,7 @@
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
 	import { BASE_TABS, YAML_TAB, DIFF_TAB, type TabId } from '$lib/config/tabs';
+	import type { DiffError } from '$lib/components/resources/tabs/DiffTab.svelte';
 
 	interface Props {
 		data: {
@@ -70,7 +71,13 @@
 	});
 
 	// Tab state with persistence
-	const initialTab = ($page.url.searchParams.get('tab') as TabId) || 'overview';
+	const availableTabIds: TabId[] = untrack(() => [
+		...BASE_TABS.map((t) => t.id),
+		...(data.resourceType === 'kustomizations' ? [DIFF_TAB.id] : []),
+		YAML_TAB.id
+	]);
+	const rawTab = $page.url.searchParams.get('tab') as TabId;
+	const initialTab: TabId = availableTabIds.includes(rawTab) ? rawTab : 'overview';
 	let activeTab = $state<TabId>(initialTab);
 
 	function setActiveTab(tab: TabId) {
@@ -95,7 +102,7 @@
 
 	let diffs = $state<ResourceDiff[]>([]);
 	let diffsLoading = $state(false);
-	let diffsError = $state<string | null>(null);
+	let diffsError = $state<DiffError | null>(null);
 	let diffsFetched = $state(false);
 	let diffsCached = $state(false);
 	let diffsTimestamp = $state<number | null>(null);
@@ -143,13 +150,15 @@
 	// Keyboard navigation for tabs
 	function handleKeydown(e: KeyboardEvent, index: number) {
 		if (e.key === 'ArrowRight') {
+			e.preventDefault();
 			const nextIndex = (index + 1) % tabs.length;
 			setActiveTab(tabs[nextIndex].id);
-			(e.target as HTMLElement).parentElement?.children[nextIndex].dispatchEvent(new Event('focus'));
+			((e.target as HTMLElement).parentElement?.children[nextIndex] as HTMLElement)?.focus();
 		} else if (e.key === 'ArrowLeft') {
+			e.preventDefault();
 			const prevIndex = (index - 1 + tabs.length) % tabs.length;
 			setActiveTab(tabs[prevIndex].id);
-			(e.target as HTMLElement).parentElement?.children[prevIndex].dispatchEvent(new Event('focus'));
+			((e.target as HTMLElement).parentElement?.children[prevIndex] as HTMLElement)?.focus();
 		}
 	}
 
@@ -243,7 +252,11 @@
 			diffsFetched = true;
 		} catch (err) {
 			if ((err as Error).name === 'AbortError') return;
-			diffsError = err instanceof Error ? err.message : 'Failed to load diff';
+			const message = err instanceof Error ? err.message : 'Failed to load diff';
+			diffsError = {
+				code: message.includes('only available when') ? 'IN_CLUSTER_REQUIRED' : undefined,
+				message
+			};
 		} finally {
 			diffsLoading = false;
 		}
@@ -293,9 +306,13 @@
 		}
 	}
 
-	function copyToClipboard(text: string) {
-		navigator.clipboard.writeText(text);
-		toast.success('Copied to clipboard');
+	async function copyToClipboard(text: string) {
+		try {
+			await navigator.clipboard.writeText(text);
+			toast.success('Copied to clipboard');
+		} catch {
+			toast.error('Failed to copy to clipboard');
+		}
 	}
 
 	// Consolidated effect for tab data fetching
@@ -421,7 +438,7 @@
 				/>
 			</div>
 		{:else if activeTab === 'events'}
-			<div id="events-panel">
+			<div id="events-panel" role="tabpanel" aria-labelledby="events-tab">
 				<EventsTab
 					events={events}
 					loading={eventsLoading}
@@ -433,7 +450,7 @@
 				/>
 			</div>
 		{:else if activeTab === 'logs'}
-			<div id="logs-panel">
+			<div id="logs-panel" role="tabpanel" aria-labelledby="logs-tab">
 				<LogsTab
 					{logs}
 					{formattedLogs}
@@ -449,7 +466,7 @@
 				/>
 			</div>
 		{:else if activeTab === 'history'}
-			<div id="history-panel">
+			<div id="history-panel" role="tabpanel" aria-labelledby="history-tab">
 				<HistoryTab
 					{timeline}
 					loading={historyLoading}
@@ -461,7 +478,7 @@
 				/>
 			</div>
 		{:else if activeTab === 'diff'}
-			<div id="diff-panel">
+			<div id="diff-panel" role="tabpanel" aria-labelledby="diff-tab">
 				<DiffTab
 					{diffs}
 					loading={diffsLoading}

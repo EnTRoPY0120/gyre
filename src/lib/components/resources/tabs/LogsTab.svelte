@@ -54,8 +54,6 @@
 
 <div
 	class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-	role="tabpanel"
-	aria-labelledby="logs-tab"
 >
 	<div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 		<h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100">Controller Logs</h3>
@@ -71,6 +69,7 @@
 					type="text"
 					bind:value={searchQuery}
 					placeholder="Search logs..."
+					aria-label="Search logs"
 					class="block w-full rounded-md border-gray-300 pl-10 text-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400"
 				/>
 			</div>
@@ -159,7 +158,7 @@
 					<code>{logs}</code>
 				</div>
 			{:else}
-				<div class="h-[600px] w-full">
+				<div bind:this={logContainer} class="h-[600px] w-full">
 					{#if filteredFormattedLogs.length === 0}
 						<div class="py-8 text-center text-gray-500">No logs match your search.</div>
 					{:else}
