@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import { GYRE_VERSION } from '$lib/config/version';
 
 	const adminFeatures = [
 		{
@@ -107,7 +108,7 @@
 						<span class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
 							>Version</span
 						>
-						<span class="font-mono text-sm text-foreground">v0.0.1</span>
+						<span class="font-mono text-sm text-foreground">v{GYRE_VERSION}</span>
 					</div>
 					<div class="flex flex-col">
 						<span class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"

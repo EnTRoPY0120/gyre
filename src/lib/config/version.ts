@@ -1,1 +1,2 @@
-export const GYRE_VERSION = '0.1.0';
+import { version } from '../../../package.json';
+export const GYRE_VERSION = version;
