@@ -1,7 +1,12 @@
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { authenticateUser, createSession, getUserByUsername, normalizeUsername } from '$lib/server/auth';
+import {
+	authenticateUser,
+	createSession,
+	getUserByUsername,
+	normalizeUsername
+} from '$lib/server/auth';
 import { checkRateLimit, accountLockout } from '$lib/server/rate-limiter';
 
 export const _metadata = {
