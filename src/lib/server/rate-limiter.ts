@@ -192,9 +192,7 @@ export class AccountLockout {
 
 	check(username: string): { locked: boolean; lockedUntil: number; retryAfter: number } {
 		const db = getDbSync();
-		const entry = db.query.loginLockouts.findFirst({
-			where: eq(loginLockouts.username, username)
-		});
+		const entry = db.select().from(loginLockouts).where(eq(loginLockouts.username, username)).get();
 
 		if (!entry || !entry.lockedUntil) return { locked: false, lockedUntil: 0, retryAfter: 0 };
 
@@ -233,9 +231,7 @@ export class AccountLockout {
 			.run();
 
 		// Get updated entry to check for lockout
-		const entry = db.query.loginLockouts.findFirst({
-			where: eq(loginLockouts.username, username)
-		});
+		const entry = db.select().from(loginLockouts).where(eq(loginLockouts.username, username)).get();
 
 		if (entry && entry.failedAttempts >= maxAttempts) {
 			const overThreshold = entry.failedAttempts - maxAttempts;

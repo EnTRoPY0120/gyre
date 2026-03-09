@@ -6,7 +6,7 @@
 import { getDb } from '$lib/server/db';
 import { users, userProviders, type AuthProvider } from '$lib/server/db/schema';
 import type { User } from '$lib/server/db/schema';
-import { generateUserId, normalizeUsername } from '$lib/server/auth';
+import { generateUserId } from '$lib/server/auth';
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
 import type { OAuthUserInfo } from './oauth/types';
 import { eq, and } from 'drizzle-orm';

@@ -247,4 +247,3 @@ function initLockoutsTable(db: ReturnType<typeof getDbSync>): void {
 		)
 	`);
 }
-
