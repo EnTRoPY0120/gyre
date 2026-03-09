@@ -153,6 +153,7 @@
 	});
 
 	const isKustomization = $derived(data.resourceType === 'kustomizations');
+	const resourceKey = $derived(`${data.resourceType}-${data.namespace}-${data.name}`);
 
 	const tabs = $derived.by(() => {
 		const base = [...BASE_TABS];
@@ -332,6 +333,10 @@
 		void data.namespace;
 		void data.resourceType;
 
+		// Abort any in-flight requests from the previous resource
+		activeAbortController?.abort();
+		activeAbortController = null;
+
 		events = [];
 		eventsLoading = false;
 		eventsError = null;
@@ -356,6 +361,10 @@
 	// Consolidated effect for tab data fetching
 	$effect(() => {
 		const tab = activeTab;
+		// Also track identity so the effect re-runs when the resource changes
+		void data.name;
+		void data.namespace;
+		void data.resourceType;
 		untrack(() => {
 			if (tab === 'events' && !eventsFetched) fetchEvents();
 			if (tab === 'logs' && !logsFetched) fetchLogs();
@@ -489,19 +498,21 @@
 			</div>
 		{:else if activeTab === 'logs'}
 			<div id="logs-panel" role="tabpanel" aria-labelledby="logs-tab">
-				<LogsTab
-					{logs}
-					{formattedLogs}
-					loading={logsLoading}
-					error={logsError}
-					{showRawLogs}
-					onRefresh={() => {
-						logsFetched = false;
-						fetchLogs();
-					}}
-					onToggleRaw={(v) => (showRawLogs = v)}
-					bind:logContainer
-				/>
+				{#key resourceKey}
+					<LogsTab
+						{logs}
+						{formattedLogs}
+						loading={logsLoading}
+						error={logsError}
+						{showRawLogs}
+						onRefresh={() => {
+							logsFetched = false;
+							fetchLogs();
+						}}
+						onToggleRaw={(v) => (showRawLogs = v)}
+						bind:logContainer
+					/>
+				{/key}
 			</div>
 		{:else if activeTab === 'history'}
 			<div id="history-panel" role="tabpanel" aria-labelledby="history-tab">

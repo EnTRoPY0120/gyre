@@ -164,10 +164,10 @@
 					{:else}
 						<VirtualList items={filteredFormattedLogs} itemHeight={36} buffer={5} class="h-full px-4 py-2 font-mono text-xs leading-relaxed text-gray-300">
 							{#snippet children(line)}
-								<div class="flex gap-3 py-0.5 whitespace-pre-wrap">
+								<div class="flex gap-3 overflow-hidden py-0.5">
 									<span class="shrink-0 text-gray-500">[{line.ts}]</span>
 									<span class="shrink-0 {getLevelClass(line.level)}">{line.level.padEnd(5)}</span>
-									<span class="break-words">{line.msg}</span>
+									<span class="min-w-0 truncate">{line.msg}</span>
 								</div>
 							{/snippet}
 						</VirtualList>
