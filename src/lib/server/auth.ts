@@ -22,9 +22,16 @@ let generatedAdminPassword: string | null = null;
 // For in-cluster mode: password read from K8s secret (stored hashed)
 let inClusterAdminPasswordHash: string | null = null;
 let inClusterFirstLoginDone = false;
+/**
+ * Normalize username to a canonical form (lowercase, trimmed)
+ */
+export function normalizeUsername(username: string): string {
+	return username.toLowerCase().trim();
+}
 
 /**
  * Generate a strong random password
+...
  * Format: 3 random words + 3 random digits + 1 special char
  * Easy to read but secure (e.g., "BlueTiger7Sky#42")
  */
@@ -106,7 +113,7 @@ export async function createUser(
 ): Promise<User> {
 	const db = await getDb();
 	const passwordHash = await hashPassword(password);
-	const normalizedUsername = username.toLowerCase().trim();
+	const normalizedUsername = normalizeUsername(username);
 
 	const newUser: NewUser = {
 		id: generateUserId(),
@@ -142,7 +149,7 @@ export async function getUserById(id: string): Promise<User | null> {
 
 export async function getUserByUsername(username: string): Promise<User | null> {
 	const db = await getDb();
-	const normalizedUsername = username.toLowerCase().trim();
+	const normalizedUsername = normalizeUsername(username);
 	const user = await db.query.users.findFirst({
 		where: eq(users.username, normalizedUsername)
 	});

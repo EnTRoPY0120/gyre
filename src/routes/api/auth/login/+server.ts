@@ -1,7 +1,7 @@
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { authenticateUser, createSession, getUserByUsername } from '$lib/server/auth';
+import { authenticateUser, createSession, getUserByUsername, normalizeUsername } from '$lib/server/auth';
 import { checkRateLimit, accountLockout } from '$lib/server/rate-limiter';
 
 export const _metadata = {
@@ -102,7 +102,12 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// Normalize username to a canonical form (lowercase, trimmed)
-		const canonicalUsername = username.trim().toLowerCase();
+		const canonicalUsername = normalizeUsername(username);
+
+		// Validation: short-circuit if normalized username is empty
+		if (!canonicalUsername) {
+			throw error(401, { message: 'Invalid username or password' });
+		}
 
 		// Rate limit: 5 attempts per 1 minute per IP
 		const ipAddress = getClientAddress();
