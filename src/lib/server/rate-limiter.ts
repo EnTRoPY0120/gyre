@@ -164,3 +164,72 @@ export function checkRateLimit(
 		});
 	}
 }
+
+interface LockoutEntry {
+	failedAttempts: number;
+	lockedUntil: number;
+}
+
+export class AccountLockout {
+	private storage: Map<string, LockoutEntry> = new Map();
+	private cleanupInterval: NodeJS.Timeout;
+
+	constructor() {
+		// Clean up expired entries every 15 minutes
+		this.cleanupInterval = setInterval(() => this.cleanup(), 15 * 60 * 1000);
+		this.cleanupInterval.unref?.();
+	}
+
+	private cleanup() {
+		const now = Date.now();
+		for (const [key, entry] of this.storage.entries()) {
+			// Remove entry if it's been more than 1 hour since the lock expired
+			// and no new attempts were made
+			if (entry.lockedUntil < now - 60 * 60 * 1000) {
+				this.storage.delete(key);
+			}
+		}
+	}
+
+	check(username: string): { locked: boolean; lockedUntil: number; retryAfter: number } {
+		const entry = this.storage.get(username);
+		if (!entry) return { locked: false, lockedUntil: 0, retryAfter: 0 };
+
+		const now = Date.now();
+		if (entry.lockedUntil > now) {
+			return {
+				locked: true,
+				lockedUntil: entry.lockedUntil,
+				retryAfter: Math.ceil((entry.lockedUntil - now) / 1000)
+			};
+		}
+
+		return { locked: false, lockedUntil: 0, retryAfter: 0 };
+	}
+
+	recordFailure(username: string, maxAttempts: number = 5): void {
+		let entry = this.storage.get(username);
+		if (!entry) {
+			entry = { failedAttempts: 0, lockedUntil: 0 };
+			this.storage.set(username, entry);
+		}
+
+		entry.failedAttempts++;
+
+		if (entry.failedAttempts >= maxAttempts) {
+			const overThreshold = entry.failedAttempts - maxAttempts;
+			const backoffMinutes = Math.pow(2, overThreshold);
+			const lockedMinutes = Math.min(backoffMinutes, 1440); // Cap at 24 hours
+			entry.lockedUntil = Date.now() + lockedMinutes * 60 * 1000;
+			console.warn(
+				`[Security] Account lockout triggered for user '${username}'. Locked for ${lockedMinutes} minutes. Failed attempts: ${entry.failedAttempts}`
+			);
+		}
+	}
+
+	recordSuccess(username: string): void {
+		this.storage.delete(username);
+	}
+}
+
+export const accountLockout = new AccountLockout();
