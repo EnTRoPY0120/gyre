@@ -255,8 +255,9 @@
 			if (force) url.searchParams.set('force', 'true');
 			const res = await fetch(url.toString(), { signal });
 			if (!res.ok) {
-				const errData = await res.json();
-				throw new Error(errData.message || `Failed to fetch diff: ${res.statusText}`);
+				const errData = await res.json().catch(() => ({} as { code?: string; message?: string }));
+				diffsError = { code: errData.code, message: errData.message || res.statusText };
+				return;
 			}
 			const result: DiffResponse = await res.json();
 			diffs = result.diffs || [];
@@ -265,10 +266,9 @@
 			diffsFetched = true;
 		} catch (err) {
 			if ((err as Error).name === 'AbortError') return;
-			const message = err instanceof Error ? err.message : 'Failed to load diff';
 			diffsError = {
-				code: message.includes('only available when') ? 'IN_CLUSTER_REQUIRED' : undefined,
-				message
+				code: undefined,
+				message: err instanceof Error ? err.message : 'Failed to load diff'
 			};
 		} finally {
 			diffsLoading = false;
@@ -324,6 +324,34 @@
 			toast.error('Failed to copy to clipboard');
 		}
 	}
+
+	// Reset all tab-local state when resource identity changes so stale data doesn't persist
+	$effect(() => {
+		// Track identity fields to establish reactive dependency
+		void data.name;
+		void data.namespace;
+		void data.resourceType;
+
+		events = [];
+		eventsLoading = false;
+		eventsError = null;
+		eventsFetched = false;
+		logs = '';
+		logsLoading = false;
+		logsError = null;
+		logsFetched = false;
+		showRawLogs = false;
+		diffs = [];
+		diffsLoading = false;
+		diffsError = null;
+		diffsFetched = false;
+		diffsCached = false;
+		diffsTimestamp = null;
+		diffsRevision = null;
+		timeline = [];
+		historyLoading = false;
+		historyFetched = false;
+	});
 
 	// Consolidated effect for tab data fetching
 	$effect(() => {
@@ -394,7 +422,7 @@
 					Reconcile Now
 				</button>
 				<ActionButtons
-					resource={data.resource}
+					resource={resource}
 					type={data.resourceType}
 					namespace={data.namespace}
 					name={data.name}
@@ -434,7 +462,7 @@
 		{:else if activeTab === 'spec'}
 			<div id="spec-panel" role="tabpanel" aria-labelledby="spec-tab">
 				<CodeViewer
-					data={data.resource.spec as Record<string, unknown>}
+					data={resource.spec as Record<string, unknown>}
 					title="Resource Spec"
 					showDownload={false}
 				/>
@@ -442,7 +470,7 @@
 		{:else if activeTab === 'status'}
 			<div id="status-panel" role="tabpanel" aria-labelledby="status-tab">
 				<CodeViewer
-					data={(data.resource.status as Record<string, unknown>) || {}}
+					data={(resource.status as Record<string, unknown>) || {}}
 					title="Resource Status"
 					showDownload={false}
 				/>

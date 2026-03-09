@@ -27,12 +27,13 @@ export interface ResourceDiff {
 	namespace: string;
 	desired: string;
 	live: string | null;
+	error?: string;
 }
 
 export interface DiffResponse {
 	diffs: ResourceDiff[];
 	timestamp?: number;
-	revision?: string;
+	revision?: string | null;
 }
 
 export interface ReconciliationEntry {

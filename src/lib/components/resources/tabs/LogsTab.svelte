@@ -162,9 +162,9 @@
 					{#if filteredFormattedLogs.length === 0}
 						<div class="py-8 text-center text-gray-500">No logs match your search.</div>
 					{:else}
-						<VirtualList items={filteredFormattedLogs} itemHeight={24} buffer={5} class="h-full px-4 py-2 font-mono text-xs leading-relaxed text-gray-300">
+						<VirtualList items={filteredFormattedLogs} itemHeight={36} buffer={5} class="h-full px-4 py-2 font-mono text-xs leading-relaxed text-gray-300">
 							{#snippet children(line)}
-								<div class="flex gap-3 py-0.5 whitespace-pre">
+								<div class="flex gap-3 py-0.5 whitespace-pre-wrap">
 									<span class="shrink-0 text-gray-500">[{line.ts}]</span>
 									<span class="shrink-0 {getLevelClass(line.level)}">{line.level.padEnd(5)}</span>
 									<span class="break-words">{line.msg}</span>
