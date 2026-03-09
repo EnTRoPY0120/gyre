@@ -31,7 +31,6 @@ export interface ResourceDiff {
 
 export interface DiffResponse {
 	diffs: ResourceDiff[];
-	cached?: boolean;
 	timestamp?: number;
 	revision?: string;
 }

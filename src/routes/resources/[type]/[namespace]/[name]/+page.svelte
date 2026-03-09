@@ -80,6 +80,20 @@
 	const initialTab: TabId = availableTabIds.includes(rawTab) ? rawTab : 'overview';
 	let activeTab = $state<TabId>(initialTab);
 
+	// Keep activeTab valid on same-component navigation (e.g. switching resource types)
+	$effect(() => {
+		const currentAvailableTabIds: TabId[] = [
+			...BASE_TABS.map((t) => t.id),
+			...(data.resourceType === 'kustomizations' ? [DIFF_TAB.id] : []),
+			YAML_TAB.id
+		];
+		const param = $page.url.searchParams.get('tab') as TabId;
+		const validTab: TabId = currentAvailableTabIds.includes(param) ? param : 'overview';
+		if (activeTab !== validTab) {
+			activeTab = validTab;
+		}
+	});
+
 	function setActiveTab(tab: TabId) {
 		activeTab = tab;
 		const url = new URL($page.url);
@@ -178,7 +192,7 @@
 		eventsLoading = true;
 		eventsError = null;
 		try {
-			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/events`, { signal });
+			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/events`), { signal });
 			if (!res.ok) throw new Error(`Failed to fetch events: ${res.statusText}`);
 			const result = await res.json();
 			events = result.events || [];
@@ -197,7 +211,7 @@
 		logsLoading = true;
 		logsError = null;
 		try {
-			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`, { signal });
+			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`), { signal });
 			if (!res.ok) {
 				const errData = await res.json();
 				throw new Error(errData.message || `Failed to fetch logs: ${res.statusText}`);
@@ -218,7 +232,7 @@
 		const signal = getNewAbortSignal();
 		historyLoading = true;
 		try {
-			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/history`, { signal });
+			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/history`), { signal });
 			if (!res.ok) throw new Error(`Failed to fetch history: ${res.statusText}`);
 			const result = await res.json();
 			timeline = result.timeline || [];
@@ -237,7 +251,7 @@
 		diffsLoading = true;
 		diffsError = null;
 		try {
-			const url = new URL(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`, window.location.origin);
+			const url = new URL(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`), window.location.origin);
 			if (force) url.searchParams.set('force', 'true');
 			const res = await fetch(url.toString(), { signal });
 			if (!res.ok) {
@@ -246,7 +260,6 @@
 			}
 			const result: DiffResponse = await res.json();
 			diffs = result.diffs || [];
-			diffsCached = result.cached || false;
 			diffsTimestamp = result.timestamp || null;
 			diffsRevision = result.revision || null;
 			diffsFetched = true;
@@ -266,7 +279,7 @@
 		const displayRevision = revision ? revision.slice(0, 8) : historyId.slice(0, 8);
 		if (!confirm(`Are you sure you want to rollback to ${displayRevision}?`)) return;
 		try {
-			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`, {
+			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`), {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ historyId, revision })
@@ -284,18 +297,15 @@
 		}
 	}
 
-	function viewInKubectl() {
+	async function viewInKubectl() {
 		const kind = resource.kind;
 		const command = `kubectl get ${kind.toLowerCase()} ${data.name} -n ${data.namespace}`;
-		copyToClipboard(command);
-		toast.info('Kubectl command copied to clipboard', {
-			description: command
-		});
+		await copyToClipboard(command);
 	}
 
 	async function handleReconcile() {
 		try {
-			const res = await fetch(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/reconcile`, {
+			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/reconcile`), {
 				method: 'POST'
 			});
 			if (!res.ok) throw new Error('Reconciliation failed');
@@ -341,7 +351,7 @@
 					<button
 						type="button"
 						class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-						onclick={() => copyToClipboard(data.name)}
+						onclick={async () => await copyToClipboard(data.name)}
 						aria-label="Copy resource name"
 					>
 						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
