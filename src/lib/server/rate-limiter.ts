@@ -183,9 +183,11 @@ export class AccountLockout {
 	private cleanup() {
 		const now = Date.now();
 		for (const [key, entry] of this.storage.entries()) {
-			// Remove entry if it's been more than 1 hour since the lock expired
-			// and no new attempts were made
-			if (entry.lockedUntil < now - 60 * 60 * 1000) {
+			// Only remove entry if it has no failed attempts OR it's been more than 1 hour since the lock expired
+			const isLockExpired = entry.lockedUntil > 0 && entry.lockedUntil < now - 60 * 60 * 1000;
+			const hasNoFailures = entry.failedAttempts === 0 && entry.lockedUntil < now - 60 * 60 * 1000;
+
+			if (isLockExpired || hasNoFailures) {
 				this.storage.delete(key);
 			}
 		}

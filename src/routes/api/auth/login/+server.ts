@@ -101,23 +101,29 @@ export const POST: RequestHandler = async (event) => {
 			throw error(400, { message: 'Username and password are required' });
 		}
 
+		// Normalize username to a canonical form (lowercase, trimmed)
+		const canonicalUsername = username.trim().toLowerCase();
+
 		// Rate limit: 5 attempts per 1 minute per IP
 		const ipAddress = getClientAddress();
 		const limitKey = `login:ip:${ipAddress}`;
 		checkRateLimit({ request, setHeaders }, limitKey, 5, 60 * 1000);
 
 		// Check account lockout
-		const lockoutStatus = accountLockout.check(username);
+		const lockoutStatus = accountLockout.check(canonicalUsername);
 		if (lockoutStatus.locked) {
+			setHeaders({
+				'Retry-After': lockoutStatus.retryAfter.toString()
+			});
 			throw error(429, {
 				message: `Account locked due to too many failed attempts. Try again in ${lockoutStatus.retryAfter} seconds.`
 			});
 		}
 
 		// Check if user exists first to give better error message
-		const existingUser = await getUserByUsername(username);
+		const existingUser = await getUserByUsername(canonicalUsername);
 		if (!existingUser) {
-			accountLockout.recordFailure(username, 5);
+			accountLockout.recordFailure(canonicalUsername, 5);
 			throw error(401, { message: 'Invalid username or password' });
 		}
 
@@ -126,15 +132,15 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		// Authenticate user
-		const user = await authenticateUser(username, password);
+		const user = await authenticateUser(canonicalUsername, password);
 
 		if (!user) {
-			accountLockout.recordFailure(username, 5);
+			accountLockout.recordFailure(canonicalUsername, 5);
 			throw error(401, { message: 'Invalid username or password' });
 		}
 
 		// Reset lockout on successful login
-		accountLockout.recordSuccess(username);
+		accountLockout.recordSuccess(canonicalUsername);
 
 		// Create session
 		const userAgent = request.headers.get('user-agent') || undefined;
