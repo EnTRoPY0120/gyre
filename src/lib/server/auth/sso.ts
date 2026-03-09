@@ -6,7 +6,7 @@
 import { getDb } from '$lib/server/db';
 import { users, userProviders, type AuthProvider } from '$lib/server/db/schema';
 import type { User } from '$lib/server/db/schema';
-import { generateUserId } from '$lib/server/auth';
+import { generateUserId, normalizeUsername } from '$lib/server/auth';
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
 import type { OAuthUserInfo } from './oauth/types';
 import { eq, and } from 'drizzle-orm';
@@ -85,7 +85,7 @@ export async function createOrUpdateSSOUser(
 	}
 
 	// Extract username and email from user info
-	const username = extractUsername(userInfo, providerConfig);
+	const username = normalizeUsername(extractUsername(userInfo, providerConfig));
 	const email = extractEmail(userInfo, providerConfig);
 
 	// Check domain allowlist (only for new users)

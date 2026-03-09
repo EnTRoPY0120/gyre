@@ -60,4 +60,8 @@ CREATE TABLE `login_lockouts` (
 	`updated_at` integer DEFAULT (unixepoch()) NOT NULL
 );
 
+-- Set migration flag to prevent redundant runtime normalization
+INSERT OR REPLACE INTO `app_settings` (key, value, updated_at) 
+VALUES ('migrations.users_lowercased', 'true', (unixepoch()));
+
 PRAGMA foreign_keys=ON;
