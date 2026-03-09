@@ -8,6 +8,15 @@ import { sql } from 'drizzle-orm';
 export function initDatabase(): void {
 	const db = getDbSync();
 
+	// App Settings table (must be initialized first to store migration flags)
+	db.run(sql`
+		CREATE TABLE IF NOT EXISTS app_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+		)
+	`);
+
 	// Users table
 	db.run(sql`
 		CREATE TABLE IF NOT EXISTS users (
@@ -24,11 +33,23 @@ export function initDatabase(): void {
 		)
 	`);
 
-	// Migration: ensure existing data is lowercased
+	// Migration: ensure existing data is lowercased (run once)
 	try {
-		db.run(sql`UPDATE users SET username = LOWER(TRIM(username))`);
+		const result = db
+			.select({ value: sql`value` })
+			.from(sql`app_settings`)
+			.where(sql`key = 'migrations.users_lowercased'`)
+			.get() as { value: string } | undefined;
+
+		if (!result || result.value !== 'true') {
+			db.run(sql`UPDATE users SET username = LOWER(TRIM(username))`);
+			db.run(
+				sql`INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('migrations.users_lowercased', 'true', (unixepoch()))`
+			);
+			console.log('[DB] Migration: lowercased existing usernames');
+		}
 	} catch (error) {
-		// Ignore errors (e.g. if table doesn't exist yet)
+		console.warn('[DB] Failed to run username normalization migration:', error);
 	}
 
 	// Add preferences column if it doesn't exist (for existing databases)
@@ -177,15 +198,6 @@ export function initDatabase(): void {
 	`);
 	db.run(sql`
 		DROP TABLE IF EXISTS dashboards
-	`);
-
-	// App Settings table
-	db.run(sql`
-		CREATE TABLE IF NOT EXISTS app_settings (
-			key TEXT PRIMARY KEY,
-			value TEXT NOT NULL,
-			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-		)
 	`);
 
 	// Reconciliation History table

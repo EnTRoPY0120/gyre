@@ -256,7 +256,14 @@ export class AccountLockout {
 
 	recordSuccess(username: string): void {
 		const db = getDbSync();
-		db.delete(loginLockouts).where(eq(loginLockouts.username, username)).run();
+		db.update(loginLockouts)
+			.set({
+				failedAttempts: 0,
+				lockedUntil: null,
+				updatedAt: new Date()
+			})
+			.where(eq(loginLockouts.username, username))
+			.run();
 	}
 }
 
