@@ -389,13 +389,16 @@ export function handleK8sError(error: unknown, operation: string): Error {
 	console.error(`Kubernetes API error during ${operation}:`, error);
 
 	if (error instanceof Error) {
+		// @kubernetes/client-node v1 throws ApiException with a `code` property directly
+		const apiException = error as Error & { code?: number };
+		// Older versions used `response.statusCode`
 		const k8sError = error as Error & {
 			response?: { statusCode: number; body?: { message?: string } };
 		};
 
-		if (k8sError.response) {
-			const status = k8sError.response.statusCode;
+		const status = apiException.code ?? k8sError.response?.statusCode;
 
+		if (status !== undefined) {
 			switch (status) {
 				case 404:
 					return new ResourceNotFoundError(operation);
