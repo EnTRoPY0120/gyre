@@ -15,10 +15,35 @@ CREATE TABLE `users_new` (
 	`preferences` text
 );
 
--- Copy data and lowercase usernames
--- Handle potential collisions by appending a suffix if needed (though unlikely in most installs)
+-- Copy data and lowercase usernames with collision resolution
 INSERT INTO `users_new` (id, username, password_hash, email, role, active, is_local, created_at, updated_at, preferences)
-SELECT id, LOWER(TRIM(username)), password_hash, email, role, active, is_local, created_at, updated_at, preferences FROM users;
+WITH cte AS (
+    SELECT 
+        id, 
+        password_hash, 
+        email, 
+        role, 
+        active, 
+        is_local, 
+        created_at, 
+        updated_at, 
+        preferences,
+        LOWER(TRIM(username)) AS norm,
+        ROW_NUMBER() OVER (PARTITION BY LOWER(TRIM(username)) ORDER BY id) AS rn
+    FROM users
+)
+SELECT 
+    id, 
+    CASE WHEN rn > 1 THEN norm || '_' || (rn - 1) ELSE norm END,
+    password_hash, 
+    email, 
+    role, 
+    active, 
+    is_local, 
+    created_at, 
+    updated_at, 
+    preferences
+FROM cte;
 
 -- Drop old table and rename new one
 DROP TABLE `users`;

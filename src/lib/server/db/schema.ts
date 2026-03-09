@@ -5,10 +5,7 @@ import type { UserPreferences } from '$lib/types/user';
 // Users table
 export const users = sqliteTable('users', {
 	id: text('id').primaryKey(),
-	username: text('username')
-		.notNull()
-		.unique()
-		.extra({ collate: 'NOCASE' } as any),
+	username: text('username').notNull().unique(),
 	passwordHash: text('password_hash').notNull(),
 	email: text('email'),
 	role: text('role', { enum: ['admin', 'editor', 'viewer'] })

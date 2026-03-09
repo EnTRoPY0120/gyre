@@ -85,8 +85,7 @@ export async function createOrUpdateSSOUser(
 	}
 
 	// Extract username and email from user info
-	const rawUsername = extractUsername(userInfo, providerConfig);
-	const username = normalizeUsername(rawUsername);
+	const username = extractUsername(userInfo, providerConfig);
 	const email = extractEmail(userInfo, providerConfig);
 
 	// Check domain allowlist (only for new users)

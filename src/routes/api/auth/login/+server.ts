@@ -128,11 +128,18 @@ export const POST: RequestHandler = async (event) => {
 		// Check if user exists first to give better error message
 		const existingUser = await getUserByUsername(canonicalUsername);
 		if (!existingUser) {
+			// Dummy verification to mitigate timing attacks
+			const dummyHash = '$2a$12$LRYuS.uH5A0GvS1x3qfGue3h5o.7s6w5.55.55.55.55.55.55.55';
+			const { verifyPassword } = await import('$lib/server/auth');
+			await verifyPassword(password, dummyHash);
+
 			accountLockout.recordFailure(canonicalUsername, 5);
 			throw error(401, { message: 'Invalid username or password' });
 		}
 
 		if (!existingUser.active) {
+			// Still do dummy verification here if we want to be super careful,
+			// though account being disabled is already a "user exists" indicator.
 			throw error(403, { message: 'Account is disabled. Please contact an administrator.' });
 		}
 
