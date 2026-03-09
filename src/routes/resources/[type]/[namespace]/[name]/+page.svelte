@@ -153,7 +153,7 @@
 	});
 
 	const isKustomization = $derived(data.resourceType === 'kustomizations');
-	const resourceKey = $derived(`${data.resourceType}-${data.namespace}-${data.name}`);
+	const resourceKey = $derived(JSON.stringify([data.resourceType, data.namespace, data.name]));
 
 	const tabs = $derived.by(() => {
 		const base = [...BASE_TABS];
@@ -214,8 +214,11 @@
 		try {
 			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`), { signal });
 			if (!res.ok) {
-				const errData = await res.json();
-				throw new Error(errData.message || `Failed to fetch logs: ${res.statusText}`);
+				const isJson = res.headers.get('content-type')?.includes('application/json');
+				const errMsg = isJson
+					? await res.json().then((d: { message?: string }) => d.message).catch(() => null)
+					: await res.text().catch(() => null);
+				throw new Error(errMsg || `Failed to fetch logs: ${res.statusText}`);
 			}
 			const result = await res.json();
 			logs = result.logs || '';
@@ -286,8 +289,11 @@
 				body: JSON.stringify({ historyId, revision })
 			});
 			if (!res.ok) {
-				const errorData = await res.json();
-				throw new Error(errorData.message || 'Rollback failed');
+				const isJson = res.headers.get('content-type')?.includes('application/json');
+				const errMsg = isJson
+					? await res.json().then((d: { message?: string }) => d.message).catch(() => null)
+					: await res.text().catch(() => null);
+				throw new Error(errMsg || 'Rollback failed');
 			}
 			toast.success(`Successfully initiated rollback to ${displayRevision}`);
 			historyFetched = false;

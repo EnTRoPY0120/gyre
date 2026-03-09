@@ -6,12 +6,19 @@
 		itemHeight: number;
 		buffer?: number;
 		class?: string;
+		scrollContainer?: HTMLDivElement | null | undefined;
 		children: import('svelte').Snippet<[T, number]>;
 	}
 
-	let { items, itemHeight, buffer = 5, class: className, children }: Props<T> = $props();
+	let {
+		items,
+		itemHeight,
+		buffer = 5,
+		class: className,
+		scrollContainer = $bindable(),
+		children
+	}: Props<T> = $props();
 
-	let container: HTMLDivElement | undefined = $state();
 	let scrollTop = $state(0);
 	let containerHeight = $state(0);
 
@@ -36,20 +43,20 @@
 	}
 
 	onMount(() => {
-		if (container) {
+		if (scrollContainer != null) {
 			const resizeObserver = new ResizeObserver((entries) => {
 				for (const entry of entries) {
 					containerHeight = entry.contentRect.height;
 				}
 			});
-			resizeObserver.observe(container);
+			resizeObserver.observe(scrollContainer);
 			return () => resizeObserver.disconnect();
 		}
 	});
 </script>
 
 <div
-	bind:this={container}
+	bind:this={scrollContainer}
 	class="virtual-list-container relative overflow-y-auto {className}"
 	onscroll={handleScroll}
 >
