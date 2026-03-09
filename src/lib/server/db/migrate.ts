@@ -12,7 +12,7 @@ export function initDatabase(): void {
 	db.run(sql`
 		CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
-			username TEXT NOT NULL UNIQUE,
+			username TEXT NOT NULL UNIQUE COLLATE NOCASE,
 			password_hash TEXT NOT NULL,
 			email TEXT,
 			role TEXT NOT NULL DEFAULT 'viewer',
@@ -23,6 +23,13 @@ export function initDatabase(): void {
 			preferences TEXT
 		)
 	`);
+
+	// Migration: ensure existing data is lowercased
+	try {
+		db.run(sql`UPDATE users SET username = LOWER(TRIM(username))`);
+	} catch (error) {
+		// Ignore errors (e.g. if table doesn't exist yet)
+	}
 
 	// Add preferences column if it doesn't exist (for existing databases)
 	try {
@@ -209,5 +216,23 @@ export function initDatabase(): void {
 		)
 	`);
 
+	// Login Lockouts table
+	initLockoutsTable(db);
+
 	console.log('✓ Database tables initialized');
 }
+
+/**
+ * Initialize login lockouts table
+ */
+function initLockoutsTable(db: ReturnType<typeof getDbSync>): void {
+	db.run(sql`
+		CREATE TABLE IF NOT EXISTS login_lockouts (
+			username TEXT PRIMARY KEY,
+			failed_attempts INTEGER NOT NULL DEFAULT 0,
+			locked_until INTEGER,
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+		)
+	`);
+}
+

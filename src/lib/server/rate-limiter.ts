@@ -1,4 +1,7 @@
 import { error } from '@sveltejs/kit';
+import { getDbSync } from './db/index.js';
+import { loginLockouts } from './db/schema.js';
+import { eq, sql } from 'drizzle-orm';
 
 interface RateLimitEntry {
 	currentWindowCount: number;
@@ -165,13 +168,7 @@ export function checkRateLimit(
 	}
 }
 
-interface LockoutEntry {
-	failedAttempts: number;
-	lockedUntil: number;
-}
-
 export class AccountLockout {
-	private storage: Map<string, LockoutEntry> = new Map();
 	private cleanupInterval: NodeJS.Timeout;
 
 	constructor() {
@@ -181,28 +178,34 @@ export class AccountLockout {
 	}
 
 	private cleanup() {
-		const now = Date.now();
-		for (const [key, entry] of this.storage.entries()) {
-			// Only remove entry if it has no failed attempts OR it's been more than 1 hour since the lock expired
-			const isLockExpired = entry.lockedUntil > 0 && entry.lockedUntil < now - 60 * 60 * 1000;
-			const hasNoFailures = entry.failedAttempts === 0 && entry.lockedUntil < now - 60 * 60 * 1000;
+		const db = getDbSync();
+		const now = new Date();
+		const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
-			if (isLockExpired || hasNoFailures) {
-				this.storage.delete(key);
-			}
-		}
+		// Remove entries that have no failed attempts AND the lockout has expired for more than 1 hour
+		db.delete(loginLockouts)
+			.where(
+				sql`(${loginLockouts.failedAttempts} = 0 OR ${loginLockouts.lockedUntil} < ${oneHourAgo.getTime() / 1000}) AND ${loginLockouts.lockedUntil} < ${now.getTime() / 1000}`
+			)
+			.run();
 	}
 
 	check(username: string): { locked: boolean; lockedUntil: number; retryAfter: number } {
-		const entry = this.storage.get(username);
-		if (!entry) return { locked: false, lockedUntil: 0, retryAfter: 0 };
+		const db = getDbSync();
+		const entry = db.query.loginLockouts.findFirst({
+			where: eq(loginLockouts.username, username)
+		});
+
+		if (!entry || !entry.lockedUntil) return { locked: false, lockedUntil: 0, retryAfter: 0 };
 
 		const now = Date.now();
-		if (entry.lockedUntil > now) {
+		const lockedUntilMs = entry.lockedUntil.getTime();
+
+		if (lockedUntilMs > now) {
 			return {
 				locked: true,
-				lockedUntil: entry.lockedUntil,
-				retryAfter: Math.ceil((entry.lockedUntil - now) / 1000)
+				lockedUntil: lockedUntilMs,
+				retryAfter: Math.ceil((lockedUntilMs - now) / 1000)
 			};
 		}
 
@@ -210,19 +213,41 @@ export class AccountLockout {
 	}
 
 	recordFailure(username: string, maxAttempts: number = 5): void {
-		let entry = this.storage.get(username);
-		if (!entry) {
-			entry = { failedAttempts: 0, lockedUntil: 0 };
-			this.storage.set(username, entry);
-		}
+		const db = getDbSync();
+		const now = new Date();
 
-		entry.failedAttempts++;
+		// Upsert failure record
+		db.insert(loginLockouts)
+			.values({
+				username,
+				failedAttempts: 1,
+				updatedAt: now
+			})
+			.onConflictDoUpdate({
+				target: loginLockouts.username,
+				set: {
+					failedAttempts: sql`${loginLockouts.failedAttempts} + 1`,
+					updatedAt: now
+				}
+			})
+			.run();
 
-		if (entry.failedAttempts >= maxAttempts) {
+		// Get updated entry to check for lockout
+		const entry = db.query.loginLockouts.findFirst({
+			where: eq(loginLockouts.username, username)
+		});
+
+		if (entry && entry.failedAttempts >= maxAttempts) {
 			const overThreshold = entry.failedAttempts - maxAttempts;
 			const backoffMinutes = Math.pow(2, overThreshold);
 			const lockedMinutes = Math.min(backoffMinutes, 1440); // Cap at 24 hours
-			entry.lockedUntil = Date.now() + lockedMinutes * 60 * 1000;
+			const lockedUntil = new Date(now.getTime() + lockedMinutes * 60 * 1000);
+
+			db.update(loginLockouts)
+				.set({ lockedUntil, updatedAt: now })
+				.where(eq(loginLockouts.username, username))
+				.run();
+
 			console.warn(
 				`[Security] Account lockout triggered for user '${username}'. Locked for ${lockedMinutes} minutes. Failed attempts: ${entry.failedAttempts}`
 			);
@@ -230,7 +255,8 @@ export class AccountLockout {
 	}
 
 	recordSuccess(username: string): void {
-		this.storage.delete(username);
+		const db = getDbSync();
+		db.delete(loginLockouts).where(eq(loginLockouts.username, username)).run();
 	}
 }
 

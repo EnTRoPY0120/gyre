@@ -5,7 +5,10 @@ import type { UserPreferences } from '$lib/types/user';
 // Users table
 export const users = sqliteTable('users', {
 	id: text('id').primaryKey(),
-	username: text('username').notNull().unique(),
+	username: text('username')
+		.notNull()
+		.unique()
+		.extra({ collate: 'NOCASE' } as any),
 	passwordHash: text('password_hash').notNull(),
 	email: text('email'),
 	role: text('role', { enum: ['admin', 'editor', 'viewer'] })
@@ -277,6 +280,19 @@ export const appSettings = sqliteTable('app_settings', {
 
 export type AppSetting = typeof appSettings.$inferSelect;
 export type NewAppSetting = typeof appSettings.$inferInsert;
+
+// Login Lockouts table (for persistent account lockout tracking)
+export const loginLockouts = sqliteTable('login_lockouts', {
+	username: text('username').primaryKey(), // Canonical username
+	failedAttempts: integer('failed_attempts').notNull().default(0),
+	lockedUntil: integer('locked_until', { mode: 'timestamp' }),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.default(sql`(unixepoch())`)
+});
+
+export type LoginLockout = typeof loginLockouts.$inferSelect;
+export type NewLoginLockout = typeof loginLockouts.$inferInsert;
 
 // Reconciliation History table (tracks all reconciliation attempts for FluxCD resources)
 export const reconciliationHistory = sqliteTable(
