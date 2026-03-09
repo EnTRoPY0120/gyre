@@ -158,11 +158,11 @@
 					<code>{logs}</code>
 				</div>
 			{:else}
-				<div bind:this={logContainer} class="h-[600px] w-full">
+				<div class="h-[600px] w-full">
 					{#if filteredFormattedLogs.length === 0}
 						<div class="py-8 text-center text-gray-500">No logs match your search.</div>
 					{:else}
-						<VirtualList items={filteredFormattedLogs} itemHeight={36} buffer={5} class="h-full px-4 py-2 font-mono text-xs leading-relaxed text-gray-300">
+						<VirtualList items={filteredFormattedLogs} itemHeight={36} buffer={5} class="h-full px-4 py-2 font-mono text-xs leading-relaxed text-gray-300" bind:scrollContainer={logContainer}>
 							{#snippet children(line)}
 								<div class="flex gap-3 overflow-hidden py-0.5">
 									<span class="shrink-0 text-gray-500">[{line.ts}]</span>
