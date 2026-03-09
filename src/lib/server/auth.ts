@@ -106,10 +106,11 @@ export async function createUser(
 ): Promise<User> {
 	const db = await getDb();
 	const passwordHash = await hashPassword(password);
+	const normalizedUsername = username.toLowerCase().trim();
 
 	const newUser: NewUser = {
 		id: generateUserId(),
-		username,
+		username: normalizedUsername,
 		passwordHash,
 		role,
 		email: email || null,
@@ -141,8 +142,9 @@ export async function getUserById(id: string): Promise<User | null> {
 
 export async function getUserByUsername(username: string): Promise<User | null> {
 	const db = await getDb();
+	const normalizedUsername = username.toLowerCase().trim();
 	const user = await db.query.users.findFirst({
-		where: eq(users.username, username)
+		where: eq(users.username, normalizedUsername)
 	});
 	return user || null;
 }
