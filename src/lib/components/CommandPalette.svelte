@@ -26,8 +26,10 @@
 
 	interface SearchResult {
 		item: CommandItem;
-		labelMatches?: readonly [number, number][];
-		descriptionMatches?: readonly [number, number][];
+		labelSegments: HighlightSegment[];
+		descSegments: HighlightSegment[] | null;
+		labelKeyword: boolean;
+		descKeyword: boolean;
 	}
 
 	let open = $state(false);
@@ -67,14 +69,26 @@
 	$effect(() => { fuse.setCollection(allItems); });
 
 	const filteredItems = $derived.by((): SearchResult[] => {
-		if (searchQuery.trim() === '') return allItems.map((item) => ({ item }));
+		if (searchQuery.trim() === '') {
+			return allItems.map((item) => ({
+				item,
+				labelSegments: [{ text: item.label, highlighted: false }],
+				descSegments: item.description ? [{ text: item.description, highlighted: false }] : null,
+				labelKeyword: false,
+				descKeyword: false
+			}));
+		}
 		return fuse.search(searchQuery).map((r) => {
 			const labelMatch = r.matches?.find((m) => m.key === 'label');
 			const descMatch = r.matches?.find((m) => m.key === 'description');
 			return {
 				item: r.item,
-				labelMatches: labelMatch?.indices as readonly [number, number][] | undefined,
-				descriptionMatches: descMatch?.indices as readonly [number, number][] | undefined
+				labelSegments: highlightText(r.item.label, labelMatch?.indices as readonly [number, number][] | undefined),
+				descSegments: r.item.description
+					? highlightText(r.item.description, descMatch?.indices as readonly [number, number][] | undefined)
+					: null,
+				labelKeyword: isKeywordMatch(r.item.label, searchQuery),
+				descKeyword: isKeywordMatch(r.item.description ?? '', searchQuery)
 			};
 		});
 	});
@@ -218,9 +232,6 @@
 							{@const item = result.item}
 							{@const idx = flatIndex(category, i)}
 							{@const isSelected = selectedIndex === idx}
-							{@const labelSegments = highlightText(item.label, result.labelMatches)}
-							{@const descSegments = item.description ? highlightText(item.description, result.descriptionMatches) : null}
-							{@const keyword = isKeywordMatch(item.label, searchQuery)}
 							<button
 								type="button"
 								data-selected={isSelected ? '' : undefined}
@@ -231,19 +242,19 @@
 								<Icon name={item.icon} size={16} class="shrink-0 opacity-70" />
 								<div class="flex flex-1 flex-col gap-0.5 text-left">
 									<span class="font-medium">
-										{#each labelSegments as seg}
+										{#each result.labelSegments as seg}
 											{#if seg.highlighted}
-												<mark class="rounded-sm bg-transparent px-0 not-italic font-semibold {keyword ? 'text-amber-300' : 'text-sky-300'}">{seg.text}</mark>
+												<mark class="rounded-sm bg-transparent px-0 not-italic font-semibold {result.labelKeyword ? 'text-amber-300' : 'text-sky-300'}">{seg.text}</mark>
 											{:else}
 												{seg.text}
 											{/if}
 										{/each}
 									</span>
-									{#if item.description && descSegments}
+									{#if item.description && result.descSegments}
 										<span class="text-xs {isSelected ? 'text-zinc-400' : 'text-zinc-500'}">
-											{#each descSegments as seg}
+											{#each result.descSegments as seg}
 												{#if seg.highlighted}
-													<mark class="rounded-sm bg-transparent px-0 not-italic {keyword ? 'text-amber-400/80' : 'text-sky-400/80'}">{seg.text}</mark>
+													<mark class="rounded-sm bg-transparent px-0 not-italic {result.descKeyword ? 'text-amber-400' : 'text-sky-400'}">{seg.text}</mark>
 												{:else}
 													{seg.text}
 												{/if}
