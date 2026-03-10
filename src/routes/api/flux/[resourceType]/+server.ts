@@ -14,6 +14,7 @@ import {
 } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
+import { VALID_SORT_BY, VALID_SORT_ORDER } from '$lib/config/sorting';
 
 /** Zod schema for POST create FluxCD resource request body – used for OpenAPI and runtime validation */
 const createFluxResourceBodySchema = z.looseObject({
@@ -44,12 +45,9 @@ export const _metadata = {
 					.string()
 					.optional()
 					.openapi({ description: 'Number of items to skip', example: '0' }),
-				sortBy: z
-					.enum(['name', 'age', 'status'])
-					.optional()
-					.openapi({ description: 'Field to sort by' }),
+				sortBy: z.enum(VALID_SORT_BY).optional().openapi({ description: 'Field to sort by' }),
 				sortOrder: z
-					.enum(['asc', 'desc'])
+					.enum(VALID_SORT_ORDER)
 					.optional()
 					.openapi({ description: 'Sort direction', example: 'asc' })
 			})
@@ -111,8 +109,8 @@ export const _metadata = {
 const listQuerySchema = z.object({
 	limit: z.coerce.number().int().min(1).max(500).optional(),
 	offset: z.coerce.number().int().min(0).optional(),
-	sortBy: z.enum(['name', 'age', 'status']).optional(),
-	sortOrder: z.enum(['asc', 'desc']).optional()
+	sortBy: z.enum(VALID_SORT_BY).optional(),
+	sortOrder: z.enum(VALID_SORT_ORDER).optional()
 });
 
 /**

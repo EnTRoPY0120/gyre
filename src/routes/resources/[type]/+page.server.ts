@@ -1,13 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
+import { VALID_SORT_BY, VALID_SORT_ORDER, type SortBy, type SortOrder } from '$lib/config/sorting';
 import type { FluxResource } from '$lib/types/flux';
-
-const VALID_SORT_BY = ['name', 'age', 'status'] as const;
-const VALID_SORT_ORDER = ['asc', 'desc'] as const;
-
-type SortBy = (typeof VALID_SORT_BY)[number];
-type SortOrder = (typeof VALID_SORT_ORDER)[number];
 
 export const load: PageServerLoad = async ({ params, url, fetch, depends }) => {
 	const { type } = params;
