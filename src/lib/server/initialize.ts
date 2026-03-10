@@ -14,11 +14,38 @@ import {
 } from './clusters.js';
 import { seedAuthSettings } from './settings.js';
 import { seedAuthProviders } from './auth/seed-providers.js';
-import { scheduleCleanup } from './kubernetes/flux/reconciliation-cleanup.js';
-import { scheduleSessionCleanup } from './auth/session-cleanup.js';
-import { scheduleAuditLogCleanup } from './audit.js';
+import { scheduleCleanup, stopCleanup } from './kubernetes/flux/reconciliation-cleanup.js';
+import { scheduleSessionCleanup, stopSessionCleanup } from './auth/session-cleanup.js';
+import { scheduleAuditLogCleanup, stopAuditLogCleanup } from './audit.js';
 
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
+
+/**
+ * Shutdown Gyre gracefully
+ */
+export function shutdownGyre(): void {
+	console.log('\n🛑 Shutting down Gyre...');
+	try {
+		stopCleanup();
+		stopSessionCleanup();
+		stopAuditLogCleanup();
+		console.log('   ✓ Cleanup schedulers stopped');
+	} catch (error) {
+		console.error('   ✗ Error during shutdown:', error);
+	}
+}
+
+// Register shutdown handlers
+if (typeof process !== 'undefined') {
+	process.on('SIGTERM', () => {
+		shutdownGyre();
+		process.exit(0);
+	});
+	process.on('SIGINT', () => {
+		shutdownGyre();
+		process.exit(0);
+	});
+}
 
 /**
  * Get current namespace from in-cluster ServiceAccount

@@ -37,37 +37,59 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 	try {
 		// Calculate cutoff dates
 		const now = new Date();
-		const successCutoff = new Date(now);
-		successCutoff.setDate(successCutoff.getDate() - CLEANUP_POLICIES.successRetentionDays);
-
-		const failureCutoff = new Date(now);
-		failureCutoff.setDate(failureCutoff.getDate() - CLEANUP_POLICIES.failureRetentionDays);
+		const successCutoff = new Date(
+			now.getTime() - CLEANUP_POLICIES.successRetentionDays * 24 * 60 * 60 * 1000
+		);
+		const failureCutoff = new Date(
+			now.getTime() - CLEANUP_POLICIES.failureRetentionDays * 24 * 60 * 60 * 1000
+		);
 
 		// 1. Delete old successful entries
-		const deletedSuccessResult = await db
-			.delete(reconciliationHistory)
+		// Count first to avoid loading all IDs into memory via .returning()
+		const successCountResult = await db
+			.select({ count: sql<number>`count(*)` })
+			.from(reconciliationHistory)
 			.where(
 				and(
 					eq(reconciliationHistory.status, 'success'),
 					lt(reconciliationHistory.reconcileCompletedAt, successCutoff)
 				)
-			)
-			.returning({ id: reconciliationHistory.id });
+			);
 
-		stats.deletedSuccess = deletedSuccessResult.length;
+		stats.deletedSuccess = successCountResult[0]?.count || 0;
+		if (stats.deletedSuccess > 0) {
+			await db
+				.delete(reconciliationHistory)
+				.where(
+					and(
+						eq(reconciliationHistory.status, 'success'),
+						lt(reconciliationHistory.reconcileCompletedAt, successCutoff)
+					)
+				);
+		}
 
 		// 2. Delete old failed entries
-		const deletedFailureResult = await db
-			.delete(reconciliationHistory)
+		const failureCountResult = await db
+			.select({ count: sql<number>`count(*)` })
+			.from(reconciliationHistory)
 			.where(
 				and(
 					eq(reconciliationHistory.status, 'failure'),
 					lt(reconciliationHistory.reconcileCompletedAt, failureCutoff)
 				)
-			)
-			.returning({ id: reconciliationHistory.id });
+			);
 
-		stats.deletedFailure = deletedFailureResult.length;
+		stats.deletedFailure = failureCountResult[0]?.count || 0;
+		if (stats.deletedFailure > 0) {
+			await db
+				.delete(reconciliationHistory)
+				.where(
+					and(
+						eq(reconciliationHistory.status, 'failure'),
+						lt(reconciliationHistory.reconcileCompletedAt, failureCutoff)
+					)
+				);
+		}
 
 		// 3. Keep only last N entries per resource
 		// Get all unique resource combinations
