@@ -23,6 +23,7 @@
 	import ResourceTable from '$lib/components/flux/ResourceTable.svelte';
 	import ResourceGrid from '$lib/components/flux/ResourceGrid.svelte';
 	import type { FluxResource } from '$lib/types/flux';
+	import { SORT_FIELDS, type SortBy } from '$lib/config/sorting';
 	import { FilterX, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-svelte';
 
 	interface Props {
@@ -72,14 +73,6 @@
 	});
 
 	// ─── URL-derived state ───────────────────────────────────────────────────────
-
-	const SORT_FIELDS = [
-		{ key: 'name', label: 'Name' },
-		{ key: 'age', label: 'Age' },
-		{ key: 'status', label: 'Status' }
-	] as const;
-
-	type SortBy = (typeof SORT_FIELDS)[number]['key'];
 
 	function parseSortBy(raw: string | null): SortBy | undefined {
 		return SORT_FIELDS.some((f) => f.key === raw) ? (raw as SortBy) : undefined;
@@ -201,6 +194,9 @@
 
 		const timeoutId = setTimeout(() => {
 			const params = filtersToSearchParams(currentFilters);
+			// Preserve page size when paginating; filter/sort changes always reset to page 1.
+			const existingLimit = $page.url.searchParams.get('limit');
+			if (existingLimit) params.set('limit', existingLimit);
 			if (currentSortBy) {
 				params.set('sortBy', currentSortBy);
 				params.set('sortOrder', currentSortOrder);
