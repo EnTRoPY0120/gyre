@@ -4,6 +4,7 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
+	import type { HealthCheckResult, ClusterHealthCheck } from '$lib/server/clusters';
 
 	interface Cluster {
 		id: string;
@@ -15,23 +16,6 @@
 		lastConnectedAt: Date | null;
 		lastError: string | null;
 		createdAt: Date;
-	}
-
-	interface HealthCheckResult {
-		name: string;
-		passed: boolean;
-		message: string;
-		details?: string;
-		duration?: number;
-	}
-
-	interface ClusterHealthCheck {
-		connected: boolean;
-		clusterName: string;
-		kubernetesVersion?: string;
-		checks: HealthCheckResult[];
-		error?: string;
-		timestamp: string;
 	}
 
 	let { data, form } = $props<{
