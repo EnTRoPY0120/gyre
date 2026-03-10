@@ -111,6 +111,68 @@ let baseConfig: k8s.KubeConfig | null = null;
 
 export type ReqCache = Map<string, Promise<k8s.KubeConfig>>;
 
+// ---------------------------------------------------------------------------
+// Connection pool — singleton API clients per cluster context
+// ---------------------------------------------------------------------------
+
+const POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+interface PoolEntry<T> {
+	client: T;
+	createdAt: number;
+	hitCount: number;
+}
+
+const customObjectsPool = new Map<string, PoolEntry<k8s.CustomObjectsApi>>();
+const coreV1Pool = new Map<string, PoolEntry<k8s.CoreV1Api>>();
+const appsV1Pool = new Map<string, PoolEntry<k8s.AppsV1Api>>();
+
+const poolMetricsState = { hits: 0, misses: 0, evictions: 0 };
+
+/** Returns current connection pool metrics (hits, misses, evictions, pool sizes). */
+export function getPoolMetrics() {
+	return {
+		hits: poolMetricsState.hits,
+		misses: poolMetricsState.misses,
+		evictions: poolMetricsState.evictions,
+		poolSizes: {
+			customObjects: customObjectsPool.size,
+			coreV1: coreV1Pool.size,
+			appsV1: appsV1Pool.size
+		}
+	};
+}
+
+/** Evicts all pooled clients (useful after kubeconfig rotation or in tests). */
+export function clearClientPool() {
+	customObjectsPool.clear();
+	coreV1Pool.clear();
+	appsV1Pool.clear();
+	poolMetricsState.hits = 0;
+	poolMetricsState.misses = 0;
+	poolMetricsState.evictions = 0;
+}
+
+function getOrCreate<T>(pool: Map<string, PoolEntry<T>>, key: string, factory: () => T): T {
+	const now = Date.now();
+	const entry = pool.get(key);
+
+	if (entry && now - entry.createdAt < POOL_TTL_MS) {
+		entry.hitCount++;
+		poolMetricsState.hits++;
+		return entry.client;
+	}
+
+	if (entry) {
+		poolMetricsState.evictions++;
+	}
+
+	poolMetricsState.misses++;
+	const client = factory();
+	pool.set(key, { client, createdAt: now, hitCount: 0 });
+	return client;
+}
+
 /**
  * Get or create KubeConfig for a specific cluster or context
  * This function is now asynchronous and atomic per-request.
@@ -178,33 +240,36 @@ export async function getKubeConfig(
 }
 
 /**
- * Create CustomObjectsApi client
+ * Create CustomObjectsApi client, reusing a pooled instance when possible.
  * @param context - Optional cluster ID or context name
  */
 export async function getCustomObjectsApi(
 	context?: string,
 	reqCache?: ReqCache
 ): Promise<k8s.CustomObjectsApi> {
+	const key = context || 'in-cluster';
 	const config = await getKubeConfig(context, reqCache);
-	return config.makeApiClient(k8s.CustomObjectsApi);
+	return getOrCreate(customObjectsPool, key, () => config.makeApiClient(k8s.CustomObjectsApi));
 }
 
 /**
- * Create CoreV1Api client
+ * Create CoreV1Api client, reusing a pooled instance when possible.
  * @param context - Optional cluster ID or context name
  */
 export async function getCoreV1Api(context?: string, reqCache?: ReqCache): Promise<k8s.CoreV1Api> {
+	const key = context || 'in-cluster';
 	const config = await getKubeConfig(context, reqCache);
-	return config.makeApiClient(k8s.CoreV1Api);
+	return getOrCreate(coreV1Pool, key, () => config.makeApiClient(k8s.CoreV1Api));
 }
 
 /**
- * Create AppsV1Api client
+ * Create AppsV1Api client, reusing a pooled instance when possible.
  * @param context - Optional cluster ID or context name
  */
 export async function getAppsV1Api(context?: string, reqCache?: ReqCache): Promise<k8s.AppsV1Api> {
+	const key = context || 'in-cluster';
 	const config = await getKubeConfig(context, reqCache);
-	return config.makeApiClient(k8s.AppsV1Api);
+	return getOrCreate(appsV1Pool, key, () => config.makeApiClient(k8s.AppsV1Api));
 }
 
 /**
