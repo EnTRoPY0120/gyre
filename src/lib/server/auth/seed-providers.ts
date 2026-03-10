@@ -23,7 +23,7 @@ interface ProviderSeedConfig {
 	jwksUrl?: string;
 	autoProvision?: boolean;
 	defaultRole?: 'admin' | 'editor' | 'viewer';
-	roleMapping?: string;
+	roleMapping?: string | Record<string, string>;
 	roleClaim?: string;
 	usernameClaim?: string;
 	emailClaim?: string;
