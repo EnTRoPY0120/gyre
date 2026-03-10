@@ -42,7 +42,39 @@ export function initDatabase(): void {
 			.get() as { value: string } | undefined;
 
 		if (!result || result.value !== 'true') {
-			db.run(sql`UPDATE users SET username = LOWER(TRIM(username))`);
+			// Collision-aware normalization: detect duplicates before bulk UPDATE
+			const allUsers = db
+				.select({ id: sql`id`, username: sql`username` })
+				.from(sql`users`)
+				.all() as { id: string; username: string }[];
+
+			// Group by the normalized form to find collisions
+			const groups = new Map<string, { id: string; username: string }[]>();
+			for (const user of allUsers) {
+				const normalized = user.username.toLowerCase().trim();
+				if (!groups.has(normalized)) {
+					groups.set(normalized, []);
+				}
+				groups.get(normalized)!.push(user);
+			}
+
+			// Apply per-row updates, resolving collisions with ordinal suffixes
+			for (const [normalized, group] of groups) {
+				if (group.length === 1) {
+					db.run(sql`UPDATE users SET username = ${normalized} WHERE id = ${group[0].id}`);
+				} else {
+					// Sort deterministically by id so suffix assignment is stable
+					group.sort((a, b) => a.id.localeCompare(b.id));
+					for (let i = 0; i < group.length; i++) {
+						const finalUsername = i === 0 ? normalized : `${normalized}_${i}`;
+						db.run(sql`UPDATE users SET username = ${finalUsername} WHERE id = ${group[i].id}`);
+					}
+					console.warn(
+						`[DB] Migration: resolved username collision for "${normalized}" across ${group.length} users`
+					);
+				}
+			}
+
 			db.run(
 				sql`INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('migrations.users_lowercased', 'true', (unixepoch()))`
 			);
