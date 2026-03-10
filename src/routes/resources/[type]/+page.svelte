@@ -280,6 +280,7 @@
 						class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors {sortBy === opt.key
 							? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
 							: 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}"
+						aria-pressed={sortBy === opt.key}
 						onclick={() => applySort(opt.key as 'name' | 'age' | 'status')}
 					>
 						{opt.label}
