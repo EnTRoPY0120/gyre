@@ -61,7 +61,9 @@ export const _metadata = {
 					'application/json': {
 						schema: z.object({
 							items: z.array(z.any()),
-							total: z.number().openapi({ description: 'Total number of resources' }),
+							total: z.number().nullable().openapi({
+								description: 'Total number of resources, or null when cursor-based paging is used'
+							}),
 							hasMore: z.boolean().openapi({ description: 'Whether more items exist' }),
 							offset: z.number().openapi({ description: 'Current offset' }),
 							limit: z.number().openapi({ description: 'Current limit' })

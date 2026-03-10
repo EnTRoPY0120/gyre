@@ -33,7 +33,7 @@
 				description: string;
 			};
 			resources: FluxResource[];
-			total: number;
+			total: number | null;
 			sortBy: 'name' | 'age' | 'status' | undefined;
 			sortOrder: 'asc' | 'desc';
 			error: string | null;
