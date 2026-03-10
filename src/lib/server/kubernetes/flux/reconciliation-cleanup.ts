@@ -1,6 +1,7 @@
 import { sql, and, eq, lt, desc } from 'drizzle-orm';
 import { getDbSync } from '../../db/index.js';
 import { reconciliationHistory } from '../../db/schema.js';
+import { MS_PER_DAY, MS_PER_MINUTE } from '../../utils/time.js';
 
 export interface CleanupStats {
 	deletedSuccess: number;
@@ -38,10 +39,10 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 		// Calculate cutoff dates
 		const now = new Date();
 		const successCutoff = new Date(
-			now.getTime() - CLEANUP_POLICIES.successRetentionDays * 24 * 60 * 60 * 1000
+			now.getTime() - CLEANUP_POLICIES.successRetentionDays * MS_PER_DAY
 		);
 		const failureCutoff = new Date(
-			now.getTime() - CLEANUP_POLICIES.failureRetentionDays * 24 * 60 * 60 * 1000
+			now.getTime() - CLEANUP_POLICIES.failureRetentionDays * MS_PER_DAY
 		);
 
 		// 1. Delete old successful entries
@@ -205,16 +206,16 @@ export function scheduleCleanup(): void {
 
 	cleanupScheduled = true;
 
-	// Also run an initial cleanup after 5 minutes for immediate effect
-	immediateCleanupTimeout = setTimeout(
-		() => {
-			console.log('[ReconciliationCleanup] Running initial cleanup...');
-			cleanupReconciliationHistory().catch((err) => {
-				console.error('[ReconciliationCleanup] Initial cleanup failed:', err);
-			});
-		},
-		5 * 60 * 1000
-	);
+	// Also run an initial cleanup shortly after startup
+	// We add a random jitter (0-30m) to prevent multiple instances from contending.
+	const startupDelayWithJitter = 5 * MS_PER_MINUTE + Math.floor(Math.random() * 30 * MS_PER_MINUTE);
+
+	immediateCleanupTimeout = setTimeout(() => {
+		console.log('[ReconciliationCleanup] Running initial cleanup...');
+		cleanupReconciliationHistory().catch((err) => {
+			console.error('[ReconciliationCleanup] Initial cleanup failed:', err);
+		});
+	}, startupDelayWithJitter);
 }
 
 /**
