@@ -1,11 +1,12 @@
 import type { PageServerLoad } from './$types';
 import { resourceGroups } from '$lib/config/resources';
+import { fetchWithRetry } from '$lib/utils/fetch';
 
 // Cache for dashboard data - shared across requests
 const dashboardCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL = 30 * 1000; // 30 seconds
 
-export const load: PageServerLoad = async ({ fetch, parent, setHeaders }) => {
+export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHeaders }) => {
 	// Get health data from parent layout
 	const parentData = await parent();
 
@@ -24,7 +25,9 @@ export const load: PageServerLoad = async ({ fetch, parent, setHeaders }) => {
 		}
 
 		// Fetch batched overview results
-		const response = await fetch('/api/flux/overview');
+		const response = await fetchWithRetry('/api/flux/overview', undefined, {
+			fetchFn: svelteFetch
+		});
 		if (!response.ok) {
 			return {} as Record<
 				string,

@@ -2,8 +2,9 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
 import type { FluxResource } from '$lib/types/flux';
+import { fetchWithRetry } from '$lib/utils/fetch';
 
-export const load: PageServerLoad = async ({ params, fetch, depends }) => {
+export const load: PageServerLoad = async ({ params, fetch: svelteFetch, depends }) => {
 	const { type, namespace, name } = params;
 	depends(`flux:resource:${type}:${namespace}:${name}`);
 
@@ -23,7 +24,9 @@ export const load: PageServerLoad = async ({ params, fetch, depends }) => {
 	}
 
 	try {
-		const response = await fetch(`/api/flux/${type}/${namespace}/${name}`);
+		const response = await fetchWithRetry(`/api/flux/${type}/${namespace}/${name}`, undefined, {
+			fetchFn: svelteFetch
+		});
 
 		if (!response.ok) {
 			if (response.status === 404) {

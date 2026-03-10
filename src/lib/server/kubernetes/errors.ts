@@ -38,6 +38,13 @@ export class AuthorizationError extends KubernetesError {
 	}
 }
 
+export class ClusterUnavailableError extends KubernetesError {
+	constructor(message = 'Kubernetes cluster is currently unavailable') {
+		super(message, 503, 'ServiceUnavailable');
+		this.name = 'ClusterUnavailableError';
+	}
+}
+
 export class ConfigurationError extends Error {
 	constructor(message: string) {
 		super(message);

@@ -3,8 +3,9 @@ import type { PageServerLoad } from './$types';
 import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
 import { VALID_SORT_BY, VALID_SORT_ORDER, type SortBy, type SortOrder } from '$lib/config/sorting';
 import type { FluxResource } from '$lib/types/flux';
+import { fetchWithRetry } from '$lib/utils/fetch';
 
-export const load: PageServerLoad = async ({ params, url, fetch, depends }) => {
+export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, depends }) => {
 	const { type } = params;
 	depends(`flux:${type}`); // e.g. flux:gitrepositories
 
@@ -58,7 +59,7 @@ export const load: PageServerLoad = async ({ params, url, fetch, depends }) => {
 	if (offset !== undefined) apiUrl.searchParams.set('offset', String(offset));
 
 	try {
-		const response = await fetch(apiUrl.toString());
+		const response = await fetchWithRetry(apiUrl.toString(), undefined, { fetchFn: svelteFetch });
 
 		if (!response.ok) {
 			if (response.status === 404) {
