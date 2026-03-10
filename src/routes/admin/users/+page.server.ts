@@ -80,7 +80,7 @@ export const actions: Actions = {
 
 			return { success: true, user: newUser };
 		} catch (error) {
-			logger.error('Error creating user:', error);
+			logger.error(error, 'Error creating user:');
 			if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
 				return fail(400, { error: 'Username already exists' });
 			}
@@ -130,7 +130,7 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (error) {
-			logger.error('Error updating user:', error);
+			logger.error(error, 'Error updating user:');
 			return fail(500, { error: 'Failed to update user' });
 		}
 	},
@@ -163,7 +163,7 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (error) {
-			logger.error('Error deleting user:', error);
+			logger.error(error, 'Error deleting user:');
 			return fail(500, { error: 'Failed to delete user' });
 		}
 	},
@@ -205,7 +205,7 @@ export const actions: Actions = {
 
 			return { success: true, password: newPassword };
 		} catch (error) {
-			logger.error('Error resetting password:', error);
+			logger.error(error, 'Error resetting password:');
 			return fail(500, { error: 'Failed to reset password' });
 		}
 	}

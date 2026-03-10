@@ -71,7 +71,7 @@ export function advancedSearch<T>(items: T[], query: string, options: SearchOpti
 			});
 		} catch (e) {
 			// If regex is invalid, fallback to literal search or return empty
-			logger.debug('Invalid regex:', e);
+			logger.debug(e, 'Invalid regex:');
 			return [];
 		}
 	}

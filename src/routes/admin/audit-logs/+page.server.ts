@@ -69,7 +69,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				try {
 					details = JSON.parse(log.details);
 				} catch (e) {
-					logger.warn(`Failed to parse audit log details for ID ${log.id}:`, e);
+					logger.warn(e, `Failed to parse audit log details for ID ${log.id}:`);
 					details = { raw: log.details, error: 'Failed to parse JSON' };
 				}
 			}

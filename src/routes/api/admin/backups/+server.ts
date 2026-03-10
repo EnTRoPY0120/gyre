@@ -108,7 +108,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		return json({ backups });
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err) throw err;
-		logger.error('Failed to list backups:', err);
+		logger.error(err, 'Failed to list backups:');
 		throw error(500, 'Failed to list backups');
 	}
 };
@@ -137,7 +137,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 		return json({ backup }, { status: 201 });
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err) throw err;
-		logger.error('Failed to create backup:', err);
+		logger.error(err, 'Failed to create backup:');
 		throw error(500, 'Failed to create backup');
 	}
 };
@@ -175,7 +175,7 @@ export const DELETE: RequestHandler = async ({ locals, url }) => {
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		logger.error('Failed to delete backup:', err);
+		logger.error(err, 'Failed to delete backup:');
 		throw error(500, 'Failed to delete backup');
 	}
 };

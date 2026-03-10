@@ -20,7 +20,7 @@ async function performCleanup(): Promise<void> {
 	try {
 		await cleanupExpiredSessions();
 	} catch (err) {
-		logger.error('[SessionCleanup] Cleanup failed:', err);
+		logger.error(err, '[SessionCleanup] Cleanup failed:');
 	} finally {
 		isCleaning = false;
 	}

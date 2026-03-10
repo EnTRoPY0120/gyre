@@ -58,7 +58,7 @@ export const load: PageServerLoad = async ({ params, fetch: svelteFetch, depends
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		logger.error(`Error fetching ${type}/${namespace}/${name}:`, err);
+		logger.error(err, `Error fetching ${type}/${namespace}/${name}:`);
 		error(500, {
 			message: 'Failed to connect to the API'
 		});

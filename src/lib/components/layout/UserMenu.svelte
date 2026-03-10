@@ -28,7 +28,7 @@
 				window.location.href = '/login?loggedOut=true';
 			}
 		} catch (err) {
-			logger.error('Logout failed:', err);
+			logger.error(err, 'Logout failed:');
 		}
 	}
 

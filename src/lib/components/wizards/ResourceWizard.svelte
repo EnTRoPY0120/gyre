@@ -117,7 +117,7 @@
 			});
 			formValues = values;
 		} catch (err) {
-			logger.error('Failed to parse initial YAML', err);
+			logger.error(err, 'Failed to parse initial YAML');
 		}
 	});
 
@@ -137,7 +137,7 @@
 
 			currentYaml = doc.toString();
 		} catch (err) {
-			logger.error('Failed to update YAML from form', err);
+			logger.error(err, 'Failed to update YAML from form');
 		}
 	}
 
@@ -266,7 +266,7 @@
 				copySuccess = false;
 			}, 2000);
 		} catch (err) {
-			logger.error('Failed to copy YAML:', err);
+			logger.error(err, 'Failed to copy YAML:');
 		}
 	}
 

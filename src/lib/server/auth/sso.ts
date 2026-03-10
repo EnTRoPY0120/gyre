@@ -196,7 +196,7 @@ function mapRoleFromGroups(
 	try {
 		mapping = JSON.parse(roleMapping);
 	} catch (error) {
-		logger.error('Failed to parse role mapping:', error);
+		logger.error(error, 'Failed to parse role mapping:');
 		return defaultRole as 'admin' | 'editor' | 'viewer';
 	}
 

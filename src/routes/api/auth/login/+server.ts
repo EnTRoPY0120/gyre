@@ -184,7 +184,7 @@ export const POST: RequestHandler = async (event) => {
 		if (isHttpError(err) || isRedirect(err)) {
 			throw err;
 		}
-		logger.error('Login error:', err);
+		logger.error(err, 'Login error:');
 		throw error(500, { message: 'Internal server error' });
 	}
 };

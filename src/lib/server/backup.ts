@@ -350,7 +350,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 		try {
 			currentDb.pragma('wal_checkpoint(TRUNCATE)');
 		} catch (e) {
-			logger.warn('[Backup] Failed to checkpoint current DB before restore:', e);
+			logger.warn(e, '[Backup] Failed to checkpoint current DB before restore:');
 		} finally {
 			currentDb.close();
 		}
@@ -363,7 +363,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 					unlinkSync(artifactPath);
 				}
 			} catch (e) {
-				logger.error(`[Backup] Failed to remove stale artifact ${artifactPath}:`, e);
+				logger.error(e, `[Backup] Failed to remove stale artifact ${artifactPath}:`);
 			}
 		}
 

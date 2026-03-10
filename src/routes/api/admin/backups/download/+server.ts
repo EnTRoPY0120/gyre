@@ -111,7 +111,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		logger.error('Failed to download backup:', err);
+		logger.error(err, 'Failed to download backup:');
 		throw error(500, 'Failed to download backup');
 	}
 };

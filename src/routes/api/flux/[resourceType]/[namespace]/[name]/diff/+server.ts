@@ -274,7 +274,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 						logger.info(`✓ K8s pod proxy fetch successful (${buffer.length} bytes)`);
 					} catch (proxyErr) {
-						logger.error(`Pod proxy error:`, proxyErr);
+						logger.error(proxyErr, `Pod proxy error:`);
 						throw proxyErr;
 					}
 				} catch (execErr) {
@@ -488,7 +488,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 							live: liveState ? yaml.dump(clean(liveState)) : null
 						};
 					} catch (err) {
-						logger.error(`Error diffing ${kind}/${resName}:`, err);
+						logger.error(err, `Error diffing ${kind}/${resName}:`);
 						return {
 							kind,
 							name: resName,
@@ -523,7 +523,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			throw err;
 		}
 
-		logger.error('Diff error:', err);
+		logger.error(err, 'Diff error:');
 		const { status, message: clientMessage } = classifyDiffError(err);
 		throw error(status, clientMessage);
 	}

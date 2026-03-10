@@ -100,7 +100,7 @@ import { defineMonacoThemes } from './monacoTheme';
 
 				loading = false;
 			} catch (err) {
-				logger.error('Failed to load Monaco Diff Editor:', err);
+				logger.error(err, 'Failed to load Monaco Diff Editor:');
 				error = err instanceof Error ? err.message : 'Failed to load diff editor';
 				loading = false;
 			}

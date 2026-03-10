@@ -87,7 +87,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 			return json({ version });
 		} catch (err) {
-			logger.warn('Failed to fetch version from deployments, trying fallback:', err);
+			logger.warn(err, 'Failed to fetch version from deployments, trying fallback:');
 			return json({ version: 'v2.x.x' });
 		}
 	} catch (err) {

@@ -171,7 +171,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		return json({ provider: sanitizedProvider });
 	} catch (err) {
-		logger.error('Failed to get auth provider:', err);
+		logger.error(err, 'Failed to get auth provider:');
 
 		// Re-throw SvelteKit errors
 		if (err instanceof Response) {
@@ -266,7 +266,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			}
 		});
 	} catch (err) {
-		logger.error('Failed to update auth provider:', err);
+		logger.error(err, 'Failed to update auth provider:');
 
 		// Re-throw SvelteKit errors
 		if (err instanceof Response) {
@@ -312,7 +312,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 
 		return json({ success: true });
 	} catch (err) {
-		logger.error('Failed to delete auth provider:', err);
+		logger.error(err, 'Failed to delete auth provider:');
 
 		// Re-throw SvelteKit errors
 		if (err instanceof Response) {

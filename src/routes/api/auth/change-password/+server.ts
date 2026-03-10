@@ -137,7 +137,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		if (isHttpError(err) || isRedirect(err)) {
 			throw err;
 		}
-		logger.error('Change password error:', err);
+		logger.error(err, 'Change password error:');
 		throw error(500, { message: 'Internal server error' });
 	}
 };
