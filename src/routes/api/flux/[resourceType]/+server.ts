@@ -37,14 +37,19 @@ export const _metadata = {
 				resourceType: z.string().openapi({ example: 'gitrepositories' })
 			}),
 			query: z.object({
-				limit: z
-					.string()
+				limit: z.coerce
+					.number()
+					.int()
+					.min(1)
+					.max(500)
 					.optional()
-					.openapi({ description: 'Maximum number of items to return', example: '50' }),
-				offset: z
-					.string()
+					.openapi({ description: 'Maximum number of items to return', example: 50 }),
+				offset: z.coerce
+					.number()
+					.int()
+					.min(0)
 					.optional()
-					.openapi({ description: 'Number of items to skip', example: '0' }),
+					.openapi({ description: 'Number of items to skip', example: 0 }),
 				sortBy: z.enum(VALID_SORT_BY).optional().openapi({ description: 'Field to sort by' }),
 				sortOrder: z
 					.enum(VALID_SORT_ORDER)
@@ -106,12 +111,7 @@ export const _metadata = {
 	}
 };
 
-const listQuerySchema = z.object({
-	limit: z.coerce.number().int().min(1).max(500).optional(),
-	offset: z.coerce.number().int().min(0).optional(),
-	sortBy: z.enum(VALID_SORT_BY).optional(),
-	sortOrder: z.enum(VALID_SORT_ORDER).optional()
-});
+const listQuerySchema = _metadata.GET.request.query;
 
 /**
  * GET /api/flux/{resourceType}
