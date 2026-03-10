@@ -4,7 +4,8 @@ import type { RequestHandler } from './$types';
 import {
 	listFluxResources,
 	createFluxResource,
-	type ReqCache
+	type ReqCache,
+	type ListOptions
 } from '$lib/server/kubernetes/client.js';
 import {
 	getAllResourcePlurals,
@@ -28,25 +29,47 @@ const createFluxResourceBodySchema = z.looseObject({
 export const _metadata = {
 	GET: {
 		summary: 'List FluxCD resources',
-		description: 'Retrieve a list of all resources of a specific type across all namespaces.',
+		description: 'Retrieve a paginated, sortable list of resources of a specific type.',
 		tags: ['Flux'],
 		request: {
 			params: z.object({
 				resourceType: z.string().openapi({ example: 'gitrepositories' })
+			}),
+			query: z.object({
+				limit: z
+					.string()
+					.optional()
+					.openapi({ description: 'Maximum number of items to return', example: '50' }),
+				offset: z
+					.string()
+					.optional()
+					.openapi({ description: 'Number of items to skip', example: '0' }),
+				sortBy: z
+					.enum(['name', 'age', 'status'])
+					.optional()
+					.openapi({ description: 'Field to sort by' }),
+				sortOrder: z
+					.enum(['asc', 'desc'])
+					.optional()
+					.openapi({ description: 'Sort direction', example: 'asc' })
 			})
 		},
 		responses: {
 			200: {
-				description: 'List of resources',
+				description: 'Paginated list of resources',
 				content: {
 					'application/json': {
 						schema: z.object({
-							items: z.array(z.any())
+							items: z.array(z.any()),
+							total: z.number().openapi({ description: 'Total number of resources' }),
+							hasMore: z.boolean().openapi({ description: 'Whether more items exist' }),
+							offset: z.number().openapi({ description: 'Current offset' }),
+							limit: z.number().openapi({ description: 'Current limit' })
 						})
 					}
 				}
 			},
-			400: { description: 'Invalid resource type' },
+			400: { description: 'Invalid resource type or query parameter' },
 			401: { description: 'Unauthorized' },
 			403: { description: 'Permission denied' }
 		}
@@ -83,13 +106,21 @@ export const _metadata = {
 	}
 };
 
+const listQuerySchema = z.object({
+	limit: z.coerce.number().int().min(1).max(500).optional(),
+	offset: z.coerce.number().int().min(0).optional(),
+	sortBy: z.enum(['name', 'age', 'status']).optional(),
+	sortOrder: z.enum(['asc', 'desc']).optional()
+});
+
 /**
  * GET /api/flux/{resourceType}
- * List all resources of a specific type across all namespaces
+ * List resources of a specific type across all namespaces.
+ * Supports limit, offset, sortBy, and sortOrder query parameters.
  * Accepts both plural names (e.g., 'gitrepositories') and PascalCase (e.g., 'GitRepository')
  */
 
-export const GET: RequestHandler = async ({ params, locals, setHeaders, request }) => {
+export const GET: RequestHandler = async ({ params, locals, setHeaders, request, url }) => {
 	// Check authentication
 	if (!locals.user) {
 		throw error(401, { message: 'Authentication required' });
@@ -108,6 +139,23 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 		});
 	}
 
+	// Parse and validate query parameters
+	const queryResult = listQuerySchema.safeParse({
+		limit: url.searchParams.get('limit') ?? undefined,
+		offset: url.searchParams.get('offset') ?? undefined,
+		sortBy: url.searchParams.get('sortBy') ?? undefined,
+		sortOrder: url.searchParams.get('sortOrder') ?? undefined
+	});
+
+	if (!queryResult.success) {
+		const message = queryResult.error.issues
+			.map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+			.join('; ');
+		throw error(400, { message: `Invalid query parameters: ${message}` });
+	}
+
+	const listOptions: ListOptions = queryResult.data;
+
 	// Check permission (all namespaces)
 	const hasPermission = await checkPermission(
 		locals.user,
@@ -124,10 +172,10 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 	const reqCache: ReqCache = new Map();
 
 	try {
-		const resources = await listFluxResources(resolvedType, locals.cluster, reqCache);
+		const result = await listFluxResources(resolvedType, locals.cluster, reqCache, listOptions);
 
 		// Generate ETag from resourceVersion
-		const resourceVersion = resources.metadata?.resourceVersion;
+		const resourceVersion = result.metadata?.resourceVersion;
 		const etag = resourceVersion ? `W/"${resourceVersion}"` : null;
 
 		if (etag) {
@@ -142,7 +190,7 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request 
 			'Cache-Control': 'private, max-age=15, stale-while-revalidate=45'
 		});
 
-		return json(resources);
+		return json(result);
 	} catch (err) {
 		handleApiError(err, `Error listing ${resolvedType} resources`);
 	}
