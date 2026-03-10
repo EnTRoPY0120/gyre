@@ -7,6 +7,7 @@
 	let localLoginEnabled = $state(false);
 	let allowSignup = $state(false);
 	let domainAllowlistText = $state('');
+	let auditRetentionDays = $state(90);
 	let saving = $state(false);
 
 	let initialized = $state(false);
@@ -17,6 +18,7 @@
 			localLoginEnabled = data.settings.localLoginEnabled.value;
 			allowSignup = data.settings.allowSignup.value;
 			domainAllowlistText = data.settings.domainAllowlist.value.join(', ');
+			auditRetentionDays = data.settings.auditRetentionDays.value;
 			initialized = true;
 		}
 	});
@@ -36,7 +38,8 @@
 				body: JSON.stringify({
 					localLoginEnabled,
 					allowSignup,
-					domainAllowlist: domains
+					domainAllowlist: domains,
+					auditRetentionDays
 				})
 			});
 
@@ -145,6 +148,36 @@
 
 			<div class="border-t border-gray-200 dark:border-gray-800"></div>
 
+			<!-- Audit Log Retention -->
+			<div>
+				<label for="auditRetention" class="text-base font-medium text-gray-900 dark:text-white">
+					Audit Log Retention (Days)
+				</label>
+				<p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+					Number of days to keep audit logs before automatic deletion
+				</p>
+				{#if data.settings.auditRetentionDays.overriddenByEnv}
+					<p class="mt-1 text-xs text-amber-600 dark:text-amber-400">
+						⚠️ Controlled by environment variable GYRE_AUDIT_LOG_RETENTION_DAYS
+					</p>
+				{/if}
+				<div class="mt-2 flex items-center gap-3">
+					<input
+						id="auditRetention"
+						type="number"
+						min="1"
+						max="3650"
+						bind:value={auditRetentionDays}
+						oninput={() => (isDirty = true)}
+						disabled={data.settings.auditRetentionDays.overriddenByEnv}
+						class="w-32 rounded-lg border border-gray-300 bg-white px-4 py-2 text-gray-900 transition-colors focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+					/>
+					<span class="text-sm text-gray-600 dark:text-gray-400">days</span>
+				</div>
+			</div>
+
+			<div class="border-t border-gray-200 dark:border-gray-800"></div>
+
 			<!-- Domain Allowlist -->
 			<div>
 				<label for="domainAllowlist" class="text-base font-medium text-gray-900 dark:text-white">
@@ -190,7 +223,7 @@
 	</div>
 
 	<!-- Information Cards -->
-	<div class="grid gap-6 md:grid-cols-2">
+	<div class="grid gap-6 md:grid-cols-3">
 		<!-- Local Login Info -->
 		<div
 			class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/20"
@@ -210,6 +243,17 @@
 			<p class="mt-2 text-sm text-purple-800 dark:text-purple-200">
 				When disabled, only existing users can log in via OAuth. New users will see an error
 				message. Useful for invitation-only systems.
+			</p>
+		</div>
+
+		<!-- Audit Retention Info -->
+		<div
+			class="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-900/20"
+		>
+			<h3 class="font-semibold text-amber-900 dark:text-amber-100">Audit Retention</h3>
+			<p class="mt-2 text-sm text-amber-800 dark:text-amber-200">
+				Audit logs are automatically cleaned up to prevent database growth. The cleanup job runs
+				daily at 3 AM.
 			</p>
 		</div>
 	</div>

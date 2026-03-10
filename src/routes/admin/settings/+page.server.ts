@@ -1,6 +1,11 @@
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { getAuthSettings, isSettingOverriddenByEnv, SETTINGS_KEYS } from '$lib/server/settings';
+import {
+	getAuthSettings,
+	getAuditLogRetentionDays,
+	isSettingOverriddenByEnv,
+	SETTINGS_KEYS
+} from '$lib/server/settings';
 
 /**
  * Load settings for admin page
@@ -17,7 +22,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	try {
-		const authSettings = await getAuthSettings();
+		const [authSettings, auditRetentionDays] = await Promise.all([
+			getAuthSettings(),
+			getAuditLogRetentionDays()
+		]);
 
 		return {
 			settings: {
@@ -32,6 +40,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 				domainAllowlist: {
 					value: authSettings.domainAllowlist,
 					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST)
+				},
+				auditRetentionDays: {
+					value: auditRetentionDays,
+					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS)
 				}
 			}
 		};

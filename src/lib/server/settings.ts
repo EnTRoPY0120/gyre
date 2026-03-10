@@ -11,21 +11,24 @@ import { eq } from 'drizzle-orm';
 export const SETTINGS_KEYS = {
 	AUTH_LOCAL_LOGIN_ENABLED: 'auth.localLoginEnabled',
 	AUTH_ALLOW_SIGNUP: 'auth.allowSignup',
-	AUTH_DOMAIN_ALLOWLIST: 'auth.domainAllowlist'
+	AUTH_DOMAIN_ALLOWLIST: 'auth.domainAllowlist',
+	AUDIT_LOG_RETENTION_DAYS: 'audit.retentionDays'
 } as const;
 
 // Default values
 const DEFAULTS: Record<string, string> = {
 	[SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED]: 'true',
 	[SETTINGS_KEYS.AUTH_ALLOW_SIGNUP]: 'true',
-	[SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST]: '[]'
+	[SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST]: '[]',
+	[SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS]: '90'
 };
 
 // Environment variable overrides (take precedence over DB)
 const ENV_OVERRIDES: Record<string, string> = {
 	[SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED]: 'GYRE_AUTH_LOCAL_LOGIN_ENABLED',
 	[SETTINGS_KEYS.AUTH_ALLOW_SIGNUP]: 'GYRE_AUTH_ALLOW_SIGNUP',
-	[SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST]: 'GYRE_AUTH_DOMAIN_ALLOWLIST'
+	[SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST]: 'GYRE_AUTH_DOMAIN_ALLOWLIST',
+	[SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS]: 'GYRE_AUDIT_LOG_RETENTION_DAYS'
 };
 
 // In-memory cache with TTL
@@ -155,6 +158,15 @@ export async function isSignupAllowed(): Promise<boolean> {
 export async function getDomainAllowlist(): Promise<string[]> {
 	const value = await getSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST);
 	return parseJsonArray(value);
+}
+
+/**
+ * Convenience: Get audit log retention period (in days).
+ */
+export async function getAuditLogRetentionDays(): Promise<number> {
+	const value = await getSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS);
+	const parsed = parseInt(value, 10);
+	return isNaN(parsed) ? 90 : parsed;
 }
 
 /**
