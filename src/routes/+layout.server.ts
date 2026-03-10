@@ -10,7 +10,7 @@ export const load: LayoutServerLoad = async ({ fetch: svelteFetch, locals, depen
 	try {
 		const [healthRes, versionRes] = await Promise.all([
 			fetchWithRetry('/api/flux/health', undefined, { fetchFn: svelteFetch, maxRetries: 0 }),
-			fetchWithRetry('/api/flux/version', undefined, { fetchFn: svelteFetch })
+			fetchWithRetry('/api/flux/version', undefined, { fetchFn: svelteFetch, maxRetries: 0 })
 		]);
 
 		const healthData = healthRes.ok ? await healthRes.json() : null;

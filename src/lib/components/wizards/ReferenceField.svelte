@@ -35,6 +35,37 @@
 	let container: HTMLDivElement | undefined = $state();
 	let searchInput: HTMLInputElement | undefined = $state();
 
+	interface K8sResourceItem {
+		metadata: {
+			name: string;
+			namespace?: string;
+		};
+	}
+
+	interface K8sResourceList {
+		items?: K8sResourceItem[];
+	}
+
+	function pluralizeKind(kind: string): string {
+		const plural = getPluralByKind(kind);
+		if (plural) return plural;
+
+		const lower = kind.toLowerCase();
+		if (lower.endsWith('y') && !['ay', 'ey', 'iy', 'oy', 'uy'].some((v) => lower.endsWith(v))) {
+			return lower.slice(0, -1) + 'ies';
+		}
+		if (
+			lower.endsWith('s') ||
+			lower.endsWith('x') ||
+			lower.endsWith('z') ||
+			lower.endsWith('ch') ||
+			lower.endsWith('sh')
+		) {
+			return lower + 'es';
+		}
+		return lower + 's';
+	}
+
 	// Resolve the actual resource types to fetch
 	const activeReferenceTypes = $derived.by(() => {
 		if (referenceTypeField) {
@@ -64,9 +95,7 @@
 			const fetchPromises = activeReferenceTypes
 				.filter((kind) => kind !== '*')
 				.map(async (kind) => {
-					const plural = getPluralByKind(kind);
-					// If not found in templates, try lowercase-plural as fallback
-					const pluralToUse = plural || kind.toLowerCase() + 's';
+					const pluralToUse = pluralizeKind(kind);
 
 					const res = await fetchWithRetry(`/api/flux/${pluralToUse}`);
 					if (!res.ok) {
@@ -75,8 +104,8 @@
 							`Failed to fetch ${pluralToUse}: ${res.status} ${res.statusText} - ${errorBody}`
 						);
 					}
-					const data = await res.json();
-					return data.items?.map((item: any) => item.metadata.name) || [];
+					const data = (await res.json()) as K8sResourceList;
+					return data.items?.map((item: K8sResourceItem) => item.metadata.name) || [];
 				});
 
 			const results = await Promise.allSettled(fetchPromises);
