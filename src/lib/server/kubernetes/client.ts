@@ -226,7 +226,8 @@ export async function listFluxResources(
 		// Sorting requires the full collection (k8s only sorts by name natively).
 		// When no sort is requested and a limit is provided, delegate paging to
 		// the k8s API so only the requested page is transferred over the network.
-		const useNativePaging = !options?.sortBy && options?.limit !== undefined;
+		const useNativePaging =
+			!options?.sortBy && options?.limit !== undefined && (options?.offset ?? 0) === 0;
 
 		const response = await api.listClusterCustomObject({
 			group: resourceDef.group,
@@ -244,7 +245,7 @@ export async function listFluxResources(
 				items,
 				total: items.length, // exact total is unknown in cursor-based paging
 				hasMore: !!list.metadata?.continue,
-				offset: options?.offset ?? 0,
+				offset: 0,
 				limit: options!.limit!,
 				metadata: {
 					resourceVersion: list.metadata?.resourceVersion,
