@@ -3,6 +3,7 @@ import { getDbSync, type NewAuditLog } from './db/index.js';
 import { auditLogs } from './db/schema.js';
 import type { User } from './db/schema.js';
 import { getAuditLogRetentionDays } from './settings.js';
+import { MS_PER_DAY, MS_PER_MINUTE } from './utils/time.js';
 
 /**
  * Log an audit event
@@ -197,7 +198,7 @@ export async function cleanupOldAuditLogs(): Promise<number> {
 		const retentionDays = await getAuditLogRetentionDays();
 
 		// Calculate cutoff date: items older than this will be deleted
-		const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+		const cutoff = new Date(Date.now() - retentionDays * MS_PER_DAY);
 
 		// First, get the count of items to be deleted (for logging)
 		const countResult = await db
@@ -224,7 +225,6 @@ export async function cleanupOldAuditLogs(): Promise<number> {
 }
 
 // Scheduler constants
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const INITIAL_CLEANUP_DELAY_MS = 10 * 60 * 1000; // 10 minutes after startup
 const CLEANUP_HOUR = 3; // 3 AM
 
@@ -275,12 +275,16 @@ export function scheduleAuditLogCleanup(): void {
 	// Also run an initial cleanup shortly after startup (e.g., 10 minutes)
 	// This ensures that even if the server is restarted frequently, old logs are still pruned
 	// and provides immediate feedback during development or after configuration changes.
+	// We add a random jitter (0-30m) to prevent multiple instances from contending.
+	const startupDelayWithJitter =
+		INITIAL_CLEANUP_DELAY_MS + Math.floor(Math.random() * 30 * MS_PER_MINUTE);
+
 	immediateCleanupTimeout = setTimeout(() => {
 		console.log('[AuditCleanup] Running startup cleanup task...');
 		cleanupOldAuditLogs().catch((err) => {
 			console.error('[AuditCleanup] Startup cleanup task failed:', err);
 		});
-	}, INITIAL_CLEANUP_DELAY_MS);
+	}, startupDelayWithJitter);
 
 	cleanupScheduled = true;
 }

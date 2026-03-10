@@ -163,6 +163,15 @@ describe('cleanupOldAuditLogs', () => {
 		expect(remaining).toHaveLength(1);
 		expect(remaining[0].id).toBe('new-1');
 	});
+
+	test('handles errors gracefully', async () => {
+		// Cause getAuditLogRetentionDays to return NaN
+		state.retentionDays = NaN;
+
+		const deletedCount = await cleanupOldAuditLogs();
+		// Should return 0 and not throw
+		expect(deletedCount).toBe(0);
+	});
 });
 
 // ---------------------------------------------------------------------------
