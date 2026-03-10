@@ -1,3 +1,4 @@
+import { logger } from '../logger.js';
 import * as k8s from '@kubernetes/client-node';
 import { loadKubeConfig } from './config.js';
 import { getClusterKubeconfig } from '../clusters.js';
@@ -246,7 +247,7 @@ const cleanupTimer = setInterval(() => {
 	try {
 		pruneExpiredEntries();
 	} catch (e) {
-		console.error('K8s client pool cleanup error:', e);
+		logger.error(e, 'K8s client pool cleanup error');
 	}
 }, CLEANUP_INTERVAL_MS);
 if (typeof cleanupTimer === 'object' && 'unref' in cleanupTimer) {
@@ -344,7 +345,7 @@ export async function getKubeConfig(
 			}
 			config = new k8s.KubeConfig();
 			config.loadFromString(kubeconfigYaml);
-			console.debug(`✓ Loaded Kubernetes configuration from database for cluster: ${key}`);
+			logger.debug(`✓ Loaded Kubernetes configuration from database for cluster: ${key}`);
 		} else if (key !== 'in-cluster' && key !== 'default') {
 			// It's a context name - check if it exists in the base config
 			const availableContexts = baseConfig.getContexts().map((c) => c.name);
@@ -353,7 +354,7 @@ export async function getKubeConfig(
 				config = new k8s.KubeConfig();
 				config.loadFromString(baseConfig.exportConfig());
 				config.setCurrentContext(key);
-				console.debug(`✓ Switched to Kubernetes context: ${key}`);
+				logger.debug(`✓ Switched to Kubernetes context: ${key}`);
 			} else {
 				throw new Error(
 					`Context "${key}" not found in kubeconfig. Available: ${availableContexts.join(', ')}`
@@ -749,7 +750,7 @@ export function handleK8sError(
 	timeoutMs = DEFAULT_TIMEOUT_MS
 ): Error {
 	// Log the full error server-side for debugging
-	console.error(`Kubernetes API error during ${operation}:`, error);
+	logger.error(error, `Kubernetes API error during ${operation}`);
 
 	if (error instanceof Error) {
 		// Detect AbortController-triggered timeouts (node-fetch surfaces these as

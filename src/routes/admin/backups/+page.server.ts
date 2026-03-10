@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import { listBackups } from '$lib/server/backup';
@@ -15,7 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const backups = listBackups();
 		return { backups };
 	} catch (err) {
-		console.error('Failed to load backups:', err);
+		logger.error('Failed to load backups:', err);
 		throw error(500, { message: 'Failed to load backups' });
 	}
 };

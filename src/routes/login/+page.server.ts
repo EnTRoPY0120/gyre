@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { getEnabledAuthProviders } from '$lib/server/auth/oauth';
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			type: p.type
 		}));
 	} catch (error) {
-		console.error('Failed to load auth providers:', error);
+		logger.error('Failed to load auth providers:', error);
 		// Continue without SSO providers - local login should still work
 	}
 
@@ -33,7 +34,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const authSettings = await getAuthSettings();
 		localLoginEnabled = authSettings.localLoginEnabled;
 	} catch (error) {
-		console.error('Failed to load auth settings:', error);
+		logger.error('Failed to load auth settings:', error);
 		// Continue with local login enabled as fallback
 	}
 

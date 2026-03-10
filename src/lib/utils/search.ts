@@ -1,4 +1,5 @@
 import Fuse from 'fuse.js';
+import { logger } from './logger.js';
 
 export interface SearchOptions {
 	fuzzy?: boolean;
@@ -70,7 +71,7 @@ export function advancedSearch<T>(items: T[], query: string, options: SearchOpti
 			});
 		} catch (e) {
 			// If regex is invalid, fallback to literal search or return empty
-			console.error('Invalid regex:', e);
+			logger.error('Invalid regex:', e);
 			return [];
 		}
 	}

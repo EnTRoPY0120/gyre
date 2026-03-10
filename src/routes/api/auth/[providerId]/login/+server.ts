@@ -10,6 +10,7 @@
  * 5. Redirect user to IdP authorization URL
  */
 
+import { logger } from '$lib/server/logger.js';
 import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -112,7 +113,7 @@ export const GET: RequestHandler = async (event) => {
 			throw err;
 		}
 
-		console.error('OAuth login error:', err);
+		logger.error('OAuth login error:', err);
 
 		// Handle OAuth-specific errors
 		if (err instanceof OAuthError) {

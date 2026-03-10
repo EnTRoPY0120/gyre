@@ -1,3 +1,4 @@
+import { logger } from './logger.js';
 import { eq, desc, or, sql } from 'drizzle-orm';
 import { getDbSync } from './db/index.js';
 import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
@@ -22,7 +23,7 @@ function getEncryptionKey(): string {
 					'Please set it to a 64-character hexadecimal string.'
 			);
 		}
-		console.warn(
+		logger.warn(
 			'⚠️  GYRE_ENCRYPTION_KEY not set! Using development-only key. DO NOT USE IN PRODUCTION!'
 		);
 		// Development-only default key (32 bytes hex)
@@ -141,7 +142,7 @@ function parseKubeconfig(kubeconfig: string): {
 
 		return { contexts, currentContext };
 	} catch (error) {
-		console.error('Failed to parse kubeconfig:', error);
+		logger.error('Failed to parse kubeconfig:', error);
 		return { contexts: [], currentContext: null };
 	}
 }
@@ -588,7 +589,7 @@ export async function migrateKubeconfigs(): Promise<number> {
 
 				migratedCount++;
 			} catch (error) {
-				console.error(`Failed to migrate kubeconfig for cluster ${cluster.name}:`, error);
+				logger.error(`Failed to migrate kubeconfig for cluster ${cluster.name}:`, error);
 			}
 		}
 	}

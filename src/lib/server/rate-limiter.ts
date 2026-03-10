@@ -1,3 +1,4 @@
+import { logger } from './logger.js';
 import { error } from '@sveltejs/kit';
 import { getDbSync } from './db/index.js';
 import { loginLockouts } from './db/schema.js';
@@ -244,7 +245,7 @@ export class AccountLockout {
 				.where(eq(loginLockouts.username, username))
 				.run();
 
-			console.warn(
+			logger.warn(
 				`[Security] Account lockout triggered for user '${username}'. Locked for ${lockedMinutes} minutes. Failed attempts: ${entry.failedAttempts}`
 			);
 		}

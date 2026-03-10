@@ -7,6 +7,7 @@
 	import FieldHelp from '$lib/components/wizards/FieldHelp.svelte';
 	import type { ResourceTemplate } from '$lib/templates';
 	import { cn } from '$lib/utils';
+	import { logger } from '$lib/utils/logger.js';
 	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from 'lucide-svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { parse, parseDocument, YAMLError } from 'yaml';
@@ -116,7 +117,7 @@
 			});
 			formValues = values;
 		} catch {
-			console.error('Failed to parse initial YAML');
+			logger.error('Failed to parse initial YAML');
 		}
 	});
 
@@ -136,7 +137,7 @@
 
 			currentYaml = doc.toString();
 		} catch {
-			console.error('Failed to update YAML from form');
+			logger.error('Failed to update YAML from form');
 		}
 	}
 
@@ -265,7 +266,7 @@
 				copySuccess = false;
 			}, 2000);
 		} catch (err) {
-			console.error('Failed to copy YAML:', err);
+			logger.error('Failed to copy YAML:', err);
 		}
 	}
 

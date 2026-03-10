@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -338,7 +339,7 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 			ipAddress: getClientAddress(),
 			success: true
 		}).catch((auditErr) => {
-			console.error('Failed to log audit event for delete:', auditErr);
+			logger.error('Failed to log audit event for delete:', auditErr);
 		});
 
 		return new Response(null, { status: 204 });
@@ -356,7 +357,7 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 				}
 			});
 		} catch (auditErr) {
-			console.error('Failed to log audit event for delete failure:', auditErr);
+			logger.error('Failed to log audit event for delete failure:', auditErr);
 		}
 
 		throw handleApiError(err, `Error deleting ${resolvedType} ${namespace}/${name}`);

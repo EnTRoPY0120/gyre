@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
@@ -56,7 +57,7 @@ export const load: PageServerLoad = async ({ params, fetch: svelteFetch, depends
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		console.error(`Error fetching ${type}/${namespace}/${name}:`, err);
+		logger.error(`Error fetching ${type}/${namespace}/${name}:`, err);
 		error(500, {
 			message: 'Failed to connect to the API'
 		});

@@ -3,6 +3,7 @@
  * Allows configuring OAuth providers via Helm values at deployment time.
  */
 
+import { logger } from '../logger.js';
 import { getDb } from '../db';
 import { authProviders, type NewAuthProvider } from '../db/schema';
 import { eq } from 'drizzle-orm';
@@ -48,11 +49,11 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 	try {
 		providersConfig = JSON.parse(providersJson);
 		if (!Array.isArray(providersConfig)) {
-			console.error('GYRE_AUTH_PROVIDERS must be a JSON array');
+			logger.error('GYRE_AUTH_PROVIDERS must be a JSON array');
 			return { created: 0, skipped: 0 };
 		}
 	} catch (error) {
-		console.error('Failed to parse GYRE_AUTH_PROVIDERS:', error);
+		logger.error('Failed to parse GYRE_AUTH_PROVIDERS:', error);
 		return { created: 0, skipped: 0 };
 	}
 
@@ -65,7 +66,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 
 		// Validate required fields
 		if (!config.name || !config.type || !config.clientId) {
-			console.warn(
+			logger.warn(
 				`Skipping provider at index ${i}: missing required fields (name, type, clientId)`
 			);
 			skipped++;
@@ -78,7 +79,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 		});
 
 		if (existing) {
-			console.log(`Provider "${config.name}" already exists, skipping`);
+			logger.info(`Provider "${config.name}" already exists, skipping`);
 			skipped++;
 			continue;
 		}
@@ -89,7 +90,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 		const clientSecret = process.env[envSecretKey] || config.clientSecret;
 
 		if (!clientSecret) {
-			console.warn(`Skipping provider "${config.name}": no client secret provided`);
+			logger.warn(`Skipping provider "${config.name}": no client secret provided`);
 			skipped++;
 			continue;
 		}
@@ -133,10 +134,10 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 			};
 
 			await db.insert(authProviders).values(newProvider);
-			console.log(`✓ Created provider "${config.name}" (${config.type})`);
+			logger.info(`✓ Created provider "${config.name}" (${config.type})`);
 			created++;
 		} catch (error) {
-			console.error(`Failed to create provider "${config.name}":`, error);
+			logger.error(`Failed to create provider "${config.name}":`, error);
 			skipped++;
 		}
 	}

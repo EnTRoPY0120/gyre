@@ -1,3 +1,4 @@
+import { logger } from '../logger.js';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
 import { mkdir } from 'node:fs/promises';
@@ -10,7 +11,7 @@ import * as schema from './schema.js';
 // - Local development: ./data/gyre.db (relative to project root)
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
-console.log(`[DB] Database location: ${databaseUrl}`);
+logger.info(`[DB] Database location: ${databaseUrl}`);
 
 // Ensure directory exists (async)
 async function ensureDbDirectory() {

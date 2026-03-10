@@ -1,11 +1,12 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
-	import { theme } from '$lib/stores/theme.svelte';
-	import type * as Monaco from 'monaco-editor';
-	import { defineMonacoThemes } from './monacoTheme';
-	import { registerFluxLanguageFeatures } from './fluxCompletions';
-	import { registerFluxValidation } from './yamlValidator';
+import { onMount } from 'svelte';
+import { browser } from '$app/environment';
+import { theme } from '$lib/stores/theme.svelte';
+import { logger } from '$lib/utils/logger.js';
+import type * as Monaco from 'monaco-editor';
+import { defineMonacoThemes } from './monacoTheme';
+import { registerFluxLanguageFeatures } from './fluxCompletions';
+import { registerFluxValidation } from './yamlValidator';
 
 	// Props
 	interface Props {
@@ -146,7 +147,7 @@
 				loading = false;
 				onReady?.();
 			} catch (err) {
-				console.error('Failed to load Monaco Editor:', err);
+				logger.error('Failed to load Monaco Editor:', err);
 				error = err instanceof Error ? err.message : 'Failed to load editor';
 				showFallback = true;
 				loading = false;

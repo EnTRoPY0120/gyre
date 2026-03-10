@@ -1,3 +1,4 @@
+import { logger } from '../logger.js';
 import { cleanupExpiredSessions } from '../auth.js';
 import { MS_PER_HOUR, MS_PER_MINUTE, getRandomJitterMs } from '../utils/time.js';
 
@@ -11,7 +12,7 @@ let immediateCleanupTimeout: NodeJS.Timeout | null = null;
  */
 async function performCleanup(): Promise<void> {
 	if (isCleaning) {
-		console.log('[SessionCleanup] Cleanup already in progress, skipping');
+		logger.info('[SessionCleanup] Cleanup already in progress, skipping');
 		return;
 	}
 
@@ -19,7 +20,7 @@ async function performCleanup(): Promise<void> {
 	try {
 		await cleanupExpiredSessions();
 	} catch (err) {
-		console.error('[SessionCleanup] Cleanup failed:', err);
+		logger.error('[SessionCleanup] Cleanup failed:', err);
 	} finally {
 		isCleaning = false;
 	}
@@ -31,14 +32,14 @@ async function performCleanup(): Promise<void> {
  */
 export function scheduleSessionCleanup(): void {
 	if (cleanupScheduled) {
-		console.log('[SessionCleanup] Cleanup already scheduled, skipping');
+		logger.info('[SessionCleanup] Cleanup already scheduled, skipping');
 		return;
 	}
 
 	// Run cleanup every hour
 	const CLEANUP_INTERVAL_MS = MS_PER_HOUR;
 
-	console.log(`[SessionCleanup] Scheduling session cleanup to run every hour`);
+	logger.info(`[SessionCleanup] Scheduling session cleanup to run every hour`);
 
 	// Run every hour
 	cleanupInterval = setInterval(() => {
@@ -52,7 +53,7 @@ export function scheduleSessionCleanup(): void {
 	const startupDelayWithJitter = 1 * MS_PER_MINUTE + getRandomJitterMs(10);
 
 	immediateCleanupTimeout = setTimeout(() => {
-		console.log('[SessionCleanup] Running initial session cleanup...');
+		logger.info('[SessionCleanup] Running initial session cleanup...');
 		performCleanup();
 	}, startupDelayWithJitter);
 }
@@ -70,5 +71,5 @@ export function stopSessionCleanup(): void {
 		immediateCleanupTimeout = null;
 	}
 	cleanupScheduled = false;
-	console.log('[SessionCleanup] Session cleanup scheduler stopped');
+	logger.info('[SessionCleanup] Session cleanup scheduler stopped');
 }

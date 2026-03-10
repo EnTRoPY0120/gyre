@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
 import {
@@ -48,7 +49,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			}
 		};
 	} catch (err) {
-		console.error('Failed to load settings:', err);
+		logger.error('Failed to load settings:', err);
 		throw error(500, { message: 'Failed to load settings' });
 	}
 };

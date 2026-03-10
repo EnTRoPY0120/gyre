@@ -11,6 +11,7 @@
  * to return.
  */
 
+import { logger } from '$lib/server/logger.js';
 import { error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -110,7 +111,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		console.error('Failed to download backup:', err);
+		logger.error('Failed to download backup:', err);
 		throw error(500, 'Failed to download backup');
 	}
 };

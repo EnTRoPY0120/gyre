@@ -1,3 +1,4 @@
+import { logger } from '../../logger.js';
 import { eq, and, desc, gte } from 'drizzle-orm';
 import { getDbSync, type NewReconciliationHistory } from '../../db/index.js';
 import { reconciliationHistory } from '../../db/schema.js';
@@ -173,7 +174,7 @@ export async function captureReconciliation(options: CaptureReconciliationOption
 		await db.insert(reconciliationHistory).values(entry);
 	} catch (error) {
 		// Don't throw - history capture should never break the main flow
-		console.error('[ReconciliationTracker] Failed to capture reconciliation:', error);
+		logger.error(error, '[ReconciliationTracker] Failed to capture reconciliation');
 	}
 }
 

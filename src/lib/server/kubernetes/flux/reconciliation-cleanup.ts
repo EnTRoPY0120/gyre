@@ -1,3 +1,4 @@
+import { logger } from '../../logger.js';
 import { sql, and, eq, lt, desc } from 'drizzle-orm';
 import { getDbSync } from '../../db/index.js';
 import { reconciliationHistory } from '../../db/schema.js';
@@ -138,17 +139,13 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 
 		stats.totalDeleted = stats.deletedSuccess + stats.deletedFailure + stats.perResourceTrimmed;
 
-		console.log(
-			`[ReconciliationCleanup] Cleanup completed:`,
-			`deleted ${stats.deletedSuccess} old success entries,`,
-			`${stats.deletedFailure} old failure entries,`,
-			`and trimmed ${stats.perResourceTrimmed} excess entries.`,
-			`Total: ${stats.totalDeleted} deleted.`
+		logger.info(
+			`[ReconciliationCleanup] Cleanup completed: deleted ${stats.deletedSuccess} old success entries, ${stats.deletedFailure} old failure entries, and trimmed ${stats.perResourceTrimmed} excess entries. Total: ${stats.totalDeleted} deleted.`
 		);
 
 		return stats;
 	} catch (error) {
-		console.error('[ReconciliationCleanup] Cleanup failed:', error);
+		logger.error(error, '[ReconciliationCleanup] Cleanup failed');
 		throw error;
 	}
 }
@@ -169,7 +166,7 @@ function runCleanupOnce(): Promise<void> {
 	cleanupInFlight = cleanupReconciliationHistory()
 		.then(() => {})
 		.catch((err) => {
-			console.error('[ReconciliationCleanup] Cleanup failed:', err);
+			logger.error('[ReconciliationCleanup] Cleanup failed:', err);
 		})
 		.finally(() => {
 			cleanupInFlight = null;
@@ -183,7 +180,7 @@ function runCleanupOnce(): Promise<void> {
  */
 export function scheduleCleanup(): void {
 	if (cleanupScheduled) {
-		console.log('[ReconciliationCleanup] Cleanup already scheduled, skipping');
+		logger.info('[ReconciliationCleanup] Cleanup already scheduled, skipping');
 		return;
 	}
 
@@ -202,7 +199,7 @@ export function scheduleCleanup(): void {
 
 	const initialDelay = nextRun.getTime() - now.getTime();
 
-	console.log(
+	logger.info(
 		`[ReconciliationCleanup] Scheduling cleanup to run at ${nextRun.toISOString()} (in ${Math.round(initialDelay / 1000 / 60)} minutes)`
 	);
 
@@ -223,7 +220,7 @@ export function scheduleCleanup(): void {
 	const startupDelayWithJitter = 5 * MS_PER_MINUTE + getRandomJitterMs(30);
 
 	immediateCleanupTimeout = setTimeout(() => {
-		console.log('[ReconciliationCleanup] Running initial cleanup...');
+		logger.info('[ReconciliationCleanup] Running initial cleanup...');
 		runCleanupOnce();
 	}, startupDelayWithJitter);
 }
@@ -246,6 +243,6 @@ export function stopCleanup(): Promise<void> {
 		immediateCleanupTimeout = null;
 	}
 	cleanupScheduled = false;
-	console.log('[ReconciliationCleanup] Cleanup scheduler stopped');
+	logger.info('[ReconciliationCleanup] Cleanup scheduler stopped');
 	return cleanupInFlight ?? Promise.resolve();
 }

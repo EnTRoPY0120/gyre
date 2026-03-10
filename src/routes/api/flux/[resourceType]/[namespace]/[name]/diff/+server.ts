@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -208,7 +209,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		const tempDir = await mkdtemp(join(tmpdir(), 'gyre-diff-'));
 
 		try {
-			console.log(`ℹ Fetching artifact from: ${artifactUrl}`);
+			logger.info(`ℹ Fetching artifact from: ${artifactUrl}`);
 			const artifactPath = join(tempDir, 'artifact.tar.gz');
 			let buffer: Buffer;
 
@@ -217,16 +218,16 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			// But the actual HTTP server listens on: http://source-controller.flux-system.svc.cluster.local/path
 			const cleanUrl = artifactUrl.replace(/\.cluster\.local\./g, '.cluster.local');
 
-			console.log(`ℹ Cleaned URL: ${cleanUrl}`);
+			logger.info(`ℹ Cleaned URL: ${cleanUrl}`);
 
 			// Try downloading the artifact using Node.js http module
 			// This is more reliable for in-cluster service-to-service communication than fetch()
 			try {
 				buffer = await downloadArtifact(cleanUrl);
-				console.log(`✓ Artifact download successful (${buffer.length} bytes)`);
+				logger.info(`✓ Artifact download successful (${buffer.length} bytes)`);
 			} catch (downloadErr) {
-				console.log(`ℹ HTTP download failed: ${(downloadErr as Error).message}`);
-				console.log(`ℹ Trying kubectl exec fallback method`);
+				logger.info(`ℹ HTTP download failed: ${(downloadErr as Error).message}`);
+				logger.info(`ℹ Trying kubectl exec fallback method`);
 
 				// Fallback: Use port-forward via Kubernetes API to access the artifact
 				// This works for both in-cluster and local development
@@ -249,13 +250,13 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 						throw new Error('source-controller pod has no name');
 					}
 
-					console.log(`ℹ Using source-controller pod: ${podName}`);
+					logger.info(`ℹ Using source-controller pod: ${podName}`);
 
 					// Use Kubernetes API to proxy HTTP request through the pod
 					// This works because we're accessing the pod's HTTP server via K8s API proxy
 					const urlPath = new URL(cleanUrl).pathname;
 
-					console.log(`ℹ Fetching via K8s pod proxy: ${urlPath}`);
+					logger.info(`ℹ Fetching via K8s pod proxy: ${urlPath}`);
 
 					try {
 						// Use connectGetNamespacedPodProxy to make HTTP request through the pod
@@ -271,9 +272,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 							? proxyResponse
 							: Buffer.from(proxyResponse as string, 'binary');
 
-						console.log(`✓ K8s pod proxy fetch successful (${buffer.length} bytes)`);
+						logger.info(`✓ K8s pod proxy fetch successful (${buffer.length} bytes)`);
 					} catch (proxyErr) {
-						console.error(`Pod proxy error:`, proxyErr);
+						logger.error(`Pod proxy error:`, proxyErr);
 						throw proxyErr;
 					}
 				} catch (execErr) {
@@ -314,7 +315,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 					timeout: 5000,
 					maxBuffer: 50 * 1024 * 1024 // 50MB max
 				});
-				console.log('✓ Tarball validation passed');
+				logger.info('✓ Tarball validation passed');
 			} catch (tarCheckErr) {
 				throw new Error(
 					`Downloaded file is not a valid tar.gz archive: ${(tarCheckErr as Error).message}`
@@ -326,7 +327,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 				maxBuffer: 50 * 1024 * 1024 // 50MB max
 			});
 
-			console.log('✓ Source artifact extracted successfully');
+			logger.info('✓ Source artifact extracted successfully');
 
 			// 4. Run kustomize build
 			// Validate spec.path to prevent command injection
@@ -345,14 +346,14 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 				throw new Error(`Path traversal detected: ${specPath}`);
 			}
 
-			console.log(`ℹ Running kustomize build on: ${kustomizePath}`);
+			logger.info(`ℹ Running kustomize build on: ${kustomizePath}`);
 
 			const { stdout: buildOutput } = await execFileAsync('kustomize', ['build', kustomizePath], {
 				timeout: 30000, // 30 second timeout
 				maxBuffer: 10 * 1024 * 1024 // 10MB max output
 			});
 
-			console.log(`✓ Kustomize build completed (${buildOutput.length} bytes)`);
+			logger.info(`✓ Kustomize build completed (${buildOutput.length} bytes)`);
 
 			// 5. Parse resources and compare using Server-Side Dry-Run
 			const desiredResources = yaml.loadAll(buildOutput) as Array<Record<string, unknown>>;
@@ -487,7 +488,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 							live: liveState ? yaml.dump(clean(liveState)) : null
 						};
 					} catch (err) {
-						console.error(`Error diffing ${kind}/${resName}:`, err);
+						logger.error(`Error diffing ${kind}/${resName}:`, err);
 						return {
 							kind,
 							name: resName,
@@ -514,7 +515,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true }).catch((cleanupErr) => {
-				console.warn(`⚠️  Failed to cleanup temp dir: ${cleanupErr}`);
+				logger.warn(`⚠️  Failed to cleanup temp dir: ${cleanupErr}`);
 			});
 		}
 	} catch (err) {
@@ -522,7 +523,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			throw err;
 		}
 
-		console.error('Diff error:', err);
+		logger.error('Diff error:', err);
 		const { status, message: clientMessage } = classifyDiffError(err);
 		throw error(status, clientMessage);
 	}

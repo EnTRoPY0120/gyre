@@ -9,6 +9,7 @@
  * - email - User email
  */
 
+import { logger } from '$lib/server/logger.js';
 import { GitLab } from 'arctic';
 import type { IOAuthProvider, OAuthTokens, OAuthUserInfo, OAuthProviderOptions } from '../types';
 import { OAuthError } from '../types';
@@ -97,7 +98,7 @@ async function fetchGitLabGroups(
 		return allGroups.map((g) => g.full_path);
 	} catch (error) {
 		// Structured log containing the provider ID and the user subject (user.sub) plus the error object
-		console.error({
+		logger.error({
 			message: 'Failed to fetch GitLab groups',
 			providerId,
 			userSub,
@@ -148,7 +149,7 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 
 			// GitLab in arctic doesn't support PKCE. Surface a warning if requested.
 			if (config.usePkce) {
-				console.warn(
+				logger.warn(
 					`[GitLabProvider] PKCE is enabled for provider "${config.id}", but GitLab provider silently ignores PKCE. This setting will be ignored.`
 				);
 			}

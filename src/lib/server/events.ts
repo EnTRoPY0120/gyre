@@ -1,3 +1,4 @@
+import { logger } from './logger.js';
 import { listFluxResources } from './kubernetes/client.js';
 import type { FluxResourceType } from './kubernetes/flux/resources.js';
 import type { FluxResource, K8sCondition } from './kubernetes/flux/types.js';
@@ -59,7 +60,7 @@ export function setEventBusShuttingDown(): void {
  * Close all active event streams (used during graceful shutdown)
  */
 export async function closeAllEventStreams() {
-	console.log('[EventBus] Shutting down all event streams...');
+	logger.info('[EventBus] Shutting down all event streams...');
 	isShuttingDown = true;
 
 	// Collect inflight promises before touching any context so the broadcast loop
@@ -93,7 +94,7 @@ export async function closeAllEventStreams() {
 	const pollResults = await Promise.allSettled(inflightPromises.map(([, p]) => p));
 	pollResults.forEach((result, i) => {
 		if (result.status === 'rejected') {
-			console.error(
+			logger.error(
 				`[EventBus] Error awaiting poll for cluster ${inflightPromises[i][0]}:`,
 				result.reason
 			);
@@ -113,7 +114,7 @@ export async function closeAllEventStreams() {
 export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluster'): () => void {
 	// Prevent new subscriptions during shutdown
 	if (isShuttingDown) {
-		console.warn(`[EventBus] Rejecting new subscription for cluster ${clusterId}: shutting down`);
+		logger.warn(`[EventBus] Rejecting new subscription for cluster ${clusterId}: shutting down`);
 		return () => {};
 	}
 
@@ -167,7 +168,7 @@ function startWorker(context: ClusterContext) {
 	if (context.isActive) return;
 	context.isActive = true;
 	activeWorkersGauge.set(activeWorkers.size);
-	console.log(`[EventBus] Starting consolidated polling worker for cluster: ${context.clusterId}`);
+	logger.info(`[EventBus] Starting consolidated polling worker for cluster: ${context.clusterId}`);
 
 	poll(context);
 
@@ -192,7 +193,9 @@ function stopWorker(context: ClusterContext) {
 		clearInterval(context.heartbeatInterval);
 		context.heartbeatInterval = null;
 	}
-	console.log(`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId}`);
+	logger.info(
+		`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId} (no active subscribers)`
+	);
 }
 
 function broadcast(context: ClusterContext, event: SSEEvent) {
@@ -202,7 +205,7 @@ function broadcast(context: ClusterContext, event: SSEEvent) {
 		try {
 			subscriber(event);
 		} catch (err) {
-			console.error(
+			logger.error(
 				`[EventBus] Error broadcasting to subscriber on cluster ${context.clusterId}:`,
 				err
 			);
@@ -296,7 +299,7 @@ async function poll(context: ClusterContext) {
 										triggerType: 'automatic'
 									});
 								} catch (err) {
-									console.error('[EventBus] Failed to capture reconciliation history:', err);
+									logger.error('[EventBus] Failed to capture reconciliation history:', err);
 									// Don't fail event broadcast if history capture fails
 								}
 
@@ -348,7 +351,7 @@ async function poll(context: ClusterContext) {
 											triggerType: 'automatic'
 										});
 									} catch (err) {
-										console.error('[EventBus] Failed to capture reconciliation history:', err);
+										logger.error('[EventBus] Failed to capture reconciliation history:', err);
 										// Don't fail event broadcast if history capture fails
 									}
 
@@ -404,14 +407,14 @@ async function poll(context: ClusterContext) {
 				}
 			} catch (err) {
 				resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();
-				console.error(
+				logger.error(
 					`[EventBus] Error polling ${resourceType} for cluster ${context.clusterId}:`,
 					err
 				);
 			}
 		}
 	} catch (err) {
-		console.error(`[EventBus] Critical error in poll loop for cluster ${context.clusterId}:`, err);
+		logger.error(`[EventBus] Critical error in poll loop for cluster ${context.clusterId}:`, err);
 	} finally {
 		resolvePoll!();
 		context.inflightPollPromise = null;

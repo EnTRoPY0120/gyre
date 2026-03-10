@@ -2,6 +2,7 @@ import { onDestroy } from 'svelte';
 import { SvelteDate } from 'svelte/reactivity';
 import { preferences } from '$lib/stores/preferences.svelte';
 import { invalidateAll } from '$app/navigation';
+import { logger } from './logger.js';
 
 export interface AutoRefreshOptions {
 	/**
@@ -48,7 +49,7 @@ export function createAutoRefresh(options: AutoRefreshOptions = {}) {
 			}
 			lastRefreshTime = new SvelteDate();
 		} catch (error) {
-			console.error('Auto-refresh failed:', error);
+			logger.error('Auto-refresh failed:', error);
 		} finally {
 			isRefreshing = false;
 		}

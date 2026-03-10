@@ -1,3 +1,4 @@
+import { logger } from '../logger.js';
 import crypto from 'node:crypto';
 
 /**
@@ -24,7 +25,7 @@ function getEncryptionKey(): Buffer {
 					'Please set it to a 64-character hexadecimal string.'
 			);
 		}
-		console.warn(
+		logger.warn(
 			'⚠️  AUTH_ENCRYPTION_KEY not set! Using development-only key. DO NOT USE IN PRODUCTION!'
 		);
 		// Development-only default key (NOT SECURE)

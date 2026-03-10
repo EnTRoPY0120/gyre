@@ -1,6 +1,7 @@
 import { eventsStore } from './events.svelte';
 import type { FluxResource } from '$lib/types/flux';
 import { fetchWithRetry } from '$lib/utils/fetch';
+import { logger } from '$lib/utils/logger.js';
 
 interface CacheEntry<T> {
 	data: T;
@@ -108,7 +109,7 @@ class ResourceCacheStore {
 			this.setList(type, items, namespace);
 			return items;
 		} catch (err) {
-			console.error(`Error fetching ${type} list:`, err);
+			logger.error(`Error fetching ${type} list:`, err);
 			return [];
 		}
 	}
@@ -121,7 +122,7 @@ class ResourceCacheStore {
 			this.setResource(type, namespace, name, resource);
 			return resource;
 		} catch (err) {
-			console.error(`Error fetching resource ${type}/${namespace}/${name}:`, err);
+			logger.error(`Error fetching resource ${type}/${namespace}/${name}:`, err);
 			return null;
 		}
 	}

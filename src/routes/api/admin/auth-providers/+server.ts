@@ -4,6 +4,7 @@
  * Admin-only endpoints.
  */
 
+import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -151,7 +152,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		return json({ providers: sanitizedProviders });
 	} catch (err) {
-		console.error('Failed to list auth providers:', err);
+		logger.error('Failed to list auth providers:', err);
 		throw error(500, { message: 'Failed to load providers' });
 	}
 };
@@ -238,7 +239,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const db = await getDb();
 		await db.insert(authProviders).values(newProvider);
 
-		console.log(`Created new auth provider: ${name} (${type})`);
+		logger.info(`Created new auth provider: ${name} (${type})`);
 
 		return json({
 			success: true,
@@ -248,7 +249,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		});
 	} catch (err) {
-		console.error('Failed to create auth provider:', err);
+		logger.error('Failed to create auth provider:', err);
 
 		// Re-throw SvelteKit errors
 		if (err instanceof Response) {

@@ -3,6 +3,7 @@
  * Allows admins to view and update application settings.
  */
 
+import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -137,7 +138,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			}
 		});
 	} catch (err) {
-		console.error('Failed to load settings:', err);
+		logger.error('Failed to load settings:', err);
 		throw error(500, { message: 'Failed to load settings' });
 	}
 };
@@ -257,7 +258,7 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		console.error('Failed to update settings:', err);
+		logger.error('Failed to update settings:', err);
 		throw error(500, { message: 'Failed to update settings' });
 	}
 };

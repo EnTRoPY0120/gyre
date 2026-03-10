@@ -1,3 +1,4 @@
+import { logger } from '../logger.js';
 import { getDbSync } from './index.js';
 import { sql } from 'drizzle-orm';
 
@@ -69,7 +70,7 @@ export function initDatabase(): void {
 						const finalUsername = i === 0 ? normalized : `${normalized}_${i}`;
 						db.run(sql`UPDATE users SET username = ${finalUsername} WHERE id = ${group[i].id}`);
 					}
-					console.warn(
+					logger.warn(
 						`[DB] Migration: resolved username collision for "${normalized}" across ${group.length} users`
 					);
 				}
@@ -78,10 +79,10 @@ export function initDatabase(): void {
 			db.run(
 				sql`INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('migrations.users_lowercased', 'true', (unixepoch()))`
 			);
-			console.log('[DB] Migration: lowercased existing usernames');
+			logger.info('[DB] Migration: lowercased existing usernames');
 		}
 	} catch (error) {
-		console.warn('[DB] Failed to run username normalization migration:', error);
+		logger.warn('[DB] Failed to run username normalization migration:', error);
 	}
 
 	// Add preferences column if it doesn't exist (for existing databases)
@@ -263,7 +264,7 @@ export function initDatabase(): void {
 	// Login Lockouts table
 	initLockoutsTable(db);
 
-	console.log('✓ Database tables initialized');
+	logger.info('✓ Database tables initialized');
 }
 
 /**

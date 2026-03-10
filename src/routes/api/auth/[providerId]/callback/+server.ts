@@ -13,6 +13,7 @@
  * 8. Redirect to home
  */
 
+import { logger } from '$lib/server/logger.js';
 import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -84,7 +85,7 @@ export const GET: RequestHandler = async (event) => {
 
 		// Check for OAuth errors from IdP
 		if (errorParam) {
-			console.error('OAuth error from IdP:', errorParam, errorDescription);
+			logger.error('OAuth error from IdP:', errorParam, errorDescription);
 			throw redirect(302, `/login?error=${encodeURIComponent(errorDescription || errorParam)}`);
 		}
 
@@ -96,7 +97,7 @@ export const GET: RequestHandler = async (event) => {
 		// Validate state (CSRF protection)
 		const storedState = cookies.get(`oauth_state_${providerId}`);
 		if (!storedState || storedState !== returnedState) {
-			console.error('State mismatch:', { stored: storedState, returned: returnedState });
+			logger.error('State mismatch: CSRF state validation failed');
 			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
 		}
 
@@ -163,7 +164,7 @@ export const GET: RequestHandler = async (event) => {
 			maxAge: 60 * 60 * 24 * 7 // 7 days
 		});
 
-		console.log(`SSO login successful for user ${user.username} (${user.email})`);
+		logger.info(`SSO login successful for user ${user.username} (${user.email})`);
 
 		// Redirect to home page
 		throw redirect(302, '/');
@@ -173,7 +174,7 @@ export const GET: RequestHandler = async (event) => {
 			throw err;
 		}
 
-		console.error('OAuth callback error:', err);
+		logger.error('OAuth callback error:', err);
 
 		let errorMessage = 'Authentication failed';
 

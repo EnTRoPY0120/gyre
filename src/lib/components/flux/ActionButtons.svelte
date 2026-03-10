@@ -10,6 +10,7 @@
 	import { RefreshCw, Play, Pause, Loader2, Pencil, Trash2 } from 'lucide-svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
+	import { logger } from '$lib/utils/logger.js';
 	import yaml from 'js-yaml';
 	import { getCsrfToken } from '$lib/utils/csrf';
 
@@ -37,7 +38,7 @@
 			const sanitized = sanitizeResource(resource);
 			return yaml.dump(sanitized, { noRefs: true, lineWidth: -1 });
 		} catch (err) {
-			console.error('Failed to serialize resource:', err);
+			logger.error('Failed to serialize resource:', err);
 			return '';
 		}
 	});

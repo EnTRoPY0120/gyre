@@ -3,6 +3,7 @@
  * Auto-creates standard policies for viewer, editor, and admin roles
  */
 
+import { logger } from './logger.js';
 import { getDbSync } from './db/index.js';
 import { rbacPolicies, rbacBindings, type User } from './db/schema.js';
 import { eq, and } from 'drizzle-orm';
@@ -69,7 +70,7 @@ export async function initializeDefaultPolicies(): Promise<void> {
 
 		if (!existing) {
 			await db.insert(rbacPolicies).values(policy);
-			console.log(`   ✓ Created default policy: ${policy.name}`);
+			logger.info(`   ✓ Created default policy: ${policy.name}`);
 		}
 	}
 }
@@ -134,7 +135,7 @@ export async function repairUserPolicyBindings(): Promise<number> {
 		if (bindings.length === 0) {
 			await bindUserToDefaultPolicies(user);
 			repairedCount++;
-			console.log(`   ✓ Repaired RBAC bindings for user: ${user.username} (${user.role})`);
+			logger.info(`   ✓ Repaired RBAC bindings for user: ${user.username} (${user.role})`);
 		}
 	}
 
@@ -162,5 +163,5 @@ export async function syncUserPolicyBindings(user: User): Promise<void> {
 	// Add correct bindings for current role
 	await bindUserToDefaultPolicies(user);
 
-	console.log(`   ✓ Synced RBAC bindings for user: ${user.username} (${user.role})`);
+	logger.info(`   ✓ Synced RBAC bindings for user: ${user.username} (${user.role})`);
 }
