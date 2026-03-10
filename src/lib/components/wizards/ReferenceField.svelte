@@ -61,31 +61,35 @@
 		loading = true;
 		resources = []; // Clear resources before starting fetch
 		try {
-			const allNames: string[] = [];
-			for (const kind of activeReferenceTypes) {
-				// Special case for '*' in some fields (like Alert sources)
-				if (kind === '*') continue;
+			const fetchPromises = activeReferenceTypes
+				.filter((kind) => kind !== '*')
+				.map(async (kind) => {
+					const plural = getPluralByKind(kind);
+					// If not found in templates, try lowercase-plural as fallback
+					const pluralToUse = plural || kind.toLowerCase() + 's';
 
-				const plural = getPluralByKind(kind);
-				// If not found in templates, try lowercase-plural as fallback
-				const pluralToUse = plural || kind.toLowerCase() + 's';
-
-				const res = await fetchWithRetry(`/api/flux/${pluralToUse}`);
-				if (res.ok) {
-					const data = await res.json();
-					if (data.items) {
-						data.items.forEach((item: any) => {
-							allNames.push(item.metadata.name);
-						});
+					const res = await fetchWithRetry(`/api/flux/${pluralToUse}`);
+					if (!res.ok) {
+						const errorBody = await res.text();
+						throw new Error(
+							`Failed to fetch ${pluralToUse}: ${res.status} ${res.statusText} - ${errorBody}`
+						);
 					}
+					const data = await res.json();
+					return data.items?.map((item: any) => item.metadata.name) || [];
+				});
+
+			const results = await Promise.allSettled(fetchPromises);
+			const allNames: string[] = [];
+
+			results.forEach((result) => {
+				if (result.status === 'fulfilled') {
+					allNames.push(...result.value);
 				} else {
-					const errorBody = await res.text();
-					console.error(
-						`Failed to fetch ${pluralToUse}: ${res.status} ${res.statusText}`,
-						errorBody
-					);
+					console.error('Failed to fetch resources:', result.reason);
 				}
-			}
+			});
+
 			// Deduplicate and sort
 			resources = [...new Set(allNames)].sort();
 		} catch (err) {

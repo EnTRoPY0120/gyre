@@ -9,7 +9,7 @@ export const load: LayoutServerLoad = async ({ fetch: svelteFetch, locals, depen
 	depends('gyre:layout');
 	try {
 		const [healthRes, versionRes] = await Promise.all([
-			fetchWithRetry('/api/flux/health', undefined, { fetchFn: svelteFetch }),
+			fetchWithRetry('/api/flux/health', undefined, { fetchFn: svelteFetch, maxRetries: 0 }),
 			fetchWithRetry('/api/flux/version', undefined, { fetchFn: svelteFetch })
 		]);
 
