@@ -1,23 +1,8 @@
 import { getKubeConfig, handleK8sError } from './client';
 import * as k8s from '@kubernetes/client-node';
+import type { K8sEvent } from '$lib/types/events';
 
-export interface K8sEvent {
-	type: 'Normal' | 'Warning';
-	reason: string;
-	message: string;
-	count: number;
-	firstTimestamp: string | null;
-	lastTimestamp: string | null;
-	involvedObject: {
-		kind: string;
-		name: string;
-		namespace: string;
-		uid: string;
-	};
-	source: {
-		component: string;
-	};
-}
+export type { K8sEvent };
 
 /**
  * Fetch events related to a specific Kubernetes resource
