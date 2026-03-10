@@ -86,3 +86,9 @@ export const fluxResourceStatusGauge = getOrCreateGauge({
 	help: 'Current status of Flux resources',
 	labelNames: ['cluster_id', 'resource_type', 'namespace', 'name', 'status'] // status: 'Ready' | 'NotReady' | 'Unknown'
 });
+
+// Session Cleanup
+export const sessionsCleanedUpTotal = getOrCreateCounter({
+	name: 'gyre_sessions_cleaned_up_total',
+	help: 'Total number of expired sessions cleaned up'
+});

@@ -15,6 +15,7 @@ import {
 import { seedAuthSettings } from './settings.js';
 import { seedAuthProviders } from './auth/seed-providers.js';
 import { scheduleCleanup } from './kubernetes/flux/reconciliation-cleanup.js';
+import { scheduleSessionCleanup } from './auth/session-cleanup.js';
 
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
@@ -174,6 +175,16 @@ export async function initializeGyre(): Promise<void> {
 	} catch (error) {
 		console.error('   ✗ Failed to seed auth settings:', error);
 		// Don't throw - app can still work without seeded providers
+	}
+
+	// Schedule session cleanup
+	console.log('\n🧹 Setting up session cleanup...');
+	try {
+		scheduleSessionCleanup();
+		console.log('   ✓ Session cleanup scheduler initialized');
+	} catch (error) {
+		console.error('   ✗ Failed to schedule session cleanup:', error);
+		// Don't throw - app can still work without cleanup
 	}
 
 	// Schedule reconciliation history cleanup
