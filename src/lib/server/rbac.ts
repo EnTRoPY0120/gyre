@@ -1,7 +1,7 @@
 import type { User } from './db/schema.js';
 import { getDbSync } from './db/index.js';
 import { rbacPolicies, rbacBindings } from './db/schema.js';
-import { getPaginatedItems } from './db/utils.js';
+import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
 import { eq, and, or, sql, like } from 'drizzle-orm';
 
 /**
@@ -228,8 +228,10 @@ export async function getAllPoliciesPaginated(options?: {
 		rbacPolicies,
 		(db) => db.query.rbacPolicies,
 		options,
-		(search) =>
-			or(like(rbacPolicies.name, `%${search}%`), like(rbacPolicies.description, `%${search}%`))
+		(search) => {
+			const sanitized = sanitizeSearchInput(search);
+			return or(like(rbacPolicies.name, `%${sanitized}%`), like(rbacPolicies.description, `%${sanitized}%`));
+		}
 	);
 
 	return { policies: result.items, total: result.total };

@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db/index.js';
 import { users, sessions } from './db/schema.js';
-import { getPaginatedItems } from './db/utils.js';
+import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
 import { eq, and, gt, lte, sql, or, like } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
@@ -209,7 +209,10 @@ export async function listUsersPaginated(options?: {
 		users,
 		(db) => db.query.users,
 		options,
-		(search) => or(like(users.username, `%${search}%`), like(users.email, `%${search}%`))
+		(search) => {
+			const sanitized = sanitizeSearchInput(search);
+			return or(like(users.username, `%${sanitized}%`), like(users.email, `%${sanitized}%`));
+		}
 	);
 
 	return { users: result.items, total: result.total };
