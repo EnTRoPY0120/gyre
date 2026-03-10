@@ -164,16 +164,20 @@
 
 	// Keyboard navigation for tabs
 	function handleKeydown(e: KeyboardEvent, index: number) {
+		let targetIndex: number | null = null;
 		if (e.key === 'ArrowRight') {
-			e.preventDefault();
-			const nextIndex = (index + 1) % tabs.length;
-			setActiveTab(tabs[nextIndex].id);
-			((e.target as HTMLElement).parentElement?.children[nextIndex] as HTMLElement)?.focus();
+			targetIndex = (index + 1) % tabs.length;
 		} else if (e.key === 'ArrowLeft') {
+			targetIndex = (index - 1 + tabs.length) % tabs.length;
+		} else if (e.key === 'Home') {
+			targetIndex = 0;
+		} else if (e.key === 'End') {
+			targetIndex = tabs.length - 1;
+		}
+		if (targetIndex !== null) {
 			e.preventDefault();
-			const prevIndex = (index - 1 + tabs.length) % tabs.length;
-			setActiveTab(tabs[prevIndex].id);
-			((e.target as HTMLElement).parentElement?.children[prevIndex] as HTMLElement)?.focus();
+			setActiveTab(tabs[targetIndex].id);
+			((e.target as HTMLElement).parentElement?.children[targetIndex] as HTMLElement)?.focus();
 		}
 	}
 
@@ -473,7 +477,9 @@
 	<!-- Tab Content -->
 	<div class="pt-2">
 		{#if activeTab === 'overview'}
-			<OverviewTab {resource} resourceType={data.resourceType} {conditions} />
+			<div id="overview-panel" role="tabpanel" aria-labelledby="overview-tab">
+				<OverviewTab {resource} resourceType={data.resourceType} {conditions} />
+			</div>
 		{:else if activeTab === 'spec'}
 			<div id="spec-panel" role="tabpanel" aria-labelledby="spec-tab">
 				<CodeViewer
