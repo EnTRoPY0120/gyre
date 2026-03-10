@@ -177,16 +177,6 @@ export async function initializeGyre(): Promise<void> {
 		// Don't throw - app can still work without seeded providers
 	}
 
-	// Schedule session cleanup
-	console.log('\n🧹 Setting up session cleanup...');
-	try {
-		scheduleSessionCleanup();
-		console.log('   ✓ Session cleanup scheduler initialized');
-	} catch (error) {
-		console.error('   ✗ Failed to schedule session cleanup:', error);
-		// Don't throw - app can still work without cleanup
-	}
-
 	// Schedule reconciliation history cleanup
 	console.log('\n🧹 Setting up reconciliation history cleanup...');
 	try {
@@ -200,6 +190,13 @@ export async function initializeGyre(): Promise<void> {
 	console.log('\n' + '='.repeat(60));
 	console.log('  Gyre is ready!');
 	console.log('='.repeat(60) + '\n');
+}
+
+// Initialize session cleanup immediately at startup
+try {
+	scheduleSessionCleanup();
+} catch (error) {
+	console.error('[SessionCleanup] Failed to initialize scheduler:', error);
 }
 
 /**

@@ -114,6 +114,26 @@ describe('cleanupExpiredSessions', () => {
 		expect(remaining.some((s) => s.id === expiredId)).toBe(false);
 	});
 
+	test('deletes a session that expires exactly now', async () => {
+		const db = state.db!;
+		const userId = await insertUser(db);
+		const now = new Date();
+		// Mock Date.now to return this exact time during cleanup
+		const originalNow = Date.now;
+		Date.now = () => now.getTime();
+
+		try {
+			const expiredId = insertSession(db, userId, now);
+			const deletedCount = await cleanupExpiredSessions();
+			expect(deletedCount).toBe(1);
+
+			const remaining = db.select().from(sessions).all();
+			expect(remaining.some((s) => s.id === expiredId)).toBe(false);
+		} finally {
+			Date.now = originalNow;
+		}
+	});
+
 	test('keeps a session that has not yet expired', async () => {
 		const db = state.db!;
 		const userId = await insertUser(db);
@@ -313,6 +333,23 @@ describe('getSession', () => {
 
 		const result = await getSession(expiredId);
 		expect(result).toBeNull();
+	});
+
+	test('returns null for a session expiring exactly now', async () => {
+		const db = state.db!;
+		const userId = await insertUser(db);
+		const now = new Date();
+		// Mock Date.now
+		const originalNow = Date.now;
+		Date.now = () => now.getTime();
+
+		try {
+			const sessionId = insertSession(db, userId, now);
+			const result = await getSession(sessionId);
+			expect(result).toBeNull();
+		} finally {
+			Date.now = originalNow;
+		}
 	});
 
 	test('returns session and user for a valid session', async () => {
