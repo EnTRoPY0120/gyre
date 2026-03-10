@@ -230,7 +230,7 @@ export async function cleanupOldAuditLogs(): Promise<number> {
 }
 
 // Scheduler constants
-const CLEANUP_HOUR = 3; // 3 AM
+const CLEANUP_HOUR = 3; // 3 AM - Chosen as a low-traffic window to minimize impact on database performance
 
 let cleanupScheduled = false;
 let cleanupInterval: NodeJS.Timeout | null = null;
