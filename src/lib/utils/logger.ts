@@ -17,7 +17,7 @@ const currentLevel: LogLevel =
 	LOG_LEVELS[configuredLevel] !== undefined ? configuredLevel : dev ? 'debug' : 'warn';
 const currentLevelNum = LOG_LEVELS[currentLevel];
 
-function shouldLog(level: LogLevel): boolean {
+export function shouldLog(level: LogLevel): boolean {
 	return currentLevelNum <= LOG_LEVELS[level];
 }
 
@@ -38,11 +38,13 @@ function formatBrowserLog(level: LogLevel, args: unknown[]): unknown[] {
  *
  * Usage Guidelines:
  * - This logger mirrors the backend API but runs in the browser.
- * - In production, `PUBLIC_LOG_LEVEL` defaults to `warn` to keep the console clean.
+ * - In production, `PUBLIC_LOG_LEVEL` defaults to `warn` to keep the console clean (this means `warn`, `error`, and `fatal` logs are visible).
  * - Use `logger.error()` for unhandled exceptions or critical UI failures.
  * - Use `logger.warn()` for recoverable issues or deprecations.
  * - Use `logger.info()` for significant user flows (e.g., "User signed in").
  * - Use `logger.debug()` for granular state tracking (only visible in dev or if explicitly enabled).
+ * - For expensive log computations, consider lazy evaluation by wrapping the log call in a check:
+ *   `if (shouldLog('debug')) logger.debug(heavyComputation())`
  */
 export const logger = {
 	debug: (...args: unknown[]) => {
@@ -55,6 +57,10 @@ export const logger = {
 		if (shouldLog('warn')) console.warn(...formatBrowserLog('warn', args));
 	},
 	error: (...args: unknown[]) => {
+		if (shouldLog('error')) console.error(...formatBrowserLog('error', args));
+	},
+	fatal: (...args: unknown[]) => {
+		// Browser console doesn't have a specific 'fatal' level, so fallback to 'error'
 		if (shouldLog('error')) console.error(...formatBrowserLog('error', args));
 	}
 };

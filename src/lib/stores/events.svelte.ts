@@ -188,7 +188,7 @@ class RealtimeStore {
 			};
 
 			this.eventSource.onerror = () => {
-				logger.error('[SSE] Connection error');
+				logger.error(new Error('[SSE] Connection error'), '[SSE] Connection error');
 				this.status = 'error';
 				this.notifyStatusChange('error');
 				this.eventSource?.close();
