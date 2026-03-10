@@ -223,7 +223,7 @@
 	</div>
 
 	<!-- Information Cards -->
-	<div class="grid gap-6 md:grid-cols-3">
+	<div class="grid gap-6 md:grid-cols-2">
 		<!-- Local Login Info -->
 		<div
 			class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/20"

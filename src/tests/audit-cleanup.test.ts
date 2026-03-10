@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from '../lib/server/db/schema.js';
@@ -28,7 +28,12 @@ mock.module('../lib/server/settings.js', () => ({
 		AUDIT_LOG_RETENTION_DAYS: 'audit.retentionDays'
 	}
 }));
-import { cleanupOldAuditLogs } from '../lib/server/audit.js';
+
+import {
+	cleanupOldAuditLogs,
+	scheduleAuditLogCleanup,
+	stopAuditLogCleanup
+} from '../lib/server/audit.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -157,5 +162,40 @@ describe('cleanupOldAuditLogs', () => {
 		const remaining = db.select().from(auditLogs).all();
 		expect(remaining).toHaveLength(1);
 		expect(remaining[0].id).toBe('new-1');
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Scheduler Tests
+// ---------------------------------------------------------------------------
+
+describe('Audit Log Scheduler', () => {
+	beforeEach(() => {
+		stopAuditLogCleanup();
+	});
+
+	test('scheduleAuditLogCleanup sets up timeouts', () => {
+		const setTimeoutSpy = spyOn(global, 'setTimeout');
+
+		scheduleAuditLogCleanup();
+
+		// Should have set up initialDelayTimeout and immediateCleanupTimeout
+		expect(setTimeoutSpy).toHaveBeenCalled();
+
+		setTimeoutSpy.mockRestore();
+	});
+
+	test('stopAuditLogCleanup clears timeouts', () => {
+		const clearTimeoutSpy = spyOn(global, 'clearTimeout');
+		const clearIntervalSpy = spyOn(global, 'clearInterval');
+
+		scheduleAuditLogCleanup();
+		stopAuditLogCleanup();
+
+		expect(clearTimeoutSpy).toHaveBeenCalled();
+		// clearInterval might not be called if the interval wasn't created yet (it's created inside the timeout)
+
+		clearTimeoutSpy.mockRestore();
+		clearIntervalSpy.mockRestore();
 	});
 });
