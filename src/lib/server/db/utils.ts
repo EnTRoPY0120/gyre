@@ -17,16 +17,13 @@ export interface PaginationOptions {
  */
 export function sanitizeSearchInput(input: string): string {
 	if (!input) return '';
-	
+
 	// Limit input length
 	const sanitized = input.slice(0, MAX_SEARCH_LENGTH);
-	
+
 	// Escape special LIKE characters
 	// Order matters: backslash first, then percent and underscore
-	return sanitized
-		.replace(/\\/g, '\\\\')
-		.replace(/%/g, '\\%')
-		.replace(/_/g, '\\_');
+	return sanitized.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
 }
 
 export interface PaginatedResult<T> {

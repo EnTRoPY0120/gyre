@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db/index.js';
 import { users, sessions } from './db/schema.js';
 import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
-import { eq, and, gt, lte, sql, or, like } from 'drizzle-orm';
+import { eq, and, gt, lte, sql, or } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import * as k8s from '@kubernetes/client-node';
@@ -211,7 +211,11 @@ export async function listUsersPaginated(options?: {
 		options,
 		(search) => {
 			const sanitized = sanitizeSearchInput(search);
-			return or(like(users.username, `%${sanitized}%`), like(users.email, `%${sanitized}%`));
+			const pattern = `%${sanitized}%`;
+			return or(
+				sql`${users.username} LIKE ${pattern} ESCAPE '\\'`,
+				sql`${users.email} LIKE ${pattern} ESCAPE '\\'`
+			);
 		}
 	);
 
