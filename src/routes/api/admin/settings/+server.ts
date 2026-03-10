@@ -214,8 +214,12 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 
 		if (typeof body.auditRetentionDays === 'number') {
 			if (!isSettingOverriddenByEnv(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS)) {
-				// Ensure it's a positive number
-				const retention = Math.max(1, Math.floor(body.auditRetentionDays));
+				// Validate range (1-3650 days)
+				if (body.auditRetentionDays < 1 || body.auditRetentionDays > 3650) {
+					throw error(400, { message: 'Audit retention days must be between 1 and 3650' });
+				}
+
+				const retention = Math.floor(body.auditRetentionDays);
 				await setSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, String(retention));
 			}
 		}

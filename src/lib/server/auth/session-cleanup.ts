@@ -1,4 +1,5 @@
 import { cleanupExpiredSessions } from '../auth.js';
+import { MS_PER_HOUR, MS_PER_MINUTE, getRandomJitterMs } from '../utils/time.js';
 
 let cleanupScheduled = false;
 let isCleaning = false;
@@ -35,7 +36,7 @@ export function scheduleSessionCleanup(): void {
 	}
 
 	// Run cleanup every hour
-	const CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
+	const CLEANUP_INTERVAL_MS = MS_PER_HOUR;
 
 	console.log(`[SessionCleanup] Scheduling session cleanup to run every hour`);
 
@@ -46,14 +47,14 @@ export function scheduleSessionCleanup(): void {
 
 	cleanupScheduled = true;
 
-	// Also run an initial cleanup after 1 minute for immediate effect
-	immediateCleanupTimeout = setTimeout(
-		() => {
-			console.log('[SessionCleanup] Running initial session cleanup...');
-			performCleanup();
-		},
-		1 * 60 * 1000
-	);
+	// Also run an initial cleanup shortly after startup
+	// We add a random jitter (0-10m) to prevent multiple instances from contending.
+	const startupDelayWithJitter = 1 * MS_PER_MINUTE + getRandomJitterMs(10);
+
+	immediateCleanupTimeout = setTimeout(() => {
+		console.log('[SessionCleanup] Running initial session cleanup...');
+		performCleanup();
+	}, startupDelayWithJitter);
 }
 
 /**

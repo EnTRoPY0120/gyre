@@ -34,6 +34,7 @@ import {
 	scheduleAuditLogCleanup,
 	stopAuditLogCleanup
 } from '../lib/server/audit.js';
+import { getCutoffDate, getRandomJitterMs, MS_PER_DAY } from '../lib/server/utils/time.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -206,5 +207,32 @@ describe('Audit Log Scheduler', () => {
 
 		clearTimeoutSpy.mockRestore();
 		clearIntervalSpy.mockRestore();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Time Utilities Tests
+// ---------------------------------------------------------------------------
+
+describe('Time Utilities', () => {
+	test('getCutoffDate returns a date in the past', () => {
+		const retentionDays = 30;
+		const cutoff = getCutoffDate(retentionDays);
+		const now = new Date();
+
+		// Should be approximately retentionDays ago
+		const diffMs = now.getTime() - cutoff.getTime();
+		const diffDays = diffMs / MS_PER_DAY;
+
+		expect(diffDays).toBeGreaterThanOrEqual(29.9);
+		expect(diffDays).toBeLessThanOrEqual(30.1);
+	});
+
+	test('getRandomJitterMs returns value within range', () => {
+		const maxMinutes = 30;
+		const jitter = getRandomJitterMs(maxMinutes);
+
+		expect(jitter).toBeGreaterThanOrEqual(0);
+		expect(jitter).toBeLessThanOrEqual(maxMinutes * 60 * 1000);
 	});
 });
