@@ -99,7 +99,7 @@ describe('cleanupExpiredSessions', () => {
 	});
 
 	test('resolves without error when sessions table is empty', async () => {
-		await expect(cleanupExpiredSessions()).resolves.toBeUndefined();
+		await expect(cleanupExpiredSessions()).resolves.toBe(0);
 	});
 
 	test('deletes a single expired session', async () => {
@@ -107,7 +107,8 @@ describe('cleanupExpiredSessions', () => {
 		const userId = await insertUser(db);
 		const expiredId = insertSession(db, userId, new Date(Date.now() - 1000));
 
-		await cleanupExpiredSessions();
+		const deletedCount = await cleanupExpiredSessions();
+		expect(deletedCount).toBe(1);
 
 		const remaining = db.select().from(sessions).all();
 		expect(remaining.some((s) => s.id === expiredId)).toBe(false);
@@ -118,7 +119,8 @@ describe('cleanupExpiredSessions', () => {
 		const userId = await insertUser(db);
 		const validId = insertSession(db, userId, daysFromNow(7));
 
-		await cleanupExpiredSessions();
+		const deletedCount = await cleanupExpiredSessions();
+		expect(deletedCount).toBe(0);
 
 		const remaining = db.select().from(sessions).all();
 		expect(remaining.some((s) => s.id === validId)).toBe(true);
@@ -131,7 +133,8 @@ describe('cleanupExpiredSessions', () => {
 		const expiredId = insertSession(db, userId, new Date(Date.now() - 1000));
 		const validId = insertSession(db, userId, daysFromNow(7));
 
-		await cleanupExpiredSessions();
+		const deletedCount = await cleanupExpiredSessions();
+		expect(deletedCount).toBe(1);
 
 		const remaining = db.select().from(sessions).all();
 		const ids = remaining.map((s) => s.id);
@@ -148,7 +151,8 @@ describe('cleanupExpiredSessions', () => {
 		const id2 = insertSession(db, userId, past);
 		const id3 = insertSession(db, userId, past);
 
-		await cleanupExpiredSessions();
+		const deletedCount = await cleanupExpiredSessions();
+		expect(deletedCount).toBe(3);
 
 		const remaining = db.select().from(sessions).all();
 		expect(remaining).toHaveLength(0);
@@ -166,7 +170,8 @@ describe('cleanupExpiredSessions', () => {
 		const validC = insertSession(db, userId1, daysFromNow(7));
 		const validD = insertSession(db, userId2, daysFromNow(3));
 
-		await cleanupExpiredSessions();
+		const deletedCount = await cleanupExpiredSessions();
+		expect(deletedCount).toBe(2);
 
 		const remaining = db.select().from(sessions).all();
 		const ids = remaining.map((s) => s.id);
@@ -181,7 +186,8 @@ describe('cleanupExpiredSessions', () => {
 		const userId = await insertUser(db);
 		const sessionId = insertSession(db, userId, daysFromNow(30));
 
-		await cleanupExpiredSessions();
+		const deletedCount = await cleanupExpiredSessions();
+		expect(deletedCount).toBe(0);
 
 		const remaining = db.select().from(sessions).all();
 		expect(remaining.some((s) => s.id === sessionId)).toBe(true);
@@ -192,8 +198,11 @@ describe('cleanupExpiredSessions', () => {
 		const userId = await insertUser(db);
 		insertSession(db, userId, new Date(Date.now() - 1000));
 
-		await cleanupExpiredSessions();
-		await expect(cleanupExpiredSessions()).resolves.toBeUndefined();
+		const count1 = await cleanupExpiredSessions();
+		expect(count1).toBe(1);
+
+		const count2 = await cleanupExpiredSessions();
+		expect(count2).toBe(0);
 
 		const remaining = db.select().from(sessions).all();
 		expect(remaining).toHaveLength(0);

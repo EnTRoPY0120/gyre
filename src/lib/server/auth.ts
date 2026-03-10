@@ -7,7 +7,7 @@ import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import * as k8s from '@kubernetes/client-node';
 import { readFileSync } from 'node:fs';
-import { loginAttemptsTotal } from './metrics.js';
+import { loginAttemptsTotal, sessionsCleanedUpTotal } from './metrics.js';
 
 // In-cluster configuration paths
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
@@ -275,10 +275,20 @@ export async function deleteUserSessions(userId: string): Promise<void> {
 	await db.delete(sessions).where(eq(sessions.userId, userId));
 }
 
-export async function cleanupExpiredSessions(): Promise<void> {
+export async function cleanupExpiredSessions(): Promise<number> {
 	const db = await getDb();
 	const now = new Date();
-	await db.delete(sessions).where(lt(sessions.expiresAt, now));
+	const result = await db
+		.delete(sessions)
+		.where(lt(sessions.expiresAt, now))
+		.returning({ id: sessions.id });
+
+	const count = result.length;
+	if (count > 0) {
+		sessionsCleanedUpTotal.inc(count);
+		console.log(`[Auth] Cleaned up ${count} expired session(s)`);
+	}
+	return count;
 }
 
 // Check if any users exist (for initial setup)
