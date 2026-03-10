@@ -1,15 +1,16 @@
 import type { LayoutServerLoad } from './$types';
 import pkg from '../../package.json';
 import { serializeUser } from '$lib/server/auth';
+import { fetchWithRetry } from '$lib/utils/fetch';
 
 const DEFAULT_FLUX_VERSION = 'v2.x.x';
 
-export const load: LayoutServerLoad = async ({ fetch, locals, depends }) => {
+export const load: LayoutServerLoad = async ({ fetch: svelteFetch, locals, depends }) => {
 	depends('gyre:layout');
 	try {
 		const [healthRes, versionRes] = await Promise.all([
-			fetch('/api/flux/health'),
-			fetch('/api/flux/version')
+			fetchWithRetry('/api/flux/health', undefined, { fetchFn: svelteFetch }),
+			fetchWithRetry('/api/flux/version', undefined, { fetchFn: svelteFetch })
 		]);
 
 		const healthData = healthRes.ok ? await healthRes.json() : null;

@@ -154,7 +154,11 @@
 		<div class="mx-0.5 hidden h-4 w-px bg-border md:block"></div>
 
 		<!-- Cluster Selector -->
-		<ClusterSwitcher current={health?.clusterName} available={health?.availableClusters} />
+		<ClusterSwitcher
+			current={health?.clusterName}
+			available={health?.availableClusters}
+			connected={health?.connected}
+		/>
 
 		<!-- Flux Version Badge -->
 		{#if fluxVersion}

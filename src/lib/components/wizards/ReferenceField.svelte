@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
 	import { getPluralByKind } from '$lib/templates';
+	import { fetchWithRetry } from '$lib/utils/fetch';
 	import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-svelte';
 	import { onMount } from 'svelte';
 
@@ -69,7 +70,7 @@
 				// If not found in templates, try lowercase-plural as fallback
 				const pluralToUse = plural || kind.toLowerCase() + 's';
 
-				const res = await fetch(`/api/flux/${pluralToUse}`);
+				const res = await fetchWithRetry(`/api/flux/${pluralToUse}`);
 				if (res.ok) {
 					const data = await res.json();
 					if (data.items) {

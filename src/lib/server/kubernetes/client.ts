@@ -11,7 +11,8 @@ import {
 	KubernetesError,
 	ResourceNotFoundError,
 	AuthenticationError,
-	AuthorizationError
+	AuthorizationError,
+	ClusterUnavailableError
 } from './errors.js';
 
 export interface ListOptions {
@@ -531,13 +532,30 @@ export function handleK8sError(error: unknown, operation: string): Error {
 
 	if (error instanceof Error) {
 		// @kubernetes/client-node v1 throws ApiException with a `code` property directly
-		const apiException = error as Error & { code?: number };
+		const apiException = error as Error & { code?: number | string };
 		// Older versions used `response.statusCode`
 		const k8sError = error as Error & {
 			response?: { statusCode: number; body?: { message?: string } };
+			errno?: string;
 		};
 
-		const status = apiException.code ?? k8sError.response?.statusCode;
+		// Check for connection-related errors
+		const connectionErrors = [
+			'ECONNREFUSED',
+			'ETIMEDOUT',
+			'ENOTFOUND',
+			'EHOSTUNREACH',
+			'ESOCKETTIMEDOUT',
+			'ECONNRESET'
+		];
+
+		const errorCode = apiException.code?.toString() ?? k8sError.errno;
+		if (errorCode && connectionErrors.includes(errorCode)) {
+			return new ClusterUnavailableError(`Kubernetes cluster is unavailable: ${errorCode}`);
+		}
+
+		const status =
+			typeof apiException.code === 'number' ? apiException.code : k8sError.response?.statusCode;
 
 		if (status !== undefined) {
 			switch (status) {
@@ -547,6 +565,9 @@ export function handleK8sError(error: unknown, operation: string): Error {
 					return new AuthenticationError(`Authentication failed: ${operation}`);
 				case 403:
 					return new AuthorizationError(`Permission denied: ${operation}`);
+				case 503:
+				case 504:
+					return new ClusterUnavailableError(`Kubernetes cluster is unavailable (${status})`);
 				default:
 					return new KubernetesError(`Kubernetes API error (${status})`, status, 'ApiError');
 			}

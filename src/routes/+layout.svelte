@@ -100,6 +100,19 @@
 			<!-- Header -->
 			<AppHeader health={data.health} fluxVersion={data.fluxVersion} user={data.user} />
 
+			{#if !data.health.connected}
+				<div
+					class="flex items-center justify-center gap-3 bg-destructive/10 px-6 py-2.5 text-[10px] font-bold tracking-wider text-destructive uppercase ring-1 ring-destructive/20"
+				>
+					<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.4)]"></div>
+					Kubernetes Cluster Unavailable
+					<span class="opacity-40">&bull;</span>
+					Degraded Mode
+					<span class="opacity-40">&bull;</span>
+					{data.health.error || 'Connection Failed'}
+				</div>
+			{/if}
+
 			<!-- Scrollable Content -->
 			<main class="flex-1 overflow-y-auto p-4 md:p-6">
 				{@render children()}

@@ -9,9 +9,10 @@
 	interface Props {
 		current?: string;
 		available?: string[];
+		connected?: boolean;
 	}
 
-	let { current, available }: Props = $props();
+	let { current, available, connected = true }: Props = $props();
 
 	const currentCluster = $derived(current || clusterStore.current || 'in-cluster');
 	// Merge prop data with store data, preferring store if it has data
@@ -30,7 +31,10 @@
 		class="group flex items-center gap-1.5 rounded-md border border-transparent bg-secondary/50 px-2 py-1 text-xs font-medium transition-all hover:border-border hover:bg-secondary/80 sm:gap-2 sm:px-3 sm:py-1.5"
 	>
 		<div
-			class="h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-125"
+			class={cn(
+				'h-1.5 w-1.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-125',
+				connected ? 'bg-emerald-500' : 'bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.4)]'
+			)}
 		></div>
 		<span
 			class="xs:max-w-[100px] max-w-[60px] truncate font-mono text-[9px] tracking-tight sm:max-w-[150px] sm:text-[10px]"
