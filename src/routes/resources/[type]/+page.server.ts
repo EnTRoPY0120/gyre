@@ -91,7 +91,7 @@ export const load: PageServerLoad = async ({ params, url, fetch, depends }) => {
 			resourceType: type,
 			resourceInfo,
 			resources,
-			total: data.total ?? resources.length,
+			total: data.total,
 			sortBy,
 			sortOrder,
 			error: null

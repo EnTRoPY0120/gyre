@@ -23,7 +23,8 @@ export interface ListOptions {
 
 export interface PaginatedFluxResourceList {
 	items: FluxResource[];
-	total: number;
+	/** Exact total, or null when cursor-based native paging was used and the total is unknown. */
+	total: number | null;
 	hasMore: boolean;
 	offset: number;
 	limit: number;
@@ -243,7 +244,7 @@ export async function listFluxResources(
 			// k8s already returned the page; metadata.continue signals more pages.
 			return {
 				items,
-				total: items.length, // exact total is unknown in cursor-based paging
+				total: null, // exact total unknown with cursor-based k8s paging; use hasMore instead
 				hasMore: !!list.metadata?.continue,
 				offset: 0,
 				limit: options!.limit!,
