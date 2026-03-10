@@ -31,3 +31,75 @@ describe('Logger Redaction', () => {
 		stdoutSpy.mockRestore();
 	});
 });
+
+describe('Logger Signatures', () => {
+	test('handles string message only', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info('Just a message');
+
+		expect(stdoutSpy).toHaveBeenCalled();
+		const output = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+		expect(output.msg).toBe('Just a message');
+
+		stdoutSpy.mockRestore();
+	});
+
+	test('handles object context only', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info({ userId: 123 });
+
+		expect(stdoutSpy).toHaveBeenCalled();
+		const output = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+		expect(output.userId).toBe(123);
+
+		stdoutSpy.mockRestore();
+	});
+
+	test('handles error object and message', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		const err = new Error('Test error');
+		logger.error(err, 'Failed operation');
+
+		expect(stdoutSpy).toHaveBeenCalled();
+		const output = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+		expect(output.msg).toBe('Failed operation');
+		expect(output.err).toBeDefined();
+		expect(output.err.message).toBe('Test error');
+
+		stdoutSpy.mockRestore();
+	});
+
+	test('handles object context and message', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info({ userId: 123 }, 'User logged in');
+
+		expect(stdoutSpy).toHaveBeenCalled();
+		const output = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+		expect(output.msg).toBe('User logged in');
+		expect(output.userId).toBe(123);
+
+		stdoutSpy.mockRestore();
+	});
+
+	test('handles message and context (reverse order, non-standard but supported by variadic wrapper)', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info('User logged in', { userId: 123 });
+
+		expect(stdoutSpy).toHaveBeenCalled();
+		const output = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+		expect(output.msg).toBe('User logged in');
+		expect(output.userId).toBe(123);
+
+		stdoutSpy.mockRestore();
+	});
+
+	test('does nothing when called with no arguments', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		// @ts-expect-error - testing invalid call
+		logger.info();
+
+		expect(stdoutSpy).not.toHaveBeenCalled();
+
+		stdoutSpy.mockRestore();
+	});
+});

@@ -23,7 +23,7 @@
 	],
 	"rules": {
 		"no-unused-vars": "warn",
-		"no-console": "off",
+		"no-console": "warn",
 		"no-debugger": "warn"
 	}
 }

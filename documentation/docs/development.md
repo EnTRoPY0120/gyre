@@ -153,6 +153,13 @@ Multi-cluster support is implemented via `locals.cluster`.
 - **RBAC**: Use `checkPermission(user, action, resourceType, namespace, clusterId)` or `requirePermission` to enforce access control. Standardized across all `src/routes/api` endpoints.
 - **Error Handling**: Use `throw error(status, message)` consistently in API routes.
 
+### Logging
+
+- **Error Logging**: Standardize on the error-first pattern: `logger.error(errorObject, 'Message')`. Always pass an Error object as the first argument to preserve stack traces.
+- **Frontend/Backend**: Use `logger` from `src/lib/utils/logger.ts` for frontend, and `src/lib/server/logger.ts` for backend.
+- **Lazy Evaluation**: For expensive log computations on the frontend, wrap the log call: `if (shouldLog('debug')) logger.debug(heavyComputation())`.
+- **Redaction Rules**: The backend logger automatically redacts sensitive fields like `password`, `token`, `secret`, `authorization`, `cookie`, `email`. Always avoid logging PII directly.
+
 ### Git & Contribution
 
 - **Commits**: Follow [Conventional Commits](https://www.conventionalcommits.org/).

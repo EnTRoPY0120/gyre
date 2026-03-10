@@ -4,7 +4,7 @@ const level = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 
 
 const pinoLogger = pino({
 	level,
-	base: undefined,
+	base: undefined, // Removes pid and hostname fields, which are redundant in containerized environments like Kubernetes
 	timestamp: pino.stdTimeFunctions.isoTime,
 	redact: {
 		paths: [
@@ -25,6 +25,15 @@ const pinoLogger = pino({
 	}
 });
 
+/**
+ * Internal logging helper to handle multiple signature variants:
+ * - `log(level, [error_or_context])`
+ * - `log(level, [error_or_context, message])`
+ * - `log(level, [message, context])`
+ *
+ * @param level - The Pino log level (e.g., 'info', 'error')
+ * @param args - The arguments passed to the logger method
+ */
 function log(level: pino.Level, args: any[]) {
 	if (args.length === 0) return;
 	if (args.length === 1) return pinoLogger[level](args[0]);

@@ -116,7 +116,7 @@ import { onMount } from 'svelte';
 				if (result.status === 'fulfilled') {
 					allNames.push(...result.value);
 				} else {
-					logger.error('Failed to fetch resources:', result.reason);
+					logger.error(result.reason instanceof Error ? result.reason : new Error(String(result.reason)), 'Failed to fetch resources:');
 				}
 			});
 

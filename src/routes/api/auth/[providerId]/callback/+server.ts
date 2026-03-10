@@ -85,7 +85,11 @@ export const GET: RequestHandler = async (event) => {
 
 		// Check for OAuth errors from IdP
 		if (errorParam) {
-			logger.error('OAuth error from IdP:', errorParam, errorDescription);
+			logger.error(
+				new Error(errorDescription || errorParam || 'OAuth error'),
+				'OAuth error from IdP:',
+				errorParam
+			);
 			throw redirect(302, `/login?error=${encodeURIComponent(errorDescription || errorParam)}`);
 		}
 
@@ -97,7 +101,10 @@ export const GET: RequestHandler = async (event) => {
 		// Validate state (CSRF protection)
 		const storedState = cookies.get(`oauth_state_${providerId}`);
 		if (!storedState || storedState !== returnedState) {
-			logger.error('State mismatch: CSRF state validation failed');
+			logger.error(
+				new Error('State mismatch: CSRF state validation failed'),
+				'State mismatch: CSRF state validation failed'
+			);
 			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
 		}
 
