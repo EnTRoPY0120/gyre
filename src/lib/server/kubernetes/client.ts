@@ -263,8 +263,10 @@ export async function listFluxResources(
 		const total = sorted.length;
 		const offset = options?.offset ?? 0;
 		const paginatedItems =
-			options?.limit !== undefined ? sorted.slice(offset, offset + options.limit) : sorted;
-		const effectiveLimit = options?.limit ?? total;
+			options?.limit !== undefined
+				? sorted.slice(offset, offset + options.limit)
+				: sorted.slice(offset);
+		const effectiveLimit = paginatedItems.length;
 
 		return {
 			items: paginatedItems,

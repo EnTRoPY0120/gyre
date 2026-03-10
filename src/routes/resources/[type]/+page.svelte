@@ -311,7 +311,9 @@
 					Showing <strong class="text-gray-900 dark:text-gray-100"
 						>{filteredResources.length}</strong
 					>
-					of <strong class="text-gray-900 dark:text-gray-100">{data.total ?? data.resources?.length ?? 0}</strong> resources
+					of <strong class="text-gray-900 dark:text-gray-100"
+						>{data.total !== null ? data.total : `${data.resources?.length ?? 0}+`}</strong
+					> resources
 				</span>
 			</div>
 		</div>
