@@ -1,7 +1,7 @@
 import { sql, and, eq, lt, desc } from 'drizzle-orm';
 import { getDbSync } from '../../db/index.js';
 import { reconciliationHistory } from '../../db/schema.js';
-import { MS_PER_DAY, MS_PER_MINUTE } from '../../utils/time.js';
+import { MS_PER_MINUTE, getCutoffDate, getRandomJitterMs } from '../../utils/time.js';
 
 export interface CleanupStats {
 	deletedSuccess: number;
@@ -37,13 +37,8 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 
 	try {
 		// Calculate cutoff dates
-		const now = new Date();
-		const successCutoff = new Date(
-			now.getTime() - CLEANUP_POLICIES.successRetentionDays * MS_PER_DAY
-		);
-		const failureCutoff = new Date(
-			now.getTime() - CLEANUP_POLICIES.failureRetentionDays * MS_PER_DAY
-		);
+		const successCutoff = getCutoffDate(CLEANUP_POLICIES.successRetentionDays);
+		const failureCutoff = getCutoffDate(CLEANUP_POLICIES.failureRetentionDays);
 
 		// 1. Delete old successful entries
 		// Count first to avoid loading all IDs into memory via .returning()
@@ -57,8 +52,8 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 				)
 			);
 
-		stats.deletedSuccess = successCountResult[0]?.count || 0;
-		if (stats.deletedSuccess > 0) {
+		const toDeleteSuccess = successCountResult[0]?.count || 0;
+		if (toDeleteSuccess > 0) {
 			await db
 				.delete(reconciliationHistory)
 				.where(
@@ -67,6 +62,7 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 						lt(reconciliationHistory.reconcileCompletedAt, successCutoff)
 					)
 				);
+			stats.deletedSuccess = toDeleteSuccess;
 		}
 
 		// 2. Delete old failed entries
@@ -80,8 +76,8 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 				)
 			);
 
-		stats.deletedFailure = failureCountResult[0]?.count || 0;
-		if (stats.deletedFailure > 0) {
+		const toDeleteFailure = failureCountResult[0]?.count || 0;
+		if (toDeleteFailure > 0) {
 			await db
 				.delete(reconciliationHistory)
 				.where(
@@ -90,6 +86,7 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 						lt(reconciliationHistory.reconcileCompletedAt, failureCutoff)
 					)
 				);
+			stats.deletedFailure = toDeleteFailure;
 		}
 
 		// 3. Keep only last N entries per resource
@@ -208,7 +205,7 @@ export function scheduleCleanup(): void {
 
 	// Also run an initial cleanup shortly after startup
 	// We add a random jitter (0-30m) to prevent multiple instances from contending.
-	const startupDelayWithJitter = 5 * MS_PER_MINUTE + Math.floor(Math.random() * 30 * MS_PER_MINUTE);
+	const startupDelayWithJitter = 5 * MS_PER_MINUTE + getRandomJitterMs(30);
 
 	immediateCleanupTimeout = setTimeout(() => {
 		console.log('[ReconciliationCleanup] Running initial cleanup...');
