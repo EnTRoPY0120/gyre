@@ -142,7 +142,7 @@ function parseKubeconfig(kubeconfig: string): {
 
 		return { contexts, currentContext };
 	} catch (error) {
-		logger.error('Failed to parse kubeconfig:', error);
+		logger.error(error, 'Failed to parse kubeconfig:');
 		return { contexts: [], currentContext: null };
 	}
 }
@@ -589,7 +589,7 @@ export async function migrateKubeconfigs(): Promise<number> {
 
 				migratedCount++;
 			} catch (error) {
-				logger.error(`Failed to migrate kubeconfig for cluster ${cluster.name}:`, error);
+				logger.error(error, `Failed to migrate kubeconfig for cluster ${cluster.name}:`);
 			}
 		}
 	}

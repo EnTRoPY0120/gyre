@@ -70,9 +70,7 @@ export function initDatabase(): void {
 						const finalUsername = i === 0 ? normalized : `${normalized}_${i}`;
 						db.run(sql`UPDATE users SET username = ${finalUsername} WHERE id = ${group[i].id}`);
 					}
-					logger.warn(
-						`[DB] Migration: resolved username collision for "${normalized}" across ${group.length} users`
-					);
+					logger.warn(`[DB] Migration: resolved username collision across ${group.length} users`);
 				}
 			}
 
@@ -82,7 +80,7 @@ export function initDatabase(): void {
 			logger.info('[DB] Migration: lowercased existing usernames');
 		}
 	} catch (error) {
-		logger.warn('[DB] Failed to run username normalization migration:', error);
+		logger.warn(error, '[DB] Failed to run username normalization migration:');
 	}
 
 	// Add preferences column if it doesn't exist (for existing databases)

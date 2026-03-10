@@ -12,14 +12,19 @@ export async function fetchWithRetry(
 		retryOnStatus?: number[];
 		/** Optional custom fetch function (e.g., from SvelteKit load) */
 		fetchFn?: typeof fetch;
+		/** Optional custom logger */
+		logger?: { warn: (msg: string) => void };
 	} = {}
 ): Promise<Response> {
 	const {
 		maxRetries = 3,
 		initialDelay = 1000,
 		retryOnStatus = [503, 504],
-		fetchFn = typeof window !== 'undefined' ? window.fetch : fetch
+		fetchFn = typeof window !== 'undefined' ? window.fetch : fetch,
+		logger: customLogger
 	} = options;
+
+	const log = customLogger ?? logger;
 
 	let lastResponse: Response | undefined;
 	let lastError: unknown;
@@ -38,7 +43,7 @@ export async function fetchWithRetry(
 			// It's a retryable status code
 			if (attempt < maxRetries) {
 				const delay = initialDelay * Math.pow(2, attempt);
-				logger.warn(
+				log.warn(
 					`Fetch attempt ${attempt + 1} failed with status ${response.status}. Retrying in ${delay}ms...`
 				);
 				await new Promise((resolve) => setTimeout(resolve, delay));
@@ -50,7 +55,7 @@ export async function fetchWithRetry(
 			// Always retry on network errors (fetch throws for network errors)
 			if (attempt < maxRetries) {
 				const delay = initialDelay * Math.pow(2, attempt);
-				logger.warn(
+				log.warn(
 					`Fetch attempt ${attempt + 1} failed with network error. Retrying in ${delay}ms...`
 				);
 				await new Promise((resolve) => setTimeout(resolve, delay));

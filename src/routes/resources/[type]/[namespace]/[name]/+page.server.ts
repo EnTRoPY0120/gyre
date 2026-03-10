@@ -27,7 +27,8 @@ export const load: PageServerLoad = async ({ params, fetch: svelteFetch, depends
 	try {
 		const response = await fetchWithRetry(`/api/flux/${type}/${namespace}/${name}`, undefined, {
 			fetchFn: svelteFetch,
-			maxRetries: 0
+			maxRetries: 0,
+			logger
 		});
 
 		if (!response.ok) {

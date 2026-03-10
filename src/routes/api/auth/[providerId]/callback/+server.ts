@@ -164,7 +164,7 @@ export const GET: RequestHandler = async (event) => {
 			maxAge: 60 * 60 * 24 * 7 // 7 days
 		});
 
-		logger.info(`SSO login successful for user ${user.username} (${user.email})`);
+		logger.info({ providerId, userId: user.id }, 'SSO login successful');
 
 		// Redirect to home page
 		throw redirect(302, '/');

@@ -53,7 +53,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 			return { created: 0, skipped: 0 };
 		}
 	} catch (error) {
-		logger.error('Failed to parse GYRE_AUTH_PROVIDERS:', error);
+		logger.error(error, 'Failed to parse GYRE_AUTH_PROVIDERS:');
 		return { created: 0, skipped: 0 };
 	}
 
@@ -137,7 +137,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 			logger.info(`✓ Created provider "${config.name}" (${config.type})`);
 			created++;
 		} catch (error) {
-			logger.error(`Failed to create provider "${config.name}":`, error);
+			logger.error(error, `Failed to create provider "${config.name}":`);
 			skipped++;
 		}
 	}

@@ -46,7 +46,7 @@ export async function logAudit(
 		await db.insert(auditLogs).values(logEntry);
 	} catch (error) {
 		// Don't throw - audit logging should never break the main flow
-		logger.error('Failed to write audit log:', error);
+		logger.error(error, 'Failed to write audit log:');
 	}
 }
 
