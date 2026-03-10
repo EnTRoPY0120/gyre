@@ -43,10 +43,15 @@ export const load: PageServerLoad = async ({ params, url, fetch, depends }) => {
 
 	const limitNum = rawLimit !== null ? Number(rawLimit) : undefined;
 	const offsetNum = rawOffset !== null ? Number(rawOffset) : undefined;
+	// Mirror the API schema: limit must be an integer 1–500, offset must be a non-negative integer.
 	const limit =
-		limitNum !== undefined && Number.isFinite(limitNum) && limitNum > 0 ? limitNum : undefined;
+		limitNum !== undefined && Number.isInteger(limitNum) && limitNum >= 1 && limitNum <= 500
+			? limitNum
+			: undefined;
 	const offset =
-		offsetNum !== undefined && Number.isFinite(offsetNum) && offsetNum >= 0 ? offsetNum : undefined;
+		offsetNum !== undefined && Number.isInteger(offsetNum) && offsetNum >= 0
+			? offsetNum
+			: undefined;
 
 	// Build API URL with sort and pagination params
 	const apiUrl = new URL(`/api/flux/${type}`, url.origin);
