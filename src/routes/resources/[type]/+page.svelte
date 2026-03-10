@@ -194,9 +194,9 @@
 
 		const timeoutId = setTimeout(() => {
 			const params = filtersToSearchParams(currentFilters);
-			// Preserve page size when paginating; filter/sort changes always reset to page 1.
-			const existingLimit = $page.url.searchParams.get('limit');
-			if (existingLimit) params.set('limit', existingLimit);
+			// When filters are active, we don't preserve pagination (limit/offset)
+			// to ensure we're filtering against a complete result set from the server.
+			// Sort state is still preserved.
 			if (currentSortBy) {
 				params.set('sortBy', currentSortBy);
 				params.set('sortOrder', currentSortOrder);
