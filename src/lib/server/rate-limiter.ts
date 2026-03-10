@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { logger } from './logger.js';
 import { error } from '@sveltejs/kit';
 import { getDbSync } from './db/index.js';
@@ -245,8 +246,10 @@ export class AccountLockout {
 				.where(eq(loginLockouts.username, username))
 				.run();
 
+			const userHash = crypto.createHash('sha256').update(username).digest('hex').substring(0, 8);
 			logger.warn(
-				`[Security] Account lockout triggered for user '${username}'. Locked for ${lockedMinutes} minutes. Failed attempts: ${entry.failedAttempts}`
+				{ userId: userHash },
+				`[Security] Account lockout triggered; locked for ${lockedMinutes} minutes; failed attempts: ${entry.failedAttempts}`
 			);
 		}
 	}

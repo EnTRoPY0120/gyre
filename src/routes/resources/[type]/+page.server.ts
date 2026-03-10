@@ -60,7 +60,10 @@ export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, de
 	if (offset !== undefined) apiUrl.searchParams.set('offset', String(offset));
 
 	try {
-		const response = await fetchWithRetry(apiUrl.toString(), undefined, { fetchFn: svelteFetch });
+		const response = await fetchWithRetry(apiUrl.toString(), undefined, {
+			fetchFn: svelteFetch,
+			logger
+		});
 
 		if (!response.ok) {
 			if (response.status === 404) {

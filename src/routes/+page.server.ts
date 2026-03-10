@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { resourceGroups } from '$lib/config/resources';
+import { logger } from '$lib/server/logger.js';
 import { fetchWithRetry } from '$lib/utils/fetch';
 import { DASHBOARD_CACHE_TTL_MS } from '$lib/server/config/constants';
 
@@ -26,7 +27,8 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 
 		// Fetch batched overview results
 		const response = await fetchWithRetry('/api/flux/overview', undefined, {
-			fetchFn: svelteFetch
+			fetchFn: svelteFetch,
+			logger
 		});
 		if (!response.ok) {
 			return {} as Record<

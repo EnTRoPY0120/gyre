@@ -91,7 +91,7 @@ export function sanitizeK8sErrorMessage(message: string): string {
  */
 export function handleApiError(err: unknown, contextMessage = 'Kubernetes API error'): never {
 	// Log the full error server-side
-	logger.error(`${contextMessage}:`, err);
+	logger.error({ err }, `${contextMessage}:`);
 
 	// If it's a known safe error, pass it through
 	if (err instanceof KubernetesError) {

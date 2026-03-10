@@ -256,7 +256,7 @@ export async function initializeGyre(): Promise<void> {
 				logger.info('   After first login, the secret will be marked as consumed.');
 			} else {
 				// Local development mode
-				console.info('   Password: ' + setupToken); // codeql[js/clear-text-logging]
+				logger.info('   Password: ' + setupToken);
 				logger.info('   ' + '='.repeat(50));
 				logger.info('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
 				logger.info("   ⚠️  Please save this password - it won't be shown again!");
@@ -322,19 +322,4 @@ try {
 	scheduleSessionCleanup();
 } catch (error) {
 	logger.error(error, '[SessionCleanup] Failed to initialize scheduler');
-}
-
-/**
- * Get initialization status for health checks
- */
-export function getInitializationStatus(): {
-	initialized: boolean;
-	mode: string;
-	databaseConnected: boolean;
-} {
-	return {
-		initialized: true,
-		mode: 'in-cluster',
-		databaseConnected: true
-	};
 }

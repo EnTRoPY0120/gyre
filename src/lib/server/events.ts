@@ -206,8 +206,8 @@ function broadcast(context: ClusterContext, event: SSEEvent) {
 			subscriber(event);
 		} catch (err) {
 			logger.error(
-				`[EventBus] Error broadcasting to subscriber on cluster ${context.clusterId}:`,
-				err
+				err,
+				`[EventBus] Error broadcasting to subscriber on cluster ${context.clusterId}:`
 			);
 		}
 	}
@@ -299,7 +299,7 @@ async function poll(context: ClusterContext) {
 										triggerType: 'automatic'
 									});
 								} catch (err) {
-									logger.error('[EventBus] Failed to capture reconciliation history:', err);
+									logger.error(err, '[EventBus] Failed to capture reconciliation history:');
 									// Don't fail event broadcast if history capture fails
 								}
 
@@ -351,7 +351,7 @@ async function poll(context: ClusterContext) {
 											triggerType: 'automatic'
 										});
 									} catch (err) {
-										logger.error('[EventBus] Failed to capture reconciliation history:', err);
+										logger.error(err, '[EventBus] Failed to capture reconciliation history:');
 										// Don't fail event broadcast if history capture fails
 									}
 
@@ -408,8 +408,8 @@ async function poll(context: ClusterContext) {
 			} catch (err) {
 				resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();
 				logger.error(
-					`[EventBus] Error polling ${resourceType} for cluster ${context.clusterId}:`,
-					err
+					err,
+					`[EventBus] Error polling ${resourceType} for cluster ${context.clusterId}:`
 				);
 			}
 		}
