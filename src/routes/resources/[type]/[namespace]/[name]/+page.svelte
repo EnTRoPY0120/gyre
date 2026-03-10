@@ -290,7 +290,8 @@
 
 	async function confirmRollback() {
 		if (!pendingRollback) return;
-		const { historyId, revision } = pendingRollback;
+		const myPending = pendingRollback;
+		const { historyId, revision } = myPending;
 		const displayRevision = revision ? revision.slice(0, 8) : historyId.slice(0, 8);
 		try {
 			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`), {
@@ -312,7 +313,9 @@
 		} catch (err) {
 			toast.error(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		} finally {
-			pendingRollback = null;
+			if (pendingRollback === myPending) {
+				pendingRollback = null;
+			}
 		}
 	}
 
@@ -374,6 +377,8 @@
 		timeline = [];
 		historyLoading = false;
 		historyFetched = false;
+		rollbackConfirmOpen = false;
+		pendingRollback = null;
 	});
 
 	// Consolidated effect for tab data fetching
