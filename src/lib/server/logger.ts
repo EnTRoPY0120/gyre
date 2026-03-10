@@ -5,7 +5,24 @@ const level = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 
 const pinoLogger = pino({
 	level,
 	base: undefined,
-	timestamp: pino.stdTimeFunctions.isoTime
+	timestamp: pino.stdTimeFunctions.isoTime,
+	redact: {
+		paths: [
+			'password',
+			'ADMIN_PASSWORD',
+			'token',
+			'secret',
+			'authorization',
+			'cookie',
+			'email',
+			'err.config.data',
+			'req.headers.authorization',
+			'*.password',
+			'*.token',
+			'*.secret'
+		],
+		censor: '[REDACTED]'
+	}
 });
 
 export const logger = {
