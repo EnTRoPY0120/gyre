@@ -19,6 +19,17 @@
 		keywords?: string[];
 	}
 
+	interface HighlightSegment {
+		text: string;
+		highlighted: boolean;
+	}
+
+	interface SearchResult {
+		item: CommandItem;
+		labelMatches?: readonly [number, number][];
+		descriptionMatches?: readonly [number, number][];
+	}
+
 	let open = $state(false);
 	let searchQuery = $state('');
 	let selectedIndex = $state(0);
@@ -52,23 +63,49 @@
 		return items;
 	});
 
-	const fuse = new Fuse<CommandItem>([], { keys: [{ name: 'label', weight: 2 }, { name: 'description', weight: 1 }, { name: 'category', weight: 0.5 }, { name: 'keywords', weight: 1.5 }], threshold: 0.4, includeScore: true });
+	const fuse = new Fuse<CommandItem>([], { keys: [{ name: 'label', weight: 2 }, { name: 'description', weight: 1 }, { name: 'category', weight: 0.5 }, { name: 'keywords', weight: 1.5 }], threshold: 0.4, includeScore: true, includeMatches: true });
 	$effect(() => { fuse.setCollection(allItems); });
 
-	const filteredItems = $derived.by(() => {
-		if (searchQuery.trim() === '') return allItems;
-		return fuse.search(searchQuery).map((r) => r.item);
+	const filteredItems = $derived.by((): SearchResult[] => {
+		if (searchQuery.trim() === '') return allItems.map((item) => ({ item }));
+		return fuse.search(searchQuery).map((r) => {
+			const labelMatch = r.matches?.find((m) => m.key === 'label');
+			const descMatch = r.matches?.find((m) => m.key === 'description');
+			return {
+				item: r.item,
+				labelMatches: labelMatch?.indices as readonly [number, number][] | undefined,
+				descriptionMatches: descMatch?.indices as readonly [number, number][] | undefined
+			};
+		});
 	});
 
 	// Group for display only
 	const groupedItems = $derived.by(() => {
-		const groups = new Map<string, CommandItem[]>();
-		for (const item of filteredItems) {
-			if (!groups.has(item.category)) groups.set(item.category, []);
-			groups.get(item.category)!.push(item);
+		const groups = new Map<string, SearchResult[]>();
+		for (const result of filteredItems) {
+			const cat = result.item.category;
+			if (!groups.has(cat)) groups.set(cat, []);
+			groups.get(cat)!.push(result);
 		}
 		return groups;
 	});
+
+	function highlightText(text: string, indices?: readonly [number, number][]): HighlightSegment[] {
+		if (!indices || indices.length === 0) return [{ text, highlighted: false }];
+		const segments: HighlightSegment[] = [];
+		let lastIndex = 0;
+		for (const [start, end] of indices) {
+			if (start > lastIndex) segments.push({ text: text.slice(lastIndex, start), highlighted: false });
+			segments.push({ text: text.slice(start, end + 1), highlighted: true });
+			lastIndex = end + 1;
+		}
+		if (lastIndex < text.length) segments.push({ text: text.slice(lastIndex), highlighted: false });
+		return segments;
+	}
+
+	function isKeywordMatch(text: string, query: string): boolean {
+		return query.trim().length > 0 && text.toLowerCase().includes(query.trim().toLowerCase());
+	}
 
 	// Reset selection when search changes
 	$effect(() => {
@@ -93,8 +130,8 @@
 			scrollSelectedIntoView();
 		} else if (e.key === 'Enter') {
 			e.preventDefault();
-			const item = filteredItems[selectedIndex];
-			if (item) handleSelect(item);
+			const result = filteredItems[selectedIndex];
+			if (result) handleSelect(result.item);
 		}
 	}
 
@@ -140,9 +177,9 @@
 	// Flat index for a grouped item
 	function flatIndex(category: string, idxInGroup: number): number {
 		let offset = 0;
-		for (const [cat, items] of groupedItems) {
+		for (const [cat, results] of groupedItems) {
 			if (cat === category) return offset + idxInGroup;
-			offset += items.length;
+			offset += results.length;
 		}
 		return offset + idxInGroup;
 	}
@@ -170,16 +207,20 @@
 				{#if filteredItems.length === 0}
 					<p class="py-6 text-center text-sm text-zinc-500">No results found.</p>
 				{:else}
-					{#each [...groupedItems.entries()] as [category, items], gi (category)}
+					{#each [...groupedItems.entries()] as [category, results], gi (category)}
 						{#if gi > 0}
 							<div class="mx-2 my-1 h-px bg-zinc-800"></div>
 						{/if}
 						<div class="px-2 pb-1 pt-2 text-xs font-semibold text-zinc-500">
-							{category} <span class="text-zinc-600">({items.length})</span>
+							{category} <span class="text-zinc-600">({results.length})</span>
 						</div>
-						{#each items as item, i (item.id)}
+						{#each results as result, i (result.item.id)}
+							{@const item = result.item}
 							{@const idx = flatIndex(category, i)}
 							{@const isSelected = selectedIndex === idx}
+							{@const labelSegments = highlightText(item.label, result.labelMatches)}
+							{@const descSegments = item.description ? highlightText(item.description, result.descriptionMatches) : null}
+							{@const keyword = isKeywordMatch(item.label, searchQuery)}
 							<button
 								type="button"
 								data-selected={isSelected ? '' : undefined}
@@ -189,9 +230,25 @@
 							>
 								<Icon name={item.icon} size={16} class="shrink-0 opacity-70" />
 								<div class="flex flex-1 flex-col gap-0.5 text-left">
-									<span class="font-medium">{item.label}</span>
-									{#if item.description}
-										<span class="text-xs {isSelected ? 'text-zinc-400' : 'text-zinc-500'}">{item.description}</span>
+									<span class="font-medium">
+										{#each labelSegments as seg}
+											{#if seg.highlighted}
+												<mark class="rounded-sm bg-transparent px-0 not-italic font-semibold {keyword ? 'text-amber-300' : 'text-sky-300'}">{seg.text}</mark>
+											{:else}
+												{seg.text}
+											{/if}
+										{/each}
+									</span>
+									{#if item.description && descSegments}
+										<span class="text-xs {isSelected ? 'text-zinc-400' : 'text-zinc-500'}">
+											{#each descSegments as seg}
+												{#if seg.highlighted}
+													<mark class="rounded-sm bg-transparent px-0 not-italic {keyword ? 'text-amber-400/80' : 'text-sky-400/80'}">{seg.text}</mark>
+												{:else}
+													{seg.text}
+												{/if}
+											{/each}
+										</span>
 									{/if}
 								</div>
 								<kbd class="hidden h-5 shrink-0 items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium text-zinc-400 sm:flex">
