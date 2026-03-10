@@ -8,6 +8,7 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import {
 	getAuthSettings,
+	getAuditLogRetentionDays,
 	setSetting,
 	SETTINGS_KEYS,
 	isSettingOverriddenByEnv
@@ -31,7 +32,8 @@ export const _metadata = {
 								domainAllowlist: z.object({
 									value: z.array(z.string()),
 									overriddenByEnv: z.boolean()
-								})
+								}),
+								auditRetentionDays: z.object({ value: z.number(), overriddenByEnv: z.boolean() })
 							})
 						})
 					}
@@ -53,7 +55,8 @@ export const _metadata = {
 						schema: z.object({
 							localLoginEnabled: z.boolean().optional(),
 							allowSignup: z.boolean().optional(),
-							domainAllowlist: z.array(z.string()).optional()
+							domainAllowlist: z.array(z.string()).optional(),
+							auditRetentionDays: z.number().optional()
 						})
 					}
 				}
@@ -107,7 +110,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	try {
-		const authSettings = await getAuthSettings();
+		const [authSettings, auditRetentionDays] = await Promise.all([
+			getAuthSettings(),
+			getAuditLogRetentionDays()
+		]);
 
 		// Include override status for UI
 		return json({
@@ -123,6 +129,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 				domainAllowlist: {
 					value: authSettings.domainAllowlist,
 					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST)
+				},
+				auditRetentionDays: {
+					value: auditRetentionDays,
+					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS)
 				}
 			}
 		});
@@ -202,8 +212,19 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 			}
 		}
 
+		if (typeof body.auditRetentionDays === 'number') {
+			if (!isSettingOverriddenByEnv(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS)) {
+				// Ensure it's a positive number
+				const retention = Math.max(1, Math.floor(body.auditRetentionDays));
+				await setSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, String(retention));
+			}
+		}
+
 		// Return updated settings
-		const authSettings = await getAuthSettings();
+		const [authSettings, auditRetentionDays] = await Promise.all([
+			getAuthSettings(),
+			getAuditLogRetentionDays()
+		]);
 		return json({
 			settings: {
 				localLoginEnabled: {
@@ -217,6 +238,10 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 				domainAllowlist: {
 					value: authSettings.domainAllowlist,
 					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST)
+				},
+				auditRetentionDays: {
+					value: auditRetentionDays,
+					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS)
 				}
 			}
 		});

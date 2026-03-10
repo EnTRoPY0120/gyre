@@ -1,7 +1,8 @@
-import { eq, desc, and } from 'drizzle-orm';
+import { eq, desc, and, lt } from 'drizzle-orm';
 import { getDbSync, type NewAuditLog } from './db/index.js';
 import { auditLogs } from './db/schema.js';
 import type { User } from './db/schema.js';
+import { getAuditLogRetentionDays } from './settings.js';
 
 /**
  * Log an audit event
@@ -185,4 +186,114 @@ export async function getRecentAuditLogs(
 	});
 
 	return logs;
+}
+
+/**
+ * Clean up old audit logs based on retention policy
+ */
+export async function cleanupOldAuditLogs(): Promise<number> {
+	try {
+		const db = getDbSync();
+		const retentionDays = await getAuditLogRetentionDays();
+
+		// Calculate cutoff date
+		const cutoff = new Date();
+		cutoff.setDate(cutoff.getDate() - retentionDays);
+
+		const result = await db
+			.delete(auditLogs)
+			.where(lt(auditLogs.createdAt, cutoff))
+			.returning({ id: auditLogs.id });
+
+		if (result.length > 0) {
+			console.log(
+				`[AuditCleanup] Deleted ${result.length} audit logs older than ${retentionDays} days`
+			);
+		}
+
+		return result.length;
+	} catch (error) {
+		console.error('[AuditCleanup] Failed to clean up audit logs:', error);
+		return 0;
+	}
+}
+
+let cleanupScheduled = false;
+let cleanupInterval: NodeJS.Timeout | null = null;
+let initialDelayTimeout: NodeJS.Timeout | null = null;
+let immediateCleanupTimeout: NodeJS.Timeout | null = null;
+
+/**
+ * Schedule periodic cleanup of audit logs
+ * Runs daily at 3 AM local server time
+ */
+export function scheduleAuditLogCleanup(): void {
+	if (cleanupScheduled) {
+		return;
+	}
+
+	// Run cleanup daily (24 hours)
+	const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+
+	// Calculate initial delay to run at 3 AM
+	const now = new Date();
+	const nextRun = new Date();
+	nextRun.setHours(3, 0, 0, 0);
+
+	// If 3 AM has already passed today, schedule for tomorrow
+	if (nextRun <= now) {
+		nextRun.setDate(nextRun.getDate() + 1);
+	}
+
+	const initialDelay = nextRun.getTime() - now.getTime();
+
+	console.log(
+		`[AuditCleanup] Scheduling audit log cleanup to run at ${nextRun.toISOString()} (in ${Math.round(initialDelay / 1000 / 60)} minutes)`
+	);
+
+	// Run initial cleanup after delay
+	initialDelayTimeout = setTimeout(() => {
+		cleanupOldAuditLogs().catch((err) => {
+			console.error('[AuditCleanup] Scheduled cleanup failed:', err);
+		});
+
+		// Then run every 24 hours
+		cleanupInterval = setInterval(() => {
+			cleanupOldAuditLogs().catch((err) => {
+				console.error('[AuditCleanup] Scheduled cleanup failed:', err);
+			});
+		}, CLEANUP_INTERVAL_MS);
+	}, initialDelay);
+
+	cleanupScheduled = true;
+
+	// Also run an initial cleanup after 10 minutes for immediate effect
+	immediateCleanupTimeout = setTimeout(
+		() => {
+			console.log('[AuditCleanup] Running initial cleanup...');
+			cleanupOldAuditLogs().catch((err) => {
+				console.error('[AuditCleanup] Initial cleanup failed:', err);
+			});
+		},
+		10 * 60 * 1000
+	);
+}
+
+/**
+ * Stop the audit log cleanup scheduler
+ */
+export function stopAuditLogCleanup(): void {
+	if (cleanupInterval) {
+		clearInterval(cleanupInterval);
+		cleanupInterval = null;
+	}
+	if (initialDelayTimeout) {
+		clearTimeout(initialDelayTimeout);
+		initialDelayTimeout = null;
+	}
+	if (immediateCleanupTimeout) {
+		clearTimeout(immediateCleanupTimeout);
+		immediateCleanupTimeout = null;
+	}
+	cleanupScheduled = false;
 }
