@@ -23,7 +23,7 @@
 	import ResourceTable from '$lib/components/flux/ResourceTable.svelte';
 	import ResourceGrid from '$lib/components/flux/ResourceGrid.svelte';
 	import type { FluxResource } from '$lib/types/flux';
-	import { FilterX } from 'lucide-svelte';
+	import { FilterX, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-svelte';
 
 	interface Props {
 		data: {
@@ -33,6 +33,9 @@
 				description: string;
 			};
 			resources: FluxResource[];
+			total: number;
+			sortBy: 'name' | 'age' | 'status' | undefined;
+			sortOrder: 'asc' | 'desc';
 			error: string | null;
 		};
 	}
@@ -74,11 +77,19 @@
 	// Track the last synced URL search params to avoid overwriting local state
 	let lastSearchParams = $state($page.url.search.toString());
 
-	// Sync filters from URL when URL changes (e.g. back button, or other navigation)
+	// Sync filters and sort from URL when URL changes (e.g. back button, or other navigation)
 	$effect(() => {
 		const currentSync = $page.url.search.toString();
 		if (currentSync !== lastSearchParams) {
 			filters = searchParamsToFilters($page.url.searchParams);
+			const rawSortBy = $page.url.searchParams.get('sortBy');
+			const rawSortOrder = $page.url.searchParams.get('sortOrder');
+			sortBy = (['name', 'age', 'status'] as const).includes(
+				rawSortBy as 'name' | 'age' | 'status'
+			)
+				? (rawSortBy as 'name' | 'age' | 'status')
+				: undefined;
+			sortOrder = rawSortOrder === 'desc' ? 'desc' : 'asc';
 			lastSearchParams = currentSync;
 		}
 	});
@@ -166,9 +177,15 @@
 			labels: filters.labels,
 			useRegex: filters.useRegex
 		};
+		const currentSortBy = sortBy;
+		const currentSortOrder = sortOrder;
 
 		const timeoutId = setTimeout(() => {
 			const params = filtersToSearchParams(currentFilters);
+			if (currentSortBy) {
+				params.set('sortBy', currentSortBy);
+				params.set('sortOrder', currentSortOrder);
+			}
 			const newSearch = params.toString();
 
 			if (newSearch !== $page.url.search.toString().replace(/^\?/, '')) {
@@ -193,6 +210,31 @@
 
 	function handleSearch() {
 		// Search is handled by reactive filtering of filteredResources
+	}
+
+	// Sort state — initialised from current URL params so SSR and CSR stay in sync
+	const SORT_BY_VALUES = ['name', 'age', 'status'] as const;
+	const initialSortBy = $page.url.searchParams.get('sortBy');
+	const initialSortOrder = $page.url.searchParams.get('sortOrder');
+	let sortBy = $state<'name' | 'age' | 'status' | undefined>(
+		SORT_BY_VALUES.includes(initialSortBy as 'name' | 'age' | 'status')
+			? (initialSortBy as 'name' | 'age' | 'status')
+			: undefined
+	);
+	let sortOrder = $state<'asc' | 'desc'>(initialSortOrder === 'desc' ? 'desc' : 'asc');
+
+	function applySort(field: 'name' | 'age' | 'status') {
+		if (sortBy === field) {
+			sortOrder = sortOrder === 'asc' ? 'desc' : 'asc';
+		} else {
+			sortBy = field;
+			sortOrder = 'asc';
+		}
+		const params = filtersToSearchParams(filters);
+		params.set('sortBy', sortBy);
+		params.set('sortOrder', sortOrder);
+		void goto(`?${params.toString()}`, { replaceState: true, noScroll: true, keepFocus: true });
+		lastSearchParams = `?${params.toString()}`;
 	}
 </script>
 
@@ -229,13 +271,37 @@
 					onSearch={handleSearch}
 				/>
 			</div>
+			<!-- Sort controls -->
+			<div class="flex items-center gap-1.5">
+				<span class="text-xs text-gray-500 dark:text-gray-400">Sort:</span>
+				{#each [{ key: 'name', label: 'Name' }, { key: 'age', label: 'Age' }, { key: 'status', label: 'Status' }] as opt (opt.key)}
+					<button
+						type="button"
+						class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors {sortBy === opt.key
+							? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+							: 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}"
+						onclick={() => applySort(opt.key as 'name' | 'age' | 'status')}
+					>
+						{opt.label}
+						{#if sortBy === opt.key}
+							{#if sortOrder === 'asc'}
+								<ArrowUp size={12} />
+							{:else}
+								<ArrowDown size={12} />
+							{/if}
+						{:else}
+							<ArrowUpDown size={12} class="opacity-30" />
+						{/if}
+					</button>
+				{/each}
+			</div>
 			<!-- Results count -->
 			<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
 				<span>
 					Showing <strong class="text-gray-900 dark:text-gray-100"
 						>{filteredResources.length}</strong
 					>
-					of <strong class="text-gray-900 dark:text-gray-100">{data.resources?.length || 0}</strong> resources
+					of <strong class="text-gray-900 dark:text-gray-100">{data.total ?? data.resources?.length ?? 0}</strong> resources
 				</span>
 			</div>
 		</div>

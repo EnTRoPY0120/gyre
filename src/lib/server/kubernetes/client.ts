@@ -14,6 +14,87 @@ import {
 	AuthorizationError
 } from './errors.js';
 
+export interface ListOptions {
+	limit?: number;
+	offset?: number;
+	sortBy?: 'name' | 'age' | 'status';
+	sortOrder?: 'asc' | 'desc';
+}
+
+export interface PaginatedFluxResourceList {
+	items: FluxResource[];
+	total: number;
+	hasMore: boolean;
+	offset: number;
+	limit: number;
+	metadata: {
+		resourceVersion?: string;
+	};
+}
+
+const STATUS_ORDER: Record<string, number> = {
+	failed: 0,
+	progressing: 1,
+	suspended: 2,
+	unknown: 3,
+	healthy: 4
+};
+
+function getResourceStatus(resource: FluxResource): string {
+	if (resource.spec?.suspend) return 'suspended';
+	const conditions = resource.status?.conditions;
+	if (!conditions || conditions.length === 0) return 'unknown';
+	const stalled = conditions.find((c) => c.type === 'Stalled' || c.type === 'Failed');
+	if (stalled?.status === 'True') return 'failed';
+	const gen = resource.metadata.generation;
+	const obsGen = resource.status?.observedGeneration;
+	if (gen !== undefined && obsGen !== undefined && obsGen < gen) return 'progressing';
+	for (const type of ['Ready', 'Healthy', 'Succeeded', 'Available']) {
+		const cond = conditions.find((c) => c.type === type);
+		if (cond) {
+			if (cond.status === 'True') return 'healthy';
+			if (
+				cond.status === 'False' &&
+				(cond.reason === 'Progressing' ||
+					cond.reason === 'ProgressingWithRetry' ||
+					cond.reason === 'DependencyNotReady' ||
+					cond.reason === 'ReconciliationInProgress')
+			) {
+				return 'progressing';
+			}
+			if (cond.status === 'False') return 'failed';
+		}
+	}
+	return 'unknown';
+}
+
+function sortResources(
+	items: FluxResource[],
+	sortBy: ListOptions['sortBy'],
+	sortOrder: ListOptions['sortOrder'] = 'asc'
+): FluxResource[] {
+	const sorted = [...items].sort((a, b) => {
+		let cmp = 0;
+		if (sortBy === 'name') {
+			cmp = (a.metadata.name ?? '').localeCompare(b.metadata.name ?? '');
+		} else if (sortBy === 'age') {
+			const aTime = a.metadata.creationTimestamp
+				? new Date(a.metadata.creationTimestamp).getTime()
+				: 0;
+			const bTime = b.metadata.creationTimestamp
+				? new Date(b.metadata.creationTimestamp).getTime()
+				: 0;
+			cmp = aTime - bTime;
+		} else if (sortBy === 'status') {
+			const aOrder = STATUS_ORDER[getResourceStatus(a)] ?? 3;
+			const bOrder = STATUS_ORDER[getResourceStatus(b)] ?? 3;
+			cmp = aOrder - bOrder;
+		}
+		return sortOrder === 'desc' ? -cmp : cmp;
+	});
+	return sorted;
+}
+
 // Store the base default config separately to avoid reloading it constantly
 let baseConfig: k8s.KubeConfig | null = null;
 
@@ -117,12 +198,14 @@ export async function getAppsV1Api(context?: string, reqCache?: ReqCache): Promi
 
 /**
  * List FluxCD resources of a specific type across all namespaces
+ * Supports pagination (limit/offset) and server-side sorting.
  */
 export async function listFluxResources(
 	resourceType: FluxResourceType,
 	context?: string,
-	reqCache?: ReqCache
-): Promise<FluxResourceList> {
+	reqCache?: ReqCache,
+	options?: ListOptions
+): Promise<PaginatedFluxResourceList> {
 	const resourceDef = getResourceDef(resourceType);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${resourceType}`);
@@ -136,7 +219,28 @@ export async function listFluxResources(
 			plural: resourceDef.plural
 		});
 
-		return response as unknown as FluxResourceList;
+		const list = response as unknown as FluxResourceList;
+		let items = list.items ?? [];
+		const total = items.length;
+
+		if (options?.sortBy) {
+			items = sortResources(items, options.sortBy, options.sortOrder);
+		}
+
+		const offset = options?.offset ?? 0;
+		const limit = options?.limit ?? total;
+		const paginatedItems = items.slice(offset, offset + limit);
+
+		return {
+			items: paginatedItems,
+			total,
+			hasMore: offset + limit < total,
+			offset,
+			limit,
+			metadata: {
+				resourceVersion: list.metadata?.resourceVersion
+			}
+		};
 	} catch (error) {
 		throw handleK8sError(error, `list ${resourceType}`);
 	}
