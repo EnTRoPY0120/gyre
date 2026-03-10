@@ -1,6 +1,6 @@
-import { eq, desc, like, or } from 'drizzle-orm';
+import { eq, desc, or, sql } from 'drizzle-orm';
 import { getDbSync } from './db/index.js';
-import { getPaginatedItems } from './db/utils.js';
+import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
 import { clusters, clusterContexts, type NewCluster, type NewClusterContext } from './db/schema.js';
 import * as k8s from '@kubernetes/client-node';
 import crypto from 'node:crypto';
@@ -222,7 +222,14 @@ export async function getAllClustersPaginated(options?: {
 		clusters,
 		(db) => db.query.clusters,
 		options,
-		(search) => or(like(clusters.name, `%${search}%`), like(clusters.description, `%${search}%`))
+		(search) => {
+			const sanitized = sanitizeSearchInput(search);
+			const pattern = `%${sanitized}%`;
+			return or(
+				sql`${clusters.name} LIKE ${pattern} ESCAPE '\\'`,
+				sql`${clusters.description} LIKE ${pattern} ESCAPE '\\'`
+			);
+		}
 	);
 
 	return { clusters: result.items, total: result.total };
