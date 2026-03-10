@@ -116,11 +116,14 @@ export type ReqCache = Map<string, Promise<k8s.KubeConfig>>;
 // ---------------------------------------------------------------------------
 
 const POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CLEANUP_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
+/** Maximum pooled entries per API type; oldest-accessed entry is evicted when exceeded. */
+const MAX_POOL_SIZE = 50;
 
 interface PoolEntry<T> {
 	client: T;
 	createdAt: number;
-	hitCount: number;
+	lastAccess: number;
 }
 
 const customObjectsPool = new Map<string, PoolEntry<k8s.CustomObjectsApi>>();
@@ -128,6 +131,44 @@ const coreV1Pool = new Map<string, PoolEntry<k8s.CoreV1Api>>();
 const appsV1Pool = new Map<string, PoolEntry<k8s.AppsV1Api>>();
 
 const poolMetricsState = { hits: 0, misses: 0, evictions: 0 };
+
+/** Removes the least-recently-used entry from a pool. */
+function evictLRU<T>(pool: Map<string, PoolEntry<T>>) {
+	let lruKey: string | undefined;
+	let lruAccess = Infinity;
+	for (const [k, v] of pool) {
+		if (v.lastAccess < lruAccess) {
+			lruAccess = v.lastAccess;
+			lruKey = k;
+		}
+	}
+	if (lruKey) {
+		pool.delete(lruKey);
+		poolMetricsState.evictions++;
+	}
+}
+
+/** Proactively removes expired entries from all pools. */
+function pruneExpiredEntries() {
+	const now = Date.now();
+	for (const pool of [customObjectsPool, coreV1Pool, appsV1Pool] as Map<
+		string,
+		PoolEntry<unknown>
+	>[]) {
+		for (const [key, entry] of pool) {
+			if (now - entry.createdAt >= POOL_TTL_MS) {
+				pool.delete(key);
+				poolMetricsState.evictions++;
+			}
+		}
+	}
+}
+
+// Periodic cleanup — .unref() prevents the timer from blocking process exit
+const cleanupTimer = setInterval(pruneExpiredEntries, CLEANUP_INTERVAL_MS);
+if (typeof cleanupTimer === 'object' && 'unref' in cleanupTimer) {
+	(cleanupTimer as NodeJS.Timeout).unref();
+}
 
 /** Returns current connection pool metrics (hits, misses, evictions, pool sizes). */
 export function getPoolMetrics() {
@@ -143,7 +184,7 @@ export function getPoolMetrics() {
 	};
 }
 
-/** Evicts all pooled clients (useful after kubeconfig rotation or in tests). */
+/** Evicts all pooled clients. Exposed via POST /api/admin/k8s/clear-client-pool. */
 export function clearClientPool() {
 	customObjectsPool.clear();
 	coreV1Pool.clear();
@@ -153,23 +194,32 @@ export function clearClientPool() {
 	poolMetricsState.evictions = 0;
 }
 
-function getOrCreate<T>(pool: Map<string, PoolEntry<T>>, key: string, factory: () => T): T {
+async function getOrCreate<T>(
+	pool: Map<string, PoolEntry<T>>,
+	key: string,
+	factory: () => Promise<T>
+): Promise<T> {
 	const now = Date.now();
 	const entry = pool.get(key);
 
 	if (entry && now - entry.createdAt < POOL_TTL_MS) {
-		entry.hitCount++;
+		entry.lastAccess = now;
 		poolMetricsState.hits++;
 		return entry.client;
 	}
 
 	if (entry) {
+		// TTL expired — evict stale entry
+		pool.delete(key);
 		poolMetricsState.evictions++;
+	} else if (pool.size >= MAX_POOL_SIZE) {
+		// Pool full — evict least-recently-used entry
+		evictLRU(pool);
 	}
 
 	poolMetricsState.misses++;
-	const client = factory();
-	pool.set(key, { client, createdAt: now, hitCount: 0 });
+	const client = await factory();
+	pool.set(key, { client, createdAt: now, lastAccess: now });
 	return client;
 }
 
@@ -241,35 +291,41 @@ export async function getKubeConfig(
 
 /**
  * Create CustomObjectsApi client, reusing a pooled instance when possible.
+ * getKubeConfig is invoked inside the factory so it is only called on cache misses.
  * @param context - Optional cluster ID or context name
  */
 export async function getCustomObjectsApi(
 	context?: string,
 	reqCache?: ReqCache
 ): Promise<k8s.CustomObjectsApi> {
-	const key = context || 'in-cluster';
-	const config = await getKubeConfig(context, reqCache);
-	return getOrCreate(customObjectsPool, key, () => config.makeApiClient(k8s.CustomObjectsApi));
+	return getOrCreate(customObjectsPool, context || 'in-cluster', async () => {
+		const config = await getKubeConfig(context, reqCache);
+		return config.makeApiClient(k8s.CustomObjectsApi);
+	});
 }
 
 /**
  * Create CoreV1Api client, reusing a pooled instance when possible.
+ * getKubeConfig is invoked inside the factory so it is only called on cache misses.
  * @param context - Optional cluster ID or context name
  */
 export async function getCoreV1Api(context?: string, reqCache?: ReqCache): Promise<k8s.CoreV1Api> {
-	const key = context || 'in-cluster';
-	const config = await getKubeConfig(context, reqCache);
-	return getOrCreate(coreV1Pool, key, () => config.makeApiClient(k8s.CoreV1Api));
+	return getOrCreate(coreV1Pool, context || 'in-cluster', async () => {
+		const config = await getKubeConfig(context, reqCache);
+		return config.makeApiClient(k8s.CoreV1Api);
+	});
 }
 
 /**
  * Create AppsV1Api client, reusing a pooled instance when possible.
+ * getKubeConfig is invoked inside the factory so it is only called on cache misses.
  * @param context - Optional cluster ID or context name
  */
 export async function getAppsV1Api(context?: string, reqCache?: ReqCache): Promise<k8s.AppsV1Api> {
-	const key = context || 'in-cluster';
-	const config = await getKubeConfig(context, reqCache);
-	return getOrCreate(appsV1Pool, key, () => config.makeApiClient(k8s.AppsV1Api));
+	return getOrCreate(appsV1Pool, context || 'in-cluster', async () => {
+		const config = await getKubeConfig(context, reqCache);
+		return config.makeApiClient(k8s.AppsV1Api);
+	});
 }
 
 /**

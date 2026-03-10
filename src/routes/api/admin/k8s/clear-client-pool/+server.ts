@@ -1,0 +1,50 @@
+import { json, error } from '@sveltejs/kit';
+import { z } from '$lib/server/openapi';
+import type { RequestHandler } from './$types';
+import { clearClientPool } from '$lib/server/kubernetes/client.js';
+import { checkPermission } from '$lib/server/rbac';
+
+export const _metadata = {
+	POST: {
+		summary: 'Clear Kubernetes client connection pool',
+		description:
+			'Evicts all cached Kubernetes API client instances, forcing fresh connections on the next request. Useful after kubeconfig rotation. Admin access required.',
+		tags: ['Admin'],
+		responses: {
+			200: {
+				description: 'Pool cleared successfully',
+				content: {
+					'application/json': {
+						schema: z.object({ message: z.string() })
+					}
+				}
+			},
+			401: { description: 'Unauthenticated' },
+			403: { description: 'Forbidden' }
+		}
+	}
+};
+
+export const POST: RequestHandler = async ({ locals }) => {
+	if (!locals.user) {
+		throw error(401, { message: 'Authentication required' });
+	}
+
+	if (locals.user.role !== 'admin') {
+		throw error(403, { message: 'Admin access required' });
+	}
+
+	const hasPermission = await checkPermission(
+		locals.user,
+		'admin',
+		undefined,
+		undefined,
+		locals.cluster
+	);
+	if (!hasPermission) {
+		throw error(403, { message: 'Forbidden: admin permission required' });
+	}
+
+	clearClientPool();
+	return json({ message: 'Connection pool cleared' });
+};
