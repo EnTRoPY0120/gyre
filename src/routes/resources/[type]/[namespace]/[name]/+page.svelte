@@ -26,6 +26,7 @@
 	import { sanitizeResource } from '$lib/utils/kubernetes';
 	import { BASE_TABS, YAML_TAB, DIFF_TAB, type TabId } from '$lib/config/tabs';
 	import type { DiffError } from '$lib/components/resources/tabs/DiffTab.svelte';
+	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
 
 	interface Props {
 		data: {
@@ -125,6 +126,9 @@
 	let timeline = $state<ReconciliationEntry[]>([]);
 	let historyLoading = $state(false);
 	let historyFetched = $state(false);
+
+	let rollbackConfirmOpen = $state(false);
+	let pendingRollback = $state<{ historyId: string; revision: string | null } | null>(null);
 
 	const formattedLogs = $derived(
 		logs
@@ -279,9 +283,15 @@
 		}
 	}
 
-	async function handleRollback(historyId: string, revision: string | null) {
+	function handleRollback(historyId: string, revision: string | null) {
+		pendingRollback = { historyId, revision };
+		rollbackConfirmOpen = true;
+	}
+
+	async function confirmRollback() {
+		if (!pendingRollback) return;
+		const { historyId, revision } = pendingRollback;
 		const displayRevision = revision ? revision.slice(0, 8) : historyId.slice(0, 8);
-		if (!confirm(`Are you sure you want to rollback to ${displayRevision}?`)) return;
 		try {
 			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`), {
 				method: 'POST',
@@ -301,6 +311,8 @@
 			await invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
 		} catch (err) {
 			toast.error(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+		} finally {
+			pendingRollback = null;
 		}
 	}
 
@@ -557,3 +569,12 @@
 		{/if}
 	</div>
 </div>
+
+<ConfirmDialog
+	bind:open={rollbackConfirmOpen}
+	title="Confirm Rollback"
+	description="Are you sure you want to rollback to {pendingRollback?.revision ? pendingRollback.revision.slice(0, 8) : (pendingRollback?.historyId.slice(0, 8) ?? '')}? This will revert the resource to a previous state."
+	confirmLabel="Rollback"
+	variant="destructive"
+	onConfirm={confirmRollback}
+/>
