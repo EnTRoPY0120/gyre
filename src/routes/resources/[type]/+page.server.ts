@@ -31,6 +31,9 @@ export const load: PageServerLoad = async ({ params, url, fetch, depends }) => {
 	// Parse sort/pagination params from URL
 	const rawSortBy = url.searchParams.get('sortBy');
 	const rawSortOrder = url.searchParams.get('sortOrder');
+	const rawLimit = url.searchParams.get('limit');
+	const rawOffset = url.searchParams.get('offset');
+
 	const sortBy: SortBy | undefined = VALID_SORT_BY.includes(rawSortBy as SortBy)
 		? (rawSortBy as SortBy)
 		: undefined;
@@ -38,12 +41,21 @@ export const load: PageServerLoad = async ({ params, url, fetch, depends }) => {
 		? (rawSortOrder as SortOrder)
 		: 'asc';
 
-	// Build API URL with pagination/sort params
+	const limitNum = rawLimit !== null ? Number(rawLimit) : undefined;
+	const offsetNum = rawOffset !== null ? Number(rawOffset) : undefined;
+	const limit =
+		limitNum !== undefined && Number.isFinite(limitNum) && limitNum > 0 ? limitNum : undefined;
+	const offset =
+		offsetNum !== undefined && Number.isFinite(offsetNum) && offsetNum >= 0 ? offsetNum : undefined;
+
+	// Build API URL with sort and pagination params
 	const apiUrl = new URL(`/api/flux/${type}`, url.origin);
 	if (sortBy) {
 		apiUrl.searchParams.set('sortBy', sortBy);
 		apiUrl.searchParams.set('sortOrder', sortOrder);
 	}
+	if (limit !== undefined) apiUrl.searchParams.set('limit', String(limit));
+	if (offset !== undefined) apiUrl.searchParams.set('offset', String(offset));
 
 	try {
 		const response = await fetch(apiUrl.toString());
