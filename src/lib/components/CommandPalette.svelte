@@ -190,15 +190,17 @@
 		if (typeof window !== 'undefined') window.removeEventListener('keydown', handleKeydown);
 	});
 
-	// Flat index for a grouped item
-	function flatIndex(category: string, idxInGroup: number): number {
-		let offset = 0;
-		for (const [cat, results] of groupedItems) {
-			if (cat === category) return offset + idxInGroup;
-			offset += results.length;
+	// Precompute item id → flat index once per groupedItems change (O(n) total vs O(n²) per render)
+	const flatIndexMap = $derived.by(() => {
+		const map = new Map<string, number>();
+		let idx = 0;
+		for (const [, results] of groupedItems) {
+			for (const result of results) {
+				map.set(result.item.id, idx++);
+			}
 		}
-		return offset + idxInGroup;
-	}
+		return map;
+	});
 </script>
 
 <Dialog.Dialog bind:open onOpenChange={handleOpenChange}>
@@ -232,7 +234,7 @@
 						</div>
 						{#each results as result, i (result.item.id)}
 							{@const item = result.item}
-							{@const idx = flatIndex(category, i)}
+							{@const idx = flatIndexMap.get(result.item.id) ?? 0}
 							{@const isSelected = selectedIndex === idx}
 							<button
 								type="button"
