@@ -28,36 +28,51 @@
 	let levelFilter = $state<string>('ALL');
 	let useRegex = $state(false);
 	let regexError = $state<string | null>(null);
+	let compiledRegex = $state<RegExp | null>(null);
 
 	const LEVEL_OPTIONS = ['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR'] as const;
+
+	// Compile regex separately so filteredFormattedLogs stays a pure derived (no state writes)
+	$effect(() => {
+		if (!useRegex || !searchQuery) {
+			regexError = null;
+			compiledRegex = null;
+			return;
+		}
+		try {
+			compiledRegex = new RegExp(searchQuery, 'i');
+			regexError = null;
+		} catch {
+			compiledRegex = null;
+			regexError = 'Invalid regular expression';
+		}
+	});
 
 	const filteredFormattedLogs = $derived.by(() => {
 		let result = formattedLogs;
 
 		if (levelFilter !== 'ALL') {
-			result = result.filter((line) => line.level === levelFilter || (levelFilter === 'WARN' && line.level === 'WARNING') || (levelFilter === 'ERROR' && line.level === 'FATAL'));
+			result = result.filter(
+				(line) =>
+					line.level === levelFilter ||
+					(levelFilter === 'WARN' && line.level === 'WARNING') ||
+					(levelFilter === 'ERROR' && line.level === 'FATAL')
+			);
 		}
 
 		if (searchQuery) {
 			if (useRegex) {
-				try {
-					const re = new RegExp(searchQuery, 'i');
-					regexError = null;
-					result = result.filter((line) => re.test(line.msg) || re.test(line.level));
-				} catch {
-					regexError = 'Invalid regular expression';
-					return result;
+				if (compiledRegex) {
+					result = result.filter((line) => compiledRegex!.test(line.msg) || compiledRegex!.test(line.level));
 				}
+				// if compiledRegex is null, regex is invalid — return unfiltered-by-text result
 			} else {
-				regexError = null;
 				const q = searchQuery.toLowerCase();
 				result = result.filter(
 					(line) =>
 						line.msg.toLowerCase().includes(q) || line.level.toLowerCase().includes(q)
 				);
 			}
-		} else {
-			regexError = null;
 		}
 
 		return result;
@@ -137,10 +152,11 @@
 						placeholder={useRegex ? 'Regex pattern...' : 'Search logs...'}
 						aria-label="Search logs"
 						aria-invalid={regexError ? 'true' : undefined}
+						aria-describedby={regexError ? 'search-regex-error' : undefined}
 						class="block w-full rounded-md border-gray-300 pl-10 pr-3 text-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-400 {regexError ? 'border-red-400 focus:border-red-500 focus:ring-red-500' : ''}"
 					/>
 					{#if regexError}
-						<p class="mt-1 text-xs text-red-500">{regexError}</p>
+						<p id="search-regex-error" class="mt-1 text-xs text-red-500">{regexError}</p>
 					{/if}
 				</div>
 
