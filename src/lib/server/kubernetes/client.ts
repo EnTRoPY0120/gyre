@@ -164,8 +164,16 @@ function pruneExpiredEntries() {
 	}
 }
 
-// Periodic cleanup — .unref() prevents the timer from blocking process exit
-const cleanupTimer = setInterval(pruneExpiredEntries, CLEANUP_INTERVAL_MS);
+// Periodic cleanup — runs every 10 min so expired entries (5 min TTL) may linger
+// up to 10 min before proactive removal; on-access eviction in getOrCreate catches
+// them sooner. .unref() prevents the timer from blocking process exit.
+const cleanupTimer = setInterval(() => {
+	try {
+		pruneExpiredEntries();
+	} catch (e) {
+		console.error('K8s client pool cleanup error:', e);
+	}
+}, CLEANUP_INTERVAL_MS);
 if (typeof cleanupTimer === 'object' && 'unref' in cleanupTimer) {
 	(cleanupTimer as NodeJS.Timeout).unref();
 }
@@ -213,8 +221,12 @@ async function getOrCreate<T>(
 		pool.delete(key);
 		poolMetricsState.evictions++;
 	} else if (pool.size >= MAX_POOL_SIZE) {
-		// Pool full — evict least-recently-used entry
-		evictLRU(pool);
+		// Pool full — prefer evicting expired entries first to avoid discarding
+		// still-valid connections; fall back to LRU only if none are expired.
+		pruneExpiredEntries();
+		if (pool.size >= MAX_POOL_SIZE) {
+			evictLRU(pool);
+		}
 	}
 
 	poolMetricsState.misses++;
