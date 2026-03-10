@@ -1,5 +1,7 @@
 import { dev } from '$app/environment';
 
+import { env } from '$env/dynamic/public';
+
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 const LOG_LEVELS: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
@@ -10,7 +12,9 @@ const LOG_COLORS: Record<LogLevel, string> = {
 	error: 'color: #ef4444'
 };
 
-const currentLevel: LogLevel = dev ? 'debug' : 'warn';
+const configuredLevel = (env.PUBLIC_LOG_LEVEL as LogLevel) ?? (dev ? 'debug' : 'warn');
+const currentLevel: LogLevel =
+	LOG_LEVELS[configuredLevel] !== undefined ? configuredLevel : dev ? 'debug' : 'warn';
 const currentLevelNum = LOG_LEVELS[currentLevel];
 
 function shouldLog(level: LogLevel): boolean {
