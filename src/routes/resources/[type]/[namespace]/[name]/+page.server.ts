@@ -25,7 +25,8 @@ export const load: PageServerLoad = async ({ params, fetch: svelteFetch, depends
 
 	try {
 		const response = await fetchWithRetry(`/api/flux/${type}/${namespace}/${name}`, undefined, {
-			fetchFn: svelteFetch
+			fetchFn: svelteFetch,
+			maxRetries: 0
 		});
 
 		if (!response.ok) {
@@ -36,7 +37,8 @@ export const load: PageServerLoad = async ({ params, fetch: svelteFetch, depends
 			}
 			const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
 			error(response.status, {
-				message: errorData.error || `Failed to fetch resource: ${response.status}`
+				message:
+					errorData.message || errorData.error || `Failed to fetch resource: ${response.status}`
 			});
 		}
 

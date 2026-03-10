@@ -102,6 +102,9 @@
 
 			{#if !data.health.connected}
 				<div
+					role="alert"
+					aria-live="assertive"
+					aria-atomic="true"
 					class="flex items-center justify-center gap-3 bg-destructive/10 px-6 py-2.5 text-[10px] font-bold tracking-wider text-destructive uppercase ring-1 ring-destructive/20"
 				>
 					<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.4)]"></div>
