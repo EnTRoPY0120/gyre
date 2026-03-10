@@ -27,24 +27,26 @@
 	let searchQuery = $state('');
 	let levelFilter = $state<string>('ALL');
 	let useRegex = $state(false);
-	let regexError = $state<string | null>(null);
-	let compiledRegex = $state<RegExp | null>(null);
 
 	const LEVEL_OPTIONS = ['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR'] as const;
 
-	// Compile regex separately so filteredFormattedLogs stays a pure derived (no state writes)
-	$effect(() => {
-		if (!useRegex || !searchQuery) {
-			regexError = null;
-			compiledRegex = null;
-			return;
-		}
+	// Derive regex and error synchronously so filtering is always consistent
+	const compiledRegex = $derived.by<RegExp | null>(() => {
+		if (!useRegex || !searchQuery) return null;
 		try {
-			compiledRegex = new RegExp(searchQuery, 'i');
-			regexError = null;
+			return new RegExp(searchQuery, 'i');
 		} catch {
-			compiledRegex = null;
-			regexError = 'Invalid regular expression';
+			return null;
+		}
+	});
+
+	const regexError = $derived.by<string | null>(() => {
+		if (!useRegex || !searchQuery) return null;
+		try {
+			new RegExp(searchQuery, 'i');
+			return null;
+		} catch {
+			return 'Invalid regular expression';
 		}
 	});
 
@@ -63,9 +65,11 @@
 		if (searchQuery) {
 			if (useRegex) {
 				if (compiledRegex) {
-					result = result.filter((line) => compiledRegex!.test(line.msg) || compiledRegex!.test(line.level));
+					result = result.filter(
+						(line) => compiledRegex.test(line.msg) || compiledRegex.test(line.level)
+					);
 				}
-				// if compiledRegex is null, regex is invalid — return unfiltered-by-text result
+				// compiledRegex is null when pattern is invalid — leave result unfiltered by text
 			} else {
 				const q = searchQuery.toLowerCase();
 				result = result.filter(
