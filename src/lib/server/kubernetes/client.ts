@@ -29,6 +29,8 @@ export interface PaginatedFluxResourceList {
 	limit: number;
 	metadata: {
 		resourceVersion?: string;
+		/** k8s continue token; present only when native k8s paging was used. */
+		continueToken?: string;
 	};
 }
 
@@ -89,6 +91,13 @@ function sortResources(
 			const aOrder = STATUS_ORDER[getResourceStatus(a)] ?? 3;
 			const bOrder = STATUS_ORDER[getResourceStatus(b)] ?? 3;
 			cmp = aOrder - bOrder;
+		}
+		// Deterministic tie-breaker: compare uid, fall back to name.
+		// Applied before direction inversion so sortOrder is respected consistently.
+		if (cmp === 0) {
+			cmp = (a.metadata.uid ?? a.metadata.name ?? '').localeCompare(
+				b.metadata.uid ?? b.metadata.name ?? ''
+			);
 		}
 		return sortOrder === 'desc' ? -cmp : cmp;
 	});
@@ -213,30 +222,54 @@ export async function listFluxResources(
 
 	try {
 		const api = await getCustomObjectsApi(context, reqCache);
+
+		// Sorting requires the full collection (k8s only sorts by name natively).
+		// When no sort is requested and a limit is provided, delegate paging to
+		// the k8s API so only the requested page is transferred over the network.
+		const useNativePaging = !options?.sortBy && options?.limit !== undefined;
+
 		const response = await api.listClusterCustomObject({
 			group: resourceDef.group,
 			version: resourceDef.version,
-			plural: resourceDef.plural
+			plural: resourceDef.plural,
+			...(useNativePaging ? { limit: options!.limit } : {})
 		});
 
 		const list = response as unknown as FluxResourceList;
-		let items = list.items ?? [];
-		const total = items.length;
+		const items = list.items ?? [];
 
-		if (options?.sortBy) {
-			items = sortResources(items, options.sortBy, options.sortOrder);
+		if (useNativePaging) {
+			// k8s already returned the page; metadata.continue signals more pages.
+			return {
+				items,
+				total: items.length, // exact total is unknown in cursor-based paging
+				hasMore: !!list.metadata?.continue,
+				offset: options?.offset ?? 0,
+				limit: options!.limit!,
+				metadata: {
+					resourceVersion: list.metadata?.resourceVersion,
+					continueToken: list.metadata?.continue
+				}
+			};
 		}
 
+		// Full-fetch path: sort (if requested) then slice.
+		const sorted = options?.sortBy
+			? sortResources(items, options.sortBy, options.sortOrder)
+			: items;
+
+		const total = sorted.length;
 		const offset = options?.offset ?? 0;
-		const limit = options?.limit ?? total;
-		const paginatedItems = items.slice(offset, offset + limit);
+		const paginatedItems =
+			options?.limit !== undefined ? sorted.slice(offset, offset + options.limit) : sorted;
+		const effectiveLimit = options?.limit ?? total;
 
 		return {
 			items: paginatedItems,
 			total,
-			hasMore: offset + limit < total,
+			hasMore: options?.limit !== undefined ? offset + options.limit < total : false,
 			offset,
-			limit,
+			limit: effectiveLimit,
 			metadata: {
 				resourceVersion: list.metadata?.resourceVersion
 			}
