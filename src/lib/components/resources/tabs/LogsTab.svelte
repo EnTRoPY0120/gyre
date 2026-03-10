@@ -78,6 +78,19 @@
 		return result;
 	});
 
+	const LEVEL_ACTIVE_CLASS: Record<string, string> = {
+		ALL: 'bg-white text-gray-800 shadow-sm dark:bg-gray-600 dark:text-gray-100',
+		ERROR: 'bg-red-100 text-red-700 shadow-sm dark:bg-red-900/50 dark:text-red-300',
+		WARN: 'bg-yellow-100 text-yellow-700 shadow-sm dark:bg-yellow-900/50 dark:text-yellow-300',
+		INFO: 'bg-green-100 text-green-700 shadow-sm dark:bg-green-900/50 dark:text-green-300',
+		DEBUG: 'bg-blue-100 text-blue-700 shadow-sm dark:bg-blue-900/50 dark:text-blue-300'
+	};
+	const LEVEL_INACTIVE_CLASS = 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200';
+
+	function getLevelButtonClass(level: string, isActive: boolean) {
+		return isActive ? (LEVEL_ACTIVE_CLASS[level] ?? LEVEL_ACTIVE_CLASS.DEBUG) : LEVEL_INACTIVE_CLASS;
+	}
+
 	function getLevelClass(level: string) {
 		switch (level) {
 			case 'ERROR':
@@ -166,17 +179,7 @@
 							type="button"
 							onclick={() => (levelFilter = level)}
 							aria-pressed={levelFilter === level}
-							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {levelFilter === level
-								? level === 'ALL'
-									? 'bg-white text-gray-800 shadow-sm dark:bg-gray-600 dark:text-gray-100'
-									: level === 'ERROR'
-										? 'bg-red-100 text-red-700 shadow-sm dark:bg-red-900/50 dark:text-red-300'
-										: level === 'WARN'
-											? 'bg-yellow-100 text-yellow-700 shadow-sm dark:bg-yellow-900/50 dark:text-yellow-300'
-											: level === 'INFO'
-												? 'bg-green-100 text-green-700 shadow-sm dark:bg-green-900/50 dark:text-green-300'
-												: 'bg-blue-100 text-blue-700 shadow-sm dark:bg-blue-900/50 dark:text-blue-300'
-								: 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}"
+							class="rounded px-2.5 py-1 text-xs font-medium transition-colors {getLevelButtonClass(level, levelFilter === level)}"
 						>
 							{level}
 						</button>
