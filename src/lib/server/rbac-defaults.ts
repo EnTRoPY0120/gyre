@@ -6,6 +6,7 @@
 import { getDbSync } from './db/index.js';
 import { rbacPolicies, rbacBindings, type User } from './db/schema.js';
 import { eq, and } from 'drizzle-orm';
+import { invalidateUserPermissionCache } from './rbac.js';
 
 /**
  * Default policy IDs (deterministic UUIDs for idempotency)
@@ -108,6 +109,7 @@ export async function bindUserToDefaultPolicies(user: User): Promise<void> {
 			});
 		}
 	}
+	invalidateUserPermissionCache(user.id);
 }
 
 /**
@@ -151,6 +153,7 @@ export async function syncUserPolicyBindings(user: User): Promise<void> {
 		// Remove all bindings for admin users
 		const db = getDbSync();
 		await db.delete(rbacBindings).where(eq(rbacBindings.userId, user.id));
+		invalidateUserPermissionCache(user.id);
 		return;
 	}
 
@@ -162,5 +165,6 @@ export async function syncUserPolicyBindings(user: User): Promise<void> {
 	// Add correct bindings for current role
 	await bindUserToDefaultPolicies(user);
 
+	invalidateUserPermissionCache(user.id);
 	console.log(`   ✓ Synced RBAC bindings for user: ${user.username} (${user.role})`);
 }
