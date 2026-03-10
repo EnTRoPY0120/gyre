@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db/index.js';
 import { users, sessions } from './db/schema.js';
 import { getPaginatedItems } from './db/utils.js';
-import { eq, and, gt, lt, sql, or, like } from 'drizzle-orm';
+import { eq, and, gt, lte, sql, or, like } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import * as k8s from '@kubernetes/client-node';
@@ -280,7 +280,7 @@ export async function cleanupExpiredSessions(): Promise<number> {
 	const now = new Date();
 	const result = await db
 		.delete(sessions)
-		.where(lt(sessions.expiresAt, now))
+		.where(lte(sessions.expiresAt, now))
 		.returning({ id: sessions.id });
 
 	const count = result.length;

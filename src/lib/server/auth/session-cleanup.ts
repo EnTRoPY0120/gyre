@@ -1,8 +1,28 @@
 import { cleanupExpiredSessions } from '../auth.js';
 
 let cleanupScheduled = false;
+let isCleaning = false;
 let cleanupInterval: NodeJS.Timeout | null = null;
 let immediateCleanupTimeout: NodeJS.Timeout | null = null;
+
+/**
+ * Perform the cleanup with locking
+ */
+async function performCleanup(): Promise<void> {
+	if (isCleaning) {
+		console.log('[SessionCleanup] Cleanup already in progress, skipping');
+		return;
+	}
+
+	isCleaning = true;
+	try {
+		await cleanupExpiredSessions();
+	} catch (err) {
+		console.error('[SessionCleanup] Cleanup failed:', err);
+	} finally {
+		isCleaning = false;
+	}
+}
 
 /**
  * Schedule periodic cleanup of expired sessions
@@ -21,9 +41,7 @@ export function scheduleSessionCleanup(): void {
 
 	// Run every hour
 	cleanupInterval = setInterval(() => {
-		cleanupExpiredSessions().catch((err) => {
-			console.error('[SessionCleanup] Scheduled cleanup failed:', err);
-		});
+		performCleanup();
 	}, CLEANUP_INTERVAL_MS);
 
 	cleanupScheduled = true;
@@ -32,9 +50,7 @@ export function scheduleSessionCleanup(): void {
 	immediateCleanupTimeout = setTimeout(
 		() => {
 			console.log('[SessionCleanup] Running initial session cleanup...');
-			cleanupExpiredSessions().catch((err) => {
-				console.error('[SessionCleanup] Initial cleanup failed:', err);
-			});
+			performCleanup();
 		},
 		1 * 60 * 1000
 	);
