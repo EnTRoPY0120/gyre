@@ -3,6 +3,7 @@
  * POST /api/admin/backups/restore — Restore database from an uploaded backup file
  */
 
+import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -102,7 +103,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		console.error('Failed to restore backup:', err);
+		logger.error('Failed to restore backup:', err);
 		throw error(500, err instanceof Error ? err.message : 'Failed to restore backup');
 	}
 };

@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
@@ -112,7 +113,7 @@ export const actions: Actions = {
 
 			return { success: true, cluster };
 		} catch (error) {
-			console.error('Error creating cluster:', error);
+			logger.error('Error creating cluster:', error);
 			if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
 				return fail(400, { error: 'A cluster with this name already exists' });
 			}
@@ -153,7 +154,7 @@ export const actions: Actions = {
 				healthCheck: result
 			};
 		} catch (error) {
-			console.error('Error testing connection:', error);
+			logger.error('Error testing connection:', error);
 			return fail(500, { error: 'Failed to test connection' });
 		}
 	},
@@ -183,7 +184,7 @@ export const actions: Actions = {
 
 			return { success: true, isActive };
 		} catch (error) {
-			console.error('Error updating cluster:', error);
+			logger.error('Error updating cluster:', error);
 			return fail(500, { error: 'Failed to update cluster' });
 		}
 	},
@@ -211,7 +212,7 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (error) {
-			console.error('Error deleting cluster:', error);
+			logger.error('Error deleting cluster:', error);
 			return fail(500, { error: 'Failed to delete cluster' });
 		}
 	}

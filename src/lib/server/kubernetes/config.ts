@@ -1,3 +1,4 @@
+import { logger } from '../logger.js';
 import * as k8s from '@kubernetes/client-node';
 import { ConfigurationError } from './errors.js';
 
@@ -15,18 +16,18 @@ export function loadKubeConfig(): k8s.KubeConfig {
 		// Try in-cluster first (production mode)
 		if (process.env.KUBERNETES_SERVICE_HOST) {
 			config.loadFromCluster();
-			console.log('✓ Using in-cluster configuration (ServiceAccount)');
+			logger.info('✓ Using in-cluster configuration (ServiceAccount)');
 			return config;
 		}
 	} catch (error) {
-		console.warn('Failed to load in-cluster config, trying local kubeconfig...', error);
+		logger.warn(error, 'Failed to load in-cluster config, trying local kubeconfig...');
 	}
 
 	try {
 		// Fall back to local kubeconfig (development mode)
 		// Tries: $KUBECONFIG, then ~/.kube/config
 		config.loadFromDefault();
-		console.log('✓ Using local kubeconfig for development');
+		logger.info('✓ Using local kubeconfig for development');
 		return config;
 	} catch (error) {
 		throw new ConfigurationError(
@@ -65,7 +66,7 @@ export async function validateKubeConfig(config: k8s.KubeConfig): Promise<boolea
 		await k8sApi.listNamespace();
 		return true;
 	} catch (error) {
-		console.error('Failed to validate kubeconfig:', error);
+		logger.error(error, 'Failed to validate kubeconfig');
 		return false;
 	}
 }

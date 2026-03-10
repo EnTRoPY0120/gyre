@@ -1,3 +1,4 @@
+import { logger } from './logger.js';
 import bcrypt from 'bcryptjs';
 import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db/index.js';
 import { users, sessions } from './db/schema.js';
@@ -293,7 +294,7 @@ export async function cleanupExpiredSessions(): Promise<number> {
 	const count = result.length;
 	if (count > 0) {
 		sessionsCleanedUpTotal.inc(count);
-		console.log(`[Auth] Cleaned up ${count} expired session(s)`);
+		logger.info(`[Auth] Cleaned up ${count} expired session(s)`);
 	}
 	return count;
 }
@@ -365,7 +366,7 @@ async function markSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promis
 			body: patch
 		});
 	} catch (error) {
-		console.error('Failed to mark secret as consumed:', error);
+		logger.error('Failed to mark secret as consumed:', error);
 	}
 }
 
@@ -435,11 +436,11 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 			namespace,
 			body: secret
 		});
-		console.log(`Created initial admin secret in namespace "${namespace}"`);
+		logger.info(`Created initial admin secret in namespace "${namespace}"`);
 
 		return password;
 	} catch (error) {
-		console.error('Failed to setup in-cluster admin:', error);
+		logger.error('Failed to setup in-cluster admin:', error);
 		return null;
 	}
 }
@@ -469,7 +470,7 @@ export async function validateInClusterAdmin(password: string): Promise<boolean>
 			await markSecretConsumed(api, namespace);
 			inClusterFirstLoginDone = true;
 		} catch (error) {
-			console.error('Failed to mark secret as consumed:', error);
+			logger.error('Failed to mark secret as consumed:', error);
 		}
 	}
 

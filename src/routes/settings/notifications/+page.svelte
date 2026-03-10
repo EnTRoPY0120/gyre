@@ -6,6 +6,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { toast } from 'svelte-sonner';
 	import { getCsrfToken } from '$lib/utils/csrf';
+	import { logger } from '$lib/utils/logger.js';
 
 	// Resource types from flux types or just hardcode common ones
 	const resourceTypes = [
@@ -61,7 +62,7 @@
 			preferences.setNotifications(newPrefs);
 			toast.success('Notification settings saved successfully');
 		} catch (err) {
-			console.error(err);
+			logger.error(err);
 			toast.error('Failed to save notification settings');
 		} finally {
 			loading = false;

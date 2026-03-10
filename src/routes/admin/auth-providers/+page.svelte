@@ -3,6 +3,7 @@
 	import type { PageData } from './$types';
 	import * as Select from '$lib/components/ui/select';
 	import { getCsrfToken } from '$lib/utils/csrf';
+	import { logger } from '$lib/utils/logger.js';
 
 	type ProviderType =
 		| 'oidc'
@@ -242,7 +243,7 @@
 
 			await invalidateAll();
 		} catch (err) {
-			console.error('Failed to toggle provider:', err);
+			logger.error('Failed to toggle provider:', err);
 		}
 	}
 

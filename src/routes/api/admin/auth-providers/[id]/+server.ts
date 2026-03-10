@@ -4,6 +4,7 @@
  * Admin-only endpoints.
  */
 
+import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -170,7 +171,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		return json({ provider: sanitizedProvider });
 	} catch (err) {
-		console.error('Failed to get auth provider:', err);
+		logger.error('Failed to get auth provider:', err);
 
 		// Re-throw SvelteKit errors
 		if (err instanceof Response) {
@@ -250,7 +251,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		// Update in database
 		await db.update(authProviders).set(updates).where(eq(authProviders.id, params.id));
 
-		console.log(`Updated auth provider: ${params.id}`);
+		logger.info(`Updated auth provider: ${params.id}`);
 
 		// Fetch updated provider
 		const updatedProvider = await db.query.authProviders.findFirst({
@@ -265,7 +266,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			}
 		});
 	} catch (err) {
-		console.error('Failed to update auth provider:', err);
+		logger.error('Failed to update auth provider:', err);
 
 		// Re-throw SvelteKit errors
 		if (err instanceof Response) {
@@ -307,11 +308,11 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		// Delete provider (cascade will delete user_providers links)
 		await db.delete(authProviders).where(eq(authProviders.id, params.id));
 
-		console.log(`Deleted auth provider: ${provider.name} (${params.id})`);
+		logger.info(`Deleted auth provider: ${provider.name} (${params.id})`);
 
 		return json({ success: true });
 	} catch (err) {
-		console.error('Failed to delete auth provider:', err);
+		logger.error('Failed to delete auth provider:', err);
 
 		// Re-throw SvelteKit errors
 		if (err instanceof Response) {

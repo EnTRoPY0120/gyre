@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -86,7 +87,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 			return json({ version });
 		} catch (err) {
-			console.warn('Failed to fetch version from deployments, trying fallback:', err);
+			logger.warn('Failed to fetch version from deployments, trying fallback:', err);
 			return json({ version: 'v2.x.x' });
 		}
 	} catch (err) {

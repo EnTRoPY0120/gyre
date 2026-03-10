@@ -1,3 +1,4 @@
+import { logger } from '../../logger.js';
 import { getCustomObjectsApi } from '../client.js';
 import type { FluxResourceType } from './resources.js';
 import { getReconciliationHistory } from './reconciliation-tracker.js';
@@ -75,9 +76,9 @@ export async function rollbackResource(
 	try {
 		spec = JSON.parse(historyEntry.specSnapshot);
 	} catch (error) {
-		console.error(
-			`[Rollback] Failed to parse spec snapshot for history entry ${historyEntry.id}:`,
-			error
+		logger.error(
+			error,
+			`[Rollback] Failed to parse spec snapshot for history entry ${historyEntry.id}`
 		);
 		throw new Error(
 			`Invalid spec snapshot in history entry ${revisionOrHistoryId}. Cannot rollback.`
@@ -120,7 +121,7 @@ export async function rollbackResource(
 		} as Record<string, unknown>
 	);
 
-	console.log(
+	logger.info(
 		`[Rollback] Rolled back ${type}/${namespace}/${name} to revision ${historyEntry.revision}`
 	);
 }

@@ -3,6 +3,7 @@
  * Loads all auth providers for admin management
  */
 
+import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad } from './$types';
 import { getDb } from '$lib/server/db';
 
@@ -23,7 +24,7 @@ export const load: PageServerLoad = async () => {
 			providers: sanitizedProviders
 		};
 	} catch (error) {
-		console.error('Failed to load auth providers:', error);
+		logger.error('Failed to load auth providers:', error);
 		return {
 			providers: []
 		};

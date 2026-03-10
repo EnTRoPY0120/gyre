@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
-	import { getPluralByKind } from '$lib/templates';
-	import { fetchWithRetry } from '$lib/utils/fetch';
-	import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-svelte';
-	import { onMount } from 'svelte';
+import { cn } from '$lib/utils';
+import { getPluralByKind } from '$lib/templates';
+import { fetchWithRetry } from '$lib/utils/fetch';
+import { logger } from '$lib/utils/logger.js';
+import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-svelte';
+import { onMount } from 'svelte';
 
 	let {
 		id,
@@ -115,14 +116,14 @@
 				if (result.status === 'fulfilled') {
 					allNames.push(...result.value);
 				} else {
-					console.error('Failed to fetch resources:', result.reason);
+					logger.error('Failed to fetch resources:', result.reason);
 				}
 			});
 
 			// Deduplicate and sort
 			resources = [...new Set(allNames)].sort();
 		} catch (err) {
-			console.error('Failed to fetch resources:', err);
+			logger.error('Failed to fetch resources:', err);
 			resources = []; // Clear on error
 		} finally {
 			loading = false;

@@ -1,3 +1,4 @@
+import { logger } from './logger.js';
 import { eq, desc, asc, and, lt, sql, count } from 'drizzle-orm';
 import { getDbSync, type NewAuditLog } from './db/index.js';
 import { auditLogs } from './db/schema.js';
@@ -45,7 +46,7 @@ export async function logAudit(
 		await db.insert(auditLogs).values(logEntry);
 	} catch (error) {
 		// Don't throw - audit logging should never break the main flow
-		console.error('Failed to write audit log:', error);
+		logger.error('Failed to write audit log:', error);
 	}
 }
 
@@ -284,14 +285,14 @@ export async function cleanupOldAuditLogs(): Promise<number> {
 			// Delete items older than cutoff. We don't use .returning() to avoid memory issues with large datasets.
 			await db.delete(auditLogs).where(lt(auditLogs.createdAt, cutoff));
 
-			console.log(
+			logger.info(
 				`[AuditCleanup] Successfully deleted ${toDeleteCount} audit logs older than ${retentionDays} days (before ${cutoff.toISOString()})`
 			);
 		}
 
 		return toDeleteCount;
 	} catch (error) {
-		console.error('[AuditCleanup] Failed to clean up audit logs:', error);
+		logger.error('[AuditCleanup] Failed to clean up audit logs:', error);
 		return 0;
 	}
 }
@@ -341,20 +342,20 @@ export function scheduleAuditLogCleanup(): void {
 
 	const initialDelay = nextRun.getTime() - now.getTime();
 
-	console.log(
+	logger.info(
 		`[AuditCleanup] Scheduling daily audit log cleanup to run at ${nextRun.toISOString()} (in ${Math.round(initialDelay / 1000 / 60)} minutes)`
 	);
 
 	// Run initial cleanup after the calculated delay to align with the daily schedule
 	initialDelayTimeout = setTimeout(() => {
 		runCleanupOnce().catch((err) => {
-			console.error('[AuditCleanup] Scheduled cleanup failed:', err);
+			logger.error('[AuditCleanup] Scheduled cleanup failed:', err);
 		});
 
 		// Then run every 24 hours
 		cleanupInterval = setInterval(() => {
 			runCleanupOnce().catch((err) => {
-				console.error('[AuditCleanup] Periodic cleanup failed:', err);
+				logger.error('[AuditCleanup] Periodic cleanup failed:', err);
 			});
 		}, MS_PER_DAY);
 	}, initialDelay);
@@ -366,9 +367,9 @@ export function scheduleAuditLogCleanup(): void {
 	const startupDelayWithJitter = INITIAL_CLEANUP_DELAY_MS + getRandomJitterMs(30);
 
 	immediateCleanupTimeout = setTimeout(() => {
-		console.log('[AuditCleanup] Running startup cleanup task...');
+		logger.info('[AuditCleanup] Running startup cleanup task...');
 		runCleanupOnce().catch((err) => {
-			console.error('[AuditCleanup] Startup cleanup task failed:', err);
+			logger.error('[AuditCleanup] Startup cleanup task failed:', err);
 		});
 	}, startupDelayWithJitter);
 

@@ -4,6 +4,7 @@
  * Supports AES-256-GCM encryption at rest when BACKUP_ENCRYPTION_KEY is set.
  */
 
+import { logger } from './logger.js';
 import {
 	existsSync,
 	mkdirSync,
@@ -302,7 +303,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 
 	// Create a safety backup before restoring
 	const safetyBackup = await createBackup();
-	console.log(`[Backup] Safety backup created: ${safetyBackup.filename}`);
+	logger.info(`[Backup] Safety backup created: ${safetyBackup.filename}`);
 
 	// Write the uploaded DB to a temp file and validate it
 	ensureBackupDir();
@@ -349,7 +350,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 		try {
 			currentDb.pragma('wal_checkpoint(TRUNCATE)');
 		} catch (e) {
-			console.warn('[Backup] Failed to checkpoint current DB before restore:', e);
+			logger.warn('[Backup] Failed to checkpoint current DB before restore:', e);
 		} finally {
 			currentDb.close();
 		}
@@ -362,7 +363,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 					unlinkSync(artifactPath);
 				}
 			} catch (e) {
-				console.error(`[Backup] Failed to remove stale artifact ${artifactPath}:`, e);
+				logger.error(`[Backup] Failed to remove stale artifact ${artifactPath}:`, e);
 			}
 		}
 
@@ -396,9 +397,9 @@ function pruneOldBackups(): void {
 		const filePath = join(backupDir, backup.filename);
 		try {
 			unlinkSync(filePath);
-			console.log(`[Backup] Pruned old backup: ${backup.filename}`);
+			logger.info(`[Backup] Pruned old backup: ${backup.filename}`);
 		} catch {
-			console.warn(`[Backup] Failed to prune: ${backup.filename}`);
+			logger.warn(`[Backup] Failed to prune: ${backup.filename}`);
 		}
 	}
 }

@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
@@ -49,7 +50,7 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 
 		return json({ success: true });
 	} catch (err) {
-		console.error('Logout error:', err);
+		logger.error('Logout error:', err);
 		throw error(500, { message: 'Internal server error' });
 	}
 };

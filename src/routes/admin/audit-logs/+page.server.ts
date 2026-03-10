@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad } from './$types';
 import {
 	getAuditLogsPaginated,
@@ -68,7 +69,7 @@ export const load: PageServerLoad = async ({ url }) => {
 				try {
 					details = JSON.parse(log.details);
 				} catch (e) {
-					console.warn(`Failed to parse audit log details for ID ${log.id}:`, e);
+					logger.warn(`Failed to parse audit log details for ID ${log.id}:`, e);
 					details = { raw: log.details, error: 'Failed to parse JSON' };
 				}
 			}

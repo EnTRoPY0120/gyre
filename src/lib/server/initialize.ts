@@ -1,3 +1,4 @@
+import { logger } from './logger.js';
 import { getDbSync, closeDb } from './db/index.js';
 import { createDefaultAdminIfNeeded } from './auth.js';
 import { initDatabase } from './db/migrate.js';
@@ -160,24 +161,24 @@ function getCurrentNamespace(): string {
  * - Logs deployment mode
  */
 export async function initializeGyre(): Promise<void> {
-	console.log('='.repeat(60));
-	console.log('  Gyre - FluxCD Dashboard');
-	console.log('='.repeat(60));
+	logger.info('='.repeat(60));
+	logger.info('  Gyre - FluxCD Dashboard');
+	logger.info('='.repeat(60));
 
 	// Log deployment mode
 	const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 	const isProd = process.env.NODE_ENV === 'production';
 
 	if (isInCluster) {
-		console.log('📦 Deployment Mode: In-Cluster');
-		console.log('   Using Kubernetes ServiceAccount for API access');
+		logger.info('📦 Deployment Mode: In-Cluster');
+		logger.info('   Using Kubernetes ServiceAccount for API access');
 	} else {
-		console.log('📦 Deployment Mode: Local Development');
-		console.log('   Using local kubeconfig for cluster access');
+		logger.info('📦 Deployment Mode: Local Development');
+		logger.info('   Using local kubeconfig for cluster access');
 	}
 
 	// Encryption checks
-	console.log('\n🔐 Validating encryption...');
+	logger.info('\n🔐 Validating encryption...');
 	try {
 		// Test Auth Encryption
 		if (!testAuthEncryption()) {
@@ -187,7 +188,7 @@ export async function initializeGyre(): Promise<void> {
 			if (isProd) {
 				throw new Error('AUTH_ENCRYPTION_KEY must be set in production!');
 			}
-			console.warn('   ⚠️  Using development key for AUTH_ENCRYPTION_KEY');
+			logger.warn('   ⚠️  Using development key for AUTH_ENCRYPTION_KEY');
 		}
 
 		// Test Cluster Encryption
@@ -198,14 +199,14 @@ export async function initializeGyre(): Promise<void> {
 			if (isProd) {
 				throw new Error('GYRE_ENCRYPTION_KEY must be set in production!');
 			}
-			console.warn('   ⚠️  Using development key for GYRE_ENCRYPTION_KEY');
+			logger.warn('   ⚠️  Using development key for GYRE_ENCRYPTION_KEY');
 		}
 
-		console.log('   ✓ Encryption validation passed');
+		logger.info('   ✓ Encryption validation passed');
 	} catch (error) {
-		console.error(
-			'   ✗ Encryption validation failed:',
-			error instanceof Error ? error.message : error
+		logger.error(
+			'   ✗ Encryption validation failed: ' +
+				(error instanceof Error ? error.message : String(error))
 		);
 		throw error;
 	}
@@ -214,113 +215,113 @@ export async function initializeGyre(): Promise<void> {
 	try {
 		const migratedCount = await migrateKubeconfigs();
 		if (migratedCount > 0) {
-			console.log(`   ✓ Migrated ${migratedCount} cluster(s) to new encryption format`);
+			logger.info(`   ✓ Migrated ${migratedCount} cluster(s) to new encryption format`);
 		}
 	} catch (error) {
-		console.error('   ✗ Failed to migrate kubeconfigs:', error);
+		logger.error(error, '   ✗ Failed to migrate kubeconfigs');
 		// Don't throw here, as the app can still function with old encryption if migration fails
 	}
 
 	// Initialize database connection and tables
-	console.log('\n🗄️  Initializing database...');
+	logger.info('\n🗄️  Initializing database...');
 	try {
 		getDbSync();
 		initDatabase(); // Create tables if they don't exist
-		console.log('   ✓ Database connection established');
+		logger.info('   ✓ Database connection established');
 	} catch (error) {
-		console.error('   ✗ Failed to connect to database:', error);
+		logger.error(error, '   ✗ Failed to connect to database');
 		throw error;
 	}
 
 	// Create default admin if needed
-	console.log('\n👤 Setting up authentication...');
+	logger.info('\n👤 Setting up authentication...');
 	try {
 		const { password: setupToken, mode } = await createDefaultAdminIfNeeded();
 
 		if (setupToken) {
-			console.log('   ⚠️  FIRST TIME SETUP - INITIAL ADMIN PASSWORD:');
-			console.log('   ' + '='.repeat(50));
-			console.log('   Username: admin');
+			logger.info('   ⚠️  FIRST TIME SETUP - INITIAL ADMIN PASSWORD:');
+			logger.info('   ' + '='.repeat(50));
+			logger.info('   Username: admin');
 
 			if (mode === 'in-cluster') {
 				// In-cluster mode: show K8s secret command
 				const namespace = getCurrentNamespace();
-				console.log('   Password has been securely stored in a Kubernetes secret.');
-				console.log('   ' + '='.repeat(50));
-				console.log('   \n   📋 To retrieve the password, run:');
-				console.log(
+				logger.info('   Password has been securely stored in a Kubernetes secret.');
+				logger.info('   ' + '='.repeat(50));
+				logger.info('   \n   📋 To retrieve the password, run:');
+				logger.info(
 					`   kubectl get secret gyre-initial-admin-secret -n ${namespace} -o jsonpath='{.data.password}' | base64 -d`
 				);
-				console.log('\n   ⚠️  Please change this password after first login!');
-				console.log('   After first login, the secret will be marked as consumed.');
+				logger.info('\n   ⚠️  Please change this password after first login!');
+				logger.info('   After first login, the secret will be marked as consumed.');
 			} else {
 				// Local development mode
-				console.log('   Password: ' + setupToken); // codeql[js/clear-text-logging]
-				console.log('   ' + '='.repeat(50));
-				console.log('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
-				console.log("   ⚠️  Please save this password - it won't be shown again!");
+				logger.info('   Password: ' + setupToken); // codeql[js/clear-text-logging]
+				logger.info('   ' + '='.repeat(50));
+				logger.info('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
+				logger.info("   ⚠️  Please save this password - it won't be shown again!");
 			}
 		}
-		console.log('   ✓ Authentication ready');
+		logger.info('   ✓ Authentication ready');
 	} catch (error) {
-		console.error('   ✗ Failed to setup authentication:', error);
+		logger.error(error, '   ✗ Failed to setup authentication');
 		throw error;
 	}
 
 	// Initialize default RBAC policies
-	console.log('\n🔐 Setting up RBAC policies...');
+	logger.info('\n🔐 Setting up RBAC policies...');
 	try {
 		await initializeDefaultPolicies();
 		const repairedCount = await repairUserPolicyBindings();
 		if (repairedCount > 0) {
-			console.log(`   ✓ Repaired RBAC bindings for ${repairedCount} existing user(s)`);
+			logger.info(`   ✓ Repaired RBAC bindings for ${repairedCount} existing user(s)`);
 		}
-		console.log('   ✓ RBAC policies ready');
+		logger.info('   ✓ RBAC policies ready');
 	} catch (error) {
-		console.error('   ✗ Failed to setup RBAC policies:', error);
+		logger.error(error, '   ✗ Failed to setup RBAC policies');
 		throw error;
 	}
 
 	// Seed auth settings and providers from environment
-	console.log('\n🔑 Setting up authentication settings...');
+	logger.info('\n🔑 Setting up authentication settings...');
 	try {
 		await seedAuthSettings();
 		const seedResult = await seedAuthProviders();
 		if (seedResult.created > 0) {
-			console.log(`   ✓ Seeded ${seedResult.created} auth provider(s)`);
+			logger.info(`   ✓ Seeded ${seedResult.created} auth provider(s)`);
 		}
 		if (seedResult.skipped > 0) {
-			console.log(
+			logger.info(
 				`   ℹ Skipped ${seedResult.skipped} provider(s) (existing or invalid/missing secrets)`
 			);
 		}
-		console.log('   ✓ Authentication settings ready');
+		logger.info('   ✓ Authentication settings ready');
 	} catch (error) {
-		console.error('   ✗ Failed to seed auth settings:', error);
+		logger.error(error, '   ✗ Failed to seed auth settings');
 		// Don't throw - app can still work without seeded providers
 	}
 
 	// Schedule reconciliation history cleanup
-	console.log('\n🧹 Setting up data cleanup...');
+	logger.info('\n🧹 Setting up data cleanup...');
 	try {
 		scheduleCleanup();
 		scheduleAuditLogCleanup();
-		console.log('   ✓ Cleanup schedulers initialized');
+		logger.info('   ✓ Cleanup schedulers initialized');
 	} catch (error) {
-		console.error('   ✗ Failed to schedule cleanup:', error);
+		logger.error(error, '   ✗ Failed to schedule cleanup');
 		// Don't throw - app can still work without cleanup
 	}
 
-	console.log('\n' + '='.repeat(60));
-	console.log('  Gyre is ready!');
-	console.log('='.repeat(60) + '\n');
+	logger.info('\n' + '='.repeat(60));
+	logger.info('  Gyre is ready!');
+	logger.info('='.repeat(60) + '\n');
 }
 
 // Initialize session cleanup immediately at startup
 try {
 	scheduleSessionCleanup();
 } catch (error) {
-	console.error('[SessionCleanup] Failed to initialize scheduler:', error);
+	logger.error(error, '[SessionCleanup] Failed to initialize scheduler');
 }
 
 /**

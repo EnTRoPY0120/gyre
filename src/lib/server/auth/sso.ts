@@ -3,6 +3,7 @@
  * Handles automatic user creation and role mapping from SSO providers.
  */
 
+import { logger } from '../logger.js';
 import { getDb } from '$lib/server/db';
 import { users, userProviders, type AuthProvider } from '$lib/server/db/schema';
 import type { User } from '$lib/server/db/schema';
@@ -60,7 +61,7 @@ export async function createOrUpdateSSOUser(
 		});
 
 		if (!user) {
-			console.warn(`Orphaned provider link found for userId ${existingLink.userId}`);
+			logger.warn(`Orphaned provider link found for userId ${existingLink.userId}`);
 			return { user: null, reason: 'user_not_found' };
 		}
 
@@ -72,13 +73,13 @@ export async function createOrUpdateSSOUser(
 
 	// Check if signup is allowed
 	if (!authSettings.allowSignup) {
-		console.log(`Signup disabled, user ${userInfo.sub} not allowed to register`);
+		logger.info(`Signup disabled, user ${userInfo.sub} not allowed to register`);
 		return { user: null, reason: 'signup_disabled' };
 	}
 
 	// Check if auto-provisioning is enabled for this provider
 	if (!providerConfig.autoProvision) {
-		console.log(
+		logger.info(
 			`Auto-provisioning disabled for provider ${providerId}, user ${userInfo.sub} not found`
 		);
 		return { user: null, reason: 'auto_provision_disabled' };
@@ -87,7 +88,7 @@ export async function createOrUpdateSSOUser(
 	// Extract username and email from user info
 	const username = normalizeUsername(extractUsername(userInfo, providerConfig));
 	if (!username) {
-		console.error(
+		logger.error(
 			`Could not extract a valid username for SSO user ${userInfo.sub} from provider ${providerId}`
 		);
 		return { user: null, reason: 'user_not_found' };
@@ -97,7 +98,7 @@ export async function createOrUpdateSSOUser(
 	// Check domain allowlist (only for new users)
 	if (authSettings.domainAllowlist.length > 0) {
 		if (!email) {
-			console.log(`No email found for user ${userInfo.sub}, cannot verify domain`);
+			logger.info(`No email found for user ${userInfo.sub}, cannot verify domain`);
 			return { user: null, reason: 'domain_not_allowed' };
 		}
 
@@ -106,7 +107,7 @@ export async function createOrUpdateSSOUser(
 		const normalizedAllowlist = authSettings.domainAllowlist.map((d) => d.trim().toLowerCase());
 
 		if (!domain || !normalizedAllowlist.includes(domain)) {
-			console.log(`Domain ${domain} not in allowlist for user ${userInfo.sub}`);
+			logger.info(`Domain ${domain} not in allowlist for user ${userInfo.sub}`);
 			return { user: null, reason: 'domain_not_allowed' };
 		}
 	}
@@ -127,7 +128,7 @@ export async function createOrUpdateSSOUser(
 	if (existingUsername) {
 		// Append random suffix to make username unique
 		finalUsername = `${username}_${userInfo.sub.substring(0, 8)}`;
-		console.log(`Username ${username} exists, using ${finalUsername} instead`);
+		logger.info(`Username ${username} exists, using ${finalUsername} instead`);
 	}
 
 	// Create new user
@@ -164,7 +165,7 @@ export async function createOrUpdateSSOUser(
 		lastLoginAt: new Date()
 	});
 
-	console.log(
+	logger.info(
 		`Auto-provisioned new SSO user: ${finalUsername} (${email}) with role ${role} from provider ${providerId}`
 	);
 
@@ -195,7 +196,7 @@ function mapRoleFromGroups(
 	try {
 		mapping = JSON.parse(roleMapping);
 	} catch (error) {
-		console.error('Failed to parse role mapping:', error);
+		logger.error('Failed to parse role mapping:', error);
 		return defaultRole as 'admin' | 'editor' | 'viewer';
 	}
 

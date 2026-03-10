@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
@@ -79,7 +80,7 @@ export const actions: Actions = {
 
 			return { success: true, user: newUser };
 		} catch (error) {
-			console.error('Error creating user:', error);
+			logger.error('Error creating user:', error);
 			if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
 				return fail(400, { error: 'Username already exists' });
 			}
@@ -129,7 +130,7 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (error) {
-			console.error('Error updating user:', error);
+			logger.error('Error updating user:', error);
 			return fail(500, { error: 'Failed to update user' });
 		}
 	},
@@ -162,7 +163,7 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (error) {
-			console.error('Error deleting user:', error);
+			logger.error('Error deleting user:', error);
 			return fail(500, { error: 'Failed to delete user' });
 		}
 	},
@@ -204,7 +205,7 @@ export const actions: Actions = {
 
 			return { success: true, password: newPassword };
 		} catch (error) {
-			console.error('Error resetting password:', error);
+			logger.error('Error resetting password:', error);
 			return fail(500, { error: 'Failed to reset password' });
 		}
 	}

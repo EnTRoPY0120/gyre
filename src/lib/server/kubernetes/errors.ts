@@ -1,3 +1,4 @@
+import { logger } from '../logger.js';
 import { error } from '@sveltejs/kit';
 
 /**
@@ -90,7 +91,7 @@ export function sanitizeK8sErrorMessage(message: string): string {
  */
 export function handleApiError(err: unknown, contextMessage = 'Kubernetes API error'): never {
 	// Log the full error server-side
-	console.error(`${contextMessage}:`, err);
+	logger.error(`${contextMessage}:`, err);
 
 	// If it's a known safe error, pass it through
 	if (err instanceof KubernetesError) {

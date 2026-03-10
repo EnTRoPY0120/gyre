@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/auth';
 import { initializeGyre } from '$lib/server/initialize';
@@ -123,7 +124,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			await initializeGyre();
 			initialized = true;
 		} catch (error) {
-			console.error('Failed to initialize Gyre:', error);
+			logger.error('Failed to initialize Gyre:', error);
 			// Continue anyway - let the request fail naturally if DB is truly broken
 		}
 	}
@@ -237,7 +238,7 @@ export const handle: Handle = async ({ event, resolve }) => {
  * HandleError - Global error handler
  */
 export function handleError({ error, event }: { error: unknown; event: { url: URL } }) {
-	console.error('Error in', event.url.pathname, ':', error);
+	logger.error('Error in', event.url.pathname, ':', error);
 
 	return {
 		message: error instanceof Error ? error.message : 'An unexpected error occurred',

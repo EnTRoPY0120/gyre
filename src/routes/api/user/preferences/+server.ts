@@ -1,3 +1,4 @@
+import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import { getDb } from '$lib/server/db';
@@ -131,7 +132,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		return json({ success: true, preferences: mergedPreferences });
 	} catch (err) {
-		console.error('Failed to update preferences:', err);
+		logger.error('Failed to update preferences:', err);
 
 		throw error(500, 'Failed to update preferences');
 	}

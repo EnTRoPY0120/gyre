@@ -1,3 +1,5 @@
+import { logger } from './logger.js';
+
 /**
  * Fetch with exponential backoff retry logic for resilience
  */
@@ -36,7 +38,7 @@ export async function fetchWithRetry(
 			// It's a retryable status code
 			if (attempt < maxRetries) {
 				const delay = initialDelay * Math.pow(2, attempt);
-				console.warn(
+				logger.warn(
 					`Fetch attempt ${attempt + 1} failed with status ${response.status}. Retrying in ${delay}ms...`
 				);
 				await new Promise((resolve) => setTimeout(resolve, delay));
@@ -48,7 +50,7 @@ export async function fetchWithRetry(
 			// Always retry on network errors (fetch throws for network errors)
 			if (attempt < maxRetries) {
 				const delay = initialDelay * Math.pow(2, attempt);
-				console.warn(
+				logger.warn(
 					`Fetch attempt ${attempt + 1} failed with network error. Retrying in ${delay}ms...`
 				);
 				await new Promise((resolve) => setTimeout(resolve, delay));

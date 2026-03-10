@@ -4,6 +4,7 @@
  */
 
 import { preferences } from './preferences.svelte';
+import { logger } from '$lib/utils/logger.js';
 import {
 	MAX_RECONNECT_ATTEMPTS,
 	RECONNECT_DELAY_MS,
@@ -119,7 +120,7 @@ class RealtimeStore {
 				this.lastNotificationState = new Map(parsed);
 			}
 		} catch (err) {
-			console.error('[Storage] Failed to load persisted notifications:', err);
+			logger.error('[Storage] Failed to load persisted notifications:', err);
 			// Clear corrupted data
 			localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
 			localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
@@ -138,7 +139,7 @@ class RealtimeStore {
 			const stateArray = Array.from(this.lastNotificationState.entries());
 			localStorage.setItem(NOTIFICATION_STATE_STORAGE_KEY, JSON.stringify(stateArray));
 		} catch (err) {
-			console.error('[Storage] Failed to persist notifications:', err);
+			logger.error('[Storage] Failed to persist notifications:', err);
 		}
 	}
 
@@ -174,7 +175,7 @@ class RealtimeStore {
 				this.status = 'connected';
 				this.reconnectAttempts = 0;
 				this.notifyStatusChange('connected');
-				console.log('[SSE] Connected to event stream');
+				logger.info('[SSE] Connected to event stream');
 			};
 
 			this.eventSource.onmessage = (event) => {
@@ -182,12 +183,12 @@ class RealtimeStore {
 					const data: ResourceEvent = JSON.parse(event.data);
 					this.handleMessage(data);
 				} catch (err) {
-					console.error('[SSE] Failed to parse message:', err);
+					logger.error('[SSE] Failed to parse message:', err);
 				}
 			};
 
 			this.eventSource.onerror = () => {
-				console.error('[SSE] Connection error');
+				logger.error('[SSE] Connection error');
 				this.status = 'error';
 				this.notifyStatusChange('error');
 				this.eventSource?.close();
@@ -195,7 +196,7 @@ class RealtimeStore {
 				this.scheduleReconnect();
 			};
 		} catch (err) {
-			console.error('[SSE] Failed to connect:', err);
+			logger.error('[SSE] Failed to connect:', err);
 			this.status = 'error';
 			this.notifyStatusChange('error');
 			this.scheduleReconnect();
@@ -223,14 +224,14 @@ class RealtimeStore {
 		}
 
 		if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-			console.log('[SSE] Max reconnect attempts reached');
+			logger.warn('[SSE] Max reconnect attempts reached');
 			return;
 		}
 
 		const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
 		this.reconnectAttempts++;
 
-		console.log(`[SSE] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+		logger.debug(`[SSE] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
 		this.reconnectTimeout = setTimeout(() => {
 			this.connect();
@@ -239,9 +240,7 @@ class RealtimeStore {
 
 	private handleMessage(data: ResourceEvent) {
 		if (data.type === 'SHUTDOWN') {
-			console.log(
-				'[SSE] Received SHUTDOWN event from server, disconnecting and preventing reconnects.'
-			);
+			logger.info('[SSE] Received SHUTDOWN event from server, disconnecting and preventing reconnects.');
 			this.isServerShutdown = true;
 			this.disconnect();
 			return;
@@ -257,7 +256,7 @@ class RealtimeStore {
 			try {
 				callback(data);
 			} catch (err) {
-				console.error('[SSE] Error in event callback:', err);
+				logger.error('[SSE] Error in event callback:', err);
 			}
 		});
 
@@ -303,7 +302,7 @@ class RealtimeStore {
 		if (event.type === 'MODIFIED' && previousState === currentState) {
 			// This is a duplicate notification - same resource in same state
 			const parsedState = JSON.parse(currentState);
-			console.log(
+			logger.debug(
 				`[Notification] Skipping duplicate for ${resourceKey}: state unchanged (revision: ${parsedState.revision || 'none'})`
 			);
 			return;
@@ -316,12 +315,12 @@ class RealtimeStore {
 		if (previousState) {
 			const prevParsed = JSON.parse(previousState);
 			const currParsed = JSON.parse(currentState);
-			console.log(
+			logger.debug(
 				`[Notification] State change for ${resourceKey}: revision "${prevParsed.revision || 'none'}" -> "${currParsed.revision || 'none'}", ready: ${currParsed.readyStatus}`
 			);
 		} else {
 			const currParsed = JSON.parse(currentState);
-			console.log(
+			logger.debug(
 				`[Notification] New notification for ${resourceKey}: ${event.type}, revision: ${currParsed.revision || 'none'}`
 			);
 		}
@@ -404,7 +403,7 @@ class RealtimeStore {
 			try {
 				callback(status);
 			} catch (err) {
-				console.error('[SSE] Error in status callback:', err);
+				logger.error('[SSE] Error in status callback:', err);
 			}
 		});
 	}

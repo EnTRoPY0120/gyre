@@ -4,6 +4,7 @@ import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
 import { VALID_SORT_BY, VALID_SORT_ORDER, type SortBy, type SortOrder } from '$lib/config/sorting';
 import type { FluxResource } from '$lib/types/flux';
 import { fetchWithRetry } from '$lib/utils/fetch';
+import { logger } from '$lib/server/logger.js';
 
 export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, depends }) => {
 	const { type } = params;
@@ -98,7 +99,7 @@ export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, de
 			error: null
 		};
 	} catch (err) {
-		console.error(`Error fetching ${type}:`, err);
+		logger.error(`Error fetching ${type}:`, err);
 		return {
 			resourceType: type,
 			resourceInfo,

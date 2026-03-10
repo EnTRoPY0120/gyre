@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { LogOut, User as UserIcon, Shield, KeyRound, BadgeCheck } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
+	import { logger } from '$lib/utils/logger.js';
 	import { fade, scale } from 'svelte/transition';
 	import { getCsrfToken } from '$lib/utils/csrf';
 
@@ -27,7 +28,7 @@
 				window.location.href = '/login?loggedOut=true';
 			}
 		} catch (err) {
-			console.error('Logout failed:', err);
+			logger.error('Logout failed:', err);
 		}
 	}
 
