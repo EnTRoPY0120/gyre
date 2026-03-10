@@ -33,7 +33,7 @@
 	const isReceiver = $derived(resourceType === 'receivers');
 </script>
 
-<div id="overview-panel" role="tabpanel" aria-labelledby="overview-tab">
+<div>
 	<!-- Metadata and Conditions (always shown) -->
 	<div class="grid gap-6 lg:grid-cols-2">
 		<!-- Metadata Card -->
