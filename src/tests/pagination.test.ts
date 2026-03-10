@@ -69,6 +69,7 @@ describe('Pagination Logic', () => {
 			try {
 				await createUser(`${prefix}_${i}`, 'password123', 'viewer', `${prefix}_${i}@example.com`);
 			} catch (e) {
+				// eslint-disable-next-line no-console
 				console.error('Failed to create test user', e);
 			}
 		}

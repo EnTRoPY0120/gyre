@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { dev } from '$app/environment';
 
 import { env } from '$env/dynamic/public';
@@ -22,13 +23,23 @@ export function shouldLog(level: LogLevel): boolean {
 }
 
 function formatBrowserLog(level: LogLevel, args: unknown[]): unknown[] {
-	if (args.length > 0 && typeof args[0] === 'string') {
-		return [
-			`%c[${level.toUpperCase()}] %c${args[0]}`,
-			LOG_COLORS[level],
-			'color: inherit',
-			...args.slice(1)
-		];
+	if (args.length > 0) {
+		if (typeof args[0] === 'string') {
+			return [
+				`%c[${level.toUpperCase()}] %c${args[0]}`,
+				LOG_COLORS[level],
+				'color: inherit',
+				...args.slice(1)
+			];
+		} else if (args.length > 1 && typeof args[1] === 'string') {
+			return [
+				`%c[${level.toUpperCase()}] %c${args[1]}`,
+				LOG_COLORS[level],
+				'color: inherit',
+				args[0],
+				...args.slice(2)
+			];
+		}
 	}
 	return [`%c[${level.toUpperCase()}]`, LOG_COLORS[level], ...args];
 }
@@ -45,6 +56,10 @@ function formatBrowserLog(level: LogLevel, args: unknown[]): unknown[] {
  * - Use `logger.debug()` for granular state tracking (only visible in dev or if explicitly enabled).
  * - For expensive log computations, consider lazy evaluation by wrapping the log call in a check:
  *   `if (shouldLog('debug')) logger.debug(heavyComputation())`
+ *
+ * Signature Differences from Backend:
+ * - The frontend logger uses the browser console directly. While it supports `logger.info(obj, 'msg')` and
+ *   `logger.error(err, 'msg')`, complex nested object formatting relies on the browser's native console inspector.
  */
 export const logger = {
 	debug: (...args: unknown[]) => {
