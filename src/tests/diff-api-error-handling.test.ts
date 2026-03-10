@@ -7,6 +7,7 @@
  * is always called with the original error.
  */
 
+/* eslint-disable no-console */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { classifyDiffError } from '../lib/server/kubernetes/flux/diff-errors.js';
 
