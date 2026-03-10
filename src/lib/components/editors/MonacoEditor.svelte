@@ -147,7 +147,7 @@ import { registerFluxValidation } from './yamlValidator';
 				loading = false;
 				onReady?.();
 			} catch (err) {
-				logger.error('Failed to load Monaco Editor:', err);
+				logger.error(err, 'Failed to load Monaco Editor:');
 				error = err instanceof Error ? err.message : 'Failed to load editor';
 				showFallback = true;
 				loading = false;

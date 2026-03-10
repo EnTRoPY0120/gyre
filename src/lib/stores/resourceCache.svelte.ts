@@ -109,7 +109,7 @@ class ResourceCacheStore {
 			this.setList(type, items, namespace);
 			return items;
 		} catch (err) {
-			logger.error(`Error fetching ${type} list:`, err);
+			logger.error(err, `Error fetching ${type} list:`);
 			return [];
 		}
 	}
@@ -122,7 +122,7 @@ class ResourceCacheStore {
 			this.setResource(type, namespace, name, resource);
 			return resource;
 		} catch (err) {
-			logger.error(`Error fetching resource ${type}/${namespace}/${name}:`, err);
+			logger.error(err, `Error fetching resource ${type}/${namespace}/${name}:`);
 			return null;
 		}
 	}

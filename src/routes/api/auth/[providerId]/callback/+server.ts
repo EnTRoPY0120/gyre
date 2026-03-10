@@ -174,7 +174,7 @@ export const GET: RequestHandler = async (event) => {
 			throw err;
 		}
 
-		logger.error('OAuth callback error:', err);
+		logger.error(err, 'OAuth callback error:');
 
 		let errorMessage = 'Authentication failed';
 

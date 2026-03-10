@@ -24,7 +24,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			type: p.type
 		}));
 	} catch (error) {
-		logger.error('Failed to load auth providers:', error);
+		logger.error(error, 'Failed to load auth providers:');
 		// Continue without SSO providers - local login should still work
 	}
 
@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const authSettings = await getAuthSettings();
 		localLoginEnabled = authSettings.localLoginEnabled;
 	} catch (error) {
-		logger.error('Failed to load auth settings:', error);
+		logger.error(error, 'Failed to load auth settings:');
 		// Continue with local login enabled as fallback
 	}
 

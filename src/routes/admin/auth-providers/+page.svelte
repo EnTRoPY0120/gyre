@@ -243,7 +243,7 @@
 
 			await invalidateAll();
 		} catch (err) {
-			logger.error('Failed to toggle provider:', err);
+			logger.error(err, 'Failed to toggle provider:');
 		}
 	}
 

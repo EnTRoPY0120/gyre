@@ -152,7 +152,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 		return json({ providers: sanitizedProviders });
 	} catch (err) {
-		logger.error('Failed to list auth providers:', err);
+		logger.error(err, 'Failed to list auth providers:');
 		throw error(500, { message: 'Failed to load providers' });
 	}
 };
@@ -249,7 +249,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		});
 	} catch (err) {
-		logger.error('Failed to create auth provider:', err);
+		logger.error(err, 'Failed to create auth provider:');
 
 		// Re-throw SvelteKit errors
 		if (err instanceof Response) {

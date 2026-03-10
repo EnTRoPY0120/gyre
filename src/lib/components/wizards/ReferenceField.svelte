@@ -123,7 +123,7 @@ import { onMount } from 'svelte';
 			// Deduplicate and sort
 			resources = [...new Set(allNames)].sort();
 		} catch (err) {
-			logger.error('Failed to fetch resources:', err);
+			logger.error(err, 'Failed to fetch resources:');
 			resources = []; // Clear on error
 		} finally {
 			loading = false;

@@ -33,6 +33,17 @@ function formatBrowserLog(level: LogLevel, args: unknown[]): unknown[] {
 	return [`%c[${level.toUpperCase()}]`, LOG_COLORS[level], ...args];
 }
 
+/**
+ * Standardized Frontend Logger
+ *
+ * Usage Guidelines:
+ * - This logger mirrors the backend API but runs in the browser.
+ * - In production, `PUBLIC_LOG_LEVEL` defaults to `warn` to keep the console clean.
+ * - Use `logger.error()` for unhandled exceptions or critical UI failures.
+ * - Use `logger.warn()` for recoverable issues or deprecations.
+ * - Use `logger.info()` for significant user flows (e.g., "User signed in").
+ * - Use `logger.debug()` for granular state tracking (only visible in dev or if explicitly enabled).
+ */
 export const logger = {
 	debug: (...args: unknown[]) => {
 		if (shouldLog('debug')) console.debug(...formatBrowserLog('debug', args));

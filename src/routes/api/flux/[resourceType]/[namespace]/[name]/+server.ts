@@ -339,7 +339,7 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 			ipAddress: getClientAddress(),
 			success: true
 		}).catch((auditErr) => {
-			logger.error('Failed to log audit event for delete:', auditErr);
+			logger.error(auditErr, 'Failed to log audit event for delete:');
 		});
 
 		return new Response(null, { status: 204 });
@@ -357,7 +357,7 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 				}
 			});
 		} catch (auditErr) {
-			logger.error('Failed to log audit event for delete failure:', auditErr);
+			logger.error(auditErr, 'Failed to log audit event for delete failure:');
 		}
 
 		throw handleApiError(err, `Error deleting ${resolvedType} ${namespace}/${name}`);

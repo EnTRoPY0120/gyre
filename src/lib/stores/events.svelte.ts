@@ -120,7 +120,7 @@ class RealtimeStore {
 				this.lastNotificationState = new Map(parsed);
 			}
 		} catch (err) {
-			logger.error('[Storage] Failed to load persisted notifications:', err);
+			logger.error(err, '[Storage] Failed to load persisted notifications:');
 			// Clear corrupted data
 			localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
 			localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
@@ -139,7 +139,7 @@ class RealtimeStore {
 			const stateArray = Array.from(this.lastNotificationState.entries());
 			localStorage.setItem(NOTIFICATION_STATE_STORAGE_KEY, JSON.stringify(stateArray));
 		} catch (err) {
-			logger.error('[Storage] Failed to persist notifications:', err);
+			logger.error(err, '[Storage] Failed to persist notifications:');
 		}
 	}
 
@@ -183,7 +183,7 @@ class RealtimeStore {
 					const data: ResourceEvent = JSON.parse(event.data);
 					this.handleMessage(data);
 				} catch (err) {
-					logger.error('[SSE] Failed to parse message:', err);
+					logger.error(err, '[SSE] Failed to parse message:');
 				}
 			};
 
@@ -196,7 +196,7 @@ class RealtimeStore {
 				this.scheduleReconnect();
 			};
 		} catch (err) {
-			logger.error('[SSE] Failed to connect:', err);
+			logger.error(err, '[SSE] Failed to connect:');
 			this.status = 'error';
 			this.notifyStatusChange('error');
 			this.scheduleReconnect();
@@ -256,7 +256,7 @@ class RealtimeStore {
 			try {
 				callback(data);
 			} catch (err) {
-				logger.error('[SSE] Error in event callback:', err);
+				logger.error(err, '[SSE] Error in event callback:');
 			}
 		});
 
@@ -403,7 +403,7 @@ class RealtimeStore {
 			try {
 				callback(status);
 			} catch (err) {
-				logger.error('[SSE] Error in status callback:', err);
+				logger.error(err, '[SSE] Error in status callback:');
 			}
 		});
 	}

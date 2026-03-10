@@ -238,7 +238,7 @@ export const handle: Handle = async ({ event, resolve }) => {
  * HandleError - Global error handler
  */
 export function handleError({ error, event }: { error: unknown; event: { url: URL } }) {
-	logger.error({ err: error }, `Error in ${event.url.pathname}:`);
+	logger.error(error, `Error in ${event.url.pathname}:`);
 
 	return {
 		message: error instanceof Error ? error.message : 'An unexpected error occurred',

@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const backups = listBackups();
 		return { backups };
 	} catch (err) {
-		logger.error('Failed to load backups:', err);
+		logger.error(err, 'Failed to load backups:');
 		throw error(500, { message: 'Failed to load backups' });
 	}
 };

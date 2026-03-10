@@ -103,7 +103,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
-		logger.error('Failed to restore backup:', err);
+		logger.error(err, 'Failed to restore backup:');
 		throw error(500, err instanceof Error ? err.message : 'Failed to restore backup');
 	}
 };

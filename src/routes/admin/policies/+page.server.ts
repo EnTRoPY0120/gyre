@@ -110,7 +110,7 @@ export const actions: Actions = {
 
 			return { success: true, policyId };
 		} catch (error) {
-			logger.error('Error creating policy:', error);
+			logger.error(error, 'Error creating policy:');
 			return fail(500, { error: 'Failed to create policy' });
 		}
 	},
@@ -138,7 +138,7 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (error) {
-			logger.error('Error deleting policy:', error);
+			logger.error(error, 'Error deleting policy:');
 			return fail(500, { error: 'Failed to delete policy' });
 		}
 	},
@@ -167,7 +167,7 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (error) {
-			logger.error('Error binding policy:', error);
+			logger.error(error, 'Error binding policy:');
 			return fail(500, { error: 'Failed to bind policy to user' });
 		}
 	},
@@ -196,7 +196,7 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (error) {
-			logger.error('Error unbinding policy:', error);
+			logger.error(error, 'Error unbinding policy:');
 			return fail(500, { error: 'Failed to unbind policy from user' });
 		}
 	}

@@ -49,7 +49,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			}
 		};
 	} catch (err) {
-		logger.error('Failed to load settings:', err);
+		logger.error(err, 'Failed to load settings:');
 		throw error(500, { message: 'Failed to load settings' });
 	}
 };

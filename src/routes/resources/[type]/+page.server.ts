@@ -102,7 +102,7 @@ export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, de
 			error: null
 		};
 	} catch (err) {
-		logger.error(`Error fetching ${type}:`, err);
+		logger.error(err, `Error fetching ${type}:`);
 		return {
 			resourceType: type,
 			resourceInfo,

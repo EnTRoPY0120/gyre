@@ -366,7 +366,7 @@ async function markSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promis
 			body: patch
 		});
 	} catch (error) {
-		logger.error('Failed to mark secret as consumed:', error);
+		logger.error(error, 'Failed to mark secret as consumed:');
 	}
 }
 
@@ -440,7 +440,7 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 
 		return password;
 	} catch (error) {
-		logger.error('Failed to setup in-cluster admin:', error);
+		logger.error(error, 'Failed to setup in-cluster admin:');
 		return null;
 	}
 }
@@ -470,7 +470,7 @@ export async function validateInClusterAdmin(password: string): Promise<boolean>
 			await markSecretConsumed(api, namespace);
 			inClusterFirstLoginDone = true;
 		} catch (error) {
-			logger.error('Failed to mark secret as consumed:', error);
+			logger.error(error, 'Failed to mark secret as consumed:');
 		}
 	}
 

@@ -34,6 +34,18 @@ function log(level: pino.Level, args: any[]) {
 	return pinoLogger[level](args[0], args[1]);
 }
 
+/**
+ * Standardized Backend Logger (Pino)
+ *
+ * Usage Guidelines:
+ * - Always pass the `error` object as the FIRST argument to preserve stack traces.
+ *   Example: `logger.error(err, 'Failed to perform operation')`
+ * - Use `logger.info()` for significant application state changes (e.g., startup, login).
+ * - Use `logger.warn()` for non-fatal issues (e.g., retryable errors, rate limits).
+ * - Use `logger.error()` for unexpected failures requiring attention.
+ * - Use `logger.debug()` for detailed troubleshooting (only visible in dev).
+ * - Never log PII directly; use structured fields (e.g., { userId: user.id }) instead.
+ */
 export const logger = {
 	debug: (...args: any[]) => log('debug', args),
 	info: (...args: any[]) => log('info', args),

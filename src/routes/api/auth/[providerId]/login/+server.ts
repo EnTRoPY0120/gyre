@@ -113,7 +113,7 @@ export const GET: RequestHandler = async (event) => {
 			throw err;
 		}
 
-		logger.error('OAuth login error:', err);
+		logger.error(err, 'OAuth login error:');
 
 		// Handle OAuth-specific errors
 		if (err instanceof OAuthError) {

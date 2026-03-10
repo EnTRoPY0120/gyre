@@ -49,7 +49,7 @@ export function createAutoRefresh(options: AutoRefreshOptions = {}) {
 			}
 			lastRefreshTime = new SvelteDate();
 		} catch (error) {
-			logger.error('Auto-refresh failed:', error);
+			logger.error(error, 'Auto-refresh failed:');
 		} finally {
 			isRefreshing = false;
 		}

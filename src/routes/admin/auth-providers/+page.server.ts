@@ -24,7 +24,7 @@ export const load: PageServerLoad = async () => {
 			providers: sanitizedProviders
 		};
 	} catch (error) {
-		logger.error('Failed to load auth providers:', error);
+		logger.error(error, 'Failed to load auth providers:');
 		return {
 			providers: []
 		};

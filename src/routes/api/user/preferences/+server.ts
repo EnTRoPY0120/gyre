@@ -132,7 +132,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		return json({ success: true, preferences: mergedPreferences });
 	} catch (err) {
-		logger.error('Failed to update preferences:', err);
+		logger.error(err, 'Failed to update preferences:');
 
 		throw error(500, 'Failed to update preferences');
 	}

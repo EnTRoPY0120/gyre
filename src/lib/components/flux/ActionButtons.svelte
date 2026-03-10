@@ -38,7 +38,7 @@
 			const sanitized = sanitizeResource(resource);
 			return yaml.dump(sanitized, { noRefs: true, lineWidth: -1 });
 		} catch (err) {
-			logger.error('Failed to serialize resource:', err);
+			logger.error(err, 'Failed to serialize resource:');
 			return '';
 		}
 	});

@@ -13,7 +13,7 @@ export function toYaml(obj: Record<string, unknown>): string {
 			lineWidth: -1 // Disable line wrapping
 		});
 	} catch (e) {
-		logger.error('YAML conversion error:', e);
+		logger.error(e, 'YAML conversion error:');
 		return 'Error converting to YAML';
 	}
 }
@@ -25,7 +25,7 @@ export function toJson(obj: Record<string, unknown>): string {
 	try {
 		return JSON.stringify(obj, null, 2);
 	} catch (e) {
-		logger.error('JSON conversion error:', e);
+		logger.error(e, 'JSON conversion error:');
 		return 'Error converting to JSON';
 	}
 }
@@ -38,7 +38,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 		await navigator.clipboard.writeText(text);
 		return true;
 	} catch (err) {
-		logger.error('Failed to copy text: ', err);
+		logger.error(err, 'Failed to copy text: ');
 		return false;
 	}
 }
