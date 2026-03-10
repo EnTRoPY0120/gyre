@@ -5,8 +5,13 @@ import {
 	authenticateUser,
 	createSession,
 	getUserByUsername,
-	normalizeUsername
+	normalizeUsername,
+	hashPassword,
+	verifyPassword
 } from '$lib/server/auth';
+
+// Generate a real bcrypt hash at startup for timing-attack mitigation (avoids malformed-hash fast-path)
+const DUMMY_HASH: Promise<string> = hashPassword('__dummy_password_for_timing__');
 import { checkRateLimit, accountLockout } from '$lib/server/rate-limiter';
 
 export const _metadata = {
@@ -134,9 +139,7 @@ export const POST: RequestHandler = async (event) => {
 		const existingUser = await getUserByUsername(canonicalUsername);
 		if (!existingUser) {
 			// Dummy verification to mitigate timing attacks
-			const dummyHash = '$2a$12$LRYuS.uH5A0GvS1x3qfGue3h5o.7s6w5.55.55.55.55.55.55.55';
-			const { verifyPassword } = await import('$lib/server/auth');
-			await verifyPassword(password, dummyHash);
+			await verifyPassword(password, await DUMMY_HASH);
 
 			accountLockout.recordFailure(canonicalUsername, 5);
 			throw error(401, { message: 'Invalid username or password' });

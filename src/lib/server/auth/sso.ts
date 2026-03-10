@@ -86,6 +86,12 @@ export async function createOrUpdateSSOUser(
 
 	// Extract username and email from user info
 	const username = normalizeUsername(extractUsername(userInfo, providerConfig));
+	if (!username) {
+		console.error(
+			`Could not extract a valid username for SSO user ${userInfo.sub} from provider ${providerId}`
+		);
+		return { user: null, reason: 'user_not_found' };
+	}
 	const email = extractEmail(userInfo, providerConfig);
 
 	// Check domain allowlist (only for new users)
