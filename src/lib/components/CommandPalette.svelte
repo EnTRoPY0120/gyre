@@ -83,6 +83,7 @@
 			const descMatch = r.matches?.find((m) => m.key === 'description');
 			return {
 				item: r.item,
+				// Fuse.js types indices as ReadonlyArray<RangeTuple> but the exported type is wider; assert to match our signature.
 				labelSegments: highlightText(r.item.label, labelMatch?.indices as readonly [number, number][] | undefined),
 				descSegments: r.item.description
 					? highlightText(r.item.description, descMatch?.indices as readonly [number, number][] | undefined)
@@ -118,7 +119,8 @@
 	}
 
 	function isKeywordMatch(text: string, query: string): boolean {
-		return query.trim().length > 0 && text.toLowerCase().includes(query.trim().toLowerCase());
+		const trimmed = query.trim().toLowerCase();
+		return trimmed.length > 0 && text.toLowerCase().includes(trimmed);
 	}
 
 	// Reset selection when search changes
