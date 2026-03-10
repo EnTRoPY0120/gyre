@@ -2,10 +2,31 @@ import { type SQL, count, and, desc } from 'drizzle-orm';
 import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { getDb } from './index.js';
 
+const MAX_SEARCH_LENGTH = 100;
+
 export interface PaginationOptions {
 	search?: string;
 	limit?: number;
 	offset?: number;
+}
+
+/**
+ * Sanitize search input for SQL LIKE queries
+ * Escapes special characters: %, _, \
+ * Limits input length to prevent DoS attacks
+ */
+export function sanitizeSearchInput(input: string): string {
+	if (!input) return '';
+	
+	// Limit input length
+	const sanitized = input.slice(0, MAX_SEARCH_LENGTH);
+	
+	// Escape special LIKE characters
+	// Order matters: backslash first, then percent and underscore
+	return sanitized
+		.replace(/\\/g, '\\\\')
+		.replace(/%/g, '\\%')
+		.replace(/_/g, '\\_');
 }
 
 export interface PaginatedResult<T> {
