@@ -1,20 +1,7 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
 	import { formatDistanceToNow, formatDuration, intervalToDuration } from 'date-fns';
-
-	interface ReconciliationEntry {
-		id: string;
-		revision: string | null;
-		status: 'success' | 'failure' | 'unknown';
-		readyStatus: string | null;
-		readyReason: string | null;
-		readyMessage: string | null;
-		reconcileCompletedAt: string;
-		durationMs: number | null;
-		triggerType: 'automatic' | 'manual' | 'webhook' | 'rollback';
-		errorMessage: string | null;
-		specSnapshot: string | null;
-	}
+	import type { ReconciliationEntry } from '$lib/types/reconciliation';
 
 	let {
 		timeline = [],
