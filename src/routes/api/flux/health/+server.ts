@@ -1,7 +1,7 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { getKubeConfig } from '$lib/server/kubernetes/client.js';
+import { getKubeConfig, getPoolMetrics } from '$lib/server/kubernetes/client.js';
 import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
@@ -27,6 +27,16 @@ export const _metadata = {
 									configSource: z.enum(['ServiceAccount', 'kubeconfig']),
 									currentContext: z.string(),
 									availableContexts: z.array(z.string()),
+									connectionPool: z.object({
+										hits: z.number(),
+										misses: z.number(),
+										evictions: z.number(),
+										poolSizes: z.object({
+											customObjects: z.number(),
+											coreV1: z.number(),
+											appsV1: z.number()
+										})
+									}),
 									_debug: z.any().optional()
 								})
 							})
@@ -94,6 +104,7 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 				configSource: isInCluster ? 'ServiceAccount' : 'kubeconfig',
 				currentContext,
 				availableContexts: isInCluster ? [currentContext] : allContexts,
+				connectionPool: getPoolMetrics(),
 				_debug: { connectionSource }
 			}
 		};
