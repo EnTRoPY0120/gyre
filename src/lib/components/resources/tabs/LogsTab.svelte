@@ -177,7 +177,7 @@
 					{/if}
 				</div>
 
-				<div class="flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 p-1 dark:border-gray-600 dark:bg-gray-700/50">
+				<div role="group" aria-label="Log level filter" class="flex items-center gap-1 rounded-md border border-gray-200 bg-gray-50 p-1 dark:border-gray-600 dark:bg-gray-700/50">
 					{#each LEVEL_OPTIONS as level}
 						<button
 							type="button"
