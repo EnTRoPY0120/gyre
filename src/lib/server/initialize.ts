@@ -48,7 +48,11 @@ export async function shutdownGyre(): Promise<void> {
 				console.error(`   ✗ Error during ${task}:`, result.reason);
 			}
 		});
-		stopSessionCleanup();
+		try {
+			stopSessionCleanup();
+		} catch (error) {
+			console.error('   ✗ Error during stopSessionCleanup:', error);
+		}
 		await closeAllEventStreams();
 		console.log('   ✓ Cleanup schedulers and SSE connections stopped');
 	} catch (error) {
