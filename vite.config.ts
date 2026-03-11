@@ -13,6 +13,9 @@ export default defineConfig(({ mode }) => {
 		plugins: [tailwindcss(), sveltekit()],
 		server: {
 			fs: {
+				// Allow Vite dev server to serve files from the project root so that
+				// server-side modules (e.g. kubeconfig files, test fixtures) resolved
+				// relative to process.cwd() are reachable during development.
 				allow: ['.']
 			}
 		},
