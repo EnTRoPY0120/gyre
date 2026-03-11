@@ -47,14 +47,17 @@ if (typeof process !== 'undefined') {
 
 		await shutdownGyre();
 
-		// Force-exit after 30s if graceful shutdown hangs
+		// Force-exit after 15s if graceful shutdown hangs
+		// (K8s terminationGracePeriodSeconds defaults to 30s, so we want to exit before SIGKILL)
 		const forceExit = setTimeout(() => {
 			console.error('   ✗ Graceful shutdown timed out, forcing exit');
 			try {
 				closeDb();
-			} catch {}
+			} catch (err) {
+				console.error('   ✗ Error closing database at force-exit:', err);
+			}
 			process.exit(1);
-		}, 30_000);
+		}, 15_000);
 		forceExit.unref();
 
 		// In development (vite), sveltekit:shutdown is not emitted.
@@ -66,6 +69,7 @@ if (typeof process !== 'undefined') {
 			} catch (error) {
 				console.error('   ✗ Error closing database:', error);
 			}
+			clearTimeout(forceExit);
 			process.exit(0);
 		}
 	};
