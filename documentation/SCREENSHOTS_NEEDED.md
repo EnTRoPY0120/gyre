@@ -171,15 +171,15 @@ documentation/
 
 ## Current Status
 
-- [ ] Dashboard Overview
-- [ ] Real-time Monitoring
-- [ ] Multi-Cluster Management
-- [ ] Resource Detail View
-- [ ] RBAC/User Management
-- [ ] Login Screen
-- [ ] Installation Success
-- [ ] Mobile Dashboard
-- [ ] Theme Comparison
+- [x] Dashboard Overview
+- [x] Real-time Monitoring
+- [x] Multi-Cluster Management
+- [x] Resource Detail View
+- [x] RBAC/User Management
+- [x] Login Screen
+- [x] Installation Success
+- [x] Mobile Dashboard
+- [x] Theme Comparison (dark: hero-dashboard.png, light: dashboard-light.png)
 
 ---
 

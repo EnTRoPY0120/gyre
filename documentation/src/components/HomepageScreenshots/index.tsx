@@ -15,22 +15,22 @@ const ScreenshotList: ScreenshotItem[] = [
 		title: 'Dashboard Overview',
 		description:
 			'Get a complete view of all your FluxCD resources with real-time health monitoring across multiple clusters.',
-		imageSrc: '/gyre/img/screenshots/placeholder-dashboard.svg',
-		imageAlt: 'Gyre Dashboard Overview - Coming Soon'
+		imageSrc: '/gyre/img/screenshots/hero-dashboard.png',
+		imageAlt: 'Gyre Dashboard Overview'
 	},
 	{
 		title: 'Resource Management',
 		description:
 			'View, filter, and manage all FluxCD resources including Kustomizations, HelmReleases, Sources, and more.',
-		imageSrc: '/gyre/img/screenshots/placeholder-resources.svg',
-		imageAlt: 'Gyre Resource Management - Coming Soon'
+		imageSrc: '/gyre/img/screenshots/feature-realtime.png',
+		imageAlt: 'Gyre Resource Management'
 	},
 	{
 		title: 'Detailed Insights',
 		description:
 			'Drill down into individual resources with YAML viewing, status conditions, events, and action controls.',
-		imageSrc: '/gyre/img/screenshots/placeholder-detail.svg',
-		imageAlt: 'Gyre Resource Detail View - Coming Soon'
+		imageSrc: '/gyre/img/screenshots/feature-resourcedetail.png',
+		imageAlt: 'Gyre Resource Detail View'
 	}
 ];
 
@@ -40,9 +40,6 @@ function Screenshot({ title, description, imageSrc, imageAlt }: ScreenshotItem) 
 			<div className={styles.screenshotCard}>
 				<div className={styles.screenshotImageWrapper}>
 					<img src={imageSrc} alt={imageAlt} className={styles.screenshotImage} />
-					<div className={styles.placeholderOverlay}>
-						<span className={styles.placeholderText}>Screenshot Coming Soon</span>
-					</div>
 				</div>
 				<div className={styles.screenshotContent}>
 					<Heading as="h3" className={styles.screenshotTitle}>
@@ -72,15 +69,6 @@ export default function HomepageScreenshots(): ReactNode {
 					{ScreenshotList.map((props, idx) => (
 						<Screenshot key={idx} {...props} />
 					))}
-				</div>
-				<div className={styles.screenshotNote}>
-					<p>
-						📸 Screenshots coming soon! Check the{' '}
-						<a href="https://github.com/entropy0120/gyre/tree/main/documentation/SCREENSHOTS_NEEDED.md">
-							screenshot requirements
-						</a>{' '}
-						if you want to contribute.
-					</p>
 				</div>
 			</div>
 		</section>

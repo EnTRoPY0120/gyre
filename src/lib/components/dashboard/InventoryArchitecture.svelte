@@ -127,7 +127,7 @@
 <div class="pt-4">
 	<div class="mb-8 flex items-center justify-between">
 		<h2 class="font-display text-2xl font-black tracking-tight text-foreground">
-			Inventory Architecture
+			Inventory 
 		</h2>
 		<div
 			class="mx-8 h-[2px] flex-1 bg-gradient-to-r from-border/50 via-border/10 to-transparent"
