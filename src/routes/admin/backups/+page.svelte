@@ -8,7 +8,9 @@
 		Upload,
 		HardDrive,
 		AlertTriangle,
-		Loader2
+		Loader2,
+		Lock,
+		LockOpen
 	} from 'lucide-svelte';
 	import { formatDistanceToNow } from 'date-fns';
 	import Icon from '$lib/components/ui/Icon.svelte';
@@ -17,6 +19,7 @@
 		filename: string;
 		sizeBytes: number;
 		createdAt: string;
+		encrypted: boolean;
 	}
 
 	let { data } = $props<{
@@ -111,7 +114,7 @@
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement('a');
 			a.href = url;
-			a.download = filename;
+			a.download = filename.endsWith('.enc') ? filename.replace(/\.enc$/, '') : filename;
 			document.body.appendChild(a);
 			a.click();
 			document.body.removeChild(a);
@@ -299,6 +302,7 @@
 						<th class="px-4 py-3 font-medium text-slate-400">Filename</th>
 						<th class="px-4 py-3 font-medium text-slate-400">Size</th>
 						<th class="px-4 py-3 font-medium text-slate-400">Created</th>
+						<th class="px-4 py-3 font-medium text-slate-400">Encryption</th>
 						<th class="px-4 py-3 text-right font-medium text-slate-400">Actions</th>
 					</tr>
 				</thead>
@@ -323,6 +327,19 @@
 										>{formatTimestamp(backup.createdAt)}</span
 									>
 								</div>
+							</td>
+							<td class="px-4 py-3">
+								{#if backup.encrypted}
+									<div class="flex items-center gap-1.5 text-emerald-400">
+										<Lock size={13} />
+										<span class="text-xs font-medium">AES-256-GCM</span>
+									</div>
+								{:else}
+									<div class="flex items-center gap-1.5 text-amber-500">
+										<LockOpen size={13} />
+										<span class="text-xs font-medium">Unencrypted</span>
+									</div>
+								{/if}
 							</td>
 							<td class="px-4 py-3">
 								<div class="flex items-center justify-end gap-1">
@@ -365,7 +382,7 @@
 	</div>
 
 	<!-- Info Cards -->
-	<div class="grid gap-6 md:grid-cols-2">
+	<div class="grid gap-6 md:grid-cols-3">
 		<div
 			class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/20"
 		>
@@ -383,6 +400,23 @@
 			<p class="mt-2 text-sm text-purple-800 dark:text-purple-200">
 				Upload a previously downloaded backup file to restore the database. A safety backup is
 				always created before restoring. The file must be a valid Gyre SQLite database.
+			</p>
+		</div>
+
+		<div
+			class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-900/20"
+		>
+			<h3 class="font-semibold text-emerald-900 dark:text-emerald-100">Encryption at Rest</h3>
+			<p class="mt-2 text-sm text-emerald-800 dark:text-emerald-200">
+				Set <code class="rounded bg-emerald-100 px-1 dark:bg-emerald-900">BACKUP_ENCRYPTION_KEY</code>
+				to a 64-character hex string to enable AES-256-GCM encryption. Generate a key with:
+				<code class="mt-1 block rounded bg-emerald-100 px-1 dark:bg-emerald-900"
+					>openssl rand -hex 32</code
+				>
+			</p>
+			<p class="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
+				⚠️ Changing the key renders existing encrypted backups unreadable. Decrypt and re-encrypt
+				them before rotating.
 			</p>
 		</div>
 	</div>

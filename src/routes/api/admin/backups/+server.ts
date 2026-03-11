@@ -15,7 +15,11 @@ import { createBackup, listBackups, deleteBackup } from '$lib/server/backup';
 const backupSchema = z.object({
 	filename: z.string().openapi({ example: 'gyre-backup-2024-01-15T10-30-00.db' }),
 	sizeBytes: z.number().openapi({ example: 1048576 }),
-	createdAt: z.string().openapi({ example: '2024-01-15T10:30:00.000Z' })
+	createdAt: z.string().openapi({ example: '2024-01-15T10:30:00.000Z' }),
+	encrypted: z.boolean().openapi({
+		example: true,
+		description: 'Whether the backup file is encrypted at rest with AES-256-GCM'
+	})
 });
 
 export const _metadata = {
