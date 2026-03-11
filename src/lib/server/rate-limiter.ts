@@ -293,11 +293,14 @@ export class SSEConnectionLimiter {
 		userId: string,
 		maxPerSession: number,
 		maxPerUser: number
-	): { allowed: true; release: () => void } | { allowed: false; reason: string } {
+	):
+		| { allowed: true; release: () => void }
+		| { allowed: false; limitType: 'session_limit' | 'user_limit'; reason: string } {
 		const sessionCount = this.sessionConnections.get(sessionId) ?? 0;
 		if (sessionCount >= maxPerSession) {
 			return {
 				allowed: false,
+				limitType: 'session_limit',
 				reason: `Too many SSE connections for this session (max ${maxPerSession})`
 			};
 		}
@@ -306,6 +309,7 @@ export class SSEConnectionLimiter {
 		if (userCount >= maxPerUser) {
 			return {
 				allowed: false,
+				limitType: 'user_limit',
 				reason: `Too many SSE connections for this user (max ${maxPerUser})`
 			};
 		}

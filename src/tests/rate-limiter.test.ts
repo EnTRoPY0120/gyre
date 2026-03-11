@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeEach, spyOn } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
-import { RateLimiter } from '../lib/server/rate-limiter';
+import { RateLimiter, SSEConnectionLimiter } from '../lib/server/rate-limiter';
 
 describe('RateLimiter', () => {
 	let limiter: RateLimiter;
@@ -103,6 +103,133 @@ describe('RateLimiter', () => {
 		test('handles very large limit', () => {
 			const result = limiter.check('big-limit', 1_000_000, 60_000);
 			expect(result.limited).toBe(false);
+		});
+	});
+});
+
+describe('SSEConnectionLimiter', () => {
+	let limiter: SSEConnectionLimiter;
+
+	beforeEach(() => {
+		limiter = new SSEConnectionLimiter();
+	});
+
+	describe('acquire', () => {
+		test('allows a connection under both limits', () => {
+			const result = limiter.acquire('session-1', 'user-1', 3, 5);
+			expect(result.allowed).toBe(true);
+		});
+
+		test('blocks when session limit is reached', () => {
+			limiter.acquire('session-1', 'user-1', 2, 10);
+			limiter.acquire('session-1', 'user-2', 2, 10);
+
+			const blocked = limiter.acquire('session-1', 'user-3', 2, 10);
+			expect(blocked.allowed).toBe(false);
+			if (!blocked.allowed) {
+				expect(blocked.limitType).toBe('session_limit');
+			}
+		});
+
+		test('blocks when user limit is reached', () => {
+			limiter.acquire('session-1', 'user-1', 10, 2);
+			limiter.acquire('session-2', 'user-1', 10, 2);
+
+			const blocked = limiter.acquire('session-3', 'user-1', 10, 2);
+			expect(blocked.allowed).toBe(false);
+			if (!blocked.allowed) {
+				expect(blocked.limitType).toBe('user_limit');
+			}
+		});
+
+		test('session limit is checked before user limit', () => {
+			limiter.acquire('session-1', 'user-1', 1, 1);
+
+			const blocked = limiter.acquire('session-1', 'user-1', 1, 1);
+			expect(blocked.allowed).toBe(false);
+			if (!blocked.allowed) {
+				expect(blocked.limitType).toBe('session_limit');
+			}
+		});
+
+		test('different sessions for the same user are tracked independently', () => {
+			const r1 = limiter.acquire('session-1', 'user-1', 3, 5);
+			const r2 = limiter.acquire('session-2', 'user-1', 3, 5);
+			expect(r1.allowed).toBe(true);
+			expect(r2.allowed).toBe(true);
+		});
+
+		test('different users for the same session are tracked independently', () => {
+			const r1 = limiter.acquire('session-1', 'user-1', 5, 3);
+			const r2 = limiter.acquire('session-1', 'user-2', 5, 3);
+			expect(r1.allowed).toBe(true);
+			expect(r2.allowed).toBe(true);
+		});
+	});
+
+	describe('release', () => {
+		test('frees the slot so a new connection is allowed', () => {
+			const result = limiter.acquire('session-1', 'user-1', 1, 1);
+			expect(result.allowed).toBe(true);
+			if (!result.allowed) return;
+
+			const blocked = limiter.acquire('session-1', 'user-1', 1, 1);
+			expect(blocked.allowed).toBe(false);
+
+			result.release();
+
+			const allowed = limiter.acquire('session-1', 'user-1', 1, 1);
+			expect(allowed.allowed).toBe(true);
+		});
+
+		test('release is idempotent – calling it twice does not double-decrement', () => {
+			const r1 = limiter.acquire('session-1', 'user-1', 2, 2);
+			const r2 = limiter.acquire('session-1', 'user-1', 2, 2);
+			expect(r1.allowed).toBe(true);
+			expect(r2.allowed).toBe(true);
+
+			if (!r1.allowed || !r2.allowed) return;
+
+			r1.release();
+			r1.release(); // second call must be a no-op
+
+			// Only one slot was freed; r2 still holds the other
+			const counts = limiter.getConnectionCounts('session-1', 'user-1');
+			expect(counts.session).toBe(1);
+			expect(counts.user).toBe(1);
+		});
+
+		test('release decrements both session and user counters', () => {
+			const result = limiter.acquire('session-1', 'user-1', 5, 5);
+			expect(result.allowed).toBe(true);
+			if (!result.allowed) return;
+
+			let counts = limiter.getConnectionCounts('session-1', 'user-1');
+			expect(counts.session).toBe(1);
+			expect(counts.user).toBe(1);
+
+			result.release();
+
+			counts = limiter.getConnectionCounts('session-1', 'user-1');
+			expect(counts.session).toBe(0);
+			expect(counts.user).toBe(0);
+		});
+	});
+
+	describe('getConnectionCounts', () => {
+		test('returns zero for unknown session and user', () => {
+			const counts = limiter.getConnectionCounts('unknown-session', 'unknown-user');
+			expect(counts.session).toBe(0);
+			expect(counts.user).toBe(0);
+		});
+
+		test('reflects current active connections', () => {
+			limiter.acquire('session-1', 'user-1', 5, 5);
+			limiter.acquire('session-1', 'user-1', 5, 5);
+
+			const counts = limiter.getConnectionCounts('session-1', 'user-1');
+			expect(counts.session).toBe(2);
+			expect(counts.user).toBe(2);
 		});
 	});
 });
