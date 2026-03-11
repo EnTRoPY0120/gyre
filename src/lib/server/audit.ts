@@ -161,7 +161,7 @@ export async function logClusterChange(
 	});
 }
 
-export type AuditLogSortBy = 'date' | 'action' | 'user';
+export type AuditLogSortBy = 'date' | 'action';
 export type AuditLogSortOrder = 'asc' | 'desc';
 
 /**
