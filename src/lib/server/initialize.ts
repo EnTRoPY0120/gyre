@@ -29,9 +29,15 @@ let isShuttingDown = false;
 export async function shutdownGyre(): Promise<void> {
 	console.log('\n🛑 Shutting down Gyre background tasks...');
 	try {
-		await Promise.all([stopCleanup(), stopAuditLogCleanup()]);
+		const results = await Promise.allSettled([stopCleanup(), stopAuditLogCleanup()]);
+		results.forEach((result, index) => {
+			if (result.status === 'rejected') {
+				const task = index === 0 ? 'stopCleanup' : 'stopAuditLogCleanup';
+				console.error(`   ✗ Error during ${task}:`, result.reason);
+			}
+		});
 		stopSessionCleanup();
-		closeAllEventStreams();
+		await closeAllEventStreams();
 		console.log('   ✓ Cleanup schedulers and SSE connections stopped');
 	} catch (error) {
 		console.error('   ✗ Error during shutdown:', error);
@@ -48,8 +54,6 @@ if (typeof process !== 'undefined') {
 		setEventBusShuttingDown();
 		console.log(`\n🛑 Received ${signal}, starting graceful shutdown...`);
 
-		await shutdownGyre();
-
 		// Force-exit after 15s if graceful shutdown hangs
 		// (K8s terminationGracePeriodSeconds defaults to 30s, so we want to exit before SIGKILL)
 		forceExit = setTimeout(() => {
@@ -64,6 +68,13 @@ if (typeof process !== 'undefined') {
 		}, 15_000);
 		forceExit.unref();
 
+		await shutdownGyre();
+
+		if (forceExit) {
+			clearTimeout(forceExit);
+			forceExit = null;
+		}
+
 		// In development (vite), sveltekit:shutdown is not emitted.
 		// adapter-node only emits sveltekit:shutdown in production builds.
 		// We exit immediately after cleanup.
@@ -74,13 +85,16 @@ if (typeof process !== 'undefined') {
 			} catch (error) {
 				console.error('   ✗ Error closing database:', error);
 			}
-			if (forceExit) clearTimeout(forceExit);
 			process.exit(0);
 		}
 	};
 
-	process.on('SIGTERM', () => handleSignal('SIGTERM'));
-	process.on('SIGINT', () => handleSignal('SIGINT'));
+	process.on('SIGTERM', () =>
+		handleSignal('SIGTERM').catch((err) => console.error('Signal handler error:', err))
+	);
+	process.on('SIGINT', () =>
+		handleSignal('SIGINT').catch((err) => console.error('Signal handler error:', err))
+	);
 
 	process.on('sveltekit:shutdown', async () => {
 		console.log('   ✓ HTTP server stopped');
