@@ -1,6 +1,10 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+let _cachedSecret: string | null = null;
+
 const getSecret = (): string => {
+	if (_cachedSecret) return _cachedSecret;
+
 	const secret = process.env.AUTH_ENCRYPTION_KEY;
 	const isProd = process.env.NODE_ENV === 'production';
 
@@ -14,7 +18,7 @@ const getSecret = (): string => {
 		console.warn(
 			'⚠️  AUTH_ENCRYPTION_KEY not set! Using development-only CSRF secret. DO NOT USE IN PRODUCTION!'
 		);
-		return 'insecure-dev-fallback-do-not-use-in-production-0123456789abcdef';
+		return (_cachedSecret = 'insecure-dev-fallback-do-not-use-in-production-0123456789abcdef');
 	}
 
 	// Validate key format (should be 64 hex characters = 32 bytes)
@@ -24,7 +28,7 @@ const getSecret = (): string => {
 		);
 	}
 
-	return secret;
+	return (_cachedSecret = secret);
 };
 
 /**
@@ -39,6 +43,10 @@ export function generateCsrfToken(sessionId: string): string {
 export function validateCsrfToken(sessionId: string, token: string): boolean {
 	if (!token) return false;
 	const expected = generateCsrfToken(sessionId);
+
+	// Fast-path for length mismatch to avoid unnecessary Buffer operations
+	if (token.length !== expected.length) return false;
+
 	try {
 		return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(token, 'hex'));
 	} catch {
