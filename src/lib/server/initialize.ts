@@ -17,7 +17,7 @@ import { seedAuthProviders } from './auth/seed-providers.js';
 import { scheduleCleanup, stopCleanup } from './kubernetes/flux/reconciliation-cleanup.js';
 import { scheduleSessionCleanup, stopSessionCleanup } from './auth/session-cleanup.js';
 import { scheduleAuditLogCleanup, stopAuditLogCleanup } from './audit.js';
-import { closeAllEventStreams } from './events.js';
+import { closeAllEventStreams, setEventBusShuttingDown } from './events.js';
 
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
@@ -45,6 +45,7 @@ if (typeof process !== 'undefined') {
 	const handleSignal = async (signal: string) => {
 		if (isShuttingDown) return;
 		isShuttingDown = true;
+		setEventBusShuttingDown();
 		console.log(`\n🛑 Received ${signal}, starting graceful shutdown...`);
 
 		await shutdownGyre();
@@ -52,7 +53,7 @@ if (typeof process !== 'undefined') {
 		// Force-exit after 15s if graceful shutdown hangs
 		// (K8s terminationGracePeriodSeconds defaults to 30s, so we want to exit before SIGKILL)
 		forceExit = setTimeout(() => {
-			console.log('   ℹ Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
+			console.warn('   ⚠️  Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
 			console.warn('   ⚠️  Force-exiting: any in-flight DB requests will fail');
 			try {
 				closeDb();
@@ -81,9 +82,18 @@ if (typeof process !== 'undefined') {
 	process.on('SIGTERM', () => handleSignal('SIGTERM'));
 	process.on('SIGINT', () => handleSignal('SIGINT'));
 
-	process.on('sveltekit:shutdown', () => {
+	process.on('sveltekit:shutdown', async () => {
 		console.log('   ✓ HTTP server stopped');
 		if (forceExit) clearTimeout(forceExit);
+
+		// If sveltekit:shutdown fires without prior signal (adapter handled it),
+		// run shutdown now to ensure cleanup completes
+		if (!isShuttingDown) {
+			isShuttingDown = true;
+			setEventBusShuttingDown();
+			await shutdownGyre();
+		}
+
 		try {
 			closeDb();
 			console.log('   ✓ Database connection closed');

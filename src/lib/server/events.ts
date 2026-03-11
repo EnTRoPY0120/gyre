@@ -44,19 +44,40 @@ interface ClusterContext {
 // Map of active polling workers per cluster
 const activeWorkers = new Map<string, ClusterContext>();
 
+// Shutdown flag to prevent new subscriptions during shutdown
+let isShuttingDown = false;
+
+export function isShuttingDownEventBus(): boolean {
+	return isShuttingDown;
+}
+
+/**
+ * Mark the event bus as shutting down to prevent new subscriptions
+ */
+export function setEventBusShuttingDown(): void {
+	isShuttingDown = true;
+}
+
 /**
  * Close all active event streams (used during graceful shutdown)
  */
 export function closeAllEventStreams() {
 	console.log('[EventBus] Shutting down all event streams...');
+	isShuttingDown = true;
+
 	for (const [clusterId, context] of activeWorkers.entries()) {
+		// Broadcast SHUTDOWN to all subscribers - this will trigger their unsubscribe()
+		// which will call stopWorker and remove from activeWorkers, so we don't call stopWorker here
 		broadcast(context, {
 			type: 'SHUTDOWN',
 			clusterId,
 			timestamp: new Date().toISOString()
 		});
-		stopWorker(context);
-		context.subscribers.clear();
+		// Subscribers are already cleared by their unsubscribe callbacks during broadcast
+		// Only clear if context still exists (wasn't already deleted by unsubscribe)
+		if (activeWorkers.has(clusterId)) {
+			context.subscribers.clear();
+		}
 	}
 	activeWorkers.clear();
 }
@@ -67,6 +88,12 @@ export function closeAllEventStreams() {
  * @param subscriber - Callback for events
  */
 export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluster'): () => void {
+	// Prevent new subscriptions during shutdown
+	if (isShuttingDown) {
+		console.warn(`[EventBus] Rejecting new subscription for cluster ${clusterId}: shutting down`);
+		return () => {};
+	}
+
 	let context = activeWorkers.get(clusterId);
 
 	if (!context) {
@@ -140,9 +167,7 @@ function stopWorker(context: ClusterContext) {
 		clearInterval(context.heartbeatInterval);
 		context.heartbeatInterval = null;
 	}
-	console.log(
-		`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId} (no active subscribers)`
-	);
+	console.log(`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId}`);
 }
 
 function broadcast(context: ClusterContext, event: SSEEvent) {
