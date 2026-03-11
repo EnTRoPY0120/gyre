@@ -1,4 +1,6 @@
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
+
+spyOn(console, 'log').mockImplementation(() => {});
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { eq } from 'drizzle-orm';

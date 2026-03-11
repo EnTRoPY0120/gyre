@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, spyOn } from 'bun:test';
 
-// Suppress console.error noise from handleK8sError's server-side logging.
+// Suppress console noise from handleK8sError's server-side logging and DB init.
+spyOn(console, 'log').mockImplementation(() => {});
 spyOn(console, 'error').mockImplementation(() => {});
 import * as k8s from '@kubernetes/client-node';
 import {
