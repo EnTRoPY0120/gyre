@@ -1,4 +1,7 @@
-import { describe, test, expect, beforeEach } from 'bun:test';
+import { describe, test, expect, beforeEach, spyOn } from 'bun:test';
+
+// Suppress console.error noise from handleK8sError's server-side logging.
+spyOn(console, 'error').mockImplementation(() => {});
 import * as k8s from '@kubernetes/client-node';
 import {
 	DEFAULT_TIMEOUT_MS,
