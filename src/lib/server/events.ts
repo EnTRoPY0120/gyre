@@ -62,13 +62,12 @@ export async function closeAllEventStreams() {
 	console.log('[EventBus] Shutting down all event streams...');
 	isShuttingDown = true;
 
+	// Collect inflight promises before touching any context so the broadcast loop
+	// below is not delayed by sequential awaits.
+	const inflightPromises: Array<[string, Promise<void>]> = [];
 	for (const [clusterId, context] of Array.from(activeWorkers.entries())) {
 		if (context.inflightPollPromise) {
-			try {
-				await context.inflightPollPromise;
-			} catch (err) {
-				console.error(`[EventBus] Error awaiting poll for cluster ${clusterId}:`, err);
-			}
+			inflightPromises.push([clusterId, context.inflightPollPromise]);
 		}
 
 		// Broadcast SHUTDOWN to all subscribers - this will trigger their unsubscribe()
@@ -89,6 +88,17 @@ export async function closeAllEventStreams() {
 			context.subscribers.clear();
 		}
 	}
+
+	// Await all inflight polls concurrently now that all workers are stopped.
+	const pollResults = await Promise.allSettled(inflightPromises.map(([, p]) => p));
+	pollResults.forEach((result, i) => {
+		if (result.status === 'rejected') {
+			console.error(
+				`[EventBus] Error awaiting poll for cluster ${inflightPromises[i][0]}:`,
+				result.reason
+			);
+		}
+	});
 	activeWorkers.clear();
 	// Reset metrics
 	activeWorkersGauge.set(0);
