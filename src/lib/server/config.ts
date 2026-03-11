@@ -6,6 +6,8 @@ export const IS_PROD = process.env.NODE_ENV === 'production';
 
 /**
  * Default cookie options for security.
+ * NOTE: secure: IS_PROD allows cookies to work over HTTP in local development.
+ * In production, secure is always true to ensure cookies are only sent over HTTPS.
  */
 export const DEFAULT_COOKIE_OPTIONS = {
 	path: '/',

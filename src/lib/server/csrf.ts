@@ -56,9 +56,5 @@ export function validateCsrfToken(sessionId: string, token: string): boolean {
 		return false;
 	}
 
-	try {
-		return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(token, 'hex'));
-	} catch {
-		return false;
-	}
+	return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(token, 'hex'));
 }
