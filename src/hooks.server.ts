@@ -77,22 +77,27 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// For API routes return a JSON 413.
 		// For page/form routes redirect back to the same URL with an error param so
 		// the user sees the form rather than a raw JSON response in the browser.
+		// NOTE: Pages that receive this redirect must read ?_error=payload_too_large
+		// from their load function and surface it to the user.
 		if (path.startsWith('/api/')) {
 			return recordResponse(
 				new Response(
 					JSON.stringify({
 						error: 'Payload Too Large',
-						message: `Request payload exceeds maximum size of ${formatSize(sizeValidation.limit!)}`
+						message: `Request payload exceeds maximum size of ${formatSize(sizeValidation.limit)}`
 					}),
 					{ status: 413, headers: { 'Content-Type': 'application/json' } }
 				)
 			);
 		}
 
+		// Preserve existing query params (e.g. search/pagination state) in the redirect.
+		const redirectParams = new URLSearchParams(url.search);
+		redirectParams.set('_error', 'payload_too_large');
 		return recordResponse(
 			new Response(null, {
 				status: 303,
-				headers: { Location: `${path}?_error=payload_too_large` }
+				headers: { Location: `${path}?${redirectParams}` }
 			})
 		);
 	}
