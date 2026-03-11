@@ -1,4 +1,6 @@
-import { describe, test, expect, beforeEach } from 'bun:test';
+import { describe, test, expect, beforeEach, spyOn } from 'bun:test';
+
+spyOn(console, 'log').mockImplementation(() => {});
 import { RateLimiter } from '../lib/server/rate-limiter';
 
 describe('RateLimiter', () => {
