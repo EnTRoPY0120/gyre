@@ -185,6 +185,8 @@ function stopWorker(context: ClusterContext) {
 }
 
 function broadcast(context: ClusterContext, event: SSEEvent) {
+	// The loop is fault-tolerant: if a subscriber callback throws (e.g. during SHUTDOWN due to a closed stream),
+	// it is caught and logged, ensuring remaining subscribers still receive the event.
 	for (const subscriber of context.subscribers) {
 		try {
 			subscriber(event);
@@ -200,74 +202,130 @@ function broadcast(context: ClusterContext, event: SSEEvent) {
 async function poll(context: ClusterContext) {
 	if (!context.isActive) return;
 
-	context.inflightPollPromise = (async () => {
-		try {
-			for (const resourceType of WATCH_RESOURCES) {
-				try {
-					// Pass clusterId to listFluxResources to get resources from the correct cluster
-					const resourceList = await listFluxResources(
-						resourceType,
-						context.clusterId === 'in-cluster' ? undefined : context.clusterId
-					);
+	let resolvePoll: () => void;
+	context.inflightPollPromise = new Promise((resolve) => {
+		resolvePoll = resolve;
+	});
 
-					resourcePollsTotal.labels(context.clusterId, resourceType, 'success').inc();
+	try {
+		for (const resourceType of WATCH_RESOURCES) {
+			try {
+				// Pass clusterId to listFluxResources to get resources from the correct cluster
+				const resourceList = await listFluxResources(
+					resourceType,
+					context.clusterId === 'in-cluster' ? undefined : context.clusterId
+				);
 
-					if (resourceList && resourceList.items) {
-						const currentMessageKeys = new Set<string>();
+				resourcePollsTotal.labels(context.clusterId, resourceType, 'success').inc();
 
-						for (const resource of resourceList.items) {
-							const key = `${resourceType}/${resource.metadata.namespace}/${resource.metadata.name}`;
-							currentMessageKeys.add(key);
+				if (resourceList && resourceList.items) {
+					const currentMessageKeys = new Set<string>();
 
-							const conditions = resource.status?.conditions?.map((c: K8sCondition) => ({
-								type: c.type,
-								status: c.status,
-								reason: c.reason,
-								message: c.message
-							}));
+					for (const resource of resourceList.items) {
+						const key = `${resourceType}/${resource.metadata.namespace}/${resource.metadata.name}`;
+						currentMessageKeys.add(key);
 
-							const currentState = JSON.stringify({
-								resourceVersion: resource.metadata?.resourceVersion,
-								generation: resource.metadata?.generation,
-								observedGeneration: resource.status?.observedGeneration
-							});
+						const conditions = resource.status?.conditions?.map((c: K8sCondition) => ({
+							type: c.type,
+							status: c.status,
+							reason: c.reason,
+							message: c.message
+						}));
 
-							const readyCondition = conditions?.find((c: { type: string }) => c.type === 'Ready');
+						const currentState = JSON.stringify({
+							resourceVersion: resource.metadata?.resourceVersion,
+							generation: resource.metadata?.generation,
+							observedGeneration: resource.status?.observedGeneration
+						});
 
-							// Update resource status gauge
-							fluxResourceStatusGauge
-								.labels(
-									context.clusterId,
+						const readyCondition = conditions?.find((c: { type: string }) => c.type === 'Ready');
+
+						// Update resource status gauge
+						fluxResourceStatusGauge
+							.labels(
+								context.clusterId,
+								resourceType,
+								resource.metadata.namespace || 'unknown',
+								resource.metadata.name || 'unknown',
+								'Ready'
+							)
+							.set(readyCondition?.status === 'True' ? 1 : 0);
+
+						const revision = getResourceRevision(resource);
+
+						const notificationState = JSON.stringify({
+							revision: revision,
+							readyStatus: readyCondition?.status,
+							readyReason: readyCondition?.reason,
+							messagePreview: readyCondition?.message?.substring(0, 100) || ''
+						});
+
+						const previousState = context.lastStates.get(key);
+
+						const now = Date.now();
+						if (!context.resourceFirstSeen.has(key)) {
+							context.resourceFirstSeen.set(key, now);
+						}
+						const firstSeen = context.resourceFirstSeen.get(key) || now;
+						const isSettled = now - firstSeen > SETTLING_PERIOD_MS;
+
+						if (!previousState) {
+							if (isSettled) {
+								resourceUpdatesTotal.labels(context.clusterId, resourceType, 'added').inc();
+
+								// Capture initial reconciliation history
+								try {
+									await captureReconciliation({
+										resourceType,
+										namespace: resource.metadata.namespace || '',
+										name: resource.metadata.name || '',
+										clusterId: context.clusterId,
+										resource,
+										triggerType: 'automatic'
+									});
+								} catch (err) {
+									console.error('[EventBus] Failed to capture reconciliation history:', err);
+									// Don't fail event broadcast if history capture fails
+								}
+
+								broadcast(context, {
+									type: 'ADDED',
+									clusterId: context.clusterId,
 									resourceType,
-									resource.metadata.namespace || 'unknown',
-									resource.metadata.name || 'unknown',
-									'Ready'
-								)
-								.set(readyCondition?.status === 'True' ? 1 : 0);
-
-							const revision = getResourceRevision(resource);
-
-							const notificationState = JSON.stringify({
-								revision: revision,
-								readyStatus: readyCondition?.status,
-								readyReason: readyCondition?.reason,
-								messagePreview: readyCondition?.message?.substring(0, 100) || ''
-							});
-
-							const previousState = context.lastStates.get(key);
-
-							const now = Date.now();
-							if (!context.resourceFirstSeen.has(key)) {
-								context.resourceFirstSeen.set(key, now);
+									resource: {
+										metadata: {
+											name: resource.metadata.name,
+											namespace: resource.metadata.namespace,
+											uid: resource.metadata.uid || 'unknown'
+										},
+										status: resource.status
+									},
+									timestamp: new Date().toISOString()
+								});
 							}
-							const firstSeen = context.resourceFirstSeen.get(key) || now;
-							const isSettled = now - firstSeen > SETTLING_PERIOD_MS;
+							context.lastNotificationStates.set(key, notificationState);
+						} else if (previousState && previousState !== currentState) {
+							const previousNotificationState = context.lastNotificationStates.get(key);
 
-							if (!previousState) {
-								if (isSettled) {
-									resourceUpdatesTotal.labels(context.clusterId, resourceType, 'added').inc();
+							if (!previousNotificationState || previousNotificationState !== notificationState) {
+								const prevState = previousNotificationState
+									? JSON.parse(previousNotificationState)
+									: {};
+								const currState = JSON.parse(notificationState);
 
-									// Capture initial reconciliation history
+								const revisionChanged = prevState.revision !== currState.revision;
+								const becameFailed = currState.readyStatus === 'False';
+								const becameHealthy =
+									prevState.readyStatus === 'False' && currState.readyStatus === 'True';
+								const isTransientState = currState.readyStatus === 'Unknown';
+
+								const shouldNotify =
+									revisionChanged || becameFailed || (becameHealthy && revisionChanged);
+
+								if (shouldNotify && !isTransientState) {
+									resourceUpdatesTotal.labels(context.clusterId, resourceType, 'modified').inc();
+
+									// Capture reconciliation history
 									try {
 										await captureReconciliation({
 											resourceType,
@@ -283,7 +341,7 @@ async function poll(context: ClusterContext) {
 									}
 
 									broadcast(context, {
-										type: 'ADDED',
+										type: 'MODIFIED',
 										clusterId: context.clusterId,
 										resourceType,
 										resource: {
@@ -298,111 +356,52 @@ async function poll(context: ClusterContext) {
 									});
 								}
 								context.lastNotificationStates.set(key, notificationState);
-							} else if (previousState && previousState !== currentState) {
-								const previousNotificationState = context.lastNotificationStates.get(key);
-
-								if (!previousNotificationState || previousNotificationState !== notificationState) {
-									const prevState = previousNotificationState
-										? JSON.parse(previousNotificationState)
-										: {};
-									const currState = JSON.parse(notificationState);
-
-									const revisionChanged = prevState.revision !== currState.revision;
-									const becameFailed = currState.readyStatus === 'False';
-									const becameHealthy =
-										prevState.readyStatus === 'False' && currState.readyStatus === 'True';
-									const isTransientState = currState.readyStatus === 'Unknown';
-
-									const shouldNotify =
-										revisionChanged || becameFailed || (becameHealthy && revisionChanged);
-
-									if (shouldNotify && !isTransientState) {
-										resourceUpdatesTotal.labels(context.clusterId, resourceType, 'modified').inc();
-
-										// Capture reconciliation history
-										try {
-											await captureReconciliation({
-												resourceType,
-												namespace: resource.metadata.namespace || '',
-												name: resource.metadata.name || '',
-												clusterId: context.clusterId,
-												resource,
-												triggerType: 'automatic'
-											});
-										} catch (err) {
-											console.error('[EventBus] Failed to capture reconciliation history:', err);
-											// Don't fail event broadcast if history capture fails
-										}
-
-										broadcast(context, {
-											type: 'MODIFIED',
-											clusterId: context.clusterId,
-											resourceType,
-											resource: {
-												metadata: {
-													name: resource.metadata.name,
-													namespace: resource.metadata.namespace,
-													uid: resource.metadata.uid || 'unknown'
-												},
-												status: resource.status
-											},
-											timestamp: new Date().toISOString()
-										});
-									}
-									context.lastNotificationStates.set(key, notificationState);
-								}
 							}
-
-							context.lastStates.set(key, currentState);
 						}
 
-						for (const key of context.lastStates.keys()) {
-							if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
-								const [type, namespace, name] = key.split('/');
+						context.lastStates.set(key, currentState);
+					}
 
-								// Clear status gauge
-								fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
+					for (const key of context.lastStates.keys()) {
+						if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
+							const [type, namespace, name] = key.split('/');
 
-								resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
-								broadcast(context, {
-									type: 'DELETED',
-									clusterId: context.clusterId,
-									resourceType: type,
-									resource: {
-										metadata: {
-											name: name,
-											namespace: namespace,
-											uid: 'unknown'
-										}
-									},
-									timestamp: new Date().toISOString()
-								});
+							// Clear status gauge
+							fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
 
-								context.lastStates.delete(key);
-								context.lastNotificationStates.delete(key);
-								context.resourceFirstSeen.delete(key);
-							}
+							resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
+							broadcast(context, {
+								type: 'DELETED',
+								clusterId: context.clusterId,
+								resourceType: type,
+								resource: {
+									metadata: {
+										name: name,
+										namespace: namespace,
+										uid: 'unknown'
+									}
+								},
+								timestamp: new Date().toISOString()
+							});
+
+							context.lastStates.delete(key);
+							context.lastNotificationStates.delete(key);
+							context.resourceFirstSeen.delete(key);
 						}
 					}
-				} catch (err) {
-					resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();
-					console.error(
-						`[EventBus] Error polling ${resourceType} for cluster ${context.clusterId}:`,
-						err
-					);
 				}
+			} catch (err) {
+				resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();
+				console.error(
+					`[EventBus] Error polling ${resourceType} for cluster ${context.clusterId}:`,
+					err
+				);
 			}
-		} catch (err) {
-			console.error(
-				`[EventBus] Critical error in poll loop for cluster ${context.clusterId}:`,
-				err
-			);
 		}
-	})();
-
-	try {
-		await context.inflightPollPromise;
+	} catch (err) {
+		console.error(`[EventBus] Critical error in poll loop for cluster ${context.clusterId}:`, err);
 	} finally {
+		resolvePoll!();
 		context.inflightPollPromise = null;
 	}
 
