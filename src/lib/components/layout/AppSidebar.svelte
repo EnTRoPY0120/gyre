@@ -137,11 +137,16 @@
 							class="text-xl leading-tight font-bold tracking-tight text-foreground whitespace-nowrap"
 							>Gyre</span
 						>
-						<div class="mt-0.5 whitespace-nowrap">
+						<div class="mt-0.5 flex items-center gap-1.5 whitespace-nowrap">
 							<span
 								class="inline-flex items-center rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0.5 font-mono text-[9px] font-bold text-primary"
 							>
 								v{gyreVersion}
+							</span>
+							<span
+								class="inline-flex items-center rounded-md border border-amber-500/20 px-1.5 py-0.5 font-mono text-[9px] font-bold text-amber-500/50"
+							>
+								alpha
 							</span>
 						</div>
 					</div>

@@ -8,6 +8,7 @@
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
 	let localLoginEnabled = $derived(data.localLoginEnabled ?? true);
+	let gyreVersion = $derived(data.gyreVersion || '0.0.1');
 
 	let username = $state('');
 	let password = $state('');
@@ -128,30 +129,37 @@
 		<!-- Dot grid texture -->
 		<div class="dot-grid" aria-hidden="true"></div>
 
-		<!-- Orbital rings animation -->
-		<div class="orbital-stage" aria-hidden="true">
-			<div class="ring ring-1"></div>
-			<div class="ring ring-2"></div>
-			<div class="ring ring-3"></div>
-			<div class="ring ring-4"></div>
-			<!-- Amber core glow -->
-			<div class="core-glow"></div>
+		<!-- Corner arc decoration -->
+		<div class="corner-arcs" aria-hidden="true">
+			<svg viewBox="0 0 500 500" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMaxYMin meet">
+				<circle cx="500" cy="0" r="140" stroke="rgba(251,191,36,0.13)" stroke-width="1" fill="none"/>
+				<circle cx="500" cy="0" r="230" stroke="rgba(251,191,36,0.08)" stroke-width="1" fill="none"/>
+				<circle cx="500" cy="0" r="330" stroke="rgba(255,255,255,0.05)" stroke-width="1" fill="none"/>
+				<circle cx="500" cy="0" r="440" stroke="rgba(251,191,36,0.04)" stroke-width="1" fill="none"/>
+			</svg>
 		</div>
+
+		<!-- Ambient amber glow (top-right) -->
+		<div class="ambient-glow" aria-hidden="true"></div>
 
 		<!-- Brand content -->
 		<div class="brand-content">
 			<!-- Logo mark -->
 			<div class="logomark">
 				<div class="logo-icon">
-					<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-						<circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.4"/>
-						<circle cx="14" cy="14" r="7" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.7"/>
-						<circle cx="14" cy="14" r="2.5" fill="currentColor"/>
-						<path d="M14 2 C20 8, 20 20, 14 26" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.5" fill="none"/>
-						<path d="M14 2 C8 8, 8 20, 14 26" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.5" fill="none"/>
+					<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<defs>
+							<linearGradient id="lg-main" x1="0%" y1="0%" x2="100%" y2="100%">
+								<stop offset="0%" stop-color="#fbbf24"/>
+								<stop offset="100%" stop-color="#d97706"/>
+							</linearGradient>
+						</defs>
+						<rect width="40" height="40" rx="10" fill="url(#lg-main)"/>
+						<path transform="translate(8, 8)" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="#0f172a"/>
 					</svg>
 				</div>
 				<span class="logo-name">Gyre</span>
+				<span class="alpha-badge">alpha</span>
 			</div>
 
 			<!-- Tagline -->
@@ -163,18 +171,11 @@
 				</p>
 			</div>
 
-			<!-- Feature pills -->
-			<ul class="feature-pills" aria-label="Key features">
-				<li>FluxCD management</li>
-				<li>Role-based access</li>
-				<li>SSO &amp; OIDC</li>
-				<li>Multi-cluster</li>
-			</ul>
 		</div>
 
 		<!-- Bottom attribution -->
 		<footer class="brand-footer">
-			Self-hosted &middot; Open source
+			v{gyreVersion}
 		</footer>
 	</aside>
 
@@ -183,15 +184,19 @@
 		<!-- Mobile-only compact header -->
 		<div class="mobile-header">
 			<div class="mobile-logo-icon">
-				<svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-					<circle cx="14" cy="14" r="12" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.4"/>
-					<circle cx="14" cy="14" r="7" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.7"/>
-					<circle cx="14" cy="14" r="2.5" fill="currentColor"/>
-					<path d="M14 2 C20 8, 20 20, 14 26" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.5" fill="none"/>
-					<path d="M14 2 C8 8, 8 20, 14 26" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.5" fill="none"/>
+				<svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+					<defs>
+						<linearGradient id="lg-mobile" x1="0%" y1="0%" x2="100%" y2="100%">
+							<stop offset="0%" stop-color="#fbbf24"/>
+							<stop offset="100%" stop-color="#d97706"/>
+						</linearGradient>
+					</defs>
+					<rect width="40" height="40" rx="9" fill="url(#lg-mobile)"/>
+					<path transform="translate(8, 8)" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="#0f172a"/>
 				</svg>
 			</div>
 			<span class="mobile-logo-name">Gyre</span>
+			<span class="alpha-badge">alpha</span>
 		</div>
 
 		<!-- Form container -->
@@ -365,67 +370,32 @@
 		pointer-events: none;
 	}
 
-	/* Orbital rings */
-	.orbital-stage {
+	/* Corner arc decoration */
+	.corner-arcs {
 		position: absolute;
-		inset: 0;
-		display: flex;
-		align-items: center;
-		justify-content: center;
+		top: 0;
+		right: 0;
+		width: 70%;
+		height: 70%;
 		pointer-events: none;
+		overflow: hidden;
 	}
 
-	.ring {
+	.corner-arcs svg {
+		width: 100%;
+		height: 100%;
+	}
+
+	/* Ambient amber glow */
+	.ambient-glow {
 		position: absolute;
+		top: -80px;
+		right: -80px;
+		width: 360px;
+		height: 360px;
 		border-radius: 50%;
-		border: 1px solid rgba(251, 191, 36, 0.12);
-	}
-
-	.ring-1 {
-		width: 180px;
-		height: 180px;
-		animation: orbit 80s linear infinite;
-		border-color: rgba(251, 191, 36, 0.14);
-	}
-
-	.ring-2 {
-		width: 300px;
-		height: 300px;
-		animation: orbit 120s linear infinite reverse;
-		border-color: rgba(255, 255, 255, 0.06);
-	}
-
-	.ring-3 {
-		width: 440px;
-		height: 440px;
-		animation: orbit 160s linear infinite;
-		border-color: rgba(251, 191, 36, 0.06);
-	}
-
-	.ring-4 {
-		width: 600px;
-		height: 600px;
-		animation: orbit 220s linear infinite reverse;
-		border-color: rgba(255, 255, 255, 0.035);
-	}
-
-	.core-glow {
-		position: absolute;
-		width: 120px;
-		height: 120px;
-		border-radius: 50%;
-		background: radial-gradient(circle, rgba(251, 191, 36, 0.12) 0%, transparent 70%);
-		animation: core-pulse 6s ease-in-out infinite;
-	}
-
-	@keyframes orbit {
-		from { transform: rotate(0deg); }
-		to   { transform: rotate(360deg); }
-	}
-
-	@keyframes core-pulse {
-		0%, 100% { transform: scale(1);    opacity: 0.6; }
-		50%       { transform: scale(1.25); opacity: 1;   }
+		background: radial-gradient(circle, rgba(251, 191, 36, 0.07) 0%, transparent 65%);
+		pointer-events: none;
 	}
 
 	/* Brand content */
@@ -450,9 +420,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 2.25rem;
-		height: 2.25rem;
-		color: hsl(45 93% 47%);
+		width: 2.5rem;
+		height: 2.5rem;
 		flex-shrink: 0;
 	}
 
@@ -491,24 +460,18 @@
 		max-width: 30ch;
 	}
 
-	.feature-pills {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		list-style: none;
-		padding: 0;
-		margin: 0;
-	}
-
-	.feature-pills li {
-		font-size: 0.6875rem;
-		font-weight: 500;
-		letter-spacing: 0.02em;
-		color: rgba(255, 255, 255, 0.5);
-		background: rgba(255, 255, 255, 0.05);
-		border: 1px solid rgba(255, 255, 255, 0.08);
-		border-radius: 999px;
-		padding: 0.25rem 0.75rem;
+	.alpha-badge {
+		font-size: 0.625rem;
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: lowercase;
+		font-variant-numeric: tabular-nums;
+		color: rgba(251, 191, 36, 0.55);
+		border: 1px solid rgba(251, 191, 36, 0.2);
+		border-radius: 4px;
+		padding: 0.15rem 0.4rem;
+		line-height: 1;
+		align-self: center;
 	}
 
 	.brand-footer {
@@ -541,9 +504,8 @@
 	}
 
 	.mobile-logo-icon {
-		width: 1.75rem;
-		height: 1.75rem;
-		color: hsl(45 93% 47%);
+		width: 2rem;
+		height: 2rem;
 	}
 
 	.mobile-logo-icon svg {
