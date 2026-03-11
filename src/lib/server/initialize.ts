@@ -1,4 +1,4 @@
-import { getDbSync } from './db/index.js';
+import { getDbSync, closeDb } from './db/index.js';
 import { createDefaultAdminIfNeeded } from './auth.js';
 import { initDatabase } from './db/migrate.js';
 import { initializeDefaultPolicies, repairUserPolicyBindings } from './rbac-defaults.js';
@@ -17,18 +17,22 @@ import { seedAuthProviders } from './auth/seed-providers.js';
 import { scheduleCleanup, stopCleanup } from './kubernetes/flux/reconciliation-cleanup.js';
 import { scheduleSessionCleanup, stopSessionCleanup } from './auth/session-cleanup.js';
 import { scheduleAuditLogCleanup, stopAuditLogCleanup } from './audit.js';
+import { closeAllEventStreams } from './events.js';
 
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
+
+let isShuttingDown = false;
 
 /**
  * Shutdown Gyre gracefully, awaiting any in-flight cleanup work before exiting.
  */
 export async function shutdownGyre(): Promise<void> {
-	console.log('\n🛑 Shutting down Gyre...');
+	console.log('\n🛑 Shutting down Gyre background tasks...');
 	try {
 		await Promise.all([stopCleanup(), stopAuditLogCleanup()]);
 		stopSessionCleanup();
-		console.log('   ✓ Cleanup schedulers stopped');
+		closeAllEventStreams();
+		console.log('   ✓ Cleanup schedulers and SSE connections stopped');
 	} catch (error) {
 		console.error('   ✗ Error during shutdown:', error);
 	}
@@ -36,20 +40,50 @@ export async function shutdownGyre(): Promise<void> {
 
 // Register shutdown handlers
 if (typeof process !== 'undefined') {
-	const shutdown = () => {
-		// Force-exit after 10 s if graceful shutdown hangs
+	const handleSignal = async (signal: string) => {
+		if (isShuttingDown) return;
+		isShuttingDown = true;
+		console.log(`\n🛑 Received ${signal}, starting graceful shutdown...`);
+
+		await shutdownGyre();
+
+		// Force-exit after 30s if graceful shutdown hangs
 		const forceExit = setTimeout(() => {
-			console.error('   ✗ Shutdown timed out, forcing exit');
+			console.error('   ✗ Graceful shutdown timed out, forcing exit');
+			try {
+				closeDb();
+			} catch {}
 			process.exit(1);
-		}, 10_000);
+		}, 30_000);
 		forceExit.unref();
-		shutdownGyre().finally(() => {
-			clearTimeout(forceExit);
+
+		// In development (vite), sveltekit:shutdown is not emitted.
+		// We exit immediately after cleanup.
+		if (process.env.NODE_ENV !== 'production') {
+			try {
+				closeDb();
+				console.log('   ✓ Database connection closed');
+			} catch (error) {
+				console.error('   ✗ Error closing database:', error);
+			}
 			process.exit(0);
-		});
+		}
 	};
-	process.on('SIGTERM', shutdown);
-	process.on('SIGINT', shutdown);
+
+	process.on('SIGTERM', () => handleSignal('SIGTERM'));
+	process.on('SIGINT', () => handleSignal('SIGINT'));
+
+	process.on('sveltekit:shutdown', () => {
+		console.log('   ✓ HTTP server stopped');
+		try {
+			closeDb();
+			console.log('   ✓ Database connection closed');
+		} catch (error) {
+			console.error('   ✗ Error closing database:', error);
+		}
+		console.log('👋 Gyre shutdown complete.');
+		process.exit(0);
+	});
 }
 
 /**

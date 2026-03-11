@@ -31,6 +31,10 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 				const msg = `data: ${JSON.stringify(event)}\n\n`;
 				try {
 					controller.enqueue(encoder.encode(msg));
+					if (event.type === 'SHUTDOWN') {
+						unsubscribe();
+						controller.close();
+					}
 				} catch {
 					// Controller may be closed, unsubscribe
 					unsubscribe();
