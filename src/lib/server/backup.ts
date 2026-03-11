@@ -54,6 +54,10 @@ export interface BackupMetadata {
  * Get the backup encryption key from BACKUP_ENCRYPTION_KEY env var.
  * Returns null if not set (encryption disabled).
  * Throws if the key format is invalid.
+ *
+ * NOTE: Changing BACKUP_ENCRYPTION_KEY will render all existing encrypted
+ * backups (.db.enc) unreadable. There is no automatic key rotation — if you
+ * rotate the key, decrypt and re-encrypt existing backups manually first.
  */
 function getBackupEncryptionKey(): Buffer | null {
 	const keyHex = process.env.BACKUP_ENCRYPTION_KEY;
@@ -61,7 +65,7 @@ function getBackupEncryptionKey(): Buffer | null {
 		return null;
 	}
 	if (!/^[0-9a-f]{64}$/i.test(keyHex)) {
-		throw new Error(
+		throw new BackupError(
 			'BACKUP_ENCRYPTION_KEY must be 64 hexadecimal characters (32 bytes). ' +
 				'Generate with: openssl rand -hex 32'
 		);
@@ -137,15 +141,11 @@ export async function createBackup(): Promise<BackupMetadata> {
 		const source = new Database(databaseUrl);
 		try {
 			await source.backup(tempPath);
-		} finally {
-			source.close();
-		}
-
-		try {
 			const plainData = readFileSync(tempPath);
 			const encData = encryptBackup(plainData, key);
 			writeFileSync(encPath, encData);
 		} finally {
+			source.close();
 			if (existsSync(tempPath)) unlinkSync(tempPath);
 		}
 
@@ -403,3 +403,7 @@ function pruneOldBackups(): void {
 		}
 	}
 }
+
+// — Test-only exports (underscore-prefixed, not part of the public API) —
+export { encryptBackup as _encryptBackup, decryptBackup as _decryptBackup };
+export { getBackupEncryptionKey as _getBackupEncryptionKey };

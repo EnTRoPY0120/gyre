@@ -4,14 +4,20 @@
  *
  * Encrypted backups (.db.enc) are transparently decrypted before download
  * so the returned file is always a plain SQLite database.
+ *
+ * Unencrypted backups (.db) are streamed directly for memory efficiency.
+ * Encrypted backups must be fully buffered because AES-GCM auth tag
+ * verification requires the complete ciphertext before any plaintext is safe
+ * to return.
  */
 
 import { error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { getDecryptedBackupBuffer, BackupError } from '$lib/server/backup';
+import { getDecryptedBackupBuffer, getBackupPath, BackupError } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
 import { requirePermission } from '$lib/server/rbac';
+import { createReadStream, statSync } from 'node:fs';
 import { basename } from 'node:path';
 
 export const _metadata = {
@@ -56,27 +62,47 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	try {
-		const buffer = getDecryptedBackupBuffer(filename);
-		if (!buffer) {
-			throw error(404, 'Backup not found');
-		}
-
-		// Always serve as .db regardless of whether the source was encrypted
-		const safeFilename = basename(filename).replace(/\.enc$/, '');
-
 		await logAudit(locals.user, 'backup:download', {
 			resourceType: 'DatabaseBackup',
 			resourceName: basename(filename)
 		});
 
-		return new Response(new Uint8Array(buffer), {
-			status: 200,
-			headers: {
-				'Content-Type': 'application/x-sqlite3',
-				'Content-Disposition': `attachment; filename="${safeFilename}"`,
-				'Content-Length': String(buffer.byteLength)
+		if (filename.endsWith('.db.enc')) {
+			// Encrypted: buffer entirely so GCM auth tag can be verified before returning plaintext
+			const buffer = getDecryptedBackupBuffer(filename);
+			if (!buffer) {
+				throw error(404, 'Backup not found');
 			}
-		});
+
+			const safeFilename = basename(filename).replace(/\.enc$/, '');
+			return new Response(buffer as unknown as BodyInit, {
+				status: 200,
+				headers: {
+					'Content-Type': 'application/x-sqlite3',
+					'Content-Disposition': `attachment; filename="${safeFilename}"`,
+					'Content-Length': String(buffer.byteLength)
+				}
+			});
+		} else {
+			// Unencrypted: stream directly for memory efficiency
+			const filePath = getBackupPath(filename);
+			if (!filePath) {
+				throw error(404, 'Backup not found');
+			}
+
+			const stat = statSync(filePath);
+			const stream = createReadStream(filePath);
+			const safeFilename = basename(filePath);
+
+			return new Response(stream as unknown as ReadableStream, {
+				status: 200,
+				headers: {
+					'Content-Type': 'application/x-sqlite3',
+					'Content-Disposition': `attachment; filename="${safeFilename}"`,
+					'Content-Length': String(stat.size)
+				}
+			});
+		}
 	} catch (err) {
 		if (err instanceof BackupError) {
 			throw error(err.status, err.message);
