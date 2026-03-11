@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 200) : 50;
 	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
-	const validSortBy: AuditLogSortBy[] = ['date', 'action', 'user'];
+	const validSortBy: AuditLogSortBy[] = ['date', 'action'];
 	const sortBy: AuditLogSortBy = validSortBy.includes(rawSortBy as AuditLogSortBy)
 		? (rawSortBy as AuditLogSortBy)
 		: 'date';
@@ -27,14 +27,14 @@ export const load: PageServerLoad = async ({ url }) => {
 		? (rawSortOrder as AuditLogSortOrder)
 		: 'desc';
 
-	let success: boolean | undefined;
-	if (rawSuccess === 'true') success = true;
-	else if (rawSuccess === 'false') success = false;
+	const successFilter = rawSuccess === 'true' ? 'true' : rawSuccess === 'false' ? 'false' : 'all';
+	const success: boolean | undefined =
+		successFilter === 'true' ? true : successFilter === 'false' ? false : undefined;
 
 	const action = url.searchParams.get('action') || undefined;
 	const userId = url.searchParams.get('userId') || undefined;
 
-	const { logs, total } = await getAuditLogsPaginated({
+	const { logs: rawLogs, total } = await getAuditLogsPaginated({
 		userId,
 		action,
 		success,
@@ -43,6 +43,23 @@ export const load: PageServerLoad = async ({ url }) => {
 		sortBy,
 		sortOrder
 	});
+
+	const lastValidOffset = total > 0 ? Math.floor((total - 1) / limit) * limit : 0;
+	let effectiveOffset = offset;
+	let logs = rawLogs;
+	if (offset > lastValidOffset) {
+		effectiveOffset = lastValidOffset;
+		const clamped = await getAuditLogsPaginated({
+			userId,
+			action,
+			success,
+			limit,
+			offset: effectiveOffset,
+			sortBy,
+			sortOrder
+		});
+		logs = clamped.logs;
+	}
 
 	return {
 		logs: logs.map((log) => {
@@ -63,9 +80,9 @@ export const load: PageServerLoad = async ({ url }) => {
 		}),
 		total,
 		limit,
-		offset,
+		offset: effectiveOffset,
 		sortBy,
 		sortOrder,
-		successFilter: rawSuccess ?? 'all'
+		successFilter
 	};
 };

@@ -45,7 +45,7 @@
 			total: number;
 			limit: number;
 			offset: number;
-			sortBy: 'date' | 'action' | 'user';
+			sortBy: 'date' | 'action';
 			sortOrder: 'asc' | 'desc';
 			successFilter: string;
 		};
@@ -119,7 +119,7 @@
 		navigate({ offset: newOffset });
 	}
 
-	function setSort(col: 'date' | 'action' | 'user') {
+	function setSort(col: 'date' | 'action') {
 		const newOrder =
 			data.sortBy === col ? (data.sortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
 		navigate({ sortBy: col, sortOrder: newOrder, offset: 0 });
@@ -136,14 +136,7 @@
 	let currentPage = $derived(Math.floor(data.offset / data.limit) + 1);
 	let totalPages = $derived(Math.ceil(data.total / data.limit));
 
-	function SortIcon(col: 'date' | 'action' | 'user') {
-		if (data.sortBy !== col) return ArrowUpDown;
-		return data.sortOrder === 'asc' ? ArrowUp : ArrowDown;
-	}
 
-	const dateSortIcon = $derived(SortIcon('date'));
-	const userSortIcon = $derived(SortIcon('user'));
-	const actionSortIcon = $derived(SortIcon('action'));
 </script>
 
 <div class="space-y-6">
@@ -198,28 +191,32 @@
 						<th class="px-4 py-3 font-medium text-slate-400">
 							<button
 								onclick={() => setSort('date')}
-								class="flex items-center gap-1 hover:text-white transition-colors"
+								class="flex items-center gap-1 transition-colors hover:text-white"
 							>
 								Time
-								<dateSortIcon size={13}></dateSortIcon>
+								{#if data.sortBy === 'date' && data.sortOrder === 'asc'}
+									<ArrowUp size={13} />
+								{:else if data.sortBy === 'date' && data.sortOrder === 'desc'}
+									<ArrowDown size={13} />
+								{:else}
+									<ArrowUpDown size={13} />
+								{/if}
 							</button>
 						</th>
-						<th class="px-4 py-3 font-medium text-slate-400">
-							<button
-								onclick={() => setSort('user')}
-								class="flex items-center gap-1 hover:text-white transition-colors"
-							>
-								User
-								<userSortIcon size={13}></userSortIcon>
-							</button>
-						</th>
+						<th class="px-4 py-3 font-medium text-slate-400">User</th>
 						<th class="px-4 py-3 font-medium text-slate-400">
 							<button
 								onclick={() => setSort('action')}
-								class="flex items-center gap-1 hover:text-white transition-colors"
+								class="flex items-center gap-1 transition-colors hover:text-white"
 							>
 								Action
-								<actionSortIcon size={13}></actionSortIcon>
+								{#if data.sortBy === 'action' && data.sortOrder === 'asc'}
+									<ArrowUp size={13} />
+								{:else if data.sortBy === 'action' && data.sortOrder === 'desc'}
+									<ArrowDown size={13} />
+								{:else}
+									<ArrowUpDown size={13} />
+								{/if}
 							</button>
 						</th>
 						<th class="px-4 py-3 font-medium text-slate-400">Resource</th>
