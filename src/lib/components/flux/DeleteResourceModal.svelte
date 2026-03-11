@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
 	import { AlertTriangle, Loader2 } from 'lucide-svelte';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	interface Props {
 		open: boolean;
@@ -37,7 +38,8 @@
 			const response = await fetch(
 			`/api/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
 			{
-				method: 'DELETE'
+				method: 'DELETE',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});
 
 			if (!response.ok) {

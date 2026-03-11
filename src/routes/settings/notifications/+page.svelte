@@ -5,6 +5,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Input } from '$lib/components/ui/input';
 	import { toast } from 'svelte-sonner';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	// Resource types from flux types or just hardcode common ones
 	const resourceTypes = [
@@ -51,7 +52,7 @@
 		try {
 			const res = await fetch('/api/user/preferences', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({ notifications: newPrefs })
 			});
 

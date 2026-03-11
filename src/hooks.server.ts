@@ -3,6 +3,7 @@ import { getSession } from '$lib/server/auth';
 import { initializeGyre } from '$lib/server/initialize';
 import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
 import { getRequestSizeLimit, validateRequestSize, formatSize } from '$lib/server/request-limits';
+import { generateCsrfToken, validateCsrfToken } from '$lib/server/csrf';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -125,6 +126,33 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (sessionData) {
 			event.locals.user = sessionData.user;
 			event.locals.session = sessionData.session;
+
+			// Set CSRF token cookie (non-httpOnly so JS can read it)
+			const csrfToken = generateCsrfToken(sessionData.session.id);
+			cookies.set('gyre_csrf', csrfToken, {
+				path: '/',
+				httpOnly: false,
+				secure: true,
+				sameSite: 'strict'
+			});
+		}
+	}
+
+	// Validate CSRF token for state-changing methods on authenticated, non-public routes
+	const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+	if (
+		event.locals.session &&
+		STATE_CHANGING_METHODS.includes(request.method) &&
+		!isPublicRoute(path)
+	) {
+		const csrfHeader = request.headers.get('x-csrf-token') ?? '';
+		if (!validateCsrfToken(event.locals.session.id, csrfHeader)) {
+			return recordResponse(
+				new Response(
+					JSON.stringify({ error: 'Forbidden', message: 'Invalid or missing CSRF token' }),
+					{ status: 403, headers: { 'Content-Type': 'application/json' } }
+				)
+			);
 		}
 	}
 

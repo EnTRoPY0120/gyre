@@ -27,6 +27,7 @@
 	import { BASE_TABS, YAML_TAB, DIFF_TAB, type TabId } from '$lib/config/tabs';
 	import type { DiffError } from '$lib/components/resources/tabs/DiffTab.svelte';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	interface Props {
 		data: {
@@ -300,7 +301,7 @@
 		try {
 			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`), {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({ historyId, revision })
 			});
 			if (!res.ok) {
@@ -332,7 +333,8 @@
 	async function handleReconcile() {
 		try {
 			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/reconcile`), {
-				method: 'POST'
+				method: 'POST',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});
 			if (!res.ok) throw new Error('Reconciliation failed');
 			toast.success('Reconciliation triggered successfully');
