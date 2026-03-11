@@ -31,7 +31,13 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 	// Enforce per-session and per-user concurrent connection limits.
 	// Session ID is preferred over client IP because IP addresses can be shared
 	// across many users (NAT, VPN, corporate proxies).
-	const sessionId = locals.session?.id ?? getClientAddress();
+	const rawSessionId = locals.session?.id;
+	if (!rawSessionId) {
+		console.warn(
+			`[SSE] Authenticated user ${locals.user.id} has no session ID; falling back to IP for connection limiting`
+		);
+	}
+	const sessionId = rawSessionId ?? getClientAddress();
 	const userId = String(locals.user.id);
 
 	const connectionResult = sseConnectionLimiter.acquire(
@@ -42,12 +48,18 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 	);
 
 	if (!connectionResult.allowed) {
-		const reason = connectionResult.reason.includes('session') ? 'session_limit' : 'user_limit';
-		sseConnectionsRejectedTotal.labels(reason).inc();
+		sseConnectionsRejectedTotal.labels(connectionResult.limitType).inc();
 		return error(429, { message: connectionResult.reason });
 	}
 
 	const { release } = connectionResult;
+
+	const clusterId = locals.cluster;
+
+	// Shared cleanup ref so both start() and cancel() can invoke the same teardown.
+	// start() is called synchronously during ReadableStream construction, so
+	// cleanupRef is always populated before cancel() can fire.
+	let cleanupRef: (() => void) | null = null;
 
 	// Create a ReadableStream for SSE
 	const stream = new ReadableStream({
@@ -70,6 +82,8 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 				}
 			};
 
+			cleanupRef = cleanup;
+
 			// Subscribe to the centralized event bus
 			unsubscribe = subscribe((event: SSEEvent) => {
 				const msg = `data: ${JSON.stringify(event)}\n\n`;
@@ -86,7 +100,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 				if (event.type === 'SHUTDOWN') {
 					cleanup();
 				}
-			}, locals.cluster);
+			}, clusterId);
 
 			// Optional per-connection timeout: send SHUTDOWN and close the stream
 			// so the client reconnects. Disabled when SSE_CONNECTION_TIMEOUT_MS === 0.
@@ -94,6 +108,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 				timeoutHandle = setTimeout(() => {
 					const timeoutEvent: SSEEvent = {
 						type: 'SHUTDOWN',
+						clusterId,
 						message: 'Connection timeout – please reconnect',
 						timestamp: new Date().toISOString()
 					};
@@ -110,6 +125,11 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 			request.signal.addEventListener('abort', () => {
 				cleanup();
 			});
+		},
+		cancel() {
+			// Called when the consumer cancels the stream (e.g. response.body.cancel()).
+			// Without this, disconnects that bypass request.signal would leak the slot.
+			cleanupRef?.();
 		}
 	});
 
