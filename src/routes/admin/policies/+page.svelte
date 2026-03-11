@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
+	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { resourceGroups } from '$lib/config/resources';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
@@ -278,6 +279,7 @@
 									}}
 									class="inline"
 								>
+									<input type="hidden" name="_csrf" value={getCsrfToken()} />
 									<input type="hidden" name="userId" value={user.id} />
 									<input type="hidden" name="policyId" value={policy.id} />
 									<input type="hidden" name="policyName" value={policy.name} />
@@ -394,6 +396,7 @@
 					}}
 					class="space-y-4"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<div>
 						<label for="policyName" class="mb-1 block text-sm font-medium text-slate-300"
 							>Policy Name</label
@@ -572,6 +575,7 @@
 					}}
 					class="flex justify-end gap-3"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<input type="hidden" name="policyId" value={deletingPolicy.id} />
 					<input type="hidden" name="policyName" value={deletingPolicy.name} />
 					<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>
@@ -613,6 +617,7 @@
 					}}
 					class="space-y-4"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<input type="hidden" name="policyId" value={assigningPolicy.id} />
 					<input type="hidden" name="policyName" value={assigningPolicy.name} />
 

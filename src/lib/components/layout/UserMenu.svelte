@@ -20,9 +20,9 @@
 	async function handleLogout() {
 		try {
 			const res = await fetch('/api/auth/logout', {
-			method: 'POST',
-			headers: { 'X-CSRF-Token': getCsrfToken() }
-		});
+				method: 'POST',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
+			});
 			if (res.ok) {
 				window.location.href = '/login?loggedOut=true';
 			}

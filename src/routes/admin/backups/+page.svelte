@@ -88,7 +88,10 @@
 	async function createBackup() {
 		creating = true;
 		try {
-			const response = await fetch('/api/admin/backups', { method: 'POST', headers: { 'X-CSRF-Token': getCsrfToken() } });
+			const response = await fetch('/api/admin/backups', {
+				method: 'POST',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
+			});
 			if (!response.ok) {
 				const err = await response.json();
 				throw new Error(err.message || 'Failed to create backup');
@@ -129,10 +132,10 @@
 	async function deleteBackupFile(filename: string) {
 		deletingFilename = filename;
 		try {
-			const response = await fetch(
-				`/api/admin/backups?filename=${encodeURIComponent(filename)}`,
-				{ method: 'DELETE', headers: { 'X-CSRF-Token': getCsrfToken() } }
-			);
+			const response = await fetch(`/api/admin/backups?filename=${encodeURIComponent(filename)}`, {
+				method: 'DELETE',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
+			});
 			if (!response.ok) {
 				const err = await response.json();
 				throw new Error(err.message || 'Failed to delete backup');

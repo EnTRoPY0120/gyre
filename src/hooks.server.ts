@@ -8,10 +8,10 @@ import { generateCsrfToken, validateCsrfToken } from '$lib/server/csrf';
 // Initialize Gyre on first request
 let initialized = false;
 
-// Public routes that don't require authentication
+// Public routes that don't require authentication or CSRF protection
 const PUBLIC_ROUTES = [
 	'/login',
-	'/api/auth', // All auth API routes (including OAuth callbacks)
+	'/api/auth/login',
 	'/api/health',
 	'/api/flux/health',
 	'/metrics',
@@ -28,9 +28,16 @@ const STATIC_PATTERNS = [
 	/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/
 ];
 
+const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
 function isPublicRoute(path: string): boolean {
 	// Check exact matches
 	if (PUBLIC_ROUTES.some((route) => path === route || path.startsWith(route + '/'))) {
+		return true;
+	}
+
+	// Check for OAuth routes which are dynamic but public
+	if (path.startsWith('/api/auth/') && (path.includes('/callback') || path.endsWith('/login'))) {
 		return true;
 	}
 
@@ -139,14 +146,31 @@ export const handle: Handle = async ({ event, resolve }) => {
 	}
 
 	// Validate CSRF token for state-changing methods on authenticated, non-public routes
-	const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
 	if (
 		event.locals.session &&
 		STATE_CHANGING_METHODS.includes(request.method) &&
 		!isPublicRoute(path)
 	) {
-		const csrfHeader = request.headers.get('x-csrf-token') ?? '';
-		if (!validateCsrfToken(event.locals.session.id, csrfHeader)) {
+		let csrfToken = request.headers.get('x-csrf-token') ?? '';
+
+		// If header is missing, check form data for _csrf (common for SvelteKit form actions)
+		if (!csrfToken) {
+			const contentType = request.headers.get('content-type') || '';
+			if (
+				contentType.includes('application/x-www-form-urlencoded') ||
+				contentType.includes('multipart/form-data')
+			) {
+				try {
+					// Clone request to avoid consuming the stream for the subsequent action
+					const formData = await request.clone().formData();
+					csrfToken = formData.get('_csrf')?.toString() ?? '';
+				} catch (e) {
+					console.warn('Failed to parse form data for CSRF validation:', e);
+				}
+			}
+		}
+
+		if (!validateCsrfToken(event.locals.session.id, csrfToken)) {
 			return recordResponse(
 				new Response(
 					JSON.stringify({ error: 'Forbidden', message: 'Invalid or missing CSRF token' }),
