@@ -86,6 +86,17 @@ if (typeof process !== 'undefined') {
 				console.error('   ✗ Error closing database:', error);
 			}
 			process.exit(0);
+		} else {
+			// Production path: adapter-node will emit sveltekit:shutdown when HTTP drain completes.
+			// Guard against the event never firing.
+			forceExit = setTimeout(() => {
+				console.warn('   ⚠️  sveltekit:shutdown not received within 10s, forcing exit');
+				try {
+					closeDb();
+				} catch {}
+				process.exit(1);
+			}, 10_000);
+			forceExit.unref();
 		}
 	};
 
