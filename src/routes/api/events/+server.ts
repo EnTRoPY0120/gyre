@@ -41,7 +41,11 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 				// This is safe in JS (current element deletion during for...of is safe).
 				if (event.type === 'SHUTDOWN') {
 					unsubscribe();
-					controller.close();
+					try {
+						controller.close();
+					} catch {
+						// Controller may already be closed if the client disconnected
+					}
 				}
 			}, locals.cluster);
 
