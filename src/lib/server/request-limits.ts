@@ -24,20 +24,22 @@ export const REQUEST_LIMITS = {
  *
  * NOTE: When adding new endpoints with non-default size limits, add a matching
  * path check here. Unlisted endpoints fall back to REQUEST_LIMITS.DEFAULT (1MB).
+ * Use exact path matches (===) to avoid silently applying a larger limit to
+ * future sub-routes (e.g. /admin/clusters/delete).
  */
 export function getRequestSizeLimit(path: string, method: string): number {
 	// Backup restore endpoint - larger limit
-	if (path.startsWith('/api/admin/backups/restore') && method === 'POST') {
+	if (path === '/api/admin/backups/restore' && method === 'POST') {
 		return REQUEST_LIMITS.BACKUP_RESTORE;
 	}
 
 	// Cluster creation endpoint - kubeconfig upload
-	if (path.startsWith('/admin/clusters') && method === 'POST') {
+	if (path === '/admin/clusters' && method === 'POST') {
 		return REQUEST_LIMITS.KUBECONFIG_UPLOAD;
 	}
 
-	// Default for all other endpoints
-	return REQUEST_LIMITS.DEFAULT;
+	// Default for all other endpoints (JSON APIs and anything unlisted)
+	return REQUEST_LIMITS.JSON_API;
 }
 
 /**
@@ -53,7 +55,7 @@ export function getRequestSizeLimit(path: string, method: string): number {
 export function validateRequestSize(
 	contentLength: string | number | undefined,
 	limit: number
-): { valid: boolean; limit?: number; size?: number } {
+): { valid: true } | { valid: false; limit: number; size: number } {
 	if (!contentLength) {
 		return { valid: true };
 	}
@@ -72,11 +74,15 @@ export function validateRequestSize(
 }
 
 /**
- * Format a byte count as a human-readable string (KB below 1MB, MB above).
+ * Format a byte count as a human-readable string.
+ * Uses one decimal place and strips trailing ".0" for clean output.
  */
 export function formatSize(bytes: number): string {
-	if (bytes < 1024 * 1024) {
-		return `${Math.round(bytes / 1024)}KB`;
+	if (bytes < 1024) {
+		return `${bytes}B`;
 	}
-	return `${Math.round(bytes / (1024 * 1024))}MB`;
+	if (bytes < 1024 * 1024) {
+		return `${parseFloat((bytes / 1024).toFixed(1))}KB`;
+	}
+	return `${parseFloat((bytes / (1024 * 1024)).toFixed(1))}MB`;
 }

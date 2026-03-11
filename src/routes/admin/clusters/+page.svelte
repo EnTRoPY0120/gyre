@@ -25,6 +25,7 @@
 			search: string;
 			limit: number;
 			offset: number;
+			urlError: string | null;
 		};
 		form?: {
 			error?: string;
@@ -153,8 +154,8 @@
 	<!-- Search Bar -->
 	<SearchBar value={searchValue} placeholder="Search clusters by name or description..." onSearch={handleSearch} />
 
-	<!-- Error Message -->
-	{#if form?.error}
+	<!-- Error Message (from form action or middleware redirect) -->
+	{#if form?.error || data.urlError}
 		<div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
 			<div class="flex items-center gap-2">
 				<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -165,7 +166,7 @@
 						d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					/>
 				</svg>
-				{form.error}
+				{form?.error ?? data.urlError}
 			</div>
 		</div>
 	{/if}
