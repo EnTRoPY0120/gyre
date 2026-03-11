@@ -20,7 +20,7 @@ const WATCH_RESOURCES: FluxResourceType[] = [
 ];
 
 export interface SSEEvent {
-	type: 'CONNECTED' | 'ADDED' | 'MODIFIED' | 'DELETED' | 'HEARTBEAT';
+	type: 'CONNECTED' | 'ADDED' | 'MODIFIED' | 'DELETED' | 'HEARTBEAT' | 'SHUTDOWN';
 	clusterId?: string;
 	resourceType?: string;
 	resource?: unknown;
@@ -43,6 +43,23 @@ interface ClusterContext {
 
 // Map of active polling workers per cluster
 const activeWorkers = new Map<string, ClusterContext>();
+
+/**
+ * Close all active event streams (used during graceful shutdown)
+ */
+export function closeAllEventStreams() {
+	console.log('[EventBus] Shutting down all event streams...');
+	for (const [clusterId, context] of activeWorkers.entries()) {
+		broadcast(context, {
+			type: 'SHUTDOWN',
+			clusterId,
+			timestamp: new Date().toISOString()
+		});
+		stopWorker(context);
+		context.subscribers.clear();
+	}
+	activeWorkers.clear();
+}
 
 /**
  * Subscribe to events for a specific cluster
