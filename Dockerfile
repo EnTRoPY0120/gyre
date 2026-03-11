@@ -83,7 +83,7 @@ EXPOSE 3000
 # enforced in src/hooks.server.ts (required for kubeconfig/backup uploads).
 ENV NODE_ENV=production \
     PORT=3000 \
-    BODY_SIZE_LIMIT=Infinity
+    BODY_SIZE_LIMIT=500M
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
