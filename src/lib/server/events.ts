@@ -47,10 +47,6 @@ const activeWorkers = new Map<string, ClusterContext>();
 // Shutdown flag to prevent new subscriptions during shutdown
 let isShuttingDown = false;
 
-export function isShuttingDownEventBus(): boolean {
-	return isShuttingDown;
-}
-
 /**
  * Mark the event bus as shutting down to prevent new subscriptions
  */
@@ -67,12 +63,14 @@ export function closeAllEventStreams() {
 
 	for (const [clusterId, context] of activeWorkers.entries()) {
 		// Broadcast SHUTDOWN to all subscribers - this will trigger their unsubscribe()
-		// which will call stopWorker and remove from activeWorkers, so we don't call stopWorker here
+		// which will call stopWorker and remove from activeWorkers
 		broadcast(context, {
 			type: 'SHUTDOWN',
 			clusterId,
 			timestamp: new Date().toISOString()
 		});
+		// Explicitly call stopWorker to guarantee timer cleanup even if a subscriber throws
+		stopWorker(context);
 		// Subscribers are already cleared by their unsubscribe callbacks during broadcast
 		// Only clear if context still exists (wasn't already deleted by unsubscribe)
 		if (activeWorkers.has(clusterId)) {
@@ -80,6 +78,9 @@ export function closeAllEventStreams() {
 		}
 	}
 	activeWorkers.clear();
+	// Reset metrics
+	activeWorkersGauge.set(0);
+	sseSubscribersGauge.reset();
 }
 
 /**

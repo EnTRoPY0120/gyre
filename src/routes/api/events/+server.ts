@@ -37,6 +37,8 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 					return;
 				}
 				// Only check for SHUTDOWN if enqueue succeeded (controller is still open)
+				// Note: unsubscribe() calls ctx.subscribers.delete(subscriber) while broadcast() iterates the Set.
+				// This is safe in JS (current element deletion during for...of is safe).
 				if (event.type === 'SHUTDOWN') {
 					unsubscribe();
 					controller.close();
