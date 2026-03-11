@@ -78,8 +78,12 @@ USER gyre
 EXPOSE 3000
 
 # Environment variables
+# BODY_SIZE_LIMIT: adapter-node's built-in body cap (default 512KB).
+# Set to Infinity to disable it and rely solely on the per-endpoint limits
+# enforced in src/hooks.server.ts (required for kubeconfig/backup uploads).
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    BODY_SIZE_LIMIT=Infinity
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
