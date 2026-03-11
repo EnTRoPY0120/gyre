@@ -35,14 +35,14 @@ export const OPERATION_TIMEOUTS: Record<string, number> = {
 	logs: 60_000
 };
 
-/** Returns a PromiseMiddleware that aborts requests exceeding `timeoutMs`. */
-function createTimeoutMiddleware(timeoutMs: number): k8s.Middleware {
+/** Returns a PromiseMiddleware that aborts requests exceeding `timeoutMs`. Exported for testing. */
+export function _createTimeoutMiddleware(timeoutMs: number): k8s.Middleware {
 	return {
 		pre: async (ctx: k8s.RequestContext) => {
 			const controller = new AbortController();
 			const timer = setTimeout(() => controller.abort(), timeoutMs);
-			// Clear the timer once the request completes to avoid keeping it alive.
-			ctx.getSignal()?.addEventListener('abort', () => clearTimeout(timer));
+			// Clear the timer once the abort fires (either from timeout or early cancellation).
+			controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
 			ctx.setSignal(controller.signal);
 			return ctx;
 		},
@@ -62,7 +62,7 @@ function makeApiClientWithTimeout<T extends k8s.ApiType>(
 	const config = k8s.createConfiguration({
 		baseServer: baseServerConfig,
 		authMethods: { default: kubeConfig },
-		promiseMiddleware: [createTimeoutMiddleware(timeoutMs)]
+		promiseMiddleware: [_createTimeoutMiddleware(timeoutMs)]
 	});
 	return new apiClientType(config);
 }

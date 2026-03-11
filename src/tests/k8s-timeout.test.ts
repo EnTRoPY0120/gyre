@@ -1,8 +1,10 @@
 import { describe, test, expect } from 'bun:test';
+import * as k8s from '@kubernetes/client-node';
 import {
 	DEFAULT_TIMEOUT_MS,
 	OPERATION_TIMEOUTS,
-	handleK8sError
+	handleK8sError,
+	_createTimeoutMiddleware
 } from '../lib/server/kubernetes/client.js';
 import {
 	KubernetesTimeoutError,
@@ -131,4 +133,45 @@ describe('handleK8sError — existing error classification', () => {
 	test('maps non-Error to KubernetesError', () => {
 		expect(handleK8sError('string error', 'list')).toBeInstanceOf(KubernetesError);
 	});
+});
+
+// ---------------------------------------------------------------------------
+// Timeout middleware integration — signal is set and fires after timeout
+// ---------------------------------------------------------------------------
+
+describe('_createTimeoutMiddleware — integration', () => {
+	test('sets an AbortSignal on the RequestContext', async () => {
+		const middleware = _createTimeoutMiddleware(500);
+		const ctx = new k8s.RequestContext('https://example.com', k8s.HttpMethod.GET);
+		expect(ctx.getSignal()).toBeUndefined();
+		await middleware.pre(ctx);
+		expect(ctx.getSignal()).toBeDefined();
+		expect(ctx.getSignal()!.aborted).toBe(false);
+	});
+
+	test('signal aborts after the configured timeout elapses', async () => {
+		const middleware = _createTimeoutMiddleware(50);
+		const ctx = new k8s.RequestContext('https://example.com', k8s.HttpMethod.GET);
+		await middleware.pre(ctx);
+		const signal = ctx.getSignal()!;
+
+		await new Promise<void>((resolve) => {
+			signal.addEventListener('abort', () => resolve(), { once: true });
+		});
+
+		expect(signal.aborted).toBe(true);
+	}, 1000);
+
+	test('timer cleanup listener uses { once: true } — abort event does not fire twice', async () => {
+		const middleware = _createTimeoutMiddleware(50);
+		const ctx = new k8s.RequestContext('https://example.com', k8s.HttpMethod.GET);
+		await middleware.pre(ctx);
+		const signal = ctx.getSignal()!;
+
+		let fireCount = 0;
+		signal.addEventListener('abort', () => fireCount++);
+
+		await new Promise<void>((resolve) => setTimeout(resolve, 150));
+		expect(fireCount).toBe(1);
+	}, 1000);
 });
