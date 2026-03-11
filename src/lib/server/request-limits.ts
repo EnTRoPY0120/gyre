@@ -36,11 +36,6 @@ export function getRequestSizeLimit(path: string, method: string): number {
 		return REQUEST_LIMITS.KUBECONFIG_UPLOAD;
 	}
 
-	// Auth provider creation - large JSON payloads for role mappings
-	if (path.startsWith('/api/admin/auth-providers') && method === 'POST') {
-		return REQUEST_LIMITS.JSON_API;
-	}
-
 	// Default for all other endpoints
 	return REQUEST_LIMITS.DEFAULT;
 }
@@ -53,7 +48,7 @@ export function getRequestSizeLimit(path: string, method: string): number {
  * transfer-encoded requests. When the header is missing this function
  * allows the request through — the route handler is responsible for
  * enforcing size limits on the parsed body in those cases (e.g. checking
- * File.size after formData() for uploads).
+ * File.size after formData() for uploads, or body byte length after json()).
  */
 export function validateRequestSize(
 	contentLength: string | number | undefined,
@@ -74,4 +69,14 @@ export function validateRequestSize(
 	}
 
 	return { valid: true };
+}
+
+/**
+ * Format a byte count as a human-readable string (KB below 1MB, MB above).
+ */
+export function formatSize(bytes: number): string {
+	if (bytes < 1024 * 1024) {
+		return `${Math.round(bytes / 1024)}KB`;
+	}
+	return `${Math.round(bytes / (1024 * 1024))}MB`;
 }

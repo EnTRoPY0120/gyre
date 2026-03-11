@@ -9,7 +9,7 @@ import {
 } from '$lib/server/clusters';
 import { isAdmin } from '$lib/server/rbac';
 import { logClusterChange } from '$lib/server/audit';
-import { REQUEST_LIMITS } from '$lib/server/request-limits';
+import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
 
 /**
  * Load function for cluster management page
@@ -67,11 +67,15 @@ export const actions: Actions = {
 			return fail(400, { error: 'Name must be at least 3 characters' });
 		}
 
-		// Validate kubeconfig size (max 10MB)
+		// Validate kubeconfig size (max 10MB).
+		// This check is the fallback for requests where Content-Length was absent
+		// (e.g. chunked transfer encoding) and the middleware passed them through.
+		// When Content-Length IS present the middleware rejects oversized requests
+		// first and redirects back to this page, so this code is not reached.
 		const kubeconfigSize = new TextEncoder().encode(kubeconfig).length;
 		if (kubeconfigSize > REQUEST_LIMITS.KUBECONFIG_UPLOAD) {
 			return fail(413, {
-				error: `Kubeconfig is too large. Maximum size is ${Math.round(REQUEST_LIMITS.KUBECONFIG_UPLOAD / (1024 * 1024))}MB, received ${Math.round(kubeconfigSize / (1024 * 1024))}MB`
+				error: `Kubeconfig is too large. Maximum size is ${formatSize(REQUEST_LIMITS.KUBECONFIG_UPLOAD)}, received ${formatSize(kubeconfigSize)}`
 			});
 		}
 

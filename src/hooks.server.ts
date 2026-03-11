@@ -2,7 +2,7 @@ import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/auth';
 import { initializeGyre } from '$lib/server/initialize';
 import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
-import { getRequestSizeLimit, validateRequestSize } from '$lib/server/request-limits';
+import { getRequestSizeLimit, validateRequestSize, formatSize } from '$lib/server/request-limits';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -73,17 +73,27 @@ export const handle: Handle = async ({ event, resolve }) => {
 		console.warn(
 			`Request size exceeded limit for ${request.method} ${path}: ${sizeValidation.size} > ${sizeValidation.limit}`
 		);
+
+		// For API routes return a JSON 413.
+		// For page/form routes redirect back to the same URL with an error param so
+		// the user sees the form rather than a raw JSON response in the browser.
+		if (path.startsWith('/api/')) {
+			return recordResponse(
+				new Response(
+					JSON.stringify({
+						error: 'Payload Too Large',
+						message: `Request payload exceeds maximum size of ${formatSize(sizeValidation.limit!)}`
+					}),
+					{ status: 413, headers: { 'Content-Type': 'application/json' } }
+				)
+			);
+		}
+
 		return recordResponse(
-			new Response(
-				JSON.stringify({
-					error: 'Payload Too Large',
-					message: `Request payload exceeds maximum size of ${Math.round(sizeValidation.limit! / (1024 * 1024))}MB`
-				}),
-				{
-					status: 413,
-					headers: { 'Content-Type': 'application/json' }
-				}
-			)
+			new Response(null, {
+				status: 303,
+				headers: { Location: `${path}?_error=payload_too_large` }
+			})
 		);
 	}
 

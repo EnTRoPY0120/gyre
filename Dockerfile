@@ -79,8 +79,9 @@ EXPOSE 3000
 
 # Environment variables
 # BODY_SIZE_LIMIT: adapter-node's built-in body cap (default 512KB).
-# Set to Infinity to disable it and rely solely on the per-endpoint limits
-# enforced in src/hooks.server.ts (required for kubeconfig/backup uploads).
+# Set to 500M to match the largest allowed upload (backup restore) so the
+# adapter acts as a hard ceiling while hooks.server.ts enforces per-endpoint
+# limits. This also protects against chunked uploads with no Content-Length.
 ENV NODE_ENV=production \
     PORT=3000 \
     BODY_SIZE_LIMIT=500M
