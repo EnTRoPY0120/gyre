@@ -44,10 +44,7 @@ function isPublicRoute(path: string): boolean {
 	}
 
 	// Check for OAuth routes which are public
-	if (
-		PUBLIC_ROUTE_PREFIXES.some((prefix) => path.startsWith(prefix)) &&
-		(path.includes('/callback') || path.endsWith('/login'))
-	) {
+	if (PUBLIC_ROUTE_PREFIXES.some((prefix) => path.startsWith(prefix))) {
 		return true;
 	}
 
