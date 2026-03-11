@@ -1,10 +1,10 @@
 import type { PageServerLoad } from './$types';
 import { resourceGroups } from '$lib/config/resources';
 import { fetchWithRetry } from '$lib/utils/fetch';
+import { DASHBOARD_CACHE_TTL_MS } from '$lib/server/config/constants';
 
 // Cache for dashboard data - shared across requests
 const dashboardCache = new Map<string, { data: unknown; timestamp: number }>();
-const CACHE_TTL = 30 * 1000; // 30 seconds
 
 export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHeaders }) => {
 	// Get health data from parent layout
@@ -17,7 +17,7 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 		const cached = dashboardCache.get(cacheKey);
 
 		// Return cached data if still valid
-		if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+		if (cached && Date.now() - cached.timestamp < DASHBOARD_CACHE_TTL_MS) {
 			return cached.data as Record<
 				string,
 				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }

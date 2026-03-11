@@ -9,6 +9,7 @@ import {
 	fluxResourceStatusGauge
 } from './metrics.js';
 import { captureReconciliation } from './kubernetes/flux/reconciliation-tracker.js';
+import { SETTLING_PERIOD_MS, POLL_INTERVAL_MS, HEARTBEAT_INTERVAL_MS } from './config/constants.js';
 
 // Resource types to watch
 const WATCH_RESOURCES: FluxResourceType[] = [
@@ -17,10 +18,6 @@ const WATCH_RESOURCES: FluxResourceType[] = [
 	'Kustomization',
 	'HelmRelease'
 ];
-
-const SETTLING_PERIOD_MS = 30000;
-const POLL_INTERVAL_MS = 5000;
-const HEARTBEAT_INTERVAL_MS = 30000;
 
 export interface SSEEvent {
 	type: 'CONNECTED' | 'ADDED' | 'MODIFIED' | 'DELETED' | 'HEARTBEAT';
