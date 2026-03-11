@@ -28,6 +28,7 @@ let isShuttingDown = false;
  */
 export async function shutdownGyre(): Promise<void> {
 	console.log('\n🛑 Shutting down Gyre background tasks...');
+	setEventBusShuttingDown();
 	try {
 		const results = await Promise.allSettled([stopCleanup(), stopAuditLogCleanup()]);
 		results.forEach((result, index) => {
@@ -51,14 +52,13 @@ if (typeof process !== 'undefined') {
 	const handleSignal = async (signal: string) => {
 		if (isShuttingDown) return;
 		isShuttingDown = true;
-		setEventBusShuttingDown();
 		console.log(`\n🛑 Received ${signal}, starting graceful shutdown...`);
 
 		// Force-exit after 15s if graceful shutdown hangs
 		// (K8s terminationGracePeriodSeconds defaults to 30s, so we want to exit before SIGKILL)
 		forceExit = setTimeout(() => {
-			console.warn('   ⚠️  Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
-			console.warn('   ⚠️  Force-exiting: any in-flight DB requests will fail');
+			console.error('   ✗ Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
+			console.error('   ✗ Force-exiting: any in-flight DB requests will fail');
 			try {
 				closeDb();
 			} catch (err) {
@@ -89,14 +89,14 @@ if (typeof process !== 'undefined') {
 		} else {
 			// Production path: adapter-node will emit sveltekit:shutdown when HTTP drain completes.
 			// Guard against the event never firing.
-			forceExit = setTimeout(() => {
-				console.warn('   ⚠️  sveltekit:shutdown not received within 10s, forcing exit');
+			const httpDrainTimeout = setTimeout(() => {
+				console.error('   ✗ sveltekit:shutdown not received within 10s, forcing exit');
 				try {
 					closeDb();
 				} catch {}
 				process.exit(1);
 			}, 10_000);
-			forceExit.unref();
+			httpDrainTimeout.unref();
 		}
 	};
 
@@ -115,7 +115,6 @@ if (typeof process !== 'undefined') {
 		// run shutdown now to ensure cleanup completes
 		if (!isShuttingDown) {
 			isShuttingDown = true;
-			setEventBusShuttingDown();
 			await shutdownGyre();
 		}
 
