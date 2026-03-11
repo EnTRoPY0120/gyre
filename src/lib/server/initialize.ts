@@ -40,6 +40,8 @@ export async function shutdownGyre(): Promise<void> {
 
 // Register shutdown handlers
 if (typeof process !== 'undefined') {
+	let forceExit: NodeJS.Timeout | null = null;
+
 	const handleSignal = async (signal: string) => {
 		if (isShuttingDown) return;
 		isShuttingDown = true;
@@ -49,8 +51,9 @@ if (typeof process !== 'undefined') {
 
 		// Force-exit after 15s if graceful shutdown hangs
 		// (K8s terminationGracePeriodSeconds defaults to 30s, so we want to exit before SIGKILL)
-		const forceExit = setTimeout(() => {
+		forceExit = setTimeout(() => {
 			console.log('   ℹ Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
+			console.warn('   ⚠️  Force-exiting: any in-flight DB requests will fail');
 			try {
 				closeDb();
 			} catch (err) {
@@ -61,6 +64,7 @@ if (typeof process !== 'undefined') {
 		forceExit.unref();
 
 		// In development (vite), sveltekit:shutdown is not emitted.
+		// adapter-node only emits sveltekit:shutdown in production builds.
 		// We exit immediately after cleanup.
 		if (process.env.NODE_ENV !== 'production') {
 			try {
@@ -69,7 +73,7 @@ if (typeof process !== 'undefined') {
 			} catch (error) {
 				console.error('   ✗ Error closing database:', error);
 			}
-			clearTimeout(forceExit);
+			if (forceExit) clearTimeout(forceExit);
 			process.exit(0);
 		}
 	};
@@ -79,6 +83,7 @@ if (typeof process !== 'undefined') {
 
 	process.on('sveltekit:shutdown', () => {
 		console.log('   ✓ HTTP server stopped');
+		if (forceExit) clearTimeout(forceExit);
 		try {
 			closeDb();
 			console.log('   ✓ Database connection closed');
