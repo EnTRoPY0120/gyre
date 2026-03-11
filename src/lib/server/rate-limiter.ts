@@ -264,3 +264,80 @@ export class AccountLockout {
 }
 
 export const accountLockout = new AccountLockout();
+
+/**
+ * SSEConnectionLimiter tracks the number of active concurrent SSE connections
+ * per authenticated session and per authenticated user.  Unlike RateLimiter
+ * (which counts requests per time window), this class counts live connections
+ * that have not yet been released.
+ *
+ * Session-based limiting is preferred over IP-based limiting because IP
+ * addresses can be shared across many users (NAT, VPN, corporate proxies).
+ * Tracking by session gives an accurate, per-client view without penalising
+ * unrelated users who happen to share an IP.
+ */
+export class SSEConnectionLimiter {
+	private sessionConnections: Map<string, number> = new Map();
+	private userConnections: Map<string, number> = new Map();
+
+	/**
+	 * Try to acquire a connection slot.
+	 *
+	 * Returns `{ allowed: true, release }` on success – callers MUST invoke
+	 * `release()` when the connection closes to free the slot.
+	 * Returns `{ allowed: false, reason }` when either per-session or per-user
+	 * limit is already reached.
+	 */
+	acquire(
+		sessionId: string,
+		userId: string,
+		maxPerSession: number,
+		maxPerUser: number
+	): { allowed: true; release: () => void } | { allowed: false; reason: string } {
+		const sessionCount = this.sessionConnections.get(sessionId) ?? 0;
+		if (sessionCount >= maxPerSession) {
+			return {
+				allowed: false,
+				reason: `Too many SSE connections for this session (max ${maxPerSession})`
+			};
+		}
+
+		const userCount = this.userConnections.get(userId) ?? 0;
+		if (userCount >= maxPerUser) {
+			return {
+				allowed: false,
+				reason: `Too many SSE connections for this user (max ${maxPerUser})`
+			};
+		}
+
+		this.sessionConnections.set(sessionId, sessionCount + 1);
+		this.userConnections.set(userId, userCount + 1);
+
+		let released = false;
+		return {
+			allowed: true,
+			release: () => {
+				if (released) return;
+				released = true;
+
+				const newSessionCount = (this.sessionConnections.get(sessionId) ?? 1) - 1;
+				if (newSessionCount <= 0) this.sessionConnections.delete(sessionId);
+				else this.sessionConnections.set(sessionId, newSessionCount);
+
+				const newUserCount = (this.userConnections.get(userId) ?? 1) - 1;
+				if (newUserCount <= 0) this.userConnections.delete(userId);
+				else this.userConnections.set(userId, newUserCount);
+			}
+		};
+	}
+
+	/** Current connection counts for a given session / user pair (for diagnostics). */
+	getConnectionCounts(sessionId: string, userId: string): { session: number; user: number } {
+		return {
+			session: this.sessionConnections.get(sessionId) ?? 0,
+			user: this.userConnections.get(userId) ?? 0
+		};
+	}
+}
+
+export const sseConnectionLimiter = new SSEConnectionLimiter();

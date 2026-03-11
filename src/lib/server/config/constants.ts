@@ -73,3 +73,34 @@ export const POLL_INTERVAL_MS = parseEnvInt('GYRE_POLL_INTERVAL_MS', 5_000, { mi
 export const HEARTBEAT_INTERVAL_MS = parseEnvInt('GYRE_HEARTBEAT_INTERVAL_MS', 30_000, {
 	min: 1_000
 });
+
+// ---------------------------------------------------------------------------
+// SSE connection limits
+// ---------------------------------------------------------------------------
+
+/**
+ * Max concurrent SSE connections per authenticated session.
+ * Session-based limiting is used instead of IP-based limiting because IP
+ * addresses can be shared across many users (NAT, VPN, corporate proxies).
+ * env: GYRE_SSE_MAX_CONNECTIONS_PER_SESSION
+ */
+export const SSE_MAX_CONNECTIONS_PER_SESSION = parseEnvInt(
+	'GYRE_SSE_MAX_CONNECTIONS_PER_SESSION',
+	3,
+	{ min: 1 }
+);
+
+/** Max concurrent SSE connections per authenticated user. env: GYRE_SSE_MAX_CONNECTIONS_PER_USER */
+export const SSE_MAX_CONNECTIONS_PER_USER = parseEnvInt('GYRE_SSE_MAX_CONNECTIONS_PER_USER', 5, {
+	min: 1
+});
+
+/**
+ * Maximum lifetime for a single SSE connection in milliseconds.
+ * When the timeout elapses the server sends a SHUTDOWN event and closes the
+ * stream so the client must reconnect.  0 disables the timeout (no limit).
+ * env: GYRE_SSE_CONNECTION_TIMEOUT_MS
+ */
+export const SSE_CONNECTION_TIMEOUT_MS = parseEnvInt('GYRE_SSE_CONNECTION_TIMEOUT_MS', 0, {
+	min: 0
+});
