@@ -50,13 +50,13 @@ if (typeof process !== 'undefined') {
 		// Force-exit after 15s if graceful shutdown hangs
 		// (K8s terminationGracePeriodSeconds defaults to 30s, so we want to exit before SIGKILL)
 		const forceExit = setTimeout(() => {
-			console.error('   ✗ Graceful shutdown timed out, forcing exit');
+			console.log('   ℹ Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
 			try {
 				closeDb();
 			} catch (err) {
 				console.error('   ✗ Error closing database at force-exit:', err);
 			}
-			process.exit(1);
+			process.exit(0);
 		}, 15_000);
 		forceExit.unref();
 
