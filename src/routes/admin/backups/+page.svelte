@@ -165,6 +165,8 @@
 			const formData = new FormData();
 			formData.append('file', restoreFile);
 
+			// Use X-CSRF-Token header instead of a hidden _csrf form field because
+			// the body is a multipart FormData with a large file blob.
 			const response = await fetch('/api/admin/backups/restore', {
 				method: 'POST',
 				headers: { 'X-CSRF-Token': getCsrfToken() },

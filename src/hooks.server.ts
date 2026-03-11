@@ -22,6 +22,9 @@ const PUBLIC_ROUTES = [
 	'/logo.svg'
 ];
 
+// OAuth callback and login initiation routes are dynamic but public
+const PUBLIC_ROUTE_PREFIXES = ['/api/auth/oidc/', '/api/auth/github/', '/api/auth/google/'];
+
 // Static asset patterns
 const STATIC_PATTERNS = [
 	/^\/_app\//,
@@ -38,8 +41,11 @@ function isPublicRoute(path: string): boolean {
 		return true;
 	}
 
-	// Check for OAuth routes which are dynamic but public
-	if (path.startsWith('/api/auth/') && (path.includes('/callback') || path.endsWith('/login'))) {
+	// Check for OAuth routes which are public
+	if (
+		PUBLIC_ROUTE_PREFIXES.some((prefix) => path.startsWith(prefix)) &&
+		(path.includes('/callback') || path.endsWith('/login'))
+	) {
 		return true;
 	}
 
@@ -138,13 +144,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 			// Set CSRF token cookie (non-httpOnly so JS can read it)
 			const csrfToken = generateCsrfToken(sessionData.session.id);
-			cookies.set('gyre_csrf', csrfToken, {
-				path: '/',
-				httpOnly: false,
-				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'strict',
-				maxAge: 60 * 60 * 24 * 7 // 7 days (match session TTL)
-			});
+			if (cookies.get('gyre_csrf') !== csrfToken) {
+				cookies.set('gyre_csrf', csrfToken, {
+					path: '/',
+					httpOnly: false,
+					secure: process.env.NODE_ENV === 'production',
+					sameSite: 'strict',
+					maxAge: 60 * 60 * 24 * 7 // 7 days (match session TTL)
+				});
+			}
 		}
 	}
 
