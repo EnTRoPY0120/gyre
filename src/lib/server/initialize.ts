@@ -59,7 +59,7 @@ if (typeof process !== 'undefined') {
 			} catch (err) {
 				console.error('   ✗ Error closing database at force-exit:', err);
 			}
-			process.exit(0);
+			process.exit(1);
 		}, 15_000);
 		forceExit.unref();
 

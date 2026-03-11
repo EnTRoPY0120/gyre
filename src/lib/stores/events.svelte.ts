@@ -144,7 +144,13 @@ class RealtimeStore {
 
 	connect() {
 		if (this.isServerShutdown) {
-			return;
+			// In development, the server may have restarted (HMR) while client is alive.
+			// Allow reconnecting in dev mode.
+			if (import.meta.env.DEV) {
+				this.isServerShutdown = false;
+			} else {
+				return;
+			}
 		}
 
 		if (this.eventSource?.readyState === EventSource.OPEN) {

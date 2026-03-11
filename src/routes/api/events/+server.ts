@@ -36,6 +36,7 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 					unsubscribe();
 					return;
 				}
+				// Only check for SHUTDOWN if enqueue succeeded (controller is still open)
 				if (event.type === 'SHUTDOWN') {
 					unsubscribe();
 					controller.close();
