@@ -173,7 +173,7 @@ function startWorker(context: ClusterContext) {
 function stopWorker(context: ClusterContext) {
 	if (!context.isActive) return;
 	context.isActive = false;
-	activeWorkersGauge.set(Math.max(0, activeWorkers.size - 1));
+	activeWorkersGauge.set(Array.from(activeWorkers.values()).filter((w) => w.isActive).length);
 	if (context.pollTimeout) {
 		clearTimeout(context.pollTimeout);
 		context.pollTimeout = null;
@@ -203,7 +203,10 @@ function broadcast(context: ClusterContext, event: SSEEvent) {
 async function poll(context: ClusterContext) {
 	if (!context.isActive) return;
 
-	const { promise, resolve: resolvePoll } = Promise.withResolvers<void>();
+	let resolvePoll!: () => void;
+	const promise = new Promise<void>((resolve) => {
+		resolvePoll = resolve;
+	});
 	context.inflightPollPromise = promise;
 
 	try {

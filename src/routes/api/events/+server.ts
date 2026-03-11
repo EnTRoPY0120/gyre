@@ -32,7 +32,7 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 				try {
 					controller.enqueue(encoder.encode(msg));
 				} catch {
-					// Controller may be closed, unsubscribe
+					// Enqueue failed (e.g., controller closed or client disconnected abruptly)
 					unsubscribe();
 					return;
 				}

@@ -65,14 +65,20 @@ if (typeof process !== 'undefined') {
 		isShuttingDown = true;
 		console.log(`\n🛑 Received ${signal}, starting graceful shutdown...`);
 
-		// Force-exit after 15s if graceful shutdown hangs
+		const isProd = process.env.NODE_ENV === 'production';
+
+		// Force-exit after 15s if graceful shutdown hangs (5s in dev)
 		// (K8s terminationGracePeriodSeconds defaults to 30s, so we want to exit before SIGKILL)
-		forceExit = setTimeout(() => {
-			console.error('   ✗ Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
-			console.error('   ✗ Force-exiting: any in-flight DB requests will fail');
-			safeCloseDb('force-exit');
-			process.exit(1);
-		}, 15_000);
+		// NOTE: Lowering terminationGracePeriodSeconds below 30s in K8s manifests would break this timing.
+		forceExit = setTimeout(
+			() => {
+				console.error('   ✗ Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
+				console.error('   ✗ Force-exiting: any in-flight DB requests will fail');
+				safeCloseDb('force-exit');
+				process.exit(1);
+			},
+			isProd ? 15_000 : 5_000
+		);
 		forceExit.unref();
 
 		await shutdownGyre();
