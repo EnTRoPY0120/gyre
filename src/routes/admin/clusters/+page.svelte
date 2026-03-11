@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
+	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
@@ -316,6 +317,7 @@
 							}}
 							class="inline"
 						>
+							<input type="hidden" name="_csrf" value={getCsrfToken()} />
 							<input type="hidden" name="clusterId" value={cluster.id} />
 							<Button type="submit" variant="ghost" size="sm" title="Test Connection">
 								<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -340,6 +342,7 @@
 							}}
 							class="inline"
 						>
+							<input type="hidden" name="_csrf" value={getCsrfToken()} />
 							<input type="hidden" name="clusterId" value={cluster.id} />
 							<input type="hidden" name="isActive" value={(!cluster.isActive).toString()} />
 							<Button
@@ -442,6 +445,7 @@
 					}}
 					class="space-y-4"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<div>
 							<label for="clusterName" class="mb-1 block text-sm font-medium text-slate-300"
@@ -591,6 +595,7 @@
 					}}
 					class="flex justify-end gap-3"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<input type="hidden" name="clusterId" value={deletingCluster.id} />
 					<input type="hidden" name="clusterName" value={deletingCluster.name} />
 					<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>
