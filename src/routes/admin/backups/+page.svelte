@@ -414,6 +414,10 @@
 					>openssl rand -hex 32</code
 				>
 			</p>
+			<p class="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
+				⚠️ Changing the key renders existing encrypted backups unreadable. Decrypt and re-encrypt
+				them before rotating.
+			</p>
 		</div>
 	</div>
 </div>
