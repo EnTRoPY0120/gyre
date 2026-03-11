@@ -63,6 +63,7 @@ class RealtimeStore {
 	private reconnectDelay = RECONNECT_DELAY_MS;
 	private eventCallbacks: Set<EventCallback> = new Set();
 	private statusCallbacks: Set<StatusCallback> = new Set();
+	private isServerShutdown = false;
 
 	// Notification state cache to prevent duplicate notifications
 	// Key: `${resourceType}/${namespace}/${name}`, Value: `${readyStatus}/${readyMessageHash}`
@@ -142,6 +143,10 @@ class RealtimeStore {
 	}
 
 	connect() {
+		if (this.isServerShutdown) {
+			return;
+		}
+
 		if (this.eventSource?.readyState === EventSource.OPEN) {
 			return;
 		}
@@ -207,6 +212,10 @@ class RealtimeStore {
 	}
 
 	private scheduleReconnect() {
+		if (this.isServerShutdown) {
+			return;
+		}
+
 		if (this.reconnectAttempts >= this.maxReconnectAttempts) {
 			console.log('[SSE] Max reconnect attempts reached');
 			return;
@@ -224,7 +233,10 @@ class RealtimeStore {
 
 	private handleMessage(data: ResourceEvent) {
 		if (data.type === 'SHUTDOWN') {
-			console.log('[SSE] Received SHUTDOWN event from server, disconnecting.');
+			console.log(
+				'[SSE] Received SHUTDOWN event from server, disconnecting and preventing reconnects.'
+			);
+			this.isServerShutdown = true;
 			this.disconnect();
 			return;
 		}
