@@ -1,9 +1,11 @@
-import { describe, test, expect, afterEach } from 'bun:test';
+import { describe, test, expect, afterEach, spyOn } from 'bun:test';
 import crypto from 'node:crypto';
+import * as nodeFs from 'node:fs';
 import {
 	_encryptBackup,
 	_decryptBackup,
 	_getBackupEncryptionKey,
+	getDecryptedBackupBuffer,
 	BackupError
 } from '../lib/server/backup';
 
@@ -127,13 +129,15 @@ describe('Backup Encryption Module', () => {
 			expect(key!.length).toBe(32);
 		});
 
-		test('throws for a key that is too short', () => {
+		test('throws BackupError for a key that is too short', () => {
 			process.env.BACKUP_ENCRYPTION_KEY = 'a'.repeat(32); // only 32 hex chars
+			expect(() => _getBackupEncryptionKey()).toThrow(BackupError);
 			expect(() => _getBackupEncryptionKey()).toThrow('BACKUP_ENCRYPTION_KEY');
 		});
 
-		test('throws for a key with non-hex characters', () => {
+		test('throws BackupError for a key with non-hex characters', () => {
 			process.env.BACKUP_ENCRYPTION_KEY = 'z'.repeat(64);
+			expect(() => _getBackupEncryptionKey()).toThrow(BackupError);
 			expect(() => _getBackupEncryptionKey()).toThrow('BACKUP_ENCRYPTION_KEY');
 		});
 
@@ -142,6 +146,49 @@ describe('Backup Encryption Module', () => {
 			const key = _getBackupEncryptionKey();
 			expect(key).not.toBeNull();
 			expect(key!.length).toBe(32);
+		});
+	});
+
+	describe('getDecryptedBackupBuffer', () => {
+		const validKeyHex = 'b'.repeat(64);
+		const encFilename = 'gyre-backup-2024-01-01T00-00-00-000Z.db.enc';
+
+		test('decrypts an encrypted .db.enc file and returns the original plaintext', () => {
+			process.env.BACKUP_ENCRYPTION_KEY = validKeyHex;
+
+			const plaintext = Buffer.from('fake SQLite payload for testing');
+			const keyBuf = Buffer.from(validKeyHex, 'hex');
+			const encrypted = _encryptBackup(plaintext, keyBuf);
+
+			// Mock existsSync to say the file exists, and readFileSync to return the encrypted buffer
+			const existsSpy = spyOn(nodeFs, 'existsSync').mockReturnValue(true);
+			const readSpy = spyOn(nodeFs, 'readFileSync').mockReturnValue(encrypted as unknown as string);
+
+			try {
+				const result = getDecryptedBackupBuffer(encFilename);
+				expect(result).not.toBeNull();
+				expect(result).toEqual(plaintext);
+			} finally {
+				existsSpy.mockRestore();
+				readSpy.mockRestore();
+				delete process.env.BACKUP_ENCRYPTION_KEY;
+			}
+		});
+
+		test('throws BackupError when BACKUP_ENCRYPTION_KEY is unset for a .db.enc file', () => {
+			delete process.env.BACKUP_ENCRYPTION_KEY;
+
+			const existsSpy = spyOn(nodeFs, 'existsSync').mockReturnValue(true);
+			const readSpy = spyOn(nodeFs, 'readFileSync').mockReturnValue(
+				Buffer.alloc(64) as unknown as string
+			);
+
+			try {
+				expect(() => getDecryptedBackupBuffer(encFilename)).toThrow(BackupError);
+			} finally {
+				existsSpy.mockRestore();
+				readSpy.mockRestore();
+			}
 		});
 	});
 });
