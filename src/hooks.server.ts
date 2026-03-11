@@ -4,6 +4,7 @@ import { initializeGyre } from '$lib/server/initialize';
 import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
 import { getRequestSizeLimit, validateRequestSize, formatSize } from '$lib/server/request-limits';
 import { generateCsrfToken, validateCsrfToken } from '$lib/server/csrf';
+import { CSRF_COOKIE_OPTIONS } from '$lib/server/config';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -14,6 +15,7 @@ let initialized = false;
 const PUBLIC_ROUTES = [
 	'/login',
 	'/api/auth/login',
+	'/api/auth/logout',
 	'/api/health',
 	'/api/flux/health',
 	'/metrics',
@@ -145,13 +147,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			// Set CSRF token cookie (non-httpOnly so JS can read it)
 			const csrfToken = generateCsrfToken(sessionData.session.id);
 			if (cookies.get('gyre_csrf') !== csrfToken) {
-				cookies.set('gyre_csrf', csrfToken, {
-					path: '/',
-					httpOnly: false,
-					secure: process.env.NODE_ENV === 'production',
-					sameSite: 'strict',
-					maxAge: 60 * 60 * 24 * 7 // 7 days (match session TTL)
-				});
+				cookies.set('gyre_csrf', csrfToken, CSRF_COOKIE_OPTIONS);
 			}
 		}
 	}
@@ -167,13 +163,17 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// If header is missing, check form data for _csrf (common for SvelteKit form actions)
 		if (!csrfToken) {
 			const contentType = request.headers.get('content-type') || '';
+			const contentLength = parseInt(request.headers.get('content-length') ?? '0', 10);
+
+			// Only attempt to parse form data if it's a standard form post and within a reasonable size (10MB)
+			// to avoid memory exhaustion from cloning large payloads (e.g. backup restores).
 			if (
-				contentType.includes('application/x-www-form-urlencoded') ||
-				contentType.includes('multipart/form-data')
+				(contentType.includes('application/x-www-form-urlencoded') ||
+					contentType.includes('multipart/form-data')) &&
+				contentLength < 10 * 1024 * 1024
 			) {
 				try {
-					// NOTE: Cloning large multipart uploads (like backup restore) doubles memory.
-					// This is a trade-off for stateless CSRF validation on SvelteKit form actions.
+					// NOTE: Cloning request doubles memory for the duration of parsing.
 					const formData = await request.clone().formData();
 					csrfToken = formData.get('_csrf')?.toString() ?? '';
 				} catch (e) {
