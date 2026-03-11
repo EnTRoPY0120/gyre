@@ -1,5 +1,7 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+// Note: Caching the secret at module scope means it won't reflect runtime changes to
+// AUTH_ENCRYPTION_KEY until the process restarts. This is intentional for performance.
 let _cachedSecret: string | null = null;
 
 const getSecret = (): string => {
@@ -40,12 +42,19 @@ export function generateCsrfToken(sessionId: string): string {
 	return createHmac('sha256', getSecret()).update(sessionId).digest('hex');
 }
 
+/**
+ * Validate a CSRF token against a session ID.
+ * Uses timing-safe comparison to prevent side-channel attacks.
+ */
 export function validateCsrfToken(sessionId: string, token: string): boolean {
 	if (!token) return false;
 	const expected = generateCsrfToken(sessionId);
 
-	// Fast-path for length mismatch to avoid unnecessary Buffer operations
-	if (token.length !== expected.length) return false;
+	// Fast-path for length and format mismatch to avoid unnecessary Buffer operations
+	// and prevent timingSafeEqual from throwing on malformed hex input.
+	if (token.length !== expected.length || !/^[0-9a-f]{64}$/i.test(token)) {
+		return false;
+	}
 
 	try {
 		return timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(token, 'hex'));
