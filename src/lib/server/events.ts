@@ -9,6 +9,7 @@ import {
 	fluxResourceStatusGauge
 } from './metrics.js';
 import { captureReconciliation } from './kubernetes/flux/reconciliation-tracker.js';
+import { SETTLING_PERIOD_MS, POLL_INTERVAL_MS, HEARTBEAT_INTERVAL_MS } from './config/constants.js';
 
 // Resource types to watch
 const WATCH_RESOURCES: FluxResourceType[] = [
@@ -18,12 +19,8 @@ const WATCH_RESOURCES: FluxResourceType[] = [
 	'HelmRelease'
 ];
 
-const SETTLING_PERIOD_MS = 30000;
-const POLL_INTERVAL_MS = 5000;
-const HEARTBEAT_INTERVAL_MS = 30000;
-
 export interface SSEEvent {
-	type: 'CONNECTED' | 'ADDED' | 'MODIFIED' | 'DELETED' | 'HEARTBEAT';
+	type: 'CONNECTED' | 'ADDED' | 'MODIFIED' | 'DELETED' | 'HEARTBEAT' | 'SHUTDOWN';
 	clusterId?: string;
 	resourceType?: string;
 	resource?: unknown;
@@ -39,6 +36,7 @@ interface ClusterContext {
 	isActive: boolean;
 	pollTimeout: NodeJS.Timeout | null;
 	heartbeatInterval: NodeJS.Timeout | null;
+	inflightPollPromise: Promise<void> | null;
 	lastStates: Map<string, string>;
 	lastNotificationStates: Map<string, string>;
 	resourceFirstSeen: Map<string, number>;
@@ -47,12 +45,78 @@ interface ClusterContext {
 // Map of active polling workers per cluster
 const activeWorkers = new Map<string, ClusterContext>();
 
+// Shutdown flag to prevent new subscriptions during shutdown
+let isShuttingDown = false;
+
+/**
+ * Mark the event bus as shutting down to prevent new subscriptions
+ */
+export function setEventBusShuttingDown(): void {
+	isShuttingDown = true;
+}
+
+/**
+ * Close all active event streams (used during graceful shutdown)
+ */
+export async function closeAllEventStreams() {
+	console.log('[EventBus] Shutting down all event streams...');
+	isShuttingDown = true;
+
+	// Collect inflight promises before touching any context so the broadcast loop
+	// below is not delayed by sequential awaits.
+	const inflightPromises: Array<[string, Promise<void>]> = [];
+	for (const [clusterId, context] of Array.from(activeWorkers.entries())) {
+		if (context.inflightPollPromise) {
+			inflightPromises.push([clusterId, context.inflightPollPromise]);
+		}
+
+		// Broadcast SHUTDOWN to all subscribers - this will trigger their unsubscribe()
+		// which will call stopWorker and remove from activeWorkers
+		broadcast(context, {
+			type: 'SHUTDOWN',
+			clusterId,
+			timestamp: new Date().toISOString()
+		});
+		// Explicitly call stopWorker to guarantee timer cleanup even if a subscriber throws.
+		// It is safe if stopWorker is called twice (idempotent check for null intervals).
+		stopWorker(context);
+
+		// Subscribers are cleared by their unsubscribe callbacks during broadcast.
+		// The guard exists because unsubscribe() may have already called activeWorkers.delete(clusterId)
+		// during the broadcast, modifying the Map during live iteration.
+		if (activeWorkers.has(clusterId)) {
+			context.subscribers.clear();
+		}
+	}
+
+	// Await all inflight polls concurrently now that all workers are stopped.
+	const pollResults = await Promise.allSettled(inflightPromises.map(([, p]) => p));
+	pollResults.forEach((result, i) => {
+		if (result.status === 'rejected') {
+			console.error(
+				`[EventBus] Error awaiting poll for cluster ${inflightPromises[i][0]}:`,
+				result.reason
+			);
+		}
+	});
+	activeWorkers.clear();
+	// Reset metrics
+	activeWorkersGauge.set(0);
+	sseSubscribersGauge.reset();
+}
+
 /**
  * Subscribe to events for a specific cluster
  * @param clusterId - The cluster to watch
  * @param subscriber - Callback for events
  */
 export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluster'): () => void {
+	// Prevent new subscriptions during shutdown
+	if (isShuttingDown) {
+		console.warn(`[EventBus] Rejecting new subscription for cluster ${clusterId}: shutting down`);
+		return () => {};
+	}
+
 	let context = activeWorkers.get(clusterId);
 
 	if (!context) {
@@ -62,6 +126,7 @@ export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluste
 			isActive: false,
 			pollTimeout: null,
 			heartbeatInterval: null,
+			inflightPollPromise: null,
 			lastStates: new Map(),
 			lastNotificationStates: new Map(),
 			resourceFirstSeen: new Map()
@@ -116,8 +181,9 @@ function startWorker(context: ClusterContext) {
 }
 
 function stopWorker(context: ClusterContext) {
+	if (!context.isActive) return;
 	context.isActive = false;
-	activeWorkersGauge.set(Math.max(0, activeWorkers.size - 1));
+	activeWorkersGauge.set(Array.from(activeWorkers.values()).filter((w) => w.isActive).length);
 	if (context.pollTimeout) {
 		clearTimeout(context.pollTimeout);
 		context.pollTimeout = null;
@@ -126,12 +192,12 @@ function stopWorker(context: ClusterContext) {
 		clearInterval(context.heartbeatInterval);
 		context.heartbeatInterval = null;
 	}
-	console.log(
-		`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId} (no active subscribers)`
-	);
+	console.log(`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId}`);
 }
 
 function broadcast(context: ClusterContext, event: SSEEvent) {
+	// The loop is fault-tolerant: if a subscriber callback throws (e.g. during SHUTDOWN due to a closed stream),
+	// it is caught and logged, ensuring remaining subscribers still receive the event.
 	for (const subscriber of context.subscribers) {
 		try {
 			subscriber(event);
@@ -146,6 +212,12 @@ function broadcast(context: ClusterContext, event: SSEEvent) {
 
 async function poll(context: ClusterContext) {
 	if (!context.isActive) return;
+
+	let resolvePoll: () => void = () => {};
+	const promise = new Promise<void>((resolve) => {
+		resolvePoll = resolve;
+	});
+	context.inflightPollPromise = promise;
 
 	try {
 		for (const resourceType of WATCH_RESOURCES) {
@@ -340,6 +412,9 @@ async function poll(context: ClusterContext) {
 		}
 	} catch (err) {
 		console.error(`[EventBus] Critical error in poll loop for cluster ${context.clusterId}:`, err);
+	} finally {
+		resolvePoll!();
+		context.inflightPollPromise = null;
 	}
 
 	if (context.isActive) {

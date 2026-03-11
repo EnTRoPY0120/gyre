@@ -2,6 +2,7 @@
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { UserPlus, AlertTriangle, CheckCircle2, XCircle } from 'lucide-svelte';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
@@ -347,6 +348,7 @@
 					}}
 					class="space-y-4"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<div>
 						<label for="username" class="mb-1 block text-sm font-medium text-slate-300"
 							>Username</label
@@ -468,6 +470,7 @@
 					}}
 					class="space-y-4"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<input type="hidden" name="userId" value={editingUser.id} />
 
 					<div>
@@ -574,6 +577,7 @@
 					}}
 					class="flex justify-end gap-3"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<input type="hidden" name="userId" value={deletingUser.id} />
 					<input type="hidden" name="username" value={deletingUser.username} />
 					<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>
@@ -607,6 +611,7 @@
 					}}
 					class="space-y-4"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<input type="hidden" name="userId" value={resettingPassword.id} />
 
 					<div>

@@ -11,6 +11,7 @@
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
 	import yaml from 'js-yaml';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	let {
 		resource,
@@ -64,7 +65,8 @@
 
 		try {
 			const response = await fetch(`/api/flux/${type}/${namespace}/${name}/${action}`, {
-				method: 'POST'
+				method: 'POST',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});
 
 			if (!response.ok) {

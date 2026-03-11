@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
+	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
@@ -25,6 +26,7 @@
 			search: string;
 			limit: number;
 			offset: number;
+			urlError: string | null;
 		};
 		form?: {
 			error?: string;
@@ -153,8 +155,8 @@
 	<!-- Search Bar -->
 	<SearchBar value={searchValue} placeholder="Search clusters by name or description..." onSearch={handleSearch} />
 
-	<!-- Error Message -->
-	{#if form?.error}
+	<!-- Error Message (from form action or middleware redirect) -->
+	{#if form?.error || data.urlError}
 		<div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
 			<div class="flex items-center gap-2">
 				<svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -165,7 +167,7 @@
 						d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					/>
 				</svg>
-				{form.error}
+				{form?.error ?? data.urlError}
 			</div>
 		</div>
 	{/if}
@@ -315,6 +317,7 @@
 							}}
 							class="inline"
 						>
+							<input type="hidden" name="_csrf" value={getCsrfToken()} />
 							<input type="hidden" name="clusterId" value={cluster.id} />
 							<Button type="submit" variant="ghost" size="sm" title="Test Connection">
 								<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -339,6 +342,7 @@
 							}}
 							class="inline"
 						>
+							<input type="hidden" name="_csrf" value={getCsrfToken()} />
 							<input type="hidden" name="clusterId" value={cluster.id} />
 							<input type="hidden" name="isActive" value={(!cluster.isActive).toString()} />
 							<Button
@@ -441,6 +445,7 @@
 					}}
 					class="space-y-4"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<div>
 							<label for="clusterName" class="mb-1 block text-sm font-medium text-slate-300"
@@ -590,6 +595,7 @@
 					}}
 					class="flex justify-end gap-3"
 				>
+					<input type="hidden" name="_csrf" value={getCsrfToken()} />
 					<input type="hidden" name="clusterId" value={deletingCluster.id} />
 					<input type="hidden" name="clusterName" value={deletingCluster.name} />
 					<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>

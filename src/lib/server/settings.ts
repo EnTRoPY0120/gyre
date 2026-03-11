@@ -6,6 +6,7 @@
 import { getDb } from './db';
 import { appSettings, type NewAppSetting } from './db/schema';
 import { eq } from 'drizzle-orm';
+import { SETTINGS_CACHE_TTL_MS } from './config/constants.js';
 
 // Settings keys
 export const SETTINGS_KEYS = {
@@ -38,7 +39,6 @@ interface CacheEntry {
 }
 
 const cache = new Map<string, CacheEntry>();
-const CACHE_TTL = 30000; // 30 seconds
 
 /**
  * Get a setting value with env var override and caching support.
@@ -54,7 +54,7 @@ export async function getSetting(key: string): Promise<string> {
 
 	// Check cache
 	const cached = cache.get(key);
-	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+	if (cached && Date.now() - cached.timestamp < SETTINGS_CACHE_TTL_MS) {
 		return cached.value;
 	}
 

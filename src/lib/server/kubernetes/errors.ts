@@ -45,6 +45,17 @@ export class ClusterUnavailableError extends KubernetesError {
 	}
 }
 
+export class KubernetesTimeoutError extends KubernetesError {
+	constructor(operation: string, timeoutMs: number) {
+		super(
+			`Kubernetes API request timed out after ${timeoutMs}ms: ${operation}`,
+			504,
+			'GatewayTimeout'
+		);
+		this.name = 'KubernetesTimeoutError';
+	}
+}
+
 export class ConfigurationError extends Error {
 	constructor(message: string) {
 		super(message);

@@ -32,8 +32,20 @@ export const GET: RequestHandler = async ({ request, locals }) => {
 				try {
 					controller.enqueue(encoder.encode(msg));
 				} catch {
-					// Controller may be closed, unsubscribe
+					// Enqueue failed (e.g., controller closed or client disconnected abruptly)
 					unsubscribe();
+					return;
+				}
+				// Only check for SHUTDOWN if enqueue succeeded (controller is still open)
+				// Note: unsubscribe() calls ctx.subscribers.delete(subscriber) while broadcast() iterates the Set.
+				// This is safe in JS (current element deletion during for...of is safe).
+				if (event.type === 'SHUTDOWN') {
+					unsubscribe();
+					try {
+						controller.close();
+					} catch {
+						// Controller may already be closed if the client disconnected
+					}
 				}
 			}, locals.cluster);
 

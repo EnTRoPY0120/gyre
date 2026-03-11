@@ -14,6 +14,7 @@
 	} from 'lucide-svelte';
 	import { formatDistanceToNow } from 'date-fns';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	interface BackupMetadata {
 		filename: string;
@@ -87,7 +88,10 @@
 	async function createBackup() {
 		creating = true;
 		try {
-			const response = await fetch('/api/admin/backups', { method: 'POST' });
+			const response = await fetch('/api/admin/backups', {
+				method: 'POST',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
+			});
 			if (!response.ok) {
 				const err = await response.json();
 				throw new Error(err.message || 'Failed to create backup');
@@ -128,10 +132,10 @@
 	async function deleteBackupFile(filename: string) {
 		deletingFilename = filename;
 		try {
-			const response = await fetch(
-				`/api/admin/backups?filename=${encodeURIComponent(filename)}`,
-				{ method: 'DELETE' }
-			);
+			const response = await fetch(`/api/admin/backups?filename=${encodeURIComponent(filename)}`, {
+				method: 'DELETE',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
+			});
 			if (!response.ok) {
 				const err = await response.json();
 				throw new Error(err.message || 'Failed to delete backup');
@@ -161,8 +165,11 @@
 			const formData = new FormData();
 			formData.append('file', restoreFile);
 
+			// Use X-CSRF-Token header instead of a hidden _csrf form field because
+			// the body is a multipart FormData with a large file blob.
 			const response = await fetch('/api/admin/backups/restore', {
 				method: 'POST',
+				headers: { 'X-CSRF-Token': getCsrfToken() },
 				body: formData
 			});
 

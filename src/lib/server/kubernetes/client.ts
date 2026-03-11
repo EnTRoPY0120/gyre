@@ -9,11 +9,86 @@ import {
 import type { FluxResource, FluxResourceList } from './flux/types.js';
 import {
 	KubernetesError,
+	KubernetesTimeoutError,
 	ResourceNotFoundError,
 	AuthenticationError,
 	AuthorizationError,
 	ClusterUnavailableError
 } from './errors.js';
+
+// ---------------------------------------------------------------------------
+// Timeout configuration
+// ---------------------------------------------------------------------------
+
+/** Default timeout for all Kubernetes API requests (30 seconds). */
+export const DEFAULT_TIMEOUT_MS = 30_000;
+
+/**
+ * Per-operation timeout overrides (ms). Falls back to DEFAULT_TIMEOUT_MS.
+ * "logs" is higher because log fetching can be slow on large pods.
+ */
+export const OPERATION_TIMEOUTS: Record<string, number> = {
+	list: 30_000,
+	get: 15_000,
+	create: 30_000,
+	update: 30_000,
+	logs: 60_000
+};
+
+/** Returns a PromiseMiddleware that aborts requests exceeding `timeoutMs`. Exported for testing. */
+export function _createTimeoutMiddleware(timeoutMs: number): k8s.Middleware {
+	return {
+		pre: async (ctx: k8s.RequestContext) => {
+			const controller = new AbortController();
+			const existingSignal = ctx.getSignal();
+
+			// Declared before timer so the closure captures the binding correctly.
+			let timer: ReturnType<typeof setTimeout>;
+
+			// If a caller passed an upstream signal (e.g. a request-level AbortController),
+			// propagate its cancellation: clear our timer and abort our controller.
+			const onUpstreamAbort = () => {
+				clearTimeout(timer);
+				controller.abort();
+			};
+			if (existingSignal) {
+				existingSignal.addEventListener('abort', onUpstreamAbort, { once: true });
+			}
+
+			timer = setTimeout(() => {
+				// Timeout fired — remove the upstream listener so it cannot fire later.
+				if (existingSignal) {
+					existingSignal.removeEventListener('abort', onUpstreamAbort);
+				}
+				controller.abort();
+			}, timeoutMs);
+
+			ctx.setSignal(controller.signal);
+			return ctx;
+		},
+		// ResponseContext does not expose the request signal, so timer cleanup on
+		// successful completion is handled by the setTimeout firing as a no-op once
+		// the fetch promise has already settled.
+		post: async (ctx: k8s.ResponseContext) => ctx
+	};
+}
+
+/** Creates an API client with an AbortController-based timeout middleware injected. */
+function makeApiClientWithTimeout<T extends k8s.ApiType>(
+	kubeConfig: k8s.KubeConfig,
+	apiClientType: k8s.ApiConstructor<T>,
+	timeoutMs: number
+): T {
+	const cluster = kubeConfig.getCurrentCluster();
+	if (!cluster) throw new Error('No active cluster!');
+	const baseServerConfig = new k8s.ServerConfiguration(cluster.server, {});
+	const config = k8s.createConfiguration({
+		baseServer: baseServerConfig,
+		authMethods: { default: kubeConfig },
+		promiseMiddleware: [_createTimeoutMiddleware(timeoutMs)]
+	});
+	return new apiClientType(config);
+}
 
 export interface ListOptions {
 	limit?: number;
@@ -308,11 +383,12 @@ export async function getKubeConfig(
  */
 export async function getCustomObjectsApi(
 	context?: string,
-	reqCache?: ReqCache
+	reqCache?: ReqCache,
+	timeoutMs = OPERATION_TIMEOUTS.list
 ): Promise<k8s.CustomObjectsApi> {
-	return getOrCreate(customObjectsPool, context || 'in-cluster', async () => {
+	return getOrCreate(customObjectsPool, `${context || 'in-cluster'}:${timeoutMs}`, async () => {
 		const config = await getKubeConfig(context, reqCache);
-		return config.makeApiClient(k8s.CustomObjectsApi);
+		return makeApiClientWithTimeout(config, k8s.CustomObjectsApi, timeoutMs);
 	});
 }
 
@@ -321,10 +397,14 @@ export async function getCustomObjectsApi(
  * getKubeConfig is invoked inside the factory so it is only called on cache misses.
  * @param context - Optional cluster ID or context name
  */
-export async function getCoreV1Api(context?: string, reqCache?: ReqCache): Promise<k8s.CoreV1Api> {
-	return getOrCreate(coreV1Pool, context || 'in-cluster', async () => {
+export async function getCoreV1Api(
+	context?: string,
+	reqCache?: ReqCache,
+	timeoutMs = OPERATION_TIMEOUTS.get
+): Promise<k8s.CoreV1Api> {
+	return getOrCreate(coreV1Pool, `${context || 'in-cluster'}:${timeoutMs}`, async () => {
 		const config = await getKubeConfig(context, reqCache);
-		return config.makeApiClient(k8s.CoreV1Api);
+		return makeApiClientWithTimeout(config, k8s.CoreV1Api, timeoutMs);
 	});
 }
 
@@ -333,10 +413,14 @@ export async function getCoreV1Api(context?: string, reqCache?: ReqCache): Promi
  * getKubeConfig is invoked inside the factory so it is only called on cache misses.
  * @param context - Optional cluster ID or context name
  */
-export async function getAppsV1Api(context?: string, reqCache?: ReqCache): Promise<k8s.AppsV1Api> {
-	return getOrCreate(appsV1Pool, context || 'in-cluster', async () => {
+export async function getAppsV1Api(
+	context?: string,
+	reqCache?: ReqCache,
+	timeoutMs = OPERATION_TIMEOUTS.get
+): Promise<k8s.AppsV1Api> {
+	return getOrCreate(appsV1Pool, `${context || 'in-cluster'}:${timeoutMs}`, async () => {
 		const config = await getKubeConfig(context, reqCache);
-		return config.makeApiClient(k8s.AppsV1Api);
+		return makeApiClientWithTimeout(config, k8s.AppsV1Api, timeoutMs);
 	});
 }
 
@@ -597,7 +681,7 @@ export async function getControllerLogs(
 	const controllerName = resourceDef.controller;
 
 	try {
-		const coreApi = await getCoreV1Api(context, reqCache);
+		const coreApi = await getCoreV1Api(context, reqCache, OPERATION_TIMEOUTS.logs);
 		// 1. Find the controller pod in flux-system namespace
 		// Most Flux installations use the app label
 		const podsResponse = await coreApi.listNamespacedPod({
@@ -652,18 +736,32 @@ export async function getControllerLogs(
 
 		return filteredLines.join('\n');
 	} catch (error) {
-		throw handleK8sError(error, `fetch logs for ${controllerName}`);
+		throw handleK8sError(error, `fetch logs for ${controllerName}`, OPERATION_TIMEOUTS.logs);
 	}
 }
 
 /**
  * Handle Kubernetes API errors
  */
-export function handleK8sError(error: unknown, operation: string): Error {
+export function handleK8sError(
+	error: unknown,
+	operation: string,
+	timeoutMs = DEFAULT_TIMEOUT_MS
+): Error {
 	// Log the full error server-side for debugging
 	console.error(`Kubernetes API error during ${operation}:`, error);
 
 	if (error instanceof Error) {
+		// Detect AbortController-triggered timeouts (node-fetch surfaces these as
+		// AbortError or as a generic Error with name 'AbortError').
+		if (
+			error.name === 'AbortError' ||
+			error instanceof k8s.AbortError ||
+			(error as { type?: string }).type === 'aborted'
+		) {
+			return new KubernetesTimeoutError(operation, timeoutMs);
+		}
+
 		// @kubernetes/client-node v1 throws ApiException with a `code` property directly
 		const apiException = error as Error & { code?: number | string };
 		// Older versions used `response.statusCode`

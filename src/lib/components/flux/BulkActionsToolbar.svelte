@@ -13,6 +13,7 @@
 	} from '$lib/components/ui/alert-dialog';
 	import { Pause, Play, RefreshCw, Trash2, X } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	interface Props {
 		selectedResources: FluxResource[];
@@ -76,7 +77,7 @@
 		try {
 			const response = await fetch(`/api/flux/batch/${action}`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({ resources })
 			});
 

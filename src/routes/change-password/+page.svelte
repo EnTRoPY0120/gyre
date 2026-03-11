@@ -4,6 +4,7 @@
 	import { toast } from 'svelte-sonner';
 	import { Loader2, Eye, EyeOff, Check, X } from 'lucide-svelte';
 	import { changePasswordSchema } from '$lib/utils/validation';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	let currentPassword = $state('');
 	let newPassword = $state('');
@@ -59,7 +60,7 @@
 		try {
 			const response = await fetch('/api/auth/change-password', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({
 					currentPassword,
 					newPassword

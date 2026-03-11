@@ -4,11 +4,17 @@
  */
 
 import { preferences } from './preferences.svelte';
+import {
+	MAX_RECONNECT_ATTEMPTS,
+	RECONNECT_DELAY_MS,
+	MAX_NOTIFICATIONS,
+	MESSAGE_PREVIEW_LENGTH
+} from '$lib/config/constants';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 export interface ResourceEvent {
-	type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'CONNECTED' | 'HEARTBEAT' | 'ERROR';
+	type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'CONNECTED' | 'HEARTBEAT' | 'ERROR' | 'SHUTDOWN';
 	clusterId?: string;
 	resourceType?: string;
 	resource?: {
@@ -53,10 +59,11 @@ class RealtimeStore {
 	private eventSource: EventSource | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private reconnectAttempts = 0;
-	private maxReconnectAttempts = 5;
-	private reconnectDelay = 1000;
+	private maxReconnectAttempts = MAX_RECONNECT_ATTEMPTS;
+	private reconnectDelay = RECONNECT_DELAY_MS;
 	private eventCallbacks: Set<EventCallback> = new Set();
 	private statusCallbacks: Set<StatusCallback> = new Set();
+	private isServerShutdown = false;
 
 	// Notification state cache to prevent duplicate notifications
 	// Key: `${resourceType}/${namespace}/${name}`, Value: `${readyStatus}/${readyMessageHash}`
@@ -124,9 +131,7 @@ class RealtimeStore {
 
 		try {
 			// Save only the most recent notifications to avoid localStorage quota issues.
-			// We increase this to 500 to accommodate multiple clusters in the same storage.
-			const MAX_GLOBAL_NOTIFICATIONS = 500;
-			const toSave = this.notifications.slice(0, MAX_GLOBAL_NOTIFICATIONS);
+			const toSave = this.notifications.slice(0, MAX_NOTIFICATIONS);
 			localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(toSave));
 
 			// Save notification state cache
@@ -138,6 +143,16 @@ class RealtimeStore {
 	}
 
 	connect() {
+		if (this.isServerShutdown) {
+			// In development, the server may have restarted (HMR) while client is alive.
+			// Allow reconnecting in dev mode.
+			if (import.meta.env.DEV) {
+				this.isServerShutdown = false;
+			} else {
+				return;
+			}
+		}
+
 		if (this.eventSource?.readyState === EventSource.OPEN) {
 			return;
 		}
@@ -203,6 +218,10 @@ class RealtimeStore {
 	}
 
 	private scheduleReconnect() {
+		if (this.isServerShutdown) {
+			return;
+		}
+
 		if (this.reconnectAttempts >= this.maxReconnectAttempts) {
 			console.log('[SSE] Max reconnect attempts reached');
 			return;
@@ -219,6 +238,15 @@ class RealtimeStore {
 	}
 
 	private handleMessage(data: ResourceEvent) {
+		if (data.type === 'SHUTDOWN') {
+			console.log(
+				'[SSE] Received SHUTDOWN event from server, disconnecting and preventing reconnects.'
+			);
+			this.isServerShutdown = true;
+			this.disconnect();
+			return;
+		}
+
 		// Skip heartbeat and connected messages for notifications
 		if (data.type === 'HEARTBEAT' || data.type === 'CONNECTED') {
 			return;
@@ -257,7 +285,7 @@ class RealtimeStore {
 		// Build a state signature matching server-side logic
 		// Focus on actual meaningful changes: revision/SHA, ready state, and message preview
 		const revision = this.getRevisionFromResource(event.resource);
-		const messagePreview = readyCondition?.message?.substring(0, 100) || '';
+		const messagePreview = readyCondition?.message?.substring(0, MESSAGE_PREVIEW_LENGTH) || '';
 
 		// Match the server-side notificationState structure
 		const currentState = JSON.stringify({
@@ -311,10 +339,9 @@ class RealtimeStore {
 			read: false
 		};
 
-		// Add to beginning of array and limit total notifications
-		// We use a larger limit now that we have multiple clusters
-		const MAX_GLOBAL_LIMIT = 500;
-		this.notifications = [notification, ...this.notifications.slice(0, MAX_GLOBAL_LIMIT - 1)];
+		// Add to beginning of array and limit total notifications.
+		// The higher limit accommodates events from multiple clusters sharing one store.
+		this.notifications = [notification, ...this.notifications.slice(0, MAX_NOTIFICATIONS - 1)];
 
 		// Persist to localStorage
 		this.saveToStorage();

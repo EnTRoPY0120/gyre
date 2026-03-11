@@ -1,4 +1,4 @@
-import { getDbSync } from './db/index.js';
+import { getDbSync, closeDb } from './db/index.js';
 import { createDefaultAdminIfNeeded } from './auth.js';
 import { initDatabase } from './db/migrate.js';
 import { initializeDefaultPolicies, repairUserPolicyBindings } from './rbac-defaults.js';
@@ -17,18 +17,44 @@ import { seedAuthProviders } from './auth/seed-providers.js';
 import { scheduleCleanup, stopCleanup } from './kubernetes/flux/reconciliation-cleanup.js';
 import { scheduleSessionCleanup, stopSessionCleanup } from './auth/session-cleanup.js';
 import { scheduleAuditLogCleanup, stopAuditLogCleanup } from './audit.js';
+import { closeAllEventStreams, setEventBusShuttingDown } from './events.js';
 
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
+
+let isShuttingDown = false;
+let activeShutdownPromise: Promise<void> | null = null;
+
+function safeCloseDb(context: string = 'shutdown') {
+	try {
+		closeDb();
+		console.log(`   ✓ Database connection closed (${context})`);
+	} catch (error) {
+		console.error(`   ✗ Error closing database during ${context}:`, error);
+	}
+}
 
 /**
  * Shutdown Gyre gracefully, awaiting any in-flight cleanup work before exiting.
  */
 export async function shutdownGyre(): Promise<void> {
-	console.log('\n🛑 Shutting down Gyre...');
+	console.log('\n🛑 Shutting down Gyre background tasks...');
+	// Mark event bus as shutting down early to reject new subscriptions before await steps
+	setEventBusShuttingDown();
 	try {
-		await Promise.all([stopCleanup(), stopAuditLogCleanup()]);
-		stopSessionCleanup();
-		console.log('   ✓ Cleanup schedulers stopped');
+		const results = await Promise.allSettled([stopCleanup(), stopAuditLogCleanup()]);
+		results.forEach((result, index) => {
+			if (result.status === 'rejected') {
+				const task = index === 0 ? 'stopCleanup' : 'stopAuditLogCleanup';
+				console.error(`   ✗ Error during ${task}:`, result.reason);
+			}
+		});
+		try {
+			stopSessionCleanup();
+		} catch (error) {
+			console.error('   ✗ Error during stopSessionCleanup:', error);
+		}
+		await closeAllEventStreams();
+		console.log('   ✓ Cleanup schedulers and SSE connections stopped');
 	} catch (error) {
 		console.error('   ✗ Error during shutdown:', error);
 	}
@@ -36,20 +62,84 @@ export async function shutdownGyre(): Promise<void> {
 
 // Register shutdown handlers
 if (typeof process !== 'undefined') {
-	const shutdown = () => {
-		// Force-exit after 10 s if graceful shutdown hangs
-		const forceExit = setTimeout(() => {
-			console.error('   ✗ Shutdown timed out, forcing exit');
-			process.exit(1);
-		}, 10_000);
+	let forceExit: NodeJS.Timeout | null = null;
+	let httpDrainTimeout: NodeJS.Timeout | null = null;
+
+	const handleSignal = async (signal: string) => {
+		if (isShuttingDown) return;
+		isShuttingDown = true;
+		console.log(`\n🛑 Received ${signal}, starting graceful shutdown...`);
+
+		const isProd = process.env.NODE_ENV === 'production';
+
+		// Force-exit after 15s if graceful shutdown hangs (5s in dev)
+		// (K8s terminationGracePeriodSeconds defaults to 30s, so we want to exit before SIGKILL)
+		// NOTE: Lowering terminationGracePeriodSeconds below 30s in K8s manifests would break this timing.
+		forceExit = setTimeout(
+			() => {
+				console.error('   ✗ Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
+				console.error('   ✗ Force-exiting: any in-flight DB requests will fail');
+				safeCloseDb('force-exit');
+				process.exit(1);
+			},
+			isProd ? 15_000 : 5_000
+		);
 		forceExit.unref();
-		shutdownGyre().finally(() => {
+
+		activeShutdownPromise = shutdownGyre();
+		await activeShutdownPromise;
+
+		if (forceExit) {
 			clearTimeout(forceExit);
+			forceExit = null;
+		}
+
+		// In development (vite), sveltekit:shutdown is not emitted.
+		// adapter-node only emits sveltekit:shutdown in production builds.
+		// We exit immediately after cleanup.
+		if (process.env.NODE_ENV !== 'production') {
+			safeCloseDb('development shutdown');
 			process.exit(0);
-		});
+		} else {
+			// Production path: adapter-node will emit sveltekit:shutdown when HTTP drain completes.
+			// Guard against the event never firing.
+			httpDrainTimeout = setTimeout(() => {
+				console.error('   ✗ sveltekit:shutdown not received within 10s, forcing exit');
+				safeCloseDb('drain timeout');
+				process.exit(1);
+			}, 10_000);
+			httpDrainTimeout.unref();
+		}
 	};
-	process.on('SIGTERM', shutdown);
-	process.on('SIGINT', shutdown);
+
+	process.on('SIGTERM', () =>
+		handleSignal('SIGTERM').catch((err) => console.error('Signal handler error:', err))
+	);
+	process.on('SIGINT', () =>
+		handleSignal('SIGINT').catch((err) => console.error('Signal handler error:', err))
+	);
+
+	process.on('sveltekit:shutdown', async () => {
+		console.log('   ✓ HTTP server stopped');
+		if (forceExit) clearTimeout(forceExit);
+		if (httpDrainTimeout) clearTimeout(httpDrainTimeout);
+
+		// If sveltekit:shutdown fires without prior signal (adapter handled it),
+		// run shutdown now to ensure cleanup completes.
+		// If a signal handler already started shutdown, await the same promise so
+		// safeCloseDb only runs after that work is fully done (no race).
+		if (!isShuttingDown) {
+			isShuttingDown = true;
+			activeShutdownPromise = shutdownGyre();
+			await activeShutdownPromise;
+		} else if (activeShutdownPromise) {
+			await activeShutdownPromise;
+		}
+
+		safeCloseDb('graceful shutdown');
+		console.log('👋 Gyre shutdown complete.');
+		process.exit(0);
+	});
 }
 
 /**

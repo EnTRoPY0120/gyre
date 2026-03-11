@@ -1,4 +1,4 @@
-import { eq, desc, and, lt, sql } from 'drizzle-orm';
+import { eq, desc, asc, and, lt, sql, count } from 'drizzle-orm';
 import { getDbSync, type NewAuditLog } from './db/index.js';
 import { auditLogs } from './db/schema.js';
 import type { User } from './db/schema.js';
@@ -161,6 +161,9 @@ export async function logClusterChange(
 	});
 }
 
+export type AuditLogSortBy = 'date' | 'action';
+export type AuditLogSortOrder = 'asc' | 'desc';
+
 /**
  * Get recent audit logs
  */
@@ -192,6 +195,70 @@ export async function getRecentAuditLogs(
 	});
 
 	return logs;
+}
+
+/**
+ * Get paginated audit logs with sorting and filtering
+ */
+export async function getAuditLogsPaginated(options: {
+	userId?: string;
+	action?: string;
+	success?: boolean;
+	limit?: number;
+	offset?: number;
+	sortBy?: AuditLogSortBy;
+	sortOrder?: AuditLogSortOrder;
+}): Promise<{ logs: Awaited<ReturnType<typeof getRecentAuditLogs>>; total: number }> {
+	const db = getDbSync();
+	const {
+		userId,
+		action,
+		success,
+		limit = 50,
+		offset = 0,
+		sortBy = 'date',
+		sortOrder = 'desc'
+	} = options;
+
+	// Build where conditions
+	const conditions = [];
+
+	if (userId) {
+		conditions.push(eq(auditLogs.userId, userId));
+	}
+
+	if (action) {
+		conditions.push(eq(auditLogs.action, action));
+	}
+
+	if (success !== undefined) {
+		conditions.push(eq(auditLogs.success, success));
+	}
+
+	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+	// Build sort expression
+	const sortDir = sortOrder === 'asc' ? asc : desc;
+	let orderBy;
+	if (sortBy === 'action') {
+		orderBy = [sortDir(auditLogs.action), desc(auditLogs.createdAt)];
+	} else {
+		// 'date' is the default
+		orderBy = [sortDir(auditLogs.createdAt)];
+	}
+
+	const [totalResult, logs] = await Promise.all([
+		db.select({ count: count() }).from(auditLogs).where(whereClause),
+		db.query.auditLogs.findMany({
+			where: whereClause,
+			with: { user: true },
+			orderBy,
+			limit,
+			offset
+		})
+	]);
+
+	return { logs, total: totalResult[0]?.count ?? 0 };
 }
 
 /**

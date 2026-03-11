@@ -9,6 +9,7 @@ import {
 	hashPassword,
 	verifyPassword
 } from '$lib/server/auth';
+import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 
 // Generate a real bcrypt hash at startup for timing-attack mitigation (avoids malformed-hash fast-path)
 const DUMMY_HASH: Promise<string> = hashPassword('__dummy_password_for_timing__');
@@ -167,13 +168,7 @@ export const POST: RequestHandler = async (event) => {
 		const sessionId = await createSession(user.id, ipAddress, userAgent);
 
 		// Set session cookie
-		cookies.set('gyre_session', sessionId, {
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'lax',
-			maxAge: 60 * 60 * 24 * 7 // 7 days
-		});
+		cookies.set('gyre_session', sessionId, DEFAULT_COOKIE_OPTIONS);
 
 		return json({
 			success: true,

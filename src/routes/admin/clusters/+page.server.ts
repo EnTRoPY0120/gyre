@@ -9,6 +9,7 @@ import {
 } from '$lib/server/clusters';
 import { isAdmin } from '$lib/server/rbac';
 import { logClusterChange } from '$lib/server/audit';
+import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
 
 /**
  * Load function for cluster management page
@@ -21,10 +22,17 @@ export const load: PageServerLoad = async ({ url }) => {
 	const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10;
 	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
+	// Surface errors injected by the request-size middleware via redirect.
+	const urlError =
+		url.searchParams.get('_error') === 'payload_too_large'
+			? 'Request payload is too large. Please reduce the file size and try again.'
+			: null;
+
 	// Load paginated clusters
 	const { clusters, total } = await getAllClustersPaginated({ search, limit, offset });
 
 	return {
+		urlError,
 		clusters: clusters.map((c) => ({
 			id: c.id,
 			name: c.name,
@@ -64,6 +72,22 @@ export const actions: Actions = {
 
 		if (name.length < 3) {
 			return fail(400, { error: 'Name must be at least 3 characters' });
+		}
+
+		// Validate kubeconfig size (max 10MB).
+		// This check is the fallback for requests where Content-Length was absent
+		// (e.g. chunked transfer encoding) and the middleware passed them through.
+		// When Content-Length IS present the middleware rejects oversized requests
+		// first and redirects back to this page, so this code is not reached.
+		// Note: the middleware measures the total multipart body (including boundary
+		// overhead and other fields) while TextEncoder measures the kubeconfig field
+		// alone. The two thresholds differ slightly, but multipart overhead is
+		// negligible relative to the 10MB limit.
+		const kubeconfigSize = new TextEncoder().encode(kubeconfig).length;
+		if (kubeconfigSize > REQUEST_LIMITS.KUBECONFIG_UPLOAD) {
+			return fail(413, {
+				error: `Kubeconfig is too large. Maximum size is ${formatSize(REQUEST_LIMITS.KUBECONFIG_UPLOAD)}, received ${formatSize(kubeconfigSize)}`
+			});
 		}
 
 		try {
