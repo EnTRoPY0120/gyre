@@ -2,6 +2,7 @@ import type { Handle } from '@sveltejs/kit';
 import { getSession } from '$lib/server/auth';
 import { initializeGyre } from '$lib/server/initialize';
 import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
+import { getRequestSizeLimit, validateRequestSize } from '$lib/server/request-limits';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -42,13 +43,14 @@ function isPublicRoute(path: string): boolean {
 
 /**
  * Handle function to manage:
- * 1. Session authentication
- * 2. Cluster context via cookies
- * 3. RBAC checks (future enhancement)
+ * 1. Request size validation (DoS protection)
+ * 2. Session authentication
+ * 3. Cluster context via cookies
+ * 4. RBAC checks (future enhancement)
  */
 export const handle: Handle = async ({ event, resolve }) => {
 	const start = Date.now();
-	const { url, cookies } = event;
+	const { url, cookies, request } = event;
 	const path = url.pathname;
 
 	const recordResponse = (response: Response) => {
@@ -61,6 +63,29 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 		return response;
 	};
+
+	// Validate request size to prevent DoS attacks
+	const sizeLimit = getRequestSizeLimit(path, request.method);
+	const contentLength = request.headers.get('content-length') ?? undefined;
+	const sizeValidation = validateRequestSize(contentLength, sizeLimit);
+
+	if (!sizeValidation.valid) {
+		console.warn(
+			`Request size exceeded limit for ${request.method} ${path}: ${sizeValidation.size} > ${sizeValidation.limit}`
+		);
+		return recordResponse(
+			new Response(
+				JSON.stringify({
+					error: 'Payload Too Large',
+					message: `Request payload exceeds maximum size of ${Math.round(sizeValidation.limit! / (1024 * 1024))}MB`
+				}),
+				{
+					status: 413,
+					headers: { 'Content-Type': 'application/json' }
+				}
+			)
+		);
+	}
 
 	// Initialize Gyre on first request
 	if (!initialized) {
