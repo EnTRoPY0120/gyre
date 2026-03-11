@@ -236,6 +236,22 @@ let cleanupScheduled = false;
 let cleanupInterval: NodeJS.Timeout | null = null;
 let initialDelayTimeout: NodeJS.Timeout | null = null;
 let immediateCleanupTimeout: NodeJS.Timeout | null = null;
+let cleanupInFlight: Promise<void> | null = null;
+
+/**
+ * Single-flight wrapper: if a cleanup is already running, return the existing promise.
+ */
+function runCleanupOnce(): Promise<void> {
+	if (cleanupInFlight) {
+		return cleanupInFlight;
+	}
+	cleanupInFlight = cleanupOldAuditLogs()
+		.then(() => {})
+		.finally(() => {
+			cleanupInFlight = null;
+		});
+	return cleanupInFlight;
+}
 
 /**
  * Schedule periodic cleanup of audit logs
@@ -264,13 +280,13 @@ export function scheduleAuditLogCleanup(): void {
 
 	// Run initial cleanup after the calculated delay to align with the daily schedule
 	initialDelayTimeout = setTimeout(() => {
-		cleanupOldAuditLogs().catch((err) => {
+		runCleanupOnce().catch((err) => {
 			console.error('[AuditCleanup] Scheduled cleanup failed:', err);
 		});
 
 		// Then run every 24 hours
 		cleanupInterval = setInterval(() => {
-			cleanupOldAuditLogs().catch((err) => {
+			runCleanupOnce().catch((err) => {
 				console.error('[AuditCleanup] Periodic cleanup failed:', err);
 			});
 		}, MS_PER_DAY);
@@ -284,7 +300,7 @@ export function scheduleAuditLogCleanup(): void {
 
 	immediateCleanupTimeout = setTimeout(() => {
 		console.log('[AuditCleanup] Running startup cleanup task...');
-		cleanupOldAuditLogs().catch((err) => {
+		runCleanupOnce().catch((err) => {
 			console.error('[AuditCleanup] Startup cleanup task failed:', err);
 		});
 	}, startupDelayWithJitter);
@@ -293,9 +309,10 @@ export function scheduleAuditLogCleanup(): void {
 }
 
 /**
- * Stop the audit log cleanup scheduler
+ * Stop the audit log cleanup scheduler.
+ * Returns the in-flight cleanup promise (if any) so callers can await its completion.
  */
-export function stopAuditLogCleanup(): void {
+export function stopAuditLogCleanup(): Promise<void> {
 	if (cleanupInterval) {
 		clearInterval(cleanupInterval);
 		cleanupInterval = null;
@@ -309,4 +326,5 @@ export function stopAuditLogCleanup(): void {
 		immediateCleanupTimeout = null;
 	}
 	cleanupScheduled = false;
+	return cleanupInFlight ?? Promise.resolve();
 }

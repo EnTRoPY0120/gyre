@@ -21,14 +21,13 @@ import { scheduleAuditLogCleanup, stopAuditLogCleanup } from './audit.js';
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
 /**
- * Shutdown Gyre gracefully
+ * Shutdown Gyre gracefully, awaiting any in-flight cleanup work before exiting.
  */
-export function shutdownGyre(): void {
+export async function shutdownGyre(): Promise<void> {
 	console.log('\n🛑 Shutting down Gyre...');
 	try {
-		stopCleanup();
+		await Promise.all([stopCleanup(), stopAuditLogCleanup()]);
 		stopSessionCleanup();
-		stopAuditLogCleanup();
 		console.log('   ✓ Cleanup schedulers stopped');
 	} catch (error) {
 		console.error('   ✗ Error during shutdown:', error);
@@ -37,14 +36,20 @@ export function shutdownGyre(): void {
 
 // Register shutdown handlers
 if (typeof process !== 'undefined') {
-	process.on('SIGTERM', () => {
-		shutdownGyre();
-		process.exit(0);
-	});
-	process.on('SIGINT', () => {
-		shutdownGyre();
-		process.exit(0);
-	});
+	const shutdown = () => {
+		// Force-exit after 10 s if graceful shutdown hangs
+		const forceExit = setTimeout(() => {
+			console.error('   ✗ Shutdown timed out, forcing exit');
+			process.exit(1);
+		}, 10_000);
+		forceExit.unref();
+		shutdownGyre().finally(() => {
+			clearTimeout(forceExit);
+			process.exit(0);
+		});
+	};
+	process.on('SIGTERM', shutdown);
+	process.on('SIGINT', shutdown);
 }
 
 /**
