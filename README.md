@@ -17,7 +17,7 @@
 - 🎨 **Modern UI** - Built with Svelte 5 and TailwindCSS
 - 🌐 **Multi-Cluster** - Manage multiple Kubernetes clusters
 - 🔐 **Built-in Security** - RBAC and SSO/OAuth support
-- ⚡ **Real-time Updates** - Live resource monitoring via WebSocket
+- ⚡ **Real-time Updates** - Live resource monitoring via SSE
 - 📊 **Complete FluxCD Support** - All resource types supported
 
 [See full feature list →](https://entropy0120.github.io/gyre/features)

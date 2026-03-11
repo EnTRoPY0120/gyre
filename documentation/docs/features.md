@@ -77,7 +77,7 @@ The main dashboard provides a high-level view of your cluster's health and statu
 
 ## Real-time Updates
 
-### WebSocket Connection
+### Server-Sent Events (SSE)
 
 - Live resource status updates
 - Event streaming
@@ -172,6 +172,7 @@ All actions are logged with:
 - Action performed
 - Resource affected
 - Success/failure status
+- Configurable log retention
 
 ## Resource Creation Wizard
 
@@ -249,11 +250,36 @@ Create new resources with guided forms:
 - `/api/users` - User management
 - `/api/rbac/*` - RBAC policies
 
+## Security
+
+### Protection Mechanisms
+
+- **CSRF Protection** - Cross-site request forgery prevention on all state-changing endpoints
+- **Rate Limiting & Account Lockout** - Brute-force protection on authentication endpoints
+- **Input Sanitization** - Server-side validation and sanitization of all user input
+- **Secure Sessions** - HTTP-only cookies with configurable expiry
+
+## Observability
+
+### Prometheus Metrics
+
+- Exposed at `/metrics` endpoint
+- Kubernetes ServiceMonitor support for Prometheus Operator
+- Request rates, error rates, and latency histograms
+- Active session and cluster connection gauges
+
+## Reliability
+
+### Graceful Shutdown
+
+- In-flight request draining before shutdown
+- Clean session cleanup on termination
+- SSE connection teardown without data loss
+
 ## Future Features
 
 Planned features (roadmap):
 
-- Prometheus metrics integration
 - Advanced alerting
 - GitOps workflow visualization
 - Multi-tenancy support

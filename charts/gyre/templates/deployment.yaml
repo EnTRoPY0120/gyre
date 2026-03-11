@@ -61,26 +61,26 @@ spec:
         - name: NODE_ENV
           value: production
         {{- if .Values.config.create }}
-        - name: LOG_LEVEL
+        - name: GYRE_POLL_INTERVAL_MS
           valueFrom:
             configMapKeyRef:
               name: {{ include "gyre.fullname" . }}-config
-              key: LOG_LEVEL
-        - name: SESSION_TIMEOUT
+              key: GYRE_POLL_INTERVAL_MS
+        - name: GYRE_HEARTBEAT_INTERVAL_MS
           valueFrom:
             configMapKeyRef:
               name: {{ include "gyre.fullname" . }}-config
-              key: SESSION_TIMEOUT
-        - name: WS_PING_INTERVAL
+              key: GYRE_HEARTBEAT_INTERVAL_MS
+        - name: GYRE_DASHBOARD_CACHE_TTL_MS
           valueFrom:
             configMapKeyRef:
               name: {{ include "gyre.fullname" . }}-config
-              key: WS_PING_INTERVAL
-        - name: CACHE_TTL
+              key: GYRE_DASHBOARD_CACHE_TTL_MS
+        - name: GYRE_SETTLING_PERIOD_MS
           valueFrom:
             configMapKeyRef:
               name: {{ include "gyre.fullname" . }}-config
-              key: CACHE_TTL
+              key: GYRE_SETTLING_PERIOD_MS
         {{- range $key, $value := .Values.config.additionalConfig }}
         - name: {{ $key }}
           valueFrom:

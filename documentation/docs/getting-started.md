@@ -32,14 +32,6 @@ helm install gyre gyre/gyre \
   --create-namespace
 ```
 
-### Option 2: kubectl
-
-You can also install using kubectl:
-
-```bash
-kubectl apply -f https://github.com/entropy0120/gyre/releases/latest/download/install.yaml
-```
-
 ## Accessing Gyre
 
 ### Port Forward (Development)

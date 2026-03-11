@@ -60,7 +60,7 @@
 				class="flex items-center gap-2 rounded-lg border border-destructive/10 bg-destructive/5 p-3 text-destructive"
 			>
 				<Icon name="shield-alert" size={16} aria-hidden="true" />
-				<p class="text-[11px] font-black tracking-wider uppercase">Sync Pipeline Interrupted</p>
+				<p class="text-[11px] font-black tracking-wider uppercase">Unable to load resources</p>
 			</div>
 		{:else}
 			<div class="mb-8 flex items-baseline gap-2">

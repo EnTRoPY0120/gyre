@@ -6,14 +6,14 @@ metadata:
   labels:
     {{- include "gyre.labels" . | nindent 4 }}
 data:
-  # Application log level
-  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
-  # Session timeout in milliseconds
-  SESSION_TIMEOUT: {{ .Values.config.sessionTimeout | quote }}
-  # WebSocket ping interval in milliseconds
-  WS_PING_INTERVAL: {{ .Values.config.wsPingInterval | quote }}
-  # Cache TTL for dashboard data in seconds
-  CACHE_TTL: {{ .Values.config.cacheTtl | quote }}
+  # Interval between Kubernetes API polls in milliseconds (min: 1000)
+  GYRE_POLL_INTERVAL_MS: {{ .Values.config.pollIntervalMs | quote }}
+  # Interval between SSE heartbeat messages in milliseconds (min: 1000)
+  GYRE_HEARTBEAT_INTERVAL_MS: {{ .Values.config.heartbeatIntervalMs | quote }}
+  # TTL for the dashboard resource-count cache in milliseconds (min: 1000)
+  GYRE_DASHBOARD_CACHE_TTL_MS: {{ .Values.config.dashboardCacheTtlMs | quote }}
+  # Settling period after ADDED events before emitting notifications in milliseconds
+  GYRE_SETTLING_PERIOD_MS: {{ .Values.config.settlingPeriodMs | quote }}
   {{- if .Values.config.additionalConfig }}
   {{- toYaml .Values.config.additionalConfig | nindent 2 }}
   {{- end }}

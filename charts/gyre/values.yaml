@@ -240,15 +240,15 @@ networkPolicy:
 # Application Configuration
 config:
   create: true
-  # Log level: debug, info, warn, error
-  logLevel: "info"
-  # Session timeout in milliseconds (default: 7 days)
-  sessionTimeout: "604800000"
-  # WebSocket ping interval in milliseconds
-  wsPingInterval: "30000"
-  # Cache TTL for dashboard data in seconds
-  cacheTtl: "30"
+  # Interval between Kubernetes API polls in milliseconds (default: 5s, min: 1s)
+  pollIntervalMs: "5000"
+  # Interval between SSE heartbeat messages in milliseconds (default: 30s, min: 1s)
+  heartbeatIntervalMs: "30000"
+  # TTL for the dashboard resource-count cache in milliseconds (default: 30s, min: 1s)
+  dashboardCacheTtlMs: "30000"
+  # Settling period after ADDED events before emitting notifications in milliseconds (default: 30s)
+  settlingPeriodMs: "30000"
   # Additional configuration key-value pairs
   additionalConfig: {}
     # Example:
-    # CUSTOM_VAR: "value"
+    # GYRE_MAX_LOCAL_BACKUPS: "10"

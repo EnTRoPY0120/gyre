@@ -13,7 +13,7 @@ Gyre provides real-time monitoring, multi-cluster management, built-in RBAC, and
 
 ### Key Features
 
-🚀 **Real-time Updates** - Live resource monitoring via WebSocket
+🚀 **Real-time Updates** - Live resource monitoring via SSE
 🎨 **Modern UI** - Built with SvelteKit and TailwindCSS
 🔐 **Built-in Authentication** - Local and SSO/OAuth support
 👥 **RBAC** - Fine-grained access control
