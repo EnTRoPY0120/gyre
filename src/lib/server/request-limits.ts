@@ -8,7 +8,8 @@ export const REQUEST_LIMITS = {
 	// General JSON API endpoints
 	JSON_API: 1 * 1024 * 1024, // 1 MB
 
-	// Form data with kubeconfig upload
+	// Form data with kubeconfig upload (10MB covers realistic kubeconfig files;
+	// typical files are <100KB but OIDC/multi-cluster configs can reach several MB)
 	KUBECONFIG_UPLOAD: 10 * 1024 * 1024, // 10 MB
 
 	// Database backup restoration
@@ -45,8 +46,14 @@ export function getRequestSizeLimit(path: string, method: string): number {
 }
 
 /**
- * Check if request size exceeds limit
- * Returns { valid: true } or { valid: false, limit, size }
+ * Check if request size exceeds limit based on the Content-Length header.
+ * Returns { valid: true } or { valid: false, limit, size }.
+ *
+ * Limitation: Content-Length is optional in HTTP and absent for chunked
+ * transfer-encoded requests. When the header is missing this function
+ * allows the request through — the route handler is responsible for
+ * enforcing size limits on the parsed body in those cases (e.g. checking
+ * File.size after formData() for uploads).
  */
 export function validateRequestSize(
 	contentLength: string | number | undefined,
