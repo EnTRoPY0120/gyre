@@ -22,13 +22,18 @@ describe('parseEnvInt', () => {
 		expect(parseEnvInt(ENV_VAR, 42)).toBe(0);
 	});
 
-	test('returns negative integer when env var is negative', () => {
+	test('returns defaultValue when env var is negative', () => {
 		process.env[ENV_VAR] = '-5';
-		expect(parseEnvInt(ENV_VAR, 42)).toBe(-5);
+		expect(parseEnvInt(ENV_VAR, 42)).toBe(42);
 	});
 
 	test('returns defaultValue when env var is not a number', () => {
 		process.env[ENV_VAR] = 'abc';
+		expect(parseEnvInt(ENV_VAR, 42)).toBe(42);
+	});
+
+	test('returns defaultValue when env var has a unit suffix like "5s"', () => {
+		process.env[ENV_VAR] = '5s';
 		expect(parseEnvInt(ENV_VAR, 42)).toBe(42);
 	});
 
@@ -37,8 +42,40 @@ describe('parseEnvInt', () => {
 		expect(parseEnvInt(ENV_VAR, 42)).toBe(42);
 	});
 
-	test('truncates float to integer', () => {
+	test('returns defaultValue when env var is a float', () => {
 		process.env[ENV_VAR] = '3.9';
-		expect(parseEnvInt(ENV_VAR, 42)).toBe(3);
+		expect(parseEnvInt(ENV_VAR, 42)).toBe(42);
+	});
+
+	describe('range validation', () => {
+		test('accepts value equal to min', () => {
+			process.env[ENV_VAR] = '5';
+			expect(parseEnvInt(ENV_VAR, 42, { min: 5 })).toBe(5);
+		});
+
+		test('returns defaultValue when value is below min', () => {
+			process.env[ENV_VAR] = '4';
+			expect(parseEnvInt(ENV_VAR, 42, { min: 5 })).toBe(42);
+		});
+
+		test('accepts value equal to max', () => {
+			process.env[ENV_VAR] = '10';
+			expect(parseEnvInt(ENV_VAR, 42, { max: 10 })).toBe(10);
+		});
+
+		test('returns defaultValue when value is above max', () => {
+			process.env[ENV_VAR] = '11';
+			expect(parseEnvInt(ENV_VAR, 42, { max: 10 })).toBe(42);
+		});
+
+		test('accepts value within min and max', () => {
+			process.env[ENV_VAR] = '7';
+			expect(parseEnvInt(ENV_VAR, 42, { min: 5, max: 10 })).toBe(7);
+		});
+
+		test('returns defaultValue when value is outside min-max range', () => {
+			process.env[ENV_VAR] = '1';
+			expect(parseEnvInt(ENV_VAR, 42, { min: 5, max: 10 })).toBe(42);
+		});
 	});
 });
