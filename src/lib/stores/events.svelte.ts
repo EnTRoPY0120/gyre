@@ -14,7 +14,7 @@ import {
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 export interface ResourceEvent {
-	type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'CONNECTED' | 'HEARTBEAT' | 'ERROR';
+	type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'CONNECTED' | 'HEARTBEAT' | 'ERROR' | 'SHUTDOWN';
 	clusterId?: string;
 	resourceType?: string;
 	resource?: {
@@ -223,6 +223,12 @@ class RealtimeStore {
 	}
 
 	private handleMessage(data: ResourceEvent) {
+		if (data.type === 'SHUTDOWN') {
+			console.log('[SSE] Received SHUTDOWN event from server, disconnecting.');
+			this.disconnect();
+			return;
+		}
+
 		// Skip heartbeat and connected messages for notifications
 		if (data.type === 'HEARTBEAT' || data.type === 'CONNECTED') {
 			return;
