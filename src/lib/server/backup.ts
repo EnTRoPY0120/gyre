@@ -1,6 +1,7 @@
 /**
  * Database Backup Service
  * Handles creating, listing, and restoring SQLite database backups.
+ * Supports AES-256-GCM encryption at rest when BACKUP_ENCRYPTION_KEY is set.
  */
 
 import {
@@ -10,9 +11,11 @@ import {
 	statSync,
 	unlinkSync,
 	copyFileSync,
-	writeFileSync
+	writeFileSync,
+	readFileSync
 } from 'node:fs';
 import { join, basename } from 'node:path';
+import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
@@ -21,6 +24,10 @@ const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './
 
 // Maximum number of local backups to retain
 const MAX_LOCAL_BACKUPS = 10;
+
+const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
+const IV_LENGTH = 16; // 128-bit IV
+const AUTH_TAG_LENGTH = 16; // 128-bit GCM auth tag
 
 /**
  * Custom error for backup operations with HTTP status support
@@ -39,6 +46,62 @@ export interface BackupMetadata {
 	filename: string;
 	sizeBytes: number;
 	createdAt: string;
+	encrypted: boolean;
+}
+
+/**
+ * Get the backup encryption key from BACKUP_ENCRYPTION_KEY env var.
+ * Returns null if not set (encryption disabled).
+ * Throws if the key format is invalid.
+ */
+function getBackupEncryptionKey(): Buffer | null {
+	const keyHex = process.env.BACKUP_ENCRYPTION_KEY;
+	if (!keyHex) {
+		return null;
+	}
+	if (!/^[0-9a-f]{64}$/i.test(keyHex)) {
+		throw new Error(
+			'BACKUP_ENCRYPTION_KEY must be 64 hexadecimal characters (32 bytes). ' +
+				'Generate with: openssl rand -hex 32'
+		);
+	}
+	return Buffer.from(keyHex, 'hex');
+}
+
+/**
+ * Encrypt a backup buffer using AES-256-GCM.
+ * Output binary format: [16-byte IV][16-byte authTag][ciphertext]
+ */
+function encryptBackup(data: Buffer, key: Buffer): Buffer {
+	const iv = crypto.randomBytes(IV_LENGTH);
+	const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
+	const ciphertext = Buffer.concat([cipher.update(data), cipher.final()]);
+	const authTag = cipher.getAuthTag();
+	return Buffer.concat([iv, authTag, ciphertext]);
+}
+
+/**
+ * Decrypt an encrypted backup buffer.
+ * Expects binary format: [16-byte IV][16-byte authTag][ciphertext]
+ */
+function decryptBackup(data: Buffer, key: Buffer): Buffer {
+	const minLength = IV_LENGTH + AUTH_TAG_LENGTH;
+	if (data.length < minLength) {
+		throw new BackupError('Invalid encrypted backup: file too small', 400);
+	}
+
+	const iv = data.subarray(0, IV_LENGTH);
+	const authTag = data.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
+	const ciphertext = data.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
+
+	const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
+	decipher.setAuthTag(authTag);
+
+	try {
+		return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+	} catch {
+		throw new BackupError('Failed to decrypt backup: incorrect key or tampered data.', 400);
+	}
 }
 
 /**
@@ -51,59 +114,97 @@ function ensureBackupDir(): void {
 }
 
 /**
- * Generate a timestamped backup filename.
- */
-function generateBackupFilename(): string {
-	const now = new Date();
-	const ts = now.toISOString().replace(/[:.]/g, '-');
-	return `gyre-backup-${ts}.db`;
-}
-
-/**
  * Create a database backup using SQLite's online backup API for atomicity.
+ * If BACKUP_ENCRYPTION_KEY is set, the backup is encrypted with AES-256-GCM
+ * and saved as a .db.enc file. Otherwise an unencrypted .db file is created.
  * Returns metadata about the created backup.
  */
 export async function createBackup(): Promise<BackupMetadata> {
 	ensureBackupDir();
 
-	const filename = generateBackupFilename();
-	const destPath = join(backupDir, filename);
+	const now = new Date();
+	const ts = now.toISOString().replace(/[:.]/g, '-');
+	const key = getBackupEncryptionKey();
 
-	const source = new Database(databaseUrl);
-	try {
-		// Use built-in backup API for atomic and consistent snapshots
-		await source.backup(destPath);
-	} finally {
-		source.close();
+	if (key) {
+		// Write plain SQLite to a temp file, then encrypt it
+		const tempPath = join(backupDir, `_temp-${ts}.db`);
+		const encFilename = `gyre-backup-${ts}.db.enc`;
+		const encPath = join(backupDir, encFilename);
+
+		const source = new Database(databaseUrl);
+		try {
+			await source.backup(tempPath);
+		} finally {
+			source.close();
+		}
+
+		try {
+			const plainData = readFileSync(tempPath);
+			const encData = encryptBackup(plainData, key);
+			writeFileSync(encPath, encData);
+		} finally {
+			if (existsSync(tempPath)) unlinkSync(tempPath);
+		}
+
+		pruneOldBackups();
+
+		const stat = statSync(encPath);
+		return {
+			filename: encFilename,
+			sizeBytes: stat.size,
+			createdAt: now.toISOString(),
+			encrypted: true
+		};
+	} else {
+		// Unencrypted backup (BACKUP_ENCRYPTION_KEY not set)
+		console.warn(
+			'[Backup] ⚠️  BACKUP_ENCRYPTION_KEY is not set. Creating unencrypted backup. ' +
+				'Set BACKUP_ENCRYPTION_KEY to a 64-character hex string to enable encryption at rest.'
+		);
+
+		const filename = `gyre-backup-${ts}.db`;
+		const destPath = join(backupDir, filename);
+
+		const source = new Database(databaseUrl);
+		try {
+			await source.backup(destPath);
+		} finally {
+			source.close();
+		}
+
+		pruneOldBackups();
+
+		const stat = statSync(destPath);
+		return {
+			filename,
+			sizeBytes: stat.size,
+			createdAt: now.toISOString(),
+			encrypted: false
+		};
 	}
-
-	// Prune old backups beyond retention limit
-	pruneOldBackups();
-
-	const stat = statSync(destPath);
-	return {
-		filename,
-		sizeBytes: stat.size,
-		createdAt: stat.birthtime.toISOString()
-	};
 }
 
 /**
  * List all available backups sorted by date (newest first).
+ * Includes both encrypted (.db.enc) and unencrypted (.db) backups.
  */
 export function listBackups(): BackupMetadata[] {
 	ensureBackupDir();
 
 	const files = readdirSync(backupDir)
-		.filter((f) => f.startsWith('gyre-backup-') && f.endsWith('.db'))
+		.filter((f) => f.startsWith('gyre-backup-') && (f.endsWith('.db') || f.endsWith('.db.enc')))
 		.map((filename) => {
 			const filePath = join(backupDir, filename);
 			const stat = statSync(filePath);
+			const encrypted = filename.endsWith('.db.enc');
 
 			// Extract timestamp from filename for accuracy
 			let createdAt = '';
 			try {
-				const tsPart = filename.replace('gyre-backup-', '').replace('.db', '');
+				const tsPart = filename
+					.replace('gyre-backup-', '')
+					.replace(encrypted ? '.db.enc' : '.db', '');
 				// Convert 2026-02-17T11-15-56-353Z back to 2026-02-17T11:15:56.353Z
 				const parts = tsPart.split('T');
 				if (parts.length === 2) {
@@ -124,7 +225,8 @@ export function listBackups(): BackupMetadata[] {
 			return {
 				filename,
 				sizeBytes: stat.size,
-				createdAt
+				createdAt,
+				encrypted
 			};
 		})
 		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -133,22 +235,41 @@ export function listBackups(): BackupMetadata[] {
 }
 
 /**
- * Get the full path to a backup file (for downloads).
+ * Get the full path to a backup file (for downloads or deletion).
  * Returns null if the file doesn't exist or the filename is invalid.
+ * Accepts both .db and .db.enc extensions.
  */
 export function getBackupPath(filename: string): string | null {
-	// Sanitize: only allow expected filenames
 	const sanitized = basename(filename);
-	if (!sanitized.startsWith('gyre-backup-') || !sanitized.endsWith('.db')) {
-		return null;
-	}
+	if (!sanitized.startsWith('gyre-backup-')) return null;
+	if (!sanitized.endsWith('.db') && !sanitized.endsWith('.db.enc')) return null;
 
 	const filePath = join(backupDir, sanitized);
-	if (!existsSync(filePath)) {
-		return null;
-	}
+	if (!existsSync(filePath)) return null;
 
 	return filePath;
+}
+
+/**
+ * Read a backup file as a plain SQLite buffer.
+ * If the file is encrypted (.db.enc), it is decrypted before returning.
+ * Returns null if the file does not exist or the filename is invalid.
+ */
+export function getDecryptedBackupBuffer(filename: string): Buffer | null {
+	const filePath = getBackupPath(filename);
+	if (!filePath) return null;
+
+	const data = readFileSync(filePath);
+
+	if (filename.endsWith('.db.enc')) {
+		const key = getBackupEncryptionKey();
+		if (!key) {
+			throw new BackupError('BACKUP_ENCRYPTION_KEY is not set; cannot decrypt this backup.', 500);
+		}
+		return decryptBackup(data, key);
+	}
+
+	return data;
 }
 
 /**
@@ -251,7 +372,8 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 		return {
 			filename: 'restored-database',
 			sizeBytes: stat.size,
-			createdAt: new Date().toISOString()
+			createdAt: new Date().toISOString(),
+			encrypted: false
 		};
 	} finally {
 		// Clean up temp file
