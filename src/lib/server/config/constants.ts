@@ -5,11 +5,16 @@
  * All numeric env vars are validated and fall back to the default if the value is invalid.
  */
 
-function parseEnvInt(envVar: string, defaultValue: number): number {
+/**
+ * Parse an integer from an environment variable.
+ * Returns `defaultValue` when the variable is absent or not a finite integer.
+ * Zero is a valid value; only NaN and ±Infinity are rejected.
+ */
+export function parseEnvInt(envVar: string, defaultValue: number): number {
 	const raw = process.env[envVar];
 	if (!raw) return defaultValue;
 	const parsed = parseInt(raw, 10);
-	return Number.isFinite(parsed) && parsed > 0 ? parsed : defaultValue;
+	return Number.isFinite(parsed) ? parsed : defaultValue;
 }
 
 // ---------------------------------------------------------------------------

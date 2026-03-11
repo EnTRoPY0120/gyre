@@ -315,7 +315,8 @@ class RealtimeStore {
 			read: false
 		};
 
-		// Add to beginning of array and limit total notifications
+		// Add to beginning of array and limit total notifications.
+		// The higher limit accommodates events from multiple clusters sharing one store.
 		this.notifications = [notification, ...this.notifications.slice(0, MAX_NOTIFICATIONS - 1)];
 
 		// Persist to localStorage
