@@ -61,7 +61,7 @@
 		}
 
 		try {
-			const response = await fetch('/api/auth/change-password', {
+			const response = await fetch('/api/v1/auth/change-password', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({

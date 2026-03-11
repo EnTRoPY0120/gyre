@@ -50,7 +50,7 @@ export class GitHubProvider implements IOAuthProvider {
 
 	constructor(options: OAuthProviderOptions) {
 		this.config = options.config;
-		this.redirectUri = options.redirectUri || `/api/auth/${this.config.id}/callback`;
+		this.redirectUri = options.redirectUri || `/api/v1/auth/${this.config.id}/callback`;
 	}
 
 	/**

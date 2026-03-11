@@ -202,7 +202,7 @@
 		eventsLoading = true;
 		eventsError = null;
 		try {
-			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/events`), { signal });
+			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/events`), { signal });
 			if (!res.ok) throw new Error(`Failed to fetch events: ${res.statusText}`);
 			const result = await res.json();
 			events = result.events || [];
@@ -221,7 +221,7 @@
 		logsLoading = true;
 		logsError = null;
 		try {
-			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`), { signal });
+			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`), { signal });
 			if (!res.ok) {
 				const isJson = res.headers.get('content-type')?.includes('application/json');
 				const errMsg = isJson
@@ -245,7 +245,7 @@
 		const signal = getNewAbortSignal();
 		historyLoading = true;
 		try {
-			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/history`), { signal });
+			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/history`), { signal });
 			if (!res.ok) throw new Error(`Failed to fetch history: ${res.statusText}`);
 			const result = await res.json();
 			timeline = result.timeline || [];
@@ -264,7 +264,7 @@
 		diffsLoading = true;
 		diffsError = null;
 		try {
-			const url = new URL(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`), window.location.origin);
+			const url = new URL(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`), window.location.origin);
 			if (force) url.searchParams.set('force', 'true');
 			const res = await fetch(url.toString(), { signal });
 			if (!res.ok) {
@@ -299,7 +299,7 @@
 		const { historyId, revision } = myPending;
 		const displayRevision = revision ? revision.slice(0, 8) : historyId.slice(0, 8);
 		try {
-			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`), {
+			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`), {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({ historyId, revision })
@@ -332,7 +332,7 @@
 
 	async function handleReconcile() {
 		try {
-			const res = await fetch(resolve(`/api/flux/${data.resourceType}/${data.namespace}/${data.name}/reconcile`), {
+			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/reconcile`), {
 				method: 'POST',
 				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});

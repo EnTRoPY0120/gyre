@@ -58,7 +58,7 @@
 		}
 
 		try {
-			const response = await fetch('/api/auth/login', {
+			const response = await fetch('/api/v1/auth/login', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ username, password })
@@ -91,7 +91,7 @@
 	}
 
 	function handleSSOLogin(providerId: string) {
-		window.location.href = `/api/auth/${providerId}/login`;
+		window.location.href = `/api/v1/auth/${providerId}/login`;
 	}
 
 	function getProviderIcon(type: string): string {

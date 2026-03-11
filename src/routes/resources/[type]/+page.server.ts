@@ -51,7 +51,7 @@ export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, de
 			: undefined;
 
 	// Build API URL with sort and pagination params
-	const apiUrl = new URL(`/api/flux/${type}`, url.origin);
+	const apiUrl = new URL(`/api/v1/flux/${type}`, url.origin);
 	if (sortBy) {
 		apiUrl.searchParams.set('sortBy', sortBy);
 		apiUrl.searchParams.set('sortOrder', sortOrder);

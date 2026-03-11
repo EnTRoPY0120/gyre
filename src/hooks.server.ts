@@ -12,13 +12,18 @@ let initialized = false;
 let initializingPromise: Promise<void> | undefined;
 
 // Public routes that don't require authentication or CSRF protection.
-// NOTE: /api/auth/login and other auth-related routes are split here to ensure
-// that authenticated routes like /api/auth/change-password or logout ARE protected by CSRF.
+// NOTE: /api/v1/auth/login and other auth-related routes are split here to ensure
+// that authenticated routes like /api/v1/auth/change-password or logout ARE protected by CSRF.
 const PUBLIC_ROUTES = [
 	'/login',
-	'/api/auth/login',
 	'/api/health',
+	'/api/v1/health',
+	'/api/auth/login',
+	'/api/v1/auth/login',
+	'/api/auth/logout',
+	'/api/v1/auth/logout',
 	'/api/flux/health',
+	'/api/v1/flux/health',
 	'/metrics',
 	'/manifest.json',
 	'/favicon.ico',
@@ -26,7 +31,14 @@ const PUBLIC_ROUTES = [
 ];
 
 // OAuth callback and login initiation routes are dynamic but public
-const PUBLIC_ROUTE_PREFIXES = ['/api/auth/oidc/', '/api/auth/github/', '/api/auth/google/'];
+const PUBLIC_ROUTE_PREFIXES = [
+	'/api/auth/oidc/',
+	'/api/v1/auth/oidc/',
+	'/api/auth/github/',
+	'/api/v1/auth/github/',
+	'/api/auth/google/',
+	'/api/v1/auth/google/'
+];
 
 // Static asset patterns
 const STATIC_PATTERNS = [
@@ -242,7 +254,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 
 		// Protect admin API routes
-		if (path.startsWith('/api/admin') && event.locals.user?.role !== 'admin') {
+		if (
+		(path.startsWith('/api/admin') || path.startsWith('/api/v1/admin')) &&
+		event.locals.user?.role !== 'admin'
+	) {
 			return recordResponse(
 				new Response(JSON.stringify({ error: 'Forbidden' }), {
 					status: 403,

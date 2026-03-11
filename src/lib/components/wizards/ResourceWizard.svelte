@@ -194,7 +194,7 @@
 			const parsed = parse(currentYaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
-			const response = await fetch(`/api/flux/${template.plural}`, {
+			const response = await fetch(`/api/v1/flux/${template.plural}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify(parsed)

@@ -22,7 +22,7 @@
 	async function handleLogout() {
 		logoutError = null;
 		try {
-			const res = await fetch('/api/auth/logout', {
+			const res = await fetch('/api/v1/auth/logout', {
 				method: 'POST',
 				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});

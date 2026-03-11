@@ -27,7 +27,7 @@ export function generateOpenApiSpec(registry: OpenAPIRegistry) {
 		type: 'apiKey',
 		in: 'cookie',
 		name: 'gyre_session',
-		description: 'Session cookie obtained after successful login via POST /api/auth/login'
+		description: 'Session cookie obtained after successful login via POST /api/v1/auth/login'
 	});
 
 	const generator = new OpenApiGeneratorV3(registry.definitions);

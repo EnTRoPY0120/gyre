@@ -166,7 +166,7 @@ class RealtimeStore {
 		this.status = 'connecting';
 		this.notifyStatusChange('connecting');
 
-		const sseUrl = '/api/events';
+		const sseUrl = '/api/v1/events';
 
 		try {
 			this.eventSource = new EventSource(sseUrl);

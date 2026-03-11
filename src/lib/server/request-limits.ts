@@ -29,12 +29,15 @@ export const REQUEST_LIMITS = {
  */
 export function getRequestSizeLimit(path: string, method: string): number {
 	// Backup restore endpoint - larger limit
-	if (path === '/api/admin/backups/restore' && method === 'POST') {
+	if (
+		(path === '/api/admin/backups/restore' || path === '/api/v1/admin/backups/restore') &&
+		method === 'POST'
+	) {
 		return REQUEST_LIMITS.BACKUP_RESTORE;
 	}
 
 	// Cluster creation endpoint - kubeconfig upload
-	if (path === '/admin/clusters' && method === 'POST') {
+	if ((path === '/admin/clusters' || path === '/api/v1/admin/clusters') && method === 'POST') {
 		return REQUEST_LIMITS.KUBECONFIG_UPLOAD;
 	}
 
