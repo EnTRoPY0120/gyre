@@ -19,12 +19,11 @@ import { tmpdir } from 'node:os';
 import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 
+import { MAX_LOCAL_BACKUPS } from './config/constants.js';
+
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
 const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups');
-
-// Maximum number of local backups to retain
-const MAX_LOCAL_BACKUPS = 10;
 
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16; // 128-bit IV

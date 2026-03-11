@@ -4,6 +4,12 @@
  */
 
 import { preferences } from './preferences.svelte';
+import {
+	MAX_RECONNECT_ATTEMPTS,
+	RECONNECT_DELAY_MS,
+	MAX_NOTIFICATIONS,
+	MESSAGE_PREVIEW_LENGTH
+} from '$lib/config/constants';
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
@@ -53,8 +59,8 @@ class RealtimeStore {
 	private eventSource: EventSource | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 	private reconnectAttempts = 0;
-	private maxReconnectAttempts = 5;
-	private reconnectDelay = 1000;
+	private maxReconnectAttempts = MAX_RECONNECT_ATTEMPTS;
+	private reconnectDelay = RECONNECT_DELAY_MS;
 	private eventCallbacks: Set<EventCallback> = new Set();
 	private statusCallbacks: Set<StatusCallback> = new Set();
 
@@ -124,9 +130,7 @@ class RealtimeStore {
 
 		try {
 			// Save only the most recent notifications to avoid localStorage quota issues.
-			// We increase this to 500 to accommodate multiple clusters in the same storage.
-			const MAX_GLOBAL_NOTIFICATIONS = 500;
-			const toSave = this.notifications.slice(0, MAX_GLOBAL_NOTIFICATIONS);
+			const toSave = this.notifications.slice(0, MAX_NOTIFICATIONS);
 			localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(toSave));
 
 			// Save notification state cache
@@ -257,7 +261,7 @@ class RealtimeStore {
 		// Build a state signature matching server-side logic
 		// Focus on actual meaningful changes: revision/SHA, ready state, and message preview
 		const revision = this.getRevisionFromResource(event.resource);
-		const messagePreview = readyCondition?.message?.substring(0, 100) || '';
+		const messagePreview = readyCondition?.message?.substring(0, MESSAGE_PREVIEW_LENGTH) || '';
 
 		// Match the server-side notificationState structure
 		const currentState = JSON.stringify({
@@ -312,9 +316,7 @@ class RealtimeStore {
 		};
 
 		// Add to beginning of array and limit total notifications
-		// We use a larger limit now that we have multiple clusters
-		const MAX_GLOBAL_LIMIT = 500;
-		this.notifications = [notification, ...this.notifications.slice(0, MAX_GLOBAL_LIMIT - 1)];
+		this.notifications = [notification, ...this.notifications.slice(0, MAX_NOTIFICATIONS - 1)];
 
 		// Persist to localStorage
 		this.saveToStorage();
