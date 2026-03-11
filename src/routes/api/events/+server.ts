@@ -54,7 +54,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 
 	const { release } = connectionResult;
 
-	const clusterId = locals.cluster;
+	const clusterId = locals.cluster ?? 'in-cluster';
 
 	// Shared cleanup ref so both start() and cancel() can invoke the same teardown.
 	// start() is called synchronously during ReadableStream construction, so
