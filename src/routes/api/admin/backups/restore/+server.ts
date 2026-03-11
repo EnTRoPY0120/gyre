@@ -39,7 +39,8 @@ export const _metadata = {
 							backup: z.object({
 								filename: z.string(),
 								sizeBytes: z.number(),
-								createdAt: z.string()
+								createdAt: z.string(),
+								encrypted: z.boolean()
 							})
 						})
 					}

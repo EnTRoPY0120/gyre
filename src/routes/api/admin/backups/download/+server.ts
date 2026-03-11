@@ -69,7 +69,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			resourceName: basename(filename)
 		});
 
-		return new Response(buffer.buffer as ArrayBuffer, {
+		return new Response(new Uint8Array(buffer), {
 			status: 200,
 			headers: {
 				'Content-Type': 'application/x-sqlite3',
@@ -78,11 +78,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			}
 		});
 	} catch (err) {
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err;
-		}
 		if (err instanceof BackupError) {
 			throw error(err.status, err.message);
+		}
+		if (err && typeof err === 'object' && 'status' in err) {
+			throw err;
 		}
 		console.error('Failed to download backup:', err);
 		throw error(500, 'Failed to download backup');

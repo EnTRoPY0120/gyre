@@ -15,6 +15,7 @@ import {
 	readFileSync
 } from 'node:fs';
 import { join, basename } from 'node:path';
+import { tmpdir } from 'node:os';
 import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 
@@ -127,8 +128,9 @@ export async function createBackup(): Promise<BackupMetadata> {
 	const key = getBackupEncryptionKey();
 
 	if (key) {
-		// Write plain SQLite to a temp file, then encrypt it
-		const tempPath = join(backupDir, `_temp-${ts}.db`);
+		// Write plain SQLite to a temp file outside backupDir so the plaintext
+		// is never resident in the backup directory even on failure.
+		const tempPath = join(tmpdir(), `gyre-backup-temp-${ts}.db`);
 		const encFilename = `gyre-backup-${ts}.db.enc`;
 		const encPath = join(backupDir, encFilename);
 
