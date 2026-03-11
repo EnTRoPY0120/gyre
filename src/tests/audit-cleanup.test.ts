@@ -168,13 +168,17 @@ describe('cleanupOldAuditLogs', () => {
 		expect(remaining[0].id).toBe('new-1');
 	});
 
-	test('handles errors gracefully', async () => {
-		// Set an invalid retentionDays value; the mock (and production helper) normalizes it to 90
+	test('normalizes invalid retention values to default (90 days)', async () => {
+		const db = state.db!;
+		// NaN is normalized to 90 by the mock (and production helper), so a 91-day-old log should be deleted
 		state.retentionDays = NaN;
+		insertAuditLog(db, 'old-log', daysAgo(91));
 
 		const deletedCount = await cleanupOldAuditLogs();
-		// Should return 0 and not throw
-		expect(deletedCount).toBe(0);
+		expect(deletedCount).toBe(1);
+
+		const remaining = db.select().from(auditLogs).all();
+		expect(remaining).toHaveLength(0);
 	});
 });
 
