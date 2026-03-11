@@ -19,7 +19,10 @@ export const REQUEST_LIMITS = {
 };
 
 /**
- * Get the appropriate size limit for a given request path and method
+ * Get the appropriate size limit for a given request path and method.
+ *
+ * NOTE: When adding new endpoints with non-default size limits, add a matching
+ * path check here. Unlisted endpoints fall back to REQUEST_LIMITS.DEFAULT (1MB).
  */
 export function getRequestSizeLimit(path: string, method: string): number {
 	// Backup restore endpoint - larger limit
