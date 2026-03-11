@@ -8,7 +8,9 @@ import { generateCsrfToken, validateCsrfToken } from '$lib/server/csrf';
 // Initialize Gyre on first request
 let initialized = false;
 
-// Public routes that don't require authentication or CSRF protection
+// Public routes that don't require authentication or CSRF protection.
+// NOTE: /api/auth/login and other auth-related routes are split here to ensure
+// that authenticated routes like /api/auth/change-password or logout ARE protected by CSRF.
 const PUBLIC_ROUTES = [
 	'/login',
 	'/api/auth/login',
@@ -139,8 +141,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			cookies.set('gyre_csrf', csrfToken, {
 				path: '/',
 				httpOnly: false,
-				secure: true,
-				sameSite: 'strict'
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'strict',
+				maxAge: 60 * 60 * 24 * 7 // 7 days (match session TTL)
 			});
 		}
 	}
@@ -161,7 +164,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 				contentType.includes('multipart/form-data')
 			) {
 				try {
-					// Clone request to avoid consuming the stream for the subsequent action
+					// NOTE: Cloning large multipart uploads (like backup restore) doubles memory.
+					// This is a trade-off for stateless CSRF validation on SvelteKit form actions.
 					const formData = await request.clone().formData();
 					csrfToken = formData.get('_csrf')?.toString() ?? '';
 				} catch (e) {
