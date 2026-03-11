@@ -8,6 +8,7 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { restoreFromBuffer } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
+import { REQUEST_LIMITS } from '$lib/server/request-limits';
 
 export const _metadata = {
 	POST: {
@@ -46,11 +47,12 @@ export const _metadata = {
 					}
 				}
 			},
-			400: {
-				description: 'No file uploaded or file too large (max 500MB)',
+			400: { description: 'No file uploaded' },
+			403: { description: 'Admin role required' },
+			413: {
+				description: 'File too large (max 500MB)',
 				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
-			},
-			403: { description: 'Admin role required' }
+			}
 		}
 	}
 };
@@ -68,10 +70,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			throw error(400, 'No file uploaded');
 		}
 
-		// Limit file size to 500MB
-		const MAX_SIZE = 500 * 1024 * 1024;
-		if (file.size > MAX_SIZE) {
-			throw error(400, 'File too large. Maximum size is 500MB.');
+		// Validate file size
+		if (file.size > REQUEST_LIMITS.BACKUP_RESTORE) {
+			throw error(
+				413,
+				`File too large. Maximum size is ${Math.round(REQUEST_LIMITS.BACKUP_RESTORE / (1024 * 1024))}MB, received ${Math.round(file.size / (1024 * 1024))}MB`
+			);
 		}
 
 		const arrayBuffer = await file.arrayBuffer();

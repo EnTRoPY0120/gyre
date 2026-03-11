@@ -9,6 +9,7 @@ import {
 } from '$lib/server/clusters';
 import { isAdmin } from '$lib/server/rbac';
 import { logClusterChange } from '$lib/server/audit';
+import { REQUEST_LIMITS } from '$lib/server/request-limits';
 
 /**
  * Load function for cluster management page
@@ -64,6 +65,14 @@ export const actions: Actions = {
 
 		if (name.length < 3) {
 			return fail(400, { error: 'Name must be at least 3 characters' });
+		}
+
+		// Validate kubeconfig size (max 10MB)
+		const kubeconfigSize = new TextEncoder().encode(kubeconfig).length;
+		if (kubeconfigSize > REQUEST_LIMITS.KUBECONFIG_UPLOAD) {
+			return fail(413, {
+				error: `Kubeconfig is too large. Maximum size is ${Math.round(REQUEST_LIMITS.KUBECONFIG_UPLOAD / (1024 * 1024))}MB, received ${Math.round(kubeconfigSize / (1024 * 1024))}MB`
+			});
 		}
 
 		try {
