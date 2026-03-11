@@ -86,7 +86,7 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 	};
 
 	setHeaders({
-		'Cache-Control': 'private, max-age=30'
+		'Cache-Control': `private, max-age=${Math.floor(DASHBOARD_CACHE_TTL_MS / 1000)}`
 	});
 
 	return {
