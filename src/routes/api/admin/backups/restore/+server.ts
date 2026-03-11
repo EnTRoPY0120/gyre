@@ -8,7 +8,7 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { restoreFromBuffer } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
-import { REQUEST_LIMITS } from '$lib/server/request-limits';
+import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
 
 export const _metadata = {
 	POST: {
@@ -74,7 +74,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		if (file.size > REQUEST_LIMITS.BACKUP_RESTORE) {
 			throw error(
 				413,
-				`File too large. Maximum size is ${Math.round(REQUEST_LIMITS.BACKUP_RESTORE / (1024 * 1024))}MB, received ${Math.round(file.size / (1024 * 1024))}MB`
+				`File too large. Maximum size is ${formatSize(REQUEST_LIMITS.BACKUP_RESTORE)}, received ${formatSize(file.size)}`
 			);
 		}
 
