@@ -62,7 +62,7 @@ export async function closeAllEventStreams() {
 	console.log('[EventBus] Shutting down all event streams...');
 	isShuttingDown = true;
 
-	for (const [clusterId, context] of activeWorkers.entries()) {
+	for (const [clusterId, context] of Array.from(activeWorkers.entries())) {
 		if (context.inflightPollPromise) {
 			try {
 				await context.inflightPollPromise;
@@ -171,6 +171,7 @@ function startWorker(context: ClusterContext) {
 }
 
 function stopWorker(context: ClusterContext) {
+	if (!context.isActive) return;
 	context.isActive = false;
 	activeWorkersGauge.set(Math.max(0, activeWorkers.size - 1));
 	if (context.pollTimeout) {
@@ -202,10 +203,8 @@ function broadcast(context: ClusterContext, event: SSEEvent) {
 async function poll(context: ClusterContext) {
 	if (!context.isActive) return;
 
-	let resolvePoll: () => void;
-	context.inflightPollPromise = new Promise((resolve) => {
-		resolvePoll = resolve;
-	});
+	const { promise, resolve: resolvePoll } = Promise.withResolvers<void>();
+	context.inflightPollPromise = promise;
 
 	try {
 		for (const resourceType of WATCH_RESOURCES) {
