@@ -45,7 +45,7 @@ export const resourceGroups: ResourceGroup[] = [
 				type: FluxResourceType.OCIRepository,
 				displayName: 'OCI Repositories',
 				singularName: 'OCI Repository',
-				apiVersion: 'source.toolkit.fluxcd.io/v1beta2',
+				apiVersion: 'source.toolkit.fluxcd.io/v1',
 				kind: 'OCIRepository',
 				description: 'OCI artifact repositories'
 			}

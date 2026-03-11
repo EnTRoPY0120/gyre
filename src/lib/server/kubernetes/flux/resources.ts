@@ -55,10 +55,10 @@ export const FLUX_RESOURCES = {
 	},
 	OCIRepository: {
 		group: 'source.toolkit.fluxcd.io',
-		version: 'v1beta2',
+		version: 'v1',
 		plural: 'ocirepositories',
 		kind: 'OCIRepository',
-		apiVersion: 'source.toolkit.fluxcd.io/v1beta2',
+		apiVersion: 'source.toolkit.fluxcd.io/v1',
 		namespaced: true,
 		controller: 'source-controller'
 	},
