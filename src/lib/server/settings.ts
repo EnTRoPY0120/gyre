@@ -166,7 +166,7 @@ export async function getDomainAllowlist(): Promise<string[]> {
 export async function getAuditLogRetentionDays(): Promise<number> {
 	const value = await getSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS);
 	const parsed = parseInt(value, 10);
-	return isNaN(parsed) ? 90 : parsed;
+	return isNaN(parsed) || parsed <= 0 ? 90 : parsed;
 }
 
 /**

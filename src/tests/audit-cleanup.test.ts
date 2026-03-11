@@ -20,9 +20,12 @@ mock.module('../lib/server/db/index.js', () => ({
 	schema
 }));
 
-// Mock the settings module
+// Mock the settings module — mirrors the parse/normalization logic in the real helper
 mock.module('../lib/server/settings.js', () => ({
-	getAuditLogRetentionDays: async () => state.retentionDays,
+	getAuditLogRetentionDays: async () => {
+		const parsed = parseInt(String(state.retentionDays), 10);
+		return isNaN(parsed) || parsed <= 0 ? 90 : parsed;
+	},
 	getSetting: async (_key: string) => String(state.retentionDays),
 	SETTINGS_KEYS: {
 		AUDIT_LOG_RETENTION_DAYS: 'audit.retentionDays'
@@ -166,7 +169,7 @@ describe('cleanupOldAuditLogs', () => {
 	});
 
 	test('handles errors gracefully', async () => {
-		// Cause getAuditLogRetentionDays to return NaN
+		// Set an invalid retentionDays value; the mock (and production helper) normalizes it to 90
 		state.retentionDays = NaN;
 
 		const deletedCount = await cleanupOldAuditLogs();

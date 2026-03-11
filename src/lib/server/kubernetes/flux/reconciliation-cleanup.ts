@@ -157,6 +157,25 @@ let cleanupScheduled = false;
 let cleanupInterval: NodeJS.Timeout | null = null;
 let initialDelayTimeout: NodeJS.Timeout | null = null;
 let immediateCleanupTimeout: NodeJS.Timeout | null = null;
+let cleanupInFlight: Promise<void> | null = null;
+
+/**
+ * Single-flight wrapper: if a cleanup is already running, return the existing promise.
+ */
+function runCleanupOnce(): Promise<void> {
+	if (cleanupInFlight) {
+		return cleanupInFlight;
+	}
+	cleanupInFlight = cleanupReconciliationHistory()
+		.then(() => {})
+		.catch((err) => {
+			console.error('[ReconciliationCleanup] Cleanup failed:', err);
+		})
+		.finally(() => {
+			cleanupInFlight = null;
+		});
+	return cleanupInFlight;
+}
 
 /**
  * Schedule periodic cleanup of reconciliation history
@@ -189,15 +208,11 @@ export function scheduleCleanup(): void {
 
 	// Run initial cleanup after delay
 	initialDelayTimeout = setTimeout(() => {
-		cleanupReconciliationHistory().catch((err) => {
-			console.error('[ReconciliationCleanup] Initial cleanup failed:', err);
-		});
+		runCleanupOnce();
 
 		// Then run every 24 hours
 		cleanupInterval = setInterval(() => {
-			cleanupReconciliationHistory().catch((err) => {
-				console.error('[ReconciliationCleanup] Scheduled cleanup failed:', err);
-			});
+			runCleanupOnce();
 		}, CLEANUP_INTERVAL_MS);
 	}, initialDelay);
 
@@ -209,16 +224,15 @@ export function scheduleCleanup(): void {
 
 	immediateCleanupTimeout = setTimeout(() => {
 		console.log('[ReconciliationCleanup] Running initial cleanup...');
-		cleanupReconciliationHistory().catch((err) => {
-			console.error('[ReconciliationCleanup] Initial cleanup failed:', err);
-		});
+		runCleanupOnce();
 	}, startupDelayWithJitter);
 }
 
 /**
- * Stop the cleanup scheduler (useful for testing or graceful shutdown)
+ * Stop the cleanup scheduler (useful for testing or graceful shutdown).
+ * Returns the in-flight cleanup promise (if any) so callers can await its completion.
  */
-export function stopCleanup(): void {
+export function stopCleanup(): Promise<void> {
 	if (cleanupInterval) {
 		clearInterval(cleanupInterval);
 		cleanupInterval = null;
@@ -233,4 +247,5 @@ export function stopCleanup(): void {
 	}
 	cleanupScheduled = false;
 	console.log('[ReconciliationCleanup] Cleanup scheduler stopped');
+	return cleanupInFlight ?? Promise.resolve();
 }
