@@ -213,7 +213,7 @@ function broadcast(context: ClusterContext, event: SSEEvent) {
 async function poll(context: ClusterContext) {
 	if (!context.isActive) return;
 
-	let resolvePoll!: () => void;
+	let resolvePoll: () => void = () => {};
 	const promise = new Promise<void>((resolve) => {
 		resolvePoll = resolve;
 	});
