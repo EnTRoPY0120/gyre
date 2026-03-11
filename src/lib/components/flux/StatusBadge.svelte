@@ -33,8 +33,8 @@
 				};
 			case 'progressing':
 				return {
-					badge: 'bg-blue-500/10 text-blue-500 border-blue-500/20 animate-pulse',
-					icon: 'text-blue-500'
+					badge: 'bg-primary/10 text-primary border-primary/20 animate-pulse',
+					icon: 'text-primary'
 				};
 			case 'failed':
 				return {

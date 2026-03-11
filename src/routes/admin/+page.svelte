@@ -8,8 +8,8 @@
 			description: 'Manage user accounts, roles, and permissions.',
 			href: '/admin/users',
 			icon: 'users',
-			color: 'text-blue-500',
-			bg: 'bg-blue-500/10'
+			color: 'text-primary',
+			bg: 'bg-primary/10'
 		},
 		{
 			title: 'Cluster Management',
@@ -24,32 +24,32 @@
 			description: 'Configure SSO and OAuth2 authentication providers.',
 			href: '/admin/auth-providers',
 			icon: 'key',
-			color: 'text-emerald-500',
-			bg: 'bg-emerald-500/10'
+			color: 'text-primary',
+			bg: 'bg-primary/10'
 		},
 		{
 			title: 'Policies & RBAC',
 			description: 'Define access control policies and permissions.',
 			href: '/admin/policies',
 			icon: 'shield-check',
-			color: 'text-purple-500',
-			bg: 'bg-purple-500/10'
+			color: 'text-primary',
+			bg: 'bg-primary/10'
 		},
 		{
 			title: 'Audit Logs',
 			description: 'Track system activities, security events, and changes.',
 			href: '/admin/audit-logs',
 			icon: 'history',
-			color: 'text-rose-500',
-			bg: 'bg-rose-500/10'
+			color: 'text-primary',
+			bg: 'bg-primary/10'
 		},
 		{
 			title: 'Database Backups',
 			description: 'Create, download, and restore database backups.',
 			href: '/admin/backups',
 			icon: 'hard-drive',
-			color: 'text-teal-500',
-			bg: 'bg-teal-500/10'
+			color: 'text-primary',
+			bg: 'bg-primary/10'
 		}
 	];
 </script>

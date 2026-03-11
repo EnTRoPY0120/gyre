@@ -243,10 +243,10 @@
 	<div class="flex flex-col gap-4">
 		<div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
 			<div>
-				<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+				<h1 class="font-display text-2xl font-bold text-foreground">
 					{data.resourceInfo.displayName}
 				</h1>
-				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{data.resourceInfo.description}</p>
+				<p class="mt-1 text-sm text-muted-foreground">{data.resourceInfo.description}</p>
 			</div>
 			<ViewToggle />
 		</div>
@@ -260,7 +260,7 @@
 
 	<!-- Search and Filters -->
 	<div
-		class="space-y-4 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+		class="space-y-4 rounded-lg border border-border bg-card/60 p-4 backdrop-blur-sm"
 	>
 		<div class="flex flex-col gap-4 lg:flex-row lg:items-center">
 			<!-- Search -->
@@ -273,13 +273,13 @@
 			</div>
 			<!-- Sort controls -->
 			<div class="flex items-center gap-1.5">
-				<span class="text-xs text-gray-500 dark:text-gray-400">Sort:</span>
+				<span class="text-xs text-muted-foreground">Sort:</span>
 				{#each SORT_FIELDS as opt (opt.key)}
 					<button
 						type="button"
 						class="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors {sortBy === opt.key
-							? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
-							: 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'}"
+							? 'bg-primary text-primary-foreground'
+							: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'}"
 						aria-pressed={sortBy === opt.key}
 						aria-label="Sort by {opt.label}: {sortBy === opt.key
 							? sortOrder === 'asc'
@@ -302,12 +302,12 @@
 				{/each}
 			</div>
 			<!-- Results count -->
-			<div class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+			<div class="flex items-center gap-2 text-sm text-muted-foreground">
 				<span>
-					Showing <strong class="text-gray-900 dark:text-gray-100"
+					Showing <strong class="text-foreground"
 						>{filteredResources.length}</strong
 					>
-					of <strong class="text-gray-900 dark:text-gray-100"
+					of <strong class="text-foreground"
 						>{data.total !== null ? data.total : `${data.resources?.length ?? 0}+`}</strong
 					> resources
 				</span>
@@ -319,9 +319,9 @@
 
 	<!-- Error Alert -->
 	{#if data.error}
-		<div class="rounded-lg border border-red-200 bg-red-50 p-4">
+		<div class="rounded-lg border border-destructive/20 bg-destructive/5 p-4">
 			<div class="flex items-center gap-3">
-				<svg class="h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<svg class="h-5 w-5 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 					<path
 						stroke-linecap="round"
 						stroke-linejoin="round"
@@ -329,7 +329,7 @@
 						d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
 					/>
 				</svg>
-				<p class="text-sm text-red-700">{data.error}</p>
+				<p class="text-sm text-destructive">{data.error}</p>
 			</div>
 		</div>
 	{/if}
@@ -337,44 +337,44 @@
 	<!-- Statistics Cards -->
 	<div class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 lg:grid-cols-5">
 		<div
-			class="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800"
+			class="rounded-xl border border-border bg-card p-4 transition-colors"
 		>
-			<p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total</p>
-			<p class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.total}</p>
+			<p class="text-sm font-medium text-muted-foreground">Total</p>
+			<p class="mt-1 text-2xl font-bold text-foreground">{stats.total}</p>
 		</div>
 		<div
-			class="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/30"
+			class="rounded-xl border border-green-500/20 bg-card p-4 transition-colors hover:bg-green-500/[0.02]"
 		>
-			<p class="text-sm font-medium text-green-700 dark:text-green-300">Healthy</p>
-			<p class="mt-1 text-2xl font-bold text-green-900 dark:text-green-100">{stats.healthy}</p>
+			<p class="text-sm font-medium text-green-600 dark:text-green-500">Healthy</p>
+			<p class="mt-1 text-2xl font-bold text-green-600 dark:text-green-500">{stats.healthy}</p>
 		</div>
 		<div
-			class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/30"
+			class="rounded-xl border border-primary/20 bg-card p-4 transition-colors hover:bg-primary/[0.02]"
 		>
-			<p class="text-sm font-medium text-blue-700 dark:text-blue-300">Progressing</p>
-			<p class="mt-1 text-2xl font-bold text-blue-900 dark:text-blue-100">{stats.progressing}</p>
+			<p class="text-sm font-medium text-primary">Progressing</p>
+			<p class="mt-1 text-2xl font-bold text-primary">{stats.progressing}</p>
 		</div>
 		<div
-			class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/30"
+			class="rounded-xl border border-destructive/20 bg-card p-4 transition-colors hover:bg-destructive/[0.02]"
 		>
-			<p class="text-sm font-medium text-red-700 dark:text-red-300">Failed</p>
-			<p class="mt-1 text-2xl font-bold text-red-900 dark:text-red-100">{stats.failed}</p>
+			<p class="text-sm font-medium text-destructive">Failed</p>
+			<p class="mt-1 text-2xl font-bold text-destructive">{stats.failed}</p>
 		</div>
 		<div
-			class="rounded-lg border border-gray-300 bg-gray-100 p-4 dark:border-gray-600 dark:bg-gray-700"
+			class="rounded-xl border border-amber-500/20 bg-card p-4 transition-colors hover:bg-amber-500/[0.02]"
 		>
-			<p class="text-sm font-medium text-gray-600 dark:text-gray-300">Suspended</p>
-			<p class="mt-1 text-2xl font-bold text-gray-700 dark:text-gray-200">{stats.suspended}</p>
+			<p class="text-sm font-medium text-amber-500">Suspended</p>
+			<p class="mt-1 text-2xl font-bold text-amber-500">{stats.suspended}</p>
 		</div>
 	</div>
 
 	<!-- Resource List -->
 	{#if filteredResources.length === 0 && hasActiveFilters}
 		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-gray-200 bg-white py-12 text-center dark:border-gray-700 dark:bg-gray-800"
+			class="flex flex-col items-center justify-center rounded-lg border border-border bg-card/60 py-12 text-center"
 		>
 			<svg
-				class="h-12 w-12 text-gray-300 dark:text-gray-600"
+				class="h-12 w-12 text-muted-foreground/30"
 				fill="none"
 				stroke="currentColor"
 				viewBox="0 0 24 24"
@@ -386,15 +386,15 @@
 					d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
 				/>
 			</svg>
-			<p class="mt-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+			<p class="mt-4 text-sm font-medium text-foreground">
 				No resources match your filters
 			</p>
-			<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+			<p class="mt-1 text-sm text-muted-foreground">
 				Try adjusting your search or filter criteria
 			</p>
 			<button
 				type="button"
-				class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-200"
+				class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
 				onclick={clearFilters}
 			>
 				<FilterX size={16} />

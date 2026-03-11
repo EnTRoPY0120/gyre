@@ -87,18 +87,18 @@
 
 <div class="mx-auto max-w-2xl">
 	<div class="mb-8">
-		<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Notification Settings</h1>
-		<p class="mt-2 text-gray-500 dark:text-gray-400">
+		<h1 class="font-display text-3xl font-bold tracking-tight text-foreground">Notification Settings</h1>
+		<p class="mt-2 text-muted-foreground">
 			Customize which notifications you receive to reduce noise in large clusters.
 		</p>
 	</div>
 
-	<div class="space-y-10 rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+	<div class="space-y-10 rounded-xl border border-border bg-card p-6">
 		<!-- General Enable/Disable -->
 		<div class="flex items-center justify-between">
 			<div class="space-y-0.5">
 				<Label for="notifications-enabled" class="text-lg font-semibold">Live Notifications</Label>
-				<p class="text-sm text-gray-500">Enable or disable real-time notifications</p>
+				<p class="text-sm text-muted-foreground">Enable or disable real-time notifications</p>
 			</div>
 			<div class="flex items-center">
 				<Checkbox id="notifications-enabled" bind:checked={enabled} />
@@ -106,12 +106,12 @@
 		</div>
 
 		{#if enabled}
-			<div class="space-y-10 border-t border-gray-100 pt-8 dark:border-gray-800">
+			<div class="space-y-10 border-t border-border pt-8">
 				<!-- Resource Types -->
 				<div class="space-y-4">
 					<div class="space-y-1">
 						<h3 class="text-md font-semibold">Resource Types</h3>
-						<p class="text-sm text-gray-500">Only receive notifications for specific Flux resources. Leave all unchecked for all resources.</p>
+						<p class="text-sm text-muted-foreground">Only receive notifications for specific Flux resources. Leave all unchecked for all resources.</p>
 					</div>
 					<div class="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
 						{#each resourceTypes as type}
@@ -131,7 +131,7 @@
 				<div class="space-y-4">
 					<div class="space-y-1">
 						<h3 class="text-md font-semibold">Event Types</h3>
-						<p class="text-sm text-gray-500">Filter notifications by their severity or status.</p>
+						<p class="text-sm text-muted-foreground">Filter notifications by their severity or status.</p>
 					</div>
 					<div class="flex flex-wrap gap-x-8 gap-y-4">
 						{#each eventTypes as type}
@@ -151,7 +151,7 @@
 				<div class="space-y-4">
 					<div class="space-y-1">
 						<h3 class="text-md font-semibold">Namespace Filter</h3>
-						<p class="text-sm text-gray-500">Separate multiple namespaces with commas. Leave blank to receive notifications from all namespaces.</p>
+						<p class="text-sm text-muted-foreground">Separate multiple namespaces with commas. Leave blank to receive notifications from all namespaces.</p>
 					</div>
 					<Input
 						placeholder="e.g. flux-system, production, monitoring"
@@ -162,7 +162,7 @@
 			</div>
 		{/if}
 
-		<div class="flex items-center justify-end border-t border-gray-100 pt-6 dark:border-gray-800">
+		<div class="flex items-center justify-end border-t border-border pt-6">
 			<Button onclick={savePreferences} disabled={loading} class="px-8">
 				{#if loading}
 					<svg class="mr-2 h-4 w-4 animate-spin" viewBox="0 0 24 24">

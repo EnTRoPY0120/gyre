@@ -117,7 +117,13 @@
 			{/if}
 
 			<!-- Scrollable Content -->
-			<main class="flex-1 overflow-y-auto p-4 md:p-6">
+			<main class="relative flex-1 overflow-y-auto p-4 md:p-6">
+				<!-- Dot-grid ambient texture -->
+				<div
+					class="pointer-events-none fixed inset-0 z-0"
+					aria-hidden="true"
+					style="background-image: radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px); background-size: 28px 28px; mask-image: radial-gradient(ellipse 80% 80% at 50% 20%, black 30%, transparent 100%);"
+				></div>
 				{@render children()}
 			</main>
 		</div>
