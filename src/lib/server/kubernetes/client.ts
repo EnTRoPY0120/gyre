@@ -40,12 +40,35 @@ export function _createTimeoutMiddleware(timeoutMs: number): k8s.Middleware {
 	return {
 		pre: async (ctx: k8s.RequestContext) => {
 			const controller = new AbortController();
-			const timer = setTimeout(() => controller.abort(), timeoutMs);
-			// Clear the timer once the abort fires (either from timeout or early cancellation).
-			controller.signal.addEventListener('abort', () => clearTimeout(timer), { once: true });
+			const existingSignal = ctx.getSignal();
+
+			// Declared before timer so the closure captures the binding correctly.
+			let timer: ReturnType<typeof setTimeout>;
+
+			// If a caller passed an upstream signal (e.g. a request-level AbortController),
+			// propagate its cancellation: clear our timer and abort our controller.
+			const onUpstreamAbort = () => {
+				clearTimeout(timer);
+				controller.abort();
+			};
+			if (existingSignal) {
+				existingSignal.addEventListener('abort', onUpstreamAbort, { once: true });
+			}
+
+			timer = setTimeout(() => {
+				// Timeout fired — remove the upstream listener so it cannot fire later.
+				if (existingSignal) {
+					existingSignal.removeEventListener('abort', onUpstreamAbort);
+				}
+				controller.abort();
+			}, timeoutMs);
+
 			ctx.setSignal(controller.signal);
 			return ctx;
 		},
+		// ResponseContext does not expose the request signal, so timer cleanup on
+		// successful completion is handled by the setTimeout firing as a no-op once
+		// the fetch promise has already settled.
 		post: async (ctx: k8s.ResponseContext) => ctx
 	};
 }
@@ -363,7 +386,7 @@ export async function getCustomObjectsApi(
 	reqCache?: ReqCache,
 	timeoutMs = OPERATION_TIMEOUTS.list
 ): Promise<k8s.CustomObjectsApi> {
-	return getOrCreate(customObjectsPool, context || 'in-cluster', async () => {
+	return getOrCreate(customObjectsPool, `${context || 'in-cluster'}:${timeoutMs}`, async () => {
 		const config = await getKubeConfig(context, reqCache);
 		return makeApiClientWithTimeout(config, k8s.CustomObjectsApi, timeoutMs);
 	});
@@ -379,7 +402,7 @@ export async function getCoreV1Api(
 	reqCache?: ReqCache,
 	timeoutMs = OPERATION_TIMEOUTS.get
 ): Promise<k8s.CoreV1Api> {
-	return getOrCreate(coreV1Pool, context || 'in-cluster', async () => {
+	return getOrCreate(coreV1Pool, `${context || 'in-cluster'}:${timeoutMs}`, async () => {
 		const config = await getKubeConfig(context, reqCache);
 		return makeApiClientWithTimeout(config, k8s.CoreV1Api, timeoutMs);
 	});
@@ -395,7 +418,7 @@ export async function getAppsV1Api(
 	reqCache?: ReqCache,
 	timeoutMs = OPERATION_TIMEOUTS.get
 ): Promise<k8s.AppsV1Api> {
-	return getOrCreate(appsV1Pool, context || 'in-cluster', async () => {
+	return getOrCreate(appsV1Pool, `${context || 'in-cluster'}:${timeoutMs}`, async () => {
 		const config = await getKubeConfig(context, reqCache);
 		return makeApiClientWithTimeout(config, k8s.AppsV1Api, timeoutMs);
 	});
@@ -713,7 +736,7 @@ export async function getControllerLogs(
 
 		return filteredLines.join('\n');
 	} catch (error) {
-		throw handleK8sError(error, `fetch logs for ${controllerName}`);
+		throw handleK8sError(error, `fetch logs for ${controllerName}`, OPERATION_TIMEOUTS.logs);
 	}
 }
 

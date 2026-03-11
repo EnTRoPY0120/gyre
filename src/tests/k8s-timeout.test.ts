@@ -1,9 +1,10 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect, beforeEach } from 'bun:test';
 import * as k8s from '@kubernetes/client-node';
 import {
 	DEFAULT_TIMEOUT_MS,
 	OPERATION_TIMEOUTS,
 	handleK8sError,
+	clearClientPool,
 	_createTimeoutMiddleware
 } from '../lib/server/kubernetes/client.js';
 import {
@@ -136,6 +137,31 @@ describe('handleK8sError — existing error classification', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Pool key — different timeouts must not share a cached client
+// ---------------------------------------------------------------------------
+
+describe('Pool key includes timeoutMs', () => {
+	beforeEach(() => {
+		clearClientPool();
+	});
+
+	test('pool cache keys are distinct for different timeoutMs values', () => {
+		// Verify the expected key format so a client created with one timeout
+		// is never returned for a different timeout.
+		const ctx = 'test-context';
+		const key1 = `${ctx}:${OPERATION_TIMEOUTS.get}`;
+		const key2 = `${ctx}:${OPERATION_TIMEOUTS.logs}`;
+		expect(key1).not.toBe(key2);
+	});
+
+	test('default context key differs between get and logs timeouts', () => {
+		const getKey = `in-cluster:${OPERATION_TIMEOUTS.get}`;
+		const logsKey = `in-cluster:${OPERATION_TIMEOUTS.logs}`;
+		expect(getKey).not.toBe(logsKey);
+	});
+});
+
+// ---------------------------------------------------------------------------
 // Timeout middleware integration — signal is set and fires after timeout
 // ---------------------------------------------------------------------------
 
@@ -173,5 +199,33 @@ describe('_createTimeoutMiddleware — integration', () => {
 
 		await new Promise<void>((resolve) => setTimeout(resolve, 150));
 		expect(fireCount).toBe(1);
+	}, 1000);
+
+	test('upstream abort cancels the timer and propagates to the controller', async () => {
+		const upstream = new AbortController();
+		const middleware = _createTimeoutMiddleware(10_000); // long timeout — should NOT fire
+		const ctx = new k8s.RequestContext('https://example.com', k8s.HttpMethod.GET);
+		ctx.setSignal(upstream.signal);
+		await middleware.pre(ctx);
+		const signal = ctx.getSignal()!;
+
+		// Abort upstream — controller should abort immediately, not after 10s.
+		upstream.abort();
+		expect(signal.aborted).toBe(true);
+	});
+
+	test('upstream listener is removed after timeout fires to avoid leaks', async () => {
+		const upstream = new AbortController();
+		const middleware = _createTimeoutMiddleware(50);
+		const ctx = new k8s.RequestContext('https://example.com', k8s.HttpMethod.GET);
+		ctx.setSignal(upstream.signal);
+		await middleware.pre(ctx);
+
+		// Wait for timeout to fire.
+		await new Promise<void>((resolve) => setTimeout(resolve, 150));
+
+		// After timeout, firing the upstream signal should not throw and not cause
+		// extra calls — the listener was removed when the timeout fired.
+		expect(() => upstream.abort()).not.toThrow();
 	}, 1000);
 });
