@@ -36,7 +36,7 @@
 
 		try {
 			const response = await fetch(
-			`/api/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+			`/api/v1/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
 			{
 				method: 'DELETE',
 				headers: { 'X-CSRF-Token': getCsrfToken() }

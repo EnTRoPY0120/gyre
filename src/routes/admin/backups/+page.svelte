@@ -88,7 +88,7 @@
 	async function createBackup() {
 		creating = true;
 		try {
-			const response = await fetch('/api/admin/backups', {
+			const response = await fetch('/api/v1/admin/backups', {
 				method: 'POST',
 				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});
@@ -109,7 +109,7 @@
 	async function downloadBackup(filename: string) {
 		try {
 			const response = await fetch(
-				`/api/admin/backups/download?filename=${encodeURIComponent(filename)}`
+				`/api/v1/admin/backups/download?filename=${encodeURIComponent(filename)}`
 			);
 			if (!response.ok) {
 				throw new Error('Failed to download backup');
@@ -132,7 +132,7 @@
 	async function deleteBackupFile(filename: string) {
 		deletingFilename = filename;
 		try {
-			const response = await fetch(`/api/admin/backups?filename=${encodeURIComponent(filename)}`, {
+			const response = await fetch(`/api/v1/admin/backups?filename=${encodeURIComponent(filename)}`, {
 				method: 'DELETE',
 				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});
@@ -167,7 +167,7 @@
 
 			// Use X-CSRF-Token header instead of a hidden _csrf form field because
 			// the body is a multipart FormData with a large file blob.
-			const response = await fetch('/api/admin/backups/restore', {
+			const response = await fetch('/api/v1/admin/backups/restore', {
 				method: 'POST',
 				headers: { 'X-CSRF-Token': getCsrfToken() },
 				body: formData

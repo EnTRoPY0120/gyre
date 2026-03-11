@@ -100,7 +100,7 @@ class ResourceCacheStore {
 	}
 
 	async fetchList(type: string, namespace?: string): Promise<FluxResource[]> {
-		const url = namespace ? `/api/flux/${type}?namespace=${namespace}` : `/api/flux/${type}`;
+		const url = namespace ? `/api/v1/flux/${type}?namespace=${namespace}` : `/api/v1/flux/${type}`;
 		try {
 			const res = await fetchWithRetry(url);
 			if (!res.ok) throw new Error(`Failed to fetch ${type} list`);
@@ -116,7 +116,7 @@ class ResourceCacheStore {
 
 	async fetchResource(type: string, namespace: string, name: string): Promise<FluxResource | null> {
 		try {
-			const res = await fetchWithRetry(`/api/flux/${type}/${namespace}/${name}`);
+			const res = await fetchWithRetry(`/api/v1/flux/${type}/${namespace}/${name}`);
 			if (!res.ok) throw new Error(`Failed to fetch ${type}/${namespace}/${name}`);
 			const resource = await res.json();
 			this.setResource(type, namespace, name, resource);

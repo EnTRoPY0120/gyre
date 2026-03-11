@@ -108,7 +108,7 @@ async function fetchGitLabGroups(
  */
 export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 	const config = options.config;
-	const redirectUri = options.redirectUri || `/api/auth/${config.id}/callback`;
+	const redirectUri = options.redirectUri || `/api/v1/auth/${config.id}/callback`;
 
 	// Default to gitlab.com if no issuer provided
 	// Remove trailing slash if present

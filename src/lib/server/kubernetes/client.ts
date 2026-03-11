@@ -268,7 +268,7 @@ export function getPoolMetrics() {
 	};
 }
 
-/** Evicts all pooled clients. Exposed via POST /api/admin/k8s/clear-client-pool. */
+/** Evicts all pooled clients. Exposed via POST /api/v1/admin/k8s/clear-client-pool. */
 export function clearClientPool() {
 	customObjectsPool.clear();
 	coreV1Pool.clear();

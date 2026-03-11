@@ -75,7 +75,7 @@
 		const pastTense = pastTenseMap[action] || `${action}ed`;
 
 		try {
-			const response = await fetch(`/api/flux/batch/${action}`, {
+			const response = await fetch(`/api/v1/flux/batch/${action}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({ resources })

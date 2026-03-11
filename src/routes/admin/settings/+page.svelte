@@ -33,7 +33,7 @@
 				.map((d: string) => d.trim().toLowerCase())
 				.filter((d: string) => d.length > 0);
 
-			const response = await fetch('/api/admin/settings', {
+			const response = await fetch('/api/v1/admin/settings', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({

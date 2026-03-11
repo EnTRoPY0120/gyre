@@ -117,7 +117,7 @@ export interface IOAuthProvider {
  */
 export interface OAuthProviderOptions {
 	config: AuthProvider;
-	/** Optional: Override redirect URI (defaults to /api/auth/[providerId]/callback) */
+	/** Optional: Override redirect URI (defaults to /api/v1/auth/[providerId]/callback) */
 	redirectUri?: string;
 }
 

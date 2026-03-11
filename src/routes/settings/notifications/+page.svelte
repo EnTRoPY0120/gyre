@@ -51,7 +51,7 @@
 		};
 
 		try {
-			const res = await fetch('/api/user/preferences', {
+			const res = await fetch('/api/v1/user/preferences', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({ notifications: newPrefs })

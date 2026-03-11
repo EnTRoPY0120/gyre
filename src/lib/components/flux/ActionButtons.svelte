@@ -65,7 +65,7 @@
 		}
 
 		try {
-			const response = await fetch(`/api/flux/${type}/${namespace}/${name}/${action}`, {
+			const response = await fetch(`/api/v1/flux/${type}/${namespace}/${name}/${action}`, {
 				method: 'POST',
 				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});

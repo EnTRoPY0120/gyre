@@ -98,7 +98,7 @@ import { onMount } from 'svelte';
 				.map(async (kind) => {
 					const pluralToUse = pluralizeKind(kind);
 
-					const res = await fetchWithRetry(`/api/flux/${pluralToUse}`);
+					const res = await fetchWithRetry(`/api/v1/flux/${pluralToUse}`);
 					if (!res.ok) {
 						const errorBody = await res.text();
 						throw new Error(

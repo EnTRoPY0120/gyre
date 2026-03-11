@@ -26,7 +26,7 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 		}
 
 		// Fetch batched overview results
-		const response = await fetchWithRetry('/api/flux/overview', undefined, {
+		const response = await fetchWithRetry('/api/v1/flux/overview', undefined, {
 			fetchFn: svelteFetch,
 			logger
 		});

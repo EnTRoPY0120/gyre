@@ -129,7 +129,7 @@
 		loading = true;
 
 		try {
-			const response = await fetch('/api/admin/auth-providers', {
+			const response = await fetch('/api/v1/admin/auth-providers', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify(formData)
@@ -180,7 +180,7 @@
 				updates.clientSecret = formData.clientSecret;
 			}
 
-			const response = await fetch(`/api/admin/auth-providers/${selectedProvider.id}`, {
+			const response = await fetch(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify(updates)
@@ -209,7 +209,7 @@
 		loading = true;
 
 		try {
-			const response = await fetch(`/api/admin/auth-providers/${selectedProvider.id}`, {
+			const response = await fetch(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
 				method: 'DELETE',
 				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});
@@ -231,7 +231,7 @@
 
 	async function toggleEnabled(provider: (typeof providers)[0]) {
 		try {
-			const response = await fetch(`/api/admin/auth-providers/${provider.id}`, {
+			const response = await fetch(`/api/v1/admin/auth-providers/${provider.id}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({ enabled: !provider.enabled })
