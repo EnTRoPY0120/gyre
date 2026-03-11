@@ -2,9 +2,9 @@
 
 Modern WebUI for FluxCD with real-time monitoring, RBAC, and comprehensive resource management.
 
-[![Version](https://img.shields.io/badge/version-0.3.0-blue.svg)](Chart.yaml)
+[![Version](https://img.shields.io/badge/version-0.3.1-blue.svg)](Chart.yaml)
 [![Type](https://img.shields.io/badge/type-application-informational.svg)](Chart.yaml)
-[![AppVersion](https://img.shields.io/badge/app%20version-0.3.0-informational.svg)](Chart.yaml)
+[![AppVersion](https://img.shields.io/badge/app%20version-0.3.1-informational.svg)](Chart.yaml)
 
 ## Documentation
 
