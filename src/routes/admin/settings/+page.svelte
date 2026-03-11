@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import type { PageData } from './$types';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	let { data } = $props<{ data: PageData }>();
 
@@ -34,7 +35,7 @@
 
 			const response = await fetch('/api/admin/settings', {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({
 					localLoginEnabled,
 					allowSignup,

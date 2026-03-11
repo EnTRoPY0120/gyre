@@ -10,6 +10,7 @@
 	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from 'lucide-svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { parse, parseDocument, YAMLError } from 'yaml';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	let {
 		template,
@@ -192,7 +193,7 @@
 			};
 			const response = await fetch(`/api/flux/${template.plural}`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify(parsed)
 			});
 

@@ -14,6 +14,7 @@
 	} from 'lucide-svelte';
 	import { formatDistanceToNow } from 'date-fns';
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	interface BackupMetadata {
 		filename: string;
@@ -87,7 +88,7 @@
 	async function createBackup() {
 		creating = true;
 		try {
-			const response = await fetch('/api/admin/backups', { method: 'POST' });
+			const response = await fetch('/api/admin/backups', { method: 'POST', headers: { 'X-CSRF-Token': getCsrfToken() } });
 			if (!response.ok) {
 				const err = await response.json();
 				throw new Error(err.message || 'Failed to create backup');
@@ -130,7 +131,7 @@
 		try {
 			const response = await fetch(
 				`/api/admin/backups?filename=${encodeURIComponent(filename)}`,
-				{ method: 'DELETE' }
+				{ method: 'DELETE', headers: { 'X-CSRF-Token': getCsrfToken() } }
 			);
 			if (!response.ok) {
 				const err = await response.json();
@@ -163,6 +164,7 @@
 
 			const response = await fetch('/api/admin/backups/restore', {
 				method: 'POST',
+				headers: { 'X-CSRF-Token': getCsrfToken() },
 				body: formData
 			});
 

@@ -2,6 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
 	import * as Select from '$lib/components/ui/select';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	type ProviderType =
 		| 'oidc'
@@ -129,7 +130,7 @@
 		try {
 			const response = await fetch('/api/admin/auth-providers', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify(formData)
 			});
 
@@ -180,7 +181,7 @@
 
 			const response = await fetch(`/api/admin/auth-providers/${selectedProvider.id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify(updates)
 			});
 
@@ -208,7 +209,8 @@
 
 		try {
 			const response = await fetch(`/api/admin/auth-providers/${selectedProvider.id}`, {
-				method: 'DELETE'
+				method: 'DELETE',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
 			});
 
 			if (!response.ok) {
@@ -230,7 +232,7 @@
 		try {
 			const response = await fetch(`/api/admin/auth-providers/${provider.id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
+				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
 				body: JSON.stringify({ enabled: !provider.enabled })
 			});
 

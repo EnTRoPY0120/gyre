@@ -6,6 +6,7 @@
 	import yaml from 'js-yaml';
 	import type * as Monaco from 'monaco-editor';
 	import type { K8sResource } from '$lib/types/kubernetes';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	interface Props {
 		open: boolean;
@@ -109,7 +110,8 @@
 			const response = await fetch(`/api/flux/${resourceType}/${namespace}/${name}`, {
 				method: 'PUT',
 				headers: {
-					'Content-Type': 'application/json'
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': getCsrfToken()
 				},
 				body: JSON.stringify({ yaml: yamlContent })
 			});

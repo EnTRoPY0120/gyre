@@ -2,6 +2,7 @@
 	import { LogOut, User as UserIcon, Shield, KeyRound, BadgeCheck } from 'lucide-svelte';
 	import { cn } from '$lib/utils';
 	import { fade, scale } from 'svelte/transition';
+	import { getCsrfToken } from '$lib/utils/csrf';
 
 	interface Props {
 		user: {
@@ -18,7 +19,10 @@
 
 	async function handleLogout() {
 		try {
-			const res = await fetch('/api/auth/logout', { method: 'POST' });
+			const res = await fetch('/api/auth/logout', {
+			method: 'POST',
+			headers: { 'X-CSRF-Token': getCsrfToken() }
+		});
 			if (res.ok) {
 				window.location.href = '/login?loggedOut=true';
 			}
