@@ -92,3 +92,10 @@ export const sessionsCleanedUpTotal = getOrCreateCounter({
 	name: 'gyre_sessions_cleaned_up_total',
 	help: 'Total number of expired sessions cleaned up'
 });
+
+// SSE Connection Rejections
+export const sseConnectionsRejectedTotal = getOrCreateCounter({
+	name: 'gyre_sse_connections_rejected_total',
+	help: 'Total number of SSE connection attempts rejected due to connection limits',
+	labelNames: ['reason'] // 'session_limit' | 'user_limit'
+});
