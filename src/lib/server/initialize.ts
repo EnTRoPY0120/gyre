@@ -22,6 +22,7 @@ import { closeAllEventStreams, setEventBusShuttingDown } from './events.js';
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
 let isShuttingDown = false;
+let activeShutdownPromise: Promise<void> | null = null;
 
 function safeCloseDb(context: string = 'shutdown') {
 	try {
@@ -81,7 +82,8 @@ if (typeof process !== 'undefined') {
 		);
 		forceExit.unref();
 
-		await shutdownGyre();
+		activeShutdownPromise = shutdownGyre();
+		await activeShutdownPromise;
 
 		if (forceExit) {
 			clearTimeout(forceExit);
@@ -119,10 +121,15 @@ if (typeof process !== 'undefined') {
 		if (httpDrainTimeout) clearTimeout(httpDrainTimeout);
 
 		// If sveltekit:shutdown fires without prior signal (adapter handled it),
-		// run shutdown now to ensure cleanup completes
+		// run shutdown now to ensure cleanup completes.
+		// If a signal handler already started shutdown, await the same promise so
+		// safeCloseDb only runs after that work is fully done (no race).
 		if (!isShuttingDown) {
 			isShuttingDown = true;
-			await shutdownGyre();
+			activeShutdownPromise = shutdownGyre();
+			await activeShutdownPromise;
+		} else if (activeShutdownPromise) {
+			await activeShutdownPromise;
 		}
 
 		safeCloseDb('graceful shutdown');
