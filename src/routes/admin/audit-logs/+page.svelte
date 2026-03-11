@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { formatDistanceToNow } from 'date-fns';
 	import {
 		Shield,
@@ -9,11 +11,14 @@
 		Search,
 		Filter,
 		ChevronDown,
-		ChevronUp
+		ChevronUp,
+		ChevronLeft,
+		ChevronRight,
+		ArrowUpDown,
+		ArrowUp,
+		ArrowDown
 	} from 'lucide-svelte';
 	import { cn } from '$lib/utils';
-
-	import { advancedSearch } from '$lib/utils/search';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 
 	interface AuditLog {
@@ -35,12 +40,19 @@
 	}
 
 	let { data } = $props<{
-		data: { logs: AuditLog[] };
+		data: {
+			logs: AuditLog[];
+			total: number;
+			limit: number;
+			offset: number;
+			sortBy: 'date' | 'action' | 'user';
+			sortOrder: 'asc' | 'desc';
+			successFilter: string;
+		};
 	}>();
 
 	let searchQuery = $state('');
 	let debouncedQuery = $state('');
-	let statusFilter = $state<'all' | 'success' | 'failure'>('all');
 
 	$effect(() => {
 		const query = searchQuery;
@@ -55,20 +67,17 @@
 	});
 
 	let filteredLogs = $derived.by(() => {
-		let logs: AuditLog[] = data.logs;
-
-		// Apply status filter
-		if (statusFilter === 'success') {
-			logs = logs.filter((l: AuditLog) => l.success);
-		} else if (statusFilter === 'failure') {
-			logs = logs.filter((l: AuditLog) => !l.success);
-		}
-
-		// Apply search
-		return advancedSearch(logs, debouncedQuery, {
-			keys: ['action', 'resourceName', 'resourceType', 'namespace', 'user.username', 'ipAddress'],
-			fuzzy: true
-		}) as AuditLog[];
+		if (!debouncedQuery) return data.logs;
+		const q = debouncedQuery.toLowerCase();
+		return data.logs.filter(
+			(log: AuditLog) =>
+				log.action.toLowerCase().includes(q) ||
+				(log.resourceName && log.resourceName.toLowerCase().includes(q)) ||
+				(log.resourceType && log.resourceType.toLowerCase().includes(q)) ||
+				(log.namespace && log.namespace.toLowerCase().includes(q)) ||
+				(log.user?.username && log.user.username.toLowerCase().includes(q)) ||
+				(log.ipAddress && log.ipAddress.toLowerCase().includes(q))
+		);
 	});
 
 	let expandedLogId = $state<string | null>(null);
@@ -89,6 +98,52 @@
 	function formatTimestamp(date: Date) {
 		return formatDistanceToNow(new Date(date), { addSuffix: true });
 	}
+
+	function buildUrl(params: Record<string, string | number | undefined>) {
+		const current = new URL($page.url);
+		for (const [key, value] of Object.entries(params)) {
+			if (value === undefined || value === '') {
+				current.searchParams.delete(key);
+			} else {
+				current.searchParams.set(key, String(value));
+			}
+		}
+		return current.pathname + current.search;
+	}
+
+	function navigate(params: Record<string, string | number | undefined>) {
+		goto(buildUrl(params));
+	}
+
+	function goToPage(newOffset: number) {
+		navigate({ offset: newOffset });
+	}
+
+	function setSort(col: 'date' | 'action' | 'user') {
+		const newOrder =
+			data.sortBy === col ? (data.sortOrder === 'desc' ? 'asc' : 'desc') : 'desc';
+		navigate({ sortBy: col, sortOrder: newOrder, offset: 0 });
+	}
+
+	function setStatusFilter(value: string) {
+		navigate({ success: value === 'all' ? undefined : value, offset: 0 });
+	}
+
+	function setLimit(newLimit: number) {
+		navigate({ limit: newLimit, offset: 0 });
+	}
+
+	let currentPage = $derived(Math.floor(data.offset / data.limit) + 1);
+	let totalPages = $derived(Math.ceil(data.total / data.limit));
+
+	function SortIcon(col: 'date' | 'action' | 'user') {
+		if (data.sortBy !== col) return ArrowUpDown;
+		return data.sortOrder === 'asc' ? ArrowUp : ArrowDown;
+	}
+
+	const dateSortIcon = $derived(SortIcon('date'));
+	const userSortIcon = $derived(SortIcon('user'));
+	const actionSortIcon = $derived(SortIcon('action'));
 </script>
 
 <div class="space-y-6">
@@ -104,7 +159,7 @@
 				<input
 					type="text"
 					bind:value={searchQuery}
-					placeholder="Search logs..."
+					placeholder="Search current page..."
 					aria-label="Search logs"
 					class="h-10 w-full rounded-lg border border-slate-700 bg-slate-800/50 pr-4 pl-10 text-sm text-white placeholder-slate-500 focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 focus:outline-none sm:w-64"
 				/>
@@ -113,7 +168,7 @@
 				<DropdownMenu.Trigger
 					class={cn(
 						'flex h-10 w-10 items-center justify-center rounded-lg border border-slate-700 bg-slate-800/50 text-slate-400 transition-colors hover:bg-slate-700/50',
-						statusFilter !== 'all' && 'border-amber-500/50 text-amber-500'
+						data.successFilter !== 'all' && 'border-amber-500/50 text-amber-500'
 					)}
 				>
 					<Filter size={18} />
@@ -121,10 +176,13 @@
 				<DropdownMenu.Content align="end" class="w-48">
 					<DropdownMenu.Label>Filter by Status</DropdownMenu.Label>
 					<DropdownMenu.Separator />
-					<DropdownMenu.RadioGroup bind:value={statusFilter}>
+					<DropdownMenu.RadioGroup
+						value={data.successFilter}
+						onValueChange={(v) => setStatusFilter(v)}
+					>
 						<DropdownMenu.RadioItem value="all">All Logs</DropdownMenu.RadioItem>
-						<DropdownMenu.RadioItem value="success">Successful</DropdownMenu.RadioItem>
-						<DropdownMenu.RadioItem value="failure">Failed</DropdownMenu.RadioItem>
+						<DropdownMenu.RadioItem value="true">Successful</DropdownMenu.RadioItem>
+						<DropdownMenu.RadioItem value="false">Failed</DropdownMenu.RadioItem>
 					</DropdownMenu.RadioGroup>
 				</DropdownMenu.Content>
 			</DropdownMenu.Root>
@@ -137,9 +195,33 @@
 			<table class="w-full text-left text-sm">
 				<thead>
 					<tr class="border-b border-slate-700/50 bg-slate-900/30">
-						<th class="px-4 py-3 font-medium text-slate-400">Time</th>
-						<th class="px-4 py-3 font-medium text-slate-400">User</th>
-						<th class="px-4 py-3 font-medium text-slate-400">Action</th>
+						<th class="px-4 py-3 font-medium text-slate-400">
+							<button
+								onclick={() => setSort('date')}
+								class="flex items-center gap-1 hover:text-white transition-colors"
+							>
+								Time
+								<dateSortIcon size={13}></dateSortIcon>
+							</button>
+						</th>
+						<th class="px-4 py-3 font-medium text-slate-400">
+							<button
+								onclick={() => setSort('user')}
+								class="flex items-center gap-1 hover:text-white transition-colors"
+							>
+								User
+								<userSortIcon size={13}></userSortIcon>
+							</button>
+						</th>
+						<th class="px-4 py-3 font-medium text-slate-400">
+							<button
+								onclick={() => setSort('action')}
+								class="flex items-center gap-1 hover:text-white transition-colors"
+							>
+								Action
+								<actionSortIcon size={13}></actionSortIcon>
+							</button>
+						</th>
 						<th class="px-4 py-3 font-medium text-slate-400">Resource</th>
 						<th class="hidden px-4 py-3 font-medium text-slate-400 lg:table-cell">Context</th>
 						<th class="px-4 py-3 font-medium text-slate-400">Status</th>
@@ -295,4 +377,74 @@
 			</div>
 		{/if}
 	</div>
+
+	<!-- Pagination -->
+	{#if data.total > 0}
+		<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+			<div class="flex items-center gap-2 text-sm text-slate-400">
+				<span>
+					Showing {data.offset + 1}–{Math.min(data.offset + data.limit, data.total)} of {data.total} logs
+				</span>
+				<span class="text-slate-600">|</span>
+				<span>Rows per page:</span>
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger
+						class="flex h-7 items-center gap-1 rounded border border-slate-700 bg-slate-800/50 px-2 text-xs text-white hover:bg-slate-700/50"
+					>
+						{data.limit}
+						<ChevronDown size={12} />
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="start" class="w-20">
+						{#each [25, 50, 100, 200] as n}
+							<DropdownMenu.Item onclick={() => setLimit(n)} class={data.limit === n ? 'font-bold' : ''}>
+								{n}
+							</DropdownMenu.Item>
+						{/each}
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
+			</div>
+
+			<div class="flex items-center gap-1">
+				<button
+					onclick={() => goToPage(0)}
+					disabled={data.offset === 0}
+					class="flex h-8 w-8 items-center justify-center rounded border border-slate-700 bg-slate-800/50 text-slate-400 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-40"
+					aria-label="First page"
+				>
+					<ChevronLeft size={14} />
+				</button>
+				<button
+					onclick={() => goToPage(Math.max(0, data.offset - data.limit))}
+					disabled={data.offset === 0}
+					class="flex h-8 items-center gap-1 rounded border border-slate-700 bg-slate-800/50 px-2 text-sm text-slate-400 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-40"
+					aria-label="Previous page"
+				>
+					<ChevronLeft size={14} />
+					Prev
+				</button>
+
+				<span class="px-3 text-sm text-slate-400">
+					Page {currentPage} of {totalPages}
+				</span>
+
+				<button
+					onclick={() => goToPage(data.offset + data.limit)}
+					disabled={data.offset + data.limit >= data.total}
+					class="flex h-8 items-center gap-1 rounded border border-slate-700 bg-slate-800/50 px-2 text-sm text-slate-400 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-40"
+					aria-label="Next page"
+				>
+					Next
+					<ChevronRight size={14} />
+				</button>
+				<button
+					onclick={() => goToPage((totalPages - 1) * data.limit)}
+					disabled={data.offset + data.limit >= data.total}
+					class="flex h-8 w-8 items-center justify-center rounded border border-slate-700 bg-slate-800/50 text-slate-400 transition-colors hover:bg-slate-700/50 disabled:cursor-not-allowed disabled:opacity-40"
+					aria-label="Last page"
+				>
+					<ChevronRight size={14} />
+				</button>
+			</div>
+		</div>
+	{/if}
 </div>
