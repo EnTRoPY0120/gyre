@@ -34,7 +34,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 	const rawSessionId = locals.session?.id;
 	if (!rawSessionId) {
 		console.warn(
-			`[SSE] Authenticated user ${locals.user.id} has no session ID; falling back to IP for connection limiting`
+			'[SSE] Authenticated user has no session ID; falling back to IP for connection limiting'
 		);
 	}
 	const sessionId = rawSessionId ?? getClientAddress();
@@ -84,47 +84,52 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 
 			cleanupRef = cleanup;
 
-			// Subscribe to the centralized event bus
-			unsubscribe = subscribe((event: SSEEvent) => {
-				const msg = `data: ${JSON.stringify(event)}\n\n`;
-				try {
-					controller.enqueue(encoder.encode(msg));
-				} catch {
-					// Enqueue failed (e.g., controller closed or client disconnected abruptly)
-					cleanup();
-					return;
-				}
-				// Only check for SHUTDOWN if enqueue succeeded (controller is still open)
-				// Note: unsubscribe() calls ctx.subscribers.delete(subscriber) while broadcast() iterates the Set.
-				// This is safe in JS (current element deletion during for...of is safe).
-				if (event.type === 'SHUTDOWN') {
-					cleanup();
-				}
-			}, clusterId);
-
-			// Optional per-connection timeout: send SHUTDOWN and close the stream
-			// so the client reconnects. Disabled when SSE_CONNECTION_TIMEOUT_MS === 0.
-			if (SSE_CONNECTION_TIMEOUT_MS > 0) {
-				timeoutHandle = setTimeout(() => {
-					const timeoutEvent: SSEEvent = {
-						type: 'SHUTDOWN',
-						clusterId,
-						message: 'Connection timeout – please reconnect',
-						timestamp: new Date().toISOString()
-					};
+			try {
+				// Subscribe to the centralized event bus
+				unsubscribe = subscribe((event: SSEEvent) => {
+					const msg = `data: ${JSON.stringify(event)}\n\n`;
 					try {
-						controller.enqueue(encoder.encode(`data: ${JSON.stringify(timeoutEvent)}\n\n`));
+						controller.enqueue(encoder.encode(msg));
 					} catch {
-						// ignore – cleanup will close the controller
+						// Enqueue failed (e.g., controller closed or client disconnected abruptly)
+						cleanup();
+						return;
 					}
-					cleanup();
-				}, SSE_CONNECTION_TIMEOUT_MS);
-			}
+					// Only check for SHUTDOWN if enqueue succeeded (controller is still open)
+					// Note: unsubscribe() calls ctx.subscribers.delete(subscriber) while broadcast() iterates the Set.
+					// This is safe in JS (current element deletion during for...of is safe).
+					if (event.type === 'SHUTDOWN') {
+						cleanup();
+					}
+				}, clusterId);
 
-			// Handle client disconnect
-			request.signal.addEventListener('abort', () => {
+				// Optional per-connection timeout: send SHUTDOWN and close the stream
+				// so the client reconnects. Disabled when SSE_CONNECTION_TIMEOUT_MS === 0.
+				if (SSE_CONNECTION_TIMEOUT_MS > 0) {
+					timeoutHandle = setTimeout(() => {
+						const timeoutEvent: SSEEvent = {
+							type: 'SHUTDOWN',
+							clusterId,
+							message: 'Connection timeout – please reconnect',
+							timestamp: new Date().toISOString()
+						};
+						try {
+							controller.enqueue(encoder.encode(`data: ${JSON.stringify(timeoutEvent)}\n\n`));
+						} catch {
+							// ignore – cleanup will close the controller
+						}
+						cleanup();
+					}, SSE_CONNECTION_TIMEOUT_MS);
+				}
+
+				// Handle client disconnect
+				request.signal.addEventListener('abort', () => {
+					cleanup();
+				});
+			} catch (err) {
 				cleanup();
-			});
+				throw err;
+			}
 		},
 		cancel() {
 			// Called when the consumer cancels the stream (e.g. response.body.cancel()).
