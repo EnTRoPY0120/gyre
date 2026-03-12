@@ -86,7 +86,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const sizeValidation = validateRequestSize(contentLength, sizeLimit);
 
 	if (!sizeValidation.valid) {
-		console.warn(
+		logger.warn(
 			`Request size exceeded limit for ${request.method} ${path}: ${sizeValidation.size} > ${sizeValidation.limit}`
 		);
 
@@ -175,7 +175,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 					const formData = await request.clone().formData();
 					csrfToken = formData.get('_csrf')?.toString() ?? '';
 				} catch (e) {
-					console.warn('Failed to parse form data for CSRF validation:', e);
+					logger.warn('Failed to parse form data for CSRF validation:', e);
 				}
 			}
 		}

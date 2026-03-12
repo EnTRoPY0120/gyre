@@ -25,5 +25,17 @@
 		"no-unused-vars": "warn",
 		"no-console": "error",
 		"no-debugger": "warn"
-	}
+	},
+	"overrides": [
+		{
+			"files": [
+				"src/lib/utils/logger.ts",
+				"src/lib/server/logger.ts",
+				"src/lib/server/initialize.ts"
+			],
+			"rules": {
+				"no-console": "off"
+			}
+		}
+	]
 }

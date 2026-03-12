@@ -166,7 +166,7 @@ export async function createOrUpdateSSOUser(
 	});
 
 	logger.info(
-		`Auto-provisioned new SSO user: ${finalUsername} (${email}) with role ${role} from provider ${providerId}`
+		`Auto-provisioned new SSO user: ${finalUsername} with role ${role} from provider ${providerId}`
 	);
 
 	return { user };

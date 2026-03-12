@@ -65,7 +65,7 @@ export function getDbSync() {
 
 export function closeDb() {
 	if (sqliteConnection) {
-		console.log('[DB] Closing database connection...');
+		logger.info('[DB] Closing database connection...');
 		sqliteConnection.close();
 		sqliteConnection = null;
 		db = null;

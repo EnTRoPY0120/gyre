@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { logger } from './logger.js';
 
 // Note: Caching the secret at module scope means it won't reflect runtime changes to
 // AUTH_ENCRYPTION_KEY until the process restarts. This is intentional for performance.
@@ -17,7 +18,7 @@ const getSecret = (): string => {
 					'Please set it to a 64-character hexadecimal string.'
 			);
 		}
-		console.warn(
+		logger.warn(
 			'⚠️  AUTH_ENCRYPTION_KEY not set! Using development-only CSRF secret. DO NOT USE IN PRODUCTION!'
 		);
 		return (_cachedSecret = 'insecure-dev-fallback-do-not-use-in-production-0123456789abcdef');

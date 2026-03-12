@@ -93,6 +93,34 @@ describe('Logger Signatures', () => {
 		stdoutSpy.mockRestore();
 	});
 
+	test('handles error with message and extra context (3+ args)', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		const err = new Error('Test error');
+		logger.error(err, 'OAuth error from IdP:', { provider: 'github' });
+
+		expect(stdoutSpy).toHaveBeenCalled();
+		const output = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+		expect(output.msg).toBe('OAuth error from IdP:');
+		expect(output.err).toBeDefined();
+		expect(output.err.message).toBe('Test error');
+		expect(output.provider).toBe('github');
+
+		stdoutSpy.mockRestore();
+	});
+
+	test('handles string message with multiple context objects (3+ args)', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info('User action', { userId: 42 }, { action: 'login' });
+
+		expect(stdoutSpy).toHaveBeenCalled();
+		const output = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+		expect(output.msg).toBe('User action');
+		expect(output.userId).toBe(42);
+		expect(output.action).toBe('login');
+
+		stdoutSpy.mockRestore();
+	});
+
 	test('does nothing when called with no arguments', () => {
 		const stdoutSpy = spyOn(process.stdout, 'write');
 		// @ts-expect-error - testing invalid call
