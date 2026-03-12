@@ -17,9 +17,42 @@ Before you begin, ensure you have:
 
 ## Installation
 
-### Option 1: Helm (Recommended)
+Gyre can be installed in several ways depending on your workflow.
 
-The easiest way to install Gyre is via Helm:
+### Option 1: GitOps (Using FluxCD)
+
+The most natural way to install Gyre is by using Flux itself. Add this `HelmRelease` to your GitOps repository:
+
+```yaml
+---
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: HelmRepository
+metadata:
+  name: gyre
+  namespace: flux-system
+spec:
+  interval: 1h
+  url: https://entropy0120.github.io/gyre
+---
+apiVersion: helm.toolkit.fluxcd.io/v2beta2
+kind: HelmRelease
+metadata:
+  name: gyre
+  namespace: flux-system
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: gyre
+      version: ">=0.1.0"
+      sourceRef:
+        kind: HelmRepository
+        name: gyre
+```
+
+### Option 2: Helm
+
+The standard way to install Gyre directly via Helm:
 
 ```bash
 # Add the Gyre Helm repository
@@ -30,6 +63,26 @@ helm repo update
 helm install gyre gyre/gyre \
   --namespace flux-system \
   --create-namespace
+```
+
+### Option 3: Local Out-of-Cluster Testing (Docker)
+
+If you want to try the UI without installing it inside your cluster, you can run it locally connected to your `kubeconfig`. Make sure your current Kubernetes context points to a cluster with Flux installed.
+
+```bash
+docker run -d \
+  --name gyre \
+  -p 3000:3000 \
+  -v ~/.kube/config:/root/.kube/config:ro \
+  ghcr.io/entropy0120/gyre:latest
+```
+
+### Option 4: Local Demo Script
+
+Don't have a cluster yet? Spin up a local `kind` cluster with Flux and Gyre pre-installed using our demo script:
+
+```bash
+curl -sL https://raw.githubusercontent.com/entropy0120/gyre/main/scripts/demo.sh | bash
 ```
 
 ## Accessing Gyre
