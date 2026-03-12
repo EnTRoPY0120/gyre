@@ -3,14 +3,15 @@ import { dev } from '$app/environment';
 
 import { env } from '$env/dynamic/public';
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
-const LOG_LEVELS: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
+const LOG_LEVELS: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3, fatal: 4 };
 const LOG_COLORS: Record<LogLevel, string> = {
 	debug: 'color: #888888',
 	info: 'color: #3b82f6',
 	warn: 'color: #f59e0b',
-	error: 'color: #ef4444'
+	error: 'color: #ef4444',
+	fatal: 'color: #dc2626'
 };
 
 const configuredLevel = (env.PUBLIC_LOG_LEVEL as LogLevel) ?? (dev ? 'debug' : 'warn');
@@ -25,13 +26,19 @@ export function shouldLog(level: LogLevel): boolean {
 const SENSITIVE_KEYS =
 	/^(password|token|secret|authorization|cookie|email|clusterId|namespace|resourceName|revision)$/i;
 
-function redactSensitiveFields(value: unknown): unknown {
+function redactSensitiveFields(value: unknown, visited: WeakSet<object> = new WeakSet()): unknown {
 	if (value === null || value === undefined) return value;
-	if (Array.isArray(value)) return value.map(redactSensitiveFields);
+	if (Array.isArray(value)) {
+		if (visited.has(value)) return '[Circular]';
+		visited.add(value);
+		return value.map((item) => redactSensitiveFields(item, visited));
+	}
 	if (typeof value === 'object' && !(value instanceof Error)) {
+		if (visited.has(value)) return '[Circular]';
+		visited.add(value);
 		const result: Record<string, unknown> = {};
 		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-			result[k] = SENSITIVE_KEYS.test(k) ? '[REDACTED]' : redactSensitiveFields(v);
+			result[k] = SENSITIVE_KEYS.test(k) ? '[REDACTED]' : redactSensitiveFields(v, visited);
 		}
 		return result;
 	}
@@ -39,7 +46,7 @@ function redactSensitiveFields(value: unknown): unknown {
 }
 
 function formatBrowserLog(level: LogLevel, args: unknown[]): unknown[] {
-	const sanitized = args.map(redactSensitiveFields);
+	const sanitized = args.map((a) => redactSensitiveFields(a));
 	if (sanitized.length > 0) {
 		if (typeof sanitized[0] === 'string') {
 			return [
@@ -92,7 +99,11 @@ export const logger = {
 		if (shouldLog('error')) console.error(...formatBrowserLog('error', args));
 	},
 	fatal: (...args: unknown[]) => {
-		// Browser console doesn't have a specific 'fatal' level, so fallback to 'error'
-		if (shouldLog('error')) console.error(...formatBrowserLog('error', args));
+		if (shouldLog('fatal')) {
+			console.error(...formatBrowserLog('fatal', args));
+		} else if (shouldLog('error')) {
+			// fatal is more severe than error; emit even when only 'error' is enabled
+			console.error(...formatBrowserLog('fatal', args));
+		}
 	}
 };

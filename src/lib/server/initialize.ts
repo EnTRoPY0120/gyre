@@ -124,8 +124,6 @@ if (typeof process !== 'undefined') {
 
 	process.on('sveltekit:shutdown', async () => {
 		logger.info('   ✓ HTTP server stopped');
-		if (forceExit) clearTimeout(forceExit);
-		if (httpDrainTimeout) clearTimeout(httpDrainTimeout);
 
 		// If sveltekit:shutdown fires without prior signal (adapter handled it),
 		// run shutdown now to ensure cleanup completes.
@@ -138,6 +136,11 @@ if (typeof process !== 'undefined') {
 		} else if (activeShutdownPromise) {
 			await activeShutdownPromise;
 		}
+
+		// Clear fail-safe timers only after active shutdown finishes so they
+		// remain in place as a backstop if shutdownGyre() hangs.
+		if (forceExit) clearTimeout(forceExit);
+		if (httpDrainTimeout) clearTimeout(httpDrainTimeout);
 
 		safeCloseDb('graceful shutdown');
 		logger.info('👋 Gyre shutdown complete.');
@@ -257,7 +260,7 @@ export async function initializeGyre(): Promise<void> {
 				// Local development mode: write token to a restricted temp file to avoid
 				// plaintext credentials appearing in container or terminal logs.
 				const tokenFile = join(tmpdir(), `gyre-setup-token-${Date.now()}.txt`);
-				writeFileSync(tokenFile, setupToken, { mode: 0o600 });
+				writeFileSync(tokenFile, setupToken, { mode: 0o600, flag: 'wx' });
 				// Remove the file when the server process exits so credentials do not
 				// persist on disk after the server has stopped.
 				process.once('exit', () => {

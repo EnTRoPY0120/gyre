@@ -303,7 +303,7 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		// Delete provider (cascade will delete user_providers links)
 		await db.delete(authProviders).where(eq(authProviders.id, params.id));
 
-		logger.info(`Deleted auth provider: ${provider.name} (${params.id})`);
+		logger.info({ providerId: params.id, providerName: provider.name }, 'Deleted auth provider');
 
 		return json({ success: true });
 	} catch (err) {

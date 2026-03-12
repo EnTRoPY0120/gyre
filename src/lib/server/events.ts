@@ -12,6 +12,12 @@ import {
 import { captureReconciliation } from './kubernetes/flux/reconciliation-tracker.js';
 import { SETTLING_PERIOD_MS, POLL_INTERVAL_MS, HEARTBEAT_INTERVAL_MS } from './config/constants.js';
 
+function normalizeError(value: unknown): Error | { message: string; value: unknown } {
+	if (value instanceof Error) return value;
+	if (typeof value === 'string') return new Error(value);
+	return { message: 'Non-Error rejection', value };
+}
+
 // Resource types to watch
 const WATCH_RESOURCES: FluxResourceType[] = [
 	'GitRepository',
@@ -95,8 +101,8 @@ export async function closeAllEventStreams() {
 	pollResults.forEach((result, i) => {
 		if (result.status === 'rejected') {
 			logger.error(
-				result.reason,
-				`[EventBus] Error awaiting poll for cluster ${inflightPromises[i][0]}:`
+				{ clusterId: inflightPromises[i][0], err: normalizeError(result.reason) },
+				'[EventBus] Error awaiting poll'
 			);
 		}
 	});
