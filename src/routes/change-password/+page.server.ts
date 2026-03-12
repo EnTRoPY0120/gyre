@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types';
 import { redirect, error } from '@sveltejs/kit';
+import { GYRE_VERSION } from '$lib/config/version';
 
 /**
  * Load function for change password page
@@ -27,6 +28,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 
 	return {
 		isFirstLogin,
-		user: locals.user
+		user: locals.user,
+		gyreVersion: GYRE_VERSION
 	};
 };

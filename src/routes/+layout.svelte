@@ -32,8 +32,10 @@
 
 	let { children, data }: Props = $props();
 
-	// Check if current route is the login page
-	let isLoginPage = $derived($page.url.pathname.startsWith('/login'));
+	// Check if current route is an auth page (login or change password)
+	let isAuthPage = $derived(
+		$page.url.pathname.startsWith('/login') || $page.url.pathname.startsWith('/change-password')
+	);
 
 	// Sync cluster store and preferences with layout data
 	$effect(() => {
@@ -86,8 +88,8 @@
 
 <Toaster position="top-right" richColors closeButton />
 
-{#if isLoginPage}
-	<!-- Login page: no sidebar/header -->
+{#if isAuthPage}
+	<!-- Auth page: no sidebar/header -->
 	{@render children()}
 {:else}
 	<!-- Normal app layout with sidebar and header -->
