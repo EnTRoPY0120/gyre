@@ -31,6 +31,26 @@ export function setSetupTokenFile(filePath: string): void {
 	setupTokenFilePath = filePath;
 }
 
+export function cleanupSetupTokenFile(): void {
+	if (generatedAdminPassword === null || setupTokenFilePath === null) return;
+	const filePath = setupTokenFilePath;
+	try {
+		unlinkSync(filePath);
+		setupTokenFilePath = null;
+		generatedAdminPassword = null;
+	} catch (err) {
+		if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+			setupTokenFilePath = null;
+			generatedAdminPassword = null;
+		} else {
+			logger.error(
+				{ err, filePath },
+				'[Auth] Failed to remove setup token file; manual removal may be required'
+			);
+		}
+	}
+}
+
 // For in-cluster mode: password read from K8s secret (stored hashed)
 let inClusterAdminPasswordHash: string | null = null;
 let inClusterFirstLoginDone = false;
@@ -586,27 +606,9 @@ export async function authenticateUser(username: string, password: string): Prom
 
 	loginAttemptsTotal.labels('success').inc();
 
-	// First successful login in local-dev first-run: delete the token file so
-	// credentials do not persist on disk beyond first use.
-	if (generatedAdminPassword !== null && setupTokenFilePath !== null) {
-		const filePath = setupTokenFilePath;
-		try {
-			unlinkSync(filePath);
-			setupTokenFilePath = null;
-			generatedAdminPassword = null;
-		} catch (err) {
-			if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-				// Already removed; treat as success
-				setupTokenFilePath = null;
-				generatedAdminPassword = null;
-			} else {
-				logger.error(
-					{ err, filePath },
-					'[Auth] Failed to remove setup token file; manual removal may be required'
-				);
-			}
-		}
-	}
+	// First successful login: delete the setup token file so credentials do not
+	// persist on disk beyond first use.
+	cleanupSetupTokenFile();
 
 	return user;
 }
