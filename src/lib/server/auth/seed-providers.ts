@@ -64,6 +64,12 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 	for (let i = 0; i < providersConfig.length; i++) {
 		const config = providersConfig[i];
 
+		if (config === null || typeof config !== 'object' || Array.isArray(config)) {
+			logger.warn(`Skipping provider at index ${i}: entry is not a plain object`);
+			skipped++;
+			continue;
+		}
+
 		// Validate required fields
 		if (!config.name || !config.type || !config.clientId) {
 			logger.warn(

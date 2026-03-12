@@ -5,7 +5,7 @@
  */
 
 import { logger } from '$lib/server/logger.js';
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
@@ -163,21 +163,18 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			throw error(404, { message: 'Provider not found' });
 		}
 
-		// Remove sensitive data
+		// Remove sensitive data and parse roleMapping back to object
 		const sanitizedProvider = {
 			...provider,
-			clientSecretEncrypted: '***'
+			clientSecretEncrypted: '***',
+			roleMapping: provider.roleMapping ? JSON.parse(provider.roleMapping) : null
 		};
 
 		return json({ provider: sanitizedProvider });
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) throw err;
+
 		logger.error(err, 'Failed to get auth provider:');
-
-		// Re-throw SvelteKit errors
-		if (err instanceof Response) {
-			throw err;
-		}
-
 		throw error(500, { message: 'Failed to load provider' });
 	}
 };
@@ -252,7 +249,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		// Update in database
 		await db.update(authProviders).set(updates).where(eq(authProviders.id, params.id));
 
-		logger.info(`Updated auth provider: ${params.id}`);
+		logger.info({ providerId: params.id }, 'Updated auth provider');
 
 		// Fetch updated provider
 		const updatedProvider = await db.query.authProviders.findFirst({
@@ -263,17 +260,14 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			success: true,
 			provider: {
 				...updatedProvider,
-				clientSecretEncrypted: '***'
+				clientSecretEncrypted: '***',
+				roleMapping: updatedProvider?.roleMapping ? JSON.parse(updatedProvider.roleMapping) : null
 			}
 		});
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) throw err;
+
 		logger.error(err, 'Failed to update auth provider:');
-
-		// Re-throw SvelteKit errors
-		if (err instanceof Response) {
-			throw err;
-		}
-
 		throw error(500, { message: 'Failed to update provider' });
 	}
 };
@@ -313,13 +307,9 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 
 		return json({ success: true });
 	} catch (err) {
+		if (isHttpError(err) || isRedirect(err)) throw err;
+
 		logger.error(err, 'Failed to delete auth provider:');
-
-		// Re-throw SvelteKit errors
-		if (err instanceof Response) {
-			throw err;
-		}
-
 		throw error(500, { message: 'Failed to delete provider' });
 	}
 };
