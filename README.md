@@ -29,6 +29,7 @@
 Gyre can be installed in several ways depending on your workflow:
 
 ### Option 1: GitOps (Using FluxCD)
+
 The most natural way to install Gyre is by using Flux itself. Add this `HelmRelease` to your repository:
 
 ```yaml
@@ -52,7 +53,7 @@ spec:
   chart:
     spec:
       chart: gyre
-      version: ">=0.1.0"
+      version: '>=0.1.0'
       sourceRef:
         kind: HelmRepository
         name: gyre
@@ -72,6 +73,7 @@ helm install gyre gyre/gyre \
 ```
 
 ### Option 3: Local Out-of-Cluster Testing (Docker)
+
 Want to try the UI without installing it in your cluster? Run it locally connected to your `kubeconfig`:
 
 ```bash
@@ -81,9 +83,11 @@ docker run -d \
   -v ~/.kube/config:/root/.kube/config:ro \
   ghcr.io/entropy0120/gyre:latest
 ```
-*Note: Make sure your current context points to a valid cluster with Flux installed.*
+
+_Note: Make sure your current context points to a valid cluster with Flux installed._
 
 ### Option 4: Local Demo Script
+
 Don't have a cluster? Spin up a `kind` cluster with Flux and Gyre pre-installed in one command:
 
 ```bash
