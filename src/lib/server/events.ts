@@ -120,7 +120,7 @@ export async function closeAllEventStreams() {
 export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluster'): () => void {
 	// Prevent new subscriptions during shutdown
 	if (isShuttingDown) {
-		logger.warn(`[EventBus] Rejecting new subscription for cluster ${clusterId}: shutting down`);
+		logger.warn({ clusterId }, '[EventBus] Rejecting new subscription: shutting down');
 		return () => {};
 	}
 
@@ -174,7 +174,7 @@ function startWorker(context: ClusterContext) {
 	if (context.isActive) return;
 	context.isActive = true;
 	activeWorkersGauge.set(activeWorkers.size);
-	logger.info(`[EventBus] Starting consolidated polling worker for cluster: ${context.clusterId}`);
+	logger.info({ clusterId: context.clusterId }, '[EventBus] Starting consolidated polling worker');
 
 	poll(context);
 
@@ -313,7 +313,12 @@ async function poll(context: ClusterContext) {
 									});
 								} catch (err) {
 									logger.error(
-										{ err: normalizeError(err) },
+										{
+											err: normalizeError(err),
+											resourceType,
+											resourceName: resource.metadata.name,
+											namespace: resource.metadata.namespace
+										},
 										'[EventBus] Failed to capture reconciliation history'
 									);
 									// Don't fail event broadcast if history capture fails
@@ -368,7 +373,12 @@ async function poll(context: ClusterContext) {
 										});
 									} catch (err) {
 										logger.error(
-											{ err: normalizeError(err) },
+											{
+												err: normalizeError(err),
+												resourceType,
+												resourceName: resource.metadata.name,
+												namespace: resource.metadata.namespace
+											},
 											'[EventBus] Failed to capture reconciliation history'
 										);
 										// Don't fail event broadcast if history capture fails
