@@ -273,7 +273,12 @@ export async function initializeGyre(): Promise<void> {
 				// Local development mode: write token to a restricted temp file to avoid
 				// plaintext credentials appearing in container or terminal logs.
 				const tokenFile = join(tmpdir(), `gyre-setup-token-${Date.now()}.txt`);
-				writeFileSync(tokenFile, setupToken, { mode: 0o600, flag: 'wx' });
+				try {
+					writeFileSync(tokenFile, setupToken, { mode: 0o600, flag: 'wx' });
+				} catch (writeErr) {
+					logger.error(writeErr, '   ✗ Failed to write setup token file');
+					throw writeErr;
+				}
 				// Register the file path so auth.ts can remove it after first login.
 				setSetupTokenFile(tokenFile);
 				logger.warn('   ⚠️  WARNING: Container or terminal logs may capture plaintext passwords.');

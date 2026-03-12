@@ -31,7 +31,9 @@ function redactSensitiveFields(value: unknown, visited: WeakSet<object> = new We
 	if (Array.isArray(value)) {
 		if (visited.has(value)) return '[Circular]';
 		visited.add(value);
-		return value.map((item) => redactSensitiveFields(item, visited));
+		const result = value.map((item) => redactSensitiveFields(item, visited));
+		visited.delete(value);
+		return result;
 	}
 	if (value instanceof Error) {
 		if (visited.has(value)) return '[Circular]';
@@ -44,6 +46,7 @@ function redactSensitiveFields(value: unknown, visited: WeakSet<object> = new We
 		for (const [k, v] of Object.entries(value)) {
 			result[k] = SENSITIVE_KEYS.test(k) ? '[REDACTED]' : redactSensitiveFields(v, visited);
 		}
+		visited.delete(value);
 		return result;
 	}
 	if (typeof value === 'object') {
@@ -53,6 +56,7 @@ function redactSensitiveFields(value: unknown, visited: WeakSet<object> = new We
 		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
 			result[k] = SENSITIVE_KEYS.test(k) ? '[REDACTED]' : redactSensitiveFields(v, visited);
 		}
+		visited.delete(value);
 		return result;
 	}
 	return value;
@@ -112,11 +116,6 @@ export const logger = {
 		if (shouldLog('error')) console.error(...formatBrowserLog('error', args));
 	},
 	fatal: (...args: unknown[]) => {
-		if (shouldLog('fatal')) {
-			console.error(...formatBrowserLog('fatal', args));
-		} else if (shouldLog('error')) {
-			// fatal is more severe than error; emit even when only 'error' is enabled
-			console.error(...formatBrowserLog('fatal', args));
-		}
+		if (shouldLog('fatal')) console.error(...formatBrowserLog('fatal', args));
 	}
 };

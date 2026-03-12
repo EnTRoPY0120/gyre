@@ -137,8 +137,8 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 			// Normalize and validate roleMapping
 			let roleMapping: string | null = null;
 			if (config.roleMapping != null) {
+				let parsed: unknown;
 				if (typeof config.roleMapping === 'string') {
-					let parsed: unknown;
 					try {
 						parsed = JSON.parse(config.roleMapping);
 					} catch {
@@ -149,14 +149,24 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 							`Provider "${config.name}" has invalid roleMapping: must be a JSON object`
 						);
 					}
-					roleMapping = config.roleMapping;
 				} else if (typeof config.roleMapping === 'object' && !Array.isArray(config.roleMapping)) {
-					roleMapping = JSON.stringify(config.roleMapping);
+					parsed = config.roleMapping;
 				} else {
 					throw new Error(
 						`Provider "${config.name}" has invalid roleMapping: must be a plain object or JSON string`
 					);
 				}
+				const rawMapping = parsed as Record<string, unknown>;
+				const validated: Record<string, string[]> = {};
+				for (const [key, val] of Object.entries(rawMapping)) {
+					if (!Array.isArray(val) || !val.every((item) => typeof item === 'string')) {
+						throw new Error(
+							`Provider "${config.name}" has invalid roleMapping: values must be string[] for key "${key}"`
+						);
+					}
+					validated[key] = val;
+				}
+				roleMapping = JSON.stringify(validated);
 			}
 
 			// Create provider

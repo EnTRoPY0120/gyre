@@ -589,13 +589,23 @@ export async function authenticateUser(username: string, password: string): Prom
 	// First successful login in local-dev first-run: delete the token file so
 	// credentials do not persist on disk beyond first use.
 	if (generatedAdminPassword !== null && setupTokenFilePath !== null) {
+		const filePath = setupTokenFilePath;
 		try {
-			unlinkSync(setupTokenFilePath);
-		} catch {
-			// File may have already been removed; ignore
+			unlinkSync(filePath);
+			setupTokenFilePath = null;
+			generatedAdminPassword = null;
+		} catch (err) {
+			if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+				// Already removed; treat as success
+				setupTokenFilePath = null;
+				generatedAdminPassword = null;
+			} else {
+				logger.error(
+					{ err, filePath },
+					'[Auth] Failed to remove setup token file; manual removal may be required'
+				);
+			}
 		}
-		setupTokenFilePath = null;
-		generatedAdminPassword = null;
 	}
 
 	return user;
