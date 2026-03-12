@@ -34,7 +34,7 @@ The most natural way to install Gyre is by using Flux itself. Add this `HelmRele
 
 ```yaml
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
   name: gyre
@@ -43,7 +43,7 @@ spec:
   interval: 1h
   url: https://entropy0120.github.io/gyre
 ---
-apiVersion: helm.toolkit.fluxcd.io/v2beta2
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: gyre
