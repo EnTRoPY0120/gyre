@@ -33,28 +33,10 @@
 	const isReceiver = $derived(resourceType === 'receivers');
 </script>
 
-<div>
-	<!-- Metadata and Conditions (always shown) -->
-	<div class="grid gap-6 lg:grid-cols-2">
-		<!-- Metadata Card -->
-		<div
-			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-		>
-			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Metadata</h3>
-			<ResourceMetadata metadata={resource.metadata} />
-		</div>
-
-		<!-- Conditions Card -->
-		<div
-			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-		>
-			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Conditions</h3>
-			<ConditionList {conditions} />
-		</div>
-	</div>
-
-	<!-- Resource-Specific Details -->
-	<div class="mt-6 space-y-6">
+<div class="grid gap-6 lg:grid-cols-3">
+	<!-- Main Column -->
+	<div class="space-y-6 lg:col-span-2">
+		<!-- Resource-Specific Details -->
 		{#if isGitRepository}
 			<GitRepositoryDetail {resource} />
 		{:else if isHelmRelease}
@@ -81,7 +63,7 @@
 				class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
 			>
 				<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Configuration</h3>
-				<dl class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				<dl class="grid gap-4 sm:grid-cols-2">
 					{#each Object.entries(resource.spec).slice(0, 9) as [key, value], index (index)}
 						<div>
 							<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">{key}</dt>
@@ -107,5 +89,24 @@
 				</dl>
 			</div>
 		{/if}
+
+		<!-- Conditions Card -->
+		<div
+			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+		>
+			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Conditions</h3>
+			<ConditionList {conditions} />
+		</div>
+	</div>
+
+	<!-- Sidebar Column -->
+	<div class="space-y-6 lg:col-span-1">
+		<!-- Metadata Card -->
+		<div
+			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+		>
+			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Metadata</h3>
+			<ResourceMetadata metadata={resource.metadata} />
+		</div>
 	</div>
 </div>
