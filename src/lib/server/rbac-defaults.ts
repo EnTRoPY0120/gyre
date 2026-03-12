@@ -163,5 +163,5 @@ export async function syncUserPolicyBindings(user: User): Promise<void> {
 	// Add correct bindings for current role
 	await bindUserToDefaultPolicies(user);
 
-	logger.info(`   ✓ Synced RBAC bindings for user: ${user.username} (${user.role})`);
+	logger.info(`   ✓ Synced RBAC bindings for role: ${user.role}`);
 }

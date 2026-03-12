@@ -80,7 +80,7 @@ export async function closeAllEventStreams() {
 		});
 		// Explicitly call stopWorker to guarantee timer cleanup even if a subscriber throws.
 		// It is safe if stopWorker is called twice (idempotent check for null intervals).
-		stopWorker(context);
+		stopWorker(context, 'server shutdown');
 
 		// Subscribers are cleared by their unsubscribe callbacks during broadcast.
 		// The guard exists because unsubscribe() may have already called activeWorkers.delete(clusterId)
@@ -158,7 +158,7 @@ export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluste
 		sseSubscribersGauge.labels(clusterId).set(ctx.subscribers.size);
 
 		if (ctx.subscribers.size === 0) {
-			stopWorker(ctx);
+			stopWorker(ctx, 'no active subscribers');
 			activeWorkers.delete(clusterId);
 		}
 	};
@@ -181,7 +181,7 @@ function startWorker(context: ClusterContext) {
 	}, HEARTBEAT_INTERVAL_MS);
 }
 
-function stopWorker(context: ClusterContext) {
+function stopWorker(context: ClusterContext, reason: string = 'no active subscribers') {
 	if (!context.isActive) return;
 	context.isActive = false;
 	activeWorkersGauge.set(Array.from(activeWorkers.values()).filter((w) => w.isActive).length);
@@ -194,7 +194,7 @@ function stopWorker(context: ClusterContext) {
 		context.heartbeatInterval = null;
 	}
 	logger.info(
-		`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId} (no active subscribers)`
+		`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId} (${reason})`
 	);
 }
 
@@ -205,10 +205,17 @@ function broadcast(context: ClusterContext, event: SSEEvent) {
 		try {
 			subscriber(event);
 		} catch (err) {
-			logger.error(
-				err,
-				`[EventBus] Error broadcasting to subscriber on cluster ${context.clusterId}:`
-			);
+			if (event.type === 'SHUTDOWN') {
+				logger.debug(
+					err,
+					`[EventBus] Error broadcasting SHUTDOWN to subscriber on cluster ${context.clusterId}:`
+				);
+			} else {
+				logger.error(
+					err,
+					`[EventBus] Error broadcasting to subscriber on cluster ${context.clusterId}:`
+				);
+			}
 		}
 	}
 }

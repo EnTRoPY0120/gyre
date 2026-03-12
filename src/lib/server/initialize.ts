@@ -3,7 +3,9 @@ import { getDbSync, closeDb } from './db/index.js';
 import { createDefaultAdminIfNeeded } from './auth.js';
 import { initDatabase } from './db/migrate.js';
 import { initializeDefaultPolicies, repairUserPolicyBindings } from './rbac-defaults.js';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
 	testEncryption as testAuthEncryption,
 	isUsingDevelopmentKey as isUsingDevAuthKey
@@ -252,11 +254,25 @@ export async function initializeGyre(): Promise<void> {
 				logger.info('\n   ⚠️  Please change this password after first login!');
 				logger.info('   After first login, the secret will be marked as consumed.');
 			} else {
-				// Local development mode
-				process.stdout.write(`   Password: ${setupToken}\n`);
+				// Local development mode: write token to a restricted temp file to avoid
+				// plaintext credentials appearing in container or terminal logs.
+				const tokenFile = join(tmpdir(), `gyre-setup-token-${Date.now()}.txt`);
+				writeFileSync(tokenFile, setupToken, { mode: 0o600 });
+				// Remove the file when the server process exits so credentials do not
+				// persist on disk after the server has stopped.
+				process.once('exit', () => {
+					try {
+						unlinkSync(tokenFile);
+					} catch {
+						// Ignore errors during cleanup
+					}
+				});
+				logger.warn('   ⚠️  WARNING: Container or terminal logs may capture plaintext passwords.');
+				logger.warn('   The setup token has been written to a restricted file (mode 0600).');
+				logger.info(`   Token file: ${tokenFile}`);
 				logger.info('   ' + '='.repeat(50));
 				logger.info('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
-				logger.info("   ⚠️  Please save this password - it won't be shown again!");
+				logger.info("   ⚠️  Please read the token from the file above - it won't be shown again!");
 			}
 		}
 		logger.info('   ✓ Authentication ready');

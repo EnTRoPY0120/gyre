@@ -22,7 +22,8 @@ export function shouldLog(level: LogLevel): boolean {
 	return currentLevelNum <= LOG_LEVELS[level];
 }
 
-const SENSITIVE_KEYS = /^(password|token|secret|authorization|cookie|email)$/i;
+const SENSITIVE_KEYS =
+	/^(password|token|secret|authorization|cookie|email|clusterId|namespace|resourceName|revision)$/i;
 
 function redactSensitiveFields(value: unknown): unknown {
 	if (value === null || value === undefined) return value;
