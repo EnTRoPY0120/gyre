@@ -24,7 +24,7 @@ export function shouldLog(level: LogLevel): boolean {
 }
 
 const SENSITIVE_KEYS =
-	/^(password|token|secret|authorization|cookie|email|clusterId|namespace|resourceName|revision)$/i;
+	/^(password|token|secret|authorization|cookie|email|apiKey|bearer|credential)$/i;
 
 function redactSensitiveFields(value: unknown, visited: WeakSet<object> = new WeakSet()): unknown {
 	if (value === null || value === undefined) return value;

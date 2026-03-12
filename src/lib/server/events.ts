@@ -200,7 +200,8 @@ function stopWorker(context: ClusterContext, reason: string = 'no active subscri
 		context.heartbeatInterval = null;
 	}
 	logger.info(
-		`[EventBus] Stopping consolidated polling worker for cluster: ${context.clusterId} (${reason})`
+		{ clusterId: context.clusterId, reason },
+		'[EventBus] Stopping consolidated polling worker'
 	);
 }
 

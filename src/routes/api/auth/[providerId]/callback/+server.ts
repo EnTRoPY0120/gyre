@@ -49,7 +49,7 @@ export const _metadata = {
 	}
 };
 import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
-import { createSession } from '$lib/server/auth';
+import { createSession, cleanupSetupTokenFile } from '$lib/server/auth';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
 /**
@@ -161,6 +161,7 @@ export const GET: RequestHandler = async (event) => {
 
 		// Create session for the user
 		const sessionId = await createSession(user.id, ipAddress, undefined);
+		cleanupSetupTokenFile();
 
 		// Set session cookie
 		cookies.set('gyre_session', sessionId, {
