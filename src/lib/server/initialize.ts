@@ -28,9 +28,9 @@ let activeShutdownPromise: Promise<void> | null = null;
 function safeCloseDb(context: string = 'shutdown') {
 	try {
 		closeDb();
-		console.log(`   ✓ Database connection closed (${context})`);
+		logger.info(`   ✓ Database connection closed (${context})`);
 	} catch (error) {
-		console.error(`   ✗ Error closing database during ${context}:`, error);
+		logger.error(error, `   ✗ Error closing database during ${context}:`);
 	}
 }
 
@@ -38,7 +38,7 @@ function safeCloseDb(context: string = 'shutdown') {
  * Shutdown Gyre gracefully, awaiting any in-flight cleanup work before exiting.
  */
 export async function shutdownGyre(): Promise<void> {
-	console.log('\n🛑 Shutting down Gyre background tasks...');
+	logger.info('\n🛑 Shutting down Gyre background tasks...');
 	// Mark event bus as shutting down early to reject new subscriptions before await steps
 	setEventBusShuttingDown();
 	try {
@@ -46,18 +46,18 @@ export async function shutdownGyre(): Promise<void> {
 		results.forEach((result, index) => {
 			if (result.status === 'rejected') {
 				const task = index === 0 ? 'stopCleanup' : 'stopAuditLogCleanup';
-				console.error(`   ✗ Error during ${task}:`, result.reason);
+				logger.error(result.reason, `   ✗ Error during ${task}:`);
 			}
 		});
 		try {
 			stopSessionCleanup();
 		} catch (error) {
-			console.error('   ✗ Error during stopSessionCleanup:', error);
+			logger.error(error, '   ✗ Error during stopSessionCleanup:');
 		}
 		await closeAllEventStreams();
-		console.log('   ✓ Cleanup schedulers and SSE connections stopped');
+		logger.info('   ✓ Cleanup schedulers and SSE connections stopped');
 	} catch (error) {
-		console.error('   ✗ Error during shutdown:', error);
+		logger.error(error, '   ✗ Error during shutdown:');
 	}
 }
 
@@ -69,7 +69,7 @@ if (typeof process !== 'undefined') {
 	const handleSignal = async (signal: string) => {
 		if (isShuttingDown) return;
 		isShuttingDown = true;
-		console.log(`\n🛑 Received ${signal}, starting graceful shutdown...`);
+		logger.info(`\n🛑 Received ${signal}, starting graceful shutdown...`);
 
 		const isProd = process.env.NODE_ENV === 'production';
 
@@ -78,8 +78,8 @@ if (typeof process !== 'undefined') {
 		// NOTE: Lowering terminationGracePeriodSeconds below 30s in K8s manifests would break this timing.
 		forceExit = setTimeout(
 			() => {
-				console.error('   ✗ Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
-				console.error('   ✗ Force-exiting: any in-flight DB requests will fail');
+				logger.error('   ✗ Graceful shutdown took too long, forcing exit (HTTP drain timed out)');
+				logger.error('   ✗ Force-exiting: any in-flight DB requests will fail');
 				safeCloseDb('force-exit');
 				process.exit(1);
 			},
@@ -105,7 +105,7 @@ if (typeof process !== 'undefined') {
 			// Production path: adapter-node will emit sveltekit:shutdown when HTTP drain completes.
 			// Guard against the event never firing.
 			httpDrainTimeout = setTimeout(() => {
-				console.error('   ✗ sveltekit:shutdown not received within 10s, forcing exit');
+				logger.error('   ✗ sveltekit:shutdown not received within 10s, forcing exit');
 				safeCloseDb('drain timeout');
 				process.exit(1);
 			}, 10_000);
@@ -114,14 +114,14 @@ if (typeof process !== 'undefined') {
 	};
 
 	process.on('SIGTERM', () =>
-		handleSignal('SIGTERM').catch((err) => console.error('Signal handler error:', err))
+		handleSignal('SIGTERM').catch((err) => logger.error(err, 'Signal handler error:'))
 	);
 	process.on('SIGINT', () =>
-		handleSignal('SIGINT').catch((err) => console.error('Signal handler error:', err))
+		handleSignal('SIGINT').catch((err) => logger.error(err, 'Signal handler error:'))
 	);
 
 	process.on('sveltekit:shutdown', async () => {
-		console.log('   ✓ HTTP server stopped');
+		logger.info('   ✓ HTTP server stopped');
 		if (forceExit) clearTimeout(forceExit);
 		if (httpDrainTimeout) clearTimeout(httpDrainTimeout);
 
@@ -138,7 +138,7 @@ if (typeof process !== 'undefined') {
 		}
 
 		safeCloseDb('graceful shutdown');
-		console.log('👋 Gyre shutdown complete.');
+		logger.info('👋 Gyre shutdown complete.');
 		process.exit(0);
 	});
 }
@@ -204,10 +204,7 @@ export async function initializeGyre(): Promise<void> {
 
 		logger.info('   ✓ Encryption validation passed');
 	} catch (error) {
-		logger.error(
-			'   ✗ Encryption validation failed: ' +
-				(error instanceof Error ? error.message : String(error))
-		);
+		logger.error(error, '   ✗ Encryption validation failed');
 		throw error;
 	}
 
@@ -256,7 +253,7 @@ export async function initializeGyre(): Promise<void> {
 				logger.info('   After first login, the secret will be marked as consumed.');
 			} else {
 				// Local development mode
-				logger.info('   Password: ' + setupToken);
+				process.stdout.write(`   Password: ${setupToken}\n`);
 				logger.info('   ' + '='.repeat(50));
 				logger.info('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
 				logger.info("   ⚠️  Please save this password - it won't be shown again!");

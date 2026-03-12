@@ -141,8 +141,8 @@ function parseKubeconfig(kubeconfig: string): {
 		const currentContext = kc.getCurrentContext();
 
 		return { contexts, currentContext };
-	} catch (error) {
-		logger.error(error, 'Failed to parse kubeconfig:');
+	} catch {
+		logger.error('Failed to parse kubeconfig: parse error (sanitized)');
 		return { contexts: [], currentContext: null };
 	}
 }

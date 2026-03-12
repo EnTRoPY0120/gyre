@@ -18,8 +18,11 @@ async function ensureDbDirectory() {
 	const dir = dirname(databaseUrl);
 	try {
 		await mkdir(dir, { recursive: true });
-	} catch {
-		// Directory might already exist
+	} catch (err: unknown) {
+		if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
+			logger.error(err, `[DB] Failed to create database directory: ${dir}`);
+			throw err;
+		}
 	}
 }
 
@@ -28,8 +31,11 @@ function ensureDbDirectorySync() {
 	const dir = dirname(databaseUrl);
 	try {
 		mkdirSync(dir, { recursive: true });
-	} catch {
-		// Directory might already exist
+	} catch (err: unknown) {
+		if ((err as NodeJS.ErrnoException).code !== 'EEXIST') {
+			logger.error(err, `[DB] Failed to create database directory: ${dir}`);
+			throw err;
+		}
 	}
 }
 

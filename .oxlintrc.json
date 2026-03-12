@@ -28,11 +28,7 @@
 	},
 	"overrides": [
 		{
-			"files": [
-				"src/lib/utils/logger.ts",
-				"src/lib/server/logger.ts",
-				"src/lib/server/initialize.ts"
-			],
+			"files": ["src/lib/utils/logger.ts", "src/lib/server/logger.ts"],
 			"rules": {
 				"no-console": "off"
 			}

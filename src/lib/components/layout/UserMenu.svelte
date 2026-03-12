@@ -17,8 +17,10 @@
 	let { user }: Props = $props();
 	let isOpen = $state(false);
 	let isLocalUser = $derived(user?.isLocal !== false);
+	let logoutError = $state<string | null>(null);
 
 	async function handleLogout() {
+		logoutError = null;
 		try {
 			const res = await fetch('/api/auth/logout', {
 				method: 'POST',
@@ -26,9 +28,13 @@
 			});
 			if (res.ok) {
 				window.location.href = '/login?loggedOut=true';
+			} else {
+				logger.error(`Logout failed with status ${res.status}`);
+				logoutError = 'Logout failed. Please try again.';
 			}
 		} catch (err) {
 			logger.error(err, 'Logout failed:');
+			logoutError = 'Logout failed. Please try again.';
 		}
 	}
 
@@ -116,6 +122,9 @@
 					<LogOut class="size-4" />
 					Log out
 				</button>
+				{#if logoutError}
+					<p class="px-3 py-1 text-xs text-red-500">{logoutError}</p>
+				{/if}
 			</div>
 		</div>
 	{/if}

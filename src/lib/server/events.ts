@@ -95,8 +95,8 @@ export async function closeAllEventStreams() {
 	pollResults.forEach((result, i) => {
 		if (result.status === 'rejected') {
 			logger.error(
-				`[EventBus] Error awaiting poll for cluster ${inflightPromises[i][0]}:`,
-				result.reason
+				result.reason,
+				`[EventBus] Error awaiting poll for cluster ${inflightPromises[i][0]}:`
 			);
 		}
 	});
@@ -414,7 +414,7 @@ async function poll(context: ClusterContext) {
 			}
 		}
 	} catch (err) {
-		logger.error(`[EventBus] Critical error in poll loop for cluster ${context.clusterId}:`, err);
+		logger.error(err, `[EventBus] Critical error in poll loop for cluster ${context.clusterId}:`);
 	} finally {
 		resolvePoll!();
 		context.inflightPollPromise = null;

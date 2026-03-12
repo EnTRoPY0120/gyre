@@ -80,7 +80,7 @@ export function initDatabase(): void {
 			logger.info('[DB] Migration: lowercased existing usernames');
 		}
 	} catch (error) {
-		logger.warn(error, '[DB] Failed to run username normalization migration:');
+		logger.error(error, '[DB] Failed to run username normalization migration:');
 	}
 
 	// Add preferences column if it doesn't exist (for existing databases)

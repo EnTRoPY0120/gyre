@@ -135,7 +135,7 @@ export async function repairUserPolicyBindings(): Promise<number> {
 		if (bindings.length === 0) {
 			await bindUserToDefaultPolicies(user);
 			repairedCount++;
-			logger.info(`   ✓ Repaired RBAC bindings for user: ${user.username} (${user.role})`);
+			logger.info(`   ✓ Repaired RBAC bindings for one or more users with role: ${user.role}`);
 		}
 	}
 
