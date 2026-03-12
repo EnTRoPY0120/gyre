@@ -102,8 +102,8 @@ export const GET: RequestHandler = async (event) => {
 		const storedState = cookies.get(`oauth_state_${providerId}`);
 		if (!storedState || storedState !== returnedState) {
 			logger.error(
-				new Error('State mismatch: CSRF state validation failed'),
-				'State mismatch: CSRF state validation failed'
+				{ err: new Error('State mismatch: CSRF state validation failed') },
+				'CSRF state validation failed'
 			);
 			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
 		}
