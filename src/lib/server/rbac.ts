@@ -12,6 +12,71 @@ import { eq, and, or, sql } from 'drizzle-orm';
  */
 export type RbacAction = 'read' | 'write' | 'admin';
 
+// ---------------------------------------------------------------------------
+// Permission cache
+// ---------------------------------------------------------------------------
+
+interface CacheEntry {
+	result: boolean;
+	expiresAt: number;
+}
+
+/** TTL for cached permission checks: 5 minutes */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+
+/** Per-user cache: userId → (permKey → CacheEntry) */
+const permissionCache = new Map<string, Map<string, CacheEntry>>();
+
+export const cacheMetrics = {
+	hits: 0,
+	misses: 0,
+	invalidations: 0
+};
+
+function makeCacheKey(
+	action: RbacAction,
+	resourceType?: string,
+	namespace?: string,
+	clusterId?: string
+): string {
+	return `${action}:${resourceType ?? ''}:${namespace ?? ''}:${clusterId ?? ''}`;
+}
+
+function getCached(userId: string, key: string): boolean | undefined {
+	const userCache = permissionCache.get(userId);
+	if (!userCache) return undefined;
+	const entry = userCache.get(key);
+	if (!entry) return undefined;
+	if (Date.now() > entry.expiresAt) {
+		userCache.delete(key);
+		return undefined;
+	}
+	return entry.result;
+}
+
+function setCached(userId: string, key: string, result: boolean): void {
+	let userCache = permissionCache.get(userId);
+	if (!userCache) {
+		userCache = new Map();
+		permissionCache.set(userId, userCache);
+	}
+	userCache.set(key, { result, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+/** Invalidate all cached permissions for a specific user. */
+export function invalidateUserPermissionCache(userId: string): void {
+	if (permissionCache.delete(userId)) {
+		cacheMetrics.invalidations++;
+	}
+}
+
+/** Invalidate the entire permission cache (e.g. when a policy is deleted). */
+export function invalidateAllPermissionCache(): void {
+	const count = permissionCache.size;
+	permissionCache.clear();
+	cacheMetrics.invalidations += count;
+}
+
 /**
  * Check if a user has permission to perform an action on a resource
  *
@@ -31,6 +96,14 @@ export async function checkPermission(
 	if (user.role === 'admin') {
 		return true;
 	}
+
+	const cacheKey = makeCacheKey(action, resourceType, namespace, clusterId);
+	const cached = getCached(user.id, cacheKey);
+	if (cached !== undefined) {
+		cacheMetrics.hits++;
+		return cached;
+	}
+	cacheMetrics.misses++;
 
 	const db = getDbSync();
 
@@ -105,7 +178,9 @@ export async function checkPermission(
 		.where(and(...conditions))
 		.get();
 
-	return (matchingPolicies?.count ?? 0) > 0;
+	const result = (matchingPolicies?.count ?? 0) > 0;
+	setCached(user.id, cacheKey, result);
+	return result;
 }
 
 /**
@@ -177,6 +252,7 @@ export async function bindPolicyToUser(userId: string, policyId: string): Promis
 		userId,
 		policyId
 	});
+	invalidateUserPermissionCache(userId);
 }
 
 /**
@@ -187,6 +263,7 @@ export async function unbindPolicyFromUser(userId: string, policyId: string): Pr
 	await db
 		.delete(rbacBindings)
 		.where(and(eq(rbacBindings.userId, userId), eq(rbacBindings.policyId, policyId)));
+	invalidateUserPermissionCache(userId);
 }
 
 /**
@@ -252,6 +329,9 @@ export async function deletePolicy(policyId: string): Promise<void> {
 
 	// Delete policy
 	await db.delete(rbacPolicies).where(eq(rbacPolicies.id, policyId));
+
+	// Invalidate the entire cache since we don't track which users were affected
+	invalidateAllPermissionCache();
 }
 
 /**
