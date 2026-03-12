@@ -69,9 +69,9 @@ export function advancedSearch<T>(items: T[], query: string, options: SearchOpti
 				const searchString = getSearchString(item, keys);
 				return re.test(searchString);
 			});
-		} catch (e) {
+		} catch {
 			// If regex is invalid, fallback to literal search or return empty
-			logger.debug(e, 'Invalid regex:');
+			logger.debug('Invalid regex in regex-building step');
 			return [];
 		}
 	}

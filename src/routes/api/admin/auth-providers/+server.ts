@@ -221,7 +221,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			jwksUrl: jwksUrl || null,
 			autoProvision,
 			defaultRole,
-			roleMapping: roleMapping || null,
+			roleMapping: roleMapping ? JSON.stringify(roleMapping) : null,
 			roleClaim,
 			usernameClaim,
 			emailClaim,

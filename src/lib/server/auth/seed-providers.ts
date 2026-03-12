@@ -49,10 +49,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 	try {
 		providersConfig = JSON.parse(providersJson);
 		if (!Array.isArray(providersConfig)) {
-			logger.error(
-				new Error('GYRE_AUTH_PROVIDERS must be a JSON array'),
-				'GYRE_AUTH_PROVIDERS must be a JSON array'
-			);
+			logger.error('GYRE_AUTH_PROVIDERS must be a JSON array');
 			return { created: 0, skipped: 0 };
 		}
 	} catch (error) {

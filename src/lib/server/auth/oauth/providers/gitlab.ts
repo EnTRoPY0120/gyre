@@ -97,13 +97,7 @@ async function fetchGitLabGroups(
 
 		return allGroups.map((g) => g.full_path);
 	} catch (error) {
-		// Structured log containing the provider ID and the user subject (user.sub) plus the error object
-		logger.error({
-			message: 'Failed to fetch GitLab groups',
-			providerId,
-			userSub,
-			error: error instanceof Error ? { message: error.message, stack: error.stack } : error
-		});
+		logger.error(error, `[GitLabProvider] Failed to fetch groups for provider ${providerId}`);
 		return [];
 	}
 }
@@ -122,6 +116,7 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 	const baseURL = issuer.endsWith('/') ? issuer.slice(0, -1) : issuer;
 
 	let client: GitLab | null = null;
+	let warnedPkce = false;
 
 	/**
 	 * Get or create GitLab client
@@ -147,8 +142,9 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 		async getAuthorizationUrl(state: string, _codeVerifier?: string): Promise<URL> {
 			const client = getClient();
 
-			// GitLab in arctic doesn't support PKCE. Surface a warning if requested.
-			if (config.usePkce) {
+			// GitLab in arctic doesn't support PKCE. Surface a warning once if requested.
+			if (config.usePkce && !warnedPkce) {
+				warnedPkce = true;
 				logger.warn(
 					`[GitLabProvider] PKCE is enabled for provider "${config.id}", but GitLab provider silently ignores PKCE. This setting will be ignored.`
 				);

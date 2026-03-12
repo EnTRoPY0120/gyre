@@ -118,6 +118,8 @@
 			formValues = values;
 		} catch (err) {
 			logger.error(err, 'Failed to parse initial YAML');
+			formValues = {};
+			yamlError = 'Failed to parse template YAML';
 		}
 	});
 

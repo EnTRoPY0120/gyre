@@ -7,7 +7,6 @@
  * is always called with the original error.
  */
 
-/* eslint-disable no-console */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { classifyDiffError } from '../lib/server/kubernetes/flux/diff-errors.js';
 
@@ -15,22 +14,26 @@ import { classifyDiffError } from '../lib/server/kubernetes/flux/diff-errors.js'
 // console.error spy
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line no-console
 const originalConsoleError = console.error;
 const capturedErrors: unknown[][] = [];
 
 beforeEach(() => {
 	capturedErrors.length = 0;
+	// eslint-disable-next-line no-console
 	console.error = (...args: unknown[]) => {
 		capturedErrors.push(args);
 	};
 });
 
 afterEach(() => {
+	// eslint-disable-next-line no-console
 	console.error = originalConsoleError;
 });
 
 // Simulate how the handler logs then classifies
 function handleDiffError(err: unknown) {
+	// eslint-disable-next-line no-console
 	console.error('Diff error:', err);
 	return classifyDiffError(err);
 }

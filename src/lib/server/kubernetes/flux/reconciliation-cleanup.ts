@@ -166,7 +166,7 @@ function runCleanupOnce(): Promise<void> {
 	cleanupInFlight = cleanupReconciliationHistory()
 		.then(() => {})
 		.catch((err) => {
-			logger.error('[ReconciliationCleanup] Cleanup failed:', err);
+			logger.error(err, '[ReconciliationCleanup] Cleanup failed:');
 		})
 		.finally(() => {
 			cleanupInFlight = null;
