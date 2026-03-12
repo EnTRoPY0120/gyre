@@ -3,6 +3,7 @@ import { error } from '@sveltejs/kit';
 import { subscribe, type SSEEvent } from '$lib/server/events.js';
 import { checkPermission } from '$lib/server/rbac.js';
 import { sseConnectionLimiter } from '$lib/server/rate-limiter.js';
+import { logger } from '$lib/server/logger.js';
 import { sseConnectionsRejectedTotal } from '$lib/server/metrics.js';
 import {
 	SSE_MAX_CONNECTIONS_PER_SESSION,
@@ -33,7 +34,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 	// across many users (NAT, VPN, corporate proxies).
 	const rawSessionId = locals.session?.id;
 	if (!rawSessionId) {
-		console.warn(
+		logger.warn(
 			'[SSE] Authenticated user has no session ID; falling back to IP for connection limiting'
 		);
 	}

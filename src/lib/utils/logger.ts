@@ -22,26 +22,42 @@ export function shouldLog(level: LogLevel): boolean {
 	return currentLevelNum <= LOG_LEVELS[level];
 }
 
+const SENSITIVE_KEYS = /^(password|token|secret|authorization|cookie|email)$/i;
+
+function redactSensitiveFields(value: unknown): unknown {
+	if (value === null || value === undefined) return value;
+	if (Array.isArray(value)) return value.map(redactSensitiveFields);
+	if (typeof value === 'object' && !(value instanceof Error)) {
+		const result: Record<string, unknown> = {};
+		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+			result[k] = SENSITIVE_KEYS.test(k) ? '[REDACTED]' : redactSensitiveFields(v);
+		}
+		return result;
+	}
+	return value;
+}
+
 function formatBrowserLog(level: LogLevel, args: unknown[]): unknown[] {
-	if (args.length > 0) {
-		if (typeof args[0] === 'string') {
+	const sanitized = args.map(redactSensitiveFields);
+	if (sanitized.length > 0) {
+		if (typeof sanitized[0] === 'string') {
 			return [
-				`%c[${level.toUpperCase()}] %c${args[0]}`,
+				`%c[${level.toUpperCase()}] %c${sanitized[0]}`,
 				LOG_COLORS[level],
 				'color: inherit',
-				...args.slice(1)
+				...sanitized.slice(1)
 			];
-		} else if (args.length > 1 && typeof args[1] === 'string') {
+		} else if (sanitized.length > 1 && typeof sanitized[1] === 'string') {
 			return [
-				`%c[${level.toUpperCase()}] %c${args[1]}`,
+				`%c[${level.toUpperCase()}] %c${sanitized[1]}`,
 				LOG_COLORS[level],
 				'color: inherit',
-				args[0],
-				...args.slice(2)
+				sanitized[0],
+				...sanitized.slice(2)
 			];
 		}
 	}
-	return [`%c[${level.toUpperCase()}]`, LOG_COLORS[level], ...args];
+	return [`%c[${level.toUpperCase()}]`, LOG_COLORS[level], ...sanitized];
 }
 
 /**

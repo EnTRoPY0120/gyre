@@ -38,9 +38,20 @@ function log(level: pino.Level, args: any[]) {
 	if (args.length === 0) return;
 	if (args.length === 1) return pinoLogger[level](args[0]);
 	if (typeof args[0] === 'string') {
-		return pinoLogger[level](args.length === 2 ? args[1] : args.slice(1), args[0]);
+		// String-first: treat as message, merge remaining objects as metadata
+		const objects = args.slice(1).filter((a: any) => a !== null && typeof a === 'object');
+		if (objects.length === 0) return pinoLogger[level](args[0]);
+		const meta = Object.assign({}, ...objects);
+		return pinoLogger[level](meta, args[0]);
 	}
-	return pinoLogger[level](args[0], args[1]);
+	if (args.length === 2) return pinoLogger[level](args[0], args[1]);
+	// 3+ args with non-string first arg: merge extra context objects
+	const extras = args.slice(2).filter((a: any) => a !== null && typeof a === 'object');
+	const meta =
+		args[0] instanceof Error
+			? { err: args[0], ...Object.assign({}, ...extras) }
+			: Object.assign({}, args[0], ...extras);
+	return pinoLogger[level](meta, args[1]);
 }
 
 /**

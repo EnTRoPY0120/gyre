@@ -160,7 +160,7 @@ export async function createBackup(): Promise<BackupMetadata> {
 		};
 	} else {
 		// Unencrypted backup (BACKUP_ENCRYPTION_KEY not set)
-		console.warn(
+		logger.warn(
 			'[Backup] ⚠️  BACKUP_ENCRYPTION_KEY is not set. Creating unencrypted backup. ' +
 				'Set BACKUP_ENCRYPTION_KEY to a 64-character hex string to enable encryption at rest.'
 		);

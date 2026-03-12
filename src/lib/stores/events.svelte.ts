@@ -188,7 +188,7 @@ class RealtimeStore {
 			};
 
 			this.eventSource.onerror = () => {
-				logger.error(new Error('[SSE] Connection error'), '[SSE] Connection error');
+				logger.error('[SSE] Connection error');
 				this.status = 'error';
 				this.notifyStatusChange('error');
 				this.eventSource?.close();
@@ -240,7 +240,9 @@ class RealtimeStore {
 
 	private handleMessage(data: ResourceEvent) {
 		if (data.type === 'SHUTDOWN') {
-			logger.info('[SSE] Received SHUTDOWN event from server, disconnecting and preventing reconnects.');
+			logger.info(
+				'[SSE] Received SHUTDOWN event from server, disconnecting and preventing reconnects.'
+			);
 			this.isServerShutdown = true;
 			this.disconnect();
 			return;
