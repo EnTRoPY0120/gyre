@@ -33,7 +33,20 @@ function redactSensitiveFields(value: unknown, visited: WeakSet<object> = new We
 		visited.add(value);
 		return value.map((item) => redactSensitiveFields(item, visited));
 	}
-	if (typeof value === 'object' && !(value instanceof Error)) {
+	if (value instanceof Error) {
+		if (visited.has(value)) return '[Circular]';
+		visited.add(value);
+		const result: Record<string, unknown> = {
+			name: value.name,
+			message: value.message,
+			stack: value.stack
+		};
+		for (const [k, v] of Object.entries(value)) {
+			result[k] = SENSITIVE_KEYS.test(k) ? '[REDACTED]' : redactSensitiveFields(v, visited);
+		}
+		return result;
+	}
+	if (typeof value === 'object') {
 		if (visited.has(value)) return '[Circular]';
 		visited.add(value);
 		const result: Record<string, unknown> = {};

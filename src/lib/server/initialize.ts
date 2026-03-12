@@ -1,9 +1,9 @@
 import { logger } from './logger.js';
 import { getDbSync, closeDb } from './db/index.js';
-import { createDefaultAdminIfNeeded } from './auth.js';
+import { createDefaultAdminIfNeeded, setSetupTokenFile } from './auth.js';
 import { initDatabase } from './db/migrate.js';
 import { initializeDefaultPolicies, repairUserPolicyBindings } from './rbac-defaults.js';
-import { readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -131,8 +131,21 @@ if (typeof process !== 'undefined') {
 		// safeCloseDb only runs after that work is fully done (no race).
 		if (!isShuttingDown) {
 			isShuttingDown = true;
+			// Arm the same fail-safe backstop used in handleSignal so a hung
+			// shutdownGyre() cannot block the process indefinitely.
+			const isProd = process.env.NODE_ENV === 'production';
+			const svkForceExit = setTimeout(
+				() => {
+					logger.error('   ✗ Graceful shutdown took too long, forcing exit');
+					safeCloseDb('force-exit');
+					process.exit(1);
+				},
+				isProd ? 15_000 : 5_000
+			);
+			svkForceExit.unref();
 			activeShutdownPromise = shutdownGyre();
 			await activeShutdownPromise;
+			clearTimeout(svkForceExit);
 		} else if (activeShutdownPromise) {
 			await activeShutdownPromise;
 		}
@@ -261,15 +274,8 @@ export async function initializeGyre(): Promise<void> {
 				// plaintext credentials appearing in container or terminal logs.
 				const tokenFile = join(tmpdir(), `gyre-setup-token-${Date.now()}.txt`);
 				writeFileSync(tokenFile, setupToken, { mode: 0o600, flag: 'wx' });
-				// Remove the file when the server process exits so credentials do not
-				// persist on disk after the server has stopped.
-				process.once('exit', () => {
-					try {
-						unlinkSync(tokenFile);
-					} catch {
-						// Ignore errors during cleanup
-					}
-				});
+				// Register the file path so auth.ts can remove it after first login.
+				setSetupTokenFile(tokenFile);
 				logger.warn('   ⚠️  WARNING: Container or terminal logs may capture plaintext passwords.');
 				logger.warn('   The setup token has been written to a restricted file (mode 0600).');
 				logger.info(`   Token file: ${tokenFile}`);

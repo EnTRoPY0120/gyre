@@ -7,7 +7,7 @@ import { eq, and, gt, lte, sql, or } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import * as k8s from '@kubernetes/client-node';
-import { readFileSync } from 'node:fs';
+import { readFileSync, unlinkSync } from 'node:fs';
 import { loginAttemptsTotal, sessionsCleanedUpTotal } from './metrics.js';
 
 // In-cluster configuration paths
@@ -19,6 +19,17 @@ const ADMIN_SECRET_NAME = 'gyre-initial-admin-secret';
 
 // Store generated password temporarily for first-time setup display
 let generatedAdminPassword: string | null = null;
+
+// Path to the local-dev setup token file; cleared after first successful login
+let setupTokenFilePath: string | null = null;
+
+/**
+ * Register the path of the setup token file written during local-dev first-run.
+ * The file is removed automatically after the first successful admin login.
+ */
+export function setSetupTokenFile(filePath: string): void {
+	setupTokenFilePath = filePath;
+}
 
 // For in-cluster mode: password read from K8s secret (stored hashed)
 let inClusterAdminPasswordHash: string | null = null;
@@ -574,6 +585,19 @@ export async function authenticateUser(username: string, password: string): Prom
 	}
 
 	loginAttemptsTotal.labels('success').inc();
+
+	// First successful login in local-dev first-run: delete the token file so
+	// credentials do not persist on disk beyond first use.
+	if (generatedAdminPassword !== null && setupTokenFilePath !== null) {
+		try {
+			unlinkSync(setupTokenFilePath);
+		} catch {
+			// File may have already been removed; ignore
+		}
+		setupTokenFilePath = null;
+		generatedAdminPassword = null;
+	}
+
 	return user;
 }
 

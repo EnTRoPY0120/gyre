@@ -10,9 +10,19 @@ import { eq } from 'drizzle-orm';
 import { encryptSecret } from './crypto';
 import { randomBytes } from 'node:crypto';
 
+const SUPPORTED_PROVIDER_TYPES = [
+	'oidc',
+	'oauth2-github',
+	'oauth2-google',
+	'oauth2-gitlab',
+	'oauth2-generic'
+] as const;
+
+type SupportedProviderType = (typeof SUPPORTED_PROVIDER_TYPES)[number];
+
 interface ProviderSeedConfig {
 	name: string;
-	type: 'oidc' | 'oauth2-github' | 'oauth2-google' | 'oauth2-gitlab' | 'oauth2-generic';
+	type: SupportedProviderType;
 	enabled?: boolean;
 	clientId: string;
 	clientSecret: string;
@@ -70,10 +80,26 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 			continue;
 		}
 
-		// Validate required fields
-		if (!config.name || !config.type || !config.clientId) {
+		// Validate required fields are present and are strings
+		if (
+			typeof config.name !== 'string' ||
+			typeof config.type !== 'string' ||
+			typeof config.clientId !== 'string' ||
+			!config.name ||
+			!config.type ||
+			!config.clientId
+		) {
 			logger.warn(
-				`Skipping provider at index ${i}: missing required fields (name, type, clientId)`
+				`Skipping provider at index ${i}: missing or non-string required fields (name, type, clientId)`
+			);
+			skipped++;
+			continue;
+		}
+
+		// Validate type against the supported set
+		if (!(SUPPORTED_PROVIDER_TYPES as readonly string[]).includes(config.type)) {
+			logger.warn(
+				`Skipping provider at index ${i}: unsupported type "${config.type}" (supported: ${SUPPORTED_PROVIDER_TYPES.join(', ')})`
 			);
 			skipped++;
 			continue;
@@ -108,10 +134,29 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 			// Generate provider ID
 			const providerId = `provider-${randomBytes(8).toString('hex')}`;
 
-			// Normalize roleMapping (ensure it's a string if provided)
-			let roleMapping = config.roleMapping || null;
-			if (roleMapping && typeof roleMapping === 'object') {
-				roleMapping = JSON.stringify(roleMapping);
+			// Normalize and validate roleMapping
+			let roleMapping: string | null = null;
+			if (config.roleMapping != null) {
+				if (typeof config.roleMapping === 'string') {
+					let parsed: unknown;
+					try {
+						parsed = JSON.parse(config.roleMapping);
+					} catch {
+						throw new Error(`Provider "${config.name}" has invalid roleMapping: not valid JSON`);
+					}
+					if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+						throw new Error(
+							`Provider "${config.name}" has invalid roleMapping: must be a JSON object`
+						);
+					}
+					roleMapping = config.roleMapping;
+				} else if (typeof config.roleMapping === 'object' && !Array.isArray(config.roleMapping)) {
+					roleMapping = JSON.stringify(config.roleMapping);
+				} else {
+					throw new Error(
+						`Provider "${config.name}" has invalid roleMapping: must be a plain object or JSON string`
+					);
+				}
 			}
 
 			// Create provider
