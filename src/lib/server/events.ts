@@ -213,13 +213,13 @@ function broadcast(context: ClusterContext, event: SSEEvent) {
 		} catch (err) {
 			if (event.type === 'SHUTDOWN') {
 				logger.debug(
-					err,
-					`[EventBus] Error broadcasting SHUTDOWN to subscriber on cluster ${context.clusterId}:`
+					{ clusterId: context.clusterId, err: normalizeError(err) },
+					'[EventBus] Error broadcasting SHUTDOWN to subscriber'
 				);
 			} else {
 				logger.error(
-					err,
-					`[EventBus] Error broadcasting to subscriber on cluster ${context.clusterId}:`
+					{ clusterId: context.clusterId, err: normalizeError(err) },
+					'[EventBus] Error broadcasting to subscriber'
 				);
 			}
 		}
@@ -312,7 +312,10 @@ async function poll(context: ClusterContext) {
 										triggerType: 'automatic'
 									});
 								} catch (err) {
-									logger.error(err, '[EventBus] Failed to capture reconciliation history:');
+									logger.error(
+										{ err: normalizeError(err) },
+										'[EventBus] Failed to capture reconciliation history'
+									);
 									// Don't fail event broadcast if history capture fails
 								}
 
@@ -364,7 +367,10 @@ async function poll(context: ClusterContext) {
 											triggerType: 'automatic'
 										});
 									} catch (err) {
-										logger.error(err, '[EventBus] Failed to capture reconciliation history:');
+										logger.error(
+											{ err: normalizeError(err) },
+											'[EventBus] Failed to capture reconciliation history'
+										);
 										// Don't fail event broadcast if history capture fails
 									}
 
@@ -421,13 +427,16 @@ async function poll(context: ClusterContext) {
 			} catch (err) {
 				resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();
 				logger.error(
-					err,
-					`[EventBus] Error polling ${resourceType} for cluster ${context.clusterId}:`
+					{ clusterId: context.clusterId, resourceType, err: normalizeError(err) },
+					'[EventBus] Error polling resource type'
 				);
 			}
 		}
 	} catch (err) {
-		logger.error(err, `[EventBus] Critical error in poll loop for cluster ${context.clusterId}:`);
+		logger.error(
+			{ clusterId: context.clusterId, err: normalizeError(err) },
+			'[EventBus] Critical error in poll loop'
+		);
 	} finally {
 		resolvePoll!();
 		context.inflightPollPromise = null;
