@@ -105,7 +105,7 @@ class ResourceCacheStore {
 			const res = await fetchWithRetry(url);
 			if (!res.ok) throw new Error(`Failed to fetch ${type} list`);
 			const data = await res.json();
-			const items = data.resources || [];
+			const items = data.items || [];
 			this.setList(type, items, namespace);
 			return items;
 		} catch (err) {

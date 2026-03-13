@@ -20,8 +20,6 @@ const PUBLIC_ROUTES = [
 	'/api/v1/health',
 	'/api/auth/login',
 	'/api/v1/auth/login',
-	'/api/auth/logout',
-	'/api/v1/auth/logout',
 	'/api/flux/health',
 	'/api/v1/flux/health',
 	'/metrics',
