@@ -26,8 +26,8 @@ Get started with Gyre in minutes:
 
 ```bash
 # Install via Helm
-helm repo add gyre https://entropy0120.github.io/gyre
-helm install gyre gyre/gyre \
+helm install gyre oci://ghcr.io/entropy0120/gyre/gyre \
+  --version 0.4.0 \
   --namespace flux-system \
   --create-namespace
 

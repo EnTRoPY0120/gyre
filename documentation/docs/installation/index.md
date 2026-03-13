@@ -17,28 +17,27 @@ The most natural way to install Gyre is by using Flux itself. Add this `HelmRele
 ```yaml
 ---
 apiVersion: source.toolkit.fluxcd.io/v1beta2
-kind: HelmRepository
+kind: OCIRepository
 metadata:
   name: gyre
   namespace: flux-system
 spec:
   interval: 1h
-  url: https://entropy0120.github.io/gyre
+  url: oci://ghcr.io/entropy0120/gyre/gyre
+  ref:
+    tag: 0.4.0
 ---
-apiVersion: helm.toolkit.fluxcd.io/v2beta2
+apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
   name: gyre
   namespace: flux-system
 spec:
   interval: 1h
-  chart:
-    spec:
-      chart: gyre
-      version: '>=0.1.0'
-      sourceRef:
-        kind: HelmRepository
-        name: gyre
+  chartRef:
+    kind: OCIRepository
+    name: gyre
+    namespace: flux-system
   values:
     # Any custom configuration values here
 ```
@@ -50,12 +49,8 @@ Helm is the standard way to install Gyre directly, as it provides easy configura
 ### Basic Installation
 
 ```bash
-# Add the Gyre Helm repository
-helm repo add gyre https://entropy0120.github.io/gyre
-helm repo update
-
-# Install with default values
-helm install gyre gyre/gyre \
+helm install gyre oci://ghcr.io/entropy0120/gyre/gyre \
+  --version 0.4.0 \
   --namespace flux-system \
   --create-namespace
 ```
@@ -102,7 +97,8 @@ persistence:
 Install with custom values:
 
 ```bash
-helm install gyre gyre/gyre \
+helm install gyre oci://ghcr.io/entropy0120/gyre/gyre \
+  --version 0.4.0 \
   --namespace flux-system \
   --create-namespace \
   -f values.yaml
@@ -190,11 +186,8 @@ kubectl logs -n flux-system -l app.kubernetes.io/name=gyre
 To upgrade Gyre:
 
 ```bash
-# Update Helm repository
-helm repo update
-
-# Upgrade release
-helm upgrade gyre gyre/gyre \
+helm upgrade gyre oci://ghcr.io/entropy0120/gyre/gyre \
+  --version 0.4.0 \
   --namespace flux-system
 ```
 
