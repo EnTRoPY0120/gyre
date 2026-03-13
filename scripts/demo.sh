@@ -22,9 +22,9 @@ echo "🔧 Installing FluxCD..."
 flux install
 
 echo "⛵ Installing Gyre via Helm..."
-helm repo add gyre https://entropy0120.github.io/gyre
-helm repo update
-helm upgrade --install gyre gyre/gyre \
+GYRE_VERSION=$(curl -s https://api.github.com/repos/entropy0120/gyre/releases/latest | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
+helm upgrade --install gyre oci://ghcr.io/entropy0120/gyre/gyre \
+  --version "$GYRE_VERSION" \
   --namespace flux-system \
   --create-namespace \
   --wait
