@@ -1,7 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import pino from 'pino';
 
-const requestContext = new AsyncLocalStorage<{ requestId: string }>();
+const requestContext = new AsyncLocalStorage<{ requestId: string; logger?: pino.Logger }>();
 
 export function withRequestContext<T>(requestId: string, fn: () => T): T {
 	return requestContext.run({ requestId }, fn);
@@ -44,7 +44,13 @@ const pinoLogger = pino({
 function log(level: pino.Level, args: any[]) {
 	if (args.length === 0) return;
 	const store = requestContext.getStore();
-	const activeLogger = store ? pinoLogger.child({ requestId: store.requestId }) : pinoLogger;
+	let activeLogger: pino.Logger;
+	if (store) {
+		if (!store.logger) store.logger = pinoLogger.child({ requestId: store.requestId });
+		activeLogger = store.logger;
+	} else {
+		activeLogger = pinoLogger;
+	}
 	if (args.length === 1) return activeLogger[level](args[0]);
 	if (typeof args[0] === 'string') {
 		// String-first: treat as message, merge remaining objects as metadata
