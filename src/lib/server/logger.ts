@@ -1,4 +1,11 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import pino from 'pino';
+
+const requestContext = new AsyncLocalStorage<{ requestId: string }>();
+
+export function withRequestContext<T>(requestId: string, fn: () => T): T {
+	return requestContext.run({ requestId }, fn);
+}
 
 const level = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
 
@@ -36,22 +43,24 @@ const pinoLogger = pino({
  */
 function log(level: pino.Level, args: any[]) {
 	if (args.length === 0) return;
-	if (args.length === 1) return pinoLogger[level](args[0]);
+	const store = requestContext.getStore();
+	const activeLogger = store ? pinoLogger.child({ requestId: store.requestId }) : pinoLogger;
+	if (args.length === 1) return activeLogger[level](args[0]);
 	if (typeof args[0] === 'string') {
 		// String-first: treat as message, merge remaining objects as metadata
 		const objects = args.slice(1).filter((a: any) => a !== null && typeof a === 'object');
-		if (objects.length === 0) return pinoLogger[level](args[0]);
+		if (objects.length === 0) return activeLogger[level](args[0]);
 		const meta = Object.assign({}, ...objects);
-		return pinoLogger[level](meta, args[0]);
+		return activeLogger[level](meta, args[0]);
 	}
-	if (args.length === 2) return pinoLogger[level](args[0], args[1]);
+	if (args.length === 2) return activeLogger[level](args[0], args[1]);
 	// 3+ args with non-string first arg: merge extra context objects
 	const extras = args.slice(2).filter((a: any) => a !== null && typeof a === 'object');
 	const meta =
 		args[0] instanceof Error
 			? { err: args[0], ...Object.assign({}, ...extras) }
 			: Object.assign({}, args[0], ...extras);
-	return pinoLogger[level](meta, args[1]);
+	return activeLogger[level](meta, args[1]);
 }
 
 /**
