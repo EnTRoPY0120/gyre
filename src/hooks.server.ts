@@ -255,9 +255,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		// Protect admin API routes
 		if (
-		(path.startsWith('/api/admin') || path.startsWith('/api/v1/admin')) &&
-		event.locals.user?.role !== 'admin'
-	) {
+			(path.startsWith('/api/admin') || path.startsWith('/api/v1/admin')) &&
+			event.locals.user?.role !== 'admin'
+		) {
 			return recordResponse(
 				new Response(JSON.stringify({ error: 'Forbidden' }), {
 					status: 403,
