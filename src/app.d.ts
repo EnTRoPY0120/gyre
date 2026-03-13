@@ -7,6 +7,7 @@ declare global {
 			code?: string;
 		}
 		interface Locals {
+			requestId: string;
 			cluster: string | undefined;
 			user: import('$lib/server/db/schema').User | null;
 			session: import('$lib/server/db/schema').Session | null;
