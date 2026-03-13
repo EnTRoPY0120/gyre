@@ -9,6 +9,7 @@ import { CSRF_COOKIE_OPTIONS } from '$lib/server/config';
 
 // Initialize Gyre on first request
 let initialized = false;
+let initializingPromise: Promise<void> | undefined;
 
 // Public routes that don't require authentication or CSRF protection.
 // NOTE: /api/auth/login and other auth-related routes are split here to ensure
@@ -64,8 +65,12 @@ function isPublicRoute(path: string): boolean {
  * 3. Cluster context via cookies
  * 4. RBAC checks (future enhancement)
  */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const handle: Handle = async ({ event, resolve }) => {
-	const requestId = event.request.headers.get('x-request-id') ?? crypto.randomUUID();
+	const requestIdRaw = event.request.headers.get('x-request-id');
+	const requestId =
+		requestIdRaw && UUID_REGEX.test(requestIdRaw) ? requestIdRaw : crypto.randomUUID();
 	event.locals.requestId = requestId;
 
 	return withRequestContext(requestId, async () => {
@@ -123,15 +128,22 @@ export const handle: Handle = async ({ event, resolve }) => {
 			);
 		}
 
-		// Initialize Gyre on first request
+		// Initialize Gyre on first request — promise lock prevents concurrent init calls
 		if (!initialized) {
-			try {
-				await initializeGyre();
-				initialized = true;
-			} catch (error) {
-				logger.error(error, 'Failed to initialize Gyre:');
-				// Continue anyway - let the request fail naturally if DB is truly broken
+			if (!initializingPromise) {
+				initializingPromise = initializeGyre()
+					.then(() => {
+						initialized = true;
+					})
+					.catch((error) => {
+						logger.error(error, 'Failed to initialize Gyre:');
+						// Continue anyway - let the request fail naturally if DB is truly broken
+					})
+					.finally(() => {
+						initializingPromise = undefined;
+					});
 			}
+			await initializingPromise;
 		}
 
 		// Initialize locals with defaults
@@ -186,6 +198,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 			}
 
 			if (!validateCsrfToken(event.locals.session.id, csrfToken)) {
+				logger.warn('CSRF token validation failed', {
+					sessionId: event.locals.session.id,
+					method: request.method,
+					path
+				});
 				return recordResponse(
 					new Response(
 						JSON.stringify({ error: 'Forbidden', message: 'Invalid or missing CSRF token' }),
