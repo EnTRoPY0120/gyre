@@ -259,8 +259,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 /**
  * HandleError - Global error handler
  */
-export function handleError({ error, event }: { error: unknown; event: { url: URL } }) {
-	logger.error(error, `Error in ${event.url.pathname}:`);
+export function handleError({
+	error,
+	event
+}: {
+	error: unknown;
+	event: { url: URL; locals?: App.Locals };
+}) {
+	const requestId = event.locals?.requestId;
+	if (requestId) {
+		logger.error(error, `Error in ${event.url.pathname}:`, { requestId });
+	} else {
+		logger.error(error, `Error in ${event.url.pathname}:`);
+	}
 
 	return {
 		message: error instanceof Error ? error.message : 'An unexpected error occurred',
