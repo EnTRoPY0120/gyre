@@ -121,7 +121,7 @@ export const GET: RequestHandler = async (event) => {
 		const provider = await getOAuthProvider(providerId);
 
 		// Build redirect URI (this callback URL)
-		const redirectUri = `${url.origin}/api/auth/${providerId}/callback`;
+		const redirectUri = `${url.origin}/api/v1/auth/${providerId}/callback`;
 
 		// Exchange authorization code for tokens
 		const tokens = await provider.validateCallback(code, codeVerifier, redirectUri);
