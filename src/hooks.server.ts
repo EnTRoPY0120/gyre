@@ -17,7 +17,6 @@ let initializingPromise: Promise<void> | undefined;
 const PUBLIC_ROUTES = [
 	'/login',
 	'/api/auth/login',
-	'/api/auth/logout',
 	'/api/health',
 	'/api/flux/health',
 	'/metrics',
@@ -199,7 +198,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 			if (!validateCsrfToken(event.locals.session.id, csrfToken)) {
 				logger.warn('CSRF token validation failed', {
-					sessionId: event.locals.session.id,
+					userId: event.locals.user?.id,
 					method: request.method,
 					path
 				});
