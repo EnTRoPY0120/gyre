@@ -226,17 +226,6 @@ export async function initializeGyre(): Promise<void> {
 		throw error;
 	}
 
-	// Migrate kubeconfigs to new encryption format if needed
-	try {
-		const migratedCount = await migrateKubeconfigs();
-		if (migratedCount > 0) {
-			logger.info(`   ✓ Migrated ${migratedCount} cluster(s) to new encryption format`);
-		}
-	} catch (error) {
-		logger.error(error, '   ✗ Failed to migrate kubeconfigs');
-		// Don't throw here, as the app can still function with old encryption if migration fails
-	}
-
 	// Initialize database connection and tables
 	logger.info('\n🗄️  Initializing database...');
 	try {
@@ -246,6 +235,17 @@ export async function initializeGyre(): Promise<void> {
 	} catch (error) {
 		logger.error(error, '   ✗ Failed to connect to database');
 		throw error;
+	}
+
+	// Migrate kubeconfigs to new encryption format if needed (must run after DB is initialized)
+	try {
+		const migratedCount = await migrateKubeconfigs();
+		if (migratedCount > 0) {
+			logger.info(`   ✓ Migrated ${migratedCount} cluster(s) to new encryption format`);
+		}
+	} catch (error) {
+		logger.error(error, '   ✗ Failed to migrate kubeconfigs');
+		// Don't throw here, as the app can still function with old encryption if migration fails
 	}
 
 	// Create default admin if needed
