@@ -75,6 +75,18 @@ export const HEARTBEAT_INTERVAL_MS = parseEnvInt('GYRE_HEARTBEAT_INTERVAL_MS', 3
 });
 
 // ---------------------------------------------------------------------------
+// Metrics
+// ---------------------------------------------------------------------------
+
+/**
+ * Bearer token for Prometheus metrics scraping.
+ * If set, requests to /metrics must supply `Authorization: Bearer <token>`.
+ * If unset, /metrics requires an authenticated admin session instead.
+ * env: GYRE_METRICS_TOKEN
+ */
+export const GYRE_METRICS_TOKEN: string | undefined = process.env.GYRE_METRICS_TOKEN || undefined;
+
+// ---------------------------------------------------------------------------
 // SSE connection limits
 // ---------------------------------------------------------------------------
 

@@ -90,6 +90,7 @@ export const _metadata = {
 };
 import { logAudit } from '$lib/server/audit';
 import { requirePermission } from '$lib/server/rbac';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /**
  * GET /api/admin/backups
@@ -117,13 +118,15 @@ export const GET: RequestHandler = async ({ locals }) => {
  * POST /api/admin/backups
  * Creates a new database backup.
  */
-export const POST: RequestHandler = async ({ locals }) => {
+export const POST: RequestHandler = async ({ locals, setHeaders }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
 
 	const clusterId = locals.cluster || 'in-cluster';
 	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
+
+	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
 
 	try {
 		const backup = await createBackup();
@@ -146,13 +149,15 @@ export const POST: RequestHandler = async ({ locals }) => {
  * DELETE /api/admin/backups?filename=...
  * Deletes a specific backup file.
  */
-export const DELETE: RequestHandler = async ({ locals, url }) => {
+export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
 
 	const clusterId = locals.cluster || 'in-cluster';
 	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
+
+	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
 
 	const filename = url.searchParams.get('filename');
 	if (!filename) {

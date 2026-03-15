@@ -11,6 +11,9 @@ interface RateLimitEntry {
 	lastWindowStart: number;
 }
 
+// NOTE: This rate limiter is in-memory and single-instance only. In a multi-replica
+// deployment, state is not shared across instances and is lost on restart. For
+// production multi-instance deployments, consider a Redis or database-backed implementation.
 export class RateLimiter {
 	private storage: Map<string, RateLimitEntry> = new Map();
 	private cleanupInterval: NodeJS.Timeout;
@@ -146,7 +149,7 @@ export function tryCheckRateLimit(
  * It throws a 429 error if the limit is exceeded.
  */
 export function checkRateLimit(
-	event: { request: Request; setHeaders: (headers: Record<string, string>) => void },
+	event: { setHeaders: (headers: Record<string, string>) => void },
 	key: string,
 	limit: number,
 	windowMs: number

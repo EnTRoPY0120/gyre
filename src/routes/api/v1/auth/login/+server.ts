@@ -126,7 +126,7 @@ export const POST: RequestHandler = async (event) => {
 		// Rate limit: 5 attempts per 1 minute per IP
 		const ipAddress = getClientAddress();
 		const limitKey = `login:ip:${ipAddress}`;
-		checkRateLimit({ request, setHeaders }, limitKey, 5, 60 * 1000);
+		checkRateLimit({ setHeaders }, limitKey, 5, 60 * 1000);
 
 		// Check account lockout
 		const lockoutStatus = accountLockout.check(canonicalUsername);
