@@ -7,6 +7,7 @@ import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 import {
 	getAuthSettings,
 	getAuditLogRetentionDays,
@@ -147,7 +148,7 @@ export const GET: RequestHandler = async ({ locals }) => {
  * PATCH /api/admin/settings
  * Updates application settings (admin only)
  */
-export const PATCH: RequestHandler = async ({ locals, request }) => {
+export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => {
 	// Check authentication
 	if (!locals.user) {
 		throw error(401, { message: 'Unauthorized' });
@@ -161,6 +162,8 @@ export const PATCH: RequestHandler = async ({ locals, request }) => {
 	if (locals.user.role !== 'admin') {
 		throw error(403, { message: 'Admin access required' });
 	}
+
+	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
 
 	// Enforce RBAC
 	const hasPermission = await checkPermission(

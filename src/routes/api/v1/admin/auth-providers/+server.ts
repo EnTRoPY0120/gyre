@@ -114,6 +114,7 @@ import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { randomBytes } from 'node:crypto';
 import { checkPermission } from '$lib/server/rbac.js';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /**
  * Generate a unique provider ID
@@ -161,7 +162,7 @@ export const GET: RequestHandler = async ({ locals }) => {
  * POST /api/admin/auth-providers
  * Create a new auth provider (admin only)
  */
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 	// Check authentication
 	if (!locals.user) {
 		throw error(401, { message: 'Unauthorized' });
@@ -172,6 +173,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	if (!hasPermission) {
 		throw error(403, { message: 'Admin access required' });
 	}
+
+	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
 
 	try {
 		const body = await request.json();

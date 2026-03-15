@@ -54,12 +54,15 @@ import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { logAudit } from '$lib/server/audit.js';
 import { sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
-export const POST: RequestHandler = async ({ request, locals, getClientAddress }) => {
+export const POST: RequestHandler = async ({ request, locals, getClientAddress, setHeaders }) => {
 	// Check authentication
 	if (!locals.user) {
 		throw error(401, { message: 'Authentication required' });
 	}
+
+	checkRateLimit({ setHeaders }, `batch:${locals.user.id}`, 60, 60 * 1000);
 
 	// Validate cluster context
 	if (!locals.cluster || typeof locals.cluster !== 'string') {

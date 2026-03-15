@@ -7,6 +7,7 @@ import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
 import { requirePermission } from '$lib/server/rbac';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const _metadata = {
 	POST: {
@@ -63,7 +64,7 @@ export const _metadata = {
 	}
 };
 
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 	if (!locals.user) {
 		throw error(401, 'Unauthorized');
 	}
@@ -74,6 +75,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Ensure the user has at least 'read' permission on the cluster to manage their own notifications
 	await requirePermission(locals.user, 'read', undefined, undefined, locals.cluster);
+
+	checkRateLimit({ setHeaders }, `preferences:${locals.user.id}`, 30, 60 * 1000);
 
 	let newPreferences: Partial<UserPreferences>;
 

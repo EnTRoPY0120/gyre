@@ -6,6 +6,7 @@ import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
 import { getRequestSizeLimit, validateRequestSize, formatSize } from '$lib/server/request-limits';
 import { generateCsrfToken, validateCsrfToken } from '$lib/server/csrf';
 import { CSRF_COOKIE_OPTIONS } from '$lib/server/config';
+import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -135,6 +136,29 @@ export const handle: Handle = async ({ event, resolve }) => {
 					headers: { Location: `${path}?${redirectParams}` }
 				})
 			);
+		}
+
+		// Global rate limiting: 300 req/min per IP (skip static assets and health checks)
+		const isStaticAsset = STATIC_PATTERNS.some((p) => p.test(path));
+		const isHealthEndpoint =
+			path === '/api/health' ||
+			path === '/api/v1/health' ||
+			path === '/api/flux/health' ||
+			path === '/api/v1/flux/health';
+		if (!isStaticAsset && !isHealthEndpoint) {
+			const ip = event.getClientAddress();
+			const globalLimit = tryCheckRateLimit(event, `global:${ip}`, 300, 60 * 1000);
+			if (globalLimit.limited) {
+				return recordResponse(
+					new Response(JSON.stringify({ error: 'Too Many Requests' }), {
+						status: 429,
+						headers: {
+							'Content-Type': 'application/json',
+							'Retry-After': globalLimit.retryAfter.toString()
+						}
+					})
+				);
+			}
 		}
 
 		// Initialize Gyre on first request — promise lock prevents concurrent init calls

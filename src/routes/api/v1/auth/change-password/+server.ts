@@ -4,6 +4,7 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { updateUserPassword, verifyPassword, isPasswordInHistory } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
+import { checkRateLimit } from '$lib/server/rate-limiter';
 
 export const _metadata = {
 	POST: {
@@ -66,12 +67,14 @@ export const _metadata = {
  * POST /api/auth/change-password
  * Change user's password (requires authentication)
  */
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 	try {
 		// Require authentication
 		if (!locals.user) {
 			throw error(401, { message: 'Authentication required' });
 		}
+
+		checkRateLimit({ setHeaders }, `change-password:${locals.user.id}`, 5, 15 * 60 * 1000);
 
 		const body = await request.json();
 		const { currentPassword, newPassword } = body;
