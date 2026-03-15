@@ -199,6 +199,10 @@ function stopWorker(context: ClusterContext, reason: string = 'no active subscri
 		clearInterval(context.heartbeatInterval);
 		context.heartbeatInterval = null;
 	}
+	for (const resourceType of WATCH_RESOURCES) {
+		fluxResourcesReadyGauge.labels(context.clusterId, resourceType).set(0);
+		fluxResourcesTotalGauge.labels(context.clusterId, resourceType).set(0);
+	}
 	logger.info(
 		{ clusterId: context.clusterId, reason },
 		'[EventBus] Stopping consolidated polling worker'
