@@ -20,11 +20,15 @@ export default defineConfig(({ mode }) => {
 			}
 		},
 		optimizeDeps: {
-			include: ['monaco-editor']
+			include: ['monaco-editor'],
+			rolldownOptions: {
+				// Ensure monaco-editor is fully tree-shaken during pre-bundling
+				treeshake: true
+			}
 		},
 		build: {
 			reportCompressedSize: true,
-			rollupOptions: {
+			rolldownOptions: {
 				output: {
 					manualChunks: (id) => {
 						if (id.includes('node_modules')) {
