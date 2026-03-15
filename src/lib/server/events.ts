@@ -7,8 +7,7 @@ import {
 	resourceUpdatesTotal,
 	sseSubscribersGauge,
 	activeWorkersGauge,
-	fluxResourcesReadyGauge,
-	fluxResourcesTotalGauge
+	fluxResourceStatusGauge
 } from './metrics.js';
 import { captureReconciliation } from './kubernetes/flux/reconciliation-tracker.js';
 import { SETTLING_PERIOD_MS, POLL_INTERVAL_MS, HEARTBEAT_INTERVAL_MS } from './config/constants.js';
@@ -200,6 +199,10 @@ function stopWorker(context: ClusterContext, reason: string = 'no active subscri
 		clearInterval(context.heartbeatInterval);
 		context.heartbeatInterval = null;
 	}
+	for (const resourceType of WATCH_RESOURCES) {
+		fluxResourcesReadyGauge.labels(context.clusterId, resourceType).set(0);
+		fluxResourcesTotalGauge.labels(context.clusterId, resourceType).set(0);
+	}
 	logger.info(
 		{ clusterId: context.clusterId, reason },
 		'[EventBus] Stopping consolidated polling worker'
@@ -269,6 +272,17 @@ async function poll(context: ClusterContext) {
 						});
 
 						const readyCondition = conditions?.find((c: { type: string }) => c.type === 'Ready');
+
+						// Update resource status gauge
+						fluxResourceStatusGauge
+							.labels(
+								context.clusterId,
+								resourceType,
+								resource.metadata.namespace || 'unknown',
+								resource.metadata.name || 'unknown',
+								'Ready'
+							)
+							.set(readyCondition?.status === 'True' ? 1 : 0);
 
 						const revision = getResourceRevision(resource);
 
@@ -401,6 +415,9 @@ async function poll(context: ClusterContext) {
 						if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
 							const [type, namespace, name] = key.split('/');
 
+							// Clear status gauge
+							fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
+
 							resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
 							broadcast(context, {
 								type: 'DELETED',
@@ -421,19 +438,6 @@ async function poll(context: ClusterContext) {
 							context.resourceFirstSeen.delete(key);
 						}
 					}
-
-					// Update aggregate gauges after processing all resources and deletions
-					let readyCount = 0;
-					let totalCount = 0;
-					for (const resource of resourceList.items) {
-						const readyCondition = resource.status?.conditions?.find(
-							(c: K8sCondition) => c.type === 'Ready'
-						);
-						if (readyCondition?.status === 'True') readyCount++;
-						totalCount++;
-					}
-					fluxResourcesReadyGauge.labels(context.clusterId, resourceType).set(readyCount);
-					fluxResourcesTotalGauge.labels(context.clusterId, resourceType).set(totalCount);
 				}
 			} catch (err) {
 				resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();

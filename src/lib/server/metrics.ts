@@ -80,17 +80,11 @@ export const activeWorkersGauge = getOrCreateGauge({
 	help: 'Current number of active cluster polling workers'
 });
 
-// Flux Resource Status (aggregate, bounded cardinality)
-export const fluxResourcesReadyGauge = getOrCreateGauge({
-	name: 'gyre_flux_resources_ready',
-	help: 'Number of Flux resources with Ready status True',
-	labelNames: ['cluster_id', 'resource_type']
-});
-
-export const fluxResourcesTotalGauge = getOrCreateGauge({
-	name: 'gyre_flux_resources_total',
-	help: 'Total number of Flux resources',
-	labelNames: ['cluster_id', 'resource_type']
+// Flux Resource Status
+export const fluxResourceStatusGauge = getOrCreateGauge({
+	name: 'gyre_flux_resource_status',
+	help: 'Current status of Flux resources',
+	labelNames: ['cluster_id', 'resource_type', 'namespace', 'name', 'status'] // status: 'Ready' | 'NotReady' | 'Unknown'
 });
 
 // Session Cleanup
