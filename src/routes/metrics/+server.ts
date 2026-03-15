@@ -6,22 +6,15 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async ({ request, locals, setHeaders, getClientAddress }) => {
 	checkRateLimit({ setHeaders }, `metrics:${getClientAddress()}`, 120, 60 * 1000);
 
-	// Two-path auth: bearer token (for Prometheus scrapers) or admin session (for browser access)
-	if (GYRE_METRICS_TOKEN) {
-		const authHeader = request.headers.get('authorization') ?? '';
-		if (authHeader !== `Bearer ${GYRE_METRICS_TOKEN}`) {
-			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-				status: 401,
-				headers: { 'Content-Type': 'application/json' }
-			});
-		}
-	} else {
-		if (locals.user?.role !== 'admin') {
-			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-				status: 401,
-				headers: { 'Content-Type': 'application/json' }
-			});
-		}
+	// Accept requests that supply a valid bearer token OR come from an authenticated admin session.
+	const authHeader = request.headers.get('authorization') ?? '';
+	const hasValidToken = GYRE_METRICS_TOKEN && authHeader === `Bearer ${GYRE_METRICS_TOKEN}`;
+	const hasAdminSession = locals.user?.role === 'admin';
+	if (!hasValidToken && !hasAdminSession) {
+		return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+			status: 401,
+			headers: { 'Content-Type': 'application/json' }
+		});
 	}
 
 	const metrics = await register.metrics();
