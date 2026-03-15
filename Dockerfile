@@ -9,12 +9,18 @@ RUN go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
 # =============================================================================
 # Stage 1: Builder - Build the SvelteKit application
 # =============================================================================
-FROM oven/bun:1.3.10-alpine AS builder
+# Use Node.js as the builder base so better-sqlite3 compiles against the same
+# Node.js ABI that the runtime uses (avoids ERR_DLOPEN_FAILED at startup).
+# Bun is copied in solely for fast installs that respect bun.lock.
+FROM node:25-alpine3.23 AS builder
 
 WORKDIR /build
 
-# Install Node.js (required for SvelteKit build)
-RUN apk add --no-cache nodejs
+# Copy bun binary from official image for fast, lock-respecting installs
+COPY --from=oven/bun:1.3.10-alpine /usr/local/bin/bun /usr/local/bin/bun
+
+# Install native module build tools (better-sqlite3 has no prebuilt musl binaries)
+RUN apk add --no-cache python3 make g++
 
 # Copy package files
 COPY package.json bun.lock ./
@@ -29,6 +35,9 @@ COPY . .
 
 # Build the SvelteKit application
 RUN bun run build
+
+# Prune devDependencies - production node_modules only (respects bun.lock)
+RUN bun install --production --frozen-lockfile
 
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
@@ -56,17 +65,11 @@ RUN addgroup -g 1001 -S gyre && \
 
 WORKDIR /app
 
-# Copy built application from builder (with proper ownership)
+# Copy built application and pruned production node_modules from builder
 COPY --from=builder --chown=gyre:gyre /build/build ./build
 COPY --from=builder --chown=gyre:gyre /build/package.json ./package.json
 COPY --from=builder --chown=gyre:gyre /build/drizzle ./drizzle
-
-# Install production dependencies and remove npm to mitigate tar/minimatch CVEs
-RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
-    npm install --omit=dev && \
-    npm cache clean --force && \
-    rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx && \
-    apk del .build-deps
+COPY --from=builder --chown=gyre:gyre /build/node_modules ./node_modules
 
 # Create data directory for SQLite database (PVC mount point)
 RUN mkdir -p /data && chown -R gyre:gyre /data
@@ -84,11 +87,15 @@ EXPOSE 3000
 # limits. This also protects against chunked uploads with no Content-Length.
 ENV NODE_ENV=production \
     PORT=3000 \
-    BODY_SIZE_LIMIT=500M
+    BODY_SIZE_LIMIT=500M \
+    DATABASE_URL=/data/gyre.db \
+    KUBECONFIG=/app/.kube/config
 
 # Health check
+# /metrics is a lightweight public endpoint that responds regardless of K8s connectivity.
+# Avoids false-negative unhealthy status when no kubeconfig is mounted yet.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/api/v1/flux/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+    CMD node -e "require('http').get('http://localhost:3000/metrics', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 # Start the application
 # Node.js 18+ handles signals properly, no init system needed
