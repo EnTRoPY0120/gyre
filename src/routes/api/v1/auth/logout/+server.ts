@@ -46,10 +46,6 @@ export const _metadata = {
  * Logout user and clear session
  */
 export const POST: RequestHandler = async ({ request, cookies, locals, getClientAddress }) => {
-	if (!locals.cluster) {
-		throw error(400, { message: 'Missing cluster context' });
-	}
-
 	try {
 		const ipAddress = getClientAddress();
 		const { all } = await request.json().catch(() => ({}));

@@ -222,7 +222,7 @@ export async function addPasswordHistory(userId: string, oldPasswordHash: string
 	// Insert and prune atomically so a crash between the two operations cannot
 	// leave the history table with more than PASSWORD_HISTORY_LIMIT entries.
 	// Ordering by createdAtMs (milliseconds) avoids ties at second resolution.
-	db.transaction((tx) => {
+	await db.transaction((tx) => {
 		tx.insert(passwordHistory)
 			.values({
 				id: generateUserId(),
