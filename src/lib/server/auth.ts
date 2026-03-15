@@ -14,7 +14,7 @@ import { loginAttemptsTotal, sessionsCleanedUpTotal } from './metrics.js';
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
 const SALT_ROUNDS = 12;
-const SESSION_DURATION_DAYS = 2;
+export const SESSION_DURATION_DAYS = 2;
 const PASSWORD_HISTORY_LIMIT = 5;
 const ADMIN_SECRET_NAME = 'gyre-initial-admin-secret';
 
@@ -269,12 +269,41 @@ export async function updateUserPassword(id: string, newPassword: string): Promi
 	const db = await getDb();
 
 	const currentUser = await getUserById(id);
-	if (currentUser?.passwordHash) {
-		await addPasswordHistory(id, currentUser.passwordHash);
-	}
+	// Hash before the transaction — bcrypt is async and cannot run inside a sync tx callback.
+	const newPasswordHash = await hashPassword(newPassword);
+	const now = Date.now();
 
-	const passwordHash = await hashPassword(newPassword);
-	await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, id));
+	await db.transaction((tx) => {
+		// Archive the old hash and prune history atomically with the password update
+		// so a crash between the two operations cannot leave the DB in a partial state.
+		if (currentUser?.passwordHash) {
+			tx.insert(passwordHistory)
+				.values({
+					id: generateUserId(),
+					userId: id,
+					passwordHash: currentUser.passwordHash,
+					createdAtMs: now
+				})
+				.run();
+
+			const rows = tx
+				.select({ id: passwordHistory.id })
+				.from(passwordHistory)
+				.where(eq(passwordHistory.userId, id))
+				.orderBy(desc(passwordHistory.createdAtMs))
+				.all();
+
+			if (rows.length > PASSWORD_HISTORY_LIMIT) {
+				const toDelete = rows.slice(PASSWORD_HISTORY_LIMIT).map((r) => r.id);
+				tx.delete(passwordHistory).where(inArray(passwordHistory.id, toDelete)).run();
+			}
+		}
+
+		tx.update(users)
+			.set({ passwordHash: newPasswordHash, updatedAt: new Date() })
+			.where(eq(users.id, id))
+			.run();
+	});
 }
 
 export async function deleteUser(id: string): Promise<void> {

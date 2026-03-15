@@ -49,7 +49,7 @@ export const _metadata = {
 	}
 };
 import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
-import { createSession, cleanupSetupTokenFile } from '$lib/server/auth';
+import { createSession, cleanupSetupTokenFile, SESSION_DURATION_DAYS } from '$lib/server/auth';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
 /**
@@ -169,7 +169,7 @@ export const GET: RequestHandler = async (event) => {
 			httpOnly: true,
 			secure: true,
 			sameSite: 'lax',
-			maxAge: 60 * 60 * 24 * 7 // 7 days
+			maxAge: SESSION_DURATION_DAYS * 24 * 60 * 60
 		});
 
 		logger.info({ providerId, userId: user.id }, 'SSO login successful');
