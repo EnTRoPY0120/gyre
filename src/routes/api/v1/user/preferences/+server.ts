@@ -9,6 +9,18 @@ import type { UserPreferences } from '$lib/types/user';
 import { requirePermission } from '$lib/server/rbac';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
+const preferencesSchema = z.object({
+	theme: z.enum(['light', 'dark', 'system']).optional(),
+	notifications: z
+		.object({
+			enabled: z.boolean().optional(),
+			resourceTypes: z.array(z.string()).optional(),
+			namespaces: z.array(z.string()).optional(),
+			events: z.array(z.enum(['success', 'failure', 'warning', 'info', 'error'])).optional()
+		})
+		.optional()
+});
+
 export const _metadata = {
 	POST: {
 		summary: 'Update user preferences',
@@ -18,19 +30,7 @@ export const _metadata = {
 			body: {
 				content: {
 					'application/json': {
-						schema: z.object({
-							theme: z.enum(['light', 'dark', 'system']).optional(),
-							notifications: z
-								.object({
-									enabled: z.boolean().optional(),
-									resourceTypes: z.array(z.string()).optional(),
-									namespaces: z.array(z.string()).optional(),
-									events: z
-										.array(z.enum(['success', 'failure', 'warning', 'info', 'error']))
-										.optional()
-								})
-								.optional()
-						})
+						schema: preferencesSchema
 					}
 				}
 			}
@@ -78,23 +78,22 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 
 	checkRateLimit({ setHeaders }, `preferences:${locals.user.id}`, 30, 60 * 1000);
 
-	let newPreferences: Partial<UserPreferences>;
+	let rawBody: unknown;
 
 	try {
-		newPreferences = await request.json();
+		rawBody = await request.json();
 	} catch {
 		throw error(400, 'Invalid JSON');
 	}
 
-	// Validate that newPreferences is a plain object
-
-	if (
-		typeof newPreferences !== 'object' ||
-		newPreferences === null ||
-		Array.isArray(newPreferences)
-	) {
-		throw error(400, 'Invalid preferences payload');
+	const parsed = preferencesSchema.safeParse(rawBody);
+	if (!parsed.success) {
+		throw error(400, {
+			message: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+		});
 	}
+
+	const newPreferences: Partial<UserPreferences> = parsed.data;
 
 	try {
 		const db = await getDb();

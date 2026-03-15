@@ -69,7 +69,7 @@
 
 		// Validate YAML syntax
 		try {
-			const parsed = yaml.load(yamlContent);
+			const parsed = yaml.load(yamlContent); // js-yaml v4: yaml.load() is safe by default (no JS execution)
 
 			// Validate basic resource structure
 			if (!parsed || typeof parsed !== 'object') {

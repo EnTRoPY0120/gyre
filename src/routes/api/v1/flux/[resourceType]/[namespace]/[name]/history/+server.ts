@@ -4,6 +4,7 @@ import type { RequestHandler } from './$types';
 import { getReconciliationHistory } from '$lib/server/kubernetes/flux/reconciliation-tracker';
 import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac';
+import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const _metadata = {
@@ -58,6 +59,10 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 	}
 
 	const { resourceType, namespace, name } = params;
+
+	validateK8sNamespace(namespace);
+	validateK8sName(name);
+
 	const resolvedType = getResourceTypeByPlural(resourceType);
 
 	if (!resolvedType) {

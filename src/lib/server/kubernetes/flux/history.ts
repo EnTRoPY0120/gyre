@@ -43,14 +43,16 @@ export async function getResourceHistory(
  * @param name - Resource name
  * @param revisionOrHistoryId - Either a revision string or history entry ID
  * @param context - Cluster context
+ * @param dryRun - If true, return the patch that would be applied without actually patching
  */
 export async function rollbackResource(
 	type: FluxResourceType,
 	namespace: string,
 	name: string,
 	revisionOrHistoryId: string,
-	context?: string
-): Promise<void> {
+	context?: string,
+	dryRun?: boolean
+): Promise<{ patch: object; historyEntry: { id: string; revision: string | null } } | void> {
 	const clusterId = context || 'in-cluster';
 
 	// 1. Fetch history entry to get spec snapshot
@@ -106,7 +108,12 @@ export async function rollbackResource(
 		}
 	};
 
-	// 5. Patch the resource using merge-patch strategy
+	// 5. If dry-run, return the patch without applying it
+	if (dryRun) {
+		return { patch, historyEntry: { id: historyEntry.id, revision: historyEntry.revision } };
+	}
+
+	// 6. Patch the resource using merge-patch strategy
 	await api.patchNamespacedCustomObject(
 		{
 			group: resourceDef.group,

@@ -12,6 +12,7 @@ import { requirePermission } from '$lib/server/rbac';
 import { classifyDiffError } from '$lib/server/kubernetes/flux/diff-errors';
 import * as k8s from '@kubernetes/client-node';
 import yaml from 'js-yaml';
+import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
@@ -136,6 +137,9 @@ function downloadArtifact(url: string, timeoutMs = 15000): Promise<Buffer> {
 export const GET: RequestHandler = async ({ params, locals, url }) => {
 	const { resourceType: pluralType, namespace, name } = params;
 	const clusterId = locals.cluster;
+
+	validateK8sNamespace(namespace);
+	validateK8sName(name);
 	const forceRefresh = url.searchParams.get('force') === 'true';
 
 	// Check if running in-cluster (required for drift detection)
