@@ -19,6 +19,7 @@ import { logAudit } from '$lib/server/audit.js';
 import { deleteResource } from '$lib/server/kubernetes/flux/actions.js';
 import type { K8sResource } from '$lib/types/kubernetes';
 import yaml from 'js-yaml';
+import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 
 export const _metadata = {
 	GET: {
@@ -131,6 +132,9 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 	const { resourceType, namespace, name } = params;
 	const getStatus = url.searchParams.get('status') === 'true';
 
+	validateK8sNamespace(namespace);
+	validateK8sName(name);
+
 	// Resolve resource type from plural name
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
@@ -202,6 +206,9 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
 	const { resourceType, namespace, name } = params;
 
+	validateK8sNamespace(namespace);
+	validateK8sName(name);
+
 	// Resolve resource type from plural name
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
 	if (!resolvedType) {
@@ -239,7 +246,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	// Parse YAML to object
 	let resource: K8sResource;
 	try {
-		resource = yaml.load(body.yaml) as K8sResource;
+		resource = yaml.load(body.yaml) as K8sResource; // js-yaml v4: yaml.load() is safe by default (no JS execution)
 	} catch (err) {
 		throw error(400, {
 			message: `Invalid YAML: ${err instanceof Error ? err.message : 'Unable to parse'}`
@@ -305,6 +312,9 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 	}
 
 	const { resourceType, namespace, name } = params;
+
+	validateK8sNamespace(namespace);
+	validateK8sName(name);
 
 	// Resolve resource type from plural name
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);

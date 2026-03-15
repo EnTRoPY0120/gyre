@@ -6,6 +6,7 @@ import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 import { logResourceWrite, logAudit } from '$lib/server/audit.js';
+import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 
 export const _metadata = {
 	POST: {
@@ -24,8 +25,12 @@ export const _metadata = {
 					'application/json': {
 						schema: z
 							.object({
-								revision: z.string().optional().openapi({ example: 'main@sha1:abc123' }),
-								historyId: z.string().optional().openapi({ example: '01J...' })
+								revision: z.string().max(500).optional().openapi({ example: 'main@sha1:abc123' }),
+								historyId: z.string().max(500).optional().openapi({ example: '01J...' }),
+								dryRun: z
+									.boolean()
+									.optional()
+									.openapi({ description: 'If true, return the patch preview without applying it' })
 							})
 							.openapi({
 								description:
@@ -61,15 +66,29 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 	}
 
 	const { resourceType, namespace, name } = params;
+
+	validateK8sNamespace(namespace);
+	validateK8sName(name);
+
 	let revision: string | undefined;
 	let historyId: string | undefined;
+	let dryRun = false;
 
 	try {
 		const body = await request.json();
 		revision = body.revision;
 		historyId = body.historyId;
+		dryRun = body.dryRun === true;
 	} catch {
 		throw error(400, { message: 'Invalid JSON payload' });
+	}
+
+	// Enforce max length (schema validates on OpenAPI side; check here for direct calls)
+	if (revision && revision.length > 500) {
+		throw error(400, { message: 'revision exceeds maximum length of 500 characters' });
+	}
+	if (historyId && historyId.length > 500) {
+		throw error(400, { message: 'historyId exceeds maximum length of 500 characters' });
 	}
 
 	// Either revision or historyId must be provided
@@ -100,7 +119,18 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 	const target = historyId || revision || '';
 
 	try {
-		await rollbackResource(resolvedType, namespace, name, target, locals.cluster);
+		const result = await rollbackResource(
+			resolvedType,
+			namespace,
+			name,
+			target,
+			locals.cluster,
+			dryRun
+		);
+
+		if (dryRun && result) {
+			return json({ dryRun: true, patch: result.patch, historyEntry: result.historyEntry });
+		}
 
 		// Log the audit event
 		await logResourceWrite(locals.user, resolvedType, 'rollback', name, namespace, locals.cluster, {
