@@ -147,7 +147,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			path === '/api/v1/flux/health';
 		if (!isStaticAsset && !isHealthEndpoint) {
 			const ip = event.getClientAddress();
-			const globalLimit = tryCheckRateLimit(event, `global:${ip}`, 300, 60 * 1000);
+			// Pass a no-op setHeaders so the global limiter doesn't set X-RateLimit-* on the event —
+			// endpoint-specific limiters own those headers and SvelteKit throws if they're set twice.
+			const globalLimit = tryCheckRateLimit({ setHeaders: () => {} }, `global:${ip}`, 300, 60 * 1000);
 			if (globalLimit.limited) {
 				return recordResponse(
 					new Response(JSON.stringify({ error: 'Too Many Requests' }), {
