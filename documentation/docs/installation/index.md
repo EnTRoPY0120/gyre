@@ -109,12 +109,19 @@ helm install gyre oci://ghcr.io/entropy0120/gyre/gyre \
 If you want to try the UI without installing it inside your cluster, you can run it locally connected to your `kubeconfig`. Make sure your current Kubernetes context points to a cluster with Flux installed.
 
 ```bash
-docker run -d \
-  --name gyre \
-  -p 3000:3000 \
-  -v ~/.kube/config:/root/.kube/config:ro \
-  ghcr.io/entropy0120/gyre:latest
+docker run \
+    -e AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32) \
+    -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
+    -e ADMIN_PASSWORD=admin123 \
+    -v gyre-data:/data \
+    -v ~/.kube/config:/app/.kube/config:ro \
+    -p 3000:3000 \
+    ghcr.io/entropy0120/gyre:latest
 ```
+
+:::tip
+Change `ADMIN_PASSWORD` to a strong password before use. The `AUTH_ENCRYPTION_KEY` and `GYRE_ENCRYPTION_KEY` values are used to encrypt session data and secrets — regenerate them with `openssl rand -hex 32` each time you deploy.
+:::
 
 ## Option 4: Local Demo Script
 
