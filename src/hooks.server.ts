@@ -173,6 +173,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 				if (cookies.get('gyre_csrf') !== csrfToken) {
 					cookies.set('gyre_csrf', csrfToken, CSRF_COOKIE_OPTIONS);
 				}
+			} else {
+				// Session is expired, invalid, or the user has been deactivated
+				// (getSession already revoked all DB sessions in the inactive-user case).
+				// Clear the stale cookie so the client doesn't keep replaying it.
+				cookies.delete('gyre_session', { path: '/' });
 			}
 		}
 

@@ -260,7 +260,7 @@ describe('createSession', () => {
 		expect(row!.userId).toBe(userId);
 	});
 
-	test('session expiry is approximately 7 days in the future', async () => {
+	test('session expiry is approximately 2 days in the future', async () => {
 		const db = state.db!;
 		const userId = await insertUser(db);
 		const beforeDate = new Date();
@@ -270,11 +270,11 @@ describe('createSession', () => {
 		const row = db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
 		const expiresMs = row!.expiresAt.getTime();
 
-		// Mirror createSession's setDate(getDate() + 7) to avoid DST skew
+		// Mirror createSession's setDate(getDate() + 2) to avoid DST skew
 		const expectedBefore = new Date(beforeDate);
-		expectedBefore.setDate(expectedBefore.getDate() + 7);
+		expectedBefore.setDate(expectedBefore.getDate() + 2);
 		const expectedAfter = new Date(afterDate);
-		expectedAfter.setDate(expectedAfter.getDate() + 7);
+		expectedAfter.setDate(expectedAfter.getDate() + 2);
 
 		expect(expiresMs).toBeGreaterThanOrEqual(expectedBefore.getTime() - 1000);
 		expect(expiresMs).toBeLessThanOrEqual(expectedAfter.getTime() + 1000);

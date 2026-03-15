@@ -5,11 +5,13 @@ import type { RequestHandler } from './$types';
 import {
 	authenticateUser,
 	createSession,
+	rotateSession,
 	getUserByUsername,
 	normalizeUsername,
 	hashPassword,
 	verifyPassword
 } from '$lib/server/auth';
+import { logLogin } from '$lib/server/audit';
 import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 
 // Generate a real bcrypt hash at startup for timing-attack mitigation (avoids malformed-hash fast-path)
@@ -144,12 +146,14 @@ export const POST: RequestHandler = async (event) => {
 			await verifyPassword(password, await DUMMY_HASH);
 
 			accountLockout.recordFailure(canonicalUsername, 5);
+			await logLogin(null, false, ipAddress, 'user_not_found');
 			throw error(401, { message: 'Invalid username or password' });
 		}
 
 		if (!existingUser.active) {
 			// Still do dummy verification here if we want to be super careful,
 			// though account being disabled is already a "user exists" indicator.
+			await logLogin(existingUser, false, ipAddress, 'account_disabled');
 			throw error(403, { message: 'Account is disabled. Please contact an administrator.' });
 		}
 
@@ -158,18 +162,27 @@ export const POST: RequestHandler = async (event) => {
 
 		if (!user) {
 			accountLockout.recordFailure(canonicalUsername, 5);
+			await logLogin(existingUser, false, ipAddress, 'invalid_password');
 			throw error(401, { message: 'Invalid username or password' });
 		}
 
 		// Reset lockout on successful login
 		accountLockout.recordSuccess(canonicalUsername);
 
-		// Create session
+		// Session fixation prevention: rotate session if one already exists
 		const userAgent = request.headers.get('user-agent') || undefined;
-		const sessionId = await createSession(user.id, ipAddress, userAgent);
+		const existingSessionId = cookies.get('gyre_session');
+		let sessionId: string;
+		if (existingSessionId) {
+			sessionId = await rotateSession(existingSessionId, user.id, ipAddress, userAgent);
+		} else {
+			sessionId = await createSession(user.id, ipAddress, userAgent);
+		}
 
 		// Set session cookie
 		cookies.set('gyre_session', sessionId, DEFAULT_COOKIE_OPTIONS);
+
+		await logLogin(user, true, ipAddress);
 
 		return json({
 			success: true,

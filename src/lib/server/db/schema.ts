@@ -144,6 +144,25 @@ export const rbacBindings = sqliteTable(
 	}
 );
 
+// Password History table (tracks last N password hashes per user)
+export const passwordHistory = sqliteTable(
+	'password_history',
+	{
+		id: text('id').primaryKey(),
+		userId: text('user_id')
+			.notNull()
+			.references(() => users.id, { onDelete: 'cascade' }),
+		passwordHash: text('password_hash').notNull(),
+		createdAtMs: integer('created_at_ms').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`)
+	},
+	(table) => ({
+		userIdIdx: index('idx_password_history_user_id').on(table.userId)
+	})
+);
+
 // Types
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -159,6 +178,8 @@ export type RbacPolicy = typeof rbacPolicies.$inferSelect;
 export type NewRbacPolicy = typeof rbacPolicies.$inferInsert;
 export type RbacBinding = typeof rbacBindings.$inferSelect;
 export type NewRbacBinding = typeof rbacBindings.$inferInsert;
+export type PasswordHistory = typeof passwordHistory.$inferSelect;
+export type NewPasswordHistory = typeof passwordHistory.$inferInsert;
 
 // Auth Providers table (SSO configuration)
 export const authProviders = sqliteTable('auth_providers', {
@@ -250,7 +271,8 @@ export const userProviderRelations = relations(userProviders, ({ one }) => ({
 export const userRelations = relations(users, ({ many }) => ({
 	sessions: many(sessions),
 	ssoProviders: many(userProviders),
-	auditLogs: many(auditLogs)
+	auditLogs: many(auditLogs),
+	passwordHistories: many(passwordHistory)
 }));
 
 // Audit log relations

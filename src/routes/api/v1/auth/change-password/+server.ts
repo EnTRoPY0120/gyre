@@ -2,7 +2,7 @@ import { logger } from '$lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { updateUserPassword, verifyPassword } from '$lib/server/auth';
+import { updateUserPassword, verifyPassword, isPasswordInHistory } from '$lib/server/auth';
 import { logAudit } from '$lib/server/audit';
 
 export const _metadata = {
@@ -117,6 +117,19 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const isSamePassword = await verifyPassword(newPassword, user.passwordHash);
 		if (isSamePassword) {
 			throw error(400, { message: 'New password must be different from current password' });
+		}
+
+		// Check password history
+		const isReused = await isPasswordInHistory(user.id, newPassword);
+		if (isReused) {
+			await logAudit(user, 'password_change_failed', {
+				success: false,
+				ipAddress: locals.session?.ipAddress || undefined,
+				details: { reason: 'password_reuse_attempt' }
+			});
+			throw error(400, {
+				message: 'New password cannot be the same as a recently used password'
+			});
 		}
 
 		// Update password

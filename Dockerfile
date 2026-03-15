@@ -30,6 +30,10 @@ COPY . .
 # Build the SvelteKit application
 RUN bun run build
 
+# Generate a package-lock.json so the runtime stage can use `npm ci`
+# (bun.lock is bun-specific; npm in the runtime stage can't read it)
+RUN npm install --package-lock-only --ignore-scripts
+
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
@@ -59,11 +63,12 @@ WORKDIR /app
 # Copy built application from builder (with proper ownership)
 COPY --from=builder --chown=gyre:gyre /build/build ./build
 COPY --from=builder --chown=gyre:gyre /build/package.json ./package.json
+COPY --from=builder --chown=gyre:gyre /build/package-lock.json ./package-lock.json
 COPY --from=builder --chown=gyre:gyre /build/drizzle ./drizzle
 
 # Install production dependencies and remove npm to mitigate tar/minimatch CVEs
 RUN apk add --no-cache --virtual .build-deps python3 make g++ && \
-    npm install --omit=dev && \
+    npm ci --omit=dev && \
     npm cache clean --force && \
     rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx && \
     apk del .build-deps
