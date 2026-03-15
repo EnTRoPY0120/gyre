@@ -28,7 +28,7 @@ COPY package.json bun.lock ./
 # Install all dependencies (including devDependencies for build)
 # Use cache mount for faster rebuilds
 RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
+  bun install --frozen-lockfile
 
 # Copy source code
 COPY . .
@@ -46,9 +46,9 @@ FROM node:25-alpine3.23 AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
-      org.opencontainers.image.description="Modern WebUI for FluxCD" \
-      org.opencontainers.image.vendor="Gyre Project" \
-      org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
+  org.opencontainers.image.description="Modern WebUI for FluxCD" \
+  org.opencontainers.image.vendor="Gyre Project" \
+  org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
 # Upgrade OS packages to pull in security patches (e.g. zlib CVE-2026-22184)
 RUN apk upgrade --no-cache
@@ -61,7 +61,7 @@ COPY --from=kustomize-builder /go/bin/kustomize /usr/local/bin/kustomize
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S gyre && \
-    adduser -S -D -H -u 1001 -h /app -s /sbin/nologin -G gyre -g gyre gyre
+  adduser -S -D -H -u 1001 -h /app -s /sbin/nologin -G gyre -g gyre gyre
 
 WORKDIR /app
 
@@ -86,16 +86,16 @@ EXPOSE 3000
 # adapter acts as a hard ceiling while hooks.server.ts enforces per-endpoint
 # limits. This also protects against chunked uploads with no Content-Length.
 ENV NODE_ENV=production \
-    PORT=3000 \
-    BODY_SIZE_LIMIT=500M \
-    DATABASE_URL=/data/gyre.db \
-    KUBECONFIG=/app/.kube/config
+  PORT=3000 \
+  BODY_SIZE_LIMIT=500M \
+  DATABASE_URL=/data/gyre.db \
+  KUBECONFIG=/app/.kube/config
 
 # Health check
 # /metrics is a lightweight public endpoint that responds regardless of K8s connectivity.
 # Avoids false-negative unhealthy status when no kubeconfig is mounted yet.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/metrics', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+  CMD node -e "require('http').get('http://localhost:3000/metrics', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 # Start the application
 # Node.js 18+ handles signals properly, no init system needed

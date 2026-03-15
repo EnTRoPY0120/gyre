@@ -4,6 +4,8 @@
 
 export const IS_PROD = process.env.NODE_ENV === 'production';
 
+import { SESSION_DURATION_DAYS } from './auth.js';
+
 /**
  * Default cookie options for security.
  * NOTE: secure: IS_PROD allows cookies to work over HTTP in local development.
@@ -14,7 +16,7 @@ export const DEFAULT_COOKIE_OPTIONS = {
 	httpOnly: true,
 	secure: IS_PROD,
 	sameSite: 'lax' as const,
-	maxAge: 60 * 60 * 24 * 7 // 7 days (session TTL)
+	maxAge: SESSION_DURATION_DAYS * 24 * 60 * 60
 };
 
 /**
