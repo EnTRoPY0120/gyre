@@ -49,7 +49,7 @@ export const _metadata = {
 							z.object({ success: z.boolean(), message: z.string() }),
 							z.object({
 								dryRun: z.literal(true),
-								patch: z.record(z.unknown()),
+								patch: z.record(z.string(), z.unknown()),
 								historyEntry: z.object({ id: z.string(), revision: z.string().nullable() })
 							})
 						])
@@ -146,6 +146,7 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 		);
 
 		if (dryRun && result) {
+			// Dry-run returns a preview of the patch without mutating anything — intentionally not audited.
 			return json({ dryRun: true, patch: result.patch, historyEntry: result.historyEntry });
 		}
 
