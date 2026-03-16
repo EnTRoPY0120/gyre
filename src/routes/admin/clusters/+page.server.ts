@@ -219,7 +219,6 @@ export const actions: Actions = {
 
 		const formData = await request.formData();
 		const clusterId = formData.get('clusterId') as string;
-		const clusterName = formData.get('clusterName') as string;
 
 		if (!clusterId) {
 			return fail(400, { error: 'Cluster ID is required' });
@@ -233,7 +232,7 @@ export const actions: Actions = {
 		try {
 			await deleteCluster(clusterId);
 
-			await logClusterChange(locals.user, 'delete', clusterName || 'unknown', { clusterId });
+			await logClusterChange(locals.user, 'delete', existing.name, { clusterId });
 
 			return { success: true };
 		} catch (error) {

@@ -502,7 +502,6 @@
 					</div>
 
 					<div class="flex items-center gap-2">
-						<input type="hidden" name="active" value="false" />
 						<input
 							type="checkbox"
 							name="active"
@@ -511,6 +510,7 @@
 							id="active"
 							class="rounded border-slate-600 bg-slate-700 text-amber-500 focus:ring-amber-500"
 						/>
+						<input type="hidden" name="active" value="false" />
 						<label for="active" class="text-sm text-slate-300">Active</label>
 					</div>
 
