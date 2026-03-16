@@ -79,10 +79,24 @@ export function sanitizeK8sErrorMessage(message: string): string {
 			// Redact IPv6 addresses (simplified pattern)
 			.replace(/\[?[0-9a-fA-F:]+:[0-9a-fA-F:]+\]?/g, '[REDACTED IP]')
 			// Redact possible sensitive tokens in messages
-			.replace(/token=[a-zA-Z0-9._-]+/g, 'token=[REDACTED]')
-			.replace(/password=[a-zA-Z0-9._-]+/g, 'password=[REDACTED]')
-			.replace(/bearer\s+[a-zA-Z0-9._-]+/gi, 'Bearer [REDACTED]')
-			.replace(/(api[_-]?key|secret)[=:]\s*[a-zA-Z0-9._-]+/gi, '$1=[REDACTED]')
+			.replace(/token=[a-zA-Z0-9._-]+/gi, 'token=[REDACTED]')
+			.replace(/password=[a-zA-Z0-9._-]+/gi, 'password=[REDACTED]')
+			.replace(/bearer\s+[a-zA-Z0-9._\-+/=]+/gi, 'Bearer [REDACTED]')
+			.replace(/(api[_-]?key|secret|credential)[=:]\s*[a-zA-Z0-9._\-+/=]+/gi, '$1=[REDACTED]')
+			// Redact JWT tokens (three base64url segments separated by dots)
+			.replace(/[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}\.[a-zA-Z0-9_-]{20,}/g, '[REDACTED JWT]')
+			// Redact PEM-encoded private key material
+			.replace(
+				/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
+				'[REDACTED KEY]'
+			)
+			// Redact database/connection string credentials (user:pass@host)
+			.replace(/:[^:@\s]+@[a-zA-Z0-9._-]+/g, ':[REDACTED]@[REDACTED HOST]')
+			// Redact kubeconfig user tokens or certificate data (long base64 strings after known keys)
+			.replace(
+				/(token|certificate-authority-data|client-certificate-data|client-key-data):\s*[a-zA-Z0-9+/=]{20,}/gi,
+				'$1: [REDACTED]'
+			)
 	);
 }
 

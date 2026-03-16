@@ -96,11 +96,4 @@
 		</a>
 	</div>
 
-	<!-- Technical Details (for non-404 errors) -->
-	{#if !is404 && message}
-		<div class="mt-8 rounded-lg border border-gray-200 bg-gray-50 p-4">
-			<p class="text-xs font-medium text-gray-500 uppercase">Technical Details</p>
-			<p class="mt-1 font-mono text-sm text-gray-600">{message}</p>
-		</div>
-	{/if}
 </div>
