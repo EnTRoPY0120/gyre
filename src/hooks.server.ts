@@ -5,7 +5,7 @@ import { initializeGyre } from '$lib/server/initialize';
 import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
 import { getRequestSizeLimit, validateRequestSize, formatSize } from '$lib/server/request-limits';
 import { generateCsrfToken, validateCsrfToken } from '$lib/server/csrf';
-import { CSRF_COOKIE_OPTIONS } from '$lib/server/config';
+import { CSRF_COOKIE_OPTIONS, IS_PROD } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { getClusterById } from '$lib/server/clusters';
 
@@ -69,6 +69,29 @@ function isPublicRoute(path: string): boolean {
 	return false;
 }
 
+function setSecurityHeaders(response: Response): void {
+	response.headers.set('X-Content-Type-Options', 'nosniff');
+	response.headers.set('X-Frame-Options', 'DENY');
+	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+	response.headers.set(
+		'Content-Security-Policy',
+		[
+			"default-src 'self'",
+			"script-src 'self' 'unsafe-inline'",
+			"style-src 'self' 'unsafe-inline'",
+			"img-src 'self' data: blob:",
+			"font-src 'self' data:",
+			"connect-src 'self'",
+			"frame-ancestors 'none'",
+			"object-src 'none'",
+			"base-uri 'self'"
+		].join('; ')
+	);
+	if (IS_PROD) {
+		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+	}
+}
+
 /**
  * Handle function to manage:
  * 1. Request size validation (DoS protection)
@@ -98,6 +121,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 					.observe(duration);
 			}
 			response.headers.set('x-request-id', requestId);
+			setSecurityHeaders(response);
 			return response;
 		};
 
