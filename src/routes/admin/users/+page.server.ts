@@ -20,7 +20,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const search = url.searchParams.get('search') || '';
 	const limitParam = parseInt(url.searchParams.get('limit') || '10');
 	const offsetParam = parseInt(url.searchParams.get('offset') || '0');
-	const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10;
+	const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 10;
 	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
 	// Load paginated users
@@ -69,6 +69,17 @@ export const actions: Actions = {
 			return fail(400, { error: 'Username must be at least 3 characters' });
 		}
 
+		if (username.length > 64) {
+			return fail(400, { error: 'Username must be at most 64 characters' });
+		}
+
+		if (email) {
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!emailRegex.test(email)) {
+				return fail(400, { error: 'Invalid email format' });
+			}
+		}
+
 		if (password.length < 8) {
 			return fail(400, { error: 'Password must be at least 8 characters' });
 		}
@@ -82,7 +93,7 @@ export const actions: Actions = {
 		} catch (error) {
 			logger.error(error, 'Error creating user:');
 			if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
-				return fail(400, { error: 'Username already exists' });
+				return fail(400, { error: 'Failed to create user' });
 			}
 			return fail(500, { error: 'Failed to create user' });
 		}
@@ -104,6 +115,13 @@ export const actions: Actions = {
 
 		if (!userId) {
 			return fail(400, { error: 'User ID is required' });
+		}
+
+		if (email) {
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!emailRegex.test(email)) {
+				return fail(400, { error: 'Invalid email format' });
+			}
 		}
 
 		// Prevent self-demotion from admin
@@ -203,7 +221,7 @@ export const actions: Actions = {
 				passwordReset: true
 			});
 
-			return { success: true, password: newPassword };
+			return { success: true };
 		} catch (error) {
 			logger.error(error, 'Error resetting password:');
 			return fail(500, { error: 'Failed to reset password' });

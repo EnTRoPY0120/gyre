@@ -29,7 +29,7 @@
 			limit: number;
 			offset: number;
 		};
-		form?: { error?: string; success?: boolean; password?: string };
+		form?: { error?: string; success?: boolean };
 	}>();
 
 	let showCreateModal = $state(false);
@@ -37,6 +37,7 @@
 	let deletingUser = $state<User | null>(null);
 	let resettingPassword = $state<User | null>(null);
 	let generatedPassword = $state('');
+	let passwordResetSuccess = $state(false);
 	let searchValue = $state('');
 
 	// Sync searchValue with data.search changes (e.g., back/forward navigation)
@@ -71,11 +72,9 @@
 
 	function generatePassword() {
 		const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-		let password = '';
-		for (let i = 0; i < 12; i++) {
-			password += chars.charAt(Math.floor(Math.random() * chars.length));
-		}
-		return password;
+		const values = new Uint32Array(12);
+		crypto.getRandomValues(values);
+		return Array.from(values, (v) => chars[v % chars.length]).join('');
 	}
 
 	function openCreateModal() {
@@ -107,6 +106,7 @@
 		deletingUser = null;
 		resettingPassword = null;
 		generatedPassword = '';
+		passwordResetSuccess = false;
 	}
 
 	function getRoleBadgeColor(role: string) {
@@ -164,13 +164,6 @@
 				<CheckCircle2 size={20} />
 				Operation completed successfully
 			</div>
-			{#if form?.password}
-				<div class="mt-2 rounded bg-slate-900 p-3">
-					<p class="text-xs text-slate-400">Generated Password:</p>
-					<p class="font-mono text-sm text-amber-400">{form.password}</p>
-					<p class="mt-1 text-xs text-slate-500">Copy this now - it won't be shown again</p>
-				</div>
-			{/if}
 		</div>
 	{/if}
 
@@ -509,6 +502,7 @@
 					</div>
 
 					<div class="flex items-center gap-2">
+						<input type="hidden" name="active" value="false" />
 						<input
 							type="checkbox"
 							name="active"
@@ -598,13 +592,31 @@
 					>
 				</p>
 
+				{#if passwordResetSuccess}
+				<div class="space-y-4">
+					<div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400">
+						<div class="flex items-center gap-2">
+							<CheckCircle2 size={16} />
+							Password reset successfully
+						</div>
+					</div>
+					<div class="rounded bg-slate-900 p-3">
+						<p class="text-xs text-slate-400">New Password:</p>
+						<p class="font-mono text-sm text-amber-400">{generatedPassword}</p>
+						<p class="mt-1 text-xs text-slate-500">Copy this now - it won't be shown again</p>
+					</div>
+					<div class="flex justify-end pt-2">
+						<Button onclick={closeModals}>Done</Button>
+					</div>
+				</div>
+			{:else}
 				<form
 					method="POST"
 					action="?/resetPassword"
 					use:enhance={() => {
 						return async ({ result }) => {
 							if (result.type === 'success') {
-								closeModals();
+								passwordResetSuccess = true;
 								invalidateAll();
 							}
 						};
@@ -639,8 +651,7 @@
 					</div>
 
 					<p class="text-xs text-amber-400">
-						The password will be displayed after reset. Copy it immediately - it won't be shown
-						again.
+						Copy the password before submitting - it will only be shown once after reset.
 					</p>
 
 					<div class="flex justify-end gap-3 pt-4">
@@ -653,6 +664,7 @@
 						</Button>
 					</div>
 				</form>
+			{/if}
 			</div>
 		</div>
 	{/if}
