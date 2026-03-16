@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
 import { mkdir } from 'node:fs/promises';
 import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, normalize } from 'node:path';
 import * as schema from './schema.js';
 
 // Determine database path
@@ -11,8 +11,12 @@ import * as schema from './schema.js';
 // - Local development: ./data/gyre.db (relative to project root)
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
-if (process.env.DATABASE_URL && databaseUrl.includes('..')) {
-	throw new Error('DATABASE_URL must not contain path traversal sequences (..)');
+if (process.env.DATABASE_URL) {
+	const normalized = normalize(databaseUrl);
+	const segments = normalized.split(/[\\/]/);
+	if (segments.some((seg) => seg === '..')) {
+		throw new Error('DATABASE_URL must not contain path traversal sequences (..)');
+	}
 }
 logger.info(`[DB] Database location: ${databaseUrl}`);
 
