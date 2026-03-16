@@ -25,7 +25,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/entropy0120/gyre/gyre
   ref:
-    tag: 0.4.0
+    tag: 0.4.1
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -50,7 +50,7 @@ Helm is the standard way to install Gyre directly, as it provides easy configura
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/gyre/gyre \
-  --version 0.4.0 \
+  --version 0.4.1 \
   --namespace flux-system \
   --create-namespace
 ```
@@ -98,7 +98,7 @@ Install with custom values:
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/gyre/gyre \
-  --version 0.4.0 \
+  --version 0.4.1 \
   --namespace flux-system \
   --create-namespace \
   -f values.yaml
@@ -194,7 +194,7 @@ To upgrade Gyre:
 
 ```bash
 helm upgrade gyre oci://ghcr.io/entropy0120/gyre/gyre \
-  --version 0.4.0 \
+  --version 0.4.1 \
   --namespace flux-system
 ```
 
