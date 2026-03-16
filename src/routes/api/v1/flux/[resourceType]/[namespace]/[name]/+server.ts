@@ -325,10 +325,10 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 		});
 	}
 
-	// Check permission for write action
+	// Check permission for admin action (delete requires admin, not just write)
 	const hasPermission = await checkPermission(
 		locals.user,
-		'write',
+		'admin',
 		resolvedType,
 		namespace,
 		locals.cluster
@@ -341,7 +341,7 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 	try {
 		await deleteResource(resolvedType, namespace, name, locals.cluster);
 
-		logAudit(locals.user, 'write:delete', {
+		logAudit(locals.user, 'admin:delete', {
 			resourceType: resolvedType,
 			resourceName: name,
 			namespace,
@@ -355,7 +355,7 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 		return new Response(null, { status: 204 });
 	} catch (err) {
 		try {
-			await logAudit(locals.user, 'write:delete', {
+			await logAudit(locals.user, 'admin:delete', {
 				resourceType: resolvedType,
 				resourceName: name,
 				namespace,

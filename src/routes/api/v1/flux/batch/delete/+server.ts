@@ -110,7 +110,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				message: errorMessage
 			});
 
-			await logAudit(locals.user, 'write:delete', {
+			await logAudit(locals.user, 'admin:delete', {
 				resourceType: resource?.type || 'unknown',
 				resourceName: resource?.name || 'unknown',
 				namespace: resource?.namespace || 'unknown',
@@ -132,7 +132,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				message: errorMessage
 			});
 
-			await logAudit(locals.user, 'write:delete', {
+			await logAudit(locals.user, 'admin:delete', {
 				resourceType: resource.type,
 				resourceName: resource.name,
 				namespace: resource.namespace,
@@ -145,10 +145,10 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 			continue;
 		}
 		try {
-			// Check permission for each resource
+			// Check permission for each resource (delete requires admin, not just write)
 			const hasPermission = await checkPermission(
 				locals.user,
-				'write',
+				'admin',
 				resource.type as FluxResourceType,
 				resource.namespace,
 				locals.cluster
@@ -162,7 +162,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				});
 
 				// Log failed audit event
-				await logAudit(locals.user, 'write:delete', {
+				await logAudit(locals.user, 'admin:delete', {
 					resourceType: resource.type,
 					resourceName: resource.name,
 					namespace: resource.namespace,
@@ -190,7 +190,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 			});
 
 			// Log successful audit event
-			await logAudit(locals.user, 'write:delete', {
+			await logAudit(locals.user, 'admin:delete', {
 				resourceType: resource.type,
 				resourceName: resource.name,
 				namespace: resource.namespace,
@@ -210,7 +210,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 			});
 
 			// Log failed audit event
-			await logAudit(locals.user, 'write:delete', {
+			await logAudit(locals.user, 'admin:delete', {
 				resourceType: resource.type,
 				resourceName: resource.name,
 				namespace: resource.namespace,

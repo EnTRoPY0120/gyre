@@ -7,6 +7,7 @@ import { getRequestSizeLimit, validateRequestSize, formatSize } from '$lib/serve
 import { generateCsrfToken, validateCsrfToken } from '$lib/server/csrf';
 import { CSRF_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
+import { getClusterById } from '$lib/server/clusters';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -281,7 +282,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Handle cluster context from cookies (for multi-cluster support)
 		const cluster = cookies.get('gyre_cluster');
 		if (cluster) {
-			event.locals.cluster = cluster;
+			// Validate the cluster exists in the database (skip for built-in in-cluster context)
+			if (cluster !== 'in-cluster') {
+				const clusterRecord = await getClusterById(cluster).catch(() => null);
+				if (!clusterRecord || !clusterRecord.isActive) {
+					// Invalid or inactive cluster — clear the stale cookie and fall back to in-cluster
+					cookies.delete('gyre_cluster', { path: '/' });
+					event.locals.cluster = 'in-cluster';
+				} else {
+					event.locals.cluster = cluster;
+				}
+			} else {
+				event.locals.cluster = cluster;
+			}
 		} else {
 			// Default to 'in-cluster' context
 			event.locals.cluster = 'in-cluster';
