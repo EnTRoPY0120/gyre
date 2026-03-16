@@ -6,7 +6,8 @@ import {
 	createCluster,
 	updateCluster,
 	deleteCluster,
-	testClusterConnection
+	testClusterConnection,
+	getClusterById
 } from '$lib/server/clusters';
 import { isAdmin } from '$lib/server/rbac';
 import { logClusterChange } from '$lib/server/audit';
@@ -20,7 +21,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') || '';
 	const limitParam = parseInt(url.searchParams.get('limit') || '10');
 	const offsetParam = parseInt(url.searchParams.get('offset') || '0');
-	const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10;
+	const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 10;
 	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
 	// Surface errors injected by the request-size middleware via redirect.
@@ -73,6 +74,14 @@ export const actions: Actions = {
 
 		if (name.length < 3) {
 			return fail(400, { error: 'Name must be at least 3 characters' });
+		}
+
+		if (name.length > 100) {
+			return fail(400, { error: 'Name must be at most 100 characters' });
+		}
+
+		if (description && description.length > 500) {
+			return fail(400, { error: 'Description must be at most 500 characters' });
 		}
 
 		// Validate kubeconfig size (max 10MB).
@@ -148,10 +157,21 @@ export const actions: Actions = {
 				error: result.error
 			});
 
-			// Return the detailed health check result
+			// Return sanitized health check result (omit internal error details)
 			return {
 				success: result.connected,
-				healthCheck: result
+				healthCheck: {
+					connected: result.connected,
+					clusterName: result.clusterName,
+					kubernetesVersion: result.kubernetesVersion,
+					timestamp: result.timestamp,
+					checks: result.checks.map((c) => ({
+						name: c.name,
+						passed: c.passed,
+						message: c.message,
+						duration: c.duration
+					}))
+				}
 			};
 		} catch (error) {
 			logger.error(error, 'Error testing connection:');
@@ -203,6 +223,11 @@ export const actions: Actions = {
 
 		if (!clusterId) {
 			return fail(400, { error: 'Cluster ID is required' });
+		}
+
+		const existing = await getClusterById(clusterId);
+		if (!existing) {
+			return fail(404, { error: 'Cluster not found' });
 		}
 
 		try {

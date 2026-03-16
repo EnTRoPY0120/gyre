@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const search = url.searchParams.get('search') || '';
 	const limitParam = parseInt(url.searchParams.get('limit') || '10');
 	const offsetParam = parseInt(url.searchParams.get('offset') || '0');
-	const limit = Number.isFinite(limitParam) && limitParam > 0 ? limitParam : 10;
+	const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 10;
 	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
 
 	// Load paginated policies and all users
@@ -89,6 +89,20 @@ export const actions: Actions = {
 
 		if (name.length < 3) {
 			return fail(400, { error: 'Policy name must be at least 3 characters' });
+		}
+
+		if (name.length > 100) {
+			return fail(400, { error: 'Policy name must be at most 100 characters' });
+		}
+
+		if (namespacePattern) {
+			const namespacePatternRegex = /^[a-zA-Z0-9\-_.*?]+$/;
+			if (!namespacePatternRegex.test(namespacePattern)) {
+				return fail(400, { error: 'Namespace pattern contains invalid characters' });
+			}
+			if (namespacePattern.length > 253) {
+				return fail(400, { error: 'Namespace pattern must be at most 253 characters' });
+			}
 		}
 
 		try {
