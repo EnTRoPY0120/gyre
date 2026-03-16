@@ -81,7 +81,7 @@ function setSecurityHeaders(response: Response): void {
 			"style-src 'self' 'unsafe-inline'",
 			"img-src 'self' data: blob:",
 			"font-src 'self' data:",
-			"connect-src 'self' ws: wss:",
+			"connect-src 'self'",
 			"frame-ancestors 'none'",
 			"object-src 'none'",
 			"base-uri 'self'"
