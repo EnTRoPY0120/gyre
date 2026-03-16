@@ -293,26 +293,27 @@ export async function getAllPoliciesPaginated(options?: {
  * Delete a policy (and all its bindings).
  * Returns the number of bindings removed (i.e. the number of user–policy associations
  * that were revoked). Callers can use this to surface warnings when users may lose access.
+ *
+ * The count, binding deletion, and policy deletion run inside a single transaction so
+ * the returned count always reflects the exact rows removed, even under concurrency.
  */
 export async function deletePolicy(policyId: string): Promise<number> {
 	const db = getDbSync();
 
-	// Count bindings before deletion so callers can surface access-loss warnings
-	const removedBindings = await db
-		.select({ count: sql<number>`count(*)` })
-		.from(rbacBindings)
-		.where(eq(rbacBindings.policyId, policyId))
-		.get();
+	return db.transaction((tx) => {
+		const removedBindings = tx
+			.select({ count: sql<number>`count(*)` })
+			.from(rbacBindings)
+			.where(eq(rbacBindings.policyId, policyId))
+			.get();
 
-	const removedBindingCount = removedBindings?.count ?? 0;
+		const removedBindingCount = removedBindings?.count ?? 0;
 
-	// Delete bindings first (cascade should handle this, but let's be explicit)
-	await db.delete(rbacBindings).where(eq(rbacBindings.policyId, policyId));
+		tx.delete(rbacBindings).where(eq(rbacBindings.policyId, policyId)).run();
+		tx.delete(rbacPolicies).where(eq(rbacPolicies.id, policyId)).run();
 
-	// Delete policy
-	await db.delete(rbacPolicies).where(eq(rbacPolicies.id, policyId));
-
-	return removedBindingCount;
+		return removedBindingCount;
+	});
 }
 
 /**
