@@ -87,13 +87,11 @@ export async function rollbackResource(
 		);
 	}
 
-	// 3. Get resource definition and API client
+	// 3. Get resource definition
 	const resourceDef = getResourceDef(type);
 	if (!resourceDef) {
 		throw new Error(`Unknown resource type: ${type}`);
 	}
-
-	const api = await getCustomObjectsApi(context);
 
 	// 4. Prepare the patch: update spec and add reconciliation annotation
 	const now = new Date().toISOString();
@@ -114,6 +112,7 @@ export async function rollbackResource(
 	}
 
 	// 6. Patch the resource using merge-patch strategy
+	const api = await getCustomObjectsApi(context);
 	await api.patchNamespacedCustomObject(
 		{
 			group: resourceDef.group,
