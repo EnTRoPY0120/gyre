@@ -84,7 +84,7 @@ gatewayApi:
 resources:
   limits:
     cpu: 500m
-    memory: 512Mi
+    memory: 1Gi
   requests:
     cpu: 100m
     memory: 128Mi
@@ -143,12 +143,12 @@ admin:
 # Generate with: openssl rand -hex 32
 encryption:
   # Key for encrypting cluster kubeconfigs
-  # It is HIGHLY recommended to provide this via an existing secret in production
+  # DEPRECATED: Use existingSecret instead. If set, a Secret will be auto-created from this value.
   gyreKey: ""
   # Key for encrypting OAuth client secrets
-  # It is HIGHLY recommended to provide this via an existing secret in production
+  # DEPRECATED: Use existingSecret instead. If set, a Secret will be auto-created from this value.
   authKey: ""
-  # Existing secret name containing encryption keys
+  # Existing secret name containing encryption keys (recommended for production)
   # Keys in secret should be named GYRE_ENCRYPTION_KEY and AUTH_ENCRYPTION_KEY
   existingSecret: ""
 
@@ -207,6 +207,10 @@ metrics:
 # Network Policy
 networkPolicy:
   enabled: false
+  # Namespace where kube-dns runs (used in egress DNS rule)
+  dnsNamespace: kube-system
+  # Namespace where the Kubernetes API server endpoint lives (used in egress API rule)
+  apiServerNamespace: default
   ingress:
     # Allow ingress from pods with matching labels
     podSelector: {}
@@ -252,3 +256,11 @@ config:
   additionalConfig: {}
     # Example:
     # GYRE_MAX_LOCAL_BACKUPS: "10"
+
+# Pod Disruption Budget
+# Disabled by default — single-replica SQLite installs don't benefit from PDB.
+# Enable for HA-oriented deployments with multiple replicas.
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1

@@ -79,12 +79,6 @@ rules:
     - configmaps
   verbs: ["get", "list", "watch"]
 
-# Secrets (for admin password and cluster configs)
-- apiGroups: [""]
-  resources:
-    - secrets
-  verbs: ["get", "list", "watch", "create", "update", "patch"]
-
 # Apps Resources (read-only for deployments, etc.)
 - apiGroups: ["apps"]
   resources:
