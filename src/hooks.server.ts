@@ -336,11 +336,17 @@ export function handleError({
 		logger.error(error, `Error in ${event.url.pathname}:`);
 	}
 
+	const ALLOWED_CODES = new Set(['INVALID_INPUT', 'NOT_AUTHORIZED', 'NOT_FOUND', 'UNKNOWN']);
+	const rawCode =
+		typeof error === 'object' &&
+		error !== null &&
+		'code' in error &&
+		typeof (error as { code: unknown }).code === 'string'
+			? (error as { code: string }).code
+			: 'UNKNOWN';
+
 	return {
 		message: 'An unexpected error occurred',
-		code:
-			error instanceof Error && 'code' in error
-				? (error as Error & { code: string }).code
-				: 'UNKNOWN'
+		code: ALLOWED_CODES.has(rawCode) ? rawCode : 'UNKNOWN'
 	};
 }

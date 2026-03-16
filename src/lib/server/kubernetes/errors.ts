@@ -90,8 +90,11 @@ export function sanitizeK8sErrorMessage(message: string): string {
 				/-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
 				'[REDACTED KEY]'
 			)
-			// Redact database/connection string credentials (user:pass@host)
-			.replace(/:[^:@\s]+@[a-zA-Z0-9._-]+/g, ':[REDACTED]@[REDACTED HOST]')
+			// Redact database/connection string credentials (user[:pass]@host)
+			.replace(
+				/[a-zA-Z0-9._-]+(?::[^:@\s]*)?@[a-zA-Z0-9._-]+/g,
+				'[REDACTED]:[REDACTED]@[REDACTED HOST]'
+			)
 			// Redact kubeconfig user tokens or certificate data (long base64 strings after known keys)
 			.replace(
 				/(token|certificate-authority-data|client-certificate-data|client-key-data):\s*[a-zA-Z0-9+/=]{20,}/gi,

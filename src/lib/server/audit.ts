@@ -39,7 +39,13 @@ function redactSensitiveFields(obj: Record<string, unknown>): Record<string, unk
 	for (const [key, value] of Object.entries(obj)) {
 		if (SENSITIVE_KEYS.has(key.toLowerCase())) {
 			result[key] = '[REDACTED]';
-		} else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+		} else if (Array.isArray(value)) {
+			result[key] = value.map((element) =>
+				element !== null && typeof element === 'object'
+					? redactSensitiveFields(element as Record<string, unknown>)
+					: element
+			);
+		} else if (value !== null && typeof value === 'object') {
 			result[key] = redactSensitiveFields(value as Record<string, unknown>);
 		} else {
 			result[key] = value;
