@@ -833,7 +833,7 @@ spec:
 			path: 'spec.prune',
 			type: 'boolean',
 			section: 'deployment',
-			default: true,
+			default: false,
 			description: 'Delete resources removed from source'
 		},
 		{
@@ -932,14 +932,24 @@ spec:
 					label: 'In Progress Expression',
 					path: 'inProgress',
 					type: 'textarea',
-					description: 'CEL expression to check if the resource is still progressing'
+					description: 'CEL expression to check if the resource is still progressing',
+					validation: {
+						pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
+						message:
+							'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
+					}
 				},
 				{
 					name: 'failed',
 					label: 'Failed Expression',
 					path: 'failed',
 					type: 'textarea',
-					description: 'CEL expression to check if the resource has failed'
+					description: 'CEL expression to check if the resource has failed',
+					validation: {
+						pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
+						message:
+							'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
+					}
 				},
 				{
 					name: 'current',
@@ -947,7 +957,12 @@ spec:
 					path: 'current',
 					type: 'textarea',
 					required: true,
-					description: 'CEL expression to check if the resource is healthy'
+					description: 'CEL expression to check if the resource is healthy',
+					validation: {
+						pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
+						message:
+							'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
+					}
 				}
 			],
 			description:
@@ -1072,7 +1087,8 @@ spec:
 			type: 'textarea',
 			section: 'customization',
 			placeholder: 'cluster_name: prod-cluster',
-			description: 'Key-value pairs for variable substitution (YAML format)'
+			description:
+				'Key-value pairs for variable substitution (YAML format). Keys must be valid identifiers (letters, digits, underscores; cannot start with a digit).'
 		},
 		{
 			name: 'kubeConfigSecret',
@@ -1411,7 +1427,8 @@ spec:
 			type: 'textarea',
 			section: 'release',
 			placeholder: 'replicaCount: 3\nimage:\n  tag: v1.0.0',
-			description: 'Helm values to override (YAML format)'
+			description:
+				"Helm values to override (YAML format). Values are passed directly to the chart — ensure they match the chart's values schema."
 		},
 		{
 			name: 'valuesFiles',
@@ -1468,7 +1485,8 @@ spec:
 			type: 'textarea',
 			section: 'release',
 			placeholder: 'app: my-app',
-			description: 'Labels to apply to all resources'
+			description:
+				'Common labels applied to all managed resources (YAML format). Keys max 63 chars, values max 63 chars. Valid chars: alphanumeric, hyphens, underscores, dots.'
 		},
 		{
 			name: 'commonMetadataAnnotations',
@@ -1638,7 +1656,8 @@ spec:
 					placeholder: 'patches:\n  - target:\n      group: apps'
 				}
 			],
-			description: 'Post-renderers to apply to rendered manifests'
+			description:
+				'Post-renderers to apply to rendered manifests. Only trusted YAML should be used here as patches are applied with cluster write permissions.'
 		}
 	]
 };
@@ -2242,9 +2261,9 @@ spec:
 			path: 'spec.ref.tag',
 			type: 'string',
 			section: 'source',
-			default: 'latest',
-			placeholder: 'latest',
-			description: 'Tag to track',
+			placeholder: 'v1.0.0',
+			description:
+				"Tag to track. Avoid 'latest' — pin to an explicit version for reproducible deployments.",
 			showIf: {
 				field: 'refType',
 				value: 'tag'
@@ -2820,7 +2839,12 @@ spec:
 			type: 'textarea',
 			section: 'provider',
 			placeholder: 'event.message',
-			description: 'CEL expression for custom commit status message'
+			description: 'CEL expression for custom commit status message',
+			validation: {
+				pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
+				message:
+					'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
+			}
 		}
 	]
 };
