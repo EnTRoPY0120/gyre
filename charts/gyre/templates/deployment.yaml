@@ -98,14 +98,14 @@ spec:
           value: "http://{{ include "gyre.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
           {{- end }}
         {{- $encSecretName := .Values.encryption.existingSecret | default (printf "%s-encryption" (include "gyre.fullname" .)) }}
-        {{- if or .Values.encryption.existingSecret .Values.encryption.gyreKey }}
+        {{- if or .Values.encryption.existingSecret (and .Values.encryption.allowInline .Values.encryption.gyreKey) }}
         - name: GYRE_ENCRYPTION_KEY
           valueFrom:
             secretKeyRef:
               name: {{ $encSecretName }}
               key: GYRE_ENCRYPTION_KEY
         {{- end }}
-        {{- if or .Values.encryption.existingSecret .Values.encryption.authKey }}
+        {{- if or .Values.encryption.existingSecret (and .Values.encryption.allowInline .Values.encryption.authKey) }}
         - name: AUTH_ENCRYPTION_KEY
           valueFrom:
             secretKeyRef:

@@ -151,6 +151,10 @@ encryption:
   # Existing secret name containing encryption keys (recommended for production)
   # Keys in secret should be named GYRE_ENCRYPTION_KEY and AUTH_ENCRYPTION_KEY
   existingSecret: ""
+  # Explicitly opt in to auto-creating a Secret from inline gyreKey/authKey values.
+  # Disabled by default. Set to true only for development/testing — inline values
+  # are visible in `helm get values` and Helm release history.
+  allowInline: false
 
 # Authentication configuration
 auth:
@@ -262,5 +266,5 @@ config:
 # Enable for HA-oriented deployments with multiple replicas.
 podDisruptionBudget:
   enabled: false
-  minAvailable: 1
+  # minAvailable: 1   # set one or the other, not both
   # maxUnavailable: 1
