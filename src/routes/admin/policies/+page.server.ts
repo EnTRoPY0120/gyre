@@ -7,12 +7,13 @@ import {
 	deletePolicy,
 	getUserPolicies,
 	bindPolicyToUser,
-	unbindPolicyFromUser
+	unbindPolicyFromUser,
+	isAdmin,
+	isValidNamespacePattern
 } from '$lib/server/rbac';
-import { listUsers } from '$lib/server/auth';
-import { isAdmin } from '$lib/server/rbac';
-import { logRbacChange } from '$lib/server/audit';
 import type { RbacAction } from '$lib/server/rbac';
+import { listUsers } from '$lib/server/auth';
+import { logRbacChange } from '$lib/server/audit';
 
 /**
  * Load function for RBAC policy management page
@@ -95,14 +96,11 @@ export const actions: Actions = {
 			return fail(400, { error: 'Policy name must be at most 100 characters' });
 		}
 
-		if (namespacePattern) {
-			const namespacePatternRegex = /^[a-zA-Z0-9\-_.*?]+$/;
-			if (!namespacePatternRegex.test(namespacePattern)) {
-				return fail(400, { error: 'Namespace pattern contains invalid characters' });
-			}
-			if (namespacePattern.length > 253) {
-				return fail(400, { error: 'Namespace pattern must be at most 253 characters' });
-			}
+		if (namespacePattern && !isValidNamespacePattern(namespacePattern)) {
+			return fail(400, {
+				error:
+					'Invalid namespace pattern: must contain only lowercase alphanumeric characters, hyphens, and wildcards (* ?)'
+			});
 		}
 
 		try {

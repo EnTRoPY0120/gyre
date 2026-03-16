@@ -22,7 +22,7 @@ const NAMESPACE_PATTERN_REGEX = /^[a-z0-9*?][a-z0-9\-*?]*$/;
  * Rejects patterns that contain characters outside the Kubernetes namespace
  * alphabet and the two SQLite GLOB wildcards (* ?).
  */
-function isValidNamespacePattern(pattern: string): boolean {
+export function isValidNamespacePattern(pattern: string): boolean {
 	return NAMESPACE_PATTERN_REGEX.test(pattern);
 }
 
