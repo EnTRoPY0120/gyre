@@ -51,6 +51,12 @@ export interface TemplateSection {
 	defaultExpanded?: boolean;
 }
 
+const CEL_VALIDATION = {
+	pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
+	message:
+		'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
+};
+
 export const GIT_REPOSITORY_TEMPLATE: ResourceTemplate = {
 	id: 'git-repository-base',
 	name: 'Git Repository',
@@ -678,7 +684,7 @@ metadata:
 spec:
   interval: 5m
   path: ./deploy
-  prune: true
+  prune: false
   sourceRef:
     kind: GitRepository
     name: flux-system`,
@@ -933,11 +939,7 @@ spec:
 					path: 'inProgress',
 					type: 'textarea',
 					description: 'CEL expression to check if the resource is still progressing',
-					validation: {
-						pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
-						message:
-							'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
-					}
+					validation: CEL_VALIDATION
 				},
 				{
 					name: 'failed',
@@ -945,11 +947,7 @@ spec:
 					path: 'failed',
 					type: 'textarea',
 					description: 'CEL expression to check if the resource has failed',
-					validation: {
-						pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
-						message:
-							'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
-					}
+					validation: CEL_VALIDATION
 				},
 				{
 					name: 'current',
@@ -958,11 +956,7 @@ spec:
 					type: 'textarea',
 					required: true,
 					description: 'CEL expression to check if the resource is healthy',
-					validation: {
-						pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
-						message:
-							'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
-					}
+					validation: CEL_VALIDATION
 				}
 			],
 			description:
@@ -2149,7 +2143,7 @@ spec:
   interval: 5m
   url: oci://ghcr.io/org/manifests
   ref:
-    tag: latest`,
+    tag: v1.0.0`,
 	sections: [
 		{
 			id: 'basic',
@@ -2840,11 +2834,7 @@ spec:
 			section: 'provider',
 			placeholder: 'event.message',
 			description: 'CEL expression for custom commit status message',
-			validation: {
-				pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
-				message:
-					'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
-			}
+			validation: CEL_VALIDATION
 		}
 	]
 };

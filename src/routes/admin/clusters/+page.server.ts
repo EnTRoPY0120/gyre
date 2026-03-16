@@ -224,12 +224,12 @@ export const actions: Actions = {
 			return fail(400, { error: 'Cluster ID is required' });
 		}
 
-		const existing = await getClusterById(clusterId);
-		if (!existing) {
-			return fail(404, { error: 'Cluster not found' });
-		}
-
 		try {
+			const existing = await getClusterById(clusterId);
+			if (!existing) {
+				return fail(404, { error: 'Cluster not found' });
+			}
+
 			await deleteCluster(clusterId);
 
 			await logClusterChange(locals.user, 'delete', existing.name, { clusterId });
