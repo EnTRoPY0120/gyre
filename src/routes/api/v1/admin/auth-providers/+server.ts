@@ -113,7 +113,6 @@ import { authProviders, type NewAuthProvider } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { randomBytes } from 'node:crypto';
-import { checkPermission } from '$lib/server/rbac.js';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
 /**
@@ -128,15 +127,9 @@ function generateProviderId(): string {
  * List all auth providers (admin only)
  */
 export const GET: RequestHandler = async ({ locals }) => {
-	// Check authentication
+	// Check authentication (hook enforces admin role for /api/v1/admin/* routes)
 	if (!locals.user) {
 		throw error(401, { message: 'Unauthorized' });
-	}
-
-	// Check permission (admin action needed for auth providers)
-	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
-	if (!hasPermission) {
-		throw error(403, { message: 'Admin access required' });
 	}
 
 	try {
@@ -163,15 +156,9 @@ export const GET: RequestHandler = async ({ locals }) => {
  * Create a new auth provider (admin only)
  */
 export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
-	// Check authentication
+	// Check authentication (hook enforces admin role for /api/v1/admin/* routes)
 	if (!locals.user) {
 		throw error(401, { message: 'Unauthorized' });
-	}
-
-	// Check permission (admin action needed for auth providers)
-	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
-	if (!hasPermission) {
-		throw error(403, { message: 'Admin access required' });
 	}
 
 	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);

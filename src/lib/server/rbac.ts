@@ -138,6 +138,21 @@ export class RbacError extends Error {
 	}
 }
 
+// Allowlist for namespace GLOB patterns: Kubernetes namespace chars plus * and ? wildcards
+const NAMESPACE_PATTERN_REGEX = /^[a-z0-9*?][a-z0-9\-*?]*$/;
+
+/**
+ * Validate a namespace GLOB pattern to prevent injection of arbitrary SQLite GLOB expressions.
+ * Kubernetes namespaces are lowercase alphanumeric with hyphens, so we allow those plus * and ?.
+ */
+function validateNamespacePattern(pattern: string): void {
+	if (!NAMESPACE_PATTERN_REGEX.test(pattern)) {
+		throw new Error(
+			'Invalid namespace pattern: must contain only lowercase alphanumeric characters, hyphens, and wildcards (* ?)'
+		);
+	}
+}
+
 /**
  * Create a new RBAC policy
  */
@@ -150,6 +165,10 @@ export async function createPolicy(policy: {
 	namespacePattern?: string;
 	clusterId?: string;
 }): Promise<string> {
+	if (policy.namespacePattern) {
+		validateNamespacePattern(policy.namespacePattern);
+	}
+
 	const db = getDbSync();
 	const id = crypto.randomUUID();
 
@@ -242,16 +261,28 @@ export async function getAllPoliciesPaginated(options?: {
 }
 
 /**
- * Delete a policy (and all its bindings)
+ * Delete a policy (and all its bindings).
+ * Returns the number of users who lost access as a result.
  */
-export async function deletePolicy(policyId: string): Promise<void> {
+export async function deletePolicy(policyId: string): Promise<number> {
 	const db = getDbSync();
+
+	// Count affected users before deletion so callers can surface warnings
+	const affectedBindings = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(rbacBindings)
+		.where(eq(rbacBindings.policyId, policyId))
+		.get();
+
+	const affectedCount = affectedBindings?.count ?? 0;
 
 	// Delete bindings first (cascade should handle this, but let's be explicit)
 	await db.delete(rbacBindings).where(eq(rbacBindings.policyId, policyId));
 
 	// Delete policy
 	await db.delete(rbacPolicies).where(eq(rbacPolicies.id, policyId));
+
+	return affectedCount;
 }
 
 /**
