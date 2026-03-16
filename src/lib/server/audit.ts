@@ -11,6 +11,43 @@ import {
 	getRandomJitterMs
 } from './utils/time.js';
 
+const SENSITIVE_KEYS = new Set([
+	'password',
+	'passwd',
+	'secret',
+	'token',
+	'accesstoken',
+	'refreshtoken',
+	'apikey',
+	'api_key',
+	'authorization',
+	'auth',
+	'credential',
+	'credentials',
+	'privatekey',
+	'private_key',
+	'clientsecret',
+	'client_secret',
+	'encryptionkey',
+	'encryption_key',
+	'signingkey',
+	'signing_key'
+]);
+
+function redactSensitiveFields(obj: Record<string, unknown>): Record<string, unknown> {
+	const result: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(obj)) {
+		if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+			result[key] = '[REDACTED]';
+		} else if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+			result[key] = redactSensitiveFields(value as Record<string, unknown>);
+		} else {
+			result[key] = value;
+		}
+	}
+	return result;
+}
+
 /**
  * Log an audit event
  */
@@ -38,7 +75,7 @@ export async function logAudit(
 			resourceName: options.resourceName || null,
 			namespace: options.namespace || null,
 			clusterId: options.clusterId || null,
-			details: options.details ? JSON.stringify(options.details) : null,
+			details: options.details ? JSON.stringify(redactSensitiveFields(options.details)) : null,
 			success: options.success ?? true,
 			ipAddress: options.ipAddress || null
 		};

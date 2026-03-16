@@ -104,6 +104,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			throw err;
 		}
 		logger.error(err, 'Failed to restore backup:');
-		throw error(500, err instanceof Error ? err.message : 'Failed to restore backup');
+		throw error(500, 'Failed to restore backup');
 	}
 };

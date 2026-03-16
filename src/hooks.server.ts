@@ -337,7 +337,7 @@ export function handleError({
 	}
 
 	return {
-		message: error instanceof Error ? error.message : 'An unexpected error occurred',
+		message: 'An unexpected error occurred',
 		code:
 			error instanceof Error && 'code' in error
 				? (error as Error & { code: string }).code
