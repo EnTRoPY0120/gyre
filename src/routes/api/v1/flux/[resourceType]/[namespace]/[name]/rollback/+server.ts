@@ -42,10 +42,17 @@ export const _metadata = {
 		},
 		responses: {
 			200: {
-				description: 'Rollback initiated successfully',
+				description: 'Rollback initiated successfully, or dry-run patch preview',
 				content: {
 					'application/json': {
-						schema: z.object({ success: z.boolean(), message: z.string() })
+						schema: z.union([
+							z.object({ success: z.boolean(), message: z.string() }),
+							z.object({
+								dryRun: z.literal(true),
+								patch: z.record(z.unknown()),
+								historyEntry: z.object({ id: z.string(), revision: z.string().nullable() })
+							})
+						])
 					}
 				}
 			},
@@ -76,10 +83,20 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 
 	try {
 		const body = await request.json();
+		if (body.revision !== undefined && typeof body.revision !== 'string') {
+			throw error(400, { message: 'revision must be a string' });
+		}
+		if (body.historyId !== undefined && typeof body.historyId !== 'string') {
+			throw error(400, { message: 'historyId must be a string' });
+		}
+		if (body.dryRun !== undefined && typeof body.dryRun !== 'boolean') {
+			throw error(400, { message: 'dryRun must be a boolean' });
+		}
 		revision = body.revision;
 		historyId = body.historyId;
 		dryRun = body.dryRun === true;
-	} catch {
+	} catch (err) {
+		if (err && typeof err === 'object' && 'status' in err) throw err;
 		throw error(400, { message: 'Invalid JSON payload' });
 	}
 
@@ -141,7 +158,7 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 
 		return json({
 			success: true,
-			message: `Successfully initiated rollback to ${revision || historyId}`
+			message: `Successfully initiated rollback to ${target}`
 		});
 	} catch (err: unknown) {
 		// Log failed audit event with flattened details and success: false

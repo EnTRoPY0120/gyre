@@ -164,7 +164,7 @@ export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 		throw error(400, 'Missing filename parameter');
 	}
 
-	const BACKUP_FILENAME_RE = /^gyre-backup-[\dT\-:.]+\.db(\.enc)?$/;
+	const BACKUP_FILENAME_RE = /^gyre-backup-[\dT\-:.]+Z?\.db(\.enc)?$/;
 	if (!BACKUP_FILENAME_RE.test(filename)) {
 		throw error(400, 'Invalid backup filename');
 	}
