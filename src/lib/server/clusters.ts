@@ -23,11 +23,11 @@ function getEncryptionKey(): string {
 					'Please set it to a 64-character hexadecimal string.'
 			);
 		}
+		const devKey = crypto.randomBytes(32).toString('hex');
 		logger.warn(
-			'⚠️  GYRE_ENCRYPTION_KEY not set! Using development-only key. DO NOT USE IN PRODUCTION!'
+			'⚠️  GYRE_ENCRYPTION_KEY not set! Using ephemeral random key. Encrypted kubeconfigs will be unreadable after restart. Set GYRE_ENCRYPTION_KEY to persist.'
 		);
-		// Development-only default key (32 bytes hex)
-		return '00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff';
+		return devKey;
 	}
 
 	// Validate key format (should be 64 hex characters = 32 bytes)

@@ -11,6 +11,9 @@ import * as schema from './schema.js';
 // - Local development: ./data/gyre.db (relative to project root)
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
+if (process.env.DATABASE_URL && databaseUrl.includes('..')) {
+	throw new Error('DATABASE_URL must not contain path traversal sequences (..)');
+}
 logger.info(`[DB] Database location: ${databaseUrl}`);
 
 // Ensure directory exists (async)

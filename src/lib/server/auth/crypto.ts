@@ -26,11 +26,9 @@ function getEncryptionKey(): Buffer {
 			);
 		}
 		logger.warn(
-			'⚠️  AUTH_ENCRYPTION_KEY not set! Using development-only key. DO NOT USE IN PRODUCTION!'
+			'⚠️  AUTH_ENCRYPTION_KEY not set! Using ephemeral random key. OAuth secrets will be unreadable after restart. Set AUTH_ENCRYPTION_KEY to persist.'
 		);
-		// Development-only default key (NOT SECURE)
-		const devKey = 'dev-key-not-secure-change-in-production-0123456789abcdef'.slice(0, 64);
-		return Buffer.from(devKey, 'utf-8').subarray(0, KEY_LENGTH);
+		return crypto.randomBytes(KEY_LENGTH);
 	}
 
 	// Validate key format (should be 64 hex characters = 32 bytes)

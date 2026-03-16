@@ -9,6 +9,7 @@ import { authProviders, type NewAuthProvider } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { encryptSecret } from './crypto';
 import { randomBytes } from 'node:crypto';
+import { z } from 'zod';
 
 const SUPPORTED_PROVIDER_TYPES = [
 	'oidc',
@@ -18,28 +19,28 @@ const SUPPORTED_PROVIDER_TYPES = [
 	'oauth2-generic'
 ] as const;
 
-type SupportedProviderType = (typeof SUPPORTED_PROVIDER_TYPES)[number];
+const ProviderSeedConfigSchema = z.object({
+	name: z.string().min(1),
+	type: z.enum(SUPPORTED_PROVIDER_TYPES),
+	enabled: z.boolean().optional(),
+	clientId: z.string().min(1),
+	clientSecret: z.string(),
+	issuerUrl: z.string().url().optional().or(z.literal('')).optional(),
+	authorizationUrl: z.string().url().optional().or(z.literal('')).optional(),
+	tokenUrl: z.string().url().optional().or(z.literal('')).optional(),
+	userInfoUrl: z.string().url().optional().or(z.literal('')).optional(),
+	jwksUrl: z.string().url().optional().or(z.literal('')).optional(),
+	autoProvision: z.boolean().optional(),
+	defaultRole: z.enum(['admin', 'editor', 'viewer']).optional(),
+	roleMapping: z.union([z.string(), z.record(z.string(), z.array(z.string()))]).optional(),
+	roleClaim: z.string().optional(),
+	usernameClaim: z.string().optional(),
+	emailClaim: z.string().optional(),
+	usePkce: z.boolean().optional(),
+	scopes: z.string().optional()
+});
 
-interface ProviderSeedConfig {
-	name: string;
-	type: SupportedProviderType;
-	enabled?: boolean;
-	clientId: string;
-	clientSecret: string;
-	issuerUrl?: string;
-	authorizationUrl?: string;
-	tokenUrl?: string;
-	userInfoUrl?: string;
-	jwksUrl?: string;
-	autoProvision?: boolean;
-	defaultRole?: 'admin' | 'editor' | 'viewer';
-	roleMapping?: string | Record<string, string[]>;
-	roleClaim?: string;
-	usernameClaim?: string;
-	emailClaim?: string;
-	usePkce?: boolean;
-	scopes?: string;
-}
+type ProviderSeedConfig = z.infer<typeof ProviderSeedConfigSchema>;
 
 /**
  * Seed OAuth providers from environment variables.
@@ -74,55 +75,35 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 	for (let i = 0; i < providersConfig.length; i++) {
 		const config = providersConfig[i];
 
-		if (config === null || typeof config !== 'object' || Array.isArray(config)) {
-			logger.warn(`Skipping provider at index ${i}: entry is not a plain object`);
-			skipped++;
-			continue;
-		}
-
-		// Validate required fields are present and are strings
-		if (
-			typeof config.name !== 'string' ||
-			typeof config.type !== 'string' ||
-			typeof config.clientId !== 'string' ||
-			!config.name ||
-			!config.type ||
-			!config.clientId
-		) {
+		const parseResult = ProviderSeedConfigSchema.safeParse(config);
+		if (!parseResult.success) {
 			logger.warn(
-				`Skipping provider at index ${i}: missing or non-string required fields (name, type, clientId)`
+				{ issues: parseResult.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`) },
+				`Skipping provider at index ${i}: validation failed`
 			);
 			skipped++;
 			continue;
 		}
-
-		// Validate type against the supported set
-		if (!(SUPPORTED_PROVIDER_TYPES as readonly string[]).includes(config.type)) {
-			logger.warn(
-				`Skipping provider at index ${i}: unsupported type "${config.type}" (supported: ${SUPPORTED_PROVIDER_TYPES.join(', ')})`
-			);
-			skipped++;
-			continue;
-		}
+		const validatedConfig: ProviderSeedConfig = parseResult.data;
 
 		// Check if provider with same name already exists
 		const existing = await db.query.authProviders.findFirst({
-			where: eq(authProviders.name, config.name)
+			where: eq(authProviders.name, validatedConfig.name)
 		});
 
 		if (existing) {
-			logger.info(`Provider "${config.name}" already exists, skipping`);
+			logger.info(`Provider "${validatedConfig.name}" already exists, skipping`);
 			skipped++;
 			continue;
 		}
 
 		// Get client secret (from env var override or config)
-		const sanitizedName = config.name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+		const sanitizedName = validatedConfig.name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
 		const envSecretKey = `GYRE_AUTH_PROVIDER_${sanitizedName}_CLIENT_SECRET`;
-		const clientSecret = process.env[envSecretKey] || config.clientSecret;
+		const clientSecret = process.env[envSecretKey] || validatedConfig.clientSecret;
 
 		if (!clientSecret) {
-			logger.warn(`Skipping provider "${config.name}": no client secret provided`);
+			logger.warn(`Skipping provider "${validatedConfig.name}": no client secret provided`);
 			skipped++;
 			continue;
 		}
@@ -136,24 +117,29 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 
 			// Normalize and validate roleMapping
 			let roleMapping: string | null = null;
-			if (config.roleMapping != null) {
+			if (validatedConfig.roleMapping != null) {
 				let parsed: unknown;
-				if (typeof config.roleMapping === 'string') {
+				if (typeof validatedConfig.roleMapping === 'string') {
 					try {
-						parsed = JSON.parse(config.roleMapping);
+						parsed = JSON.parse(validatedConfig.roleMapping);
 					} catch {
-						throw new Error(`Provider "${config.name}" has invalid roleMapping: not valid JSON`);
+						throw new Error(
+							`Provider "${validatedConfig.name}" has invalid roleMapping: not valid JSON`
+						);
 					}
 					if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
 						throw new Error(
-							`Provider "${config.name}" has invalid roleMapping: must be a JSON object`
+							`Provider "${validatedConfig.name}" has invalid roleMapping: must be a JSON object`
 						);
 					}
-				} else if (typeof config.roleMapping === 'object' && !Array.isArray(config.roleMapping)) {
-					parsed = config.roleMapping;
+				} else if (
+					typeof validatedConfig.roleMapping === 'object' &&
+					!Array.isArray(validatedConfig.roleMapping)
+				) {
+					parsed = validatedConfig.roleMapping;
 				} else {
 					throw new Error(
-						`Provider "${config.name}" has invalid roleMapping: must be a plain object or JSON string`
+						`Provider "${validatedConfig.name}" has invalid roleMapping: must be a plain object or JSON string`
 					);
 				}
 				const rawMapping = parsed as Record<string, unknown>;
@@ -161,7 +147,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 				for (const [key, val] of Object.entries(rawMapping)) {
 					if (!Array.isArray(val) || !val.every((item) => typeof item === 'string')) {
 						throw new Error(
-							`Provider "${config.name}" has invalid roleMapping: values must be string[] for key "${key}"`
+							`Provider "${validatedConfig.name}" has invalid roleMapping: values must be string[] for key "${key}"`
 						);
 					}
 					validated[key] = val;
@@ -172,33 +158,33 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 			// Create provider
 			const newProvider: NewAuthProvider = {
 				id: providerId,
-				name: config.name,
-				type: config.type,
-				enabled: config.enabled ?? true,
-				clientId: config.clientId,
+				name: validatedConfig.name,
+				type: validatedConfig.type,
+				enabled: validatedConfig.enabled ?? true,
+				clientId: validatedConfig.clientId,
 				clientSecretEncrypted,
-				issuerUrl: config.issuerUrl || null,
-				authorizationUrl: config.authorizationUrl || null,
-				tokenUrl: config.tokenUrl || null,
-				userInfoUrl: config.userInfoUrl || null,
-				jwksUrl: config.jwksUrl || null,
-				autoProvision: config.autoProvision ?? true,
-				defaultRole: config.defaultRole || 'viewer',
+				issuerUrl: validatedConfig.issuerUrl || null,
+				authorizationUrl: validatedConfig.authorizationUrl || null,
+				tokenUrl: validatedConfig.tokenUrl || null,
+				userInfoUrl: validatedConfig.userInfoUrl || null,
+				jwksUrl: validatedConfig.jwksUrl || null,
+				autoProvision: validatedConfig.autoProvision ?? true,
+				defaultRole: validatedConfig.defaultRole || 'viewer',
 				roleMapping,
-				roleClaim: config.roleClaim || 'groups',
-				usernameClaim: config.usernameClaim || 'preferred_username',
-				emailClaim: config.emailClaim || 'email',
-				usePkce: config.usePkce ?? true,
-				scopes: config.scopes || 'openid profile email',
+				roleClaim: validatedConfig.roleClaim || 'groups',
+				usernameClaim: validatedConfig.usernameClaim || 'preferred_username',
+				emailClaim: validatedConfig.emailClaim || 'email',
+				usePkce: validatedConfig.usePkce ?? true,
+				scopes: validatedConfig.scopes || 'openid profile email',
 				createdAt: new Date(),
 				updatedAt: new Date()
 			};
 
 			await db.insert(authProviders).values(newProvider);
-			logger.info(`✓ Created provider "${config.name}" (${config.type})`);
+			logger.info(`✓ Created provider "${validatedConfig.name}" (${validatedConfig.type})`);
 			created++;
 		} catch (error) {
-			logger.error(error, `Failed to create provider "${config.name}":`);
+			logger.error(error, `Failed to create provider "${validatedConfig.name}":`);
 			skipped++;
 		}
 	}

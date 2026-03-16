@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, timingSafeEqual, randomBytes } from 'node:crypto';
 import { logger } from './logger.js';
 
 // Note: Caching the secret at module scope means it won't reflect runtime changes to
@@ -18,10 +18,11 @@ const getSecret = (): string => {
 					'Please set it to a 64-character hexadecimal string.'
 			);
 		}
+		const devSecret = randomBytes(32).toString('hex');
 		logger.warn(
-			'⚠️  AUTH_ENCRYPTION_KEY not set! Using development-only CSRF secret. DO NOT USE IN PRODUCTION!'
+			'⚠️  AUTH_ENCRYPTION_KEY not set! Using ephemeral random CSRF secret. CSRF tokens invalidated on restart. DO NOT USE IN PRODUCTION!'
 		);
-		return (_cachedSecret = 'insecure-dev-fallback-do-not-use-in-production-0123456789abcdef');
+		return (_cachedSecret = devSecret);
 	}
 
 	// Validate key format (should be 64 hex characters = 32 bytes)

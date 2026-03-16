@@ -6,6 +6,7 @@ import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
 import { eq, and, gt, lte, sql, or, inArray, desc } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
+import { passwordSchema } from '../utils/validation.js';
 import * as k8s from '@kubernetes/client-node';
 import { readFileSync, unlinkSync } from 'node:fs';
 import { loginAttemptsTotal, sessionsCleanedUpTotal } from './metrics.js';
@@ -17,6 +18,16 @@ const SALT_ROUNDS = 12;
 export const SESSION_DURATION_DAYS = 2;
 const PASSWORD_HISTORY_LIMIT = 5;
 const ADMIN_SECRET_NAME = 'gyre-initial-admin-secret';
+
+function warnIfWeakAdminPassword(password: string): void {
+	const result = passwordSchema.safeParse(password);
+	if (!result.success) {
+		logger.warn(
+			{ issues: result.error.issues.map((i) => i.message) },
+			'⚠️  ADMIN_PASSWORD does not meet strength requirements.'
+		);
+	}
+}
 
 // Store generated password temporarily for first-time setup display
 let generatedAdminPassword: string | null = null;
@@ -552,6 +563,7 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 		// Generate new password
 		// Use ADMIN_PASSWORD from env if provided, otherwise generate a strong one
 		const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
+		if (process.env.ADMIN_PASSWORD) warnIfWeakAdminPassword(process.env.ADMIN_PASSWORD);
 		generatedAdminPassword = password;
 
 		// Hash for storage
@@ -662,6 +674,7 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 
 	// Local development mode: Use env var or generate password
 	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
+	if (process.env.ADMIN_PASSWORD) warnIfWeakAdminPassword(process.env.ADMIN_PASSWORD);
 	generatedAdminPassword = password;
 
 	const db = getDbSync();
