@@ -335,6 +335,17 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 	);
 
 	if (!hasPermission) {
+		logAudit(locals.user, 'admin:delete', {
+			resourceType: resolvedType,
+			resourceName: name,
+			namespace,
+			clusterId: locals.cluster,
+			ipAddress: getClientAddress(),
+			success: false,
+			details: { error: 'Permission denied' }
+		}).catch((auditErr) => {
+			logger.error(auditErr, 'Failed to log audit event for denied delete:');
+		});
 		throw error(403, { message: 'Permission denied' });
 	}
 
