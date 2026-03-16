@@ -3,8 +3,10 @@
  *
  * All environment variable overrides use the `GYRE_` prefix (e.g. GYRE_POLL_INTERVAL_MS).
  * Values can be overridden at runtime — no recompile needed.
- * Invalid or out-of-range values are silently ignored and the default is used instead.
+ * Invalid or out-of-range values log a warning and fall back to the default.
  */
+
+import { logger } from '../logger.js';
 
 interface ParseEnvIntOptions {
 	/** Inclusive lower bound. Values below this fall back to the default. */
@@ -28,10 +30,24 @@ export function parseEnvInt(
 	options: ParseEnvIntOptions = {}
 ): number {
 	const raw = process.env[envVar];
-	if (!raw || !STRICT_INT_RE.test(raw)) return defaultValue;
+	if (!raw) return defaultValue;
+	if (!STRICT_INT_RE.test(raw)) {
+		logger.warn(`[config] Invalid value for ${envVar}: "${raw}". Using default: ${defaultValue}`);
+		return defaultValue;
+	}
 	const parsed = parseInt(raw, 10);
-	if (options.min !== undefined && parsed < options.min) return defaultValue;
-	if (options.max !== undefined && parsed > options.max) return defaultValue;
+	if (options.min !== undefined && parsed < options.min) {
+		logger.warn(
+			`[config] ${envVar}=${parsed} is below minimum ${options.min}. Using default: ${defaultValue}`
+		);
+		return defaultValue;
+	}
+	if (options.max !== undefined && parsed > options.max) {
+		logger.warn(
+			`[config] ${envVar}=${parsed} is above maximum ${options.max}. Using default: ${defaultValue}`
+		);
+		return defaultValue;
+	}
 	return parsed;
 }
 
