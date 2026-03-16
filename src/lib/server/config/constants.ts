@@ -30,7 +30,7 @@ export function parseEnvInt(
 	options: ParseEnvIntOptions = {}
 ): number {
 	const raw = process.env[envVar];
-	if (!raw) return defaultValue;
+	if (raw === undefined || raw === null) return defaultValue;
 	if (!STRICT_INT_RE.test(raw)) {
 		logger.warn(`[config] Invalid value for ${envVar}: "${raw}". Using default: ${defaultValue}`);
 		return defaultValue;
