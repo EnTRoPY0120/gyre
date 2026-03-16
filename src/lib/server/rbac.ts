@@ -3,6 +3,7 @@ import { getDbSync } from './db/index.js';
 import { rbacPolicies, rbacBindings } from './db/schema.js';
 import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
 import { eq, and, or, sql } from 'drizzle-orm';
+import { logger } from './logger.js';
 
 /**
  * RBAC Actions
@@ -12,13 +13,27 @@ import { eq, and, or, sql } from 'drizzle-orm';
  */
 export type RbacAction = 'read' | 'write' | 'admin';
 
+// Allowlist for namespace GLOB patterns: Kubernetes namespace chars plus * and ? wildcards.
+// Kubernetes namespace names are lowercase alphanumeric with hyphens.
+const NAMESPACE_PATTERN_REGEX = /^[a-z0-9*?][a-z0-9\-*?]*$/;
+
 /**
- * Check if a user has permission to perform an action on a resource
+ * Returns true if the given namespace GLOB pattern is safe to execute.
+ * Rejects patterns that contain characters outside the Kubernetes namespace
+ * alphabet and the two SQLite GLOB wildcards (* ?).
+ */
+function isValidNamespacePattern(pattern: string): boolean {
+	return NAMESPACE_PATTERN_REGEX.test(pattern);
+}
+
+/**
+ * Check if a user has permission to perform an action on a resource.
  *
  * Logic:
  * 1. Admin role always has full access
  * 2. Check user's RBAC bindings for matching policies
- * 3. Policy must match: role, action, resourceType, namespace (if restricted), cluster (if restricted)
+ * 3. Policies with invalid namespacePattern values are skipped (logged as warnings)
+ * 4. Policy must match: role, action, resourceType, namespace (if restricted), cluster (if restricted)
  */
 export async function checkPermission(
 	user: User,
@@ -48,12 +63,39 @@ export async function checkPermission(
 
 	const policyIds = userBindings.map((b) => b.policyId);
 
+	// Fetch namespace patterns for all candidate policies so we can validate them
+	// before passing them to SQLite GLOB. Policies with invalid patterns are skipped.
+	const candidatePolicies = await db
+		.select({ id: rbacPolicies.id, namespacePattern: rbacPolicies.namespacePattern })
+		.from(rbacPolicies)
+		.where(
+			and(
+				sql`${rbacPolicies.id} IN (${sql.join(policyIds, sql`, `)})`,
+				eq(rbacPolicies.isActive, true)
+			)
+		);
+
+	const validPolicyIds: string[] = [];
+	for (const policy of candidatePolicies) {
+		if (policy.namespacePattern !== null && !isValidNamespacePattern(policy.namespacePattern)) {
+			logger.warn(
+				`Skipping RBAC policy ${policy.id} with invalid namespacePattern: "${policy.namespacePattern}"`
+			);
+			continue;
+		}
+		validPolicyIds.push(policy.id);
+	}
+
+	if (validPolicyIds.length === 0) {
+		return false;
+	}
+
 	// Build query conditions
 	const conditions = [
 		// Policy must be active
 		eq(rbacPolicies.isActive, true),
-		// Policy must match one of user's bound policies
-		sql`${rbacPolicies.id} IN (${sql.join(policyIds, sql`, `)})`,
+		// Policy must be one of the validated policies
+		sql`${rbacPolicies.id} IN (${sql.join(validPolicyIds, sql`, `)})`,
 		// Action must be allowed (read < write < admin hierarchy)
 		or(
 			eq(rbacPolicies.action, action),
@@ -81,7 +123,7 @@ export async function checkPermission(
 			or(
 				// null pattern means all namespaces
 				sql`${rbacPolicies.namespacePattern} IS NULL`,
-				// Match namespace against pattern (supports wildcards)
+				// Match namespace against pattern (supports * and ? wildcards only)
 				sql`${sql.param(namespace)} GLOB ${rbacPolicies.namespacePattern}`
 			)
 		);
@@ -138,21 +180,6 @@ export class RbacError extends Error {
 	}
 }
 
-// Allowlist for namespace GLOB patterns: Kubernetes namespace chars plus * and ? wildcards
-const NAMESPACE_PATTERN_REGEX = /^[a-z0-9*?][a-z0-9\-*?]*$/;
-
-/**
- * Validate a namespace GLOB pattern to prevent injection of arbitrary SQLite GLOB expressions.
- * Kubernetes namespaces are lowercase alphanumeric with hyphens, so we allow those plus * and ?.
- */
-function validateNamespacePattern(pattern: string): void {
-	if (!NAMESPACE_PATTERN_REGEX.test(pattern)) {
-		throw new Error(
-			'Invalid namespace pattern: must contain only lowercase alphanumeric characters, hyphens, and wildcards (* ?)'
-		);
-	}
-}
-
 /**
  * Create a new RBAC policy
  */
@@ -165,8 +192,10 @@ export async function createPolicy(policy: {
 	namespacePattern?: string;
 	clusterId?: string;
 }): Promise<string> {
-	if (policy.namespacePattern) {
-		validateNamespacePattern(policy.namespacePattern);
+	if (policy.namespacePattern && !isValidNamespacePattern(policy.namespacePattern)) {
+		throw new Error(
+			'Invalid namespace pattern: must contain only lowercase alphanumeric characters, hyphens, and wildcards (* ?)'
+		);
 	}
 
 	const db = getDbSync();
@@ -262,19 +291,20 @@ export async function getAllPoliciesPaginated(options?: {
 
 /**
  * Delete a policy (and all its bindings).
- * Returns the number of users who lost access as a result.
+ * Returns the number of bindings removed (i.e. the number of user–policy associations
+ * that were revoked). Callers can use this to surface warnings when users may lose access.
  */
 export async function deletePolicy(policyId: string): Promise<number> {
 	const db = getDbSync();
 
-	// Count affected users before deletion so callers can surface warnings
-	const affectedBindings = await db
+	// Count bindings before deletion so callers can surface access-loss warnings
+	const removedBindings = await db
 		.select({ count: sql<number>`count(*)` })
 		.from(rbacBindings)
 		.where(eq(rbacBindings.policyId, policyId))
 		.get();
 
-	const affectedCount = affectedBindings?.count ?? 0;
+	const removedBindingCount = removedBindings?.count ?? 0;
 
 	// Delete bindings first (cascade should handle this, but let's be explicit)
 	await db.delete(rbacBindings).where(eq(rbacBindings.policyId, policyId));
@@ -282,7 +312,38 @@ export async function deletePolicy(policyId: string): Promise<number> {
 	// Delete policy
 	await db.delete(rbacPolicies).where(eq(rbacPolicies.id, policyId));
 
-	return affectedCount;
+	return removedBindingCount;
+}
+
+/**
+ * Quarantine RBAC policies whose namespacePattern contains characters outside the
+ * safe allowlist (lowercase alphanumeric, hyphens, * and ?). Affected policies are
+ * deactivated so they cannot be executed by checkPermission.
+ *
+ * Returns the number of policies quarantined.
+ * Call this once on startup (e.g. from initializeGyre) to backfill rows that were
+ * inserted before pattern validation was enforced.
+ */
+export async function quarantineInvalidNamespacePatterns(): Promise<number> {
+	const db = getDbSync();
+
+	const allPolicies = await db
+		.select({ id: rbacPolicies.id, namespacePattern: rbacPolicies.namespacePattern })
+		.from(rbacPolicies)
+		.where(eq(rbacPolicies.isActive, true));
+
+	let quarantined = 0;
+	for (const policy of allPolicies) {
+		if (policy.namespacePattern !== null && !isValidNamespacePattern(policy.namespacePattern)) {
+			logger.warn(
+				`Quarantining RBAC policy ${policy.id}: invalid namespacePattern "${policy.namespacePattern}"`
+			);
+			await db.update(rbacPolicies).set({ isActive: false }).where(eq(rbacPolicies.id, policy.id));
+			quarantined++;
+		}
+	}
+
+	return quarantined;
 }
 
 /**

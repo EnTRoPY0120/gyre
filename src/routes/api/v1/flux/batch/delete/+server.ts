@@ -8,6 +8,7 @@ import type {
 	BatchResourceItem,
 	BatchOperationResult
 } from '$lib/server/kubernetes/flux/batch-schemas';
+import { logger } from '$lib/server/logger';
 
 export const _metadata = {
 	POST: {
@@ -110,7 +111,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				message: errorMessage
 			});
 
-			await logAudit(locals.user, 'admin:delete', {
+			logAudit(locals.user, 'admin:delete', {
 				resourceType: resource?.type || 'unknown',
 				resourceName: resource?.name || 'unknown',
 				namespace: resource?.namespace || 'unknown',
@@ -118,6 +119,8 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				ipAddress: getClientAddress(),
 				success: false,
 				details: { error: errorMessage }
+			}).catch((auditErr) => {
+				logger.error(auditErr, 'Failed to log audit event for invalid resource:');
 			});
 
 			continue;
@@ -132,7 +135,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				message: errorMessage
 			});
 
-			await logAudit(locals.user, 'admin:delete', {
+			logAudit(locals.user, 'admin:delete', {
 				resourceType: resource.type,
 				resourceName: resource.name,
 				namespace: resource.namespace,
@@ -140,6 +143,8 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				ipAddress: getClientAddress(),
 				success: false,
 				details: { error: errorMessage }
+			}).catch((auditErr) => {
+				logger.error(auditErr, 'Failed to log audit event for invalid resource type:');
 			});
 
 			continue;
@@ -161,8 +166,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 					message: 'Permission denied'
 				});
 
-				// Log failed audit event
-				await logAudit(locals.user, 'admin:delete', {
+				logAudit(locals.user, 'admin:delete', {
 					resourceType: resource.type,
 					resourceName: resource.name,
 					namespace: resource.namespace,
@@ -170,6 +174,8 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 					ipAddress: getClientAddress(),
 					success: false,
 					details: { error: 'Permission denied' }
+				}).catch((auditErr) => {
+					logger.error(auditErr, 'Failed to log audit event for denied delete:');
 				});
 
 				continue;
@@ -189,14 +195,15 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				message: `Deleted ${resource.name}`
 			});
 
-			// Log successful audit event
-			await logAudit(locals.user, 'admin:delete', {
+			logAudit(locals.user, 'admin:delete', {
 				resourceType: resource.type,
 				resourceName: resource.name,
 				namespace: resource.namespace,
 				clusterId: locals.cluster,
 				ipAddress: getClientAddress(),
 				success: true
+			}).catch((auditErr) => {
+				logger.error(auditErr, 'Failed to log audit event for delete:');
 			});
 		} catch (err) {
 			const errorMessage = sanitizeK8sErrorMessage(
@@ -209,8 +216,7 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				message: errorMessage
 			});
 
-			// Log failed audit event
-			await logAudit(locals.user, 'admin:delete', {
+			logAudit(locals.user, 'admin:delete', {
 				resourceType: resource.type,
 				resourceName: resource.name,
 				namespace: resource.namespace,
@@ -218,6 +224,8 @@ export const POST: RequestHandler = async ({ request, locals, getClientAddress, 
 				ipAddress: getClientAddress(),
 				success: false,
 				details: { error: errorMessage }
+			}).catch((auditErr) => {
+				logger.error(auditErr, 'Failed to log audit event for delete failure:');
 			});
 		}
 	}

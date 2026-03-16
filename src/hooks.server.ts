@@ -284,9 +284,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 		if (cluster) {
 			// Validate the cluster exists in the database (skip for built-in in-cluster context)
 			if (cluster !== 'in-cluster') {
-				const clusterRecord = await getClusterById(cluster).catch(() => null);
+				// Let DB errors propagate — don't silently fall back on infrastructure failures
+				const clusterRecord = await getClusterById(cluster);
 				if (!clusterRecord || !clusterRecord.isActive) {
-					// Invalid or inactive cluster — clear the stale cookie and fall back to in-cluster
+					// Unknown or inactive cluster — clear the stale cookie and fall back to in-cluster
 					cookies.delete('gyre_cluster', { path: '/' });
 					event.locals.cluster = 'in-cluster';
 				} else {

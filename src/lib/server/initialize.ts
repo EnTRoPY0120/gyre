@@ -3,6 +3,7 @@ import { getDbSync, closeDb } from './db/index.js';
 import { createDefaultAdminIfNeeded, setSetupTokenFile } from './auth.js';
 import { initDatabase } from './db/migrate.js';
 import { initializeDefaultPolicies, repairUserPolicyBindings } from './rbac-defaults.js';
+import { quarantineInvalidNamespacePatterns } from './rbac.js';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -302,6 +303,12 @@ export async function initializeGyre(): Promise<void> {
 		const repairedCount = await repairUserPolicyBindings();
 		if (repairedCount > 0) {
 			logger.info(`   ✓ Repaired RBAC bindings for ${repairedCount} existing user(s)`);
+		}
+		const quarantinedCount = await quarantineInvalidNamespacePatterns();
+		if (quarantinedCount > 0) {
+			logger.warn(
+				`   ⚠ Quarantined ${quarantinedCount} RBAC policy/policies with invalid namespacePattern`
+			);
 		}
 		logger.info('   ✓ RBAC policies ready');
 	} catch (error) {
