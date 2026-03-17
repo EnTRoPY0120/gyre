@@ -13,7 +13,8 @@ import {
 	unlinkSync,
 	copyFileSync,
 	writeFileSync,
-	readFileSync
+	readFileSync,
+	renameSync
 } from 'node:fs';
 import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -21,10 +22,16 @@ import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 
 import { MAX_LOCAL_BACKUPS } from './config/constants.js';
+import { closeDb } from './db/index.js';
 
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
 const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups');
+
+// Validate DATABASE_URL does not contain path traversal
+if (databaseUrl.includes('..')) {
+	throw new Error(`Invalid DATABASE_URL: path traversal detected: ${databaseUrl}`);
+}
 
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16; // 128-bit IV
@@ -50,6 +57,9 @@ export interface BackupMetadata {
 	encrypted: boolean;
 }
 
+let cachedEncryptionKey: Buffer | null | undefined = undefined;
+let hasWarnedUnencrypted = false;
+
 /**
  * Get the backup encryption key from BACKUP_ENCRYPTION_KEY env var.
  * Returns null if not set (encryption disabled).
@@ -60,9 +70,11 @@ export interface BackupMetadata {
  * rotate the key, decrypt and re-encrypt existing backups manually first.
  */
 function getBackupEncryptionKey(): Buffer | null {
+	if (cachedEncryptionKey !== undefined) return cachedEncryptionKey;
 	const keyHex = process.env.BACKUP_ENCRYPTION_KEY;
 	if (!keyHex) {
-		return null;
+		cachedEncryptionKey = null;
+		return cachedEncryptionKey;
 	}
 	if (!/^[0-9a-f]{64}$/i.test(keyHex)) {
 		throw new BackupError(
@@ -70,7 +82,8 @@ function getBackupEncryptionKey(): Buffer | null {
 				'Generate with: openssl rand -hex 32'
 		);
 	}
-	return Buffer.from(keyHex, 'hex');
+	cachedEncryptionKey = Buffer.from(keyHex, 'hex');
+	return cachedEncryptionKey;
 }
 
 /**
@@ -143,7 +156,10 @@ export async function createBackup(): Promise<BackupMetadata> {
 			await source.backup(tempPath);
 			const plainData = readFileSync(tempPath);
 			const encData = encryptBackup(plainData, key);
-			writeFileSync(encPath, encData);
+			// Write to a temp file first, then rename atomically to prevent corrupt partial files
+			const tempEncPath = `${encPath}.tmp`;
+			writeFileSync(tempEncPath, encData);
+			renameSync(tempEncPath, encPath);
 		} finally {
 			source.close();
 			if (existsSync(tempPath)) unlinkSync(tempPath);
@@ -160,10 +176,13 @@ export async function createBackup(): Promise<BackupMetadata> {
 		};
 	} else {
 		// Unencrypted backup (BACKUP_ENCRYPTION_KEY not set)
-		logger.warn(
-			'[Backup] ⚠️  BACKUP_ENCRYPTION_KEY is not set. Creating unencrypted backup. ' +
-				'Set BACKUP_ENCRYPTION_KEY to a 64-character hex string to enable encryption at rest.'
-		);
+		if (!hasWarnedUnencrypted) {
+			logger.warn(
+				'[Backup] ⚠️  BACKUP_ENCRYPTION_KEY is not set. Creating unencrypted backup. ' +
+					'Set BACKUP_ENCRYPTION_KEY to a 64-character hex string to enable encryption at rest.'
+			);
+			hasWarnedUnencrypted = true;
+		}
 
 		const filename = `gyre-backup-${ts}.db`;
 		const destPath = join(backupDir, filename);
@@ -295,22 +314,41 @@ export function deleteBackup(filename: string): boolean {
  * restarted after a restore for connections to pick up the new data.
  */
 export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata> {
-	// Validate the buffer is a valid SQLite database
-	const magic = buffer.subarray(0, 16).toString('ascii');
-	if (!magic.startsWith('SQLite format 3')) {
-		throw new BackupError('Invalid file: not a valid SQLite database', 400);
-	}
-
-	// Create a safety backup before restoring
-	const safetyBackup = await createBackup();
-	logger.info(`[Backup] Safety backup created: ${safetyBackup.filename}`);
-
-	// Write the uploaded DB to a temp file and validate it
 	ensureBackupDir();
 	const tempPath = join(backupDir, `_restore-temp-${Date.now()}.db`);
 
 	try {
-		// Write buffer to temp file
+		// Validate the buffer is a valid SQLite database (exact 16-byte header check)
+		const magic = buffer.subarray(0, 16).toString('ascii');
+		if (magic !== 'SQLite format 3\0') {
+			throw new BackupError('Invalid file: not a valid SQLite database', 400);
+		}
+
+		// Validate SQLite page size (bytes 16-17): must be power of 2 between 512 and 65536
+		if (buffer.length < 18) {
+			throw new BackupError('Invalid file: SQLite header is too short to read page size', 400);
+		}
+		const pageSize =
+			buffer[16] === 0 && buffer[17] === 1
+				? 65536 // special encoding for 65536
+				: buffer.readUInt16BE(16);
+		if (pageSize < 512 || pageSize > 65536 || (pageSize & (pageSize - 1)) !== 0) {
+			throw new BackupError('Invalid file: SQLite page size is not a valid power of 2', 400);
+		}
+
+		// Create a safety backup before restoring — abort if this fails
+		let safetyBackup: BackupMetadata;
+		try {
+			safetyBackup = await createBackup();
+			logger.info(`[Backup] Safety backup created: ${safetyBackup.filename}`);
+		} catch {
+			throw new BackupError(
+				'Failed to create safety backup before restore. Aborting to protect current data.',
+				500
+			);
+		}
+
+		// Write the uploaded DB to a temp file and validate it
 		writeFileSync(tempPath, buffer);
 
 		// Open and validate the uploaded DB has the expected schema
@@ -341,6 +379,18 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 					400
 				);
 			}
+
+			// Check users table has expected columns
+			const userCols = testDb.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+			const userColNames = userCols.map((c) => c.name);
+			const requiredUserCols = ['id', 'username', 'role', 'password_hash'];
+			const missingCols = requiredUserCols.filter((c) => !userColNames.includes(c));
+			if (missingCols.length > 0) {
+				throw new BackupError(
+					`Invalid backup: users table missing columns: ${missingCols.join(', ')}`,
+					400
+				);
+			}
 		} finally {
 			testDb.close();
 		}
@@ -367,8 +417,28 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 			}
 		}
 
-		// Replace the database file
+		// Replace the database file, closing the cached connection first so
+		// subsequent operations open a fresh handle to the new database.
+		closeDb();
 		copyFileSync(tempPath, databaseUrl);
+
+		// Verify the restored database passes integrity check
+		const verifyDb = new Database(databaseUrl, { readonly: true });
+		try {
+			const result = verifyDb.prepare('PRAGMA integrity_check').get() as {
+				integrity_check: string;
+			};
+			if (result.integrity_check !== 'ok') {
+				throw new BackupError(
+					`Restored database failed integrity check: ${result.integrity_check}. ` +
+						`The pre-restore database was preserved as safety backup "${safetyBackup.filename}" in the backup directory. ` +
+						`Restore that file to recover the previous database.`,
+					500
+				);
+			}
+		} finally {
+			verifyDb.close();
+		}
 
 		const stat = statSync(databaseUrl);
 		return {
@@ -387,20 +457,44 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 
 /**
  * Remove old backups beyond the retention limit.
+ * Also cleans up orphaned .tmp files left by interrupted encrypted backup writes.
  */
 function pruneOldBackups(): void {
 	const backups = listBackups();
-	if (backups.length <= MAX_LOCAL_BACKUPS) return;
-
-	const toDelete = backups.slice(MAX_LOCAL_BACKUPS);
-	for (const backup of toDelete) {
-		const filePath = join(backupDir, backup.filename);
-		try {
-			unlinkSync(filePath);
-			logger.info(`[Backup] Pruned old backup: ${backup.filename}`);
-		} catch {
-			logger.warn(`[Backup] Failed to prune: ${backup.filename}`);
+	if (backups.length > MAX_LOCAL_BACKUPS) {
+		const toDelete = backups.slice(MAX_LOCAL_BACKUPS);
+		for (const backup of toDelete) {
+			const filePath = join(backupDir, backup.filename);
+			try {
+				unlinkSync(filePath);
+				logger.info(`[Backup] Pruned old backup: ${backup.filename}`);
+			} catch {
+				logger.warn(`[Backup] Failed to prune: ${backup.filename}`);
+			}
 		}
+	}
+
+	// Clean up stale .tmp files from interrupted encrypted backup writes (older than 1 hour)
+	const staleThresholdMs = 60 * 60 * 1000;
+	const now = Date.now();
+	try {
+		const entries = readdirSync(backupDir).filter(
+			(f) => f.startsWith('gyre-backup-') && f.endsWith('.tmp')
+		);
+		for (const entry of entries) {
+			const filePath = join(backupDir, entry);
+			try {
+				const { mtimeMs } = statSync(filePath);
+				if (now - mtimeMs > staleThresholdMs) {
+					unlinkSync(filePath);
+					logger.info(`[Backup] Removed orphaned temp file: ${entry}`);
+				}
+			} catch {
+				// File may have been removed concurrently; ignore
+			}
+		}
+	} catch {
+		// readdirSync failure is non-fatal for temp cleanup
 	}
 }
 
