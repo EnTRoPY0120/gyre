@@ -51,7 +51,6 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 			let groupHealthy = 0;
 			let groupFailed = 0;
 			let groupSuspended = 0;
-			let hasError = false;
 
 			for (const resInfo of group.resources) {
 				const resResult = results.find(
@@ -61,7 +60,6 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 						healthy: number;
 						failed: number;
 						suspended: number;
-						error: boolean;
 					}) => r.type === resInfo.kind
 				);
 				if (resResult) {
@@ -69,7 +67,6 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 					groupHealthy += resResult.healthy;
 					groupFailed += resResult.failed;
 					groupSuspended += resResult.suspended;
-					if (resResult.error) hasError = true;
 				}
 			}
 
@@ -78,7 +75,7 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 				healthy: groupHealthy,
 				failed: groupFailed,
 				suspended: groupSuspended,
-				error: hasError
+				error: overviewData.partialFailure === true
 			};
 		}
 

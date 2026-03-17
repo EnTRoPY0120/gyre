@@ -111,7 +111,7 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 				configStrategy: isInCluster ? 'in-cluster' : 'local-kubeconfig',
 				configSource: isInCluster ? 'ServiceAccount' : 'kubeconfig',
 				currentContext,
-				availableContexts: [currentContext],
+				availableContexts: config.getContexts().map((c) => c.name),
 				connectionPool: getPoolMetrics()
 			}
 		};
