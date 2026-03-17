@@ -22,7 +22,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: entropy0120/gyre
-  PLATFORMS: linux/amd64,linux/arm64
+  PLATFORMS: linux/amd64
 
 jobs:
   build-and-push:
@@ -38,10 +38,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-
-      # QEMU is required for building linux/arm64 on an amd64 runner
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4
@@ -82,25 +78,25 @@ jobs:
             org.opencontainers.image.version=${{ github.ref_name }}
             org.opencontainers.image.revision=${{ github.sha }}
 
-      # Build each architecture into the local Docker daemon and scan before pushing.
-      # Trivy 0.50+ dropped the docker-archive: URI scheme; it resolves image names
-      # via the local daemon, so load:true is required. Both scans must pass
-      # (exit-code: 1) before the multi-arch push runs.
-      - name: Build linux/amd64 image for scan
+      # Build into the local Docker daemon and scan before pushing.
+      # Trivy 0.50+ dropped the docker-archive: URI scheme; it resolves image
+      # names via the local daemon, so load:true is required. The scan must pass
+      # (exit-code: 1) before the push runs.
+      - name: Build image for scan
         uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64
           load: true
-          tags: gyre:scan-amd64
+          tags: gyre:scan
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Run Trivy scan — linux/amd64 (blocking)
+      - name: Run Trivy scan (blocking)
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
-          image-ref: gyre:scan-amd64
+          image-ref: gyre:scan
           format: table
           severity: CRITICAL
           ignore-unfixed: false
@@ -108,31 +104,7 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore
 
-      - name: Build linux/arm64 image for scan
-        uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294 # v7
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/arm64
-          load: true
-          tags: gyre:scan-arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Run Trivy scan — linux/arm64 (blocking)
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        with:
-          image-ref: gyre:scan-arm64
-          format: table
-          severity: CRITICAL
-          ignore-unfixed: false
-          vuln-type: os,library
-          exit-code: '1'
-          trivyignores: .trivyignore
-
-      # Push multi-arch manifest. All layers are already in the GHA cache from
-      # the scan builds above, so this step only assembles and pushes the manifest.
-      # Skipped for pull requests — scanning both arches above is sufficient.
+      # Push step skipped for pull requests — the scan above is sufficient.
       - name: Build and push Docker image
         id: build-and-push
         if: github.event_name != 'pull_request'
@@ -250,10 +222,10 @@ jobs:
             const output = `### Docker Build Completed
 
             **Status:** Success
-            **Platforms:** ${{ env.PLATFORMS }}
+            **Platform:** ${{ env.PLATFORMS }}
 
             ### Security Scan
-            Trivy vulnerability scan completed for both architectures. Check the workflow logs for details.
+            Trivy vulnerability scan completed. Check the workflow logs for details.
 
             > Note: Images are not pushed for pull requests. Merge to main to publish.`;
 
