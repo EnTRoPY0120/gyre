@@ -201,15 +201,19 @@ function mapRoleFromGroups(
 	roleMapping: string | null,
 	defaultRole: string
 ): 'admin' | 'editor' | 'viewer' {
-	// Clamp defaultRole: admin can only be granted via explicit group membership
+	// Clamp defaultRole: admin can only be granted via explicit group membership,
+	// and unrecognised values fall back to 'viewer' (least privilege).
+	const normalizedDefault = defaultRole.trim().toLowerCase();
 	let safeDefaultRole: 'editor' | 'viewer';
-	if (defaultRole === 'admin') {
+	if (normalizedDefault === 'admin') {
 		logger.warn(
 			'[Security] SSO provider defaultRole is "admin"; restricting fallback to "editor" to prevent privilege escalation. Assign admin via explicit group mapping.'
 		);
 		safeDefaultRole = 'editor';
+	} else if (normalizedDefault === 'viewer') {
+		safeDefaultRole = 'viewer';
 	} else {
-		safeDefaultRole = defaultRole === 'viewer' ? 'viewer' : 'editor';
+		safeDefaultRole = 'viewer'; // least-privilege fallback for unrecognised values
 	}
 
 	// No mapping configured - use default role
