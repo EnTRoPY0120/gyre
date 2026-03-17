@@ -382,7 +382,7 @@ export async function createSession(
 			.select({ id: sessions.id })
 			.from(sessions)
 			.where(eq(sessions.userId, userId))
-			.orderBy(asc(sessions.expiresAt))
+			.orderBy(asc(sessions.createdAt))
 			.all();
 
 		tx.insert(sessions).values(newSession).run();
