@@ -75,7 +75,10 @@ COPY --from=builder --chown=gyre:gyre /build/node_modules ./node_modules
 # @esbuild-kit is a transitive dependency of drizzle-kit (dev-only) that leaks
 # into the production node_modules copy; its bundled esbuild Go binary (built
 # with an old Go stdlib) would otherwise trigger CVE-2024-24790.
-RUN rm -rf /app/node_modules/@esbuild-kit
+# @esbuild/* (e.g. @esbuild/linux-x64) are platform-specific binaries for the
+# esbuild bundler, which is only needed at build time; the bundled Go binary
+# triggers CVE-2025-68121 (Go crypto/tls, stdlib v1.23.x).
+RUN rm -rf /app/node_modules/@esbuild-kit /app/node_modules/@esbuild
 
 # Create data directory for SQLite database (PVC mount point)
 RUN mkdir -p /data && chown -R gyre:gyre /data

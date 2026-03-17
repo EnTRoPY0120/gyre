@@ -1,0 +1,24 @@
+{{- if .Values.podDisruptionBudget.enabled -}}
+{{- $hasMin := hasKey .Values.podDisruptionBudget "minAvailable" -}}
+{{- $hasMax := hasKey .Values.podDisruptionBudget "maxUnavailable" -}}
+{{- if and $hasMin $hasMax -}}
+  {{- fail "podDisruptionBudget: cannot set both minAvailable and maxUnavailable — Kubernetes rejects manifests with both fields present" -}}
+{{- end -}}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "gyre.fullname" . }}
+  labels:
+    {{- include "gyre.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "gyre.selectorLabels" . | nindent 6 }}
+  {{- if $hasMax }}
+  maxUnavailable: {{ .Values.podDisruptionBudget.maxUnavailable }}
+  {{- else if $hasMin }}
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  {{- else }}
+  minAvailable: 1
+  {{- end }}
+{{- end }}

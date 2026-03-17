@@ -34,7 +34,7 @@ spec:
     - to:
       - namespaceSelector:
           matchLabels:
-            kubernetes.io/metadata.name: kube-system
+            kubernetes.io/metadata.name: {{ .Values.networkPolicy.dnsNamespace }}
         podSelector:
           matchLabels:
             k8s-app: kube-dns
@@ -43,11 +43,14 @@ spec:
         port: 53
       - protocol: TCP
         port: 53
-    # Allow access to Kubernetes API server in default namespace
+    # Allow outbound traffic to any pod in the configured namespace (default: "default") on
+    # API ports 443/6443. This reaches the Kubernetes API via the "kubernetes" Service that
+    # lives in the default namespace. It is intentionally permissive within that namespace;
+    # use networkPolicy.apiServerNamespace to restrict to a tighter namespace if needed.
     - to:
       - namespaceSelector:
           matchLabels:
-            kubernetes.io/metadata.name: default
+            kubernetes.io/metadata.name: {{ .Values.networkPolicy.apiServerNamespace }}
       ports:
       - protocol: TCP
         port: 443
