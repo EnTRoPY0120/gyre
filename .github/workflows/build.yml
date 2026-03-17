@@ -197,6 +197,9 @@ jobs:
       # Create a detailed build summary
       - name: Build summary
         if: github.event_name != 'pull_request'
+        env:
+          SARIF_OUTCOME: ${{ steps.trivy-sarif.outcome }}
+          SARIF_EXISTS: ${{ steps.sarif-check.outputs.sarif_exists }}
         run: |
           echo "## Docker Image Published Successfully" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -213,9 +216,11 @@ jobs:
           echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Security Scan" >> $GITHUB_STEP_SUMMARY
-          echo "Trivy vulnerability scan completed. Check the Security tab for detailed results." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$SARIF_OUTCOME" = "success" ] && [ "$SARIF_EXISTS" = "true" ]; then
+            echo "### Security Scan" >> $GITHUB_STEP_SUMMARY
+            echo "Trivy vulnerability scan completed. Check the Security tab for detailed results." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Latest version:**" >> $GITHUB_STEP_SUMMARY
