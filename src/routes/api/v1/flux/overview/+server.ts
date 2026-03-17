@@ -95,6 +95,6 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
 
 	return json({
 		timestamp: new Date().toISOString(),
-		results
+		results: results.filter((r) => !r.error)
 	});
 };
