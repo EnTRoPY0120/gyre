@@ -70,6 +70,12 @@
 		goto(url.toString());
 	}
 
+	// Must stay in sync with passwordSchema in $lib/utils/validation.ts
+	const PASSWORD_PATTERN =
+		'(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}';
+	const PASSWORD_TITLE =
+		'At least 8 characters with one uppercase, one lowercase, one number, and one special character (!@#$%^&*(),.?":{}|<>)';
+
 	function generatePassword() {
 		const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
 		const values = new Uint32Array(12);
@@ -405,6 +411,9 @@
 								bind:value={newUser.password}
 								required
 								minlength="8"
+								pattern={PASSWORD_PATTERN}
+								title={PASSWORD_TITLE}
+								aria-describedby="password-hint"
 								class="flex-1 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
 							/>
 							<Button
@@ -415,7 +424,9 @@
 								Regenerate
 							</Button>
 						</div>
-						<p class="mt-1 text-xs text-slate-400">Auto-generated password shown above</p>
+						<p id="password-hint" class="mt-1 text-xs text-slate-400">
+							Min 8 characters · one uppercase · one lowercase · one number · one special character
+						</p>
 					</div>
 
 					<div class="flex justify-end gap-3 pt-4">
@@ -638,6 +649,9 @@
 								bind:value={generatedPassword}
 								required
 								minlength="8"
+								pattern={PASSWORD_PATTERN}
+								title={PASSWORD_TITLE}
+								aria-describedby="new-password-hint"
 								class="flex-1 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
 							/>
 							<Button
@@ -648,6 +662,9 @@
 								Regenerate
 							</Button>
 						</div>
+						<p id="new-password-hint" class="mt-1 text-xs text-slate-400">
+							Min 8 characters · one uppercase · one lowercase · one number · one special character
+						</p>
 					</div>
 
 					<p class="text-xs text-amber-400">
