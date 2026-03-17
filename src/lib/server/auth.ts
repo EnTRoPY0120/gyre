@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db/index.js';
 import { users, sessions, passwordHistory } from './db/schema.js';
 import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
-import { eq, and, gt, lte, sql, or, inArray, desc } from 'drizzle-orm';
+import { eq, and, gt, lte, sql, or, inArray, desc, asc } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import { passwordSchema } from '../utils/validation.js';
@@ -18,6 +18,7 @@ const SALT_ROUNDS = 12;
 export const SESSION_DURATION_DAYS = 2;
 const PASSWORD_HISTORY_LIMIT = 5;
 const ADMIN_SECRET_NAME = 'gyre-initial-admin-secret';
+const MAX_SESSIONS_PER_USER = 10;
 
 function warnIfWeakAdminPassword(password: string): void {
 	const result = passwordSchema.safeParse(password);
@@ -358,6 +359,23 @@ export async function createSession(
 	userAgent?: string
 ): Promise<string> {
 	const db = await getDb();
+
+	const existingSessions = await db
+		.select({ id: sessions.id })
+		.from(sessions)
+		.where(eq(sessions.userId, userId))
+		.orderBy(asc(sessions.expiresAt));
+
+	if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
+		const evictCount = existingSessions.length - MAX_SESSIONS_PER_USER + 1;
+		const toEvict = existingSessions.slice(0, evictCount).map((s) => s.id);
+		await db.delete(sessions).where(inArray(sessions.id, toEvict));
+		logger.info(
+			{ userId, evictCount },
+			`[Auth] Evicted ${evictCount} oldest session(s) to enforce MAX_SESSIONS_PER_USER=${MAX_SESSIONS_PER_USER}`
+		);
+	}
+
 	const sessionId = generateSessionId();
 	const expiresAt = new Date();
 	expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
@@ -716,7 +734,7 @@ export async function authenticateUser(username: string, password: string): Prom
 
 	// In-cluster mode: Admin password is in K8s secret
 	// Local dev mode: All passwords (including admin) are in SQLite
-	if (username === 'admin' && isInClusterMode()) {
+	if (username.trim().toLowerCase() === 'admin' && isInClusterMode()) {
 		isValid = await validateInClusterAdmin(password);
 	} else {
 		// Validate against SQLite password hash
