@@ -77,6 +77,12 @@ export async function createOrUpdateSSOUser(
 				`SSO role change detected for user ${user.username}: ${user.role} -> ${newRole}; syncing RBAC bindings`
 			);
 			const updatedUser = await updateUser(user.id, { role: newRole });
+			if (!updatedUser) {
+				logger.error(
+					`Failed to update role for user ${user.id} to ${newRole} during SSO login`
+				);
+				throw new Error(`Failed to update SSO user role for user ${user.id}`);
+			}
 			return { user: updatedUser };
 		}
 
