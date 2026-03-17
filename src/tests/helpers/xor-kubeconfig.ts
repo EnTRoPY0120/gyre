@@ -8,6 +8,9 @@
  */
 export function encryptLegacyXorKubeconfig(plaintext: string): string {
 	const key = process.env.GYRE_ENCRYPTION_KEY ?? '';
+	if (!key) {
+		throw new Error('GYRE_ENCRYPTION_KEY must be set for tests');
+	}
 	const buffer = Buffer.from(plaintext, 'utf-8');
 	const encrypted = Buffer.alloc(buffer.length);
 	for (let i = 0; i < buffer.length; i++) {
