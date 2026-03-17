@@ -22,6 +22,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: entropy0120/gyre
+  PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
   build-and-push:
@@ -139,7 +140,7 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ env.PLATFORMS }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -149,25 +150,40 @@ jobs:
 
       # Post-push SARIF scan for GitHub Security tab reporting (non-blocking)
       - name: Run Trivy vulnerability scanner (SARIF)
+        id: trivy-sarif
         if: github.event_name != 'pull_request'
+        continue-on-error: true
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
-          image-ref: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}'
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH,MEDIUM'
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}
+          format: sarif
+          output: trivy-results.sarif
+          severity: CRITICAL,HIGH,MEDIUM
           ignore-unfixed: false
-          vuln-type: 'os,library'
-          scanners: 'vuln,secret,config'
+          vuln-type: os,library
+          scanners: vuln,secret,config
           exit-code: '0'
-          trivyignores: '.trivyignore'
+          trivyignores: .trivyignore
+
+      - name: Check SARIF output exists
+        id: sarif-check
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -f trivy-results.sarif ]; then
+            echo "sarif_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "sarif_exists=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload Trivy results to GitHub Security
         uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4
-        if: always() && github.event_name != 'pull_request'
+        if: >-
+          github.event_name != 'pull_request' &&
+          steps.trivy-sarif.outcome == 'success' &&
+          steps.sarif-check.outputs.sarif_exists == 'true'
         with:
-          sarif_file: 'trivy-results.sarif'
-          category: 'container-scan'
+          sarif_file: trivy-results.sarif
+          category: container-scan
 
       # Generate artifact attestation (supply chain security)
       - name: Generate artifact attestation
@@ -189,7 +205,7 @@ jobs:
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Registry** | \`${{ env.REGISTRY }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Repository** | \`${{ env.IMAGE_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Platforms** | \`linux/amd64, linux/arm64\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Platforms** | \`${{ env.PLATFORMS }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Digest** | \`${{ steps.build-and-push.outputs.digest }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Published Tags" >> $GITHUB_STEP_SUMMARY
@@ -229,7 +245,7 @@ jobs:
             const output = `### Docker Build Completed
 
             **Status:** Success
-            **Platforms:** linux/amd64, linux/arm64
+            **Platforms:** ${{ env.PLATFORMS }}
 
             ### Security Scan
             Trivy vulnerability scan completed for both architectures. Check the workflow logs for details.
