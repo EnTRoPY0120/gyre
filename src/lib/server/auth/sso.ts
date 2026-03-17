@@ -86,8 +86,19 @@ export async function createOrUpdateSSOUser(
 				logger.error(`Failed to update role for user ${user.id} to ${newRole} during SSO login`);
 				throw new Error(`Failed to update SSO user role for user ${user.id}`);
 			}
-			await deleteUserSessions(user.id);
-			logger.info(`Revoked existing sessions for user ${user.id} after role change to ${newRole}`);
+			try {
+				await deleteUserSessions(user.id);
+				logger.info(
+					`Revoked existing sessions for user ${user.id} after role change to ${newRole}`
+				);
+			} catch (err) {
+				logger.error(
+					err,
+					`Failed to revoke sessions for user ${user.id} after role change; rolling back role to ${user.role}`
+				);
+				await updateUser(user.id, { role: user.role });
+				throw err;
+			}
 			return { user: updatedUser };
 		}
 
