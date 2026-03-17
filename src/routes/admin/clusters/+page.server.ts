@@ -1,4 +1,5 @@
 import { logger } from '$lib/server/logger.js';
+import yaml from 'js-yaml';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
@@ -101,8 +102,8 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Validate kubeconfig format
-			const parsed = JSON.parse(kubeconfig);
+			// Validate kubeconfig format (accepts both YAML and JSON)
+			const parsed = yaml.load(kubeconfig) as { clusters?: unknown; contexts?: unknown };
 			if (!parsed.clusters || !parsed.contexts) {
 				return fail(400, { error: 'Invalid kubeconfig: missing clusters or contexts' });
 			}
@@ -126,8 +127,8 @@ export const actions: Actions = {
 			if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
 				return fail(400, { error: 'A cluster with this name already exists' });
 			}
-			if (error instanceof SyntaxError) {
-				return fail(400, { error: 'Invalid JSON format in kubeconfig' });
+			if (error instanceof yaml.YAMLException) {
+				return fail(400, { error: 'Invalid kubeconfig format: could not parse as YAML or JSON' });
 			}
 			return fail(500, { error: 'Failed to create cluster' });
 		}

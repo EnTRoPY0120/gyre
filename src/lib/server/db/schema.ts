@@ -1,4 +1,11 @@
-import { sqliteTable, text, integer, primaryKey, index } from 'drizzle-orm/sqlite-core';
+import {
+	sqliteTable,
+	text,
+	integer,
+	primaryKey,
+	index,
+	uniqueIndex
+} from 'drizzle-orm/sqlite-core';
 import { sql, relations } from 'drizzle-orm';
 import type { UserPreferences } from '$lib/types/user';
 
@@ -89,19 +96,28 @@ export const clusters = sqliteTable('clusters', {
 });
 
 // Cluster contexts table (for multi-context kubeconfigs)
-export const clusterContexts = sqliteTable('cluster_contexts', {
-	id: text('id').primaryKey(),
-	clusterId: text('cluster_id')
-		.notNull()
-		.references(() => clusters.id, { onDelete: 'cascade' }),
-	contextName: text('context_name').notNull(),
-	isCurrent: integer('is_current', { mode: 'boolean' }).notNull().default(false),
-	server: text('server'), // Kubernetes API server URL
-	namespaceRestrictions: text('namespace_restrictions'), // JSON array of allowed namespaces (null = all)
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.default(sql`(unixepoch())`)
-});
+export const clusterContexts = sqliteTable(
+	'cluster_contexts',
+	{
+		id: text('id').primaryKey(),
+		clusterId: text('cluster_id')
+			.notNull()
+			.references(() => clusters.id, { onDelete: 'cascade' }),
+		contextName: text('context_name').notNull(),
+		isCurrent: integer('is_current', { mode: 'boolean' }).notNull().default(false),
+		server: text('server'), // Kubernetes API server URL
+		namespaceRestrictions: text('namespace_restrictions'), // JSON array of allowed namespaces (null = all)
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`)
+	},
+	(table) => ({
+		clusterContextUnique: uniqueIndex('idx_cluster_contexts_cluster_context').on(
+			table.clusterId,
+			table.contextName
+		)
+	})
+);
 
 // RBAC Policies table
 export const rbacPolicies = sqliteTable('rbac_policies', {

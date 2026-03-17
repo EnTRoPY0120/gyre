@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `idx_cluster_contexts_cluster_context` ON `cluster_contexts` (`cluster_id`,`context_name`);

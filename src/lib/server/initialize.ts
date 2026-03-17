@@ -240,9 +240,12 @@ export async function initializeGyre(): Promise<void> {
 
 	// Migrate kubeconfigs to new encryption format if needed (must run after DB is initialized)
 	try {
-		const migratedCount = await migrateKubeconfigs();
-		if (migratedCount > 0) {
-			logger.info(`   ✓ Migrated ${migratedCount} cluster(s) to new encryption format`);
+		const { migrated, failed } = await migrateKubeconfigs();
+		if (migrated > 0) {
+			logger.info(`   ✓ Migrated ${migrated} cluster(s) to new encryption format`);
+		}
+		if (failed > 0) {
+			logger.warn(`   ⚠️  Failed to migrate ${failed} cluster(s) — check logs above for details`);
 		}
 	} catch (error) {
 		logger.error(error, '   ✗ Failed to migrate kubeconfigs');

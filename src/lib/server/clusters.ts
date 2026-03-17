@@ -92,8 +92,8 @@ function encryptKubeconfig(kubeconfig: string): string {
 }
 
 /**
- * Decrypt kubeconfig string
- * Supports both old XOR format and new AES-256-GCM (v2) format
+ * Decrypt kubeconfig string.
+ * Only AES-256-GCM (v2) format is supported.
  */
 function decryptKubeconfig(encrypted: string): string {
 	// Check if it's the new v2 format
@@ -116,14 +116,10 @@ function decryptKubeconfig(encrypted: string): string {
 		return decrypted;
 	}
 
-	// Fallback to old XOR encryption for backward compatibility during migration
-	const buffer = Buffer.from(encrypted, 'base64');
-	const decrypted = Buffer.alloc(buffer.length);
-	for (let i = 0; i < buffer.length; i++) {
-		const key = getEncryptionKeyLazy();
-		decrypted[i] = buffer[i] ^ key.charCodeAt(i % key.length);
-	}
-	return decrypted.toString('utf-8');
+	throw new Error(
+		'Unsupported kubeconfig encryption format: only v2 (AES-256-GCM) is supported. ' +
+			'Run migrateKubeconfigs() to upgrade any legacy records.'
+	);
 }
 
 /**
@@ -437,7 +433,7 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 		try {
 			const coreApi = kc.makeApiClient(k8s.CoreV1Api);
 			// Try to get server info - this validates authentication
-			const namespaces = await coreApi.listNamespace();
+			await coreApi.listNamespace({ limit: 1 });
 			// If we get here, authentication worked
 
 			// Extract version info from the first namespace's metadata (if available)
@@ -453,17 +449,12 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 				duration: Date.now() - authStart
 			});
 
-			// Store namespaces for authorization check
-			const namespaceCount = Array.isArray(namespaces)
-				? namespaces.length
-				: namespaces.items?.length || 0;
-
 			// Test 4: Authorization Check (Can list namespaces?)
 			checks.push({
 				name: 'Authorization',
 				passed: true,
 				message: 'Successfully listed namespaces',
-				details: `Access to ${namespaceCount} namespace(s) confirmed`,
+				details: 'Namespace access confirmed',
 				duration: Date.now() - authStart
 			});
 
@@ -484,7 +475,7 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 				// Version check is optional but helpful
 				checks.push({
 					name: 'Kubernetes Version',
-					passed: true, // Still "passed" because core connectivity worked
+					passed: false,
 					message: 'Connected, but failed to retrieve detailed version info',
 					duration: Date.now() - versionStart
 				});
@@ -566,10 +557,11 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 /**
  * Migrate all kubeconfigs to the new AES-256-GCM (v2) format
  */
-export async function migrateKubeconfigs(): Promise<number> {
+export async function migrateKubeconfigs(): Promise<{ migrated: number; failed: number }> {
 	const db = getDbSync();
 	const allClusters = await getAllClusters();
 	let migratedCount = 0;
+	let failed = 0;
 
 	for (const cluster of allClusters) {
 		if (cluster.kubeconfigEncrypted && !cluster.kubeconfigEncrypted.startsWith('v2:')) {
@@ -590,11 +582,18 @@ export async function migrateKubeconfigs(): Promise<number> {
 				migratedCount++;
 			} catch (error) {
 				logger.error(error, `Failed to migrate kubeconfig for cluster ${cluster.name}:`);
+				failed++;
 			}
 		}
 	}
 
-	return migratedCount;
+	return { migrated: migratedCount, failed };
+}
+
+// Exported for testing only
+export { decryptKubeconfig as _decryptKubeconfig };
+export function _resetEncryptionKeyCache(): void {
+	_encryptionKey = null;
 }
 
 export type { NewCluster, NewClusterContext };
