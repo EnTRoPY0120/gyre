@@ -13,6 +13,17 @@
 	const status = $derived(resource.status || {});
 
 	const url = $derived(spec.url as string | undefined);
+	const SAFE_URL_PROTOCOLS = ['http:', 'https:', 'ssh:', 'git:', 'oci:'];
+	const isSafeUrl = $derived(
+		!!url &&
+			(() => {
+				try {
+					return SAFE_URL_PROTOCOLS.includes(new URL(url).protocol);
+				} catch {
+					return false;
+				}
+			})()
+	);
 	const interval = $derived(spec.interval as string | undefined);
 	const timeout = $derived(spec.timeout as string | undefined);
 	const ref = $derived(
@@ -46,22 +57,26 @@
 				<div class="sm:col-span-2">
 					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Repository URL</dt>
 					<dd class="mt-1">
-						<a
-							href={url}
-							target="_blank"
-							rel="external noopener noreferrer"
-							class="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline dark:text-blue-400"
-						>
-							<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-								/>
-							</svg>
-							{url}
-						</a>
+						{#if isSafeUrl}
+							<a
+								href={url}
+								target="_blank"
+								rel="external noopener noreferrer"
+								class="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline dark:text-blue-400"
+							>
+								<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+									/>
+								</svg>
+								{url}
+							</a>
+						{:else}
+							<span class="text-sm text-gray-900 dark:text-gray-100">{url}</span>
+						{/if}
 					</dd>
 				</div>
 			{/if}

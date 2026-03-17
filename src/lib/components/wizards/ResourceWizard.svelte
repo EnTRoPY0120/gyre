@@ -21,9 +21,6 @@
 		defaultNamespace?: string;
 	} = $props();
 
-	// LocalStorage key for remembering form values
-	const storageKey = $derived(`gyre-wizard-${template.id}`);
-
 	let mode = $state<'wizard' | 'yaml'>('wizard');
 	let isSubmitting = $state(false);
 	let error = $state<string | null>(null);
@@ -74,24 +71,13 @@
 		}
 	});
 
-	// Initialize form values from initial YAML, localStorage, and defaults
+	// Initialize form values from initial YAML and defaults
 	$effect(() => {
 		try {
 			const parsed = parse(template.yaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
 			const values: Record<string, unknown> = {};
-
-			// Load saved values from localStorage
-			let savedValues: Record<string, unknown> = {};
-			try {
-				const saved = localStorage.getItem(storageKey);
-				if (saved) {
-					savedValues = JSON.parse(saved);
-				}
-			} catch {
-				// Ignore localStorage errors
-			}
 
 			template.fields.forEach((field) => {
 				const path = field.path.split('.');
@@ -103,11 +89,6 @@
 					} else {
 						current = current[path[i]] as Record<string, unknown>;
 					}
-				}
-
-				// Apply saved value if exists and field allows it
-				if (field.name in savedValues && field.name !== 'name') {
-					values[field.name] = savedValues[field.name];
 				}
 
 				// Apply default namespace
@@ -206,19 +187,6 @@
 			}
 
 			success = true;
-
-			// Save form values to localStorage for next time (excluding name)
-			try {
-				const valuesToSave: Record<string, unknown> = {};
-				template.fields.forEach((field) => {
-					if (field.name !== 'name' && field.name in formValues) {
-						valuesToSave[field.name] = formValues[field.name];
-					}
-				});
-				localStorage.setItem(storageKey, JSON.stringify(valuesToSave));
-			} catch {
-				// Ignore localStorage errors
-			}
 
 			setTimeout(() => {
 				void goto(
