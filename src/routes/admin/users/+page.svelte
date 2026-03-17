@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
+	import { enhance, applyAction } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { getCsrfToken } from '$lib/utils/csrf';
@@ -342,6 +342,8 @@
 							if (result.type === 'success') {
 								closeModals();
 								invalidateAll();
+							} else {
+								await applyAction(result);
 							}
 						};
 					}}
@@ -469,6 +471,8 @@
 							if (result.type === 'success') {
 								closeModals();
 								invalidateAll();
+							} else {
+								await applyAction(result);
 							}
 						};
 					}}
@@ -577,6 +581,8 @@
 							if (result.type === 'success') {
 								closeModals();
 								invalidateAll();
+							} else {
+								await applyAction(result);
 							}
 						};
 					}}
@@ -629,6 +635,8 @@
 							if (result.type === 'success') {
 								passwordResetSuccess = true;
 								invalidateAll();
+							} else {
+								await applyAction(result);
 							}
 						};
 					}}
