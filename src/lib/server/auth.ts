@@ -18,7 +18,9 @@ const SALT_ROUNDS = 12;
 export const SESSION_DURATION_DAYS = 2;
 const PASSWORD_HISTORY_LIMIT = 5;
 const ADMIN_SECRET_NAME = 'gyre-initial-admin-secret';
-const MAX_SESSIONS_PER_USER = 10;
+const _maxSessionsEnv = parseInt(process.env.MAX_SESSIONS_PER_USER ?? '', 10);
+const MAX_SESSIONS_PER_USER =
+	Number.isFinite(_maxSessionsEnv) && _maxSessionsEnv > 0 ? _maxSessionsEnv : 10;
 
 function warnIfWeakAdminPassword(password: string): void {
 	const result = passwordSchema.safeParse(password);
@@ -360,22 +362,6 @@ export async function createSession(
 ): Promise<string> {
 	const db = await getDb();
 
-	const existingSessions = await db
-		.select({ id: sessions.id })
-		.from(sessions)
-		.where(eq(sessions.userId, userId))
-		.orderBy(asc(sessions.expiresAt));
-
-	if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
-		const evictCount = existingSessions.length - MAX_SESSIONS_PER_USER + 1;
-		const toEvict = existingSessions.slice(0, evictCount).map((s) => s.id);
-		await db.delete(sessions).where(inArray(sessions.id, toEvict));
-		logger.info(
-			{ userId, evictCount },
-			`[Auth] Evicted ${evictCount} oldest session(s) to enforce MAX_SESSIONS_PER_USER=${MAX_SESSIONS_PER_USER}`
-		);
-	}
-
 	const sessionId = generateSessionId();
 	const expiresAt = new Date();
 	expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
@@ -388,7 +374,33 @@ export async function createSession(
 		userAgent: userAgent || null
 	};
 
-	await db.insert(sessions).values(newSession);
+	// Perform select, insert, and eviction atomically to prevent concurrent
+	// requests from exceeding MAX_SESSIONS_PER_USER.
+	let evictCount = 0;
+	db.transaction((tx) => {
+		const existingSessions = tx
+			.select({ id: sessions.id })
+			.from(sessions)
+			.where(eq(sessions.userId, userId))
+			.orderBy(asc(sessions.expiresAt))
+			.all();
+
+		tx.insert(sessions).values(newSession).run();
+
+		if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
+			evictCount = existingSessions.length - MAX_SESSIONS_PER_USER + 1;
+			const toEvict = existingSessions.slice(0, evictCount).map((s) => s.id);
+			tx.delete(sessions).where(inArray(sessions.id, toEvict)).run();
+		}
+	});
+
+	if (evictCount > 0) {
+		logger.info(
+			{ userId, evictCount },
+			`[Auth] Evicted ${evictCount} oldest session(s) to enforce MAX_SESSIONS_PER_USER=${MAX_SESSIONS_PER_USER}`
+		);
+	}
+
 	return sessionId;
 }
 
