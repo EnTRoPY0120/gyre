@@ -7,7 +7,7 @@ import { logger } from '../logger.js';
 import { getDb } from '$lib/server/db';
 import { users, userProviders, type AuthProvider } from '$lib/server/db/schema';
 import type { User } from '$lib/server/db/schema';
-import { generateUserId, normalizeUsername } from '$lib/server/auth';
+import { generateUserId, normalizeUsername, updateUser } from '$lib/server/auth';
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
 import type { OAuthUserInfo } from './oauth/types';
 import { eq, and } from 'drizzle-orm';
@@ -63,6 +63,21 @@ export async function createOrUpdateSSOUser(
 		if (!user) {
 			logger.warn(`Orphaned provider link found for userId ${existingLink.userId}`);
 			return { user: null, reason: 'user_not_found' };
+		}
+
+		// Re-evaluate role from current IdP groups in case membership changed
+		const newRole = mapRoleFromGroups(
+			userInfo.groups || [],
+			providerConfig.roleMapping,
+			providerConfig.defaultRole
+		);
+
+		if (newRole !== user.role) {
+			logger.info(
+				`SSO role change detected for user ${user.username}: ${user.role} -> ${newRole}; syncing RBAC bindings`
+			);
+			const updatedUser = await updateUser(user.id, { role: newRole });
+			return { user: updatedUser };
 		}
 
 		return { user };
@@ -186,9 +201,20 @@ function mapRoleFromGroups(
 	roleMapping: string | null,
 	defaultRole: string
 ): 'admin' | 'editor' | 'viewer' {
+	// Clamp defaultRole: admin can only be granted via explicit group membership
+	let safeDefaultRole: 'editor' | 'viewer';
+	if (defaultRole === 'admin') {
+		logger.warn(
+			'[Security] SSO provider defaultRole is "admin"; restricting fallback to "editor" to prevent privilege escalation. Assign admin via explicit group mapping.'
+		);
+		safeDefaultRole = 'editor';
+	} else {
+		safeDefaultRole = defaultRole === 'viewer' ? 'viewer' : 'editor';
+	}
+
 	// No mapping configured - use default role
 	if (!roleMapping) {
-		return defaultRole as 'admin' | 'editor' | 'viewer';
+		return safeDefaultRole;
 	}
 
 	// Parse role mapping
@@ -197,7 +223,7 @@ function mapRoleFromGroups(
 		mapping = JSON.parse(roleMapping);
 	} catch (error) {
 		logger.error(error, 'Failed to parse role mapping:');
-		return defaultRole as 'admin' | 'editor' | 'viewer';
+		return safeDefaultRole;
 	}
 
 	// Check admin groups first (highest priority)
@@ -222,7 +248,7 @@ function mapRoleFromGroups(
 	}
 
 	// No matching groups - use default role
-	return defaultRole as 'admin' | 'editor' | 'viewer';
+	return safeDefaultRole;
 }
 
 /**
