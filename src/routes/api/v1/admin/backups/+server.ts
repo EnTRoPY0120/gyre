@@ -98,7 +98,7 @@ import { checkRateLimit } from '$lib/server/rate-limiter';
  */
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	}
 
 	const clusterId = locals.cluster || 'in-cluster';
@@ -110,7 +110,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err) throw err;
 		logger.error(err, 'Failed to list backups:');
-		throw error(500, 'Failed to list backups');
+		throw error(500, { message: 'Failed to list backups', code: 'InternalServerError' });
 	}
 };
 
@@ -120,7 +120,7 @@ export const GET: RequestHandler = async ({ locals }) => {
  */
 export const POST: RequestHandler = async ({ locals, setHeaders }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	}
 
 	const clusterId = locals.cluster || 'in-cluster';
@@ -141,7 +141,7 @@ export const POST: RequestHandler = async ({ locals, setHeaders }) => {
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err) throw err;
 		logger.error(err, 'Failed to create backup:');
-		throw error(500, 'Failed to create backup');
+		throw error(500, { message: 'Failed to create backup', code: 'InternalServerError' });
 	}
 };
 
@@ -151,7 +151,7 @@ export const POST: RequestHandler = async ({ locals, setHeaders }) => {
  */
 export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	}
 
 	const clusterId = locals.cluster || 'in-cluster';
@@ -161,18 +161,18 @@ export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 
 	const filename = url.searchParams.get('filename');
 	if (!filename) {
-		throw error(400, 'Missing filename parameter');
+		throw error(400, { message: 'Missing filename parameter', code: 'BadRequest' });
 	}
 
 	const BACKUP_FILENAME_RE = /^gyre-backup-[\dT\-:.]+Z?\.db(\.enc)?$/;
 	if (!BACKUP_FILENAME_RE.test(filename)) {
-		throw error(400, 'Invalid backup filename');
+		throw error(400, { message: 'Invalid backup filename', code: 'BadRequest' });
 	}
 
 	try {
 		const deleted = deleteBackup(filename);
 		if (!deleted) {
-			throw error(404, 'Backup not found');
+			throw error(404, { message: 'Backup not found', code: 'NotFound' });
 		}
 
 		await logAudit(locals.user, 'backup:delete', {
@@ -186,6 +186,6 @@ export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 			throw err;
 		}
 		logger.error(err, 'Failed to delete backup:');
-		throw error(500, 'Failed to delete backup');
+		throw error(500, { message: 'Failed to delete backup', code: 'InternalServerError' });
 	}
 };

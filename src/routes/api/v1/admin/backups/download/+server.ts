@@ -51,7 +51,7 @@ export const _metadata = {
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	}
 
 	const clusterId = locals.cluster || 'in-cluster';
@@ -59,7 +59,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const filename = url.searchParams.get('filename');
 	if (!filename) {
-		throw error(400, 'Missing filename parameter');
+		throw error(400, { message: 'Missing filename parameter', code: 'BadRequest' });
 	}
 
 	try {
@@ -72,7 +72,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			// Encrypted: buffer entirely so GCM auth tag can be verified before returning plaintext
 			const buffer = getDecryptedBackupBuffer(filename);
 			if (!buffer) {
-				throw error(404, 'Backup not found');
+				throw error(404, { message: 'Backup not found', code: 'NotFound' });
 			}
 
 			const safeFilename = basename(filename).replace(/\.enc$/, '');
@@ -89,7 +89,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			// Unencrypted: stream directly for memory efficiency
 			const filePath = getBackupPath(filename);
 			if (!filePath) {
-				throw error(404, 'Backup not found');
+				throw error(404, { message: 'Backup not found', code: 'NotFound' });
 			}
 
 			const stat = statSync(filePath);
@@ -108,12 +108,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		}
 	} catch (err) {
 		if (err instanceof BackupError) {
-			throw error(err.status, err.message);
+			logger.error(err, 'Backup download error:');
+			const message = err.status < 500 ? err.message : 'Failed to download backup';
+			throw error(err.status, {
+				message,
+				code: err.status < 500 ? 'BadRequest' : 'InternalServerError'
+			});
 		}
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
 		logger.error(err, 'Failed to download backup:');
-		throw error(500, 'Failed to download backup');
+		throw error(500, { message: 'Failed to download backup', code: 'InternalServerError' });
 	}
 };

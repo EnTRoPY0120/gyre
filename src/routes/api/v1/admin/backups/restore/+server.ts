@@ -60,7 +60,7 @@ export const _metadata = {
 };
 
 export const POST: RequestHandler = async ({ locals, request }) => {
-	if (!locals.user) throw error(401, 'Unauthorized');
+	if (!locals.user) throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	const clusterId = locals.cluster || 'in-cluster';
 	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
 
@@ -69,15 +69,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const file = formData.get('file');
 
 		if (!file || !(file instanceof File)) {
-			throw error(400, 'No file uploaded');
+			throw error(400, { message: 'No file uploaded', code: 'BadRequest' });
 		}
 
 		// Validate file size
 		if (file.size > REQUEST_LIMITS.BACKUP_RESTORE) {
-			throw error(
-				413,
-				`File too large. Maximum size is ${formatSize(REQUEST_LIMITS.BACKUP_RESTORE)}, received ${formatSize(file.size)}`
-			);
+			throw error(413, {
+				message: `File too large. Maximum size is ${formatSize(REQUEST_LIMITS.BACKUP_RESTORE)}, received ${formatSize(file.size)}`,
+				code: 'PayloadTooLarge'
+			});
 		}
 
 		const arrayBuffer = await file.arrayBuffer();
@@ -109,6 +109,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			throw err;
 		}
 		logger.error(err, 'Failed to restore backup:');
-		throw error(500, 'Failed to restore backup');
+		throw error(500, { message: 'Failed to restore backup', code: 'InternalServerError' });
 	}
 };
