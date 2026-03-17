@@ -5,6 +5,7 @@ import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
 import { clusters, clusterContexts, type NewCluster, type NewClusterContext } from './db/schema.js';
 import * as k8s from '@kubernetes/client-node';
 import crypto from 'node:crypto';
+import yaml from 'js-yaml';
 import { sanitizeK8sErrorMessage } from './kubernetes/errors.js';
 
 /**
@@ -581,9 +582,37 @@ export async function migrateKubeconfigs(): Promise<{ migrated: number; failed: 
 	for (const cluster of allClusters) {
 		if (cluster.kubeconfigEncrypted && !cluster.kubeconfigEncrypted.startsWith('v2:')) {
 			try {
-				// Decrypt using legacy XOR format before re-encrypting with v2
+				// Decrypt using legacy XOR format
 				const plaintext = decryptLegacyXorKubeconfig(cluster.kubeconfigEncrypted);
-				// Re-encrypt using new format
+
+				// Validate the decrypted content before overwriting the stored ciphertext.
+				// XOR decryption with the wrong key produces garbled bytes that would pass
+				// re-encryption silently, destroying the original ciphertext permanently.
+				let parsed: unknown;
+				try {
+					parsed = yaml.load(plaintext);
+				} catch {
+					logger.error(
+						`Skipping migration for cluster ${cluster.name}: decrypted content is not valid YAML — original ciphertext preserved`
+					);
+					failed++;
+					continue;
+				}
+				if (
+					parsed === null ||
+					typeof parsed !== 'object' ||
+					!('apiVersion' in parsed) ||
+					!('clusters' in parsed) ||
+					!('contexts' in parsed)
+				) {
+					logger.error(
+						`Skipping migration for cluster ${cluster.name}: decrypted content is missing required kubeconfig fields — original ciphertext preserved`
+					);
+					failed++;
+					continue;
+				}
+
+				// Re-encrypt using new v2 format
 				const reEncrypted = encryptKubeconfig(plaintext);
 
 				await db
@@ -609,15 +638,6 @@ export async function migrateKubeconfigs(): Promise<{ migrated: number; failed: 
 export { decryptKubeconfig as _decryptKubeconfig };
 export function _resetEncryptionKeyCache(): void {
 	_encryptionKey = null;
-}
-export function _encryptLegacyXorKubeconfig(plaintext: string): string {
-	const key = getEncryptionKeyLazy();
-	const buffer = Buffer.from(plaintext, 'utf-8');
-	const encrypted = Buffer.alloc(buffer.length);
-	for (let i = 0; i < buffer.length; i++) {
-		encrypted[i] = buffer[i] ^ key.charCodeAt(i % key.length);
-	}
-	return encrypted.toString('base64');
 }
 
 export type { NewCluster, NewClusterContext };

@@ -4,6 +4,7 @@ import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from '../lib/server/db/schema.js';
 import { clusters } from '../lib/server/db/schema.js';
+import { encryptLegacyXorKubeconfig } from './helpers/xor-kubeconfig.js';
 
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
 
@@ -18,8 +19,7 @@ import {
 	isUsingDevelopmentKey,
 	migrateKubeconfigs,
 	_decryptKubeconfig,
-	_resetEncryptionKeyCache,
-	_encryptLegacyXorKubeconfig
+	_resetEncryptionKeyCache
 } from '../lib/server/clusters';
 
 // ---------------------------------------------------------------------------
@@ -41,6 +41,9 @@ const CREATE_CLUSTERS_TABLE = `
 		updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 	)
 `;
+
+// Minimal YAML that passes the apiVersion/clusters/contexts validation
+const VALID_KUBECONFIG_YAML = 'apiVersion: v1\nclusters: []\ncontexts: []\nusers: []';
 
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
@@ -136,8 +139,7 @@ describe('migrateKubeconfigs()', () => {
 	});
 
 	test('migrates a legacy XOR record and returns migrated: 1, failed: 0', async () => {
-		const xorEncrypted = _encryptLegacyXorKubeconfig('apiVersion: v1\nkind: Config');
-		insertCluster(state.db!, 'legacy-1', xorEncrypted);
+		insertCluster(state.db!, 'legacy-1', encryptLegacyXorKubeconfig(VALID_KUBECONFIG_YAML));
 
 		const result = await migrateKubeconfigs();
 
@@ -146,8 +148,7 @@ describe('migrateKubeconfigs()', () => {
 	});
 
 	test('converted record now has v2 prefix', async () => {
-		const xorEncrypted = _encryptLegacyXorKubeconfig('apiVersion: v1\nkind: Config');
-		insertCluster(state.db!, 'legacy-2', xorEncrypted);
+		insertCluster(state.db!, 'legacy-2', encryptLegacyXorKubeconfig(VALID_KUBECONFIG_YAML));
 
 		await migrateKubeconfigs();
 
@@ -176,7 +177,7 @@ describe('migrateKubeconfigs()', () => {
 	});
 
 	test('handles a mix of legacy and v2 records correctly', async () => {
-		insertCluster(state.db!, 'mix-legacy', _encryptLegacyXorKubeconfig('apiVersion: v1'));
+		insertCluster(state.db!, 'mix-legacy', encryptLegacyXorKubeconfig(VALID_KUBECONFIG_YAML));
 		insertCluster(state.db!, 'mix-v2', 'v2:aabbcc:deadbeef:112233');
 		insertCluster(state.db!, 'mix-null', null);
 
@@ -184,5 +185,28 @@ describe('migrateKubeconfigs()', () => {
 
 		expect(result.migrated).toBe(1);
 		expect(result.failed).toBe(0);
+	});
+
+	test('increments failed and preserves original ciphertext when decryption yields invalid kubeconfig', async () => {
+		// XOR-encrypt a valid kubeconfig with key A
+		const KEY_A = 'aa'.repeat(32);
+		process.env.GYRE_ENCRYPTION_KEY = KEY_A;
+		const originalCiphertext = encryptLegacyXorKubeconfig(VALID_KUBECONFIG_YAML);
+		insertCluster(state.db!, 'wrong-key', originalCiphertext);
+
+		// Switch to a different key before migrating — XOR decode will produce garbage
+		process.env.GYRE_ENCRYPTION_KEY = 'bb'.repeat(32);
+		_resetEncryptionKeyCache();
+
+		const result = await migrateKubeconfigs();
+
+		expect(result.failed).toBe(1);
+		expect(result.migrated).toBe(0);
+
+		// Original ciphertext must not have been overwritten
+		const cluster = await state.db!.query.clusters.findFirst({
+			where: (c, { eq }) => eq(c.id, 'wrong-key')
+		});
+		expect(cluster?.kubeconfigEncrypted).toBe(originalCiphertext);
 	});
 });
