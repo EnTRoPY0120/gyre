@@ -103,8 +103,14 @@ export const actions: Actions = {
 
 		try {
 			// Validate kubeconfig format (accepts both YAML and JSON)
-			const parsed = yaml.load(kubeconfig) as { clusters?: unknown; contexts?: unknown };
-			if (!parsed.clusters || !parsed.contexts) {
+			const parsed = yaml.load(kubeconfig);
+			if (
+				parsed === null ||
+				parsed === undefined ||
+				typeof parsed !== 'object' ||
+				!(parsed as { clusters?: unknown }).clusters ||
+				!(parsed as { contexts?: unknown }).contexts
+			) {
 				return fail(400, { error: 'Invalid kubeconfig: missing clusters or contexts' });
 			}
 

@@ -92,6 +92,20 @@ function encryptKubeconfig(kubeconfig: string): string {
 }
 
 /**
+ * Decrypt kubeconfig encrypted with legacy XOR cipher.
+ * Used only by migrateKubeconfigs() to read pre-migration records.
+ */
+function decryptLegacyXorKubeconfig(encrypted: string): string {
+	const buffer = Buffer.from(encrypted, 'base64');
+	const decrypted = Buffer.alloc(buffer.length);
+	const key = getEncryptionKeyLazy();
+	for (let i = 0; i < buffer.length; i++) {
+		decrypted[i] = buffer[i] ^ key.charCodeAt(i % key.length);
+	}
+	return decrypted.toString('utf-8');
+}
+
+/**
  * Decrypt kubeconfig string.
  * Only AES-256-GCM (v2) format is supported.
  */
@@ -171,20 +185,21 @@ export async function createCluster(params: {
 		lastError: null
 	};
 
-	await db.insert(clusters).values(newCluster);
+	const contextRecords: NewClusterContext[] = contexts.map((ctxName) => ({
+		id: crypto.randomUUID(),
+		clusterId: id,
+		contextName: ctxName,
+		isCurrent: ctxName === currentContext,
+		server: null,
+		namespaceRestrictions: null
+	}));
 
-	// Create context records
-	for (const ctxName of contexts) {
-		const contextRecord: NewClusterContext = {
-			id: crypto.randomUUID(),
-			clusterId: id,
-			contextName: ctxName,
-			isCurrent: ctxName === currentContext,
-			server: null, // Could extract from kubeconfig if needed
-			namespaceRestrictions: null
-		};
-		await db.insert(clusterContexts).values(contextRecord);
-	}
+	db.transaction((tx) => {
+		tx.insert(clusters).values(newCluster).run();
+		for (const contextRecord of contextRecords) {
+			tx.insert(clusterContexts).values(contextRecord).run();
+		}
+	});
 
 	const cluster = await db.query.clusters.findFirst({
 		where: eq(clusters.id, id)
@@ -566,8 +581,8 @@ export async function migrateKubeconfigs(): Promise<{ migrated: number; failed: 
 	for (const cluster of allClusters) {
 		if (cluster.kubeconfigEncrypted && !cluster.kubeconfigEncrypted.startsWith('v2:')) {
 			try {
-				// Decrypt using old format (handled by decryptKubeconfig)
-				const plaintext = decryptKubeconfig(cluster.kubeconfigEncrypted);
+				// Decrypt using legacy XOR format before re-encrypting with v2
+				const plaintext = decryptLegacyXorKubeconfig(cluster.kubeconfigEncrypted);
 				// Re-encrypt using new format
 				const reEncrypted = encryptKubeconfig(plaintext);
 
@@ -594,6 +609,15 @@ export async function migrateKubeconfigs(): Promise<{ migrated: number; failed: 
 export { decryptKubeconfig as _decryptKubeconfig };
 export function _resetEncryptionKeyCache(): void {
 	_encryptionKey = null;
+}
+export function _encryptLegacyXorKubeconfig(plaintext: string): string {
+	const key = getEncryptionKeyLazy();
+	const buffer = Buffer.from(plaintext, 'utf-8');
+	const encrypted = Buffer.alloc(buffer.length);
+	for (let i = 0; i < buffer.length; i++) {
+		encrypted[i] = buffer[i] ^ key.charCodeAt(i % key.length);
+	}
+	return encrypted.toString('base64');
 }
 
 export type { NewCluster, NewClusterContext };
