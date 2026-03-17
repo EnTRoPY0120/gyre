@@ -9,6 +9,7 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { restoreFromBuffer } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
+import { requirePermission } from '$lib/server/rbac';
 import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
 
 export const _metadata = {
@@ -59,9 +60,9 @@ export const _metadata = {
 };
 
 export const POST: RequestHandler = async ({ locals, request }) => {
-	if (!locals.user || locals.user.role !== 'admin') {
-		throw error(403, 'Admin access required');
-	}
+	if (!locals.user) throw error(401, 'Unauthorized');
+	const clusterId = locals.cluster || 'in-cluster';
+	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
 
 	try {
 		const formData = await request.formData();

@@ -76,11 +76,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			}
 
 			const safeFilename = basename(filename).replace(/\.enc$/, '');
+			const encodedFilename = encodeURIComponent(safeFilename);
 			return new Response(buffer as unknown as BodyInit, {
 				status: 200,
 				headers: {
 					'Content-Type': 'application/x-sqlite3',
-					'Content-Disposition': `attachment; filename="${safeFilename}"`,
+					'Content-Disposition': `attachment; filename="${safeFilename.replace(/["\\\r\n]/g, '')}"; filename*=UTF-8''${encodedFilename}`,
 					'Content-Length': String(buffer.byteLength)
 				}
 			});
@@ -94,12 +95,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			const stat = statSync(filePath);
 			const stream = createReadStream(filePath);
 			const safeFilename = basename(filePath);
+			const encodedFilename = encodeURIComponent(safeFilename);
 
 			return new Response(stream as unknown as ReadableStream, {
 				status: 200,
 				headers: {
 					'Content-Type': 'application/x-sqlite3',
-					'Content-Disposition': `attachment; filename="${safeFilename}"`,
+					'Content-Disposition': `attachment; filename="${safeFilename.replace(/["\\\r\n]/g, '')}"; filename*=UTF-8''${encodedFilename}`,
 					'Content-Length': String(stat.size)
 				}
 			});

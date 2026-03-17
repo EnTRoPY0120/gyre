@@ -13,7 +13,8 @@ import {
 	unlinkSync,
 	copyFileSync,
 	writeFileSync,
-	readFileSync
+	readFileSync,
+	renameSync
 } from 'node:fs';
 import { join, basename } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -25,6 +26,11 @@ import { MAX_LOCAL_BACKUPS } from './config/constants.js';
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
 const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups');
+
+// Validate DATABASE_URL does not contain path traversal
+if (databaseUrl.includes('..')) {
+	throw new Error(`Invalid DATABASE_URL: path traversal detected: ${databaseUrl}`);
+}
 
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16; // 128-bit IV
@@ -50,6 +56,9 @@ export interface BackupMetadata {
 	encrypted: boolean;
 }
 
+let cachedEncryptionKey: Buffer | null | undefined = undefined;
+let hasWarnedUnencrypted = false;
+
 /**
  * Get the backup encryption key from BACKUP_ENCRYPTION_KEY env var.
  * Returns null if not set (encryption disabled).
@@ -60,9 +69,11 @@ export interface BackupMetadata {
  * rotate the key, decrypt and re-encrypt existing backups manually first.
  */
 function getBackupEncryptionKey(): Buffer | null {
+	if (cachedEncryptionKey !== undefined) return cachedEncryptionKey;
 	const keyHex = process.env.BACKUP_ENCRYPTION_KEY;
 	if (!keyHex) {
-		return null;
+		cachedEncryptionKey = null;
+		return cachedEncryptionKey;
 	}
 	if (!/^[0-9a-f]{64}$/i.test(keyHex)) {
 		throw new BackupError(
@@ -70,7 +81,8 @@ function getBackupEncryptionKey(): Buffer | null {
 				'Generate with: openssl rand -hex 32'
 		);
 	}
-	return Buffer.from(keyHex, 'hex');
+	cachedEncryptionKey = Buffer.from(keyHex, 'hex');
+	return cachedEncryptionKey;
 }
 
 /**
@@ -143,7 +155,10 @@ export async function createBackup(): Promise<BackupMetadata> {
 			await source.backup(tempPath);
 			const plainData = readFileSync(tempPath);
 			const encData = encryptBackup(plainData, key);
-			writeFileSync(encPath, encData);
+			// Write to a temp file first, then rename atomically to prevent corrupt partial files
+			const tempEncPath = `${encPath}.tmp`;
+			writeFileSync(tempEncPath, encData);
+			renameSync(tempEncPath, encPath);
 		} finally {
 			source.close();
 			if (existsSync(tempPath)) unlinkSync(tempPath);
@@ -160,10 +175,13 @@ export async function createBackup(): Promise<BackupMetadata> {
 		};
 	} else {
 		// Unencrypted backup (BACKUP_ENCRYPTION_KEY not set)
-		logger.warn(
-			'[Backup] ⚠️  BACKUP_ENCRYPTION_KEY is not set. Creating unencrypted backup. ' +
-				'Set BACKUP_ENCRYPTION_KEY to a 64-character hex string to enable encryption at rest.'
-		);
+		if (!hasWarnedUnencrypted) {
+			logger.warn(
+				'[Backup] ⚠️  BACKUP_ENCRYPTION_KEY is not set. Creating unencrypted backup. ' +
+					'Set BACKUP_ENCRYPTION_KEY to a 64-character hex string to enable encryption at rest.'
+			);
+			hasWarnedUnencrypted = true;
+		}
 
 		const filename = `gyre-backup-${ts}.db`;
 		const destPath = join(backupDir, filename);
@@ -295,22 +313,38 @@ export function deleteBackup(filename: string): boolean {
  * restarted after a restore for connections to pick up the new data.
  */
 export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata> {
-	// Validate the buffer is a valid SQLite database
-	const magic = buffer.subarray(0, 16).toString('ascii');
-	if (!magic.startsWith('SQLite format 3')) {
-		throw new BackupError('Invalid file: not a valid SQLite database', 400);
-	}
-
-	// Create a safety backup before restoring
-	const safetyBackup = await createBackup();
-	logger.info(`[Backup] Safety backup created: ${safetyBackup.filename}`);
-
-	// Write the uploaded DB to a temp file and validate it
 	ensureBackupDir();
 	const tempPath = join(backupDir, `_restore-temp-${Date.now()}.db`);
 
 	try {
-		// Write buffer to temp file
+		// Validate the buffer is a valid SQLite database (exact 16-byte header check)
+		const magic = buffer.subarray(0, 16).toString('ascii');
+		if (magic !== 'SQLite format 3\0') {
+			throw new BackupError('Invalid file: not a valid SQLite database', 400);
+		}
+
+		// Validate SQLite page size (bytes 16-17): must be power of 2 between 512 and 65536
+		const pageSize =
+			buffer[16] === 0 && buffer[17] === 1
+				? 65536 // special encoding for 65536
+				: buffer.readUInt16BE(16);
+		if (pageSize < 512 || pageSize > 65536 || (pageSize & (pageSize - 1)) !== 0) {
+			throw new BackupError('Invalid file: SQLite page size is not a valid power of 2', 400);
+		}
+
+		// Create a safety backup before restoring — abort if this fails
+		let safetyBackup: BackupMetadata;
+		try {
+			safetyBackup = await createBackup();
+			logger.info(`[Backup] Safety backup created: ${safetyBackup.filename}`);
+		} catch {
+			throw new BackupError(
+				'Failed to create safety backup before restore. Aborting to protect current data.',
+				500
+			);
+		}
+
+		// Write the uploaded DB to a temp file and validate it
 		writeFileSync(tempPath, buffer);
 
 		// Open and validate the uploaded DB has the expected schema
@@ -338,6 +372,18 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 			if (missing.length > 0) {
 				throw new BackupError(
 					`Invalid backup: missing required tables: ${missing.join(', ')}`,
+					400
+				);
+			}
+
+			// Check users table has expected columns
+			const userCols = testDb.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+			const userColNames = userCols.map((c) => c.name);
+			const requiredUserCols = ['id', 'username', 'role', 'passwordHash'];
+			const missingCols = requiredUserCols.filter((c) => !userColNames.includes(c));
+			if (missingCols.length > 0) {
+				throw new BackupError(
+					`Invalid backup: users table missing columns: ${missingCols.join(', ')}`,
 					400
 				);
 			}
@@ -369,6 +415,22 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 
 		// Replace the database file
 		copyFileSync(tempPath, databaseUrl);
+
+		// Verify the restored database passes integrity check
+		const verifyDb = new Database(databaseUrl, { readonly: true });
+		try {
+			const result = verifyDb.prepare('PRAGMA integrity_check').get() as {
+				integrity_check: string;
+			};
+			if (result.integrity_check !== 'ok') {
+				throw new BackupError(
+					`Restored database failed integrity check: ${result.integrity_check}`,
+					500
+				);
+			}
+		} finally {
+			verifyDb.close();
+		}
 
 		const stat = statSync(databaseUrl);
 		return {
