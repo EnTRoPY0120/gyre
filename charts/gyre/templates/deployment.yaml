@@ -92,7 +92,7 @@ spec:
         - name: ORIGIN
           {{- if and .Values.ingress.enabled (gt (len .Values.ingress.hosts) 0) }}
           {{- $host := (index .Values.ingress.hosts 0).host }}
-          {{- $protocol := (and .Values.ingress.tls (gt (len .Values.ingress.tls) 0)) | ternary "https" "http" }}
+          {{- $protocol := ternary "https" "http" (gt (len .Values.ingress.tls) 0) }}
           value: "{{ $protocol }}://{{ $host }}"
           {{- else }}
           value: "http://{{ include "gyre.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
