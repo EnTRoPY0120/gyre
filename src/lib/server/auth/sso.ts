@@ -210,6 +210,8 @@ function mapRoleFromGroups(
 			'[Security] SSO provider defaultRole is "admin"; restricting fallback to "editor" to prevent privilege escalation. Assign admin via explicit group mapping.'
 		);
 		safeDefaultRole = 'editor';
+	} else if (normalizedDefault === 'editor') {
+		safeDefaultRole = 'editor';
 	} else if (normalizedDefault === 'viewer') {
 		safeDefaultRole = 'viewer';
 	} else {
