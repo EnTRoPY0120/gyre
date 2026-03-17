@@ -96,7 +96,32 @@ export async function createOrUpdateSSOUser(
 					err,
 					`Failed to revoke sessions for user ${user.id} after role change; rolling back role to ${user.role}`
 				);
-				await updateUser(user.id, { role: user.role });
+				try {
+					const rolledBack = await updateUser(user.id, { role: user.role });
+					if (!rolledBack) {
+						logger.error(
+							{ revocationError: err, userId: user.id, role: user.role },
+							`Rollback failed: updateUser returned null for user ${user.id}; DB may be inconsistent (role changed but sessions not revoked)`
+						);
+						throw new Error(
+							`Session revocation and role rollback both failed for user ${user.id}; DB may be inconsistent`
+						);
+					}
+				} catch (rollbackErr) {
+					if (
+						rollbackErr instanceof Error &&
+						rollbackErr.message.includes('Session revocation and role rollback')
+					) {
+						throw rollbackErr;
+					}
+					logger.error(
+						{ revocationError: err, rollbackError: rollbackErr, userId: user.id, role: user.role },
+						`Rollback threw for user ${user.id}; DB may be inconsistent (role changed but sessions not revoked)`
+					);
+					throw new Error(
+						`Session revocation and role rollback both failed for user ${user.id}; DB may be inconsistent`
+					);
+				}
 				throw err;
 			}
 			return { user: updatedUser };
