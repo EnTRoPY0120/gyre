@@ -197,8 +197,8 @@ export async function createCluster(params: {
 
 	db.transaction((tx) => {
 		tx.insert(clusters).values(newCluster).run();
-		for (const contextRecord of contextRecords) {
-			tx.insert(clusterContexts).values(contextRecord).run();
+		if (contextRecords.length > 0) {
+			tx.insert(clusterContexts).values(contextRecords).run();
 		}
 	});
 
