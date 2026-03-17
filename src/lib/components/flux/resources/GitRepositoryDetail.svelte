@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { FluxResource } from '$lib/types/flux';
 	import { formatTimestamp } from '$lib/utils/flux';
+	import { isSafeExternalUrl } from '$lib/utils/url';
 
 	interface Props {
 		resource: FluxResource;
@@ -13,17 +14,7 @@
 	const status = $derived(resource.status || {});
 
 	const url = $derived(spec.url as string | undefined);
-	const SAFE_URL_PROTOCOLS = ['http:', 'https:', 'ssh:', 'git:', 'oci:'];
-	const isSafeUrl = $derived(
-		!!url &&
-			(() => {
-				try {
-					return SAFE_URL_PROTOCOLS.includes(new URL(url).protocol);
-				} catch {
-					return false;
-				}
-			})()
-	);
+	const isSafeUrl = $derived(isSafeExternalUrl(url));
 	const interval = $derived(spec.interval as string | undefined);
 	const timeout = $derived(spec.timeout as string | undefined);
 	const ref = $derived(
