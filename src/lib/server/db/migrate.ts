@@ -152,6 +152,37 @@ export function initDatabase(): void {
 		)
 	`);
 
+	// Migration: add unique constraint on cluster_contexts(cluster_id, context_name)
+	try {
+		const result = db
+			.select({ value: sql`value` })
+			.from(sql`app_settings`)
+			.where(sql`key = 'migrations.cluster_context_unique'`)
+			.get() as { value: string } | undefined;
+
+		if (!result || result.value !== 'true') {
+			// Remove any pre-existing duplicates (keep lowest id per pair)
+			db.run(sql`
+				DELETE FROM cluster_contexts
+				WHERE id NOT IN (
+					SELECT MIN(id) FROM cluster_contexts
+					GROUP BY cluster_id, context_name
+				)
+			`);
+			db.run(sql`
+				CREATE UNIQUE INDEX IF NOT EXISTS idx_cluster_contexts_cluster_context
+				ON cluster_contexts (cluster_id, context_name)
+			`);
+			db.run(sql`
+				INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+				VALUES ('migrations.cluster_context_unique', 'true', (unixepoch()))
+			`);
+			logger.info('[DB] Migration: added unique constraint on cluster_contexts');
+		}
+	} catch (error) {
+		logger.error(error, '[DB] Failed to add unique constraint on cluster_contexts:');
+	}
+
 	// RBAC Policies table
 	db.run(sql`
 		CREATE TABLE IF NOT EXISTS rbac_policies (
