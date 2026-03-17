@@ -7,7 +7,12 @@ import { logger } from '../logger.js';
 import { getDb } from '$lib/server/db';
 import { users, userProviders, type AuthProvider } from '$lib/server/db/schema';
 import type { User } from '$lib/server/db/schema';
-import { generateUserId, normalizeUsername, updateUser } from '$lib/server/auth';
+import {
+	generateUserId,
+	normalizeUsername,
+	updateUser,
+	deleteUserSessions
+} from '$lib/server/auth';
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
 import type { OAuthUserInfo } from './oauth/types';
 import { eq, and } from 'drizzle-orm';
@@ -78,11 +83,11 @@ export async function createOrUpdateSSOUser(
 			);
 			const updatedUser = await updateUser(user.id, { role: newRole });
 			if (!updatedUser) {
-				logger.error(
-					`Failed to update role for user ${user.id} to ${newRole} during SSO login`
-				);
+				logger.error(`Failed to update role for user ${user.id} to ${newRole} during SSO login`);
 				throw new Error(`Failed to update SSO user role for user ${user.id}`);
 			}
+			await deleteUserSessions(user.id);
+			logger.info(`Revoked existing sessions for user ${user.id} after role change to ${newRole}`);
 			return { user: updatedUser };
 		}
 
@@ -221,7 +226,10 @@ function mapRoleFromGroups(
 	} else if (normalizedDefault === 'viewer') {
 		safeDefaultRole = 'viewer';
 	} else {
-		safeDefaultRole = 'viewer'; // least-privilege fallback for unrecognised values
+		logger.warn(
+			`[Security] SSO provider defaultRole has unrecognised value "${defaultRole}"; falling back to least-privilege "viewer".`
+		);
+		safeDefaultRole = 'viewer';
 	}
 
 	// No mapping configured - use default role
