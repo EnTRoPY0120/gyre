@@ -66,11 +66,11 @@ export const _metadata = {
 
 export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	}
 
 	if (!locals.cluster) {
-		throw error(400, 'Missing cluster context');
+		throw error(400, { message: 'Missing cluster context', code: 'BadRequest' });
 	}
 
 	// Ensure the user has at least 'read' permission on the cluster to manage their own notifications
@@ -83,13 +83,14 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 	try {
 		rawBody = await request.json();
 	} catch {
-		throw error(400, 'Invalid JSON');
+		throw error(400, { message: 'Invalid JSON', code: 'BadRequest' });
 	}
 
 	const parsed = preferencesSchema.safeParse(rawBody);
 	if (!parsed.success) {
 		throw error(400, {
-			message: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+			message: parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; '),
+			code: 'BadRequest'
 		});
 	}
 
@@ -136,6 +137,6 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 	} catch (err) {
 		logger.error(err, 'Failed to update preferences:');
 
-		throw error(500, 'Failed to update preferences');
+		throw error(500, { message: 'Failed to update preferences', code: 'InternalServerError' });
 	}
 };

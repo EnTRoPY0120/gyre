@@ -145,22 +145,26 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 	// Check if running in-cluster (required for drift detection)
 	const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 	if (!isInCluster) {
-		throw error(
-			503,
-			'Drift detection is only available when Gyre is deployed in a Kubernetes cluster. ' +
-				'This feature requires in-cluster access to the source-controller and is not supported in local development mode.'
-		);
+		throw error(503, {
+			message:
+				'Drift detection is only available when Gyre is deployed in a Kubernetes cluster. ' +
+				'This feature requires in-cluster access to the source-controller and is not supported in local development mode.',
+			code: 'ServiceUnavailable'
+		});
 	}
 
 	const resourceType = getResourceTypeByPlural(pluralType);
 
 	// Only kustomizations support diffing for now
 	if (resourceType !== 'Kustomization') {
-		throw error(400, 'Diffing is only supported for Kustomizations');
+		throw error(400, {
+			message: 'Diffing is only supported for Kustomizations',
+			code: 'BadRequest'
+		});
 	}
 
 	if (!locals.user) {
-		throw error(401, 'Unauthorized');
+		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	}
 
 	await requirePermission(locals.user, 'read', 'Kustomization', namespace, clusterId);
@@ -178,7 +182,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		);
 
 		if (!kustomization.spec?.sourceRef) {
-			throw error(400, 'Kustomization has no sourceRef');
+			throw error(400, { message: 'Kustomization has no sourceRef', code: 'BadRequest' });
 		}
 
 		const spec = kustomization.spec;
@@ -202,11 +206,12 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			?.url;
 
 		if (!artifactUrl) {
-			throw error(
-				400,
-				`Source ${sourceRef.kind}/${sourceRef.name} has no artifact URL. ` +
-					'Ensure the source is ready and has reconciled successfully.'
-			);
+			throw error(400, {
+				message:
+					`Source ${sourceRef.kind}/${sourceRef.name} has no artifact URL. ` +
+					'Ensure the source is ready and has reconciled successfully.',
+				code: 'BadRequest'
+			});
 		}
 
 		// 3. Fetch the source content via artifact
@@ -529,6 +534,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 		logger.error(err, 'Diff error:');
 		const { status, message: clientMessage } = classifyDiffError(err);
-		throw error(status, clientMessage);
+		const code =
+			status === 503 ? 'ServiceUnavailable' : status === 400 ? 'BadRequest' : 'InternalServerError';
+		throw error(status, { message: clientMessage, code });
 	}
 };
