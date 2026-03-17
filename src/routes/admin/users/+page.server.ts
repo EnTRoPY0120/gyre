@@ -11,6 +11,8 @@ import {
 } from '$lib/server/auth';
 import { isAdmin } from '$lib/server/rbac';
 import { logUserManagement } from '$lib/server/audit';
+import { passwordSchema } from '$lib/utils/validation';
+import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
 /**
  * Load function for user management page
@@ -80,8 +82,13 @@ export const actions: Actions = {
 			}
 		}
 
-		if (password.length < 8) {
-			return fail(400, { error: 'Password must be at least 8 characters' });
+		const passwordValidation = passwordSchema.safeParse(password);
+		if (!passwordValidation.success) {
+			return fail(400, {
+				error:
+					passwordValidation.error.issues[0]?.message ??
+					'Password does not meet strength requirements'
+			});
 		}
 
 		try {
@@ -190,9 +197,17 @@ export const actions: Actions = {
 	 * Reset user password
 	 * Only works for local users (not SSO users)
 	 */
-	resetPassword: async ({ request, locals }) => {
+	resetPassword: async (event) => {
+		const { request, locals } = event;
 		if (!locals.user || !isAdmin(locals.user)) {
 			return fail(403, { error: 'Forbidden' });
+		}
+
+		const rateLimit = tryCheckRateLimit(event, `admin-reset:${locals.user.id}`, 10, 15 * 60 * 1000);
+		if (rateLimit.limited) {
+			return fail(429, {
+				error: `Too many password reset attempts. Try again in ${rateLimit.retryAfter} seconds.`
+			});
 		}
 
 		const formData = await request.formData();
@@ -203,8 +218,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'User ID and new password are required' });
 		}
 
-		if (newPassword.length < 8) {
-			return fail(400, { error: 'Password must be at least 8 characters' });
+		const passwordValidation = passwordSchema.safeParse(newPassword);
+		if (!passwordValidation.success) {
+			return fail(400, {
+				error:
+					passwordValidation.error.issues[0]?.message ??
+					'Password does not meet strength requirements'
+			});
 		}
 
 		// Check if user is SSO user
