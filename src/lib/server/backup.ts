@@ -424,7 +424,9 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 			};
 			if (result.integrity_check !== 'ok') {
 				throw new BackupError(
-					`Restored database failed integrity check: ${result.integrity_check}`,
+					`Restored database failed integrity check: ${result.integrity_check}. ` +
+						`The pre-restore database was preserved as safety backup "${safetyBackup.filename}" in the backup directory. ` +
+						`Restore that file to recover the previous database.`,
 					500
 				);
 			}
@@ -449,20 +451,44 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 
 /**
  * Remove old backups beyond the retention limit.
+ * Also cleans up orphaned .tmp files left by interrupted encrypted backup writes.
  */
 function pruneOldBackups(): void {
 	const backups = listBackups();
-	if (backups.length <= MAX_LOCAL_BACKUPS) return;
-
-	const toDelete = backups.slice(MAX_LOCAL_BACKUPS);
-	for (const backup of toDelete) {
-		const filePath = join(backupDir, backup.filename);
-		try {
-			unlinkSync(filePath);
-			logger.info(`[Backup] Pruned old backup: ${backup.filename}`);
-		} catch {
-			logger.warn(`[Backup] Failed to prune: ${backup.filename}`);
+	if (backups.length > MAX_LOCAL_BACKUPS) {
+		const toDelete = backups.slice(MAX_LOCAL_BACKUPS);
+		for (const backup of toDelete) {
+			const filePath = join(backupDir, backup.filename);
+			try {
+				unlinkSync(filePath);
+				logger.info(`[Backup] Pruned old backup: ${backup.filename}`);
+			} catch {
+				logger.warn(`[Backup] Failed to prune: ${backup.filename}`);
+			}
 		}
+	}
+
+	// Clean up stale .tmp files from interrupted encrypted backup writes (older than 1 hour)
+	const staleThresholdMs = 60 * 60 * 1000;
+	const now = Date.now();
+	try {
+		const entries = readdirSync(backupDir).filter(
+			(f) => f.startsWith('gyre-backup-') && f.endsWith('.tmp')
+		);
+		for (const entry of entries) {
+			const filePath = join(backupDir, entry);
+			try {
+				const { mtimeMs } = statSync(filePath);
+				if (now - mtimeMs > staleThresholdMs) {
+					unlinkSync(filePath);
+					logger.info(`[Backup] Removed orphaned temp file: ${entry}`);
+				}
+			} catch {
+				// File may have been removed concurrently; ignore
+			}
+		}
+	} catch {
+		// readdirSync failure is non-fatal for temp cleanup
 	}
 }
 
