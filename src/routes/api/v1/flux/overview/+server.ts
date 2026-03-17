@@ -19,14 +19,14 @@ export const _metadata = {
 					'application/json': {
 						schema: z.object({
 							timestamp: z.string(),
+							partialFailure: z.boolean(),
 							results: z.array(
 								z.object({
 									type: z.string(),
 									total: z.number(),
 									healthy: z.number(),
 									failed: z.number(),
-									suspended: z.number(),
-									error: z.boolean().optional()
+									suspended: z.number()
 								})
 							)
 						})
@@ -97,6 +97,7 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
 
 	return json({
 		timestamp: new Date().toISOString(),
+		partialFailure: results.some((r) => r.error),
 		results: results.filter((r) => !r.error)
 	});
 };
