@@ -5,6 +5,7 @@ import { listFluxResources, type ReqCache } from '$lib/server/kubernetes/client'
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { getResourceStatus } from '$lib/utils/relationships';
 import { checkPermission } from '$lib/server/rbac.js';
+import { logger } from '$lib/server/logger.js';
 
 export const _metadata = {
 	GET: {
@@ -87,7 +88,8 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
 					failed,
 					suspended
 				};
-			} catch {
+			} catch (err) {
+				logger.warn({ type, err }, 'Failed to list Flux resources for overview');
 				return { type, total: 0, healthy: 0, failed: 0, suspended: 0, error: true };
 			}
 		})
