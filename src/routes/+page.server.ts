@@ -40,6 +40,9 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 		const overviewData = await response.json();
 		const results = overviewData.results || [];
 
+		// Build set of resource types that succeeded (absent types errored)
+		const successfulTypes = new Set(results.map((r: { type: string }) => r.type));
+
 		// Map overview results back to resourceGroups structure
 		const groupCounts: Record<
 			string,
@@ -75,7 +78,9 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 				healthy: groupHealthy,
 				failed: groupFailed,
 				suspended: groupSuspended,
-				error: overviewData.partialFailure === true
+				error:
+					overviewData.partialFailure === true &&
+					group.resources.some((r) => !successfulTypes.has(r.kind))
 			};
 		}
 
