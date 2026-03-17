@@ -172,7 +172,7 @@ export async function createCluster(params: {
 	const id = crypto.randomUUID();
 	const encryptedKubeconfig = encryptKubeconfig(params.kubeconfig);
 	const { contexts, currentContext } = parseKubeconfig(params.kubeconfig);
-	const uniqueContexts = contexts.filter((name, idx) => contexts.indexOf(name) === idx);
+	const uniqueContexts = [...new Set(contexts)];
 
 	// Create cluster
 	const newCluster: NewCluster = {
