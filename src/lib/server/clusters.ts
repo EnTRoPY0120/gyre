@@ -172,6 +172,7 @@ export async function createCluster(params: {
 	const id = crypto.randomUUID();
 	const encryptedKubeconfig = encryptKubeconfig(params.kubeconfig);
 	const { contexts, currentContext } = parseKubeconfig(params.kubeconfig);
+	const uniqueContexts = contexts.filter((name, idx) => contexts.indexOf(name) === idx);
 
 	// Create cluster
 	const newCluster: NewCluster = {
@@ -181,12 +182,11 @@ export async function createCluster(params: {
 		kubeconfigEncrypted: encryptedKubeconfig,
 		isActive: true,
 		isLocal: params.isLocal,
-		contextCount: contexts.length,
+		contextCount: uniqueContexts.length,
 		lastConnectedAt: null,
 		lastError: null
 	};
-
-	const contextRecords: NewClusterContext[] = contexts.map((ctxName) => ({
+	const contextRecords: NewClusterContext[] = uniqueContexts.map((ctxName) => ({
 		id: crypto.randomUUID(),
 		clusterId: id,
 		contextName: ctxName,
