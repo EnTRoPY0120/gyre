@@ -22,6 +22,7 @@ import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
 
 import { MAX_LOCAL_BACKUPS } from './config/constants.js';
+import { closeDb } from './db/index.js';
 
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
@@ -324,6 +325,9 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 		}
 
 		// Validate SQLite page size (bytes 16-17): must be power of 2 between 512 and 65536
+		if (buffer.length < 18) {
+			throw new BackupError('Invalid file: SQLite header is too short to read page size', 400);
+		}
 		const pageSize =
 			buffer[16] === 0 && buffer[17] === 1
 				? 65536 // special encoding for 65536
@@ -379,7 +383,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 			// Check users table has expected columns
 			const userCols = testDb.prepare('PRAGMA table_info(users)').all() as { name: string }[];
 			const userColNames = userCols.map((c) => c.name);
-			const requiredUserCols = ['id', 'username', 'role', 'passwordHash'];
+			const requiredUserCols = ['id', 'username', 'role', 'password_hash'];
 			const missingCols = requiredUserCols.filter((c) => !userColNames.includes(c));
 			if (missingCols.length > 0) {
 				throw new BackupError(
@@ -413,7 +417,9 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 			}
 		}
 
-		// Replace the database file
+		// Replace the database file, closing the cached connection first so
+		// subsequent operations open a fresh handle to the new database.
+		closeDb();
 		copyFileSync(tempPath, databaseUrl);
 
 		// Verify the restored database passes integrity check
