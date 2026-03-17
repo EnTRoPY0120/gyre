@@ -107,7 +107,7 @@
 		// Save to API
 		saving = true;
 		try {
-			const response = await fetch(`/api/v1/flux/${resourceType}/${namespace}/${name}`, {
+			const response = await fetch(`/api/v1/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
