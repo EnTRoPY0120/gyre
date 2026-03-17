@@ -36,8 +36,7 @@ export const _metadata = {
 											coreV1: z.number(),
 											appsV1: z.number()
 										})
-									}),
-									_debug: z.any().optional()
+									})
 								})
 							})
 						])
@@ -54,6 +53,15 @@ export const _metadata = {
 // Cache for connection status per cluster
 const connectionCache = new Map<string, { connected: boolean; timestamp: number }>();
 const CONNECTION_CACHE_TTL = 30 * 1000; // 30 seconds
+
+function pruneConnectionCache() {
+	const now = Date.now();
+	for (const [key, value] of connectionCache.entries()) {
+		if (now - value.timestamp > CONNECTION_CACHE_TTL * 10) {
+			connectionCache.delete(key);
+		}
+	}
+}
 
 /**
  * GET /api/flux/health
@@ -77,6 +85,7 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 			connectionSource = 'cached';
 		} else {
 			isValid = await validateKubeConfig(config);
+			pruneConnectionCache();
 			connectionCache.set(cacheKey, { connected: isValid, timestamp: Date.now() });
 		}
 
@@ -94,7 +103,6 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 
 		// Detect mode
 		const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
-		const allContexts = config.getContexts().map((c) => c.name);
 
 		const responseData = {
 			status: 'healthy',
@@ -103,9 +111,8 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 				configStrategy: isInCluster ? 'in-cluster' : 'local-kubeconfig',
 				configSource: isInCluster ? 'ServiceAccount' : 'kubeconfig',
 				currentContext,
-				availableContexts: isInCluster ? [currentContext] : allContexts,
-				connectionPool: getPoolMetrics(),
-				_debug: { connectionSource }
+				availableContexts: [currentContext],
+				connectionPool: getPoolMetrics()
 			}
 		};
 
