@@ -30,6 +30,9 @@ const PUBLIC_ROUTES = [
 	'/logo.svg'
 ];
 
+// Admin API route prefixes requiring 'admin' role
+const ADMIN_ROUTE_PREFIXES = ['/api/admin', '/api/v1/admin'];
+
 // OAuth callback and login initiation routes are dynamic but public
 const PUBLIC_ROUTE_PREFIXES = [
 	'/api/auth/oidc/',
@@ -183,13 +186,19 @@ export const handle: Handle = async ({ event, resolve }) => {
 			);
 			if (globalLimit.limited) {
 				return recordResponse(
-					new Response(JSON.stringify({ error: 'Too Many Requests' }), {
-						status: 429,
-						headers: {
-							'Content-Type': 'application/json',
-							'Retry-After': globalLimit.retryAfter.toString()
+					new Response(
+						JSON.stringify({
+							error: 'Too Many Requests',
+							message: 'Rate limit exceeded. Please try again later.'
+						}),
+						{
+							status: 429,
+							headers: {
+								'Content-Type': 'application/json',
+								'Retry-After': globalLimit.retryAfter.toString()
+							}
 						}
-					})
+					)
 				);
 			}
 		}
@@ -249,14 +258,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 			// If header is missing, check form data for _csrf (common for SvelteKit form actions)
 			if (!csrfToken) {
 				const contentType = request.headers.get('content-type') || '';
-				const contentLength = parseInt(request.headers.get('content-length') ?? '0', 10);
+				const contentLengthBytes = parseInt(request.headers.get('content-length') ?? '0', 10);
 
 				// Only attempt to parse form data if it's a standard form post and within a reasonable size (10MB)
 				// to avoid memory exhaustion from cloning large payloads (e.g. backup restores).
 				if (
 					(contentType.includes('application/x-www-form-urlencoded') ||
 						contentType.includes('multipart/form-data')) &&
-					contentLength < 10 * 1024 * 1024
+					contentLengthBytes < 10 * 1024 * 1024
 				) {
 					try {
 						// NOTE: Cloning request doubles memory for the duration of parsing.
@@ -288,18 +297,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 			// For API routes, return 401
 			if (path.startsWith('/api/')) {
 				return recordResponse(
-					new Response(JSON.stringify({ error: 'Unauthorized' }), {
-						status: 401,
-						headers: { 'Content-Type': 'application/json' }
-					})
+					new Response(
+						JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+						{
+							status: 401,
+							headers: { 'Content-Type': 'application/json' }
+						}
+					)
 				);
 			}
 
-			// For page routes, redirect to login
+			// For page routes, redirect to login preserving return destination
+			const returnTo = path + url.search;
+			const safeReturnTo = returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/';
 			return recordResponse(
 				new Response(null, {
 					status: 302,
-					headers: { Location: '/login' }
+					headers: { Location: `/login?returnTo=${encodeURIComponent(safeReturnTo)}` }
 				})
 			);
 		}
@@ -328,11 +342,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		// Protect admin API routes
 		if (
-			(path.startsWith('/api/admin') || path.startsWith('/api/v1/admin')) &&
+			ADMIN_ROUTE_PREFIXES.some((prefix) => path.startsWith(prefix)) &&
 			event.locals.user?.role !== 'admin'
 		) {
 			return recordResponse(
-				new Response(JSON.stringify({ error: 'Forbidden' }), {
+				new Response(JSON.stringify({ error: 'Forbidden', message: 'Admin access required' }), {
 					status: 403,
 					headers: { 'Content-Type': 'application/json' }
 				})
