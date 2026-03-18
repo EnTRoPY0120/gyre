@@ -17,15 +17,16 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getDecryptedBackupBuffer, getBackupPath, BackupError } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
+import { requirePermission } from '$lib/server/rbac';
+import { createReadStream, statSync } from 'node:fs';
+import { basename } from 'node:path';
 
 const BACKUP_STATUS_CODES: Record<number, string> = {
 	400: 'BadRequest',
 	404: 'NotFound',
-	413: 'PayloadTooLarge'
+	413: 'PayloadTooLarge',
+	500: 'InternalServerError'
 };
-import { requirePermission } from '$lib/server/rbac';
-import { createReadStream, statSync } from 'node:fs';
-import { basename } from 'node:path';
 
 export const _metadata = {
 	GET: {

@@ -1,6 +1,6 @@
 import { logger } from '$lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z, errorSchema } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getFluxResource, getKubeConfig, type ReqCache } from '$lib/server/kubernetes/client';
 import {
@@ -65,31 +65,31 @@ export const _metadata = {
 			400: {
 				description: 'Unsupported resource type or missing sourceRef',
 				content: {
-					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+					'application/json': { schema: errorSchema }
 				}
 			},
 			401: {
 				description: 'Unauthorized',
 				content: {
-					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+					'application/json': { schema: errorSchema }
 				}
 			},
 			403: {
 				description: 'Permission denied',
 				content: {
-					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+					'application/json': { schema: errorSchema }
 				}
 			},
 			500: {
 				description: 'Internal server error',
 				content: {
-					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+					'application/json': { schema: errorSchema }
 				}
 			},
 			503: {
 				description: 'Drift detection only available in-cluster',
 				content: {
-					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+					'application/json': { schema: errorSchema }
 				}
 			}
 		}
