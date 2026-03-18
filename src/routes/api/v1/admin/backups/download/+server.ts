@@ -13,7 +13,7 @@
 
 import { logger } from '$lib/server/logger.js';
 import { error } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z, errorSchema } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getDecryptedBackupBuffer, getBackupPath, BackupError } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
@@ -47,11 +47,26 @@ export const _metadata = {
 				description: 'SQLite database file download',
 				content: { 'application/x-sqlite3': { schema: z.any() } }
 			},
-			400: { description: 'Missing filename parameter' },
-			401: { description: 'Unauthorized' },
-			403: { description: 'Permission denied' },
-			404: { description: 'Backup not found' },
-			500: { description: 'Failed to decrypt backup' }
+			400: {
+				description: 'Missing filename parameter',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			401: {
+				description: 'Unauthorized',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			403: {
+				description: 'Permission denied',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			404: {
+				description: 'Backup not found',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			500: {
+				description: 'Failed to download backup',
+				content: { 'application/json': { schema: errorSchema } }
+			}
 		}
 	}
 };
