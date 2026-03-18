@@ -597,7 +597,7 @@ export async function getFluxResourceStatus(
  * Create a FluxCD resource
  */
 export async function createFluxResource(
-	resourceType: string,
+	resourceType: FluxResourceType,
 	namespace: string,
 	body: Record<string, unknown>,
 	context?: string,
@@ -628,7 +628,7 @@ export async function createFluxResource(
  * Update (replace) a FluxCD resource
  */
 export async function updateFluxResource(
-	resourceType: string,
+	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,
 	body: Record<string, unknown>,

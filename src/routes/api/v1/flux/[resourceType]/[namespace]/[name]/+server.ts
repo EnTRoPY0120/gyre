@@ -10,6 +10,7 @@ import {
 } from '$lib/server/kubernetes/client.js';
 import {
 	getAllResourcePlurals,
+	getResourceDef,
 	getResourceTypeByPlural,
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
@@ -246,7 +247,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	// Parse YAML to object
 	let resource: K8sResource;
 	try {
-		resource = yaml.load(body.yaml) as K8sResource; // js-yaml v4: yaml.load() is safe by default (no JS execution)
+		resource = yaml.load(body.yaml, { schema: yaml.JSON_SCHEMA }) as K8sResource;
 	} catch (err) {
 		throw error(400, {
 			message: `Invalid YAML: ${err instanceof Error ? err.message : 'Unable to parse'}`
@@ -261,6 +262,19 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	if (!resource.apiVersion || !resource.kind || !resource.metadata) {
 		throw error(400, {
 			message: 'Invalid resource: missing required fields (apiVersion, kind, metadata)'
+		});
+	}
+
+	if (resource.kind !== resolvedType) {
+		throw error(400, {
+			message: `kind mismatch: expected "${resolvedType}", got "${resource.kind}"`
+		});
+	}
+
+	const resourceDef = getResourceDef(resolvedType)!;
+	if (resource.apiVersion !== resourceDef.apiVersion) {
+		throw error(400, {
+			message: `apiVersion mismatch: expected "${resourceDef.apiVersion}", got "${resource.apiVersion}"`
 		});
 	}
 

@@ -9,11 +9,13 @@ import {
 } from '$lib/server/kubernetes/client.js';
 import {
 	getAllResourcePlurals,
+	getResourceDef,
 	getResourceTypeByPlural,
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
+import { validateK8sNamespace } from '$lib/server/validation';
 import { VALID_SORT_BY, VALID_SORT_ORDER } from '$lib/config/sorting';
 
 /** Zod schema for POST create FluxCD resource request body – used for OpenAPI and runtime validation */
@@ -228,6 +230,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 
 	const body = parsed.data;
 	const namespace = body.metadata.namespace ?? 'default';
+	validateK8sNamespace(namespace);
 	body.metadata.namespace = namespace;
 
 	// Resolve resource type
@@ -255,6 +258,13 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 	if (body.kind !== resolvedType) {
 		throw error(400, {
 			message: `kind mismatch: body declares "${body.kind}" but endpoint handles "${resolvedType}"`
+		});
+	}
+
+	const resourceDef = getResourceDef(resolvedType)!;
+	if (body.apiVersion !== resourceDef.apiVersion) {
+		throw error(400, {
+			message: `apiVersion mismatch: body declares "${body.apiVersion}" but "${resolvedType}" requires "${resourceDef.apiVersion}"`
 		});
 	}
 
