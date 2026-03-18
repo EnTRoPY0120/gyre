@@ -77,14 +77,21 @@ function log(level: pino.Level, args: any[]) {
 		const meta = Object.assign({}, ...objects);
 		return activeLogger[level](meta, sanitizeLogMessage(args[0]));
 	}
-	if (args.length === 2) return activeLogger[level](args[0], args[1]);
+	if (args.length === 2)
+		return activeLogger[level](
+			args[0],
+			typeof args[1] === 'string' ? sanitizeLogMessage(args[1]) : args[1]
+		);
 	// 3+ args with non-string first arg: merge extra context objects
 	const extras = args.slice(2).filter((a: any) => a !== null && typeof a === 'object');
 	const meta =
 		args[0] instanceof Error
 			? { err: args[0], ...Object.assign({}, ...extras) }
 			: Object.assign({}, args[0], ...extras);
-	return activeLogger[level](meta, args[1]);
+	return activeLogger[level](
+		meta,
+		typeof args[1] === 'string' ? sanitizeLogMessage(args[1]) : args[1]
+	);
 }
 
 /**
