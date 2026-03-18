@@ -17,6 +17,12 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getDecryptedBackupBuffer, getBackupPath, BackupError } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
+
+const BACKUP_STATUS_CODES: Record<number, string> = {
+	400: 'BadRequest',
+	404: 'NotFound',
+	413: 'PayloadTooLarge'
+};
 import { requirePermission } from '$lib/server/rbac';
 import { createReadStream, statSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -109,11 +115,9 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	} catch (err) {
 		if (err instanceof BackupError) {
 			logger.error(err, 'Backup download error:');
-			const message = err.status < 500 ? err.message : 'Failed to download backup';
-			throw error(err.status, {
-				message,
-				code: err.status < 500 ? 'BadRequest' : 'InternalServerError'
-			});
+			const code = BACKUP_STATUS_CODES[err.status] ?? 'InternalServerError';
+			const message = code !== 'InternalServerError' ? err.message : 'Failed to download backup';
+			throw error(err.status, { message, code });
 		}
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
