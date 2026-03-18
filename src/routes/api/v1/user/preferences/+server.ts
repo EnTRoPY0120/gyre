@@ -1,6 +1,6 @@
 import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z, errorSchema } from '$lib/server/openapi';
 import { getDb } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -8,8 +8,6 @@ import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
 import { requirePermission } from '$lib/server/rbac';
 import { checkRateLimit } from '$lib/server/rate-limiter';
-
-const errorSchema = z.object({ message: z.string(), code: z.string() });
 
 const preferencesSchema = z.object({
 	theme: z.enum(['light', 'dark', 'system']).optional(),

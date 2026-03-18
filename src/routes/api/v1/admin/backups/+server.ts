@@ -9,11 +9,9 @@
 
 import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z, errorSchema } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { createBackup, listBackups, deleteBackup } from '$lib/server/backup';
-
-const errorSchema = z.object({ message: z.string(), code: z.string() });
 
 const backupSchema = z.object({
 	filename: z.string().openapi({ example: 'gyre-backup-2024-01-15T10-30-00.db' }),
@@ -76,6 +74,10 @@ export const _metadata = {
 				description: 'Admin permission required',
 				content: { 'application/json': { schema: errorSchema } }
 			},
+			429: {
+				description: 'Too Many Requests',
+				content: { 'application/json': { schema: errorSchema } }
+			},
 			500: {
 				description: 'Failed to create backup',
 				content: { 'application/json': { schema: errorSchema } }
@@ -117,6 +119,10 @@ export const _metadata = {
 			},
 			404: {
 				description: 'Backup not found',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			429: {
+				description: 'Too Many Requests',
 				content: { 'application/json': { schema: errorSchema } }
 			},
 			500: {
