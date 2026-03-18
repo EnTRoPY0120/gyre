@@ -132,7 +132,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		if (!sizeValidation.valid) {
 			logger.warn(
-				`Request size exceeded limit for ${request.method} ${path}: ${sizeValidation.size} > ${sizeValidation.limit}`
+				{ method: request.method, path, size: sizeValidation.size, limit: sizeValidation.limit },
+				'Request size exceeded limit'
 			);
 
 			// For API routes return a JSON 413.

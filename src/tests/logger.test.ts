@@ -32,6 +32,70 @@ describe('Logger Redaction', () => {
 	});
 });
 
+describe('Logger Security', () => {
+	test('redacts apiKey field', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info({ apiKey: 'ak-secret-123', other: 'safe' }, 'Test message');
+		const output = stdoutSpy.mock.calls[0][0] as string;
+		expect(output).toContain('[REDACTED]');
+		expect(output).not.toContain('ak-secret-123');
+		stdoutSpy.mockRestore();
+	});
+
+	test('redacts accessToken field', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info({ accessToken: 'at-secret-456' }, 'Test message');
+		const output = stdoutSpy.mock.calls[0][0] as string;
+		expect(output).toContain('[REDACTED]');
+		expect(output).not.toContain('at-secret-456');
+		stdoutSpy.mockRestore();
+	});
+
+	test('redacts refreshToken field', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info({ refreshToken: 'rt-secret-789' }, 'Test message');
+		const output = stdoutSpy.mock.calls[0][0] as string;
+		expect(output).toContain('[REDACTED]');
+		expect(output).not.toContain('rt-secret-789');
+		stdoutSpy.mockRestore();
+	});
+
+	test('redacts clientSecret field', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info({ clientSecret: 'cs-secret-abc' }, 'Test message');
+		const output = stdoutSpy.mock.calls[0][0] as string;
+		expect(output).toContain('[REDACTED]');
+		expect(output).not.toContain('cs-secret-abc');
+		stdoutSpy.mockRestore();
+	});
+
+	test('redacts bearer field', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info({ bearer: 'bearer-token-xyz' }, 'Test message');
+		const output = stdoutSpy.mock.calls[0][0] as string;
+		expect(output).toContain('[REDACTED]');
+		expect(output).not.toContain('bearer-token-xyz');
+		stdoutSpy.mockRestore();
+	});
+
+	test('sanitizes newlines in log messages (log injection prevention)', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info('Safe message\nINJECTED: fake log entry');
+		const output = stdoutSpy.mock.calls[0][0] as string;
+		expect(output).not.toContain('\nINJECTED');
+		expect(output).toContain('Safe message');
+		stdoutSpy.mockRestore();
+	});
+
+	test('sanitizes carriage returns in log messages', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info('Message\r\nwith CRLF injection');
+		const output = stdoutSpy.mock.calls[0][0] as string;
+		expect(output).not.toMatch(/\r\n/);
+		stdoutSpy.mockRestore();
+	});
+});
+
 describe('Logger Signatures', () => {
 	test('handles string message only', () => {
 		const stdoutSpy = spyOn(process.stdout, 'write');
