@@ -52,29 +52,39 @@ describe('advancedSearch', () => {
 		expect(result).toHaveLength(0);
 	});
 
+	// codeql[js/redos]
 	test('regex: ReDoS pattern (a+)+$ returns empty array without hanging', () => {
 		const items = makeItems(['nginx', 'redis']);
-		const result = advancedSearch(items, '(a+)+$', { regex: true }); // codeql[js/redos]
+		const result = advancedSearch(items, '(a+)+$', { regex: true });
 		expect(result).toHaveLength(0);
 	});
 
+	// codeql[js/redos]
 	test('regex: ReDoS pattern (a{1,})+ is flagged unsafe and returns empty array', () => {
 		const items = makeItems(['nginx', 'redis']);
-		expect(advancedSearch(items, '(a{1,})+', { regex: true })).toHaveLength(0); // codeql[js/redos]
+		expect(advancedSearch(items, '(a{1,})+', { regex: true })).toHaveLength(0);
 	});
 
+	// codeql[js/redos]
 	test('regex: ReDoS pattern (a{2,5})* is flagged unsafe and returns empty array', () => {
 		const items = makeItems(['nginx', 'redis']);
-		expect(advancedSearch(items, '(a{2,5})*', { regex: true })).toHaveLength(0); // codeql[js/redos]
+		expect(advancedSearch(items, '(a{2,5})*', { regex: true })).toHaveLength(0);
 	});
 
+	// codeql[js/redos]
 	test('regex: ReDoS pattern (a{0,})+ is flagged unsafe and returns empty array', () => {
 		const items = makeItems(['nginx', 'redis']);
-		expect(advancedSearch(items, '(a{0,})+', { regex: true })).toHaveLength(0); // codeql[js/redos]
+		expect(advancedSearch(items, '(a{0,})+', { regex: true })).toHaveLength(0);
 	});
 
 	test('regex: query longer than MAX_QUERY_LENGTH is truncated to 500 chars', () => {
-		const items = makeItems(['nginx', 'redis']);
+		// item with 550 a's matches a 500-char pattern but NOT a 600-char pattern,
+		// making truncation observable: without truncation only 1 item matches,
+		// with truncation both items match.
+		const items = [
+			{ metadata: { name: 'a'.repeat(550), namespace: 'default' } },
+			{ metadata: { name: 'a'.repeat(650), namespace: 'default' } }
+		];
 		const longQuery = 'a'.repeat(600);
 		const expectedQuery = 'a'.repeat(500);
 		expect(advancedSearch(items, longQuery, { regex: true })).toEqual(
@@ -163,9 +173,9 @@ describe('parseQuery', () => {
 		expect(result.tags.ns).toBe('my-special-namespace');
 	});
 
-	test('tag value longer than 200 chars is truncated to 200', () => {
+	test('tag value longer than 200 chars is truncated to first 200 chars', () => {
 		const longValue = 'x'.repeat(250);
 		const result = parseQuery(`ns:${longValue}`);
-		expect(result.tags.ns).toHaveLength(200);
+		expect(result.tags.ns).toBe(longValue.slice(0, 200));
 	});
 });
