@@ -101,6 +101,7 @@ describe('kubeconfig kind/apiVersion validation', () => {
 		const config = parsed as Record<string, unknown>;
 		if (!config.clusters || !config.contexts) return false;
 		if (config.kind !== 'Config' || config.apiVersion !== 'v1') return false;
+		if (!Array.isArray(config.clusters) || !Array.isArray(config.contexts)) return false;
 		return true;
 	}
 
@@ -163,6 +164,28 @@ describe('kubeconfig kind/apiVersion validation', () => {
 				clusters: ['a', 'b'],
 				contexts: ['c'],
 				data: 'anything goes'
+			})
+		).toBe(false);
+	});
+
+	test('rejects clusters as a non-array truthy value', () => {
+		expect(
+			isValidKubeconfigStructure({
+				apiVersion: 'v1',
+				kind: 'Config',
+				clusters: 'not-an-array',
+				contexts: [{}]
+			})
+		).toBe(false);
+	});
+
+	test('rejects contexts as a non-array truthy value', () => {
+		expect(
+			isValidKubeconfigStructure({
+				apiVersion: 'v1',
+				kind: 'Config',
+				clusters: [{}],
+				contexts: { 0: {} }
 			})
 		).toBe(false);
 	});

@@ -126,6 +126,12 @@ export const actions: Actions = {
 				});
 			}
 
+			if (!Array.isArray(config.clusters) || !Array.isArray(config.contexts)) {
+				return fail(400, {
+					error: 'Invalid kubeconfig: clusters and contexts must be arrays'
+				});
+			}
+
 			// Create cluster
 			const cluster = await createCluster({
 				name,
