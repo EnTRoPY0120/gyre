@@ -63,8 +63,6 @@ jobs:
             type=ref,event=branch
             # Immutable version tag (e.g., 0.1.0)
             type=semver,pattern={{version}}
-            # Version with short SHA for traceability (e.g., v0.1.0-abc1234)
-            type=raw,value={{tag}}-{{sha}},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             # PR tags (for pull requests)
             type=ref,event=pr
           flavor: |
