@@ -5,7 +5,7 @@
 
 import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z, errorSchema } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { restoreFromBuffer } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
@@ -49,11 +49,25 @@ export const _metadata = {
 					}
 				}
 			},
-			400: { description: 'No file uploaded' },
-			403: { description: 'Admin role required' },
+			400: {
+				description: 'No file uploaded',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			401: {
+				description: 'Unauthorized',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			403: {
+				description: 'Admin role required',
+				content: { 'application/json': { schema: errorSchema } }
+			},
 			413: {
 				description: 'File too large (max 500MB)',
-				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			500: {
+				description: 'Failed to restore backup',
+				content: { 'application/json': { schema: errorSchema } }
 			}
 		}
 	}

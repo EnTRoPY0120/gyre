@@ -55,8 +55,10 @@ function getFuseInstance<T>(items: T[], keys: string[], caseSensitive: boolean):
  * Returns false if the pattern contains nested quantifiers that cause catastrophic backtracking.
  */
 function isSafeRegex(pattern: string): boolean {
-	// Detect (X+)+ / (X*)* / (X+)* / (X|Y)+ patterns that cause exponential backtracking
-	return !/\([^)]*[+*][^)]*\)[+*{]/.test(pattern) && !/\([^)]*\|[^)]*\)[+*{]/.test(pattern);
+	// Detect (X+)+ / (X*)* / (X{n,m})+ / (X|Y)+ patterns that cause exponential backtracking
+	return (
+		!/\([^)]*(?:[+*]|\{[^}]*\})[^)]*\)[+*{]/.test(pattern) && !/\([^)]*\|[^)]*\)[+*{]/.test(pattern)
+	);
 }
 
 /**
@@ -64,6 +66,8 @@ function isSafeRegex(pattern: string): boolean {
  */
 export function advancedSearch<T>(items: T[], query: string, options: SearchOptions = {}): T[] {
 	if (!query) return items;
+
+	const truncatedQuery = query.slice(0, MAX_QUERY_LENGTH);
 
 	const {
 		fuzzy = true,
@@ -74,13 +78,12 @@ export function advancedSearch<T>(items: T[], query: string, options: SearchOpti
 
 	// Handle Regex search
 	if (regex) {
-		const safeQuery = query.slice(0, MAX_QUERY_LENGTH);
-		if (!isSafeRegex(safeQuery)) {
+		if (!isSafeRegex(truncatedQuery)) {
 			logger.debug('Potentially unsafe regex pattern rejected');
 			return [];
 		}
 		try {
-			const re = new RegExp(safeQuery, caseSensitive ? '' : 'i');
+			const re = new RegExp(truncatedQuery, caseSensitive ? '' : 'i');
 			return items.filter((item) => {
 				const searchString = getSearchString(item, keys);
 				return re.test(searchString);
@@ -95,11 +98,11 @@ export function advancedSearch<T>(items: T[], query: string, options: SearchOpti
 	// Handle Fuzzy search
 	if (fuzzy) {
 		const fuse = getFuseInstance(items, keys, caseSensitive);
-		return fuse.search(query).map((result) => result.item);
+		return fuse.search(truncatedQuery).map((result) => result.item);
 	}
 
 	// Handle Literal search (fallback)
-	const normalizedQuery = caseSensitive ? query : query.toLowerCase();
+	const normalizedQuery = caseSensitive ? truncatedQuery : truncatedQuery.toLowerCase();
 	return items.filter((item) => {
 		const searchString = getSearchString(item, keys);
 		const normalizedString = caseSensitive ? searchString : searchString.toLowerCase();
