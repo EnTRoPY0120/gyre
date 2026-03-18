@@ -2,9 +2,8 @@
 
 Modern WebUI for FluxCD with real-time monitoring, RBAC, and comprehensive resource management.
 
-[![Version](https://img.shields.io/badge/version-0.4.1-blue.svg)](Chart.yaml)
 [![Type](https://img.shields.io/badge/type-application-informational.svg)](Chart.yaml)
-[![AppVersion](https://img.shields.io/badge/app%20version-0.4.1-informational.svg)](Chart.yaml)
+[![GitHub release](https://img.shields.io/github/v/release/entropy0120/gyre?label=version&style=flat)](https://github.com/entropy0120/gyre/releases/latest)
 
 ## Documentation
 
@@ -15,12 +14,8 @@ Comprehensive documentation for the Helm chart, including configuration options,
 ## Quick Start
 
 ```bash
-# Add the Gyre Helm repository
-helm repo add gyre https://entropy0120.github.io/gyre
-helm repo update
-
 # Install Gyre
-helm install gyre gyre/gyre \
+helm install gyre oci://ghcr.io/entropy0120/gyre \
   --namespace flux-system \
   --create-namespace
 ```

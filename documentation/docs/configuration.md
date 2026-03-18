@@ -246,7 +246,7 @@ audit:
 ### Via Helm
 
 ```bash
-helm upgrade gyre gyre/gyre \
+helm upgrade gyre oci://ghcr.io/entropy0120/gyre \
   --namespace flux-system \
   -f values.yaml
 ```
