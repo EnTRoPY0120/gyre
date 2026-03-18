@@ -41,9 +41,9 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1h
-  url: oci://ghcr.io/entropy0120/gyre/gyre
+  url: oci://ghcr.io/entropy0120/gyre
   ref:
-    tag: 0.4.1
+    semver: ">=0.1.0"
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -61,8 +61,7 @@ spec:
 ### Option 2: Helm
 
 ```bash
-helm install gyre oci://ghcr.io/entropy0120/gyre/gyre \
-  --version 0.4.1 \
+helm install gyre oci://ghcr.io/entropy0120/gyre \
   --namespace flux-system \
   --create-namespace
 ```
