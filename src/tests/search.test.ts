@@ -54,23 +54,23 @@ describe('advancedSearch', () => {
 
 	test('regex: ReDoS pattern (a+)+$ returns empty array without hanging', () => {
 		const items = makeItems(['nginx', 'redis']);
-		const result = advancedSearch(items, '(a+)+$', { regex: true });
+		const result = advancedSearch(items, '(a+)+$', { regex: true }); // codeql[js/redos]
 		expect(result).toHaveLength(0);
 	});
 
 	test('regex: ReDoS pattern (a{1,})+ is flagged unsafe and returns empty array', () => {
 		const items = makeItems(['nginx', 'redis']);
-		expect(advancedSearch(items, '(a{1,})+', { regex: true })).toHaveLength(0);
+		expect(advancedSearch(items, '(a{1,})+', { regex: true })).toHaveLength(0); // codeql[js/redos]
 	});
 
 	test('regex: ReDoS pattern (a{2,5})* is flagged unsafe and returns empty array', () => {
 		const items = makeItems(['nginx', 'redis']);
-		expect(advancedSearch(items, '(a{2,5})*', { regex: true })).toHaveLength(0);
+		expect(advancedSearch(items, '(a{2,5})*', { regex: true })).toHaveLength(0); // codeql[js/redos]
 	});
 
 	test('regex: ReDoS pattern (a{0,})+ is flagged unsafe and returns empty array', () => {
 		const items = makeItems(['nginx', 'redis']);
-		expect(advancedSearch(items, '(a{0,})+', { regex: true })).toHaveLength(0);
+		expect(advancedSearch(items, '(a{0,})+', { regex: true })).toHaveLength(0); // codeql[js/redos]
 	});
 
 	test('regex: query longer than MAX_QUERY_LENGTH is truncated to 500 chars', () => {

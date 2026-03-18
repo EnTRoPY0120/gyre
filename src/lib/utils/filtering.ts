@@ -1,15 +1,10 @@
 import type { FluxResource } from '$lib/types/flux';
+import { RESOURCE_HEALTH_VALUES } from '$lib/types/view';
 import { getResourceHealth, type ResourceHealth } from '$lib/utils/flux';
 import { advancedSearch, parseQuery } from './search';
 
 const MAX_PARAM_LENGTH = 500;
-const VALID_STATUSES: ReadonlySet<string> = new Set([
-	'healthy',
-	'progressing',
-	'failed',
-	'suspended',
-	'unknown'
-]);
+const VALID_STATUSES: ReadonlySet<string> = new Set(RESOURCE_HEALTH_VALUES);
 const MAX_LABEL_SEGMENT_LENGTH = 63; // Kubernetes label name/value max
 
 export interface FilterState {
