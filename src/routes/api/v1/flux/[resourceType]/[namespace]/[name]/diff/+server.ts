@@ -244,7 +244,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		const tempDir = await mkdtemp(join(tmpdir(), 'gyre-diff-'));
 
 		try {
-			logger.info(`ℹ Fetching artifact from: ${artifactUrl}`);
+			logger.info({ url: artifactUrl }, 'Fetching artifact');
 			const artifactPath = join(tempDir, 'artifact.tar.gz');
 			let buffer: Buffer;
 
@@ -253,16 +253,18 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			// But the actual HTTP server listens on: http://source-controller.flux-system.svc.cluster.local/path
 			const cleanUrl = artifactUrl.replace(/\.cluster\.local\./g, '.cluster.local');
 
-			logger.info(`ℹ Cleaned URL: ${cleanUrl}`);
+			logger.info({ url: cleanUrl }, 'Cleaned artifact URL');
 
 			// Try downloading the artifact using Node.js http module
 			// This is more reliable for in-cluster service-to-service communication than fetch()
 			try {
 				buffer = await downloadArtifact(cleanUrl);
-				logger.info(`✓ Artifact download successful (${buffer.length} bytes)`);
+				logger.info({ bytes: buffer.length }, 'Artifact download successful');
 			} catch (downloadErr) {
-				logger.info(`ℹ HTTP download failed: ${(downloadErr as Error).message}`);
-				logger.info(`ℹ Trying kubectl exec fallback method`);
+				logger.info(
+					{ error: (downloadErr as Error).message },
+					'HTTP download failed, trying fallback'
+				);
 
 				// Fallback: Use port-forward via Kubernetes API to access the artifact
 				// This works for both in-cluster and local development
@@ -285,13 +287,13 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 						throw new Error('source-controller pod has no name');
 					}
 
-					logger.info(`ℹ Using source-controller pod: ${podName}`);
+					logger.info({ podName }, 'Using source-controller pod');
 
 					// Use Kubernetes API to proxy HTTP request through the pod
 					// This works because we're accessing the pod's HTTP server via K8s API proxy
 					const urlPath = new URL(cleanUrl).pathname;
 
-					logger.info(`ℹ Fetching via K8s pod proxy: ${urlPath}`);
+					logger.info({ urlPath }, 'Fetching via K8s pod proxy');
 
 					try {
 						// Use connectGetNamespacedPodProxy to make HTTP request through the pod
@@ -307,9 +309,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 							? proxyResponse
 							: Buffer.from(proxyResponse as string, 'binary');
 
-						logger.info(`✓ K8s pod proxy fetch successful (${buffer.length} bytes)`);
+						logger.info({ bytes: buffer.length }, 'K8s pod proxy fetch successful');
 					} catch (proxyErr) {
-						logger.error(proxyErr, `Pod proxy error:`);
+						logger.error(proxyErr, 'Pod proxy error');
 						throw proxyErr;
 					}
 				} catch (execErr) {
@@ -381,14 +383,14 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 				throw new Error(`Path traversal detected: ${specPath}`);
 			}
 
-			logger.info(`ℹ Running kustomize build on: ${kustomizePath}`);
+			logger.info({ path: kustomizePath }, 'Running kustomize build');
 
 			const { stdout: buildOutput } = await execFileAsync('kustomize', ['build', kustomizePath], {
 				timeout: 30000, // 30 second timeout
 				maxBuffer: 10 * 1024 * 1024 // 10MB max output
 			});
 
-			logger.info(`✓ Kustomize build completed (${buildOutput.length} bytes)`);
+			logger.info({ bytes: buildOutput.length }, 'Kustomize build completed');
 
 			// 5. Parse resources and compare using Server-Side Dry-Run
 			const desiredResources = yaml.loadAll(buildOutput) as Array<Record<string, unknown>>;
@@ -523,7 +525,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 							live: liveState ? yaml.dump(clean(liveState)) : null
 						};
 					} catch (err) {
-						logger.error(err, `Error diffing ${kind}/${resName}:`);
+						logger.error(err, 'Error diffing resource', { kind, name: resName });
 						return {
 							kind,
 							name: resName,
@@ -550,7 +552,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			);
 		} finally {
 			await rm(tempDir, { recursive: true, force: true }).catch((cleanupErr) => {
-				logger.warn(`⚠️  Failed to cleanup temp dir: ${cleanupErr}`);
+				logger.warn({ error: String(cleanupErr) }, 'Failed to cleanup temp dir');
 			});
 		}
 	} catch (err) {

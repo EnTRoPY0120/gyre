@@ -14,9 +14,9 @@ const LOG_COLORS: Record<LogLevel, string> = {
 	fatal: 'color: #dc2626'
 };
 
-const configuredLevel = (env.PUBLIC_LOG_LEVEL as LogLevel) ?? (dev ? 'debug' : 'warn');
+const configuredLevel = (env.PUBLIC_LOG_LEVEL as LogLevel) ?? (dev ? 'debug' : 'info');
 const currentLevel: LogLevel =
-	LOG_LEVELS[configuredLevel] !== undefined ? configuredLevel : dev ? 'debug' : 'warn';
+	LOG_LEVELS[configuredLevel] !== undefined ? configuredLevel : dev ? 'debug' : 'info';
 const currentLevelNum = LOG_LEVELS[currentLevel];
 
 export function shouldLog(level: LogLevel): boolean {
@@ -24,7 +24,7 @@ export function shouldLog(level: LogLevel): boolean {
 }
 
 const SENSITIVE_KEYS =
-	/^(password|token|secret|authorization|cookie|email|apiKey|bearer|credential)$/i;
+	/^(password|token|secret|authorization|cookie|email|apiKey|bearer|credential|accessToken|refreshToken|clientSecret)$/i;
 
 function redactSensitiveFields(value: unknown, visited: WeakSet<object> = new WeakSet()): unknown {
 	if (value === null || value === undefined) return value;

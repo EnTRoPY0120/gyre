@@ -22,15 +22,30 @@ const pinoLogger = pino({
 			'authorization',
 			'cookie',
 			'email',
+			'apiKey',
+			'bearer',
+			'accessToken',
+			'refreshToken',
+			'clientSecret',
 			'err.config.data',
 			'req.headers.authorization',
 			'*.password',
 			'*.token',
-			'*.secret'
+			'*.secret',
+			'*.apiKey',
+			'*.bearer',
+			'*.accessToken',
+			'*.refreshToken',
+			'*.clientSecret'
 		],
 		censor: '[REDACTED]'
 	}
 });
+
+function sanitizeLogMessage(msg: string): string {
+	// eslint-disable-next-line no-control-regex
+	return msg.replace(/[\r\n\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, ' ').trim();
+}
 
 /**
  * Internal logging helper to handle multiple signature variants:
@@ -51,13 +66,16 @@ function log(level: pino.Level, args: any[]) {
 	} else {
 		activeLogger = pinoLogger;
 	}
-	if (args.length === 1) return activeLogger[level](args[0]);
+	if (args.length === 1) {
+		if (typeof args[0] === 'string') return activeLogger[level](sanitizeLogMessage(args[0]));
+		return activeLogger[level](args[0]);
+	}
 	if (typeof args[0] === 'string') {
 		// String-first: treat as message, merge remaining objects as metadata
 		const objects = args.slice(1).filter((a: any) => a !== null && typeof a === 'object');
-		if (objects.length === 0) return activeLogger[level](args[0]);
+		if (objects.length === 0) return activeLogger[level](sanitizeLogMessage(args[0]));
 		const meta = Object.assign({}, ...objects);
-		return activeLogger[level](meta, args[0]);
+		return activeLogger[level](meta, sanitizeLogMessage(args[0]));
 	}
 	if (args.length === 2) return activeLogger[level](args[0], args[1]);
 	// 3+ args with non-string first arg: merge extra context objects
