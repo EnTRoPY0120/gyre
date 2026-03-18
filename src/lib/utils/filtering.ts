@@ -2,6 +2,16 @@ import type { FluxResource } from '$lib/types/flux';
 import { getResourceHealth, type ResourceHealth } from '$lib/utils/flux';
 import { advancedSearch, parseQuery } from './search';
 
+const MAX_PARAM_LENGTH = 500;
+const VALID_STATUSES: ReadonlySet<string> = new Set([
+	'healthy',
+	'progressing',
+	'failed',
+	'suspended',
+	'unknown'
+]);
+const MAX_LABEL_SEGMENT_LENGTH = 63; // Kubernetes label name/value max
+
 export interface FilterState {
 	search: string;
 	namespace: string;
@@ -103,7 +113,12 @@ export function parseLabels(labelsStr: string): Record<string, string> {
 
 	for (const pair of pairs) {
 		const [key, value] = pair.split('=').map((s) => s.trim());
-		if (key && value !== undefined) {
+		if (
+			key &&
+			key.length <= MAX_LABEL_SEGMENT_LENGTH &&
+			value !== undefined &&
+			value.length <= MAX_LABEL_SEGMENT_LENGTH
+		) {
 			labels[key] = value;
 		}
 	}
@@ -156,10 +171,12 @@ export function filtersToSearchParams(filters: FilterState): URLSearchParams {
  * Parse URL search params to filter state
  */
 export function searchParamsToFilters(params: URLSearchParams): FilterState {
+	const rawStatus = params.get('status') ?? '';
+	const status = VALID_STATUSES.has(rawStatus) ? (rawStatus as ResourceHealth) : 'all';
 	return {
-		search: params.get('q') || '',
-		namespace: params.get('ns') || '',
-		status: (params.get('status') as ResourceHealth) || 'all',
-		labels: params.get('labels') || ''
+		search: (params.get('q') ?? '').slice(0, MAX_PARAM_LENGTH),
+		namespace: (params.get('ns') ?? '').slice(0, MAX_PARAM_LENGTH),
+		status,
+		labels: (params.get('labels') ?? '').slice(0, MAX_PARAM_LENGTH)
 	};
 }

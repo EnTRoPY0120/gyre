@@ -1,6 +1,9 @@
 import Fuse from 'fuse.js';
 import { logger } from './logger.js';
 
+const MAX_QUERY_LENGTH = 500;
+const MAX_TAG_VALUE_LENGTH = 200;
+
 export interface SearchOptions {
 	fuzzy?: boolean;
 	regex?: boolean;
@@ -49,6 +52,14 @@ function getFuseInstance<T>(items: T[], keys: string[], caseSensitive: boolean):
 }
 
 /**
+ * Returns false if the pattern contains nested quantifiers that cause catastrophic backtracking.
+ */
+function isSafeRegex(pattern: string): boolean {
+	// Detect (X+)+ / (X*)* / (X+)* / (X|Y)+ patterns that cause exponential backtracking
+	return !/\([^)]*[+*][^)]*\)[+*{]/.test(pattern) && !/\([^)]*\|[^)]*\)[+*{]/.test(pattern);
+}
+
+/**
  * Advanced search utility supporting fuzzy, regex, and literal matching
  */
 export function advancedSearch<T>(items: T[], query: string, options: SearchOptions = {}): T[] {
@@ -63,8 +74,13 @@ export function advancedSearch<T>(items: T[], query: string, options: SearchOpti
 
 	// Handle Regex search
 	if (regex) {
+		const safeQuery = query.slice(0, MAX_QUERY_LENGTH);
+		if (!isSafeRegex(safeQuery)) {
+			logger.debug('Potentially unsafe regex pattern rejected');
+			return [];
+		}
 		try {
-			const re = new RegExp(query, caseSensitive ? '' : 'i');
+			const re = new RegExp(safeQuery, caseSensitive ? '' : 'i');
 			return items.filter((item) => {
 				const searchString = getSearchString(item, keys);
 				return re.test(searchString);
@@ -126,7 +142,7 @@ export function parseQuery(query: string) {
 
 	while ((match = tagRegex.exec(query)) !== null) {
 		const [fullMatch, key, value] = match;
-		tags[key] = value;
+		tags[key] = value.slice(0, MAX_TAG_VALUE_LENGTH);
 		processedQuery = processedQuery.replace(fullMatch, '');
 	}
 

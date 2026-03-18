@@ -1,0 +1,82 @@
+import { describe, test, expect, mock } from 'bun:test';
+
+mock.module('$app/environment', () => ({ dev: false }));
+mock.module('$env/dynamic/public', () => ({ env: {} }));
+
+const { searchParamsToFilters, parseLabels } = await import('../lib/utils/filtering.js');
+
+// ---------------------------------------------------------------------------
+// searchParamsToFilters
+// ---------------------------------------------------------------------------
+
+describe('searchParamsToFilters', () => {
+	test('unknown status value falls back to all', () => {
+		const params = new URLSearchParams({ status: 'invalid-status' });
+		const result = searchParamsToFilters(params);
+		expect(result.status).toBe('all');
+	});
+
+	test('valid status values are preserved', () => {
+		for (const status of ['healthy', 'progressing', 'failed', 'suspended', 'unknown']) {
+			const params = new URLSearchParams({ status });
+			const result = searchParamsToFilters(params);
+			expect(result.status).toBe(status);
+		}
+	});
+
+	test('missing status defaults to all', () => {
+		const params = new URLSearchParams();
+		const result = searchParamsToFilters(params);
+		expect(result.status).toBe('all');
+	});
+
+	test('q param longer than 500 chars is truncated', () => {
+		const params = new URLSearchParams({ q: 'a'.repeat(600) });
+		const result = searchParamsToFilters(params);
+		expect(result.search).toHaveLength(500);
+	});
+
+	test('ns param longer than 500 chars is truncated', () => {
+		const params = new URLSearchParams({ ns: 'b'.repeat(600) });
+		const result = searchParamsToFilters(params);
+		expect(result.namespace).toHaveLength(500);
+	});
+
+	test('labels param longer than 500 chars is truncated', () => {
+		const params = new URLSearchParams({ labels: 'c'.repeat(600) });
+		const result = searchParamsToFilters(params);
+		expect(result.labels).toHaveLength(500);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// parseLabels
+// ---------------------------------------------------------------------------
+
+describe('parseLabels', () => {
+	test('parses valid key=value pairs', () => {
+		const result = parseLabels('app=nginx,env=prod');
+		expect(result).toEqual({ app: 'nginx', env: 'prod' });
+	});
+
+	test('skips entry where key exceeds 63 chars', () => {
+		const longKey = 'k'.repeat(64);
+		const result = parseLabels(`${longKey}=value,app=nginx`);
+		expect(result).not.toHaveProperty(longKey);
+		expect(result.app).toBe('nginx');
+	});
+
+	test('skips entry where value exceeds 63 chars', () => {
+		const longValue = 'v'.repeat(64);
+		const result = parseLabels(`app=${longValue},env=prod`);
+		expect(result).not.toHaveProperty('app');
+		expect(result.env).toBe('prod');
+	});
+
+	test('keeps entries exactly at 63 chars limit', () => {
+		const key = 'k'.repeat(63);
+		const value = 'v'.repeat(63);
+		const result = parseLabels(`${key}=${value}`);
+		expect(result[key]).toBe(value);
+	});
+});

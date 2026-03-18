@@ -52,6 +52,18 @@ describe('advancedSearch', () => {
 		expect(result).toHaveLength(0);
 	});
 
+	test('regex: ReDoS pattern (a+)+$ returns empty array without hanging', () => {
+		const items = makeItems(['nginx', 'redis']);
+		const result = advancedSearch(items, '(a+)+$', { regex: true });
+		expect(result).toHaveLength(0);
+	});
+
+	test('regex: query longer than MAX_QUERY_LENGTH is truncated and does not throw', () => {
+		const items = makeItems(['nginx', 'redis']);
+		const longQuery = 'a'.repeat(600);
+		expect(() => advancedSearch(items, longQuery, { regex: true })).not.toThrow();
+	});
+
 	test('regex: false with fuzzy: false does literal matching', () => {
 		const items = makeItems(['nginx-deployment', 'redis-cache']);
 		const result = advancedSearch(items, 'nginx-deployment', { fuzzy: false, regex: false });
@@ -131,5 +143,11 @@ describe('parseQuery', () => {
 	test('tag values are extracted verbatim', () => {
 		const result = parseQuery('ns:my-special-namespace');
 		expect(result.tags.ns).toBe('my-special-namespace');
+	});
+
+	test('tag value longer than 200 chars is truncated to 200', () => {
+		const longValue = 'x'.repeat(250);
+		const result = parseQuery(`ns:${longValue}`);
+		expect(result.tags.ns).toHaveLength(200);
 	});
 });
