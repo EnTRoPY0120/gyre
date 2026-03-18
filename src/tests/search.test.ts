@@ -58,10 +58,28 @@ describe('advancedSearch', () => {
 		expect(result).toHaveLength(0);
 	});
 
-	test('regex: query longer than MAX_QUERY_LENGTH is truncated and does not throw', () => {
+	test('regex: ReDoS pattern (a{1,})+ is flagged unsafe and returns empty array', () => {
+		const items = makeItems(['nginx', 'redis']);
+		expect(advancedSearch(items, '(a{1,})+', { regex: true })).toHaveLength(0);
+	});
+
+	test('regex: ReDoS pattern (a{2,5})* is flagged unsafe and returns empty array', () => {
+		const items = makeItems(['nginx', 'redis']);
+		expect(advancedSearch(items, '(a{2,5})*', { regex: true })).toHaveLength(0);
+	});
+
+	test('regex: ReDoS pattern (a{0,})+ is flagged unsafe and returns empty array', () => {
+		const items = makeItems(['nginx', 'redis']);
+		expect(advancedSearch(items, '(a{0,})+', { regex: true })).toHaveLength(0);
+	});
+
+	test('regex: query longer than MAX_QUERY_LENGTH is truncated to 500 chars', () => {
 		const items = makeItems(['nginx', 'redis']);
 		const longQuery = 'a'.repeat(600);
-		expect(() => advancedSearch(items, longQuery, { regex: true })).not.toThrow();
+		const expectedQuery = 'a'.repeat(500);
+		expect(advancedSearch(items, longQuery, { regex: true })).toEqual(
+			advancedSearch(items, expectedQuery, { regex: true })
+		);
 	});
 
 	test('regex: false with fuzzy: false does literal matching', () => {

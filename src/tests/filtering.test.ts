@@ -16,6 +16,13 @@ describe('searchParamsToFilters', () => {
 		expect(result.status).toBe('all');
 	});
 
+	test('mixed-case status values are accepted after normalization', () => {
+		const params = new URLSearchParams({ status: 'HEALTHY' });
+		expect(searchParamsToFilters(params).status).toBe('healthy');
+		const params2 = new URLSearchParams({ status: 'Progressing' });
+		expect(searchParamsToFilters(params2).status).toBe('progressing');
+	});
+
 	test('valid status values are preserved', () => {
 		for (const status of ['healthy', 'progressing', 'failed', 'suspended', 'unknown']) {
 			const params = new URLSearchParams({ status });

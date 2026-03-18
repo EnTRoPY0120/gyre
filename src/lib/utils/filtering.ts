@@ -171,7 +171,7 @@ export function filtersToSearchParams(filters: FilterState): URLSearchParams {
  * Parse URL search params to filter state
  */
 export function searchParamsToFilters(params: URLSearchParams): FilterState {
-	const rawStatus = params.get('status') ?? '';
+	const rawStatus = (params.get('status') ?? '').trim().toLowerCase();
 	const status = VALID_STATUSES.has(rawStatus) ? (rawStatus as ResourceHealth) : 'all';
 	return {
 		search: (params.get('q') ?? '').slice(0, MAX_PARAM_LENGTH),
