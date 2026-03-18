@@ -82,7 +82,10 @@
 			if (password === 'admin' && result.user?.role === 'admin') {
 				window.location.href = '/change-password?first=true';
 			} else {
-				window.location.href = '/';
+				const returnTo = page.url.searchParams.get('returnTo');
+				const destination =
+					returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/';
+				window.location.href = destination;
 			}
 		} catch (err) {
 			toast.error(err instanceof Error ? err.message : 'Login failed');
