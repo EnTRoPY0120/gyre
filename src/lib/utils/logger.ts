@@ -90,7 +90,7 @@ function formatBrowserLog(level: LogLevel, args: unknown[]): unknown[] {
  *
  * Usage Guidelines:
  * - This logger mirrors the backend API but runs in the browser.
- * - In production, `PUBLIC_LOG_LEVEL` defaults to `warn` to keep the console clean (this means `warn`, `error`, and `fatal` logs are visible).
+ * - In production, `PUBLIC_LOG_LEVEL` defaults to `info` to keep the console reasonably quiet (this means `info`, `warn`, `error`, and `fatal` logs are visible); in dev it defaults to `debug`.
  * - Use `logger.error()` for unhandled exceptions or critical UI failures.
  * - Use `logger.warn()` for recoverable issues or deprecations.
  * - Use `logger.info()` for significant user flows (e.g., "User signed in").

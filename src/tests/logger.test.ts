@@ -81,17 +81,30 @@ describe('Logger Security', () => {
 	test('sanitizes newlines in log messages (log injection prevention)', () => {
 		const stdoutSpy = spyOn(process.stdout, 'write');
 		logger.info('Safe message\nINJECTED: fake log entry');
-		const output = stdoutSpy.mock.calls[0][0] as string;
-		expect(output).not.toContain('\nINJECTED');
-		expect(output).toContain('Safe message');
+		const parsed = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+		expect(parsed.msg).not.toContain('\nINJECTED');
+		expect(parsed.msg).toContain('Safe message');
 		stdoutSpy.mockRestore();
 	});
 
 	test('sanitizes carriage returns in log messages', () => {
 		const stdoutSpy = spyOn(process.stdout, 'write');
 		logger.info('Message\r\nwith CRLF injection');
+		const parsed = JSON.parse(stdoutSpy.mock.calls[0][0] as string);
+		expect(parsed.msg).not.toMatch(/\r\n/);
+		stdoutSpy.mockRestore();
+	});
+
+	test('redacts nested sensitive fields via wildcard paths', () => {
+		const stdoutSpy = spyOn(process.stdout, 'write');
+		logger.info(
+			{ user: { apiKey: 'ak-secret-123', bearer: 'bearer-token-xyz' } },
+			'Nested redaction test'
+		);
 		const output = stdoutSpy.mock.calls[0][0] as string;
-		expect(output).not.toMatch(/\r\n/);
+		expect(output).toContain('[REDACTED]');
+		expect(output).not.toContain('ak-secret-123');
+		expect(output).not.toContain('bearer-token-xyz');
 		stdoutSpy.mockRestore();
 	});
 });
