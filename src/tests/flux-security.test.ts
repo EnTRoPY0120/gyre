@@ -12,6 +12,7 @@ import {
 	getResourceTypeByPlural,
 	FLUX_RESOURCES
 } from '../lib/server/kubernetes/flux/resources.js';
+import { K8S_NAME_REGEX } from '../lib/server/validation.js';
 
 // ---------------------------------------------------------------------------
 // apiVersion / kind mismatch logic (mirrors POST handler checks)
@@ -85,10 +86,6 @@ describe('PUT kind validation logic', () => {
 // ---------------------------------------------------------------------------
 // Namespace validation (mirrors validateK8sNamespace regex)
 // ---------------------------------------------------------------------------
-
-// Inline the same regex used in validation.ts so we can unit-test the logic
-// without importing the SvelteKit `error()` helper.
-const K8S_NAME_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 describe('namespace validation logic', () => {
 	test('accepts valid namespaces', () => {
