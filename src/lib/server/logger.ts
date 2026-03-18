@@ -27,6 +27,7 @@ const pinoLogger = pino({
 			'accessToken',
 			'refreshToken',
 			'clientSecret',
+			'credential',
 			'err.config.data',
 			'req.headers.authorization',
 			'*.password',
@@ -36,7 +37,11 @@ const pinoLogger = pino({
 			'*.bearer',
 			'*.accessToken',
 			'*.refreshToken',
-			'*.clientSecret'
+			'*.clientSecret',
+			'*.authorization',
+			'*.cookie',
+			'*.email',
+			'*.credential'
 		],
 		censor: '[REDACTED]'
 	}
@@ -44,7 +49,7 @@ const pinoLogger = pino({
 
 function sanitizeLogMessage(msg: string): string {
 	// eslint-disable-next-line no-control-regex
-	return msg.replace(/[\r\n\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, ' ').trim();
+	return msg.replace(/[\x00-\x1f\x7f]/g, ' ').trim();
 }
 
 /**
