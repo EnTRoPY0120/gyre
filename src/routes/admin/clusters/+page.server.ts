@@ -114,6 +114,18 @@ export const actions: Actions = {
 				return fail(400, { error: 'Invalid kubeconfig: missing clusters or contexts' });
 			}
 
+			const config = parsed as {
+				clusters?: unknown;
+				contexts?: unknown;
+				kind?: unknown;
+				apiVersion?: unknown;
+			};
+			if (config.kind !== 'Config' || config.apiVersion !== 'v1') {
+				return fail(400, {
+					error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
+				});
+			}
+
 			// Create cluster
 			const cluster = await createCluster({
 				name,
