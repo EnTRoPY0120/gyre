@@ -24,7 +24,6 @@ import { basename } from 'node:path';
 const BACKUP_STATUS_CODES: Record<number, string> = {
 	400: 'BadRequest',
 	404: 'NotFound',
-	413: 'PayloadTooLarge',
 	500: 'InternalServerError'
 };
 
