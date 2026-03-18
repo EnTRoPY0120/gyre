@@ -9,6 +9,8 @@ import type { UserPreferences } from '$lib/types/user';
 import { requirePermission } from '$lib/server/rbac';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
+const errorSchema = z.object({ message: z.string(), code: z.string() });
+
 const preferencesSchema = z.object({
 	theme: z.enum(['light', 'dark', 'system']).optional(),
 	notifications: z
@@ -59,7 +61,18 @@ export const _metadata = {
 					}
 				}
 			},
-			401: { description: 'Unauthorized' }
+			400: {
+				description: 'Bad request (missing cluster context, invalid JSON, or validation failure)',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			401: {
+				description: 'Unauthorized',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			500: {
+				description: 'Failed to update preferences',
+				content: { 'application/json': { schema: errorSchema } }
+			}
 		}
 	}
 };

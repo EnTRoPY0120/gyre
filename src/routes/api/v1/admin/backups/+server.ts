@@ -13,6 +13,8 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { createBackup, listBackups, deleteBackup } from '$lib/server/backup';
 
+const errorSchema = z.object({ message: z.string(), code: z.string() });
+
 const backupSchema = z.object({
 	filename: z.string().openapi({ example: 'gyre-backup-2024-01-15T10-30-00.db' }),
 	sizeBytes: z.number().openapi({ example: 1048576 }),
@@ -38,8 +40,18 @@ export const _metadata = {
 					}
 				}
 			},
-			401: { description: 'Unauthorized' },
-			403: { description: 'Permission denied' }
+			401: {
+				description: 'Unauthorized',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			403: {
+				description: 'Permission denied',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			500: {
+				description: 'Failed to list backups',
+				content: { 'application/json': { schema: errorSchema } }
+			}
 		}
 	},
 	POST: {
@@ -56,8 +68,18 @@ export const _metadata = {
 					}
 				}
 			},
-			401: { description: 'Unauthorized' },
-			403: { description: 'Admin permission required' }
+			401: {
+				description: 'Unauthorized',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			403: {
+				description: 'Admin permission required',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			500: {
+				description: 'Failed to create backup',
+				content: { 'application/json': { schema: errorSchema } }
+			}
 		}
 	},
 	DELETE: {
@@ -81,10 +103,26 @@ export const _metadata = {
 					}
 				}
 			},
-			400: { description: 'Missing filename parameter' },
-			401: { description: 'Unauthorized' },
-			403: { description: 'Admin permission required' },
-			404: { description: 'Backup not found' }
+			400: {
+				description: 'Missing or invalid filename parameter',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			401: {
+				description: 'Unauthorized',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			403: {
+				description: 'Admin permission required',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			404: {
+				description: 'Backup not found',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			500: {
+				description: 'Failed to delete backup',
+				content: { 'application/json': { schema: errorSchema } }
+			}
 		}
 	}
 };

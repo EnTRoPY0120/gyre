@@ -62,10 +62,36 @@ export const _metadata = {
 					}
 				}
 			},
-			400: { description: 'Unsupported resource type or missing sourceRef' },
-			401: { description: 'Unauthorized' },
-			403: { description: 'Permission denied' },
-			503: { description: 'Drift detection only available in-cluster' }
+			400: {
+				description: 'Unsupported resource type or missing sourceRef',
+				content: {
+					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+				}
+			},
+			401: {
+				description: 'Unauthorized',
+				content: {
+					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+				}
+			},
+			403: {
+				description: 'Permission denied',
+				content: {
+					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+				}
+			},
+			500: {
+				description: 'Internal server error',
+				content: {
+					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+				}
+			},
+			503: {
+				description: 'Drift detection only available in-cluster',
+				content: {
+					'application/json': { schema: z.object({ message: z.string(), code: z.string() }) }
+				}
+			}
 		}
 	}
 };
