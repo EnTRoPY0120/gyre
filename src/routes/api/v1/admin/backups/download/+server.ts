@@ -77,16 +77,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	const clusterId = locals.cluster || 'in-cluster';
-	const allowed = await checkPermission(
-		locals.user,
-		'read',
-		'DatabaseBackup',
-		undefined,
-		clusterId
-	);
-	if (!allowed) {
-		throw error(403, { message: 'Permission denied', code: 'Forbidden' });
-	}
 
 	const filename = url.searchParams.get('filename');
 	if (!filename) {
@@ -94,6 +84,17 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	try {
+		const allowed = await checkPermission(
+			locals.user,
+			'read',
+			'DatabaseBackup',
+			undefined,
+			clusterId
+		);
+		if (!allowed) {
+			throw error(403, { message: 'Permission denied', code: 'Forbidden' });
+		}
+
 		await logAudit(locals.user, 'backup:download', {
 			resourceType: 'DatabaseBackup',
 			resourceName: basename(filename)
