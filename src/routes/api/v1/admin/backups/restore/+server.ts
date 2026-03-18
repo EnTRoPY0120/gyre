@@ -97,7 +97,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		// Validate MIME type when provided (browsers may omit it or send
 		// application/octet-stream — only reject clearly wrong types)
-		const ALLOWED_MIME_PREFIXES = ['application/', ''];
+		const ALLOWED_MIME_PREFIXES = ['application/'];
 		const mimeBase = file.type.split(';')[0].trim();
 		if (mimeBase && !ALLOWED_MIME_PREFIXES.some((p) => mimeBase.startsWith(p))) {
 			throw error(400, {
