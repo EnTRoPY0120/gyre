@@ -24,3 +24,14 @@ export function validateK8sName(name: string): void {
 		});
 	}
 }
+
+// Strip control characters from a filename for safe storage/logging
+export function sanitizeFilename(name: string): string {
+	// eslint-disable-next-line no-control-regex
+	return name.replace(/[\x00-\x1f\x7f]/g, '').slice(0, 255);
+}
+
+// Check that a backup filename has an allowed extension
+export function isAllowedBackupExtension(name: string): boolean {
+	return name.endsWith('.db') || name.endsWith('.db.enc');
+}

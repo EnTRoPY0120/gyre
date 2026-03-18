@@ -11,6 +11,7 @@ import { restoreFromBuffer } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
 import { requirePermission } from '$lib/server/rbac';
 import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
+import { sanitizeFilename, isAllowedBackupExtension } from '$lib/server/validation';
 
 export const _metadata = {
 	POST: {
@@ -86,6 +87,25 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			throw error(400, { message: 'No file uploaded', code: 'BadRequest' });
 		}
 
+		// Validate file extension
+		if (!isAllowedBackupExtension(file.name)) {
+			throw error(400, {
+				message: 'Invalid file type. Only .db and .db.enc files are accepted.',
+				code: 'BadRequest'
+			});
+		}
+
+		// Validate MIME type when provided (browsers may omit it or send
+		// application/octet-stream — only reject clearly wrong types)
+		const ALLOWED_MIME_PREFIXES = ['application/', ''];
+		const mimeBase = file.type.split(';')[0].trim();
+		if (mimeBase && !ALLOWED_MIME_PREFIXES.some((p) => mimeBase.startsWith(p))) {
+			throw error(400, {
+				message: 'Invalid content type. Expected a binary database file.',
+				code: 'BadRequest'
+			});
+		}
+
 		// Validate file size
 		if (file.size > REQUEST_LIMITS.BACKUP_RESTORE) {
 			throw error(413, {
@@ -101,7 +121,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		await logAudit(locals.user, 'backup:restore', {
 			resourceType: 'DatabaseBackup',
-			resourceName: file.name,
+			resourceName: sanitizeFilename(file.name),
 			details: {
 				uploadedSize: file.size,
 				restoredSize: result.sizeBytes
