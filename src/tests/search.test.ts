@@ -52,10 +52,11 @@ describe('advancedSearch', () => {
 		expect(result).toHaveLength(0);
 	});
 
-	test('regex: ReDoS-like pattern a+$ returns empty array without hanging', () => {
-		const items = makeItems(['nginx', 'redis']);
-		const result = advancedSearch(items, 'a+$', { regex: true });
-		expect(result).toHaveLength(0);
+	test('regex: safe pattern ^aaa matches items whose name starts with aaa', () => {
+		const items = makeItems(['aaa', 'bbb'], 'flux-system');
+		const result = advancedSearch(items, '^aaa', { regex: true });
+		expect(result).toHaveLength(1);
+		expect(result[0].metadata.name).toBe('aaa');
 	});
 
 	// codeql[js/redos]
