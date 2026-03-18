@@ -43,44 +43,47 @@ export function initDatabase(): void {
 			.get() as { value: string } | undefined;
 
 		if (!result || result.value !== 'true') {
-			// Collision-aware normalization: detect duplicates before bulk UPDATE
-			const allUsers = db
-				.select({ id: sql`id`, username: sql`username` })
-				.from(sql`users`)
-				.all() as { id: string; username: string }[];
+			db.transaction((tx) => {
+				// Collision-aware normalization: detect duplicates before bulk UPDATE
+				const allUsers = tx
+					.select({ id: sql`id`, username: sql`username` })
+					.from(sql`users`)
+					.all() as { id: string; username: string }[];
 
-			// Group by the normalized form to find collisions
-			const groups = new Map<string, { id: string; username: string }[]>();
-			for (const user of allUsers) {
-				const normalized = user.username.toLowerCase().trim();
-				if (!groups.has(normalized)) {
-					groups.set(normalized, []);
-				}
-				groups.get(normalized)!.push(user);
-			}
-
-			// Apply per-row updates, resolving collisions with ordinal suffixes
-			for (const [normalized, group] of groups) {
-				if (group.length === 1) {
-					db.run(sql`UPDATE users SET username = ${normalized} WHERE id = ${group[0].id}`);
-				} else {
-					// Sort deterministically by id so suffix assignment is stable
-					group.sort((a, b) => a.id.localeCompare(b.id));
-					for (let i = 0; i < group.length; i++) {
-						const finalUsername = i === 0 ? normalized : `${normalized}_${i}`;
-						db.run(sql`UPDATE users SET username = ${finalUsername} WHERE id = ${group[i].id}`);
+				// Group by the normalized form to find collisions
+				const groups = new Map<string, { id: string; username: string }[]>();
+				for (const user of allUsers) {
+					const normalized = user.username.toLowerCase().trim();
+					if (!groups.has(normalized)) {
+						groups.set(normalized, []);
 					}
-					logger.warn(`[DB] Migration: resolved username collision across ${group.length} users`);
+					groups.get(normalized)!.push(user);
 				}
-			}
 
-			db.run(
-				sql`INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('migrations.users_lowercased', 'true', (unixepoch()))`
-			);
+				// Apply per-row updates, resolving collisions with ordinal suffixes
+				for (const [normalized, group] of groups) {
+					if (group.length === 1) {
+						tx.run(sql`UPDATE users SET username = ${normalized} WHERE id = ${group[0].id}`);
+					} else {
+						// Sort deterministically by id so suffix assignment is stable
+						group.sort((a, b) => a.id.localeCompare(b.id));
+						for (let i = 0; i < group.length; i++) {
+							const finalUsername = i === 0 ? normalized : `${normalized}_${i}`;
+							tx.run(sql`UPDATE users SET username = ${finalUsername} WHERE id = ${group[i].id}`);
+						}
+						logger.warn(`[DB] Migration: resolved username collision across ${group.length} users`);
+					}
+				}
+
+				tx.run(
+					sql`INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('migrations.users_lowercased', 'true', (unixepoch()))`
+				);
+			});
 			logger.info('[DB] Migration: lowercased existing usernames');
 		}
 	} catch (error) {
 		logger.error(error, '[DB] Failed to run username normalization migration:');
+		throw error;
 	}
 
 	// Add preferences column if it doesn't exist (for existing databases)
@@ -161,26 +164,29 @@ export function initDatabase(): void {
 			.get() as { value: string } | undefined;
 
 		if (!result || result.value !== 'true') {
-			// Remove any pre-existing duplicates (keep lowest id per pair)
-			db.run(sql`
-				DELETE FROM cluster_contexts
-				WHERE id NOT IN (
-					SELECT MIN(id) FROM cluster_contexts
-					GROUP BY cluster_id, context_name
-				)
-			`);
-			db.run(sql`
-				CREATE UNIQUE INDEX IF NOT EXISTS idx_cluster_contexts_cluster_context
-				ON cluster_contexts (cluster_id, context_name)
-			`);
-			db.run(sql`
-				INSERT OR REPLACE INTO app_settings (key, value, updated_at)
-				VALUES ('migrations.cluster_context_unique', 'true', (unixepoch()))
-			`);
+			db.transaction((tx) => {
+				// Remove any pre-existing duplicates (keep lowest id per pair)
+				tx.run(sql`
+					DELETE FROM cluster_contexts
+					WHERE id NOT IN (
+						SELECT MIN(id) FROM cluster_contexts
+						GROUP BY cluster_id, context_name
+					)
+				`);
+				tx.run(sql`
+					CREATE UNIQUE INDEX IF NOT EXISTS idx_cluster_contexts_cluster_context
+					ON cluster_contexts (cluster_id, context_name)
+				`);
+				tx.run(sql`
+					INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+					VALUES ('migrations.cluster_context_unique', 'true', (unixepoch()))
+				`);
+			});
 			logger.info('[DB] Migration: added unique constraint on cluster_contexts');
 		}
 	} catch (error) {
 		logger.error(error, '[DB] Failed to add unique constraint on cluster_contexts:');
+		throw error;
 	}
 
 	// RBAC Policies table

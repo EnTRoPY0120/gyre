@@ -6,7 +6,6 @@
 import { logger } from '../logger.js';
 import { getDb } from '../db';
 import { authProviders, type NewAuthProvider } from '../db/schema';
-import { eq } from 'drizzle-orm';
 import { encryptSecret } from './crypto';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
@@ -68,9 +67,9 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 		return { created: 0, skipped: 0 };
 	}
 
-	const db = await getDb();
-	let created = 0;
+	// Pre-validate all providers and prepare DB records before touching the database
 	let skipped = 0;
+	const validProviders: NewAuthProvider[] = [];
 
 	for (let i = 0; i < providersConfig.length; i++) {
 		const config = providersConfig[i];
@@ -85,17 +84,6 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 			continue;
 		}
 		const validatedConfig: ProviderSeedConfig = parseResult.data;
-
-		// Check if provider with same name already exists
-		const existing = await db.query.authProviders.findFirst({
-			where: eq(authProviders.name, validatedConfig.name)
-		});
-
-		if (existing) {
-			logger.info(`Provider "${validatedConfig.name}" already exists, skipping`);
-			skipped++;
-			continue;
-		}
 
 		// Get client secret (from env var override or config)
 		const sanitizedName = validatedConfig.name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
@@ -155,8 +143,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 				roleMapping = JSON.stringify(validated);
 			}
 
-			// Create provider
-			const newProvider: NewAuthProvider = {
+			validProviders.push({
 				id: providerId,
 				name: validatedConfig.name,
 				type: validatedConfig.type,
@@ -178,15 +165,49 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 				scopes: validatedConfig.scopes || 'openid profile email',
 				createdAt: new Date(),
 				updatedAt: new Date()
-			};
-
-			await db.insert(authProviders).values(newProvider);
-			logger.info(`✓ Created provider "${validatedConfig.name}" (${validatedConfig.type})`);
-			created++;
+			});
 		} catch (error) {
-			logger.error(error, `Failed to create provider "${validatedConfig.name}":`);
+			logger.error(error, `Failed to prepare provider "${validatedConfig.name}":`);
 			skipped++;
 		}
+	}
+
+	if (validProviders.length === 0) {
+		return { created: 0, skipped };
+	}
+
+	// Insert all valid providers in a single atomic transaction
+	const db = await getDb();
+	let created = 0;
+
+	try {
+		const inserted: boolean[] = [];
+
+		db.transaction((tx) => {
+			for (const provider of validProviders) {
+				const rows = tx
+					.insert(authProviders)
+					.values(provider)
+					.onConflictDoNothing()
+					.returning()
+					.all();
+				inserted.push(rows.length > 0);
+			}
+		});
+
+		for (let i = 0; i < validProviders.length; i++) {
+			const provider = validProviders[i];
+			if (inserted[i]) {
+				logger.info(`✓ Created provider "${provider.name}" (${provider.type})`);
+				created++;
+			} else {
+				logger.info(`Provider "${provider.name}" already exists, skipping`);
+				skipped++;
+			}
+		}
+	} catch (error) {
+		logger.error(error, 'Failed to seed auth providers:');
+		throw error;
 	}
 
 	return { created, skipped };

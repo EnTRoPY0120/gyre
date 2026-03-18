@@ -4,7 +4,7 @@
  */
 
 import { getDb } from './db';
-import { appSettings, type NewAppSetting } from './db/schema';
+import { appSettings } from './db/schema';
 import { eq } from 'drizzle-orm';
 import { SETTINGS_CACHE_TTL_MS } from './config/constants.js';
 
@@ -187,22 +187,12 @@ export async function seedAuthSettings(): Promise<void> {
 	const db = await getDb();
 
 	for (const [key, defaultValue] of Object.entries(DEFAULTS)) {
-		// Check if setting already exists
-		const existing = await db.query.appSettings.findFirst({
-			where: eq(appSettings.key, key)
-		});
+		const envVar = ENV_OVERRIDES[key];
+		const value = (envVar && process.env[envVar]) || defaultValue;
 
-		if (!existing) {
-			// Use env var value if set, otherwise default
-			const envVar = ENV_OVERRIDES[key];
-			const value = (envVar && process.env[envVar]) || defaultValue;
-
-			const newSetting: NewAppSetting = {
-				key,
-				value,
-				updatedAt: new Date()
-			};
-			await db.insert(appSettings).values(newSetting);
-		}
+		await db
+			.insert(appSettings)
+			.values({ key, value, updatedAt: new Date() })
+			.onConflictDoNothing();
 	}
 }
