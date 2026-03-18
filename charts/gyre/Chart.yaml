@@ -2,8 +2,10 @@ apiVersion: v2
 name: gyre
 description: Modern WebUI for FluxCD with real-time monitoring and multi-cluster management
 type: application
-version: 0.4.1
-appVersion: "0.4.1"
+# Overridden at release time by CI: helm package --version <tag> --app-version <tag>
+# Do not edit manually.
+version: 0.0.0
+appVersion: "0.0.0"
 icon: https://raw.githubusercontent.com/entropy0120/gyre/main/static/favicon.svg
 keywords:
   - flux
