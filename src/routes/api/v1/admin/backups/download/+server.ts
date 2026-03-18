@@ -17,7 +17,7 @@ import { z, errorSchema } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getDecryptedBackupBuffer, getBackupPath, BackupError } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
-import { requirePermission } from '$lib/server/rbac';
+import { checkPermission } from '$lib/server/rbac';
 import { createReadStream, statSync } from 'node:fs';
 import { basename } from 'node:path';
 
@@ -77,7 +77,16 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	const clusterId = locals.cluster || 'in-cluster';
-	await requirePermission(locals.user, 'read', 'DatabaseBackup', undefined, clusterId);
+	const allowed = await checkPermission(
+		locals.user,
+		'read',
+		'DatabaseBackup',
+		undefined,
+		clusterId
+	);
+	if (!allowed) {
+		throw error(403, { message: 'Permission denied', code: 'Forbidden' });
+	}
 
 	const filename = url.searchParams.get('filename');
 	if (!filename) {
