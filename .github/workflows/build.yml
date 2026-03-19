@@ -118,7 +118,9 @@ jobs:
           provenance: true
           sbom: true
 
-      # Post-push SARIF scan for GitHub Security tab reporting (non-blocking)
+      # Post-push SARIF scan for GitHub Security tab reporting (non-blocking).
+      # exit-code: '0' is intentional — the blocking scan above already enforces
+      # security; this step is reporting-only and must not fail the build.
       - name: Run Trivy vulnerability scanner (SARIF)
         id: trivy-sarif
         if: github.event_name != 'pull_request'
