@@ -1,11 +1,11 @@
 import { logger, withRequestContext } from '$lib/server/logger.js';
 import type { Handle } from '@sveltejs/kit';
-import { getSession } from '$lib/server/auth';
+import { getSession, extendSession, SESSION_DURATION_DAYS } from '$lib/server/auth';
 import { initializeGyre } from '$lib/server/initialize';
 import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
 import { getRequestSizeLimit, validateRequestSize, formatSize } from '$lib/server/request-limits';
 import { generateCsrfToken, validateCsrfToken } from '$lib/server/csrf';
-import { CSRF_COOKIE_OPTIONS, IS_PROD, ADMIN_ROUTE_PREFIXES } from '$lib/server/config';
+import { CSRF_COOKIE_OPTIONS, IS_PROD, ADMIN_ROUTE_PREFIXES, DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { getClusterById } from '$lib/server/clusters';
 
@@ -230,6 +230,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 			if (sessionData) {
 				event.locals.user = sessionData.user;
 				event.locals.session = sessionData.session;
+
+				// Sliding session: renew if less than half the total duration remains
+				const halfDuration = (SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000) / 2;
+				const timeLeft = sessionData.session.expiresAt.getTime() - Date.now();
+				if (timeLeft < halfDuration) {
+					const newExpiry = await extendSession(sessionData.session.id);
+					event.locals.session = { ...sessionData.session, expiresAt: newExpiry };
+					cookies.set('gyre_session', sessionData.session.id, DEFAULT_COOKIE_OPTIONS);
+				}
 
 				// Set CSRF token cookie (non-httpOnly so JS can read it)
 				const csrfToken = generateCsrfToken(sessionData.session.id);

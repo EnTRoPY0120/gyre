@@ -49,7 +49,8 @@ export const _metadata = {
 	}
 };
 import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
-import { createSession, cleanupSetupTokenFile, SESSION_DURATION_DAYS } from '$lib/server/auth';
+import { createSession, rotateSession, cleanupSetupTokenFile } from '$lib/server/auth';
+import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
 /**
@@ -159,18 +160,15 @@ export const GET: RequestHandler = async (event) => {
 			);
 		}
 
-		// Create session for the user
-		const sessionId = await createSession(user.id, ipAddress, undefined);
+		// Create or rotate session (rotation prevents session fixation attacks)
+		const existingSessionId = cookies.get('gyre_session');
+		const sessionId = existingSessionId
+			? await rotateSession(existingSessionId, user.id, ipAddress, undefined)
+			: await createSession(user.id, ipAddress, undefined);
 		cleanupSetupTokenFile();
 
 		// Set session cookie
-		cookies.set('gyre_session', sessionId, {
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'lax',
-			maxAge: SESSION_DURATION_DAYS * 24 * 60 * 60
-		});
+		cookies.set('gyre_session', sessionId, DEFAULT_COOKIE_OPTIONS);
 
 		logger.info({ providerId, userId: user.id }, 'SSO login successful');
 
