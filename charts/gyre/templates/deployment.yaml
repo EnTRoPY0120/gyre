@@ -122,9 +122,9 @@ spec:
         # Authentication settings
         {{- if .Values.auth }}
         - name: GYRE_AUTH_LOCAL_LOGIN_ENABLED
-          value: {{ .Values.auth.localLoginEnabled | default true | quote }}
+          value: {{ .Values.auth.localLoginEnabled | toString | default "true" | quote }}
         - name: GYRE_AUTH_ALLOW_SIGNUP
-          value: {{ .Values.auth.allowSignup | default true | quote }}
+          value: {{ .Values.auth.allowSignup | toString | default "true" | quote }}
         {{- if .Values.auth.domainAllowlist }}
         - name: GYRE_AUTH_DOMAIN_ALLOWLIST
           value: {{ .Values.auth.domainAllowlist | toJson | quote }}
