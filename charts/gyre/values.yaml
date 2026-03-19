@@ -28,15 +28,16 @@ serviceAccount:
 podAnnotations: {}
 podLabels: {}
 
+hostNetwork: false
+hostPID: false
+hostIPC: false
+
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1001
   fsGroup: 1001
   seccompProfile:
     type: RuntimeDefault
-  hostNetwork: false
-  hostPID: false
-  hostIPC: false
 
 securityContext:
   allowPrivilegeEscalation: false
@@ -134,8 +135,8 @@ rbac:
     # Create cluster-wide role (required for multi-namespace FluxCD monitoring)
     create: true
     # Restrict to read-only access (get/list/watch only).
-    # Set to true if Gyre should only monitor resources, not modify them.
-    readOnly: false
+    # Set to false to enable write access (create/update/patch/delete) — opt-in.
+    readOnly: true
     # Additional rules to append (optional)
     rules: []
 

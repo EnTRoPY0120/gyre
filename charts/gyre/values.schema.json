@@ -8,6 +8,9 @@
       "type": "integer",
       "minimum": 1
     },
+    "hostNetwork": { "type": "boolean" },
+    "hostPID": { "type": "boolean" },
+    "hostIPC": { "type": "boolean" },
     "image": {
       "type": "object",
       "additionalProperties": false,
@@ -182,16 +185,21 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "gyreKey": {
-          "type": "string",
-          "pattern": "^($|[0-9a-fA-F]{64})$"
-        },
-        "authKey": {
-          "type": "string",
-          "pattern": "^($|[0-9a-fA-F]{64})$"
-        },
+        "gyreKey": { "type": "string" },
+        "authKey": { "type": "string" },
         "existingSecret": { "type": "string" },
         "allowInline": { "type": "boolean" }
+      },
+      "if": {
+        "properties": { "allowInline": { "const": true } },
+        "required": ["allowInline"]
+      },
+      "then": {
+        "properties": {
+          "gyreKey": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
+          "authKey": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
+        },
+        "required": ["gyreKey", "authKey"]
       }
     },
     "auth": {
