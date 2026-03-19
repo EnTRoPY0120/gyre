@@ -18,7 +18,7 @@ serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # Automatically mount a ServiceAccount's API credentials?
-  automount: true
+  automount: false
   # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use.
@@ -34,6 +34,9 @@ podSecurityContext:
   fsGroup: 1001
   seccompProfile:
     type: RuntimeDefault
+  hostNetwork: false
+  hostPID: false
+  hostIPC: false
 
 securityContext:
   allowPrivilegeEscalation: false
@@ -85,9 +88,11 @@ resources:
   limits:
     cpu: 500m
     memory: 1Gi
+    ephemeral-storage: 1Gi
   requests:
     cpu: 100m
     memory: 128Mi
+    ephemeral-storage: 256Mi
 
 livenessProbe:
   httpGet:
@@ -128,6 +133,9 @@ rbac:
   clusterRole:
     # Create cluster-wide role (required for multi-namespace FluxCD monitoring)
     create: true
+    # Restrict to read-only access (get/list/watch only).
+    # Set to true if Gyre should only monitor resources, not modify them.
+    readOnly: false
     # Additional rules to append (optional)
     rules: []
 
@@ -161,7 +169,7 @@ auth:
   # Enable/disable local username+password login
   localLoginEnabled: true
   # Allow new user registration via OAuth (if false, only existing users can log in)
-  allowSignup: true
+  allowSignup: false
   # Restrict OAuth signup to specific email domains (empty = allow all)
   domainAllowlist: []
   # OAuth/OIDC providers to seed on startup
@@ -209,6 +217,8 @@ metrics:
     #   release: prometheus
 
 # Network Policy
+# WARNING: Disabling NetworkPolicy leaves the pod with unrestricted egress/ingress.
+# It should be enabled in production to limit blast radius if the pod is compromised.
 networkPolicy:
   enabled: false
   # Namespace where kube-dns runs (used in egress DNS rule)
@@ -249,13 +259,13 @@ networkPolicy:
 config:
   create: true
   # Interval between Kubernetes API polls in milliseconds (default: 5s, min: 1s)
-  pollIntervalMs: "5000"
+  pollIntervalMs: 5000
   # Interval between SSE heartbeat messages in milliseconds (default: 30s, min: 1s)
-  heartbeatIntervalMs: "30000"
+  heartbeatIntervalMs: 30000
   # TTL for the dashboard resource-count cache in milliseconds (default: 30s, min: 1s)
-  dashboardCacheTtlMs: "30000"
+  dashboardCacheTtlMs: 30000
   # Settling period after ADDED events before emitting notifications in milliseconds (default: 30s)
-  settlingPeriodMs: "30000"
+  settlingPeriodMs: 30000
   # Additional configuration key-value pairs
   additionalConfig: {}
     # Example:

@@ -1,4 +1,8 @@
 {{- if and .Values.rbac.create .Values.rbac.clusterRole.create -}}
+{{- $verbs := list "get" "list" "watch" }}
+{{- if not .Values.rbac.clusterRole.readOnly }}
+{{- $verbs = concat $verbs (list "create" "update" "patch" "delete") }}
+{{- end }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -15,7 +19,7 @@ rules:
     - buckets
     - ocirepositories
     - externalartifacts
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  verbs: {{ $verbs | toJson }}
 
 # FluxCD Source Controller Status
 - apiGroups: ["source.toolkit.fluxcd.io"]
@@ -32,7 +36,7 @@ rules:
 - apiGroups: ["kustomize.toolkit.fluxcd.io"]
   resources:
     - kustomizations
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  verbs: {{ $verbs | toJson }}
 
 # FluxCD Kustomize Controller Status
 - apiGroups: ["kustomize.toolkit.fluxcd.io"]
@@ -44,7 +48,7 @@ rules:
 - apiGroups: ["helm.toolkit.fluxcd.io"]
   resources:
     - helmreleases
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  verbs: {{ $verbs | toJson }}
 
 # FluxCD Helm Controller Status
 - apiGroups: ["helm.toolkit.fluxcd.io"]
@@ -58,7 +62,7 @@ rules:
     - alerts
     - providers
     - receivers
-  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  verbs: {{ $verbs | toJson }}
 
 # FluxCD Notification Controller Status
 - apiGroups: ["notification.toolkit.fluxcd.io"]

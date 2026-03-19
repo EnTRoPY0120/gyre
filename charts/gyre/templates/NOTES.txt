@@ -54,3 +54,25 @@ Please configure admin credentials according to your setup.
 📚 For more information, visit:
   - Documentation: https://github.com/username/gyre/blob/main/README.md
   - Issues: https://github.com/username/gyre/issues
+
+==============================================================================
+
+⚠️  SECURITY NOTES:
+{{- $warnings := list }}
+{{- if not .Values.networkPolicy.enabled }}
+{{- $warnings = append $warnings "  - NetworkPolicy is DISABLED. The pod has unrestricted egress/ingress. Enable networkPolicy.enabled=true in production." }}
+{{- end }}
+{{- if .Values.auth.allowSignup }}
+{{- $warnings = append $warnings "  - Open registration is ENABLED (auth.allowSignup=true). Any visitor can create an account. Set allowSignup=false to restrict access." }}
+{{- end }}
+{{- if not .Values.rbac.clusterRole.readOnly }}
+{{- $warnings = append $warnings "  - Write access to FluxCD resources is GRANTED (rbac.clusterRole.readOnly=false). Set readOnly=true if Gyre should only monitor resources." }}
+{{- end }}
+{{- if $warnings }}
+{{- range $warnings }}
+{{ . }}
+{{- end }}
+{{- else }}
+
+  No security warnings. Good to go!
+{{- end }}
