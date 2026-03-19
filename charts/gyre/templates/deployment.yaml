@@ -23,6 +23,9 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
+      {{- if and (not .Values.encryption.existingSecret) (not (and .Values.encryption.allowInline (and .Values.encryption.gyreKey .Values.encryption.authKey))) }}
+      {{- fail "Encryption keys are required. Set encryption.existingSecret (recommended) or set encryption.allowInline=true with non-empty gyreKey and authKey." }}
+      {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
