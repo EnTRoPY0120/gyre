@@ -20,6 +20,13 @@ export const DEFAULT_COOKIE_OPTIONS = {
 };
 
 /**
+ * Admin API route prefixes requiring 'admin' role.
+ * Used in hooks.server.ts (auth guard) and request-limits.ts (size limits).
+ * Add new admin route prefixes here — both files pick them up automatically.
+ */
+export const ADMIN_ROUTE_PREFIXES = ['/api/admin', '/api/v1/admin'] as const;
+
+/**
  * CSRF cookie options (must be readable by JS).
  */
 export const CSRF_COOKIE_OPTIONS = {
