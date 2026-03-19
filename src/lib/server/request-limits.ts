@@ -36,7 +36,7 @@ export function getRequestSizeLimit(path: string, method: string): number {
 	}
 
 	// Cluster creation endpoint - kubeconfig upload
-	if ((path === '/admin/clusters' || path === '/api/v1/admin/clusters') && method === 'POST') {
+	if (ADMIN_ROUTE_PREFIXES.some((p) => path === `${p}/clusters`) && method === 'POST') {
 		return REQUEST_LIMITS.KUBECONFIG_UPLOAD;
 	}
 
