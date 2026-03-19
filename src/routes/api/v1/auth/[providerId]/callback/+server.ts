@@ -58,7 +58,7 @@ import { tryCheckRateLimit } from '$lib/server/rate-limiter';
  * Handles OAuth callback from IdP
  */
 export const GET: RequestHandler = async (event) => {
-	const { params, url, cookies, getClientAddress, setHeaders } = event;
+	const { params, url, cookies, request, getClientAddress, setHeaders } = event;
 	const { providerId } = params;
 
 	try {
@@ -162,9 +162,10 @@ export const GET: RequestHandler = async (event) => {
 
 		// Create or rotate session (rotation prevents session fixation attacks)
 		const existingSessionId = cookies.get('gyre_session');
+		const userAgent = request.headers.get('user-agent') ?? undefined;
 		const sessionId = existingSessionId
-			? await rotateSession(existingSessionId, user.id, ipAddress, undefined)
-			: await createSession(user.id, ipAddress, undefined);
+			? await rotateSession(existingSessionId, user.id, ipAddress, userAgent)
+			: await createSession(user.id, ipAddress, userAgent);
 		cleanupSetupTokenFile();
 
 		// Set session cookie
