@@ -438,6 +438,13 @@ export async function getSession(
 	return { session, user };
 }
 
+export async function extendSession(sessionId: string): Promise<Date> {
+	const newExpiresAt = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
+	const db = await getDb();
+	await db.update(sessions).set({ expiresAt: newExpiresAt }).where(eq(sessions.id, sessionId));
+	return newExpiresAt;
+}
+
 export async function rotateSession(
 	oldSessionId: string,
 	userId: string,

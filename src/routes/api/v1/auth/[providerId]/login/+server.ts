@@ -46,6 +46,7 @@ export const _metadata = {
 	}
 };
 import { generateState, generateCodeVerifier } from '$lib/server/auth/pkce';
+import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
 // State cookie TTL: 10 minutes (enough time to complete OAuth flow)
@@ -85,20 +86,14 @@ export const GET: RequestHandler = async (event) => {
 
 		// Store state in short-lived cookie
 		cookies.set(`oauth_state_${providerId}`, state, {
-			path: '/',
-			httpOnly: true,
-			secure: true,
-			sameSite: 'lax',
+			...DEFAULT_COOKIE_OPTIONS,
 			maxAge: STATE_COOKIE_MAX_AGE
 		});
 
 		// Store code verifier in short-lived cookie (if PKCE enabled)
 		if (codeVerifier) {
 			cookies.set(`oauth_verifier_${providerId}`, codeVerifier, {
-				path: '/',
-				httpOnly: true,
-				secure: true,
-				sameSite: 'lax',
+				...DEFAULT_COOKIE_OPTIONS,
 				maxAge: STATE_COOKIE_MAX_AGE
 			});
 		}
