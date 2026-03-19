@@ -31,7 +31,7 @@ jobs:
           image-names: gyre
           cut-off: 7d
           account: user
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           image-tags: 'pr-*'
           tag-selection: tagged
           keep-n-most-recent: 5
@@ -46,7 +46,7 @@ jobs:
           image-names: gyre
           cut-off: 14d
           account: user
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
           image-tags: 'v*-*'
           tag-selection: tagged
           keep-n-most-recent: 0
