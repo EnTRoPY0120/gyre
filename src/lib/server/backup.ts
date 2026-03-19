@@ -28,10 +28,13 @@ const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
 const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups');
 
-// Validate DATABASE_URL does not contain path traversal
-if (databaseUrl.includes('..')) {
-	throw new Error(`Invalid DATABASE_URL: path traversal detected: ${databaseUrl}`);
+// Validate paths do not contain path traversal
+import { validateSafePath } from "./utils/path.js";
+validateSafePath(databaseUrl);
+if (process.env.BACKUP_DIR) {
+	validateSafePath(process.env.BACKUP_DIR);
 }
+
 
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16; // 128-bit IV

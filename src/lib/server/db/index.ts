@@ -10,13 +10,10 @@ import * as schema from './schema.js';
 // - Production (in-cluster): /data/gyre.db (PersistentVolume mount)
 // - Local development: ./data/gyre.db (relative to project root)
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
-const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
+const databaseUrl = process.env.DATABASE_URL || (isInCluster ? "/data/gyre.db" : "./data/gyre.db");
+import { validateSafePath } from "../utils/path.js";
 if (process.env.DATABASE_URL) {
-	const normalized = normalize(databaseUrl);
-	const segments = normalized.split(/[\\/]/);
-	if (segments.some((seg) => seg === '..')) {
-		throw new Error('DATABASE_URL must not contain path traversal sequences (..)');
-	}
+	validateSafePath(process.env.DATABASE_URL);
 }
 logger.info(`[DB] Database location: ${databaseUrl}`);
 
