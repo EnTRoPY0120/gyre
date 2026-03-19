@@ -83,8 +83,20 @@
 				window.location.href = '/change-password?first=true';
 			} else {
 				const returnTo = page.url.searchParams.get('returnTo');
-				const destination =
-					returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/';
+				let destination = '/';
+				if (returnTo) {
+					try {
+						const parsed = new URL(returnTo, window.location.href);
+						if (
+							parsed.origin === window.location.origin &&
+							(parsed.protocol === 'http:' || parsed.protocol === 'https:')
+						) {
+							destination = parsed.pathname + parsed.search + parsed.hash;
+						}
+					} catch {
+						// malformed URL — fall back to '/'
+					}
+				}
 				window.location.href = destination;
 			}
 		} catch (err) {

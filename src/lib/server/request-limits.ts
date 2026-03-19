@@ -1,3 +1,5 @@
+import { ADMIN_ROUTE_PREFIXES } from './config.js';
+
 /**
  * Request size limits for different endpoint types
  * Prevents DoS attacks via large payloads
@@ -29,10 +31,7 @@ export const REQUEST_LIMITS = {
  */
 export function getRequestSizeLimit(path: string, method: string): number {
 	// Backup restore endpoint - larger limit
-	if (
-		(path === '/api/admin/backups/restore' || path === '/api/v1/admin/backups/restore') &&
-		method === 'POST'
-	) {
+	if (ADMIN_ROUTE_PREFIXES.some((p) => path === `${p}/backups/restore`) && method === 'POST') {
 		return REQUEST_LIMITS.BACKUP_RESTORE;
 	}
 

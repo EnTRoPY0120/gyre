@@ -5,7 +5,7 @@ import { initializeGyre } from '$lib/server/initialize';
 import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
 import { getRequestSizeLimit, validateRequestSize, formatSize } from '$lib/server/request-limits';
 import { generateCsrfToken, validateCsrfToken } from '$lib/server/csrf';
-import { CSRF_COOKIE_OPTIONS, IS_PROD } from '$lib/server/config';
+import { CSRF_COOKIE_OPTIONS, IS_PROD, ADMIN_ROUTE_PREFIXES } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { getClusterById } from '$lib/server/clusters';
 
@@ -29,9 +29,6 @@ const PUBLIC_ROUTES = [
 	'/favicon.ico',
 	'/logo.svg'
 ];
-
-// Admin API route prefixes requiring 'admin' role
-const ADMIN_ROUTE_PREFIXES = ['/api/admin', '/api/v1/admin'];
 
 // OAuth callback and login initiation routes are dynamic but public
 const PUBLIC_ROUTE_PREFIXES = [
@@ -307,9 +304,18 @@ export const handle: Handle = async ({ event, resolve }) => {
 				);
 			}
 
-			// For page routes, redirect to login preserving return destination
-			const returnTo = path + url.search;
-			const safeReturnTo = returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/';
+			// For page routes, redirect to login preserving return destination.
+			// Validate via URL parse so backslash-normalization and scheme-relative bypasses are caught
+			// by the parser before our origin check runs.
+			let safeReturnTo = '/';
+			try {
+				const parsed = new URL(path + url.search, url.origin);
+				if (parsed.origin === url.origin) {
+					safeReturnTo = parsed.pathname + parsed.search;
+				}
+			} catch {
+				// malformed value — fall back to '/'
+			}
 			return recordResponse(
 				new Response(null, {
 					status: 302,
@@ -342,7 +348,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		// Protect admin API routes
 		if (
-			ADMIN_ROUTE_PREFIXES.some((prefix) => path.startsWith(prefix)) &&
+			ADMIN_ROUTE_PREFIXES.some((prefix) => path === prefix || path.startsWith(prefix + '/')) &&
 			event.locals.user?.role !== 'admin'
 		) {
 			return recordResponse(
