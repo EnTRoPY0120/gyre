@@ -11,7 +11,7 @@ import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z, errorSchema } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { createBackup, listBackups, deleteBackup } from '$lib/server/backup';
+import { createBackup, listBackups, deleteBackup, BACKUP_FILENAME_RE } from '$lib/server/backup';
 
 const backupSchema = z.object({
 	filename: z.string().openapi({ example: 'gyre-backup-2024-01-15T10-30-00.db' }),
@@ -208,7 +208,6 @@ export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 		throw error(400, { message: 'Missing filename parameter', code: 'BadRequest' });
 	}
 
-	const BACKUP_FILENAME_RE = /^gyre-backup-[\dT\-:.]+Z?\.db(\.enc)?$/;
 	if (!BACKUP_FILENAME_RE.test(filename)) {
 		throw error(400, { message: 'Invalid backup filename', code: 'BadRequest' });
 	}

@@ -33,6 +33,14 @@ if (databaseUrl.includes('..')) {
 	throw new Error(`Invalid DATABASE_URL: path traversal detected: ${databaseUrl}`);
 }
 
+/**
+ * Canonical backup filename pattern.
+ * Matches exactly the format produced by createBackup():
+ *   gyre-backup-YYYY-MM-DDThh-mm-ss-mmmZ.db[.enc]
+ */
+export const BACKUP_FILENAME_RE =
+	/^gyre-backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.db(\.enc)?$/;
+
 const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16; // 128-bit IV
 const AUTH_TAG_LENGTH = 16; // 128-bit GCM auth tag
@@ -262,8 +270,7 @@ export function listBackups(): BackupMetadata[] {
  */
 export function getBackupPath(filename: string): string | null {
 	const sanitized = basename(filename);
-	if (!sanitized.startsWith('gyre-backup-')) return null;
-	if (!sanitized.endsWith('.db') && !sanitized.endsWith('.db.enc')) return null;
+	if (!BACKUP_FILENAME_RE.test(sanitized)) return null;
 
 	const filePath = join(backupDir, sanitized);
 	if (!existsSync(filePath)) return null;
