@@ -11,33 +11,31 @@ import {
 	getRandomJitterMs
 } from './utils/time.js';
 
-const SENSITIVE_KEYS = new Set([
+// Substring keywords: any field whose name contains one of these (case-insensitive) is redacted.
+// This catches exact names as well as variants like jwt_secret, dbPassword, myToken, etc.
+const SENSITIVE_PATTERNS = [
 	'password',
 	'passwd',
 	'secret',
 	'token',
-	'accesstoken',
-	'refreshtoken',
 	'apikey',
 	'api_key',
 	'authorization',
 	'auth',
 	'credential',
-	'credentials',
 	'privatekey',
 	'private_key',
-	'clientsecret',
-	'client_secret',
 	'encryptionkey',
 	'encryption_key',
 	'signingkey',
 	'signing_key'
-]);
+];
 
-function redactSensitiveFields(obj: Record<string, unknown>): Record<string, unknown> {
+export function redactSensitiveFields(obj: Record<string, unknown>): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(obj)) {
-		if (SENSITIVE_KEYS.has(key.toLowerCase())) {
+		const lowerKey = key.toLowerCase();
+		if (SENSITIVE_PATTERNS.some((pattern) => lowerKey.includes(pattern))) {
 			result[key] = '[REDACTED]';
 		} else if (Array.isArray(value)) {
 			result[key] = value.map((element) =>
