@@ -2,7 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getControllerLogs, type ReqCache } from '$lib/server/kubernetes/client';
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
@@ -28,6 +28,7 @@ export const _metadata = {
 					}
 				}
 			},
+			400: { description: 'Invalid resource type' },
 			401: { description: 'Authentication required' },
 			403: { description: 'Permission denied' }
 		}
@@ -42,11 +43,17 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 	const { type, namespace, name } = params;
 
+	// Validate the resource type
+	const resolvedType = getResourceTypeByPlural(type);
+	if (!resolvedType) {
+		throw error(400, `Invalid resource type: ${type}`);
+	}
+
 	// Check permission for read action
 	const hasPermission = await checkPermission(
 		locals.user,
 		'read',
-		type as FluxResourceType,
+		resolvedType,
 		namespace,
 		locals.cluster
 	);
@@ -58,13 +65,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	const reqCache: ReqCache = new Map();
 
 	try {
-		const logs = await getControllerLogs(
-			type as FluxResourceType,
-			namespace,
-			name,
-			locals.cluster,
-			reqCache
-		);
+		const logs = await getControllerLogs(resolvedType, namespace, name, locals.cluster, reqCache);
 		return json({ logs });
 	} catch (err) {
 		handleApiError(err, `Error fetching logs for ${name}`);
