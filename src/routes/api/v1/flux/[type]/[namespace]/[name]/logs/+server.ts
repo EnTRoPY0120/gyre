@@ -14,7 +14,7 @@ export const _metadata = {
 		tags: ['Flux'],
 		request: {
 			params: z.object({
-				type: z.string().openapi({ example: 'GitRepository' }),
+				type: z.string().openapi({ example: 'gitrepositories' }),
 				namespace: z.string().openapi({ example: 'flux-system' }),
 				name: z.string().openapi({ example: 'my-repo' })
 			})
