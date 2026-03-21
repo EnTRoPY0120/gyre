@@ -73,6 +73,12 @@ export async function getDb() {
 
 // For synchronous usage (server-side only)
 export function getDbSync() {
+	if (dbInitPromise) {
+		throw new Error(
+			'[DB] Async initialization is in progress. ' +
+				'Ensure initializeGyre() has completed or await getDb() before calling getDbSync().'
+		);
+	}
 	if (!db) {
 		ensureDbDirectorySync(); // Create directory if it doesn't exist
 		const sqlite = new Database(databaseUrl);
