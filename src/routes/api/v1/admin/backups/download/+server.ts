@@ -15,7 +15,12 @@ import { logger } from '$lib/server/logger.js';
 import { error } from '@sveltejs/kit';
 import { z, errorSchema } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { getDecryptedBackupBuffer, getBackupPath, BackupError } from '$lib/server/backup';
+import {
+	getDecryptedBackupBuffer,
+	getBackupPath,
+	BackupError,
+	BACKUP_FILENAME_RE
+} from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
 import { checkPermission } from '$lib/server/rbac';
 import { createReadStream, statSync } from 'node:fs';
@@ -47,7 +52,7 @@ export const _metadata = {
 				content: { 'application/x-sqlite3': { schema: z.any() } }
 			},
 			400: {
-				description: 'Missing filename parameter',
+				description: 'Missing or invalid filename parameter',
 				content: { 'application/json': { schema: errorSchema } }
 			},
 			401: {
@@ -77,9 +82,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const clusterId = locals.cluster || 'in-cluster';
 
-	const filename = url.searchParams.get('filename');
-	if (!filename) {
+	const rawFilename = url.searchParams.get('filename');
+	if (!rawFilename) {
 		throw error(400, { message: 'Missing filename parameter', code: 'BadRequest' });
+	}
+
+	const filename = basename(rawFilename);
+	if (!BACKUP_FILENAME_RE.test(filename)) {
+		throw error(400, { message: 'Invalid backup filename', code: 'BadRequest' });
 	}
 
 	try {
@@ -96,7 +106,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 		await logAudit(locals.user, 'backup:download', {
 			resourceType: 'DatabaseBackup',
-			resourceName: basename(filename)
+			resourceName: filename
 		});
 
 		if (filename.endsWith('.db.enc')) {
@@ -106,7 +116,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 				throw error(404, { message: 'Backup not found', code: 'NotFound' });
 			}
 
-			const safeFilename = basename(filename).replace(/\.enc$/, '');
+			const safeFilename = filename.replace(/\.enc$/, '');
 			const encodedFilename = encodeURIComponent(safeFilename);
 			return new Response(buffer as unknown as BodyInit, {
 				status: 200,
