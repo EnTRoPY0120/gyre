@@ -49,18 +49,26 @@ function ensureDbDirectorySync() {
 // Initialize database
 let sqliteConnection: Database.Database | null = null;
 let db: ReturnType<typeof drizzle<typeof schema>> | null = null;
+let dbInitPromise: Promise<void> | null = null;
 
 export async function getDb() {
 	if (!db) {
-		await ensureDbDirectory();
-		const sqlite = new Database(databaseUrl);
-		// Enable WAL mode for better concurrency
-		sqlite.pragma('journal_mode = WAL');
-		sqlite.pragma('foreign_keys = ON');
-		sqliteConnection = sqlite;
-		db = drizzle(sqlite, { schema });
+		if (!dbInitPromise) {
+			dbInitPromise = (async () => {
+				await ensureDbDirectory();
+				const sqlite = new Database(databaseUrl);
+				// Enable WAL mode for better concurrency
+				sqlite.pragma('journal_mode = WAL');
+				sqlite.pragma('foreign_keys = ON');
+				sqliteConnection = sqlite;
+				db = drizzle(sqlite, { schema });
+			})().finally(() => {
+				dbInitPromise = null;
+			});
+		}
+		await dbInitPromise;
 	}
-	return db;
+	return db!;
 }
 
 // For synchronous usage (server-side only)
