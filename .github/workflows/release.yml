@@ -75,9 +75,8 @@ jobs:
 
           ### 📚 Documentation
 
-          - [Installation Guide](https://github.com/EnTRoPY0120/gyre/blob/main/README.md)
-          - [Helm Chart Documentation](https://github.com/EnTRoPY0120/gyre/blob/main/charts/gyre/README.md)
-          - [Deployment Strategies](https://github.com/EnTRoPY0120/gyre/blob/main/DEPLOYMENT_STRATEGIES.md)
+          - [Installation Guide](https://entropy0120.github.io/gyre/getting-started)
+          - [Helm Chart Documentation](https://entropy0120.github.io/gyre/installation)
 
           ### 🔗 Links
 

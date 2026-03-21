@@ -23,7 +23,7 @@ flux install
 
 echo "⛵ Installing Gyre via Helm..."
 GYRE_VERSION=$(curl -s https://api.github.com/repos/entropy0120/gyre/releases/latest | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
-helm upgrade --install gyre oci://ghcr.io/entropy0120/gyre/gyre \
+helm upgrade --install gyre oci://ghcr.io/entropy0120/gyre \
   --version "$GYRE_VERSION" \
   --namespace flux-system \
   --create-namespace \

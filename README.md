@@ -62,9 +62,12 @@ spec:
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/gyre \
+  --version 0.4.2 \
   --namespace flux-system \
   --create-namespace
 ```
+
+_Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) for the current version._
 
 ### Option 3: Local Out-of-Cluster Testing (Docker)
 

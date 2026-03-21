@@ -50,9 +50,14 @@ Helm is the standard way to install Gyre directly, as it provides easy configura
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/gyre \
+  --version 0.4.2 \
   --namespace flux-system \
   --create-namespace
 ```
+
+:::note
+OCI Helm registries require an explicit version. Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) for the current version number.
+:::
 
 For more detailed configuration options, see the [Helm Chart Reference](./helm-reference.md).
 
@@ -192,6 +197,7 @@ To upgrade Gyre:
 
 ```bash
 helm upgrade gyre oci://ghcr.io/entropy0120/gyre \
+  --version 0.4.2 \
   --namespace flux-system
 ```
 
