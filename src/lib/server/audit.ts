@@ -21,7 +21,6 @@ const SENSITIVE_PATTERNS = [
 	'apikey',
 	'api_key',
 	'authorization',
-	'auth',
 	'credential',
 	'privatekey',
 	'private_key',

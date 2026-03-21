@@ -15,8 +15,10 @@ describe('redactSensitiveFields', () => {
 			expect(redactSensitiveFields({ token: 'tok_xyz' })).toEqual({ token: '[REDACTED]' });
 		});
 
-		test('redacts auth', () => {
-			expect(redactSensitiveFields({ auth: 'Bearer xyz' })).toEqual({ auth: '[REDACTED]' });
+		test('redacts authorization', () => {
+			expect(redactSensitiveFields({ authorization: 'Bearer xyz' })).toEqual({
+				authorization: '[REDACTED]'
+			});
 		});
 	});
 
@@ -148,6 +150,23 @@ describe('redactSensitiveFields', () => {
 
 		test('passes through null values unchanged', () => {
 			const input = { username: 'alice', note: null };
+			expect(redactSensitiveFields(input)).toEqual(input);
+		});
+
+		// Regression guard: 'auth' was previously in SENSITIVE_PATTERNS and caused
+		// false positives for common English-word fields. Ensure these are NOT redacted.
+		test('does not redact author', () => {
+			const input = { author: 'alice', title: 'post' };
+			expect(redactSensitiveFields(input)).toEqual(input);
+		});
+
+		test('does not redact authority', () => {
+			const input = { authority: 'example.com', port: 443 };
+			expect(redactSensitiveFields(input)).toEqual(input);
+		});
+
+		test('does not redact authorizedAt', () => {
+			const input = { authorizedAt: '2026-01-01T00:00:00Z', userId: 'u1' };
 			expect(redactSensitiveFields(input)).toEqual(input);
 		});
 	});
