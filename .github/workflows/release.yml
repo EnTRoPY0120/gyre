@@ -64,11 +64,7 @@ jobs:
             --create-namespace
           ```
 
-          **Get admin password:**
-          ```bash
-          kubectl get secret gyre-initial-admin-secret -n flux-system \
-            -o jsonpath='{.data.password}' | base64 -d
-          ```
+          For initial setup and credentials, see the [Installation Guide](https://entropy0120.github.io/gyre/installation).
 
           ### 📋 What's Included
 
