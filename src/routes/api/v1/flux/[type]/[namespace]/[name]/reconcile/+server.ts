@@ -30,6 +30,7 @@ export const _metadata = {
 					}
 				}
 			},
+			400: { description: 'Invalid namespace or resource name' },
 			401: { description: 'Authentication required' },
 			403: { description: 'Permission denied' }
 		}
