@@ -9,6 +9,7 @@ import {
 } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
+import { validateK8sNamespace } from '$lib/server/validation';
 
 export const _metadata = {
 	GET: {
@@ -51,6 +52,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	}
 
 	const { resourceType, namespace } = params;
+
+	validateK8sNamespace(namespace);
 
 	// Resolve resource type from plural name
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);

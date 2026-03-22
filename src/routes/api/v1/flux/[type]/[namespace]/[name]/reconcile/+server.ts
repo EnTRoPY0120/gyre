@@ -6,6 +6,7 @@ import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
+import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 
 export const _metadata = {
 	POST: {
@@ -42,6 +43,9 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 	}
 
 	const { type, namespace, name } = params;
+
+	validateK8sNamespace(namespace);
+	validateK8sName(name);
 
 	// Check permission for write action
 	const hasPermission = await checkPermission(

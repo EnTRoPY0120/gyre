@@ -6,6 +6,7 @@ import { getResourceTypeByPlural, FLUX_RESOURCES } from '$lib/server/kubernetes/
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
+import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 
 const eventSchema = z.object({
 	type: z.string().openapi({ example: 'Normal' }),
@@ -59,6 +60,9 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 	}
 
 	const { resourceType, namespace, name } = params;
+
+	validateK8sNamespace(namespace);
+	validateK8sName(name);
 
 	// Resolve the resource type from plural name
 	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);

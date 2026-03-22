@@ -12,7 +12,7 @@ import {
 	getResourceTypeByPlural,
 	FLUX_RESOURCES
 } from '../lib/server/kubernetes/flux/resources.js';
-import { K8S_NAME_REGEX } from '../lib/server/validation.js';
+import { K8S_NAME_REGEX, validateK8sNamespace, validateK8sName } from '../lib/server/validation.js';
 
 // ---------------------------------------------------------------------------
 // apiVersion / kind mismatch logic (mirrors POST handler checks)
@@ -113,6 +113,62 @@ describe('namespace validation logic', () => {
 	test('rejects namespace with slashes (path injection)', () => {
 		expect(K8S_NAME_REGEX.test('flux-system/../admin')).toBe(false);
 		expect(K8S_NAME_REGEX.test('ns/other')).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// validateK8sNamespace / validateK8sName — verify 400 is thrown on bad input
+// ---------------------------------------------------------------------------
+
+describe('validateK8sNamespace throws 400 on invalid input', () => {
+	const invalidNamespaces = [
+		'',
+		'UPPERCASE',
+		'-leading-hyphen',
+		'trailing-hyphen-',
+		'has_underscore',
+		'has.dot',
+		'flux-system/../admin',
+		'ns/other',
+		'x'.repeat(64)
+	];
+
+	for (const ns of invalidNamespaces) {
+		test(`rejects namespace: "${ns.length > 20 ? ns.slice(0, 20) + '…' : ns}"`, () => {
+			expect(() => validateK8sNamespace(ns)).toThrow();
+			try {
+				validateK8sNamespace(ns);
+			} catch (e) {
+				expect((e as { status: number }).status).toBe(400);
+			}
+		});
+	}
+
+	test('does not throw for valid namespaces', () => {
+		for (const ns of ['default', 'flux-system', 'my-namespace', 'a']) {
+			expect(() => validateK8sNamespace(ns)).not.toThrow();
+		}
+	});
+});
+
+describe('validateK8sName throws 400 on invalid input', () => {
+	const invalidNames = ['', '-leading', 'trailing-', 'has space', 'x'.repeat(254)];
+
+	for (const name of invalidNames) {
+		test(`rejects name: "${name.length > 20 ? name.slice(0, 20) + '…' : name}"`, () => {
+			expect(() => validateK8sName(name)).toThrow();
+			try {
+				validateK8sName(name);
+			} catch (e) {
+				expect((e as { status: number }).status).toBe(400);
+			}
+		});
+	}
+
+	test('does not throw for valid names', () => {
+		for (const name of ['my-repo', 'flux.system', 'a1b2', 'my.resource.name']) {
+			expect(() => validateK8sName(name)).not.toThrow();
+		}
 	});
 });
 
