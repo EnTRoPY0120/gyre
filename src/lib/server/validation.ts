@@ -45,8 +45,14 @@ const ALLOWED_BACKUP_MIME_TYPES = new Set([
 ]);
 
 // Check that a MIME type is a recognised SQLite backup content type.
-// Strips parameters (e.g. "; charset=utf-8") before matching.
+// Strips parameters (e.g. "; charset=utf-8"), normalises to lowercase
+// (MIME types are case-insensitive per RFC 2045), and matches against
+// the allowlist. Truly empty input (browser-omitted MIME) is allowed;
+// whitespace-only input is rejected as malformed.
 export function isAllowedBackupMimeType(mimeType: string): boolean {
-	const mimeBase = mimeType.split(';')[0].trim();
+	if (mimeType === '') return true;
+	const trimmed = mimeType.trim();
+	if (trimmed === '') return false;
+	const mimeBase = trimmed.split(';')[0].toLowerCase();
 	return ALLOWED_BACKUP_MIME_TYPES.has(mimeBase);
 }

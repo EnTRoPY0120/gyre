@@ -134,6 +134,14 @@ describe('isAllowedBackupMimeType', () => {
 	test('rejects image/png', () => {
 		expect(isAllowedBackupMimeType('image/png')).toBe(false);
 	});
+
+	test('rejects whitespace-only MIME string', () => {
+		expect(isAllowedBackupMimeType('   ')).toBe(false);
+	});
+
+	test('accepts mixed-case MIME type (case-insensitive per RFC 2045)', () => {
+		expect(isAllowedBackupMimeType('Application/Octet-Stream')).toBe(true);
+	});
 });
 
 // ---------------------------------------------------------------------------
