@@ -27,6 +27,7 @@ export default defineConfig(({ mode }) => {
 			}
 		},
 		build: {
+			sourcemap: false, // never emit .map files in production — avoids exposing source paths and pre-minified logic
 			reportCompressedSize: true,
 			rolldownOptions: {
 				output: {
