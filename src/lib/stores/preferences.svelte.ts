@@ -1,6 +1,7 @@
 import { browser } from '$app/environment';
 import type { UserPreferences } from '$lib/types/user';
 import type { ViewPreferences } from '$lib/types/view';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '$lib/utils/storage';
 
 type CodeFormat = 'yaml' | 'json';
 
@@ -46,7 +47,7 @@ function createPreferencesStore() {
 	let _viewPrefs = $state<ViewPreferences>(
 		(() => {
 			if (browser) {
-				const stored = localStorage.getItem('gyre:preferences');
+				const stored = safeGetItem('gyre:preferences');
 				if (stored) {
 					try {
 						return sanitizeViewPrefs(JSON.parse(stored));
@@ -61,7 +62,7 @@ function createPreferencesStore() {
 
 	// --- Code Editor Format ---
 	let _format = $state<CodeFormat>(
-		(browser && (localStorage.getItem('gyre_code_format') as CodeFormat)) || 'yaml'
+		(browser && (safeGetItem('gyre_code_format') as CodeFormat)) || 'yaml'
 	);
 
 	// --- Notifications ---
@@ -75,7 +76,7 @@ function createPreferencesStore() {
 	// Helper to persist view preferences
 	function saveViewPrefs() {
 		if (browser) {
-			localStorage.setItem('gyre:preferences', JSON.stringify(_viewPrefs));
+			safeSetItem('gyre:preferences', JSON.stringify(_viewPrefs));
 		}
 	}
 
@@ -129,7 +130,7 @@ function createPreferencesStore() {
 		resetViewPrefs() {
 			_viewPrefs = { ...DEFAULT_VIEW_PREFERENCES };
 			if (browser) {
-				localStorage.removeItem('gyre:preferences');
+				safeRemoveItem('gyre:preferences');
 			}
 		},
 
@@ -140,7 +141,7 @@ function createPreferencesStore() {
 		setFormat(newFormat: CodeFormat) {
 			_format = newFormat;
 			if (browser) {
-				localStorage.setItem('gyre_code_format', newFormat);
+				safeSetItem('gyre_code_format', newFormat);
 			}
 		},
 		toggleFormat() {

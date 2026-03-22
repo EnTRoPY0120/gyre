@@ -1,9 +1,10 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
+import { safeGetItem, safeSetItem } from '$lib/utils/storage';
 
 function createSidebarStore() {
 	// Load from localStorage if in browser
-	const stored = browser ? localStorage.getItem('gyre:sidebar-open') : null;
+	const stored = browser ? safeGetItem('gyre:sidebar-open') : null;
 	const initial = stored !== null ? stored === 'true' : true; // Default to open
 
 	const { subscribe, set, update } = writable<boolean>(initial);
@@ -12,7 +13,7 @@ function createSidebarStore() {
 		subscribe,
 		set: (value: boolean) => {
 			if (browser) {
-				localStorage.setItem('gyre:sidebar-open', value.toString());
+				safeSetItem('gyre:sidebar-open', value.toString());
 			}
 			set(value);
 		},
@@ -20,20 +21,20 @@ function createSidebarStore() {
 			update((open) => {
 				const newValue = !open;
 				if (browser) {
-					localStorage.setItem('gyre:sidebar-open', newValue.toString());
+					safeSetItem('gyre:sidebar-open', newValue.toString());
 				}
 				return newValue;
 			});
 		},
 		open: () => {
 			if (browser) {
-				localStorage.setItem('gyre:sidebar-open', 'true');
+				safeSetItem('gyre:sidebar-open', 'true');
 			}
 			set(true);
 		},
 		close: () => {
 			if (browser) {
-				localStorage.setItem('gyre:sidebar-open', 'false');
+				safeSetItem('gyre:sidebar-open', 'false');
 			}
 			set(false);
 		}
