@@ -94,12 +94,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		throw error(400, { message: 'Missing cluster context' });
 	}
 
-	// Check admin role
-	if (locals.user.role !== 'admin') {
-		throw error(403, { message: 'Admin access required' });
-	}
-
-	// Enforce RBAC
+	// Enforce RBAC (checkPermission short-circuits for admin role)
 	const hasPermission = await checkPermission(
 		locals.user,
 		'admin',
@@ -158,14 +153,9 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 		throw error(400, { message: 'Missing cluster context' });
 	}
 
-	// Check admin role
-	if (locals.user.role !== 'admin') {
-		throw error(403, { message: 'Admin access required' });
-	}
-
 	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
 
-	// Enforce RBAC
+	// Enforce RBAC (checkPermission short-circuits for admin role)
 	const hasPermission = await checkPermission(
 		locals.user,
 		'admin',
