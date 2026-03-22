@@ -245,7 +245,7 @@ export function listBackups(): BackupMetadata[] {
 					}
 				}
 			} catch {
-				// Fallback to birthtime
+				logger.warn('Failed to parse backup timestamp from filename', { filename });
 				createdAt = stat.birthtime.toISOString();
 			}
 
