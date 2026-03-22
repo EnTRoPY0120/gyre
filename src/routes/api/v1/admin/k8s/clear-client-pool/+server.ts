@@ -2,6 +2,7 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { clearClientPool } from '$lib/server/kubernetes/client.js';
+import { checkPermission } from '$lib/server/rbac.js';
 
 export const _metadata = {
 	POST: {
@@ -25,13 +26,14 @@ export const _metadata = {
 };
 
 export const POST: RequestHandler = async ({ locals }) => {
-	// Hook enforces admin role for /api/v1/admin/* routes; guard here as defence-in-depth
 	if (!locals.user) {
 		throw error(401, { message: 'Authentication required' });
 	}
 
-	if (locals.user.role !== 'admin') {
-		throw error(403, { message: 'Admin access required' });
+	// Enforce RBAC (checkPermission short-circuits for admin role)
+	const hasPermission = await checkPermission(locals.user, 'admin');
+	if (!hasPermission) {
+		throw error(403, { message: 'Forbidden: admin permission required' });
 	}
 
 	clearClientPool();
