@@ -115,6 +115,10 @@ describe('isAllowedBackupMimeType', () => {
 		expect(isAllowedBackupMimeType('application/octet-stream; charset=utf-8')).toBe(true);
 	});
 
+	test('strips semicolon parameters with whitespace before semicolon', () => {
+		expect(isAllowedBackupMimeType('application/octet-stream ; charset=utf-8')).toBe(true);
+	});
+
 	test('rejects application/zip', () => {
 		expect(isAllowedBackupMimeType('application/zip')).toBe(false);
 	});

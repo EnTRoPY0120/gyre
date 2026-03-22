@@ -53,6 +53,6 @@ export function isAllowedBackupMimeType(mimeType: string): boolean {
 	if (mimeType === '') return true;
 	const trimmed = mimeType.trim();
 	if (trimmed === '') return false;
-	const mimeBase = trimmed.split(';')[0].toLowerCase();
+	const mimeBase = trimmed.split(';')[0].trim().toLowerCase();
 	return ALLOWED_BACKUP_MIME_TYPES.has(mimeBase);
 }
