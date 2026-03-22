@@ -35,3 +35,18 @@ export function sanitizeFilename(name: string): string {
 export function isAllowedBackupExtension(name: string): boolean {
 	return name.endsWith('.db') || name.endsWith('.db.enc');
 }
+
+// MIME types that legitimate SQLite backup files carry.
+// Empty string is included because some browsers omit the MIME type entirely.
+const ALLOWED_BACKUP_MIME_TYPES = new Set([
+	'application/octet-stream',
+	'application/x-sqlite3',
+	''
+]);
+
+// Check that a MIME type is a recognised SQLite backup content type.
+// Strips parameters (e.g. "; charset=utf-8") before matching.
+export function isAllowedBackupMimeType(mimeType: string): boolean {
+	const mimeBase = mimeType.split(';')[0].trim();
+	return ALLOWED_BACKUP_MIME_TYPES.has(mimeBase);
+}

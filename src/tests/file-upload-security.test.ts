@@ -5,7 +5,11 @@
  * kind/apiVersion check added in GH #286.
  */
 import { describe, test, expect } from 'bun:test';
-import { sanitizeFilename, isAllowedBackupExtension } from '../lib/server/validation.js';
+import {
+	sanitizeFilename,
+	isAllowedBackupExtension,
+	isAllowedBackupMimeType
+} from '../lib/server/validation.js';
 
 // ---------------------------------------------------------------------------
 // sanitizeFilename
@@ -87,6 +91,48 @@ describe('isAllowedBackupExtension', () => {
 
 	test('rejects .DB (case sensitive)', () => {
 		expect(isAllowedBackupExtension('backup.DB')).toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// isAllowedBackupMimeType
+// ---------------------------------------------------------------------------
+
+describe('isAllowedBackupMimeType', () => {
+	test('accepts application/octet-stream', () => {
+		expect(isAllowedBackupMimeType('application/octet-stream')).toBe(true);
+	});
+
+	test('accepts application/x-sqlite3', () => {
+		expect(isAllowedBackupMimeType('application/x-sqlite3')).toBe(true);
+	});
+
+	test('accepts empty string (browser-omitted MIME type)', () => {
+		expect(isAllowedBackupMimeType('')).toBe(true);
+	});
+
+	test('strips semicolon parameters before matching', () => {
+		expect(isAllowedBackupMimeType('application/octet-stream; charset=utf-8')).toBe(true);
+	});
+
+	test('rejects application/zip', () => {
+		expect(isAllowedBackupMimeType('application/zip')).toBe(false);
+	});
+
+	test('rejects application/x-executable', () => {
+		expect(isAllowedBackupMimeType('application/x-executable')).toBe(false);
+	});
+
+	test('rejects application/javascript', () => {
+		expect(isAllowedBackupMimeType('application/javascript')).toBe(false);
+	});
+
+	test('rejects text/plain', () => {
+		expect(isAllowedBackupMimeType('text/plain')).toBe(false);
+	});
+
+	test('rejects image/png', () => {
+		expect(isAllowedBackupMimeType('image/png')).toBe(false);
 	});
 });
 

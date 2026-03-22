@@ -11,7 +11,11 @@ import { restoreFromBuffer } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
 import { requirePermission } from '$lib/server/rbac';
 import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
-import { sanitizeFilename, isAllowedBackupExtension } from '$lib/server/validation';
+import {
+	sanitizeFilename,
+	isAllowedBackupExtension,
+	isAllowedBackupMimeType
+} from '$lib/server/validation';
 
 export const _metadata = {
 	POST: {
@@ -95,11 +99,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			});
 		}
 
-		// Validate MIME type when provided (browsers may omit it or send
-		// application/octet-stream — only reject clearly wrong types)
-		const ALLOWED_MIME_PREFIXES = ['application/'];
-		const mimeBase = file.type.split(';')[0].trim();
-		if (mimeBase && !ALLOWED_MIME_PREFIXES.some((p) => mimeBase.startsWith(p))) {
+		// Validate MIME type — only allow known SQLite backup content types
+		// (browsers may omit the type or send application/octet-stream)
+		if (!isAllowedBackupMimeType(file.type)) {
 			throw error(400, {
 				message: 'Invalid content type. Expected a binary database file.',
 				code: 'BadRequest'
