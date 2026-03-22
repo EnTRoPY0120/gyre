@@ -245,11 +245,16 @@ export function listBackups(): BackupMetadata[] {
 					}
 				}
 			} catch {
-				logger.warn('Failed to parse backup timestamp from filename', { filename });
+				logger.warn('[Backup] Failed to parse backup timestamp from filename', { filename });
 				createdAt = stat.birthtime.toISOString();
 			}
 
-			if (!createdAt) createdAt = stat.birthtime.toISOString();
+			if (!createdAt) {
+				logger.warn('[Backup] Backup timestamp missing after parse, falling back to birthtime', {
+					filename
+				});
+				createdAt = stat.birthtime.toISOString();
+			}
 
 			return {
 				filename,
