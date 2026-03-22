@@ -30,8 +30,16 @@ export const POST: RequestHandler = async ({ locals }) => {
 		throw error(401, { message: 'Authentication required' });
 	}
 
-	// Enforce RBAC (checkPermission short-circuits for admin role)
-	const hasPermission = await checkPermission(locals.user, 'admin');
+	// Enforce RBAC with no cluster context — this is a global system operation,
+	// not scoped to any specific cluster. The admin role short-circuits immediately;
+	// RBAC policy evaluation proceeds without a cluster filter.
+	const hasPermission = await checkPermission(
+		locals.user,
+		'admin',
+		undefined,
+		undefined,
+		undefined
+	);
 	if (!hasPermission) {
 		throw error(403, { message: 'Forbidden: admin permission required' });
 	}
