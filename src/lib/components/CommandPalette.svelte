@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, onDestroy, tick } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -183,11 +183,11 @@
 	onMount(() => {
 		window.addEventListener('keydown', handleKeydown);
 		const unsubscribe = commandPaletteOpen.subscribe((v) => { if (v && !open) open = true; });
-		return unsubscribe;
-	});
 
-	onDestroy(() => {
-		if (typeof window !== 'undefined') window.removeEventListener('keydown', handleKeydown);
+		return () => {
+			window.removeEventListener('keydown', handleKeydown);
+			unsubscribe();
+		};
 	});
 
 	// Precompute item id → flat index once per groupedItems change (O(n) total vs O(n²) per render)
