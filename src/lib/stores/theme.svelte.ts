@@ -1,4 +1,5 @@
 import { browser } from '$app/environment';
+import { safeGetItem, safeSetItem } from '$lib/utils/storage';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -17,7 +18,7 @@ function getSystemTheme(): 'light' | 'dark' {
 
 function getStoredTheme(): Theme {
 	if (!browser) return DEFAULT_THEME;
-	const stored = localStorage.getItem(STORAGE_KEY);
+	const stored = safeGetItem(STORAGE_KEY);
 	if (stored === 'light' || stored === 'dark' || stored === 'system') {
 		return stored;
 	}
@@ -81,7 +82,7 @@ function createThemeStore() {
 			applyTheme(store.resolvedTheme);
 
 			if (browser) {
-				localStorage.setItem(STORAGE_KEY, newTheme);
+				safeSetItem(STORAGE_KEY, newTheme);
 			}
 		},
 		toggle() {
