@@ -33,7 +33,11 @@ export interface SSEEvent {
 	resource?: unknown;
 	message?: string;
 	timestamp: string;
+	serverSessionId?: string;
 }
+
+// Stable identifier for this server process lifetime; changes on restart
+const SERVER_SESSION_ID = Date.now().toString(36);
 
 type Subscriber = (event: SSEEvent) => void;
 
@@ -148,6 +152,7 @@ export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluste
 	subscriber({
 		type: 'CONNECTED',
 		clusterId,
+		serverSessionId: SERVER_SESSION_ID,
 		message: `Connected to event stream for cluster: ${clusterId}`,
 		timestamp: new Date().toISOString()
 	});
@@ -409,6 +414,10 @@ async function poll(context: ClusterContext) {
 						}
 
 						context.lastStates.set(key, currentState);
+						// Once settled and tracked in lastStates, firstSeen is no longer needed
+						if (isSettled) {
+							context.resourceFirstSeen.delete(key);
+						}
 					}
 
 					for (const key of context.lastStates.keys()) {

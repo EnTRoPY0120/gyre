@@ -330,14 +330,17 @@ export class SSEConnectionLimiter {
 			release: () => {
 				if (released) return;
 				released = true;
+				try {
+					const newSessionCount = (this.sessionConnections.get(sessionId) ?? 1) - 1;
+					if (newSessionCount <= 0) this.sessionConnections.delete(sessionId);
+					else this.sessionConnections.set(sessionId, newSessionCount);
 
-				const newSessionCount = (this.sessionConnections.get(sessionId) ?? 1) - 1;
-				if (newSessionCount <= 0) this.sessionConnections.delete(sessionId);
-				else this.sessionConnections.set(sessionId, newSessionCount);
-
-				const newUserCount = (this.userConnections.get(userId) ?? 1) - 1;
-				if (newUserCount <= 0) this.userConnections.delete(userId);
-				else this.userConnections.set(userId, newUserCount);
+					const newUserCount = (this.userConnections.get(userId) ?? 1) - 1;
+					if (newUserCount <= 0) this.userConnections.delete(userId);
+					else this.userConnections.set(userId, newUserCount);
+				} catch (err) {
+					logger.error({ err, sessionId, userId }, '[SSEConnectionLimiter] Error in release()');
+				}
 			}
 		};
 	}
