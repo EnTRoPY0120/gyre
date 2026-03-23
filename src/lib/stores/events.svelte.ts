@@ -118,11 +118,19 @@ class RealtimeStore {
 				}));
 			}
 
-			// Load notification state cache
+			// Load notification state cache (handles legacy array format and current object format)
 			const storedState = localStorage.getItem(NOTIFICATION_STATE_STORAGE_KEY);
 			if (storedState) {
 				const parsed = JSON.parse(storedState);
-				this.lastNotificationState = new Map(parsed);
+				if (Array.isArray(parsed)) {
+					// Legacy format: [[key, value], ...]
+					this.lastNotificationState = new Map(parsed);
+				} else {
+					this.lastNotificationState = new Map(parsed.entries ?? []);
+					if (parsed.sessionId) {
+						this.lastServerSessionId = parsed.sessionId;
+					}
+				}
 			}
 		} catch (err) {
 			logger.error(err, '[Storage] Failed to load persisted notifications:');
@@ -140,9 +148,12 @@ class RealtimeStore {
 			const toSave = this.notifications.slice(0, MAX_NOTIFICATIONS);
 			localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(toSave));
 
-			// Save notification state cache
+			// Save notification state cache with sessionId for cross-reload desync detection
 			const stateArray = Array.from(this.lastNotificationState.entries());
-			localStorage.setItem(NOTIFICATION_STATE_STORAGE_KEY, JSON.stringify(stateArray));
+			localStorage.setItem(
+				NOTIFICATION_STATE_STORAGE_KEY,
+				JSON.stringify({ sessionId: this.lastServerSessionId, entries: stateArray })
+			);
 		} catch (err) {
 			logger.error(err, '[Storage] Failed to persist notifications:');
 		}
@@ -268,12 +279,11 @@ class RealtimeStore {
 			) {
 				logger.info('[SSE] Server session changed, clearing local notification state');
 				this.lastNotificationState.clear();
-				if (typeof window !== 'undefined') {
-					localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
-				}
 			}
 			if (data.serverSessionId) {
 				this.lastServerSessionId = data.serverSessionId;
+				// Persist so page reloads can detect server restarts
+				this.saveToStorage();
 			}
 			return;
 		}

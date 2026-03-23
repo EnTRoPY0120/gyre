@@ -339,7 +339,12 @@ export class SSEConnectionLimiter {
 					if (newUserCount <= 0) this.userConnections.delete(userId);
 					else this.userConnections.set(userId, newUserCount);
 				} catch (err) {
-					logger.error({ err, sessionId, userId }, '[SSEConnectionLimiter] Error in release()');
+					const redact = (v: string) =>
+						crypto.createHash('sha256').update(v).digest('hex').substring(0, 8);
+					logger.error(
+						{ err, sessionId: redact(sessionId), userId: redact(userId) },
+						'[SSEConnectionLimiter] Error in release()'
+					);
 				}
 			}
 		};
