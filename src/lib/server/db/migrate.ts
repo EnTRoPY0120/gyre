@@ -299,6 +299,41 @@ export function initDatabase(): void {
 	// Login Lockouts table
 	initLockoutsTable(db);
 
+	// Password History table
+	db.run(sql`
+		CREATE TABLE IF NOT EXISTS password_history (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			password_hash TEXT NOT NULL,
+			created_at_ms INTEGER NOT NULL,
+			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)
+	`);
+
+	// Indexes (CREATE INDEX IF NOT EXISTS is idempotent — safe for new and existing databases)
+	db.run(sql`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at)`);
+	db.run(sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id)`);
+	db.run(sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs (user_id)`);
+	db.run(sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs (action)`);
+	db.run(sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs (created_at)`);
+	db.run(
+		sql`CREATE INDEX IF NOT EXISTS idx_rbac_bindings_policy_user ON rbac_bindings (policy_id, user_id)`
+	);
+	db.run(
+		sql`CREATE INDEX IF NOT EXISTS idx_rbac_policies_cluster_id ON rbac_policies (cluster_id)`
+	);
+	db.run(
+		sql`CREATE INDEX IF NOT EXISTS idx_password_history_user_id ON password_history (user_id)`
+	);
+	db.run(
+		sql`CREATE INDEX IF NOT EXISTS idx_resource_lookup ON reconciliation_history (resource_type, namespace, name, cluster_id)`
+	);
+	db.run(
+		sql`CREATE INDEX IF NOT EXISTS idx_cluster_time ON reconciliation_history (cluster_id, reconcile_completed_at)`
+	);
+	db.run(sql`CREATE INDEX IF NOT EXISTS idx_status ON reconciliation_history (status)`);
+
 	logger.info('✓ Database tables initialized');
 }
 

@@ -2,8 +2,8 @@ import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
-	listUsers,
 	listUsersPaginated,
+	getUserById,
 	createUser,
 	updateUser,
 	deleteUser,
@@ -228,8 +228,7 @@ export const actions: Actions = {
 		}
 
 		// Check if user is SSO user
-		const users = await listUsers();
-		const targetUser = users.find((u) => u.id === userId);
+		const targetUser = await getUserById(userId);
 		if (targetUser && targetUser.isLocal === false) {
 			return fail(400, { error: 'Cannot reset password for SSO users' });
 		}

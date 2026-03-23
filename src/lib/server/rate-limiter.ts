@@ -219,7 +219,7 @@ export class AccountLockout {
 		const db = getDbSync();
 		const now = new Date();
 
-		// Upsert failure record
+		// Atomically increment the failure counter
 		db.insert(loginLockouts)
 			.values({
 				username,
@@ -235,26 +235,34 @@ export class AccountLockout {
 			})
 			.run();
 
-		// Get updated entry to check for lockout
-		const entry = db.select().from(loginLockouts).where(eq(loginLockouts.username, username)).get();
-
-		if (entry && entry.failedAttempts >= maxAttempts) {
-			const overThreshold = entry.failedAttempts - maxAttempts;
-			const backoffMinutes = Math.pow(2, overThreshold);
-			const lockedMinutes = Math.min(backoffMinutes, 1440); // Cap at 24 hours
-			const lockedUntil = new Date(now.getTime() + lockedMinutes * 60 * 1000);
-
-			db.update(loginLockouts)
-				.set({ lockedUntil, updatedAt: now })
+		// Read the updated count and conditionally apply lockout inside a transaction
+		// to prevent a race condition where two concurrent failures both read the count
+		// before either writes the lockedUntil value.
+		db.transaction((tx) => {
+			const entry = tx
+				.select()
+				.from(loginLockouts)
 				.where(eq(loginLockouts.username, username))
-				.run();
+				.get();
 
-			const userHash = crypto.createHash('sha256').update(username).digest('hex').substring(0, 8);
-			logger.warn(
-				{ userId: userHash },
-				`[Security] Account lockout triggered; locked for ${lockedMinutes} minutes; failed attempts: ${entry.failedAttempts}`
-			);
-		}
+			if (entry && entry.failedAttempts >= maxAttempts) {
+				const overThreshold = entry.failedAttempts - maxAttempts;
+				const backoffMinutes = Math.pow(2, overThreshold);
+				const lockedMinutes = Math.min(backoffMinutes, 1440); // Cap at 24 hours
+				const lockedUntil = new Date(now.getTime() + lockedMinutes * 60 * 1000);
+
+				tx.update(loginLockouts)
+					.set({ lockedUntil, updatedAt: now })
+					.where(eq(loginLockouts.username, username))
+					.run();
+
+				const userHash = crypto.createHash('sha256').update(username).digest('hex').substring(0, 8);
+				logger.warn(
+					{ userId: userHash },
+					`[Security] Account lockout triggered; locked for ${lockedMinutes} minutes; failed attempts: ${entry.failedAttempts}`
+				);
+			}
+		});
 	}
 
 	recordSuccess(username: string): void {
