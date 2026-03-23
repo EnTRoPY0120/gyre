@@ -77,6 +77,7 @@ function isPublicRoute(path: string): boolean {
 function setSecurityHeaders(response: Response): void {
 	response.headers.set('X-Content-Type-Options', 'nosniff');
 	response.headers.set('X-Frame-Options', 'DENY');
+	response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 	response.headers.set(
 		'Content-Security-Policy',
