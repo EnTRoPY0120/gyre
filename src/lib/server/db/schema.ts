@@ -45,7 +45,8 @@ export const sessions = sqliteTable(
 			.default(sql`(unixepoch())`)
 	},
 	(table) => ({
-		expiresAtIdx: index('idx_sessions_expires_at').on(table.expiresAt)
+		expiresAtIdx: index('idx_sessions_expires_at').on(table.expiresAt),
+		userIdIdx: index('idx_sessions_user_id').on(table.userId)
 	})
 );
 
@@ -120,23 +121,29 @@ export const clusterContexts = sqliteTable(
 );
 
 // RBAC Policies table
-export const rbacPolicies = sqliteTable('rbac_policies', {
-	id: text('id').primaryKey(),
-	name: text('name').notNull().unique(),
-	description: text('description'),
-	role: text('role', { enum: ['admin', 'editor', 'viewer'] }).notNull(),
-	resourceType: text('resource_type'), // 'GitRepository', 'Kustomization', etc. (null = all types)
-	action: text('action', { enum: ['read', 'write', 'admin'] }).notNull(), // read=view, write=suspend/resume/reconcile, admin=delete/manage
-	namespacePattern: text('namespace_pattern'), // Regex pattern for namespace matching (null = all namespaces)
-	clusterId: text('cluster_id').references(() => clusters.id, { onDelete: 'cascade' }), // null = applies to all clusters
-	isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.default(sql`(unixepoch())`),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
-		.notNull()
-		.default(sql`(unixepoch())`)
-});
+export const rbacPolicies = sqliteTable(
+	'rbac_policies',
+	{
+		id: text('id').primaryKey(),
+		name: text('name').notNull().unique(),
+		description: text('description'),
+		role: text('role', { enum: ['admin', 'editor', 'viewer'] }).notNull(),
+		resourceType: text('resource_type'), // 'GitRepository', 'Kustomization', etc. (null = all types)
+		action: text('action', { enum: ['read', 'write', 'admin'] }).notNull(), // read=view, write=suspend/resume/reconcile, admin=delete/manage
+		namespacePattern: text('namespace_pattern'), // Regex pattern for namespace matching (null = all namespaces)
+		clusterId: text('cluster_id').references(() => clusters.id, { onDelete: 'cascade' }), // null = applies to all clusters
+		isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`),
+		updatedAt: integer('updated_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`)
+	},
+	(table) => ({
+		clusterIdIdx: index('idx_rbac_policies_cluster_id').on(table.clusterId)
+	})
+);
 
 // RBAC Bindings table (links users to policies)
 export const rbacBindings = sqliteTable(
@@ -288,7 +295,16 @@ export const userRelations = relations(users, ({ many }) => ({
 	sessions: many(sessions),
 	ssoProviders: many(userProviders),
 	auditLogs: many(auditLogs),
-	passwordHistories: many(passwordHistory)
+	passwordHistories: many(passwordHistory),
+	rbacBindings: many(rbacBindings)
+}));
+
+// Session relations
+export const sessionRelations = relations(sessions, ({ one }) => ({
+	user: one(users, {
+		fields: [sessions.userId],
+		references: [users.id]
+	})
 }));
 
 // Audit log relations
@@ -296,6 +312,49 @@ export const auditLogRelations = relations(auditLogs, ({ one }) => ({
 	user: one(users, {
 		fields: [auditLogs.userId],
 		references: [users.id]
+	})
+}));
+
+// Password history relations
+export const passwordHistoryRelations = relations(passwordHistory, ({ one }) => ({
+	user: one(users, {
+		fields: [passwordHistory.userId],
+		references: [users.id]
+	})
+}));
+
+// Cluster relations
+export const clusterRelations = relations(clusters, ({ many }) => ({
+	contexts: many(clusterContexts),
+	rbacPolicies: many(rbacPolicies)
+}));
+
+// Cluster context relations
+export const clusterContextRelations = relations(clusterContexts, ({ one }) => ({
+	cluster: one(clusters, {
+		fields: [clusterContexts.clusterId],
+		references: [clusters.id]
+	})
+}));
+
+// RBAC Policy relations
+export const rbacPolicyRelations = relations(rbacPolicies, ({ one, many }) => ({
+	cluster: one(clusters, {
+		fields: [rbacPolicies.clusterId],
+		references: [clusters.id]
+	}),
+	bindings: many(rbacBindings)
+}));
+
+// RBAC Binding relations
+export const rbacBindingRelations = relations(rbacBindings, ({ one }) => ({
+	user: one(users, {
+		fields: [rbacBindings.userId],
+		references: [users.id]
+	}),
+	policy: one(rbacPolicies, {
+		fields: [rbacBindings.policyId],
+		references: [rbacPolicies.id]
 	})
 }));
 
@@ -393,3 +452,11 @@ export const reconciliationHistory = sqliteTable(
 
 export type ReconciliationHistory = typeof reconciliationHistory.$inferSelect;
 export type NewReconciliationHistory = typeof reconciliationHistory.$inferInsert;
+
+// Reconciliation history relations
+export const reconciliationHistoryRelations = relations(reconciliationHistory, ({ one }) => ({
+	triggeredBy: one(users, {
+		fields: [reconciliationHistory.triggeredByUser],
+		references: [users.id]
+	})
+}));

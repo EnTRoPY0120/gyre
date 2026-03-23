@@ -60,6 +60,8 @@ export async function getDb() {
 				// Enable WAL mode for better concurrency
 				sqlite.pragma('journal_mode = WAL');
 				sqlite.pragma('foreign_keys = ON');
+				// Prevent SQLITE_BUSY errors under concurrent writes
+				sqlite.pragma('busy_timeout = 5000');
 				sqliteConnection = sqlite;
 				db = drizzle(sqlite, { schema });
 			})().finally(() => {
@@ -84,6 +86,8 @@ export function getDbSync() {
 		const sqlite = new Database(databaseUrl);
 		sqlite.pragma('journal_mode = WAL');
 		sqlite.pragma('foreign_keys = ON');
+		// Prevent SQLITE_BUSY errors under concurrent writes
+		sqlite.pragma('busy_timeout = 5000');
 		sqliteConnection = sqlite;
 		db = drizzle(sqlite, { schema });
 	}
