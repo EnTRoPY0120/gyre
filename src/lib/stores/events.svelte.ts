@@ -125,12 +125,13 @@ class RealtimeStore {
 				if (Array.isArray(parsed)) {
 					// Legacy format: [[key, value], ...]
 					this.lastNotificationState = new Map(parsed);
-				} else {
-					this.lastNotificationState = new Map(parsed.entries ?? []);
+				} else if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.entries)) {
+					this.lastNotificationState = new Map(parsed.entries);
 					if (parsed.sessionId) {
 						this.lastServerSessionId = parsed.sessionId;
 					}
 				}
+				// else: unrecognised format — leave lastNotificationState as empty Map
 			}
 		} catch (err) {
 			logger.error(err, '[Storage] Failed to load persisted notifications:');
