@@ -226,6 +226,7 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 				const tokens = await client.validateAuthorizationCode(code);
 				return {
 					accessToken: tokens.accessToken(),
+					refreshToken: tokens.hasRefreshToken() ? tokens.refreshToken() : undefined,
 					// Handle token expiration null-safely (GitLab may omit expires_in)
 					expiresIn: tokens.accessTokenExpiresAt()
 						? Math.floor((tokens.accessTokenExpiresAt()!.getTime() - Date.now()) / 1000)
@@ -236,6 +237,61 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 				throw new OAuthError(
 					`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 					'TOKEN_EXCHANGE_FAILED',
+					error
+				);
+			}
+		},
+
+		/**
+		 * Refresh an expired access token using a GitLab refresh token
+		 */
+		async refreshAccessToken(refreshToken: string): Promise<OAuthTokens> {
+			const clientSecret = decryptSecret(config.clientSecretEncrypted);
+			const credentials = Buffer.from(`${config.clientId}:${clientSecret}`).toString('base64');
+			const tokenEndpoint = `${baseURL}/oauth/token`;
+
+			const body = new URLSearchParams({
+				grant_type: 'refresh_token',
+				refresh_token: refreshToken
+			});
+
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+			try {
+				const response = await fetch(tokenEndpoint, {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/x-www-form-urlencoded',
+						Accept: 'application/json',
+						Authorization: `Basic ${credentials}`
+					},
+					body: body.toString(),
+					signal: controller.signal
+				});
+				clearTimeout(timeoutId);
+
+				if (!response.ok) {
+					throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+				}
+
+				const data = await response.json();
+
+				if (!data.access_token) {
+					throw new Error('Missing access_token in GitLab refresh response');
+				}
+
+				return {
+					accessToken: data.access_token,
+					refreshToken: data.refresh_token,
+					expiresIn: typeof data.expires_in === 'number' ? data.expires_in : undefined,
+					tokenType: data.token_type ?? 'Bearer'
+				};
+			} catch (error) {
+				clearTimeout(timeoutId);
+				throw new OAuthError(
+					`Failed to refresh token: ${error instanceof Error ? error.message : 'Unknown error'}`,
+					'TOKEN_REFRESH_FAILED',
 					error
 				);
 			}

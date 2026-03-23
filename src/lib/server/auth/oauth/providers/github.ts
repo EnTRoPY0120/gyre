@@ -144,6 +144,9 @@ export class GitHubProvider implements IOAuthProvider {
 				if (data.error) {
 					throw new Error(data.error_description ?? data.error);
 				}
+				if (!data.access_token) {
+					throw new Error('Missing access_token in GitHub token response');
+				}
 
 				return {
 					accessToken: data.access_token,
