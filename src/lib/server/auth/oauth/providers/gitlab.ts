@@ -9,11 +9,12 @@
  * - email - User email
  */
 
-import { logger } from '$lib/server/logger.js';
 import { GitLab } from 'arctic';
 import type { IOAuthProvider, OAuthTokens, OAuthUserInfo, OAuthProviderOptions } from '../types';
 import { OAuthError } from '../types';
 import { decryptSecret } from '$lib/server/auth/crypto';
+import { generateCodeChallenge } from '$lib/server/auth/pkce';
+import { logger } from '$lib/server/logger.js';
 
 interface GitLabUser {
 	id: number;
@@ -116,7 +117,6 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 	const baseURL = issuer.endsWith('/') ? issuer.slice(0, -1) : issuer;
 
 	let client: GitLab | null = null;
-	let warnedPkce = false;
 
 	/**
 	 * Get or create GitLab client
@@ -137,18 +137,11 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 		config,
 
 		/**
-		 * Generate authorization URL
+		 * Generate authorization URL.
+		 * Appends PKCE challenge params when a verifier is provided (GitLab supports PKCE since v13.7).
 		 */
-		async getAuthorizationUrl(state: string, _codeVerifier?: string): Promise<URL> {
+		async getAuthorizationUrl(state: string, codeVerifier?: string): Promise<URL> {
 			const client = getClient();
-
-			// GitLab in arctic doesn't support PKCE. Surface a warning once if requested.
-			if (config.usePkce && !warnedPkce) {
-				warnedPkce = true;
-				logger.warn(
-					`[GitLabProvider] PKCE is enabled for provider "${config.id}", but GitLab provider silently ignores PKCE. This setting will be ignored.`
-				);
-			}
 
 			// Default scopes for GitLab
 			const scopes = config.scopes
@@ -157,24 +150,73 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 
 			// Add read_api scope if role mapping is configured (required for /api/v4/groups access)
 			if (config.roleMapping && !scopes.includes('api') && !scopes.includes('read_api')) {
-				// Unconditionally add 'read_api' when role mapping is configured and neither 'api' nor 'read_api' are present.
 				scopes.push('read_api');
 			}
 
-			// GitLab in arctic doesn't support PKCE parameters in createAuthorizationURL
-			return await client.createAuthorizationURL(state, scopes);
+			const url = await client.createAuthorizationURL(state, scopes);
+
+			// Arctic's GitLab class doesn't expose PKCE params — append them manually.
+			if (codeVerifier) {
+				url.searchParams.set('code_challenge', generateCodeChallenge(codeVerifier));
+				url.searchParams.set('code_challenge_method', 'S256');
+			}
+
+			return url;
 		},
 
 		/**
-		 * Exchange authorization code for access token
+		 * Exchange authorization code for access token.
+		 * Uses a raw token exchange when a PKCE verifier is present, since Arctic's GitLab
+		 * class doesn't accept a code_verifier in its validateAuthorizationCode method.
 		 */
-		async validateCallback(code: string, _codeVerifier?: string): Promise<OAuthTokens> {
+		async validateCallback(code: string, codeVerifier?: string): Promise<OAuthTokens> {
+			if (codeVerifier) {
+				const clientSecret = decryptSecret(config.clientSecretEncrypted);
+				const credentials = Buffer.from(`${config.clientId}:${clientSecret}`).toString('base64');
+				const tokenEndpoint = `${baseURL}/oauth/token`;
+
+				const body = new URLSearchParams({
+					grant_type: 'authorization_code',
+					code,
+					redirect_uri: redirectUri,
+					code_verifier: codeVerifier
+				});
+
+				try {
+					const response = await fetch(tokenEndpoint, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/x-www-form-urlencoded',
+							Accept: 'application/json',
+							Authorization: `Basic ${credentials}`
+						},
+						body: body.toString()
+					});
+
+					if (!response.ok) {
+						throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+					}
+
+					const data = await response.json();
+
+					return {
+						accessToken: data.access_token,
+						expiresIn: typeof data.expires_in === 'number' ? data.expires_in : undefined,
+						tokenType: 'Bearer'
+					};
+				} catch (error) {
+					throw new OAuthError(
+						`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
+						'TOKEN_EXCHANGE_FAILED',
+						error
+					);
+				}
+			}
+
+			// No PKCE — use Arctic's client as before
 			const client = getClient();
-
 			try {
-				// GitLab in arctic doesn't support PKCE parameters in validateAuthorizationCode
 				const tokens = await client.validateAuthorizationCode(code);
-
 				return {
 					accessToken: tokens.accessToken(),
 					// Handle token expiration null-safely (GitLab may omit expires_in)

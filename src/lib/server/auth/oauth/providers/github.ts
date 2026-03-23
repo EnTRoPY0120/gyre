@@ -12,6 +12,7 @@ import { GitHub } from 'arctic';
 import type { IOAuthProvider, OAuthTokens, OAuthUserInfo, OAuthProviderOptions } from '../types';
 import { OAuthError } from '../types';
 import { decryptSecret } from '$lib/server/auth/crypto';
+import { generateCodeChallenge } from '$lib/server/auth/pkce';
 
 interface GitHubUser {
 	id: number;
@@ -70,9 +71,9 @@ export class GitHubProvider implements IOAuthProvider {
 
 	/**
 	 * Generate authorization URL
-	 * GitHub supports PKCE but it's not required (we enable it by default)
+	 * GitHub supports PKCE natively — appends challenge params when verifier is provided.
 	 */
-	async getAuthorizationUrl(state: string): Promise<URL> {
+	async getAuthorizationUrl(state: string, codeVerifier?: string): Promise<URL> {
 		const client = this.getClient();
 
 		// Parse scopes (GitHub uses space-separated scopes)
@@ -91,18 +92,72 @@ export class GitHubProvider implements IOAuthProvider {
 			scopes.push('read:org');
 		}
 
-		return await client.createAuthorizationURL(state, scopes);
+		const url = client.createAuthorizationURL(state, scopes);
+
+		// Arctic's GitHub class doesn't expose PKCE params — append them manually.
+		// GitHub has supported PKCE since Oct 2023.
+		if (codeVerifier) {
+			url.searchParams.set('code_challenge', generateCodeChallenge(codeVerifier));
+			url.searchParams.set('code_challenge_method', 'S256');
+		}
+
+		return url;
 	}
 
 	/**
 	 * Exchange authorization code for access token
 	 */
-	async validateCallback(code: string): Promise<OAuthTokens> {
-		const client = this.getClient();
+	async validateCallback(code: string, codeVerifier?: string): Promise<OAuthTokens> {
+		if (codeVerifier) {
+			// Arctic's GitHub.validateAuthorizationCode doesn't accept a code_verifier.
+			// When PKCE is in use, do a raw exchange so the verifier reaches GitHub.
+			const clientSecret = decryptSecret(this.config.clientSecretEncrypted);
+			const credentials = Buffer.from(`${this.config.clientId}:${clientSecret}`).toString('base64');
+			const body = new URLSearchParams({
+				grant_type: 'authorization_code',
+				code,
+				redirect_uri: this.redirectUri,
+				code_verifier: codeVerifier
+			});
 
+			try {
+				const response = await fetch('https://github.com/login/oauth/access_token', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/x-www-form-urlencoded',
+						Accept: 'application/json',
+						Authorization: `Basic ${credentials}`
+					},
+					body: body.toString()
+				});
+
+				if (!response.ok) {
+					throw new Error(`HTTP ${response.status}: ${await response.text()}`);
+				}
+
+				const data = await response.json();
+				if (data.error) {
+					throw new Error(data.error_description ?? data.error);
+				}
+
+				return {
+					accessToken: data.access_token,
+					tokenType: 'Bearer',
+					scope: data.scope
+				};
+			} catch (error) {
+				throw new OAuthError(
+					`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
+					'TOKEN_EXCHANGE_FAILED',
+					error
+				);
+			}
+		}
+
+		// No PKCE — use Arctic's client as before
+		const client = this.getClient();
 		try {
 			const tokens = await client.validateAuthorizationCode(code);
-
 			return {
 				accessToken: tokens.accessToken(),
 				tokenType: 'Bearer',
