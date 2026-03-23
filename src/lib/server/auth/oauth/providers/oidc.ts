@@ -276,6 +276,11 @@ export class OIDCProvider implements IOAuthProvider {
 
 			const data = await response.json();
 
+			// Validate the refreshed ID token before trusting it
+			if (data.id_token) {
+				await this.validateIdToken(data.id_token);
+			}
+
 			return {
 				accessToken: data.access_token,
 				refreshToken: data.refresh_token ?? refreshToken, // Some IdPs don't rotate refresh tokens
