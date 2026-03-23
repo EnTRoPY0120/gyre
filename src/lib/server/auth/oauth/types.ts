@@ -110,6 +110,15 @@ export interface IOAuthProvider {
 	 * @returns User information extracted from IdP
 	 */
 	getUserInfo(tokens: OAuthTokens): Promise<OAuthUserInfo>;
+
+	/**
+	 * Refresh an expired access token using a refresh token.
+	 * Optional — only providers that issue refresh tokens need to implement this.
+	 *
+	 * @param refreshToken - The refresh token from a previous token exchange
+	 * @returns New OAuth tokens
+	 */
+	refreshAccessToken?(refreshToken: string): Promise<OAuthTokens>;
 }
 
 /**

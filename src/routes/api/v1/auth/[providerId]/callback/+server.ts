@@ -52,6 +52,11 @@ import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
 import { createSession, rotateSession, cleanupSetupTokenFile } from '$lib/server/auth';
 import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
+import { createHash } from 'crypto';
+import { encryptSecret } from '$lib/server/auth/crypto';
+import { getDb } from '$lib/server/db';
+import { userProviders } from '$lib/server/db/schema';
+import { and, eq } from 'drizzle-orm';
 
 /**
  * GET /api/auth/[providerId]/callback
@@ -99,14 +104,32 @@ export const GET: RequestHandler = async (event) => {
 			throw error(400, { message: 'Missing code or state parameter' });
 		}
 
-		// Validate state (CSRF protection)
-		const storedState = cookies.get(`oauth_state_${providerId}`);
+		// Validate state (CSRF protection) with request fingerprint binding
+		const storedStateCookie = cookies.get(`oauth_state_${providerId}`);
+		const pipeIndex = storedStateCookie?.lastIndexOf('|') ?? -1;
+		const storedState = pipeIndex > -1 ? storedStateCookie!.slice(0, pipeIndex) : storedStateCookie;
+		const storedFingerprint = pipeIndex > -1 ? storedStateCookie!.slice(pipeIndex + 1) : null;
+
 		if (!storedState || storedState !== returnedState) {
 			logger.error(
 				{ err: new Error('State mismatch: CSRF state validation failed') },
 				'CSRF state validation failed'
 			);
 			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
+		}
+
+		// Verify request fingerprint — detects state cookie reuse across different sessions
+		if (storedFingerprint) {
+			const currentFingerprint = createHash('sha256')
+				.update(`${ipAddress}|${request.headers.get('user-agent') ?? ''}`)
+				.digest('hex');
+			if (storedFingerprint !== currentFingerprint) {
+				logger.warn(
+					{ providerId },
+					'OAuth state fingerprint mismatch — possible session hijack attempt'
+				);
+				throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
+			}
 		}
 
 		// Get code verifier (PKCE)
@@ -170,6 +193,23 @@ export const GET: RequestHandler = async (event) => {
 
 		// Set session cookie
 		cookies.set('gyre_session', sessionId, DEFAULT_COOKIE_OPTIONS);
+
+		// Store OAuth tokens encrypted at rest for future token refresh use
+		if (tokens.accessToken) {
+			const db = await getDb();
+			const tokenExpiresAt = tokens.expiresIn
+				? new Date(Date.now() + tokens.expiresIn * 1000)
+				: null;
+
+			await db
+				.update(userProviders)
+				.set({
+					accessTokenEncrypted: encryptSecret(tokens.accessToken),
+					refreshTokenEncrypted: tokens.refreshToken ? encryptSecret(tokens.refreshToken) : null,
+					tokenExpiresAt
+				})
+				.where(and(eq(userProviders.userId, user.id), eq(userProviders.providerId, providerId)));
+		}
 
 		logger.info({ providerId, userId: user.id }, 'SSO login successful');
 

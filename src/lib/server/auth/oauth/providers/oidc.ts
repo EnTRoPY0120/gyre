@@ -110,8 +110,8 @@ export class OIDCProvider implements IOAuthProvider {
 		url.searchParams.set('scope', scopes.join(' '));
 		url.searchParams.set('state', state);
 
-		// Add PKCE if enabled
-		if (this.config.usePkce && codeVerifier) {
+		// Add PKCE whenever a verifier is provided (mandatory — not config-gated)
+		if (codeVerifier) {
 			const challenge = generateCodeChallenge(codeVerifier);
 			url.searchParams.set('code_challenge', challenge);
 			url.searchParams.set('code_challenge_method', 'S256');
@@ -140,8 +140,8 @@ export class OIDCProvider implements IOAuthProvider {
 			client_secret: clientSecret
 		});
 
-		// Add PKCE if enabled
-		if (this.config.usePkce && codeVerifier) {
+		// Include PKCE verifier whenever one is provided
+		if (codeVerifier) {
 			body.set('code_verifier', codeVerifier);
 		}
 
@@ -240,6 +240,54 @@ export class OIDCProvider implements IOAuthProvider {
 			throw new OAuthError(
 				`Failed to fetch user info: ${error instanceof Error ? error.message : 'Unknown error'}`,
 				'USERINFO_FAILED',
+				error
+			);
+		}
+	}
+
+	/**
+	 * Refresh an expired access token using the refresh token
+	 */
+	async refreshAccessToken(refreshToken: string): Promise<OAuthTokens> {
+		const discovery = await this.discover();
+		const clientSecret = decryptSecret(this.config.clientSecretEncrypted);
+
+		const body = new URLSearchParams({
+			grant_type: 'refresh_token',
+			refresh_token: refreshToken,
+			client_id: this.config.clientId,
+			client_secret: clientSecret
+		});
+
+		try {
+			const response = await fetch(discovery.token_endpoint, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/x-www-form-urlencoded',
+					Accept: 'application/json'
+				},
+				body: body.toString()
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`HTTP ${response.status}: ${errorText}`);
+			}
+
+			const data = await response.json();
+
+			return {
+				accessToken: data.access_token,
+				refreshToken: data.refresh_token ?? refreshToken, // Some IdPs don't rotate refresh tokens
+				idToken: data.id_token,
+				tokenType: data.token_type || 'Bearer',
+				expiresIn: data.expires_in,
+				scope: data.scope
+			};
+		} catch (error) {
+			throw new OAuthError(
+				`Failed to refresh token: ${error instanceof Error ? error.message : 'Unknown error'}`,
+				'TOKEN_REFRESH_FAILED',
 				error
 			);
 		}

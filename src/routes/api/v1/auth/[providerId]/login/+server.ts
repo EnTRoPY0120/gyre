@@ -48,6 +48,7 @@ export const _metadata = {
 import { generateState, generateCodeVerifier } from '$lib/server/auth/pkce';
 import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
+import { createHash } from 'crypto';
 
 // State cookie TTL: 10 minutes (enough time to complete OAuth flow)
 const STATE_COOKIE_MAX_AGE = 60 * 10;
@@ -57,7 +58,7 @@ const STATE_COOKIE_MAX_AGE = 60 * 10;
  * Initiates OAuth login flow
  */
 export const GET: RequestHandler = async (event) => {
-	const { params, cookies, getClientAddress, setHeaders } = event;
+	const { params, cookies, request, getClientAddress, setHeaders } = event;
 	const { providerId } = params;
 
 	try {
@@ -78,25 +79,25 @@ export const GET: RequestHandler = async (event) => {
 		// Generate CSRF protection state
 		const state = generateState();
 
-		// Generate PKCE code verifier if enabled
-		let codeVerifier: string | undefined;
-		if (provider.config.usePkce) {
-			codeVerifier = generateCodeVerifier();
-		}
+		// Bind state to request fingerprint (IP + UA) for extra CSRF protection.
+		// The fingerprint is stored alongside the state in the cookie but never
+		// sent to the IdP, so it must match on the return trip.
+		const fingerprint = createHash('sha256')
+			.update(`${ipAddress}|${request.headers.get('user-agent') ?? ''}`)
+			.digest('hex');
 
-		// Store state in short-lived cookie
-		cookies.set(`oauth_state_${providerId}`, state, {
+		// Store state|fingerprint in cookie; only raw state goes to IdP
+		cookies.set(`oauth_state_${providerId}`, `${state}|${fingerprint}`, {
 			...DEFAULT_COOKIE_OPTIONS,
 			maxAge: STATE_COOKIE_MAX_AGE
 		});
 
-		// Store code verifier in short-lived cookie (if PKCE enabled)
-		if (codeVerifier) {
-			cookies.set(`oauth_verifier_${providerId}`, codeVerifier, {
-				...DEFAULT_COOKIE_OPTIONS,
-				maxAge: STATE_COOKIE_MAX_AGE
-			});
-		}
+		// Always generate PKCE — mandatory regardless of provider config
+		const codeVerifier = generateCodeVerifier();
+		cookies.set(`oauth_verifier_${providerId}`, codeVerifier, {
+			...DEFAULT_COOKIE_OPTIONS,
+			maxAge: STATE_COOKIE_MAX_AGE
+		});
 
 		// Get authorization URL from provider
 		const authUrl = await provider.getAuthorizationUrl(state, codeVerifier);
