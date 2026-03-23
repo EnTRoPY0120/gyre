@@ -150,6 +150,7 @@ export class GitHubProvider implements IOAuthProvider {
 
 				return {
 					accessToken: data.access_token,
+					refreshToken: data.refresh_token,
 					tokenType: data.token_type ?? 'Bearer',
 					scope: data.scope
 				};
@@ -170,7 +171,10 @@ export class GitHubProvider implements IOAuthProvider {
 			return {
 				accessToken: tokens.accessToken(),
 				tokenType: 'Bearer',
-				scope: tokens.accessTokenExpiresAt()?.toString()
+				scope: tokens.hasScopes() ? tokens.scopes().join(' ') : undefined,
+				expiresIn: tokens.accessTokenExpiresAt()
+					? Math.floor((tokens.accessTokenExpiresAt().getTime() - Date.now()) / 1000)
+					: undefined
 			};
 		} catch (error) {
 			throw new OAuthError(
