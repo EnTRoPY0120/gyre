@@ -260,6 +260,23 @@ export function initDatabase(): void {
 		)
 	`);
 
+	// Migration: add OAuth token columns to user_providers (for token refresh support)
+	try {
+		db.run(sql`ALTER TABLE user_providers ADD COLUMN access_token_encrypted TEXT`);
+	} catch {
+		// Column already exists
+	}
+	try {
+		db.run(sql`ALTER TABLE user_providers ADD COLUMN refresh_token_encrypted TEXT`);
+	} catch {
+		// Column already exists
+	}
+	try {
+		db.run(sql`ALTER TABLE user_providers ADD COLUMN token_expires_at INTEGER`);
+	} catch {
+		// Column already exists
+	}
+
 	// Migration: Drop dashboard tables if they exist (cleanup from removed feature)
 	db.run(sql`
 		DROP TABLE IF EXISTS dashboard_widgets

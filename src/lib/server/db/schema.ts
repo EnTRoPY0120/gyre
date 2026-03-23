@@ -262,6 +262,10 @@ export const userProviders = sqliteTable(
 			.references(() => authProviders.id, { onDelete: 'cascade' }),
 		providerUserId: text('provider_user_id').notNull(), // User ID from IdP (sub claim)
 		lastLoginAt: integer('last_login_at', { mode: 'timestamp' }),
+		// OAuth tokens (encrypted at rest) — used for token refresh
+		accessTokenEncrypted: text('access_token_encrypted'),
+		refreshTokenEncrypted: text('refresh_token_encrypted'),
+		tokenExpiresAt: integer('token_expires_at', { mode: 'timestamp' }),
 		createdAt: integer('created_at', { mode: 'timestamp' })
 			.notNull()
 			.default(sql`(unixepoch())`)
