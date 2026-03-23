@@ -85,17 +85,31 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 
 			cleanupRef = cleanup;
 
-			try {
-				// Subscribe to the centralized event bus
-				unsubscribe = subscribe((event: SSEEvent) => {
-					const msg = `data: ${JSON.stringify(event)}\n\n`;
+			const EVENT_BUFFER_LIMIT = 100;
+			const eventQueue: Uint8Array[] = [];
+
+			const flushQueue = () => {
+				while (eventQueue.length > 0) {
 					try {
-						controller.enqueue(encoder.encode(msg));
+						controller.enqueue(eventQueue.shift()!);
 					} catch {
-						// Enqueue failed (e.g., controller closed or client disconnected abruptly)
 						cleanup();
 						return;
 					}
+				}
+			};
+
+			try {
+				// Subscribe to the centralized event bus
+				unsubscribe = subscribe((event: SSEEvent) => {
+					const encoded = encoder.encode(`data: ${JSON.stringify(event)}\n\n`);
+					if (eventQueue.length >= EVENT_BUFFER_LIMIT) {
+						logger.warn({ clusterId }, '[SSE] Event buffer full, closing connection');
+						cleanup();
+						return;
+					}
+					eventQueue.push(encoded);
+					flushQueue();
 					// Only check for SHUTDOWN if enqueue succeeded (controller is still open)
 					// Note: unsubscribe() calls ctx.subscribers.delete(subscriber) while broadcast() iterates the Set.
 					// This is safe in JS (current element deletion during for...of is safe).
@@ -143,7 +157,8 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 		headers: {
 			'Content-Type': 'text/event-stream',
 			'Cache-Control': 'no-cache',
-			Connection: 'keep-alive'
+			Connection: 'keep-alive',
+			'X-Accel-Buffering': 'no'
 		}
 	});
 };

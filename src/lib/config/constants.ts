@@ -16,6 +16,9 @@ export const MAX_RECONNECT_ATTEMPTS = 5;
 /** Base delay between SSE reconnect attempts (ms), doubled on each retry. */
 export const RECONNECT_DELAY_MS = 1_000;
 
+/** Maximum reconnect delay (ms) regardless of backoff calculation. */
+export const MAX_RECONNECT_DELAY_MS = 30_000;
+
 // ---------------------------------------------------------------------------
 // Notifications
 // ---------------------------------------------------------------------------

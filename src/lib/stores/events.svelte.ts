@@ -8,6 +8,7 @@ import { logger } from '$lib/utils/logger.js';
 import {
 	MAX_RECONNECT_ATTEMPTS,
 	RECONNECT_DELAY_MS,
+	MAX_RECONNECT_DELAY_MS,
 	MAX_NOTIFICATIONS,
 	MESSAGE_PREVIEW_LENGTH
 } from '$lib/config/constants';
@@ -18,6 +19,7 @@ export interface ResourceEvent {
 	type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'CONNECTED' | 'HEARTBEAT' | 'ERROR' | 'SHUTDOWN';
 	clusterId?: string;
 	resourceType?: string;
+	serverSessionId?: string;
 	resource?: {
 		metadata: {
 			name: string;
@@ -69,6 +71,9 @@ class RealtimeStore {
 	// Notification state cache to prevent duplicate notifications
 	// Key: `${resourceType}/${namespace}/${name}`, Value: `${readyStatus}/${readyMessageHash}`
 	private lastNotificationState: Map<string, string> = new Map();
+
+	// Tracks the server process session; used to detect server restarts and clear stale state
+	private lastServerSessionId: string | null = null;
 
 	// Reactive state using Svelte 5 runes
 	status = $state<ConnectionStatus>('disconnected');
@@ -228,7 +233,10 @@ class RealtimeStore {
 			return;
 		}
 
-		const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
+		const delay = Math.min(
+			this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
+			MAX_RECONNECT_DELAY_MS
+		);
 		this.reconnectAttempts++;
 
 		logger.debug(`[SSE] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
@@ -248,8 +256,25 @@ class RealtimeStore {
 			return;
 		}
 
-		// Skip heartbeat and connected messages for notifications
-		if (data.type === 'HEARTBEAT' || data.type === 'CONNECTED') {
+		if (data.type === 'HEARTBEAT') {
+			return;
+		}
+
+		if (data.type === 'CONNECTED') {
+			if (
+				data.serverSessionId &&
+				this.lastServerSessionId !== null &&
+				this.lastServerSessionId !== data.serverSessionId
+			) {
+				logger.info('[SSE] Server session changed, clearing local notification state');
+				this.lastNotificationState.clear();
+				if (typeof window !== 'undefined') {
+					localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
+				}
+			}
+			if (data.serverSessionId) {
+				this.lastServerSessionId = data.serverSessionId;
+			}
 			return;
 		}
 
