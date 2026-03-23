@@ -61,6 +61,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 	// start() is called synchronously during ReadableStream construction, so
 	// cleanupRef is always populated before cancel() can fire.
 	let cleanupRef: (() => void) | null = null;
+	let attemptFlushRef: (() => void) | null = null;
 
 	// Create a ReadableStream for SSE
 	const stream = new ReadableStream({
@@ -88,8 +89,8 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 			const EVENT_BUFFER_LIMIT = 100;
 			const eventQueue: Uint8Array[] = [];
 
-			const flushQueue = () => {
-				while (eventQueue.length > 0) {
+			const attemptFlush = () => {
+				while (eventQueue.length > 0 && (controller.desiredSize ?? 1) > 0) {
 					try {
 						controller.enqueue(eventQueue.shift()!);
 					} catch {
@@ -98,6 +99,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 					}
 				}
 			};
+			attemptFlushRef = attemptFlush;
 
 			try {
 				// Subscribe to the centralized event bus
@@ -109,7 +111,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 						return;
 					}
 					eventQueue.push(encoded);
-					flushQueue();
+					attemptFlush();
 					// Only check for SHUTDOWN if enqueue succeeded (controller is still open)
 					// Note: unsubscribe() calls ctx.subscribers.delete(subscriber) while broadcast() iterates the Set.
 					// This is safe in JS (current element deletion during for...of is safe).
@@ -145,6 +147,10 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 				cleanup();
 				throw err;
 			}
+		},
+		pull() {
+			// Consumer wants more data — drain buffered events respecting desiredSize
+			attemptFlushRef?.();
 		},
 		cancel() {
 			// Called when the consumer cancels the stream (e.g. response.body.cancel()).

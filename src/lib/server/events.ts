@@ -301,11 +301,15 @@ async function poll(context: ClusterContext) {
 						const previousState = context.lastStates.get(key);
 
 						const now = Date.now();
-						if (!context.resourceFirstSeen.has(key)) {
+						// Only record firstSeen for resources not yet in lastStates.
+						// Resources in lastStates but missing from resourceFirstSeen had their
+						// entry pruned after settling — treat them as already settled.
+						if (!context.resourceFirstSeen.has(key) && !context.lastStates.has(key)) {
 							context.resourceFirstSeen.set(key, now);
 						}
-						const firstSeen = context.resourceFirstSeen.get(key) || now;
-						const isSettled = now - firstSeen > SETTLING_PERIOD_MS;
+						const isSettled = context.resourceFirstSeen.has(key)
+							? now - context.resourceFirstSeen.get(key)! > SETTLING_PERIOD_MS
+							: true; // no firstSeen entry + exists in lastStates = already settled
 
 						if (!previousState) {
 							if (isSettled) {
