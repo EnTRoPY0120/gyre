@@ -120,6 +120,9 @@ export class GitHubProvider implements IOAuthProvider {
 				code_verifier: codeVerifier
 			});
 
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
 			try {
 				const response = await fetch('https://github.com/login/oauth/access_token', {
 					method: 'POST',
@@ -128,8 +131,10 @@ export class GitHubProvider implements IOAuthProvider {
 						Accept: 'application/json',
 						Authorization: `Basic ${credentials}`
 					},
-					body: body.toString()
+					body: body.toString(),
+					signal: controller.signal
 				});
+				clearTimeout(timeoutId);
 
 				if (!response.ok) {
 					throw new Error(`HTTP ${response.status}: ${await response.text()}`);
@@ -142,10 +147,11 @@ export class GitHubProvider implements IOAuthProvider {
 
 				return {
 					accessToken: data.access_token,
-					tokenType: 'Bearer',
+					tokenType: data.token_type ?? 'Bearer',
 					scope: data.scope
 				};
 			} catch (error) {
+				clearTimeout(timeoutId);
 				throw new OAuthError(
 					`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 					'TOKEN_EXCHANGE_FAILED',

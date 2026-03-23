@@ -182,6 +182,9 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 					code_verifier: codeVerifier
 				});
 
+				const controller = new AbortController();
+				const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
 				try {
 					const response = await fetch(tokenEndpoint, {
 						method: 'POST',
@@ -190,8 +193,10 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 							Accept: 'application/json',
 							Authorization: `Basic ${credentials}`
 						},
-						body: body.toString()
+						body: body.toString(),
+						signal: controller.signal
 					});
+					clearTimeout(timeoutId);
 
 					if (!response.ok) {
 						throw new Error(`HTTP ${response.status}: ${await response.text()}`);
@@ -201,10 +206,12 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 
 					return {
 						accessToken: data.access_token,
+						refreshToken: data.refresh_token,
 						expiresIn: typeof data.expires_in === 'number' ? data.expires_in : undefined,
-						tokenType: 'Bearer'
+						tokenType: data.token_type ?? 'Bearer'
 					};
 				} catch (error) {
+					clearTimeout(timeoutId);
 					throw new OAuthError(
 						`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 						'TOKEN_EXCHANGE_FAILED',
