@@ -52,7 +52,7 @@ import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
 import { createSession, rotateSession, cleanupSetupTokenFile } from '$lib/server/auth';
 import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
-import { createHash } from 'crypto';
+import { computeStateFingerprint } from '$lib/server/auth/pkce';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { getDb } from '$lib/server/db';
 import { userProviders } from '$lib/server/db/schema';
@@ -104,11 +104,20 @@ export const GET: RequestHandler = async (event) => {
 			throw error(400, { message: 'Missing code or state parameter' });
 		}
 
-		// Validate state (CSRF protection) with request fingerprint binding
+		// Validate state (CSRF protection) with mandatory request fingerprint binding.
+		// Cookie format: `state|sha256(ip|ua)` — both parts are required.
 		const storedStateCookie = cookies.get(`oauth_state_${providerId}`);
 		const pipeIndex = storedStateCookie?.lastIndexOf('|') ?? -1;
-		const storedState = pipeIndex > -1 ? storedStateCookie!.slice(0, pipeIndex) : storedStateCookie;
+		const storedState = pipeIndex > -1 ? storedStateCookie!.slice(0, pipeIndex) : null;
 		const storedFingerprint = pipeIndex > -1 ? storedStateCookie!.slice(pipeIndex + 1) : null;
+
+		if (!storedFingerprint) {
+			logger.error(
+				{ providerId, err: new Error('Missing state fingerprint') },
+				'OAuth state cookie is missing fingerprint'
+			);
+			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
+		}
 
 		if (!storedState || storedState !== returnedState) {
 			logger.error(
@@ -119,17 +128,16 @@ export const GET: RequestHandler = async (event) => {
 		}
 
 		// Verify request fingerprint — detects state cookie reuse across different sessions
-		if (storedFingerprint) {
-			const currentFingerprint = createHash('sha256')
-				.update(`${ipAddress}|${request.headers.get('user-agent') ?? ''}`)
-				.digest('hex');
-			if (storedFingerprint !== currentFingerprint) {
-				logger.warn(
-					{ providerId },
-					'OAuth state fingerprint mismatch — possible session hijack attempt'
-				);
-				throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
-			}
+		const currentFingerprint = computeStateFingerprint(
+			ipAddress,
+			request.headers.get('user-agent') ?? ''
+		);
+		if (storedFingerprint !== currentFingerprint) {
+			logger.warn(
+				{ providerId },
+				'OAuth state fingerprint mismatch — possible session hijack attempt'
+			);
+			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
 		}
 
 		// Get code verifier (PKCE)
@@ -183,23 +191,12 @@ export const GET: RequestHandler = async (event) => {
 			);
 		}
 
-		// Create or rotate session (rotation prevents session fixation attacks)
-		const existingSessionId = cookies.get('gyre_session');
-		const userAgent = request.headers.get('user-agent') ?? undefined;
-		const sessionId = existingSessionId
-			? await rotateSession(existingSessionId, user.id, ipAddress, userAgent)
-			: await createSession(user.id, ipAddress, userAgent);
-		cleanupSetupTokenFile();
-
-		// Set session cookie
-		cookies.set('gyre_session', sessionId, DEFAULT_COOKIE_OPTIONS);
-
-		// Store OAuth tokens encrypted at rest for future token refresh use
+		// Store OAuth tokens encrypted at rest before minting the session.
+		// Performing the DB write first ensures no live session exists if persistence fails.
 		if (tokens.accessToken) {
 			const db = await getDb();
-			const tokenExpiresAt = tokens.expiresIn
-				? new Date(Date.now() + tokens.expiresIn * 1000)
-				: null;
+			const tokenExpiresAt =
+				tokens.expiresIn != null ? new Date(Date.now() + tokens.expiresIn * 1000) : null;
 
 			await db
 				.update(userProviders)
@@ -210,6 +207,18 @@ export const GET: RequestHandler = async (event) => {
 				})
 				.where(and(eq(userProviders.userId, user.id), eq(userProviders.providerId, providerId)));
 		}
+
+		// Create or rotate session (rotation prevents session fixation attacks).
+		// Session is only created after token persistence succeeds.
+		const existingSessionId = cookies.get('gyre_session');
+		const userAgent = request.headers.get('user-agent') ?? undefined;
+		const sessionId = existingSessionId
+			? await rotateSession(existingSessionId, user.id, ipAddress, userAgent)
+			: await createSession(user.id, ipAddress, userAgent);
+		cleanupSetupTokenFile();
+
+		// Set session cookie
+		cookies.set('gyre_session', sessionId, DEFAULT_COOKIE_OPTIONS);
 
 		logger.info({ providerId, userId: user.id }, 'SSO login successful');
 

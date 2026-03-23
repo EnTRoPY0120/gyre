@@ -261,20 +261,22 @@ export function initDatabase(): void {
 	`);
 
 	// Migration: add OAuth token columns to user_providers (for token refresh support)
-	try {
-		db.run(sql`ALTER TABLE user_providers ADD COLUMN access_token_encrypted TEXT`);
-	} catch {
-		// Column already exists
-	}
-	try {
-		db.run(sql`ALTER TABLE user_providers ADD COLUMN refresh_token_encrypted TEXT`);
-	} catch {
-		// Column already exists
-	}
-	try {
-		db.run(sql`ALTER TABLE user_providers ADD COLUMN token_expires_at INTEGER`);
-	} catch {
-		// Column already exists
+	for (const ddl of [
+		sql`ALTER TABLE user_providers ADD COLUMN access_token_encrypted TEXT`,
+		sql`ALTER TABLE user_providers ADD COLUMN refresh_token_encrypted TEXT`,
+		sql`ALTER TABLE user_providers ADD COLUMN token_expires_at INTEGER`
+	]) {
+		try {
+			db.run(ddl);
+		} catch (err) {
+			// SQLite signals a duplicate column with "duplicate column name: <col>" — safe to skip.
+			// Any other error (lock, corruption, syntax) must be surfaced.
+			if (err instanceof Error && err.message.includes('duplicate column name')) {
+				continue;
+			}
+			logger.error(err, '[DB] Failed to add OAuth token column to user_providers:');
+			throw err;
+		}
 	}
 
 	// Migration: Drop dashboard tables if they exist (cleanup from removed feature)

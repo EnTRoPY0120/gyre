@@ -45,10 +45,13 @@ export const _metadata = {
 		}
 	}
 };
-import { generateState, generateCodeVerifier } from '$lib/server/auth/pkce';
+import {
+	generateState,
+	generateCodeVerifier,
+	computeStateFingerprint
+} from '$lib/server/auth/pkce';
 import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
-import { createHash } from 'crypto';
 
 // State cookie TTL: 10 minutes (enough time to complete OAuth flow)
 const STATE_COOKIE_MAX_AGE = 60 * 10;
@@ -82,9 +85,7 @@ export const GET: RequestHandler = async (event) => {
 		// Bind state to request fingerprint (IP + UA) for extra CSRF protection.
 		// The fingerprint is stored alongside the state in the cookie but never
 		// sent to the IdP, so it must match on the return trip.
-		const fingerprint = createHash('sha256')
-			.update(`${ipAddress}|${request.headers.get('user-agent') ?? ''}`)
-			.digest('hex');
+		const fingerprint = computeStateFingerprint(ipAddress, request.headers.get('user-agent') ?? '');
 
 		// Store state|fingerprint in cookie; only raw state goes to IdP
 		cookies.set(`oauth_state_${providerId}`, `${state}|${fingerprint}`, {
