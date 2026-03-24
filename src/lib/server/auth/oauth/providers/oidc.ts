@@ -146,6 +146,9 @@ export class OIDCProvider implements IOAuthProvider {
 		}
 
 		// Exchange code for token
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
 		try {
 			const response = await fetch(discovery.token_endpoint, {
 				method: 'POST',
@@ -153,8 +156,10 @@ export class OIDCProvider implements IOAuthProvider {
 					'Content-Type': 'application/x-www-form-urlencoded',
 					Accept: 'application/json'
 				},
-				body: body.toString()
+				body: body.toString(),
+				signal: controller.signal
 			});
+			clearTimeout(timeoutId);
 
 			if (!response.ok) {
 				const errorText = await response.text();
@@ -162,6 +167,18 @@ export class OIDCProvider implements IOAuthProvider {
 			}
 
 			const data = await response.json();
+
+			// Check for OAuth error response (HTTP 200 but error in body)
+			if (data.error) {
+				throw new Error(
+					`${data.error}${data.error_description ? `: ${data.error_description}` : ''}`
+				);
+			}
+
+			// Validate access token exists
+			if (!data.access_token) {
+				throw new Error('Missing access_token in OIDC token response');
+			}
 
 			// Validate ID token if present
 			if (data.id_token) {
@@ -177,6 +194,7 @@ export class OIDCProvider implements IOAuthProvider {
 				scope: data.scope
 			};
 		} catch (error) {
+			clearTimeout(timeoutId);
 			throw new OAuthError(
 				`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 				'TOKEN_EXCHANGE_FAILED',
@@ -280,6 +298,13 @@ export class OIDCProvider implements IOAuthProvider {
 			}
 
 			const data = await response.json();
+
+			// Check for OAuth error response (HTTP 200 but error in body)
+			if (data.error) {
+				throw new Error(
+					`${data.error}${data.error_description ? `: ${data.error_description}` : ''}`
+				);
+			}
 
 			// Validate access token exists
 			if (!data.access_token) {
