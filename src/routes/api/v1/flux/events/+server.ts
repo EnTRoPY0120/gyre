@@ -14,7 +14,7 @@ export const _metadata = {
 		tags: ['Flux'],
 		request: {
 			query: z.object({
-				limit: z.coerce.number().int().min(1).max(1000).optional().openapi({
+				limit: z.coerce.number().int().min(1).max(1000).default(20).openapi({
 					description: 'Maximum number of events to return (default: 20, max: 1000)',
 					example: 50
 				})
@@ -38,6 +38,8 @@ export const _metadata = {
 	}
 };
 
+const limitQuerySchema = _metadata.GET.request.query;
+
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) {
 		throw error(401, { message: 'Authentication required' });
@@ -55,10 +57,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		throw error(403, { message: 'Permission denied' });
 	}
 
-	const limit = Math.min(
-		1000,
-		Math.max(1, parseInt(url.searchParams.get('limit') || '20', 10) || 20)
-	);
+	const queryResult = limitQuerySchema.safeParse({
+		limit: url.searchParams.get('limit') ?? undefined
+	});
+	if (!queryResult.success) {
+		throw error(400, { message: 'Invalid limit parameter' });
+	}
+	const { limit } = queryResult.data;
 
 	try {
 		const events = await getAllRecentEvents(limit, locals.cluster);

@@ -20,25 +20,25 @@ export const k8sFluxResourceSchema = z
 	.passthrough();
 
 /**
- * Schema for a Kubernetes Event object.
+ * Schema for a K8sEvent object as returned by getAllRecentEvents / getResourceEvents.
+ * Matches the K8sEvent interface in src/lib/types/events.ts.
  */
 export const k8sEventSchema = z
 	.object({
-		apiVersion: z.string(),
-		kind: z.string(),
-		metadata: z.object({ name: z.string(), namespace: z.string() }).passthrough(),
-		type: z.string().optional(),
-		reason: z.string().optional(),
-		message: z.string().optional(),
-		count: z.number().optional(),
-		firstTimestamp: z.string().nullable().optional(),
-		lastTimestamp: z.string().nullable().optional(),
+		type: z.enum(['Normal', 'Warning']),
+		reason: z.string(),
+		message: z.string(),
+		count: z.number(),
+		firstTimestamp: z.string().nullable(),
+		lastTimestamp: z.string().nullable(),
 		involvedObject: z
 			.object({
 				kind: z.string(),
 				name: z.string(),
-				namespace: z.string().optional()
+				namespace: z.string(),
+				uid: z.string()
 			})
-			.passthrough()
+			.passthrough(),
+		source: z.object({ component: z.string() })
 	})
 	.passthrough();
