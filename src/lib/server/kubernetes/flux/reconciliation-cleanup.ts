@@ -1,5 +1,5 @@
 import { logger } from '../../logger.js';
-import { sql, and, eq, lt, desc } from 'drizzle-orm';
+import { sql, and, eq, lt } from 'drizzle-orm';
 import { getDbSync } from '../../db/index.js';
 import { reconciliationHistory } from '../../db/schema.js';
 import { MS_PER_MINUTE, getCutoffDate, getRandomJitterMs } from '../../utils/time.js';
@@ -90,51 +90,41 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 			stats.deletedFailure = toDeleteFailure;
 		}
 
-		// 3. Keep only last N entries per resource
-		// Get all unique resource combinations
-		const uniqueResources = await db
-			.selectDistinct({
-				resourceType: reconciliationHistory.resourceType,
-				namespace: reconciliationHistory.namespace,
-				name: reconciliationHistory.name,
-				clusterId: reconciliationHistory.clusterId
-			})
-			.from(reconciliationHistory);
+		// 3. Keep only the last N entries per resource using a window function.
+		// ROW_NUMBER() OVER (PARTITION BY resource_type, namespace, name, cluster_id
+		// ORDER BY reconcile_completed_at DESC) assigns rank 1 to the newest entry.
+		// A single DELETE replaces the previous O(n) per-resource query loop.
+		const excessCountResult = await db
+			.select({ count: sql<number>`count(*)` })
+			.from(
+				sql`(
+					SELECT id,
+						ROW_NUMBER() OVER (
+							PARTITION BY resource_type, namespace, name, cluster_id
+							ORDER BY reconcile_completed_at DESC
+						) as rn
+					FROM ${reconciliationHistory}
+				) ranked`
+			)
+			.where(sql`rn > ${CLEANUP_POLICIES.maxEntriesPerResource}`);
 
-		// For each resource, keep only the last N entries
-		for (const resource of uniqueResources) {
-			const allEntries = await db.query.reconciliationHistory.findMany({
-				where: and(
-					eq(reconciliationHistory.resourceType, resource.resourceType),
-					eq(reconciliationHistory.namespace, resource.namespace),
-					eq(reconciliationHistory.name, resource.name),
-					eq(reconciliationHistory.clusterId, resource.clusterId)
-				),
-				orderBy: [desc(reconciliationHistory.reconcileCompletedAt)],
-				columns: { id: true }
-			});
+		const excessCount = excessCountResult[0]?.count || 0;
 
-			// If more than maxEntriesPerResource, delete the excess
-			if (allEntries.length > CLEANUP_POLICIES.maxEntriesPerResource) {
-				const entriesToDelete = allEntries.slice(CLEANUP_POLICIES.maxEntriesPerResource);
-				const idsToDelete = entriesToDelete.map((e) => e.id);
-
-				if (idsToDelete.length > 0) {
-					// Delete in batches to avoid SQL query limits
-					const batchSize = 100;
-					for (let i = 0; i < idsToDelete.length; i += batchSize) {
-						const batch = idsToDelete.slice(i, i + batchSize);
-						await db.delete(reconciliationHistory).where(
-							sql`${reconciliationHistory.id} IN (${sql.join(
-								batch.map((id) => sql`${id}`),
-								sql`, `
-							)})`
-						);
-					}
-
-					stats.perResourceTrimmed += idsToDelete.length;
-				}
-			}
+		if (excessCount > 0) {
+			await db.delete(reconciliationHistory).where(
+				sql`id IN (
+					SELECT id FROM (
+						SELECT id,
+							ROW_NUMBER() OVER (
+								PARTITION BY resource_type, namespace, name, cluster_id
+								ORDER BY reconcile_completed_at DESC
+							) as rn
+						FROM ${reconciliationHistory}
+					) ranked
+					WHERE rn > ${CLEANUP_POLICIES.maxEntriesPerResource}
+				)`
+			);
+			stats.perResourceTrimmed = excessCount;
 		}
 
 		stats.totalDeleted = stats.deletedSuccess + stats.deletedFailure + stats.perResourceTrimmed;

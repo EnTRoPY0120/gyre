@@ -195,6 +195,10 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 	await requirePermission(locals.user, 'read', 'Kustomization', namespace, clusterId);
 
+	// Allow overriding the Flux system namespace via environment variable.
+	// Defaults to flux-system but can be changed for non-standard installations.
+	const fluxNamespace = process.env.FLUX_NAMESPACE || 'flux-system';
+
 	const reqCache: ReqCache = new Map();
 
 	try {
@@ -227,6 +231,20 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			clusterId,
 			reqCache
 		);
+
+		// Validate that the source is Ready before attempting to use its artifact.
+		// An artifact URL may still be present from a previous reconciliation even
+		// when the source is currently failing, which would produce a stale diff.
+		const sourceReadyCondition = source.status?.conditions?.find((c) => c.type === 'Ready');
+		if (sourceReadyCondition && sourceReadyCondition.status !== 'True') {
+			throw error(400, {
+				message:
+					`Source ${sourceRef.kind}/${sourceRef.name} is not ready ` +
+					`(${sourceReadyCondition.reason || 'Unknown'}: ${sourceReadyCondition.message || ''}). ` +
+					'Wait for the source to reconcile successfully before checking drift.',
+				code: 'BadRequest'
+			});
+		}
 
 		const artifactUrl = (source.status as { artifact?: { url: string } } | undefined)?.artifact
 			?.url;
@@ -274,12 +292,12 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 					// Get source-controller pod name
 					const pods = await coreApi.listNamespacedPod({
-						namespace: 'flux-system',
+						namespace: fluxNamespace,
 						labelSelector: 'app=source-controller'
 					});
 
 					if (!pods.items || pods.items.length === 0) {
-						throw new Error('No source-controller pod found in flux-system namespace');
+						throw new Error(`No source-controller pod found in ${fluxNamespace} namespace`);
 					}
 
 					const podName = pods.items[0].metadata?.name;
@@ -301,7 +319,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 						// The port is included in the 'name' parameter as podName:port
 						const proxyResponse = await coreApi.connectGetNamespacedPodProxy({
 							name: `${podName}:9090`,
-							namespace: 'flux-system',
+							namespace: fluxNamespace,
 							path: urlPath
 						});
 
@@ -320,9 +338,9 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 							`Direct HTTP: ${(downloadErr as Error).message}. ` +
 							`K8s proxy: ${(execErr as Error).message}. ` +
 							`\n\nTroubleshooting:\n` +
-							`1. Check source-controller is running: kubectl get pod -n flux-system -l app=source-controller\n` +
+							`1. Check source-controller is running: kubectl get pod -n ${fluxNamespace} -l app=source-controller\n` +
 							`2. Verify artifact exists: kubectl get gitrepo -n ${sourceNamespace} ${sourceRef.name} -o jsonpath='{.status.artifact.url}'\n` +
-							`3. Test artifact URL manually: kubectl port-forward -n flux-system svc/source-controller 9090:80 && curl http://localhost:9090${new URL(cleanUrl).pathname}`
+							`3. Test artifact URL manually: kubectl port-forward -n ${fluxNamespace} svc/source-controller 9090:80 && curl http://localhost:9090${new URL(cleanUrl).pathname}`
 					);
 				}
 			}
