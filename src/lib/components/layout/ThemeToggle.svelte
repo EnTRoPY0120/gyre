@@ -9,6 +9,7 @@
 	];
 
 	let isOpen = $state(false);
+	let selectedIndex = $state(0);
 
 	function selectTheme(newTheme: Theme) {
 		theme.setTheme(newTheme);
@@ -21,6 +22,40 @@
 			isOpen = false;
 		}
 	}
+
+	function handleButtonKeydown(e: KeyboardEvent) {
+		if (e.key === ' ' || e.key === 'Enter') {
+			e.preventDefault();
+			isOpen = !isOpen;
+			selectedIndex = 0;
+		} else if (e.key === 'ArrowDown' && isOpen) {
+			e.preventDefault();
+			selectedIndex = (selectedIndex + 1) % themeOptions.length;
+		} else if (e.key === 'ArrowUp' && isOpen) {
+			e.preventDefault();
+			selectedIndex = (selectedIndex - 1 + themeOptions.length) % themeOptions.length;
+		} else if (e.key === 'Escape') {
+			isOpen = false;
+		}
+	}
+
+	function handleMenuItemKeydown(e: KeyboardEvent, option: Theme, index: number) {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			selectTheme(option);
+		} else if (e.key === 'ArrowDown') {
+			e.preventDefault();
+			selectedIndex = (selectedIndex + 1) % themeOptions.length;
+		} else if (e.key === 'ArrowUp') {
+			e.preventDefault();
+			selectedIndex = (selectedIndex - 1 + themeOptions.length) % themeOptions.length;
+		} else if (e.key === 'Escape') {
+			e.preventDefault();
+			isOpen = false;
+		} else if (e.key === 'Tab') {
+			isOpen = false;
+		}
+	}
 </script>
 
 <svelte:document onclick={handleClickOutside} />
@@ -30,7 +65,10 @@
 		type="button"
 		class="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
 		onclick={() => (isOpen = !isOpen)}
+		onkeydown={handleButtonKeydown}
 		aria-label="Toggle theme"
+		aria-haspopup="menu"
+		aria-expanded={isOpen}
 		title="Toggle theme"
 	>
 		{#if theme.theme === 'light'}
@@ -45,15 +83,22 @@
 	{#if isOpen}
 		<div
 			class="absolute top-full right-0 z-50 mt-2 w-36 origin-top-right rounded-lg border border-border bg-popover py-1 shadow-lg"
+			role="menu"
 		>
-			{#each themeOptions as option (option.value)}
+			{#each themeOptions as option, index (option.value)}
 				<button
 					type="button"
 					class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors {theme.theme ===
 					option.value
 						? 'bg-accent text-accent-foreground'
-						: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'}"
+						: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'} {selectedIndex ===
+					index
+						? 'bg-accent text-accent-foreground'
+						: ''}"
 					onclick={() => selectTheme(option.value)}
+					onkeydown={(e) => handleMenuItemKeydown(e, option.value, index)}
+					role="menuitem"
+					tabindex={selectedIndex === index ? 0 : -1}
 				>
 					<option.icon class="size-4" />
 					{option.label}

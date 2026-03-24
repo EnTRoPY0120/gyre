@@ -52,18 +52,22 @@ function createThemeStore() {
 		resolvedTheme: initialResolved
 	});
 
+	let mediaQuery: MediaQueryList | null = null;
+	let mediaQueryListener: ((event: MediaQueryListEvent) => void) | null = null;
+
 	// Apply on init
 	if (browser) {
 		applyTheme(store.resolvedTheme);
 
 		// Listen for system theme changes
-		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-		mediaQuery.addEventListener('change', () => {
+		mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		mediaQueryListener = () => {
 			if (store.theme === 'system') {
 				store.resolvedTheme = getSystemTheme();
 				applyTheme(store.resolvedTheme);
 			}
-		});
+		};
+		mediaQuery.addEventListener('change', mediaQueryListener);
 	}
 
 	return {
@@ -90,6 +94,14 @@ function createThemeStore() {
 			const nextTheme: Theme =
 				store.theme === 'light' ? 'dark' : store.theme === 'dark' ? 'system' : 'light';
 			this.setTheme(nextTheme);
+		},
+		destroy() {
+			// Clean up event listener to prevent memory leak
+			if (mediaQuery && mediaQueryListener) {
+				mediaQuery.removeEventListener('change', mediaQueryListener);
+				mediaQuery = null;
+				mediaQueryListener = null;
+			}
 		}
 	};
 }
