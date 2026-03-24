@@ -166,6 +166,18 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 			throw error(400, { message: 'Missing required fields' });
 		}
 
+		// Validate roleMapping shape before persisting — each value must be an array
+		// of strings, matching the Record<string, string[]> expected by mapRoleFromGroups.
+		if (roleMapping != null) {
+			const roleMappingSchema = z.record(z.string(), z.array(z.string()));
+			const result = roleMappingSchema.safeParse(roleMapping);
+			if (!result.success) {
+				throw error(400, {
+					message: 'roleMapping must be an object mapping role names to arrays of group strings'
+				});
+			}
+		}
+
 		// Encrypt client secret
 		const clientSecretEncrypted = encryptSecret(clientSecret);
 

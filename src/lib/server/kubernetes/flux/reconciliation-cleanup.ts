@@ -93,25 +93,10 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 		// 3. Keep only the last N entries per resource using a window function.
 		// ROW_NUMBER() OVER (PARTITION BY resource_type, namespace, name, cluster_id
 		// ORDER BY reconcile_completed_at DESC) assigns rank 1 to the newest entry.
-		// A single DELETE replaces the previous O(n) per-resource query loop.
-		const excessCountResult = await db
-			.select({ count: sql<number>`count(*)` })
-			.from(
-				sql`(
-					SELECT id,
-						ROW_NUMBER() OVER (
-							PARTITION BY resource_type, namespace, name, cluster_id
-							ORDER BY reconcile_completed_at DESC
-						) as rn
-					FROM ${reconciliationHistory}
-				) ranked`
-			)
-			.where(sql`rn > ${CLEANUP_POLICIES.maxEntriesPerResource}`);
-
-		const excessCount = excessCountResult[0]?.count || 0;
-
-		if (excessCount > 0) {
-			await db.delete(reconciliationHistory).where(
+		// RETURNING id lets us derive the count without a separate count query.
+		const trimmed = await db
+			.delete(reconciliationHistory)
+			.where(
 				sql`id IN (
 					SELECT id FROM (
 						SELECT id,
@@ -123,9 +108,9 @@ export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 					) ranked
 					WHERE rn > ${CLEANUP_POLICIES.maxEntriesPerResource}
 				)`
-			);
-			stats.perResourceTrimmed = excessCount;
-		}
+			)
+			.returning({ id: reconciliationHistory.id });
+		stats.perResourceTrimmed = trimmed.length;
 
 		stats.totalDeleted = stats.deletedSuccess + stats.deletedFailure + stats.perResourceTrimmed;
 
