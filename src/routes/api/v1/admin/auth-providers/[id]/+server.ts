@@ -7,6 +7,7 @@
 import { logger } from '$lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
+import { authProviderSchema } from '$lib/server/auth/schemas';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
 import { authProviders } from '$lib/server/db/schema';
@@ -14,28 +15,6 @@ import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { eq } from 'drizzle-orm';
 import { checkPermission } from '$lib/server/rbac.js';
-
-const authProviderSchema = z.object({
-	id: z.string(),
-	name: z.string(),
-	type: z.enum(['oidc', 'oauth2-github', 'oauth2-google', 'oauth2-gitlab', 'oauth2-generic']),
-	enabled: z.boolean(),
-	clientId: z.string(),
-	clientSecretEncrypted: z.string().openapi({ example: '***' }),
-	issuerUrl: z.string().nullable().optional(),
-	authorizationUrl: z.string().nullable().optional(),
-	tokenUrl: z.string().nullable().optional(),
-	userInfoUrl: z.string().nullable().optional(),
-	jwksUrl: z.string().nullable().optional(),
-	autoProvision: z.boolean(),
-	defaultRole: z.enum(['admin', 'editor', 'viewer']),
-	roleMapping: z.record(z.string(), z.string()).nullable().optional(),
-	roleClaim: z.string(),
-	usernameClaim: z.string(),
-	emailClaim: z.string(),
-	usePkce: z.boolean(),
-	scopes: z.string()
-});
 
 export const _metadata = {
 	GET: {

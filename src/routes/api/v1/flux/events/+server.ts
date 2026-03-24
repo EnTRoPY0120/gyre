@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
+import { k8sEventSchema } from '$lib/server/kubernetes/schemas';
 import type { RequestHandler } from './$types';
 import { getAllRecentEvents } from '$lib/server/kubernetes/events';
 import { checkPermission } from '$lib/server/rbac.js';
@@ -13,9 +14,9 @@ export const _metadata = {
 		tags: ['Flux'],
 		request: {
 			query: z.object({
-				limit: z.string().optional().openapi({
+				limit: z.coerce.number().int().min(1).max(1000).optional().openapi({
 					description: 'Maximum number of events to return (default: 20, max: 1000)',
-					example: '50'
+					example: 50
 				})
 			})
 		},
@@ -25,13 +26,14 @@ export const _metadata = {
 				content: {
 					'application/json': {
 						schema: z.object({
-							events: z.array(z.any())
+							events: z.array(k8sEventSchema)
 						})
 					}
 				}
 			},
 			401: { description: 'Authentication required' },
-			403: { description: 'Permission denied' }
+			403: { description: 'Permission denied' },
+			500: { description: 'Internal server error' }
 		}
 	}
 };

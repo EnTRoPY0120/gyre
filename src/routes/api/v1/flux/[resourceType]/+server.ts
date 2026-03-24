@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
+import { k8sFluxResourceSchema } from '$lib/server/kubernetes/schemas';
 import type { RequestHandler } from './$types';
 import {
 	listFluxResources,
@@ -65,7 +66,7 @@ export const _metadata = {
 				content: {
 					'application/json': {
 						schema: z.object({
-							items: z.array(z.any()),
+							items: z.array(k8sFluxResourceSchema),
 							total: z.number().nullable().openapi({
 								description: 'Total number of resources, or null when cursor-based paging is used'
 							}),
@@ -78,7 +79,8 @@ export const _metadata = {
 			},
 			400: { description: 'Invalid resource type or query parameter' },
 			401: { description: 'Unauthorized' },
-			403: { description: 'Permission denied' }
+			403: { description: 'Permission denied' },
+			500: { description: 'Internal server error' }
 		}
 	},
 	POST: {
@@ -102,13 +104,14 @@ export const _metadata = {
 				description: 'Resource created successfully',
 				content: {
 					'application/json': {
-						schema: z.any()
+						schema: k8sFluxResourceSchema
 					}
 				}
 			},
 			400: { description: 'Invalid request' },
 			401: { description: 'Unauthorized' },
-			403: { description: 'Permission denied' }
+			403: { description: 'Permission denied' },
+			500: { description: 'Internal server error' }
 		}
 	}
 };
