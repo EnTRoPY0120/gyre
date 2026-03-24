@@ -221,7 +221,7 @@ metrics:
 # WARNING: Disabling NetworkPolicy leaves the pod with unrestricted egress/ingress.
 # It should be enabled in production to limit blast radius if the pod is compromised.
 networkPolicy:
-  enabled: false
+  enabled: true
   # Namespace where kube-dns runs (used in egress DNS rule)
   dnsNamespace: kube-system
   # Namespace where the Kubernetes API server endpoint lives (used in egress API rule)
