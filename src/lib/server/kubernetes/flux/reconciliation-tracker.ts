@@ -1,5 +1,5 @@
 import { logger } from '../../logger.js';
-import { eq, and, desc, gte } from 'drizzle-orm';
+import { eq, and, desc, gte, isNull } from 'drizzle-orm';
 import { getDbSync, type NewReconciliationHistory } from '../../db/index.js';
 import { reconciliationHistory } from '../../db/schema.js';
 import type { FluxResource, K8sCondition } from './types.js';
@@ -43,11 +43,12 @@ function determineStatus(
  * Calculate reconciliation duration from resource status
  * Returns duration in milliseconds or null if unavailable
  */
-function calculateDuration(_resource: FluxResource): number | null {
-	// FluxCD doesn't always expose precise timing data
-	// This is a best-effort calculation based on available timestamps
-	// Future: Consider adding custom annotations for precise tracking
-	return null;
+function calculateDuration(resource: FluxResource): number | null {
+	const startTime = getReconcileStartTime(resource);
+	const endTime = getReconcileCompletedTime(resource);
+	if (!startTime) return null;
+	const durationMs = endTime.getTime() - startTime.getTime();
+	return durationMs >= 0 ? durationMs : null;
 }
 
 /**
@@ -125,9 +126,15 @@ export async function captureReconciliation(options: CaptureReconciliationOption
 		const errorMessage =
 			status === 'failure' && readyCondition?.message ? readyCondition.message : null;
 
-		// Check for duplicate entry (same revision + timestamp)
-		// This prevents race conditions from creating duplicate history entries
+		// Check for duplicate entry using revision + status + readyReason.
+		// Timestamps are intentionally excluded: Kubernetes timestamps can vary by
+		// milliseconds between polls, causing the same reconciliation event to be
+		// inserted more than once. Revision + outcome is a stable dedup key.
 		if (revision) {
+			const readyReasonCondition = readyCondition?.reason
+				? eq(reconciliationHistory.readyReason, readyCondition.reason)
+				: isNull(reconciliationHistory.readyReason);
+
 			const existing = await db.query.reconciliationHistory.findFirst({
 				where: and(
 					eq(reconciliationHistory.resourceType, options.resourceType),
@@ -135,7 +142,8 @@ export async function captureReconciliation(options: CaptureReconciliationOption
 					eq(reconciliationHistory.name, options.name),
 					eq(reconciliationHistory.clusterId, options.clusterId),
 					eq(reconciliationHistory.revision, revision),
-					eq(reconciliationHistory.reconcileCompletedAt, reconcileCompletedAt)
+					eq(reconciliationHistory.status, status),
+					readyReasonCondition
 				)
 			});
 

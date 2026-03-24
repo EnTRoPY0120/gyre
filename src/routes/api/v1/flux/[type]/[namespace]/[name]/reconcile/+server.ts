@@ -7,6 +7,8 @@ import { checkPermission } from '$lib/server/rbac.js';
 import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
+import { getFluxResource } from '$lib/server/kubernetes/client';
+import { captureReconciliation } from '$lib/server/kubernetes/flux/reconciliation-tracker';
 
 export const _metadata = {
 	POST: {
@@ -68,6 +70,29 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 		await logResourceWrite(locals.user, type, 'reconcile', name, namespace, locals.cluster, {
 			ipAddress: getClientAddress()
 		});
+
+		// Capture a reconciliation history entry for the manual trigger.
+		// We fetch the current resource state so the history record reflects what
+		// was in place at the time the user requested reconciliation.
+		try {
+			const resource = await getFluxResource(
+				type as FluxResourceType,
+				namespace,
+				name,
+				locals.cluster
+			);
+			await captureReconciliation({
+				resourceType: type as FluxResourceType,
+				namespace,
+				name,
+				clusterId: locals.cluster ?? 'in-cluster',
+				resource,
+				triggerType: 'manual',
+				triggeredByUserId: locals.user.id
+			});
+		} catch {
+			// History capture is best-effort; don't fail the reconcile response
+		}
 
 		return json({ success: true, message: `Reconciliation triggered for ${name}` });
 	} catch (err) {

@@ -1,6 +1,5 @@
-import { getCustomObjectsApi, getFluxResource, handleK8sError } from '../client';
+import { getCustomObjectsApi, handleK8sError } from '../client';
 import { getResourceDef, getResourceTypeByPlural } from './resources';
-import type { FluxResourceType } from './resources';
 
 /**
  * Suspend or Resume a FluxCD resource
@@ -82,38 +81,16 @@ export async function reconcileResource(
 	const now = new Date().toISOString();
 
 	try {
-		// Fetch current resource to check if annotations exist
-		const resource = await getFluxResource(
-			resourceDef.kind as FluxResourceType,
-			namespace,
-			name,
-			context
-		);
-		const hasAnnotations = !!resource.metadata.annotations;
-
-		let patchBody;
-
-		if (hasAnnotations) {
-			// Annotations exist, add/replace the specific key
-			patchBody = [
-				{
-					op: 'add',
-					path: '/metadata/annotations/reconcile.fluxcd.io~1requestedAt',
-					value: now
+		// Use merge patch to atomically set the annotation.
+		// This avoids the TOCTOU race of GET-then-PATCH: merge patch deep-merges
+		// the provided object, so Kubernetes creates the annotations map if absent.
+		const patchBody = {
+			metadata: {
+				annotations: {
+					'reconcile.fluxcd.io/requestedAt': now
 				}
-			];
-		} else {
-			// Annotations missing, create the map
-			patchBody = [
-				{
-					op: 'add',
-					path: '/metadata/annotations',
-					value: {
-						'reconcile.fluxcd.io/requestedAt': now
-					}
-				}
-			];
-		}
+			}
+		};
 
 		await api.patchNamespacedCustomObject(
 			{
@@ -125,7 +102,7 @@ export async function reconcileResource(
 				body: patchBody
 			},
 			{
-				headers: { 'Content-Type': 'application/json-patch+json' }
+				headers: { 'Content-Type': 'application/merge-patch+json' }
 			} as Record<string, unknown>
 		);
 	} catch (error) {
