@@ -61,23 +61,37 @@ export function loadKubeConfig(options?: KubeConfigOptions): k8s.KubeConfig {
 
 /**
  * Apply TLS and proxy configuration options to a loaded KubeConfig.
- * Note: KubeConfig cluster properties are read-only, so we log the configuration
- * that should be applied. The actual HTTP client configuration happens at request time
- * through the HTTP agent and middleware configuration.
+ *
+ * @experimental This function currently only logs configuration options.
+ * Full implementation of custom CA certificates and proxy support requires
+ * extending the HTTP agent creation and client-node configuration, which
+ * is planned for a future enhancement.
+ *
  * @param config - The KubeConfig to modify
- * @param options - Configuration options
+ * @param options - Configuration options (currently unimplemented except for logging)
  */
 function applyConfigurationOptions(config: k8s.KubeConfig, options?: KubeConfigOptions): void {
 	if (!options) return;
 
-	// Log TLS configuration options
-	// Note: KubeConfig properties are read-only; actual TLS handling happens in the HTTP agent
+	// TODO(k8s-tls-proxy): Implement custom CA and proxy support
+	// - Pass caData to HTTP agent configuration
+	// - Create proxy agents based on HTTP_PROXY/HTTPS_PROXY
+	// - Wire into Kubernetes client factory
+
 	if (options.caData) {
-		logger.debug('✓ Custom CA certificate configured for Kubernetes client');
+		logger.debug(
+			'Custom CA certificate option provided (unimplemented; see TODO in applyConfigurationOptions)'
+		);
 	}
 
 	if (options.insecureSkipVerify) {
 		logger.warn('⚠ TLS verification disabled for cluster (insecure, use for testing only)');
+	}
+
+	if (options.httpProxy || options.httpsProxy) {
+		logger.debug(
+			'Proxy configuration provided (unimplemented; see TODO in applyConfigurationOptions)'
+		);
 	}
 }
 
@@ -142,6 +156,11 @@ export async function revalidateKubeConfig(
 			return false;
 		}
 	} catch (error) {
+		// Rethrow ConfigurationError immediately without wrapping
+		if (error instanceof ConfigurationError) {
+			throw error;
+		}
+
 		const msg = `Kubeconfig revalidation failed for cluster: ${clusterName}`;
 		logger.error(error, msg);
 		if (throwOnFailure) {

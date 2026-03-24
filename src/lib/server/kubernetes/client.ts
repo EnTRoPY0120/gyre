@@ -52,31 +52,9 @@ const httpsAgent = new https.Agent({
 	timeout: 30_000
 });
 
-/**
- * Returns the appropriate HTTP or HTTPS agent based on the server URL.
- * Respects HTTP_PROXY/HTTPS_PROXY environment variables.
- * Falls back to global keep-alive agents if no proxy is configured.
- */
-function getHttpAgent(serverUrl: string): http.Agent | https.Agent {
-	const isHttps = serverUrl.startsWith('https://');
-
-	// Check for proxy configuration from environment
-	const proxyUrl = isHttps
-		? process.env.HTTPS_PROXY ||
-			process.env.https_proxy ||
-			process.env.HTTP_PROXY ||
-			process.env.http_proxy
-		: process.env.HTTP_PROXY || process.env.http_proxy;
-
-	// If proxy is configured, we would use HttpProxyAgent/HttpsProxyAgent
-	// For now, just log and fall back to keep-alive agents
-	// In future: add http-proxy-agent and https-proxy-agent packages for full proxy support
-	if (proxyUrl) {
-		logger.debug(`Kubernetes client configured to use proxy: ${proxyUrl}`);
-	}
-
-	return isHttps ? httpsAgent : httpAgent;
-}
+// Note: HTTP_PROXY/HTTPS_PROXY environment variables are respected at the Node.js
+// level for global HTTP agent behavior. For explicit proxy agent support (e.g., with
+// HttpProxyAgent/HttpsProxyAgent packages), implement in a future enhancement.
 
 // ---------------------------------------------------------------------------
 // Timeout configuration
@@ -267,11 +245,6 @@ interface PoolEntry<T> {
 	client: T;
 	createdAt: number;
 	lastAccess: number;
-	/**
-	 * Timestamp of last error, or null if no error.
-	 * Used to detect stale/unhealthy connections and evict them early.
-	 */
-	lastErrorAt: number | null;
 }
 
 const customObjectsPool = new Map<string, PoolEntry<k8s.CustomObjectsApi>>();
@@ -415,13 +388,13 @@ export async function readSecret(
 	name: string,
 	context?: string
 ): Promise<k8s.V1Secret> {
+	// Audit log before attempting read (logs both success and failure)
+	auditLogSecretAccess('get', 'Secret', namespace, name, context);
 	try {
 		const api = await getCoreV1Api(context);
-		auditLogSecretAccess('get', 'Secret', namespace, name, context);
 		const response = await api.readNamespacedSecret({ namespace, name });
 		return response;
 	} catch (error) {
-		auditLogSecretAccess('get', 'Secret', namespace, name, context); // Log even on failure
 		throw handleK8sError(error, `read Secret ${namespace}/${name}`);
 	}
 }
@@ -436,14 +409,13 @@ async function getOrCreate<T>(
 
 	if (entry) {
 		const isExpired = now - entry.createdAt >= POOL_TTL_MS;
-		const hasRecentError = entry.lastErrorAt !== null && now - entry.lastErrorAt < 60_000; // 1 minute
 
-		if (isExpired || hasRecentError) {
-			// TTL expired or connection has recent errors — evict stale/unhealthy entry
+		if (isExpired) {
+			// TTL expired — evict stale entry
 			pool.delete(key);
 			poolMetricsState.evictions++;
 		} else {
-			// Connection is valid and healthy
+			// Connection is valid
 			entry.lastAccess = now;
 			poolMetricsState.hits++;
 			return entry.client;
@@ -461,7 +433,7 @@ async function getOrCreate<T>(
 
 	poolMetricsState.misses++;
 	const client = await factory();
-	pool.set(key, { client, createdAt: now, lastAccess: now, lastErrorAt: null });
+	pool.set(key, { client, createdAt: now, lastAccess: now });
 	return client;
 }
 
@@ -952,10 +924,11 @@ export async function deleteFluxResourcesBatch(
 	context?: string,
 	concurrency = 5
 ): Promise<DeleteResult[]> {
-	const results: DeleteResult[] = [];
+	// Allocate results array with same length as items to preserve ordering
+	const results: Array<DeleteResult | undefined> = Array.from({ length: items.length });
 	const semaphore = { active: 0, queue: [] as Array<(value: void) => void> };
 
-	const executeWithConcurrency = async (item: DeleteItem) => {
+	const executeWithConcurrency = async (item: DeleteItem, index: number) => {
 		// Wait for a slot to become available
 		while (semaphore.active >= concurrency) {
 			await new Promise<void>((resolve) => {
@@ -966,13 +939,13 @@ export async function deleteFluxResourcesBatch(
 		semaphore.active++;
 		try {
 			await deleteFluxResource(item.resourceType, item.namespace, item.name, context);
-			results.push({ item, success: true });
+			results[index] = { item, success: true };
 		} catch (error) {
-			results.push({
+			results[index] = {
 				item,
 				success: false,
 				error: error instanceof Error ? error : new Error(String(error))
-			});
+			};
 		} finally {
 			semaphore.active--;
 			const next = semaphore.queue.shift();
@@ -980,11 +953,12 @@ export async function deleteFluxResourcesBatch(
 		}
 	};
 
-	// Start all delete operations
-	const promises = items.map((item) => executeWithConcurrency(item));
+	// Start all delete operations with index to preserve order
+	const promises = items.map((item, index) => executeWithConcurrency(item, index));
 	await Promise.all(promises);
 
-	return results;
+	// Filter out undefined entries (should none exist in normal case)
+	return results.filter((r): r is DeleteResult => r !== undefined);
 }
 
 /**
@@ -1139,24 +1113,7 @@ export function handleK8sError(
 	return new KubernetesError(`Failed to ${operation}: Unknown error`, 500, 'UnknownError');
 }
 
-// ---------------------------------------------------------------------------
-// Signal handlers for graceful shutdown
-// ---------------------------------------------------------------------------
-
-/**
- * Register process signal handlers for graceful shutdown.
- * Ensures all Kubernetes client connections are properly closed on process exit.
- */
-if (typeof process !== 'undefined' && process.on) {
-	process.on('SIGTERM', () => {
-		logger.info('SIGTERM received, initiating graceful shutdown');
-		gracefulShutdown();
-		process.exit(0);
-	});
-
-	process.on('SIGINT', () => {
-		logger.info('SIGINT received, initiating graceful shutdown');
-		gracefulShutdown();
-		process.exit(0);
-	});
-}
+// Note: Signal handlers (SIGTERM/SIGINT) should be registered in the centralized
+// application shutdown flow, not here. This allows the app to coordinate shutdown
+// across all components (database, servers, etc.) in the correct order.
+// Call gracefulShutdown() from the main shutdown orchestrator (e.g., shutdownGyre).
