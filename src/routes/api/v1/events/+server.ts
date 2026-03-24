@@ -11,6 +11,24 @@ import {
 	SSE_CONNECTION_TIMEOUT_MS
 } from '$lib/server/config/constants.js';
 
+export const _metadata = {
+	GET: {
+		summary: 'Subscribe to real-time events',
+		description:
+			'Server-Sent Events stream delivering real-time cluster resource update notifications. Each event is a JSON-encoded SSEEvent payload. Requires an active authenticated session.',
+		tags: ['Events'],
+		responses: {
+			200: {
+				description:
+					'SSE stream (Content-Type: text/event-stream). Emits JSON-encoded SSEEvent objects: { type, clusterId, message, timestamp }.'
+			},
+			401: { description: 'Authentication required' },
+			403: { description: 'Permission denied' },
+			429: { description: 'Too many concurrent SSE connections' }
+		}
+	}
+};
+
 export const GET: RequestHandler = async ({ request, locals, getClientAddress }) => {
 	// Check authentication
 	if (!locals.user) {

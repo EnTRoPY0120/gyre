@@ -7,38 +7,9 @@
 import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
+import { authProviderSchema, providerTypeSchema } from '$lib/server/auth/schemas';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
-
-const providerTypeSchema = z.enum([
-	'oidc',
-	'oauth2-github',
-	'oauth2-google',
-	'oauth2-gitlab',
-	'oauth2-generic'
-]);
-
-const authProviderSchema = z.object({
-	id: z.string(),
-	name: z.string().openapi({ example: 'My OIDC Provider' }),
-	type: providerTypeSchema,
-	enabled: z.boolean(),
-	clientId: z.string().openapi({ example: 'my-client-id' }),
-	clientSecretEncrypted: z.string().openapi({ example: '***' }),
-	issuerUrl: z.string().nullable().optional().openapi({ example: 'https://accounts.example.com' }),
-	authorizationUrl: z.string().nullable().optional(),
-	tokenUrl: z.string().nullable().optional(),
-	userInfoUrl: z.string().nullable().optional(),
-	jwksUrl: z.string().nullable().optional(),
-	autoProvision: z.boolean(),
-	defaultRole: z.enum(['admin', 'editor', 'viewer']),
-	roleMapping: z.record(z.string(), z.string()).nullable().optional(),
-	roleClaim: z.string().openapi({ example: 'groups' }),
-	usernameClaim: z.string().openapi({ example: 'preferred_username' }),
-	emailClaim: z.string().openapi({ example: 'email' }),
-	usePkce: z.boolean(),
-	scopes: z.string().openapi({ example: 'openid profile email' })
-});
 
 export const _metadata = {
 	GET: {
@@ -55,7 +26,8 @@ export const _metadata = {
 				}
 			},
 			401: { description: 'Unauthorized' },
-			403: { description: 'Admin access required' }
+			403: { description: 'Admin access required' },
+			500: { description: 'Internal server error' }
 		}
 	},
 	POST: {
@@ -105,7 +77,8 @@ export const _metadata = {
 				content: { 'application/json': { schema: z.object({ message: z.string() }) } }
 			},
 			401: { description: 'Unauthorized' },
-			403: { description: 'Admin access required' }
+			403: { description: 'Admin access required' },
+			500: { description: 'Internal server error' }
 		}
 	}
 };
