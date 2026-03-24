@@ -107,3 +107,10 @@ function createThemeStore() {
 }
 
 export const theme = createThemeStore();
+
+// Clean up listener on HMR reload
+if (import.meta.hot) {
+	import.meta.hot.dispose(() => {
+		theme.destroy();
+	});
+}

@@ -79,12 +79,24 @@ function log(level: pino.Level, args: unknown[]) {
 		// String-first: treat as message, merge remaining objects as metadata
 		const objects = args.slice(1).filter((a: unknown) => a !== null && typeof a === 'object');
 		if (objects.length === 0) return activeLogger[level](sanitizeLogMessage(args[0]));
-		const meta = Object.assign({}, ...objects);
+		// Separate Error objects from other metadata to preserve stack traces
+		const errorObj = objects.find((obj: unknown) => obj instanceof Error);
+		const nonErrorObjects = objects.filter((obj: unknown) => !(obj instanceof Error));
+		const meta = errorObj
+			? { err: errorObj, ...Object.assign({}, ...nonErrorObjects) }
+			: Object.assign({}, ...objects);
 		return activeLogger[level](meta, sanitizeLogMessage(args[0]));
 	}
 	if (args.length === 2) {
-		const msg = typeof args[1] === 'string' ? sanitizeLogMessage(args[1]) : undefined;
-		return activeLogger[level](args[0], msg);
+		if (typeof args[1] === 'string') {
+			// Second arg is a message
+			return activeLogger[level](args[0], sanitizeLogMessage(args[1]));
+		} else if (typeof args[1] === 'object' && args[1] !== null) {
+			// Second arg is metadata - merge with first arg
+			const meta = Object.assign({}, args[0], args[1]);
+			return activeLogger[level](meta);
+		}
+		return activeLogger[level](args[0]);
 	}
 	// 3+ args with non-string first arg: merge extra context objects
 	const extras = args.slice(2).filter((a: unknown) => a !== null && typeof a === 'object');
