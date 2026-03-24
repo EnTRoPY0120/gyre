@@ -29,13 +29,13 @@
 	]);
 
 	const strengthScore = $derived(requirements.filter((r) => r.met).length);
-	const strengthColor = $derived(() => {
+	const strengthColor = $derived.by(() => {
 		if (strengthScore <= 2) return 'bg-red-500';
 		if (strengthScore <= 4) return 'bg-amber-500';
 		return 'bg-emerald-500';
 	});
 
-	const strengthText = $derived(() => {
+	const strengthText = $derived.by(() => {
 		if (strengthScore === 0) return 'Very Weak';
 		if (strengthScore <= 2) return 'Weak';
 		if (strengthScore <= 4) return 'Medium';
@@ -197,7 +197,7 @@
 					{#if newPassword.length > 0}
 						<div class="strength-indicator">
 							<div class="strength-header">
-								<span>Strength: {strengthText()}</span>
+								<span>Strength: {strengthText}</span>
 								<span class={strengthScore >= 4 ? 'text-emerald-400' : 'text-slate-500'}>
 									{strengthScore}/5
 								</span>
@@ -206,7 +206,7 @@
 								{#each Array(5) as _, i (i)}
 									<div
 										class="strength-bar {i < strengthScore
-											? strengthColor()
+											? strengthColor
 											: 'bg-slate-700'}"
 									></div>
 								{/each}

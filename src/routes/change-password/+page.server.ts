@@ -23,6 +23,17 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 		});
 	}
 
+	// Prevent in-cluster admin from accessing password change
+	// The in-cluster admin password is stored in a Kubernetes secret and the login
+	// flow always validates against it — updating only the DB hash would lock the
+	// admin out on next login. Password rotation must be done via the K8s secret.
+	if (!locals.user.passwordHash) {
+		throw error(403, {
+			message:
+				'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
+		});
+	}
+
 	// Check if this is first login (from query param)
 	const isFirstLogin = url.searchParams.get('first') === 'true';
 
