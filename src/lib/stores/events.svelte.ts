@@ -235,6 +235,13 @@ class RealtimeStore {
 		this.notifyStatusChange('disconnected');
 	}
 
+	destroy() {
+		// Clean up all resources when the store is destroyed
+		this.disconnect();
+		this.eventCallbacks.clear();
+		this.statusCallbacks.clear();
+	}
+
 	private scheduleReconnect() {
 		if (this.isServerShutdown) {
 			return;

@@ -61,7 +61,7 @@ function sanitizeLogMessage(msg: string): string {
  * @param level - The Pino log level (e.g., 'info', 'error')
  * @param args - The arguments passed to the logger method
  */
-function log(level: pino.Level, args: any[]) {
+function log(level: pino.Level, args: unknown[]) {
 	if (args.length === 0) return;
 	const store = requestContext.getStore();
 	let activeLogger: pino.Logger;
@@ -77,26 +77,23 @@ function log(level: pino.Level, args: any[]) {
 	}
 	if (typeof args[0] === 'string') {
 		// String-first: treat as message, merge remaining objects as metadata
-		const objects = args.slice(1).filter((a: any) => a !== null && typeof a === 'object');
+		const objects = args.slice(1).filter((a: unknown) => a !== null && typeof a === 'object');
 		if (objects.length === 0) return activeLogger[level](sanitizeLogMessage(args[0]));
 		const meta = Object.assign({}, ...objects);
 		return activeLogger[level](meta, sanitizeLogMessage(args[0]));
 	}
-	if (args.length === 2)
-		return activeLogger[level](
-			args[0],
-			typeof args[1] === 'string' ? sanitizeLogMessage(args[1]) : args[1]
-		);
+	if (args.length === 2) {
+		const msg = typeof args[1] === 'string' ? sanitizeLogMessage(args[1]) : undefined;
+		return activeLogger[level](args[0], msg);
+	}
 	// 3+ args with non-string first arg: merge extra context objects
-	const extras = args.slice(2).filter((a: any) => a !== null && typeof a === 'object');
+	const extras = args.slice(2).filter((a: unknown) => a !== null && typeof a === 'object');
 	const meta =
 		args[0] instanceof Error
 			? { err: args[0], ...Object.assign({}, ...extras) }
 			: Object.assign({}, args[0], ...extras);
-	return activeLogger[level](
-		meta,
-		typeof args[1] === 'string' ? sanitizeLogMessage(args[1]) : args[1]
-	);
+	const msg = typeof args[1] === 'string' ? sanitizeLogMessage(args[1]) : undefined;
+	return activeLogger[level](meta, msg);
 }
 
 /**
@@ -112,9 +109,9 @@ function log(level: pino.Level, args: any[]) {
  * - Never log PII directly; use structured fields (e.g., { userId: user.id }) instead.
  */
 export const logger = {
-	debug: (...args: any[]) => log('debug', args),
-	info: (...args: any[]) => log('info', args),
-	warn: (...args: any[]) => log('warn', args),
-	error: (...args: any[]) => log('error', args),
-	fatal: (...args: any[]) => log('fatal', args)
+	debug: (...args: unknown[]) => log('debug', args),
+	info: (...args: unknown[]) => log('info', args),
+	warn: (...args: unknown[]) => log('warn', args),
+	error: (...args: unknown[]) => log('error', args),
+	fatal: (...args: unknown[]) => log('fatal', args)
 };
