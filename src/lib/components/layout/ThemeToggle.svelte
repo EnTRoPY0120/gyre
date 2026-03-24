@@ -9,11 +9,23 @@
 	];
 
 	let isOpen = $state(false);
-	let selectedIndex = $state(0);
+	let selectedIndex = $state(-1);
+
+	function getInitialIndex() {
+		return themeOptions.findIndex((opt) => opt.value === theme.theme);
+	}
 
 	function selectTheme(newTheme: Theme) {
 		theme.setTheme(newTheme);
 		isOpen = false;
+	}
+
+	function focusMenuButton(index: number) {
+		const buttons = document.querySelectorAll('.theme-toggle-container [role="menuitem"]');
+		const button = buttons[index] as HTMLButtonElement | undefined;
+		if (button) {
+			button.focus();
+		}
 	}
 
 	function handleClickOutside(e: MouseEvent) {
@@ -26,14 +38,26 @@
 	function handleButtonKeydown(e: KeyboardEvent) {
 		if (e.key === ' ' || e.key === 'Enter') {
 			e.preventDefault();
-			isOpen = !isOpen;
-			selectedIndex = 0;
+			if (!isOpen) {
+				isOpen = true;
+				selectedIndex = getInitialIndex();
+				// Focus the menu item after the menu opens
+				$effect.pre(() => {
+					if (isOpen && selectedIndex >= 0) {
+						focusMenuButton(selectedIndex);
+					}
+				});
+			} else {
+				isOpen = false;
+			}
 		} else if (e.key === 'ArrowDown' && isOpen) {
 			e.preventDefault();
 			selectedIndex = (selectedIndex + 1) % themeOptions.length;
+			focusMenuButton(selectedIndex);
 		} else if (e.key === 'ArrowUp' && isOpen) {
 			e.preventDefault();
 			selectedIndex = (selectedIndex - 1 + themeOptions.length) % themeOptions.length;
+			focusMenuButton(selectedIndex);
 		} else if (e.key === 'Escape') {
 			isOpen = false;
 		}
@@ -46,9 +70,11 @@
 		} else if (e.key === 'ArrowDown') {
 			e.preventDefault();
 			selectedIndex = (selectedIndex + 1) % themeOptions.length;
+			focusMenuButton(selectedIndex);
 		} else if (e.key === 'ArrowUp') {
 			e.preventDefault();
 			selectedIndex = (selectedIndex - 1 + themeOptions.length) % themeOptions.length;
+			focusMenuButton(selectedIndex);
 		} else if (e.key === 'Escape') {
 			e.preventDefault();
 			isOpen = false;
