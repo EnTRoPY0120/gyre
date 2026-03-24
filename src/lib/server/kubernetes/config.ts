@@ -115,12 +115,20 @@ export function createKubeConfigFromString(
 
 /**
  * Validates that the loaded config can connect to the cluster.
- * Performs a simple listNamespace call to verify connectivity.
+ * Performs a namespace-scoped probe (list pods) to verify connectivity without
+ * requiring cluster-scoped RBAC permissions. Falls back to "default" namespace
+ * if the current context doesn't specify one.
  */
 export async function validateKubeConfig(config: k8s.KubeConfig): Promise<boolean> {
 	try {
 		const k8sApi = config.makeApiClient(k8s.CoreV1Api);
-		await k8sApi.listNamespace();
+
+		// Get namespace from current context object (fall back to "default")
+		const contextObj = config.getContextObject(config.getCurrentContext());
+		const namespace = contextObj?.namespace || 'default';
+
+		// Use namespace-scoped probe to avoid requiring cluster-scoped RBAC
+		await k8sApi.listNamespacedPod({ namespace });
 		return true;
 	} catch (error) {
 		logger.error(error, 'Failed to validate kubeconfig');

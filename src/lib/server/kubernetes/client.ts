@@ -502,9 +502,9 @@ export async function getKubeConfig(
 		return config;
 	};
 
-	// Wrap promise handling to implement success-only caching
+	// Wrap promise handling to implement success-only caching with concurrent deduplication
 	if (reqCache) {
-		// Create a wrapper promise that handles caching
+		// Create the promise
 		const cachedPromise = loadConfig()
 			.then((config) => {
 				// On success, cache the resolved promise for future calls
@@ -516,6 +516,9 @@ export async function getKubeConfig(
 				reqCache.delete(key);
 				throw error;
 			});
+
+		// Store the in-flight promise immediately so concurrent callers reuse it
+		reqCache.set(key, cachedPromise);
 
 		return cachedPromise;
 	}
@@ -710,11 +713,13 @@ export async function* watchFluxResources(
 		try {
 			const result = await listFluxResources(resourceType, context);
 
+			// Reset reconnect counter on any successful poll (not just version changes)
+			reconnectAttempts = 0;
+
 			// Check if resource version changed
 			const currentVersion = result.metadata?.resourceVersion;
 			if (currentVersion !== lastResourceVersion) {
 				lastResourceVersion = currentVersion;
-				reconnectAttempts = 0; // Reset backoff on successful poll
 				yield result;
 			}
 
@@ -924,6 +929,11 @@ export async function deleteFluxResourcesBatch(
 	context?: string,
 	concurrency = 5
 ): Promise<DeleteResult[]> {
+	// Validate concurrency to prevent semaphore deadlock
+	if (concurrency <= 0) {
+		throw new RangeError('concurrency must be greater than 0');
+	}
+
 	// Allocate results array with same length as items to preserve ordering
 	const results: Array<DeleteResult | undefined> = Array.from({ length: items.length });
 	const semaphore = { active: 0, queue: [] as Array<(value: void) => void> };
