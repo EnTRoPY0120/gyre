@@ -55,7 +55,7 @@ The standard way to install Gyre directly via Helm:
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.4.2 \
+  --version 0.5.0 \
   --namespace flux-system \
   --create-namespace
 ```
