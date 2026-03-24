@@ -37,7 +37,7 @@ jobs:
       - name: Package and push Helm chart to OCI
         run: |
           helm package charts/gyre --version ${{ steps.tag.outputs.version }} --app-version ${{ steps.tag.outputs.version }}
-          helm push gyre-${{ steps.tag.outputs.version }}.tgz oci://ghcr.io/entropy0120
+          helm push gyre-${{ steps.tag.outputs.version }}.tgz oci://ghcr.io/entropy0120/charts
 
       - name: Generate Release Notes
         id: notes
@@ -58,7 +58,7 @@ jobs:
 
           **Using Helm:**
           ```bash
-          helm install gyre oci://ghcr.io/entropy0120/gyre \
+          helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
             --version ${{ steps.tag.outputs.version }} \
             --namespace flux-system \
             --create-namespace

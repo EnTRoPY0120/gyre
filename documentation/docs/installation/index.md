@@ -23,7 +23,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1h
-  url: oci://ghcr.io/entropy0120/gyre
+  url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
     semver: '>=0.1.0'
 ---
@@ -49,7 +49,7 @@ Helm is the standard way to install Gyre directly, as it provides easy configura
 ### Basic Installation
 
 ```bash
-helm install gyre oci://ghcr.io/entropy0120/gyre \
+helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
   --version 0.4.2 \
   --namespace flux-system \
   --create-namespace
@@ -101,7 +101,7 @@ persistence:
 Install with custom values:
 
 ```bash
-helm install gyre oci://ghcr.io/entropy0120/gyre \
+helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
   --namespace flux-system \
   --create-namespace \
   -f values.yaml
@@ -196,7 +196,7 @@ kubectl logs -n flux-system -l app.kubernetes.io/name=gyre
 To upgrade Gyre:
 
 ```bash
-helm upgrade gyre oci://ghcr.io/entropy0120/gyre \
+helm upgrade gyre oci://ghcr.io/entropy0120/charts/gyre \
   --version 0.4.2 \
   --namespace flux-system
 ```

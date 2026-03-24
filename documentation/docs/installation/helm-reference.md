@@ -153,7 +153,7 @@ To upgrade Gyre:
 helm repo update
 
 # Upgrade release
-helm upgrade gyre oci://ghcr.io/entropy0120/gyre \
+helm upgrade gyre oci://ghcr.io/entropy0120/charts/gyre \
   --namespace flux-system
 ```
 
@@ -165,7 +165,7 @@ POD=$(kubectl get pod -n flux-system -l app.kubernetes.io/name=gyre -o jsonpath=
 kubectl cp flux-system/$POD:/data/gyre.db ./gyre-backup-$(date +%Y%m%d).db
 
 # 2. Perform upgrade
-helm upgrade gyre oci://ghcr.io/entropy0120/gyre --namespace flux-system
+helm upgrade gyre oci://ghcr.io/entropy0120/charts/gyre --namespace flux-system
 
 # 3. Verify
 kubectl rollout status deployment/gyre -n flux-system

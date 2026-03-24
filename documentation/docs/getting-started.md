@@ -32,7 +32,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 1h
-  url: oci://ghcr.io/entropy0120/gyre
+  url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
     semver: '>=0.1.0'
 ---
@@ -54,7 +54,7 @@ spec:
 The standard way to install Gyre directly via Helm:
 
 ```bash
-helm install gyre oci://ghcr.io/entropy0120/gyre \
+helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
   --version 0.4.2 \
   --namespace flux-system \
   --create-namespace
