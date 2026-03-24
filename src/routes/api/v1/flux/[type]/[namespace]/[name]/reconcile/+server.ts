@@ -71,9 +71,11 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 			ipAddress: getClientAddress()
 		});
 
-		// Capture a reconciliation history entry for the manual trigger.
-		// We fetch the current resource state so the history record reflects what
-		// was in place at the time the user requested reconciliation.
+		// Capture a pre-reconciliation trigger event in history.
+		// The resource state fetched here reflects the previous reconciliation cycle
+		// (status, revision, and conditions are from before the new reconcile runs).
+		// triggerType: 'manual' records that the user initiated this cycle; the
+		// actual reconciliation outcome will be captured separately by the event watcher.
 		try {
 			const resource = await getFluxResource(
 				type as FluxResourceType,

@@ -236,11 +236,15 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		// An artifact URL may still be present from a previous reconciliation even
 		// when the source is currently failing, which would produce a stale diff.
 		const sourceReadyCondition = source.status?.conditions?.find((c) => c.type === 'Ready');
-		if (sourceReadyCondition && sourceReadyCondition.status !== 'True') {
+		if (!sourceReadyCondition || sourceReadyCondition.status !== 'True') {
+			const reason = sourceReadyCondition?.reason || 'Unknown';
+			const message = sourceReadyCondition?.message || '';
+			const detail = sourceReadyCondition
+				? `(${reason}: ${message})`
+				: '(Ready condition not yet reported — reconciliation may be pending)';
 			throw error(400, {
 				message:
-					`Source ${sourceRef.kind}/${sourceRef.name} is not ready ` +
-					`(${sourceReadyCondition.reason || 'Unknown'}: ${sourceReadyCondition.message || ''}). ` +
+					`Source ${sourceRef.kind}/${sourceRef.name} is not ready ${detail}. ` +
 					'Wait for the source to reconcile successfully before checking drift.',
 				code: 'BadRequest'
 			});

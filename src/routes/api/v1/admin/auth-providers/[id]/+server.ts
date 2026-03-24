@@ -205,8 +205,20 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		if (body.jwksUrl !== undefined) updates.jwksUrl = body.jwksUrl;
 		if (body.autoProvision !== undefined) updates.autoProvision = body.autoProvision;
 		if (body.defaultRole !== undefined) updates.defaultRole = body.defaultRole;
-		if (body.roleMapping !== undefined)
-			updates.roleMapping = body.roleMapping ? JSON.stringify(body.roleMapping) : null;
+		if (body.roleMapping !== undefined) {
+			if (body.roleMapping !== null) {
+				const roleMappingSchema = z.record(z.string(), z.array(z.string()));
+				const result = roleMappingSchema.safeParse(body.roleMapping);
+				if (!result.success) {
+					throw error(400, {
+						message: 'roleMapping must be an object mapping role names to arrays of group strings'
+					});
+				}
+				updates.roleMapping = JSON.stringify(result.data);
+			} else {
+				updates.roleMapping = null;
+			}
+		}
 		if (body.roleClaim !== undefined) updates.roleClaim = body.roleClaim;
 		if (body.usernameClaim !== undefined) updates.usernameClaim = body.usernameClaim;
 		if (body.emailClaim !== undefined) updates.emailClaim = body.emailClaim;

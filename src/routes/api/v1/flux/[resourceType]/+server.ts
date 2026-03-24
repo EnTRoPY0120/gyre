@@ -77,6 +77,7 @@ export const _metadata = {
 					}
 				}
 			},
+			304: { description: 'Not Modified' },
 			400: { description: 'Invalid resource type or query parameter' },
 			401: { description: 'Unauthorized' },
 			403: { description: 'Permission denied' },
