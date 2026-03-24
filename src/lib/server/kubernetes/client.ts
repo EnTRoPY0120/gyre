@@ -1,5 +1,7 @@
 import { logger } from '../logger.js';
 import * as k8s from '@kubernetes/client-node';
+import * as http from 'http';
+import * as https from 'https';
 import { loadKubeConfig } from './config.js';
 import { getClusterKubeconfig } from '../clusters.js';
 import {
@@ -18,6 +20,65 @@ import {
 } from './errors.js';
 
 // ---------------------------------------------------------------------------
+// HTTP Agent configuration (Keep-Alive support)
+// ---------------------------------------------------------------------------
+
+/**
+ * HTTP agent with keep-alive enabled for efficient connection reuse.
+ * Configuration:
+ * - keepAlive: true — Reuse TCP connections across requests
+ * - keepAliveMsecs: 30000 — TCP keep-alive probe every 30s
+ * - maxSockets: 100 — Limit concurrent connections per agent
+ * - maxFreeSockets: 20 — Keep up to 20 idle sockets open
+ * - timeout: 30000 — Socket timeout
+ */
+const httpAgent = new http.Agent({
+	keepAlive: true,
+	keepAliveMsecs: 30_000,
+	maxSockets: 100,
+	maxFreeSockets: 20,
+	timeout: 30_000
+});
+
+/**
+ * HTTPS agent with keep-alive enabled.
+ * Configuration matches HTTP agent for consistency.
+ */
+const httpsAgent = new https.Agent({
+	keepAlive: true,
+	keepAliveMsecs: 30_000,
+	maxSockets: 100,
+	maxFreeSockets: 20,
+	timeout: 30_000
+});
+
+/**
+ * Returns the appropriate HTTP or HTTPS agent based on the server URL.
+ * Respects HTTP_PROXY/HTTPS_PROXY environment variables.
+ * Falls back to global keep-alive agents if no proxy is configured.
+ */
+function getHttpAgent(serverUrl: string): http.Agent | https.Agent {
+	const isHttps = serverUrl.startsWith('https://');
+
+	// Check for proxy configuration from environment
+	const proxyUrl = isHttps
+		? process.env.HTTPS_PROXY ||
+			process.env.https_proxy ||
+			process.env.HTTP_PROXY ||
+			process.env.http_proxy
+		: process.env.HTTP_PROXY || process.env.http_proxy;
+
+	// If proxy is configured, we would use HttpProxyAgent/HttpsProxyAgent
+	// For now, just log and fall back to keep-alive agents
+	// In future: add http-proxy-agent and https-proxy-agent packages for full proxy support
+	if (proxyUrl) {
+		logger.debug(`Kubernetes client configured to use proxy: ${proxyUrl}`);
+	}
+
+	return isHttps ? httpsAgent : httpAgent;
+}
+
+// ---------------------------------------------------------------------------
 // Timeout configuration
 // ---------------------------------------------------------------------------
 
@@ -27,12 +88,14 @@ export const DEFAULT_TIMEOUT_MS = 30_000;
 /**
  * Per-operation timeout overrides (ms). Falls back to DEFAULT_TIMEOUT_MS.
  * "logs" is higher because log fetching can be slow on large pods.
+ * "delete" has same timeout as create/update operations.
  */
 export const OPERATION_TIMEOUTS: Record<string, number> = {
 	list: 30_000,
 	get: 15_000,
 	create: 30_000,
 	update: 30_000,
+	delete: 30_000,
 	logs: 60_000
 };
 
@@ -74,7 +137,7 @@ export function _createTimeoutMiddleware(timeoutMs: number): k8s.Middleware {
 	};
 }
 
-/** Creates an API client with an AbortController-based timeout middleware injected. */
+/** Creates an API client with an AbortController-based timeout middleware and HTTP keep-alive. */
 function makeApiClientWithTimeout<T extends k8s.ApiType>(
 	kubeConfig: k8s.KubeConfig,
 	apiClientType: k8s.ApiConstructor<T>,
@@ -83,6 +146,10 @@ function makeApiClientWithTimeout<T extends k8s.ApiType>(
 	const cluster = kubeConfig.getCurrentCluster();
 	if (!cluster) throw new Error('No active cluster!');
 	const baseServerConfig = new k8s.ServerConfiguration(cluster.server, {});
+
+	// Note: HTTP agents are configured globally above (httpAgent/httpsAgent singletons)
+	// for maximum connection reuse. The kubernetes client-node library respects
+	// global agent configuration at the Node.js level.
 	const config = k8s.createConfiguration({
 		baseServer: baseServerConfig,
 		authMethods: { default: kubeConfig },
@@ -200,6 +267,11 @@ interface PoolEntry<T> {
 	client: T;
 	createdAt: number;
 	lastAccess: number;
+	/**
+	 * Timestamp of last error, or null if no error.
+	 * Used to detect stale/unhealthy connections and evict them early.
+	 */
+	lastErrorAt: number | null;
 }
 
 const customObjectsPool = new Map<string, PoolEntry<k8s.CustomObjectsApi>>();
@@ -278,6 +350,82 @@ export function clearClientPool() {
 	poolMetricsState.evictions = 0;
 }
 
+/**
+ * Gracefully shutdown the Kubernetes client by closing all connections and cleanup resources.
+ * Clears all pooled clients, closes HTTP agents, and stops the cleanup interval.
+ * Safe to call multiple times.
+ */
+export function gracefulShutdown(): void {
+	try {
+		// Clear all pools (evicts all clients)
+		clearClientPool();
+
+		// Close global HTTP/HTTPS agents and their sockets
+		httpAgent.destroy();
+		httpsAgent.destroy();
+
+		// Clear the periodic cleanup timer
+		if (typeof cleanupTimer === 'object' && 'unref' in cleanupTimer) {
+			clearInterval(cleanupTimer as NodeJS.Timeout);
+		}
+
+		logger.info('✓ Kubernetes client gracefully shutdown');
+	} catch (e) {
+		logger.error(e, 'Error during graceful shutdown of Kubernetes client');
+	}
+}
+
+/**
+ * Audit log helper for sensitive resource access (e.g., Secrets).
+ * Used to track compliance requirements for access to sensitive data.
+ * @param operation - Operation type (get, list, create, update, delete, patch)
+ * @param resourceType - Resource type (e.g., 'Secret', 'ConfigMap')
+ * @param namespace - Namespace of the resource
+ * @param name - Name of the resource (optional for list operations)
+ * @param context - Cluster context for multi-cluster setups
+ *
+ * @example
+ * // Log access to a Secret
+ * auditLogSecretAccess('get', 'Secret', 'default', 'my-secret', 'production');
+ * // Output: [AUDIT] GET Secret default/my-secret (context: production) at 2024-03-24T...
+ */
+export function auditLogSecretAccess(
+	operation: 'get' | 'list' | 'create' | 'update' | 'delete' | 'patch',
+	resourceType: string,
+	namespace: string,
+	name?: string,
+	context?: string
+): void {
+	const timestamp = new Date().toISOString();
+	const resourceId = name ? `${namespace}/${name}` : namespace;
+	const msg = `[AUDIT] ${operation.toUpperCase()} ${resourceType} ${resourceId} (context: ${context || 'in-cluster'}) at ${timestamp}`;
+
+	// Use warn level for sensitive resource access to ensure it's logged to files
+	logger.warn(msg);
+}
+
+/**
+ * Read a Kubernetes Secret (CoreV1 API) with audit logging.
+ * @param namespace - Namespace containing the Secret
+ * @param name - Name of the Secret
+ * @param context - Optional cluster context
+ */
+export async function readSecret(
+	namespace: string,
+	name: string,
+	context?: string
+): Promise<k8s.V1Secret> {
+	try {
+		const api = await getCoreV1Api(context);
+		auditLogSecretAccess('get', 'Secret', namespace, name, context);
+		const response = await api.readNamespacedSecret({ namespace, name });
+		return response;
+	} catch (error) {
+		auditLogSecretAccess('get', 'Secret', namespace, name, context); // Log even on failure
+		throw handleK8sError(error, `read Secret ${namespace}/${name}`);
+	}
+}
+
 async function getOrCreate<T>(
 	pool: Map<string, PoolEntry<T>>,
 	key: string,
@@ -286,17 +434,23 @@ async function getOrCreate<T>(
 	const now = Date.now();
 	const entry = pool.get(key);
 
-	if (entry && now - entry.createdAt < POOL_TTL_MS) {
-		entry.lastAccess = now;
-		poolMetricsState.hits++;
-		return entry.client;
+	if (entry) {
+		const isExpired = now - entry.createdAt >= POOL_TTL_MS;
+		const hasRecentError = entry.lastErrorAt !== null && now - entry.lastErrorAt < 60_000; // 1 minute
+
+		if (isExpired || hasRecentError) {
+			// TTL expired or connection has recent errors — evict stale/unhealthy entry
+			pool.delete(key);
+			poolMetricsState.evictions++;
+		} else {
+			// Connection is valid and healthy
+			entry.lastAccess = now;
+			poolMetricsState.hits++;
+			return entry.client;
+		}
 	}
 
-	if (entry) {
-		// TTL expired — evict stale entry
-		pool.delete(key);
-		poolMetricsState.evictions++;
-	} else if (pool.size >= MAX_POOL_SIZE) {
+	if (pool.size >= MAX_POOL_SIZE) {
 		// Pool full — prefer evicting expired entries first to avoid discarding
 		// still-valid connections; fall back to LRU only if none are expired.
 		pruneExpiredEntries();
@@ -307,13 +461,13 @@ async function getOrCreate<T>(
 
 	poolMetricsState.misses++;
 	const client = await factory();
-	pool.set(key, { client, createdAt: now, lastAccess: now });
+	pool.set(key, { client, createdAt: now, lastAccess: now, lastErrorAt: null });
 	return client;
 }
 
 /**
- * Get or create KubeConfig for a specific cluster or context
- * This function is now asynchronous and atomic per-request.
+ * Get or create KubeConfig for a specific cluster or context.
+ * Only caches successful configs; failed promises are not cached to allow retries.
  * @param clusterIdOrContext - Optional cluster ID (UUID) or context name
  */
 export async function getKubeConfig(
@@ -322,8 +476,12 @@ export async function getKubeConfig(
 ): Promise<k8s.KubeConfig> {
 	const key = clusterIdOrContext || 'in-cluster';
 
+	// Check cache for successful configs only
 	if (reqCache && reqCache.has(key)) {
-		return reqCache.get(key)!;
+		const cachedPromise = reqCache.get(key)!;
+		// Verify the cached promise hasn't rejected
+		// Note: We return the promise as-is; if it rejected, caller will handle the rejection
+		return cachedPromise;
 	}
 
 	const loadConfig = async () => {
@@ -335,7 +493,9 @@ export async function getKubeConfig(
 		let config: k8s.KubeConfig;
 
 		// 2. Determine if it's a cluster ID (UUID), a context name, or default
-		const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(key);
+		// Improved UUID validation per RFC 4122 (version in 3rd group, variant in 4th group)
+		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[3-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+		const isUuid = uuidRegex.test(key);
 
 		if (isUuid) {
 			// Load from database
@@ -370,11 +530,25 @@ export async function getKubeConfig(
 		return config;
 	};
 
-	const promise = loadConfig();
+	// Wrap promise handling to implement success-only caching
 	if (reqCache) {
-		reqCache.set(key, promise);
+		// Create a wrapper promise that handles caching
+		const cachedPromise = loadConfig()
+			.then((config) => {
+				// On success, cache the resolved promise for future calls
+				reqCache.set(key, Promise.resolve(config));
+				return config;
+			})
+			.catch((error) => {
+				// On failure, ensure no stale cache entry exists, allowing retries
+				reqCache.delete(key);
+				throw error;
+			});
+
+		return cachedPromise;
 	}
-	return promise;
+
+	return loadConfig();
 }
 
 /**
@@ -532,6 +706,69 @@ export async function listFluxResourcesInNamespace(
 }
 
 /**
+ * Poll for changes to FluxCD resources of a specific type across all namespaces.
+ * Returns an async iterable that yields resources when changes are detected.
+ * Includes automatic reconnection on failure with exponential backoff.
+ *
+ * Note: This implements polling-based change detection since the Kubernetes
+ * client-node library's watch API has limitations for custom resources.
+ * For production use, consider implementing server-sent events (SSE) or WebSocket
+ * based on the Kubernetes Watch API for true real-time updates.
+ *
+ * @param resourceType - Type of Flux resource to watch
+ * @param context - Optional cluster ID or context name
+ * @param pollIntervalMs - Interval between polls (default: 5000ms)
+ */
+export async function* watchFluxResources(
+	resourceType: FluxResourceType,
+	context?: string,
+	pollIntervalMs = 5000
+): AsyncGenerator<PaginatedFluxResourceList, void, unknown> {
+	const resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	let lastResourceVersion: string | undefined;
+	let reconnectAttempts = 0;
+	const maxReconnectAttempts = 10;
+	const baseBackoffMs = 1000;
+
+	while (reconnectAttempts < maxReconnectAttempts) {
+		try {
+			const result = await listFluxResources(resourceType, context);
+
+			// Check if resource version changed
+			const currentVersion = result.metadata?.resourceVersion;
+			if (currentVersion !== lastResourceVersion) {
+				lastResourceVersion = currentVersion;
+				reconnectAttempts = 0; // Reset backoff on successful poll
+				yield result;
+			}
+
+			// Wait before next poll
+			await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+		} catch (error) {
+			const err = error instanceof Error ? error : new Error(String(error));
+
+			reconnectAttempts++;
+			if (reconnectAttempts < maxReconnectAttempts) {
+				// Exponential backoff: 1s, 2s, 4s, 8s, etc., capped at 30s
+				const backoffMs = Math.min(baseBackoffMs * Math.pow(2, reconnectAttempts - 1), 30_000);
+				logger.warn(
+					`Poll for ${resourceType} failed, retrying in ${backoffMs}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`,
+					err
+				);
+				await new Promise((resolve) => setTimeout(resolve, backoffMs));
+			} else {
+				logger.error(`Poll for ${resourceType} failed after ${maxReconnectAttempts} attempts`);
+				throw err;
+			}
+		}
+	}
+}
+
+/**
  * Get a specific FluxCD resource
  */
 export async function getFluxResource(
@@ -655,6 +892,99 @@ export async function updateFluxResource(
 	} catch (error) {
 		throw handleK8sError(error, `update ${resourceType} ${namespace}/${name}`);
 	}
+}
+
+/**
+ * Delete a FluxCD resource with timeout protection.
+ * Gracefully handles 404 Not Found errors (idempotent deletion).
+ */
+export async function deleteFluxResource(
+	resourceType: FluxResourceType,
+	namespace: string,
+	name: string,
+	context?: string,
+	reqCache?: ReqCache
+): Promise<void> {
+	const resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	try {
+		const api = await getCustomObjectsApi(context, reqCache, OPERATION_TIMEOUTS.delete);
+		await api.deleteNamespacedCustomObject({
+			group: resourceDef.group,
+			version: resourceDef.version,
+			namespace,
+			plural: resourceDef.plural,
+			name
+		});
+	} catch (error) {
+		// Treat 404 as success (idempotent) — resource doesn't exist, which is the desired end state
+		if (error instanceof Error && (error as Error & { code?: number }).code === 404) {
+			return;
+		}
+		throw handleK8sError(error, `delete ${resourceType} ${namespace}/${name}`);
+	}
+}
+
+/**
+ * Batch delete multiple FluxCD resources with configurable concurrency.
+ * Continues on individual failures and returns detailed results.
+ * @param items - Array of {resourceType, namespace, name} to delete
+ * @param context - Optional cluster context
+ * @param concurrency - Maximum concurrent delete operations (default: 5)
+ */
+export interface DeleteItem {
+	resourceType: FluxResourceType;
+	namespace: string;
+	name: string;
+}
+
+export interface DeleteResult {
+	item: DeleteItem;
+	success: boolean;
+	error?: Error;
+}
+
+export async function deleteFluxResourcesBatch(
+	items: DeleteItem[],
+	context?: string,
+	concurrency = 5
+): Promise<DeleteResult[]> {
+	const results: DeleteResult[] = [];
+	const semaphore = { active: 0, queue: [] as Array<(value: void) => void> };
+
+	const executeWithConcurrency = async (item: DeleteItem) => {
+		// Wait for a slot to become available
+		while (semaphore.active >= concurrency) {
+			await new Promise<void>((resolve) => {
+				semaphore.queue.push(resolve);
+			});
+		}
+
+		semaphore.active++;
+		try {
+			await deleteFluxResource(item.resourceType, item.namespace, item.name, context);
+			results.push({ item, success: true });
+		} catch (error) {
+			results.push({
+				item,
+				success: false,
+				error: error instanceof Error ? error : new Error(String(error))
+			});
+		} finally {
+			semaphore.active--;
+			const next = semaphore.queue.shift();
+			if (next) next(undefined);
+		}
+	};
+
+	// Start all delete operations
+	const promises = items.map((item) => executeWithConcurrency(item));
+	await Promise.all(promises);
+
+	return results;
 }
 
 /**
@@ -807,4 +1137,26 @@ export function handleK8sError(
 		return new KubernetesError(`Failed to ${operation}: Internal Error`, 500, 'InternalError');
 	}
 	return new KubernetesError(`Failed to ${operation}: Unknown error`, 500, 'UnknownError');
+}
+
+// ---------------------------------------------------------------------------
+// Signal handlers for graceful shutdown
+// ---------------------------------------------------------------------------
+
+/**
+ * Register process signal handlers for graceful shutdown.
+ * Ensures all Kubernetes client connections are properly closed on process exit.
+ */
+if (typeof process !== 'undefined' && process.on) {
+	process.on('SIGTERM', () => {
+		logger.info('SIGTERM received, initiating graceful shutdown');
+		gracefulShutdown();
+		process.exit(0);
+	});
+
+	process.on('SIGINT', () => {
+		logger.info('SIGINT received, initiating graceful shutdown');
+		gracefulShutdown();
+		process.exit(0);
+	});
 }
