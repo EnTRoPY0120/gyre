@@ -97,8 +97,14 @@ export class OIDCProvider implements IOAuthProvider {
 
 	/**
 	 * Generate authorization URL
+	 * PKCE is mandatory for OIDC flows — code_verifier must be provided
 	 */
 	async getAuthorizationUrl(state: string, codeVerifier?: string): Promise<URL> {
+		// PKCE is mandatory — reject requests without a verifier
+		if (!codeVerifier) {
+			throw new Error('PKCE code verifier required');
+		}
+
 		const discovery = await this.discover();
 		const scopes = this.config.scopes.split(' ').filter(Boolean);
 
@@ -110,12 +116,10 @@ export class OIDCProvider implements IOAuthProvider {
 		url.searchParams.set('scope', scopes.join(' '));
 		url.searchParams.set('state', state);
 
-		// Add PKCE whenever a verifier is provided (mandatory — not config-gated)
-		if (codeVerifier) {
-			const challenge = generateCodeChallenge(codeVerifier);
-			url.searchParams.set('code_challenge', challenge);
-			url.searchParams.set('code_challenge_method', 'S256');
-		}
+		// Add PKCE challenge and method
+		const challenge = generateCodeChallenge(codeVerifier);
+		url.searchParams.set('code_challenge', challenge);
+		url.searchParams.set('code_challenge_method', 'S256');
 
 		return url;
 	}
@@ -128,6 +132,11 @@ export class OIDCProvider implements IOAuthProvider {
 		codeVerifier?: string,
 		redirectUri?: string
 	): Promise<OAuthTokens> {
+		// PKCE is mandatory — reject requests without a verifier
+		if (!codeVerifier) {
+			throw new Error('PKCE code verifier required');
+		}
+
 		const discovery = await this.discover();
 		const clientSecret = decryptSecret(this.config.clientSecretEncrypted);
 
@@ -137,13 +146,9 @@ export class OIDCProvider implements IOAuthProvider {
 			code,
 			redirect_uri: redirectUri || this.redirectUri,
 			client_id: this.config.clientId,
-			client_secret: clientSecret
+			client_secret: clientSecret,
+			code_verifier: codeVerifier
 		});
-
-		// Include PKCE verifier whenever one is provided
-		if (codeVerifier) {
-			body.set('code_verifier', codeVerifier);
-		}
 
 		// Exchange code for token
 		const controller = new AbortController();
@@ -159,7 +164,6 @@ export class OIDCProvider implements IOAuthProvider {
 				body: body.toString(),
 				signal: controller.signal
 			});
-			clearTimeout(timeoutId);
 
 			if (!response.ok) {
 				const errorText = await response.text();
@@ -194,12 +198,13 @@ export class OIDCProvider implements IOAuthProvider {
 				scope: data.scope
 			};
 		} catch (error) {
-			clearTimeout(timeoutId);
 			throw new OAuthError(
 				`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 				'TOKEN_EXCHANGE_FAILED',
 				error
 			);
+		} finally {
+			clearTimeout(timeoutId);
 		}
 	}
 
@@ -290,7 +295,6 @@ export class OIDCProvider implements IOAuthProvider {
 				body: body.toString(),
 				signal: controller.signal
 			});
-			clearTimeout(timeoutId);
 
 			if (!response.ok) {
 				const errorText = await response.text();
@@ -325,12 +329,13 @@ export class OIDCProvider implements IOAuthProvider {
 				scope: data.scope
 			};
 		} catch (error) {
-			clearTimeout(timeoutId);
 			throw new OAuthError(
 				`Failed to refresh token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 				'TOKEN_REFRESH_FAILED',
 				error
 			);
+		} finally {
+			clearTimeout(timeoutId);
 		}
 	}
 
