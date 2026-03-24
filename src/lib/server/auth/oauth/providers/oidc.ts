@@ -259,6 +259,9 @@ export class OIDCProvider implements IOAuthProvider {
 			client_secret: clientSecret
 		});
 
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
 		try {
 			const response = await fetch(discovery.token_endpoint, {
 				method: 'POST',
@@ -266,8 +269,10 @@ export class OIDCProvider implements IOAuthProvider {
 					'Content-Type': 'application/x-www-form-urlencoded',
 					Accept: 'application/json'
 				},
-				body: body.toString()
+				body: body.toString(),
+				signal: controller.signal
 			});
+			clearTimeout(timeoutId);
 
 			if (!response.ok) {
 				const errorText = await response.text();
@@ -275,6 +280,11 @@ export class OIDCProvider implements IOAuthProvider {
 			}
 
 			const data = await response.json();
+
+			// Validate access token exists
+			if (!data.access_token) {
+				throw new Error('Missing access_token in OIDC token response');
+			}
 
 			// Validate the refreshed ID token before trusting it
 			if (data.id_token) {
@@ -290,6 +300,7 @@ export class OIDCProvider implements IOAuthProvider {
 				scope: data.scope
 			};
 		} catch (error) {
+			clearTimeout(timeoutId);
 			throw new OAuthError(
 				`Failed to refresh token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 				'TOKEN_REFRESH_FAILED',
