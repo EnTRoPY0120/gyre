@@ -227,7 +227,9 @@ networkPolicy:
   # Namespace where the Kubernetes API server endpoint lives (used in egress API rule)
   apiServerNamespace: default
   ingress:
-    # Allow ingress from pods with matching labels
+    # Restrict ingress to pods matching these labels (e.g. your ingress controller).
+    # When empty (default), all ingress is allowed so the app is reachable out of
+    # the box. Set this in production to limit ingress to known sources.
     podSelector: {}
       # Example: Allow from ingress-nginx
       # matchLabels:
