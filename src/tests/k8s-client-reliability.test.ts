@@ -44,14 +44,8 @@ describe('Connection Validation', () => {
 // Cache Behavior
 // ---------------------------------------------------------------------------
 
-describe('Request Cache Behavior', () => {
-	test('cache type definitions are correct', () => {
-		// ReqCache is a Map<string, Promise<KubeConfig>>
-		// The important behavior is that failed promises are not cached
-		// This is tested in integration tests with actual failures
-		expect(true).toBe(true);
-	});
-});
+// Request cache behavior (success-only caching, failure exclusion) is validated
+// through integration tests with actual Kubernetes client operations.
 
 // ---------------------------------------------------------------------------
 // Delete Operations
@@ -109,8 +103,8 @@ describe('UUID Validation (RFC 4122)', () => {
 	});
 
 	test('valid UUID v3 passes', () => {
-		// UUID v3 (MD5): version=3
-		const uuid = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
+		// UUID v3 (MD5): version=3 in 3rd group, variant 8-b in 4th group
+		const uuid = 'a3bb189e-8bf9-3888-9912-ace4e6543002';
 		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[3-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 		expect(uuidRegex.test(uuid)).toBe(true);
 	});
