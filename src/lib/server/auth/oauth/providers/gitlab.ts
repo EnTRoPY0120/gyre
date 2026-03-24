@@ -204,6 +204,14 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 
 					const data = await response.json();
 
+					if (data.error) {
+						throw new Error(data.error_description ?? data.error);
+					}
+
+					if (!data.access_token) {
+						throw new Error('Missing access_token in GitLab token response');
+					}
+
 					return {
 						accessToken: data.access_token,
 						refreshToken: data.refresh_token,
@@ -276,6 +284,10 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 				}
 
 				const data = await response.json();
+
+				if (data.error) {
+					throw new Error(data.error_description ?? data.error);
+				}
 
 				if (!data.access_token) {
 					throw new Error('Missing access_token in GitLab refresh response');
