@@ -22,7 +22,7 @@ export const authProviderSchema = z.object({
 	jwksUrl: z.string().nullable().optional(),
 	autoProvision: z.boolean(),
 	defaultRole: z.enum(['admin', 'editor', 'viewer']),
-	roleMapping: z.record(z.string(), z.string()).nullable().optional(),
+	roleMapping: z.record(z.string(), z.array(z.string())).nullable().optional(),
 	roleClaim: z.string().openapi({ example: 'groups' }),
 	usernameClaim: z.string().openapi({ example: 'preferred_username' }),
 	emailClaim: z.string().openapi({ example: 'email' }),

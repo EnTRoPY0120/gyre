@@ -52,7 +52,7 @@ export const _metadata = {
 							jwksUrl: z.string().optional(),
 							autoProvision: z.boolean().optional(),
 							defaultRole: z.enum(['admin', 'editor', 'viewer']).optional(),
-							roleMapping: z.record(z.string(), z.string()).optional(),
+							roleMapping: z.record(z.string(), z.array(z.string())).optional(),
 							roleClaim: z.string().optional(),
 							usernameClaim: z.string().optional(),
 							emailClaim: z.string().optional(),
