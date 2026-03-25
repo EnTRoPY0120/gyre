@@ -168,6 +168,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 
 		// Validate roleMapping shape before persisting — each value must be an array
 		// of strings, matching the Record<string, string[]> expected by mapRoleFromGroups.
+		let validatedRoleMapping: Record<string, string[]> | null = roleMapping ?? null;
 		if (roleMapping != null) {
 			const roleMappingSchema = z.record(z.string(), z.array(z.string()));
 			const result = roleMappingSchema.safeParse(roleMapping);
@@ -176,6 +177,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 					message: 'roleMapping must be an object mapping role names to arrays of group strings'
 				});
 			}
+			validatedRoleMapping = result.data;
 		}
 
 		// Encrypt client secret
@@ -196,7 +198,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 			jwksUrl: jwksUrl || null,
 			autoProvision,
 			defaultRole,
-			roleMapping: roleMapping ? JSON.stringify(roleMapping) : null,
+			roleMapping: validatedRoleMapping ? JSON.stringify(validatedRoleMapping) : null,
 			roleClaim,
 			usernameClaim,
 			emailClaim,

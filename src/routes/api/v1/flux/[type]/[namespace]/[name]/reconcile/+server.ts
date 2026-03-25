@@ -7,7 +7,6 @@ import { checkPermission } from '$lib/server/rbac.js';
 import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
-import { getFluxResource } from '$lib/server/kubernetes/client';
 import { captureReconciliation } from '$lib/server/kubernetes/flux/reconciliation-tracker';
 
 export const _metadata = {
@@ -71,24 +70,16 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 			ipAddress: getClientAddress()
 		});
 
-		// Capture a pre-reconciliation trigger event in history.
-		// The resource state fetched here reflects the previous reconciliation cycle
-		// (status, revision, and conditions are from before the new reconcile runs).
-		// triggerType: 'manual' records that the user initiated this cycle; the
-		// actual reconciliation outcome will be captured separately by the event watcher.
+		// Capture a trigger-only history entry. No resource is passed so only
+		// the trigger metadata (who, when) is stored — no stale revision or status
+		// from the previous cycle. The actual reconciliation outcome will be
+		// captured separately by the event watcher once FluxCD completes the cycle.
 		try {
-			const resource = await getFluxResource(
-				type as FluxResourceType,
-				namespace,
-				name,
-				locals.cluster
-			);
 			await captureReconciliation({
 				resourceType: type as FluxResourceType,
 				namespace,
 				name,
 				clusterId: locals.cluster ?? 'in-cluster',
-				resource,
 				triggerType: 'manual',
 				triggeredByUserId: locals.user.id
 			});

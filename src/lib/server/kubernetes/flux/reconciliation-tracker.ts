@@ -105,84 +105,116 @@ export interface CaptureReconciliationOptions {
 	namespace: string;
 	name: string;
 	clusterId: string;
-	resource: FluxResource;
+	/** Full resource state for outcome events. Omit for trigger-only entries
+	 *  (e.g. manual reconcile) where no outcome is available yet. */
+	resource?: FluxResource;
 	triggerType?: 'automatic' | 'manual' | 'webhook' | 'rollback';
 	triggeredByUserId?: string | null;
 }
 
 /**
- * Capture a reconciliation event to the database
- * This is called whenever a FluxCD resource completes a reconciliation
+ * Capture a reconciliation event to the database.
+ * Called either when a FluxCD resource completes a reconciliation (resource
+ * provided) or when a reconciliation is manually triggered (no resource) to
+ * record the trigger event without stale status/revision data.
  */
 export async function captureReconciliation(options: CaptureReconciliationOptions): Promise<void> {
 	try {
 		const db = getDbSync();
 
-		const readyCondition = options.resource.status?.conditions?.find((c) => c.type === 'Ready');
-		const revision = getResourceRevision(options.resource);
-		const previousRevision = getPreviousRevision(options.resource);
-		const status = determineStatus(readyCondition);
-		const durationMs = calculateDuration(options.resource);
-		const reconcileStartedAt = getReconcileStartTime(options.resource);
-		const reconcileCompletedAt = getReconcileCompletedTime(options.resource);
-		const stalledReason = getStalledReason(options.resource);
+		let entry: NewReconciliationHistory;
 
-		// Extract error message for failed reconciliations
-		const errorMessage =
-			status === 'failure' && readyCondition?.message ? readyCondition.message : null;
+		if (options.resource) {
+			// Outcome entry: extract all status fields from the resource.
+			const readyCondition = options.resource.status?.conditions?.find((c) => c.type === 'Ready');
+			const revision = getResourceRevision(options.resource);
+			const previousRevision = getPreviousRevision(options.resource);
+			const status = determineStatus(readyCondition);
+			const durationMs = calculateDuration(options.resource);
+			const reconcileStartedAt = getReconcileStartTime(options.resource);
+			const reconcileCompletedAt = getReconcileCompletedTime(options.resource);
+			const stalledReason = getStalledReason(options.resource);
+			const errorMessage =
+				status === 'failure' && readyCondition?.message ? readyCondition.message : null;
 
-		// Check for duplicate entry using revision + status + readyReason.
-		// Timestamps are intentionally excluded: Kubernetes timestamps can vary by
-		// milliseconds between polls, causing the same reconciliation event to be
-		// inserted more than once. Revision + outcome is a stable dedup key.
-		if (revision) {
-			const readyReasonCondition = readyCondition?.reason
-				? eq(reconciliationHistory.readyReason, readyCondition.reason)
-				: isNull(reconciliationHistory.readyReason);
+			// Check for duplicate entry using revision + status + readyReason.
+			// Timestamps are intentionally excluded: Kubernetes timestamps can vary by
+			// milliseconds between polls, causing the same reconciliation event to be
+			// inserted more than once. Revision + outcome is a stable dedup key.
+			if (revision) {
+				const readyReasonCondition = readyCondition?.reason
+					? eq(reconciliationHistory.readyReason, readyCondition.reason)
+					: isNull(reconciliationHistory.readyReason);
 
-			const existing = await db.query.reconciliationHistory.findFirst({
-				where: and(
-					eq(reconciliationHistory.resourceType, options.resourceType),
-					eq(reconciliationHistory.namespace, options.namespace),
-					eq(reconciliationHistory.name, options.name),
-					eq(reconciliationHistory.clusterId, options.clusterId),
-					eq(reconciliationHistory.revision, revision),
-					eq(reconciliationHistory.status, status),
-					readyReasonCondition
-				)
-			});
+				const existing = await db.query.reconciliationHistory.findFirst({
+					where: and(
+						eq(reconciliationHistory.resourceType, options.resourceType),
+						eq(reconciliationHistory.namespace, options.namespace),
+						eq(reconciliationHistory.name, options.name),
+						eq(reconciliationHistory.clusterId, options.clusterId),
+						eq(reconciliationHistory.revision, revision),
+						eq(reconciliationHistory.status, status),
+						readyReasonCondition
+					)
+				});
 
-			if (existing) {
-				// Already captured this reconciliation
-				return;
+				if (existing) {
+					// Already captured this reconciliation
+					return;
+				}
 			}
-		}
 
-		const entry: NewReconciliationHistory = {
-			id: crypto.randomUUID(),
-			resourceType: options.resourceType,
-			namespace: options.namespace,
-			name: options.name,
-			clusterId: options.clusterId,
-			revision: revision || null,
-			previousRevision: previousRevision,
-			status,
-			readyStatus: readyCondition?.status || null,
-			readyReason: readyCondition?.reason || null,
-			readyMessage: readyCondition?.message || null,
-			reconcileStartedAt: reconcileStartedAt,
-			reconcileCompletedAt: reconcileCompletedAt,
-			durationMs: durationMs,
-			specSnapshot: options.resource.spec ? JSON.stringify(options.resource.spec) : null,
-			metadataSnapshot: JSON.stringify({
-				labels: options.resource.metadata.labels || {},
-				annotations: options.resource.metadata.annotations || {}
-			}),
-			triggerType: options.triggerType || 'automatic',
-			triggeredByUser: options.triggeredByUserId || null,
-			errorMessage: errorMessage,
-			stalledReason: stalledReason
-		};
+			entry = {
+				id: crypto.randomUUID(),
+				resourceType: options.resourceType,
+				namespace: options.namespace,
+				name: options.name,
+				clusterId: options.clusterId,
+				revision: revision || null,
+				previousRevision: previousRevision,
+				status,
+				readyStatus: readyCondition?.status || null,
+				readyReason: readyCondition?.reason || null,
+				readyMessage: readyCondition?.message || null,
+				reconcileStartedAt: reconcileStartedAt,
+				reconcileCompletedAt: reconcileCompletedAt,
+				durationMs: durationMs,
+				specSnapshot: options.resource.spec ? JSON.stringify(options.resource.spec) : null,
+				metadataSnapshot: JSON.stringify({
+					labels: options.resource.metadata.labels || {},
+					annotations: options.resource.metadata.annotations || {}
+				}),
+				triggerType: options.triggerType || 'automatic',
+				triggeredByUser: options.triggeredByUserId || null,
+				errorMessage: errorMessage,
+				stalledReason: stalledReason
+			};
+		} else {
+			// Trigger-only entry: no resource state available yet.
+			// Stores only who triggered the reconciliation and when.
+			entry = {
+				id: crypto.randomUUID(),
+				resourceType: options.resourceType,
+				namespace: options.namespace,
+				name: options.name,
+				clusterId: options.clusterId,
+				revision: null,
+				previousRevision: null,
+				status: 'unknown',
+				readyStatus: null,
+				readyReason: null,
+				readyMessage: null,
+				reconcileStartedAt: null,
+				reconcileCompletedAt: new Date(),
+				durationMs: null,
+				specSnapshot: null,
+				metadataSnapshot: null,
+				triggerType: options.triggerType || 'manual',
+				triggeredByUser: options.triggeredByUserId || null,
+				errorMessage: null,
+				stalledReason: null
+			};
+		}
 
 		await db.insert(reconciliationHistory).values(entry);
 	} catch (error) {
