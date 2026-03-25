@@ -257,6 +257,8 @@ async function poll(context: ClusterContext) {
 					context.clusterId === 'in-cluster' ? undefined : context.clusterId
 				);
 
+				if (!context.isActive) return;
+
 				resourcePollsTotal.labels(context.clusterId, resourceType, 'success').inc();
 
 				if (resourceList && resourceList.items) {
@@ -341,6 +343,8 @@ async function poll(context: ClusterContext) {
 									// Don't fail event broadcast if history capture fails
 								}
 
+								if (!context.isActive) return;
+
 								broadcast(context, {
 									type: 'ADDED',
 									clusterId: context.clusterId,
@@ -400,6 +404,8 @@ async function poll(context: ClusterContext) {
 										);
 										// Don't fail event broadcast if history capture fails
 									}
+
+									if (!context.isActive) return;
 
 									broadcast(context, {
 										type: 'MODIFIED',
