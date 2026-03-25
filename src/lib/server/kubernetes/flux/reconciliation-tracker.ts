@@ -49,10 +49,12 @@ function calculateDuration(resource: FluxResource): number | null {
 	if (!startTime) return null;
 	const durationMs = endTime.getTime() - startTime.getTime();
 	if (durationMs < 0) return null;
-	// For deployment resources (Kustomization, HelmRelease) without an artifact,
-	// both timestamps are derived from the same Ready condition lastTransitionTime,
-	// so durationMs is 0 but the real duration is unknown — return null instead.
-	if (durationMs === 0 && !resource.status?.artifact) return null;
+	// When durationMs is 0, both timestamps came from the same Ready condition
+	// lastTransitionTime — either because there is no artifact, or because the
+	// artifact exists but has no lastUpdateTime yet (partially-populated status).
+	// In both cases the real duration is unknown, so return null.
+	if (durationMs === 0 && (!resource.status?.artifact || !resource.status.artifact.lastUpdateTime))
+		return null;
 	return durationMs;
 }
 
