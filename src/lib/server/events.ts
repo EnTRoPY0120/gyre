@@ -208,6 +208,9 @@ function stopWorker(context: ClusterContext, reason: string = 'no active subscri
 		const [type, namespace, name] = key.split('/');
 		fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
 	}
+	context.lastStates.clear();
+	context.lastNotificationStates.clear();
+	context.resourceFirstSeen.clear();
 	logger.info(
 		{ clusterId: context.clusterId, reason },
 		'[EventBus] Stopping consolidated polling worker'
@@ -367,10 +370,10 @@ async function poll(context: ClusterContext) {
 								const becameFailed = currState.readyStatus === 'False';
 								const becameHealthy =
 									prevState.readyStatus === 'False' && currState.readyStatus === 'True';
-								const isTransientState = currState.readyStatus === 'Unknown';
+								const isTransientState =
+									!currState.readyStatus || currState.readyStatus === 'Unknown';
 
-								const shouldNotify =
-									revisionChanged || becameFailed || (becameHealthy && revisionChanged);
+								const shouldNotify = revisionChanged || becameFailed || becameHealthy;
 
 								if (shouldNotify && !isTransientState) {
 									resourceUpdatesTotal.labels(context.clusterId, resourceType, 'modified').inc();

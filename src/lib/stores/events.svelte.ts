@@ -156,7 +156,20 @@ class RealtimeStore {
 				JSON.stringify({ sessionId: this.lastServerSessionId, entries: stateArray })
 			);
 		} catch (err) {
-			logger.error(err, '[Storage] Failed to persist notifications:');
+			if (err instanceof DOMException && err.name === 'QuotaExceededError') {
+				try {
+					const reduced = this.notifications.slice(0, Math.floor(MAX_NOTIFICATIONS / 2));
+					localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(reduced));
+					localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
+					logger.warn('[Storage] localStorage quota exceeded, saved reduced notification set');
+				} catch {
+					localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
+					localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
+					logger.warn('[Storage] localStorage quota exceeded, cleared notifications storage');
+				}
+			} else {
+				logger.error(err, '[Storage] Failed to persist notifications:');
+			}
 		}
 	}
 
@@ -331,9 +344,8 @@ class RealtimeStore {
 		const revision = this.getRevisionFromResource(event.resource);
 		const messagePreview = readyCondition?.message?.substring(0, MESSAGE_PREVIEW_LENGTH) || '';
 
-		// Match the server-side notificationState structure
+		// Match the server-side notificationState structure exactly (no extra fields)
 		const currentState = JSON.stringify({
-			type: event.type, // Include event type in client state
 			revision: revision,
 			readyStatus: readyCondition?.status,
 			readyReason: readyCondition?.reason,
