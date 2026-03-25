@@ -159,8 +159,8 @@ class RealtimeStore {
 			if (err instanceof DOMException && err.name === 'QuotaExceededError') {
 				try {
 					const reduced = this.notifications.slice(0, Math.floor(MAX_NOTIFICATIONS / 2));
-					localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(reduced));
 					localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
+					localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(reduced));
 					logger.warn('[Storage] localStorage quota exceeded, saved reduced notification set');
 				} catch {
 					localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
