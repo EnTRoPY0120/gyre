@@ -497,12 +497,8 @@ describe('OIDCProvider — mapClaimsToUserInfo()', () => {
 		expect(info.groups).toEqual(['admin', 'developers']);
 	});
 
-	test('maps custom groups claim (string) to single-element groups array via userinfo endpoint', async () => {
-		// Note: mapClaimsToUserInfo maps string groups to ['single-group'] internally,
-		// but the final spread { ...userInfo, ...claims } means the raw claim value
-		// from claims overwrites the mapped groups. When groups is a string in the
-		// userinfo response, the returned object will have groups as a string (raw claim wins).
-		// We verify the internal mapping via a userinfo endpoint returning a string groups claim.
+	test('passes string groups claim through as raw string (not converted to array due to spread override)', async () => {
+		// TODO: The spread { ...userInfo, ...claims } overwrites the mapped groups array with the raw string value. This means string roleClaims are not converted to arrays as intended. This is a known implementation quirk.
 		const uniqueIssuer = `https://string-group-${Date.now()}.example.com`;
 		const discovery = {
 			...MOCK_DISCOVERY,
@@ -532,10 +528,6 @@ describe('OIDCProvider — mapClaimsToUserInfo()', () => {
 		});
 		try {
 			const info = await provider.getUserInfo({ accessToken: 'token', tokenType: 'Bearer' });
-			// The final { ...userInfo, ...claims } spread means the raw claim overrides
-			// the mapped groups array — so the string value is preserved in the output.
-			// The mapping logic (string → array) is internally applied before the spread
-			// but overwritten. This tests the actual observable behavior.
 			expect(info['groups']).toBe('single-group');
 		} finally {
 			spy.mockRestore();
