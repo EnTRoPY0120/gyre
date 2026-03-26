@@ -34,6 +34,7 @@ export interface SSEEvent {
 	message?: string;
 	timestamp: string;
 	serverSessionId?: string;
+	reason?: string;
 }
 
 // Stable identifier for this server process lifetime; changes on restart
@@ -86,7 +87,8 @@ export async function closeAllEventStreams() {
 		broadcast(context, {
 			type: 'SHUTDOWN',
 			clusterId,
-			timestamp: new Date().toISOString()
+			timestamp: new Date().toISOString(),
+			reason: 'server_shutdown'
 		});
 		// Explicitly call stopWorker to guarantee timer cleanup even if a subscriber throws.
 		// It is safe if stopWorker is called twice (idempotent check for null intervals).

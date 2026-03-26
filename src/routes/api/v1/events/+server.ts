@@ -154,7 +154,8 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 							type: 'SHUTDOWN',
 							clusterId,
 							message: 'Connection timeout – please reconnect',
-							timestamp: new Date().toISOString()
+							timestamp: new Date().toISOString(),
+							reason: 'connection_timeout'
 						};
 						try {
 							controller.enqueue(encoder.encode(`data: ${JSON.stringify(timeoutEvent)}\n\n`));
