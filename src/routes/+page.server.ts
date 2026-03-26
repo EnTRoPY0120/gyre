@@ -16,7 +16,7 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 		const cached = getDashboardCache(cacheKey);
 
 		// Return cached data if still valid
-		if (cached) {
+		if (cached !== null) {
 			return cached as Record<
 				string,
 				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
