@@ -218,7 +218,14 @@ class RealtimeStore {
 			};
 
 			this.eventSource.onerror = () => {
-				logger.warn('[SSE] Connection error');
+				// readyState === CLOSED means the server closed the connection cleanly;
+				// readyState === CONNECTING means a connection attempt failed or was interrupted.
+				const rs = this.eventSource?.readyState;
+				if (rs === EventSource.CLOSED) {
+					logger.info('[SSE] Connection closed');
+				} else {
+					logger.warn('[SSE] Connection error');
+				}
 				this.status = 'error';
 				this.notifyStatusChange('error');
 				this.eventSource?.close();
@@ -257,11 +264,19 @@ class RealtimeStore {
 
 	private scheduleReconnect() {
 		if (this.isServerShutdown) {
-			return;
+			// In development, the server may have restarted (HMR) while the client is alive.
+			// Allow reconnecting in dev mode; in production, respect the shutdown signal.
+			if (import.meta.env.DEV) {
+				this.isServerShutdown = false;
+			} else {
+				return;
+			}
 		}
 
 		if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-			logger.warn('[SSE] Max reconnect attempts reached');
+			logger.warn('[SSE] Max reconnect attempts reached, giving up');
+			this.status = 'error';
+			this.notifyStatusChange('error');
 			return;
 		}
 
