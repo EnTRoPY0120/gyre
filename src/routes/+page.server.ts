@@ -3,7 +3,7 @@ import { resourceGroups } from '$lib/config/resources';
 import { logger } from '$lib/server/logger.js';
 import { fetchWithRetry } from '$lib/utils/fetch';
 import { DASHBOARD_CACHE_TTL_MS } from '$lib/server/config/constants';
-import { dashboardCache, pruneDashboardCache } from '$lib/server/dashboard-cache';
+import { getDashboardCache, setDashboardCache } from '$lib/server/dashboard-cache';
 
 export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHeaders }) => {
 	// Get health data from parent layout
@@ -13,11 +13,11 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 	const fetchGroupCounts = async () => {
 		// Create cache key based on cluster
 		const cacheKey = `dashboard-${parentData.health?.clusterName || 'default'}`;
-		const cached = dashboardCache.get(cacheKey);
+		const cached = getDashboardCache(cacheKey);
 
 		// Return cached data if still valid
-		if (cached && Date.now() - cached.timestamp < DASHBOARD_CACHE_TTL_MS) {
-			return cached.data as Record<
+		if (cached) {
+			return cached as Record<
 				string,
 				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
 			>;
@@ -82,9 +82,7 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 			};
 		}
 
-		// Prune stale/excess entries before inserting
-		pruneDashboardCache();
-		dashboardCache.set(cacheKey, { data: groupCounts, timestamp: Date.now() });
+		setDashboardCache(cacheKey, groupCounts);
 		return groupCounts;
 	};
 
