@@ -50,6 +50,8 @@ export const _metadata = {
 		}
 	}
 };
+const MAX_CONNECTION_CACHE_SIZE = 20;
+
 // Cache for connection status per cluster
 const connectionCache = new Map<string, { connected: boolean; timestamp: number }>();
 const CONNECTION_CACHE_TTL = 30 * 1000; // 30 seconds
@@ -60,6 +62,12 @@ function pruneConnectionCache() {
 		if (now - value.timestamp > CONNECTION_CACHE_TTL * 10) {
 			connectionCache.delete(key);
 		}
+	}
+	if (connectionCache.size > MAX_CONNECTION_CACHE_SIZE) {
+		const sorted = [...connectionCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+		sorted
+			.slice(0, connectionCache.size - MAX_CONNECTION_CACHE_SIZE)
+			.forEach(([k]) => connectionCache.delete(k));
 	}
 }
 
@@ -79,10 +87,8 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 
 		// Check connection - use cache if recent, otherwise validate
 		let isValid = false;
-		let connectionSource = 'fresh';
 		if (Date.now() - cached.timestamp < CONNECTION_CACHE_TTL) {
 			isValid = cached.connected;
-			connectionSource = 'cached';
 		} else {
 			isValid = await validateKubeConfig(config);
 			pruneConnectionCache();
@@ -117,8 +123,7 @@ export const GET: RequestHandler = async ({ setHeaders, locals }) => {
 		};
 
 		setHeaders({
-			'Cache-Control': 'private, max-age=30',
-			'X-Cache': connectionSource === 'cached' ? 'HIT' : 'MISS'
+			'Cache-Control': 'private, max-age=30'
 		});
 
 		return json(responseData);
