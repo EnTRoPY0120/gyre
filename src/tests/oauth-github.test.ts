@@ -47,7 +47,7 @@ const mockConfig = {
 	jwksUrl: null,
 	autoProvision: true,
 	defaultRole: 'viewer',
-	roleMapping: null,
+	roleMapping: null as string | null,
 	roleClaim: 'groups',
 	usernameClaim: 'preferred_username',
 	emailClaim: 'email',
@@ -55,7 +55,7 @@ const mockConfig = {
 	scopes: 'read:user user:email',
 	createdAt: new Date(),
 	updatedAt: new Date()
-} as const;
+};
 
 // Helpers
 function makeProvider(configOverrides: Partial<typeof mockConfig> = {}) {
@@ -112,81 +112,56 @@ describe('GitHubProvider.getAuthorizationUrl()', () => {
 // ---------------------------------------------------------------------------
 
 describe('GitHubProvider.validateCallback() — PKCE path', () => {
-	let fetchSpy: ReturnType<typeof spyOn>;
-	let capturedBody: string | null = null;
-
-	beforeEach(() => {
-		capturedBody = null;
-		fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (input: string | URL | Request) => {
-				const urlStr = input.toString();
-				if (urlStr.includes('access_token')) {
-					// Capture the request body for later assertions via a side channel
-					// (fetch mock receives Request object when body is set)
-					if (input instanceof Request) {
-						capturedBody = await input.text();
-					}
-					return new Response(
-						JSON.stringify({
-							access_token: 'pkce-access-token',
-							token_type: 'bearer',
-							scope: 'read:user user:email'
-						}),
-						{ status: 200, headers: { 'Content-Type': 'application/json' } }
-					);
-				}
-				return new Response('not found', { status: 404 });
-			}
-		);
-	});
-
-	afterEach(() => {
-		fetchSpy.mockRestore();
-	});
-
-	test('calls GitHub token endpoint with code_verifier in body', async () => {
-		const provider = makeProvider();
-		// We capture what was sent; since fetch mock receives string body, we need
-		// to intercept differently — check fetch was called with the right URL
-		const fetchMock = spyOn(globalThis, 'fetch').mockImplementation(
-			async (input: string | URL | Request, init?: RequestInit) => {
-				const urlStr = input.toString();
-				if (urlStr.includes('access_token')) {
-					const body = init?.body?.toString() ?? '';
-					capturedBody = body;
-					return new Response(
-						JSON.stringify({ access_token: 'pkce-access-token', token_type: 'bearer' }),
-						{ status: 200, headers: { 'Content-Type': 'application/json' } }
-					);
-				}
-				return new Response('not found', { status: 404 });
-			}
-		);
-
-		await provider.validateCallback('auth-code', 'my-code-verifier');
-
-		expect(capturedBody).toContain('code_verifier=my-code-verifier');
-		expect(capturedBody).toContain('code=auth-code');
-		fetchMock.mockRestore();
-	});
-
-	test('returns accessToken extracted from token response', async () => {
-		// Use a fresh spy that captures init
-		fetchSpy.mockRestore();
-		const fetchMock2 = spyOn(globalThis, 'fetch').mockImplementation(
-			async (_input: string | URL | Request, _init?: RequestInit) => {
+	test('sends code_verifier in request body', async () => {
+		let capturedBody: string | null = null;
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(
+			async (_url: string | URL | Request, init?: RequestInit) => {
+				capturedBody = init?.body?.toString() ?? null;
 				return new Response(
 					JSON.stringify({ access_token: 'pkce-access-token', token_type: 'bearer' }),
 					{ status: 200, headers: { 'Content-Type': 'application/json' } }
 				);
 			}
 		);
+		try {
+			const provider = makeProvider();
+			await provider.validateCallback('auth-code', 'my-code-verifier');
+			expect(capturedBody).toContain('code_verifier=my-code-verifier');
+			expect(capturedBody).toContain('code=auth-code');
+		} finally {
+			spy.mockRestore();
+		}
+	});
 
-		const provider = makeProvider();
-		const tokens = await provider.validateCallback('auth-code', 'my-code-verifier');
+	test('returns accessToken extracted from token response', async () => {
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+			return new Response(
+				JSON.stringify({ access_token: 'pkce-access-token', token_type: 'bearer' }),
+				{ status: 200, headers: { 'Content-Type': 'application/json' } }
+			);
+		});
+		try {
+			const provider = makeProvider();
+			const tokens = await provider.validateCallback('auth-code', 'my-code-verifier');
+			expect(tokens.accessToken).toBe('pkce-access-token');
+		} finally {
+			spy.mockRestore();
+		}
+	});
 
-		expect(tokens.accessToken).toBe('pkce-access-token');
-		fetchMock2.mockRestore();
+	test('throws OAuthError when request times out', async () => {
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+			const err = new DOMException('The operation was aborted', 'AbortError');
+			throw err;
+		});
+		try {
+			const provider = makeProvider();
+			await expect(provider.validateCallback('code', 'verifier')).rejects.toMatchObject({
+				code: 'TOKEN_EXCHANGE_FAILED'
+			});
+		} finally {
+			spy.mockRestore();
+		}
 	});
 });
 
@@ -228,17 +203,6 @@ describe('GitHubProvider.validateCallback() — error handling', () => {
 			code: 'TOKEN_EXCHANGE_FAILED'
 		});
 	});
-
-	test('thrown error is an instance of OAuthError', async () => {
-		const provider = makeProvider();
-		let caughtError: unknown;
-		try {
-			await provider.validateCallback('bad-code', 'verifier');
-		} catch (e) {
-			caughtError = e;
-		}
-		expect(caughtError).toBeInstanceOf(OAuthError);
-	});
 });
 
 // ---------------------------------------------------------------------------
@@ -256,10 +220,10 @@ describe('GitHubProvider.getUserInfo() — email in profile', () => {
 					return new Response(
 						JSON.stringify({
 							id: 42,
-							login: 'testuser',
-							name: 'Test User',
-							email: 'test@example.com',
-							avatar_url: 'https://github.com/avatars/42',
+							login: 'octocat',
+							email: 'user@github.com',
+							name: 'The Octocat',
+							avatar_url: 'https://example.com/avatar.png',
 							type: 'User'
 						}),
 						{ status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -274,27 +238,12 @@ describe('GitHubProvider.getUserInfo() — email in profile', () => {
 		fetchSpy.mockRestore();
 	});
 
-	test('uses email from profile directly when present', async () => {
+	test('returns user info with email, sub, username, and empty groups', async () => {
 		const provider = makeProvider();
-		const info = await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });
-		expect(info.email).toBe('test@example.com');
-	});
-
-	test('sets sub to user id string', async () => {
-		const provider = makeProvider();
-		const info = await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });
+		const info = await provider.getUserInfo({ accessToken: 'token', tokenType: 'Bearer' });
+		expect(info.email).toBe('user@github.com');
 		expect(info.sub).toBe('42');
-	});
-
-	test('sets username to login', async () => {
-		const provider = makeProvider();
-		const info = await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });
-		expect(info.username).toBe('testuser');
-	});
-
-	test('groups is empty when no roleMapping configured', async () => {
-		const provider = makeProvider({ roleMapping: null });
-		const info = await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });
+		expect(info.username).toBe('octocat');
 		expect(info.groups).toEqual([]);
 	});
 });
@@ -400,14 +349,14 @@ describe('GitHubProvider.getUserInfo() — fetchGroups with roleMapping', () => 
 	});
 
 	test('includes org names in groups', async () => {
-		const provider = makeProvider({ roleMapping: '{}' } as never);
+		const provider = makeProvider({ roleMapping: '{}' as unknown as string });
 		const info = await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });
 		expect(info.groups).toContain('my-org');
 		expect(info.groups).toContain('another-org');
 	});
 
 	test('includes org/team-slug format for each team', async () => {
-		const provider = makeProvider({ roleMapping: '{}' } as never);
+		const provider = makeProvider({ roleMapping: '{}' as unknown as string });
 		const info = await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });
 		expect(info.groups).toContain('my-org/backend-team');
 		expect(info.groups).toContain('another-org/all-team');
@@ -441,16 +390,5 @@ describe('GitHubProvider.getUserInfo() — API failure', () => {
 			name: 'OAuthError',
 			code: 'USERINFO_FAILED'
 		});
-	});
-
-	test('thrown error is an instance of OAuthError', async () => {
-		const provider = makeProvider();
-		let caughtError: unknown;
-		try {
-			await provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' });
-		} catch (e) {
-			caughtError = e;
-		}
-		expect(caughtError).toBeInstanceOf(OAuthError);
 	});
 });
