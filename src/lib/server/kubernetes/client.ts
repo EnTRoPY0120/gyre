@@ -253,18 +253,12 @@ const appsV1Pool = new Map<string, PoolEntry<k8s.AppsV1Api>>();
 
 const poolMetricsState = { hits: 0, misses: 0, evictions: 0 };
 
-/** Removes the least-recently-used entry from a pool. */
+/** Removes the bottom 20% least-recently-used entries from a pool (min 1). */
 function evictLRU<T>(pool: Map<string, PoolEntry<T>>) {
-	let lruKey: string | undefined;
-	let lruAccess = Infinity;
-	for (const [k, v] of pool) {
-		if (v.lastAccess < lruAccess) {
-			lruAccess = v.lastAccess;
-			lruKey = k;
-		}
-	}
-	if (lruKey) {
-		pool.delete(lruKey);
+	const evictCount = Math.max(1, Math.ceil(pool.size * 0.2));
+	const sorted = [...pool.entries()].sort((a, b) => a[1].lastAccess - b[1].lastAccess);
+	for (const [k] of sorted.slice(0, evictCount)) {
+		pool.delete(k);
 		poolMetricsState.evictions++;
 	}
 }
