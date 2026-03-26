@@ -201,6 +201,20 @@ describe('GitLabProvider.validateCallback() — PKCE path', () => {
 			spy.mockRestore();
 		}
 	});
+
+	test('throws OAuthError when request times out', async () => {
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+			throw new DOMException('The operation was aborted', 'AbortError');
+		});
+		try {
+			const provider = makeProvider();
+			await expect(
+				provider.validateCallback('auth-code', 'my-verifier')
+			).rejects.toMatchObject({ code: 'TOKEN_EXCHANGE_FAILED' });
+		} finally {
+			spy.mockRestore();
+		}
+	});
 });
 
 // ---------------------------------------------------------------------------
