@@ -201,15 +201,18 @@ class RealtimeStore {
 
 		try {
 			this.eventSource = new EventSource(sseUrl);
+			const es = this.eventSource;
 
-			this.eventSource.onopen = () => {
+			es.onopen = () => {
+				if (this.eventSource !== es) return;
 				this.status = 'connected';
 				this.reconnectAttempts = 0;
 				this.notifyStatusChange('connected');
 				logger.info('[SSE] Connected to event stream');
 			};
 
-			this.eventSource.onmessage = (event) => {
+			es.onmessage = (event) => {
+				if (this.eventSource !== es) return;
 				try {
 					const data: ResourceEvent = JSON.parse(event.data);
 					this.handleMessage(data);
@@ -218,8 +221,9 @@ class RealtimeStore {
 				}
 			};
 
-			this.eventSource.onerror = () => {
-				const rs = this.eventSource?.readyState;
+			es.onerror = () => {
+				if (this.eventSource !== es) return;
+				const rs = es.readyState;
 				if (rs === EventSource.CLOSED) {
 					logger.info('[SSE] Connection closed');
 					this.status = 'disconnected';
@@ -229,7 +233,7 @@ class RealtimeStore {
 					this.status = 'error';
 					this.notifyStatusChange('error');
 				}
-				this.eventSource?.close();
+				es.close();
 				this.eventSource = null;
 				this.scheduleReconnect();
 			};
