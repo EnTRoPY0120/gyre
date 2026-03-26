@@ -10,11 +10,11 @@ afterAll(() => {
 	consoleWarnSpy.mockRestore();
 });
 
-mock.module('../lib/server/auth/crypto.js', () => ({
+mock.module('$lib/server/auth/crypto', () => ({
 	decryptSecret: (s: string) => `decrypted_${s}`
 }));
 
-mock.module('../lib/server/auth/pkce.js', () => ({
+mock.module('$lib/server/auth/pkce', () => ({
 	generateCodeChallenge: (v: string) => `challenge_${v}`
 }));
 
@@ -41,7 +41,7 @@ mock.module('arctic', () => ({
 	}
 }));
 
-mock.module('../lib/server/logger.js', () => ({
+mock.module('$lib/server/logger.js', () => ({
 	logger: { error: () => {}, warn: () => {}, info: () => {}, debug: () => {} }
 }));
 
