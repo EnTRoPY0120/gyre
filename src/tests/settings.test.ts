@@ -107,8 +107,8 @@ describe('getSetting', () => {
 		const key = SETTINGS_KEYS.AUTH_ALLOW_SIGNUP;
 
 		// Insert a value and prime the cache via getSetting
-		await state.db!
-			.insert(schema.appSettings)
+		await state
+			.db!.insert(schema.appSettings)
 			.values({ key, value: 'cached-value', updatedAt: new Date() })
 			.onConflictDoNothing();
 
@@ -116,8 +116,8 @@ describe('getSetting', () => {
 		expect(val1).toBe('cached-value');
 
 		// Update DB directly (bypassing setSetting which would clear cache)
-		await state.db!
-			.update(schema.appSettings)
+		await state
+			.db!.update(schema.appSettings)
 			.set({ value: 'new-db-value', updatedAt: new Date() })
 			.where(eq(schema.appSettings.key, key));
 
@@ -129,8 +129,8 @@ describe('getSetting', () => {
 	test('cache miss after TTL re-reads from DB', async () => {
 		const key = SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST;
 
-		await state.db!
-			.insert(schema.appSettings)
+		await state
+			.db!.insert(schema.appSettings)
 			.values({ key, value: '["initial.com"]', updatedAt: new Date() })
 			.onConflictDoNothing();
 
@@ -138,8 +138,8 @@ describe('getSetting', () => {
 		expect(val1).toBe('["initial.com"]');
 
 		// Update DB directly (without invalidating cache)
-		await state.db!
-			.update(schema.appSettings)
+		await state
+			.db!.update(schema.appSettings)
 			.set({ value: '["updated.com"]', updatedAt: new Date() })
 			.where(eq(schema.appSettings.key, key));
 

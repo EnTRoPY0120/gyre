@@ -113,4 +113,28 @@ describe('Pagination Logic', () => {
 			expect(user.username).toContain(prefix);
 		}
 	});
+
+	test('limit=0 returns empty results but correct total', async () => {
+		const result = await listUsersPaginated({ limit: 0 });
+		expect(result.users).toHaveLength(0);
+		expect(result.total).toBeGreaterThanOrEqual(15);
+	});
+
+	test('offset beyond total returns empty results but correct total', async () => {
+		const result = await listUsersPaginated({ limit: 10, offset: 10_000 });
+		expect(result.users).toHaveLength(0);
+		expect(result.total).toBeGreaterThanOrEqual(15);
+	});
+});
+
+describe('Pagination – empty database', () => {
+	beforeEach(() => {
+		state.db = setupInMemoryDb();
+	});
+
+	test('empty database returns total=0 and empty results', async () => {
+		const result = await listUsersPaginated({ limit: 10 });
+		expect(result.total).toBe(0);
+		expect(result.users).toHaveLength(0);
+	});
 });

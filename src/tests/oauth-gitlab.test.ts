@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, mock, spyOn } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 spyOn(console, 'error').mockImplementation(() => {});
@@ -22,9 +22,7 @@ mock.module('arctic', () => ({
 			_redirectUri: string
 		) {}
 		async createAuthorizationURL(state: string, scopes: string[]) {
-			return new URL(
-				`${this.baseURL}/oauth/authorize?state=${state}&scope=${scopes.join(',')}`
-			);
+			return new URL(`${this.baseURL}/oauth/authorize?state=${state}&scope=${scopes.join(',')}`);
 		}
 		async validateAuthorizationCode(_code: string) {
 			return {
@@ -42,7 +40,6 @@ mock.module('../lib/server/logger.js', () => ({
 }));
 
 import { GitLabProvider } from '../lib/server/auth/oauth/providers/gitlab.js';
-import { OAuthError } from '../lib/server/auth/oauth/types.js';
 
 const mockConfig = {
 	id: 'gitlab-1',
@@ -165,16 +162,14 @@ describe('GitLabProvider.validateCallback() — PKCE path', () => {
 	test('POSTs to ${baseURL}/oauth/token with code_verifier in body', async () => {
 		let capturedUrl: string | null = null;
 		let capturedBody: string | null = null;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (url, init?: RequestInit) => {
-				capturedUrl = url.toString();
-				capturedBody = init?.body?.toString() ?? null;
-				return new Response(
-					JSON.stringify({ access_token: 'pkce-token', token_type: 'bearer' }),
-					{ status: 200, headers: { 'content-type': 'application/json' } }
-				);
-			}
-		);
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url, init?: RequestInit) => {
+			capturedUrl = url.toString();
+			capturedBody = init?.body?.toString() ?? null;
+			return new Response(JSON.stringify({ access_token: 'pkce-token', token_type: 'bearer' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			});
+		});
 		try {
 			const provider = makeProvider();
 			await provider.validateCallback('auth-code', 'my-verifier');
@@ -208,9 +203,9 @@ describe('GitLabProvider.validateCallback() — PKCE path', () => {
 		});
 		try {
 			const provider = makeProvider();
-			await expect(
-				provider.validateCallback('auth-code', 'my-verifier')
-			).rejects.toMatchObject({ code: 'TOKEN_EXCHANGE_FAILED' });
+			await expect(provider.validateCallback('auth-code', 'my-verifier')).rejects.toMatchObject({
+				code: 'TOKEN_EXCHANGE_FAILED'
+			});
 		} finally {
 			spy.mockRestore();
 		}
@@ -240,9 +235,7 @@ describe('GitLabProvider.validateCallback() — error handling', () => {
 		});
 		try {
 			const provider = makeProvider();
-			await expect(
-				provider.validateCallback('bad-code', 'verifier')
-			).rejects.toMatchObject({
+			await expect(provider.validateCallback('bad-code', 'verifier')).rejects.toMatchObject({
 				name: 'OAuthError',
 				code: 'TOKEN_EXCHANGE_FAILED'
 			});
@@ -259,15 +252,13 @@ describe('GitLabProvider.validateCallback() — error handling', () => {
 describe('GitLabProvider.refreshAccessToken()', () => {
 	test('POSTs grant_type=refresh_token and refresh_token to token endpoint', async () => {
 		let capturedBody: string | null = null;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (_url, init?: RequestInit) => {
-				capturedBody = init?.body?.toString() ?? null;
-				return new Response(
-					JSON.stringify({ access_token: 'new-access-token', token_type: 'bearer' }),
-					{ status: 200, headers: { 'content-type': 'application/json' } }
-				);
-			}
-		);
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (_url, init?: RequestInit) => {
+			capturedBody = init?.body?.toString() ?? null;
+			return new Response(
+				JSON.stringify({ access_token: 'new-access-token', token_type: 'bearer' }),
+				{ status: 200, headers: { 'content-type': 'application/json' } }
+			);
+		});
 		try {
 			const provider = makeProvider();
 			const tokens = await provider.refreshAccessToken!('old-refresh-token');
@@ -351,37 +342,35 @@ describe('GitLabProvider.getUserInfo()', () => {
 	});
 
 	test('with roleMapping: fetches groups and populates groups with full_path values', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (url) => {
-				const urlStr = url.toString();
-				if (urlStr.includes('/api/v4/user')) {
-					return new Response(
-						JSON.stringify({
-							id: 30,
-							username: 'groupmember',
-							email: 'member@example.com',
-							name: 'Group Member',
-							avatar_url: null,
-							confirmed_at: '2024-01-01T00:00:00Z'
-						}),
-						{ status: 200, headers: { 'content-type': 'application/json' } }
-					);
-				}
-				if (urlStr.includes('/api/v4/groups')) {
-					return new Response(
-						JSON.stringify([
-							{ id: 1, name: 'My Group', path: 'my-group', full_path: 'my-org/my-group' },
-							{ id: 2, name: 'Other Group', path: 'other-group', full_path: 'other-group' }
-						]),
-						{
-							status: 200,
-							headers: { 'content-type': 'application/json', 'x-next-page': '' }
-						}
-					);
-				}
-				return new Response('not found', { status: 404 });
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+			const urlStr = url.toString();
+			if (urlStr.includes('/api/v4/user')) {
+				return new Response(
+					JSON.stringify({
+						id: 30,
+						username: 'groupmember',
+						email: 'member@example.com',
+						name: 'Group Member',
+						avatar_url: null,
+						confirmed_at: '2024-01-01T00:00:00Z'
+					}),
+					{ status: 200, headers: { 'content-type': 'application/json' } }
+				);
 			}
-		);
+			if (urlStr.includes('/api/v4/groups')) {
+				return new Response(
+					JSON.stringify([
+						{ id: 1, name: 'My Group', path: 'my-group', full_path: 'my-org/my-group' },
+						{ id: 2, name: 'Other Group', path: 'other-group', full_path: 'other-group' }
+					]),
+					{
+						status: 200,
+						headers: { 'content-type': 'application/json', 'x-next-page': '' }
+					}
+				);
+			}
+			return new Response('not found', { status: 404 });
+		});
 		try {
 			const provider = makeProvider({ roleMapping: '{}' });
 			const info = await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });

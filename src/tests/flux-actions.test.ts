@@ -23,11 +23,17 @@ const mockApi = {
 mock.module('../lib/server/kubernetes/client.js', () => ({
 	getCustomObjectsApi: async () => mockApi,
 	handleK8sError: (error: unknown, context: string) => {
-		return new Error(`K8s error in ${context}: ${error instanceof Error ? error.message : 'Unknown'}`);
+		return new Error(
+			`K8s error in ${context}: ${error instanceof Error ? error.message : 'Unknown'}`
+		);
 	}
 }));
 
-import { toggleSuspendResource, reconcileResource, deleteResource } from '../lib/server/kubernetes/flux/actions.js';
+import {
+	toggleSuspendResource,
+	reconcileResource,
+	deleteResource
+} from '../lib/server/kubernetes/flux/actions.js';
 
 describe('toggleSuspendResource', () => {
 	beforeEach(() => {
@@ -56,7 +62,10 @@ describe('toggleSuspendResource', () => {
 
 	test('correct group/version/plural used for Kustomization', async () => {
 		await toggleSuspendResource('Kustomization', 'flux-system', 'my-app', true);
-		const [params] = capturedPatchArgs as [{ group: string; version: string; plural: string }, unknown];
+		const [params] = capturedPatchArgs as [
+			{ group: string; version: string; plural: string },
+			unknown
+		];
 		expect(params.group).toBe('kustomize.toolkit.fluxcd.io');
 		expect(params.version).toBe('v1');
 		expect(params.plural).toBe('kustomizations');
@@ -64,7 +73,10 @@ describe('toggleSuspendResource', () => {
 
 	test('correct group/version/plural used for GitRepository', async () => {
 		await toggleSuspendResource('GitRepository', 'flux-system', 'my-repo', true);
-		const [params] = capturedPatchArgs as [{ group: string; version: string; plural: string }, unknown];
+		const [params] = capturedPatchArgs as [
+			{ group: string; version: string; plural: string },
+			unknown
+		];
 		expect(params.group).toBe('source.toolkit.fluxcd.io');
 		expect(params.version).toBe('v1');
 		expect(params.plural).toBe('gitrepositories');
@@ -72,7 +84,10 @@ describe('toggleSuspendResource', () => {
 
 	test('correct group/version/plural used for HelmRelease', async () => {
 		await toggleSuspendResource('HelmRelease', 'flux-system', 'my-release', true);
-		const [params] = capturedPatchArgs as [{ group: string; version: string; plural: string }, unknown];
+		const [params] = capturedPatchArgs as [
+			{ group: string; version: string; plural: string },
+			unknown
+		];
 		expect(params.group).toBe('helm.toolkit.fluxcd.io');
 		expect(params.version).toBe('v2');
 		expect(params.plural).toBe('helmreleases');
@@ -145,7 +160,10 @@ describe('reconcileResource', () => {
 
 	test('correct group/version/plural used for Kustomization', async () => {
 		await reconcileResource('Kustomization', 'flux-system', 'my-app');
-		const [params] = capturedPatchArgs as [{ group: string; version: string; plural: string }, unknown];
+		const [params] = capturedPatchArgs as [
+			{ group: string; version: string; plural: string },
+			unknown
+		];
 		expect(params.group).toBe('kustomize.toolkit.fluxcd.io');
 		expect(params.version).toBe('v1');
 		expect(params.plural).toBe('kustomizations');

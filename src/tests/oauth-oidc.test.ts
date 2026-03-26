@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, mock, spyOn } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 spyOn(console, 'error').mockImplementation(() => {});
@@ -77,16 +77,14 @@ function mockDiscovery(discovery = MOCK_DISCOVERY) {
 			return new Response(JSON.stringify(discovery), { status: 200 });
 		}
 		if (urlStr.includes('/token')) {
-			return new Response(
-				JSON.stringify({ access_token: 'test-token', token_type: 'Bearer' }),
-				{ status: 200 }
-			);
+			return new Response(JSON.stringify({ access_token: 'test-token', token_type: 'Bearer' }), {
+				status: 200
+			});
 		}
 		if (urlStr.includes('/userinfo')) {
-			return new Response(
-				JSON.stringify({ sub: 'user-123', email: 'user@example.com' }),
-				{ status: 200 }
-			);
+			return new Response(JSON.stringify({ sub: 'user-123', email: 'user@example.com' }), {
+				status: 200
+			});
 		}
 		return new Response('not found', { status: 404 });
 	});
@@ -248,7 +246,9 @@ describe('OIDCProvider.getAuthorizationUrl()', () => {
 		const provider = makeProvider();
 		const spy = mockDiscovery();
 		try {
-			await expect(provider.getAuthorizationUrl('state')).rejects.toThrow('PKCE code verifier required');
+			await expect(provider.getAuthorizationUrl('state')).rejects.toThrow(
+				'PKCE code verifier required'
+			);
 		} finally {
 			spy.mockRestore();
 		}
@@ -264,8 +264,8 @@ describe('OIDCProvider.getAuthorizationUrl()', () => {
 			jwks_uri: `${uniqueIssuer}/.well-known/jwks`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () =>
-			new Response(JSON.stringify(discovery), { status: 200 })
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(
+			async () => new Response(JSON.stringify(discovery), { status: 200 })
 		);
 		try {
 			const url = await provider.getAuthorizationUrl('state', 'my-verifier');
@@ -286,8 +286,8 @@ describe('OIDCProvider.getAuthorizationUrl()', () => {
 			jwks_uri: `${uniqueIssuer}/.well-known/jwks`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () =>
-			new Response(JSON.stringify(discovery), { status: 200 })
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(
+			async () => new Response(JSON.stringify(discovery), { status: 200 })
 		);
 		try {
 			const url = await provider.getAuthorizationUrl('my-csrf-state', 'verifier');
