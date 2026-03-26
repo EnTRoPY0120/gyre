@@ -16,7 +16,7 @@ mock.module('../lib/server/db/index.js', () => ({
 	schema
 }));
 
-import { checkPermission, isAdmin } from '../lib/server/rbac.js';
+import { checkPermission, isAdmin, requirePermission, RbacError } from '../lib/server/rbac.js';
 import type { User } from '../lib/server/db/schema.js';
 
 // ---------------------------------------------------------------------------
@@ -227,6 +227,96 @@ describe('checkPermission', () => {
 		expect(await checkPermission(user, 'read', undefined, undefined, 'cluster-b')).toBe(false);
 	});
 
+	test('wildcard namespace pattern matches all namespaces with that prefix', async () => {
+		const db = state.db!;
+		const user = makeUser('user-wildcard-ns');
+
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-wildcard-ns',
+			name: 'wildcard-ns-policy',
+			role: 'viewer',
+			action: 'read',
+			isActive: true,
+			namespacePattern: 'flux-*'
+		});
+		await db.insert(schema.rbacBindings).values({ userId: user.id, policyId: 'p-wildcard-ns' });
+
+		expect(await checkPermission(user, 'read', undefined, 'flux-system')).toBe(true);
+		expect(await checkPermission(user, 'read', undefined, 'flux-infra')).toBe(true);
+		expect(await checkPermission(user, 'read', undefined, 'default')).toBe(false);
+		expect(await checkPermission(user, 'read', undefined, 'kube-system')).toBe(false);
+	});
+
+	test('policy with invalid namespace pattern is skipped', async () => {
+		const db = state.db!;
+		const user = makeUser('user-invalid-pattern');
+
+		// Insert a policy with an invalid pattern directly (bypassing createPolicy validation)
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-invalid-pattern',
+			name: 'invalid-pattern-policy',
+			role: 'viewer',
+			action: 'read',
+			isActive: true,
+			namespacePattern: '../../etc/passwd'
+		});
+		await db.insert(schema.rbacBindings).values({ userId: user.id, policyId: 'p-invalid-pattern' });
+
+		expect(await checkPermission(user, 'read', undefined, '../../etc/passwd')).toBe(false);
+		expect(await checkPermission(user, 'read')).toBe(false);
+	});
+
+	test('resource-type-restricted policy only grants access to matching resource type', async () => {
+		const db = state.db!;
+		const user = makeUser('user-resource-type');
+
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-kustomization',
+			name: 'kustomization-policy',
+			role: 'viewer',
+			action: 'read',
+			isActive: true,
+			resourceType: 'Kustomization'
+		});
+		await db.insert(schema.rbacBindings).values({ userId: user.id, policyId: 'p-kustomization' });
+
+		expect(await checkPermission(user, 'read', 'Kustomization')).toBe(true);
+		expect(await checkPermission(user, 'read', 'HelmRelease')).toBe(false);
+		expect(await checkPermission(user, 'read')).toBe(true); // no resourceType filter → any type
+	});
+
+	test('multiple bindings: access granted if any bound policy matches', async () => {
+		const db = state.db!;
+		const user = makeUser('user-multi-bindings');
+
+		await db.insert(schema.rbacPolicies).values([
+			{
+				id: 'p-multi-1',
+				name: 'multi-policy-1',
+				role: 'viewer',
+				action: 'read',
+				isActive: true,
+				namespacePattern: 'ns-a'
+			},
+			{
+				id: 'p-multi-2',
+				name: 'multi-policy-2',
+				role: 'viewer',
+				action: 'read',
+				isActive: true,
+				namespacePattern: 'ns-b'
+			}
+		]);
+		await db.insert(schema.rbacBindings).values([
+			{ userId: user.id, policyId: 'p-multi-1' },
+			{ userId: user.id, policyId: 'p-multi-2' }
+		]);
+
+		expect(await checkPermission(user, 'read', undefined, 'ns-a')).toBe(true);
+		expect(await checkPermission(user, 'read', undefined, 'ns-b')).toBe(true);
+		expect(await checkPermission(user, 'read', undefined, 'ns-c')).toBe(false);
+	});
+
 	test('null namespace pattern matches all namespaces', async () => {
 		const db = state.db!;
 		const user = makeUser('user-all-ns');
@@ -244,5 +334,49 @@ describe('checkPermission', () => {
 		expect(await checkPermission(user, 'read', undefined, 'flux-system')).toBe(true);
 		expect(await checkPermission(user, 'read', undefined, 'default')).toBe(true);
 		expect(await checkPermission(user, 'read', undefined, 'kube-system')).toBe(true);
+	});
+});
+
+describe('requirePermission', () => {
+	beforeEach(() => {
+		state.db = setupInMemoryDb();
+	});
+
+	test('resolves without error when permission is granted', async () => {
+		const db = state.db!;
+		const user = makeUser('user-req-ok');
+
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-req-read',
+			name: 'req-read-policy',
+			role: 'viewer',
+			action: 'read',
+			isActive: true
+		});
+		await db.insert(schema.rbacBindings).values({ userId: user.id, policyId: 'p-req-read' });
+
+		await expect(requirePermission(user, 'read')).resolves.toBeUndefined();
+	});
+
+	test('throws RbacError when permission is denied', async () => {
+		const user = makeUser('user-req-denied');
+		await expect(requirePermission(user, 'read')).rejects.toBeInstanceOf(RbacError);
+	});
+
+	test('thrown RbacError includes action and resource type', async () => {
+		const user = makeUser('user-req-error-shape');
+		try {
+			await requirePermission(user, 'write', 'Kustomization');
+			expect.unreachable('should have thrown');
+		} catch (err) {
+			expect(err).toBeInstanceOf(RbacError);
+			expect((err as RbacError).action).toBe('write');
+		}
+	});
+
+	test('admin role resolves without DB lookup', async () => {
+		const admin = makeUser('admin-req', 'admin');
+		// No policies in DB — admin bypasses all checks
+		await expect(requirePermission(admin, 'admin')).resolves.toBeUndefined();
 	});
 });

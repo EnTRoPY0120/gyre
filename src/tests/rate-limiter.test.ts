@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 import { RateLimiter, SSEConnectionLimiter } from '../lib/server/rate-limiter';
@@ -7,6 +7,15 @@ describe('RateLimiter', () => {
 	let limiter: RateLimiter;
 
 	beforeEach(() => {
+		// Each test gets a fresh instance with empty storage; prevents state leaking
+		// across tests (since RateLimiter storage is instance-level, not module-level).
+		limiter = new RateLimiter();
+	});
+
+	afterEach(() => {
+		// Reassign to allow GC to collect the old instance and its internal interval.
+		// clearInterval is not exposed publicly; unref() on construction already
+		// prevents the interval from keeping the process alive.
 		limiter = new RateLimiter();
 	});
 
@@ -103,6 +112,34 @@ describe('RateLimiter', () => {
 		test('handles very large limit', () => {
 			const result = limiter.check('big-limit', 1_000_000, 60_000);
 			expect(result.limited).toBe(false);
+		});
+
+		test('fresh instance starts with clean state for any key', () => {
+			// Exhaust a key in one instance
+			const old = new RateLimiter();
+			old.check('shared-key', 1, 60_000);
+			old.check('shared-key', 1, 60_000); // now blocked in old
+
+			// New instance has no memory of old traffic
+			const fresh = new RateLimiter();
+			const result = fresh.check('shared-key', 1, 60_000);
+			expect(result.limited).toBe(false);
+		});
+
+		test('multiple requests from the same key within one window accumulate correctly', () => {
+			const limit = 5;
+			const windowMs = 60_000;
+			const results: boolean[] = [];
+
+			for (let i = 0; i < limit + 2; i++) {
+				results.push(limiter.check('same-key', limit, windowMs).limited);
+			}
+
+			// First `limit` requests should be allowed, the rest blocked
+			const allowed = results.filter((r) => !r).length;
+			const blocked = results.filter((r) => r).length;
+			expect(allowed).toBe(limit);
+			expect(blocked).toBe(2);
 		});
 	});
 });

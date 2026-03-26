@@ -120,9 +120,7 @@ describe('cleanupExpiredSessions', () => {
 		const db = state.db!;
 		const userId = await insertUser(db);
 		const now = new Date();
-		// Mock Date.now to return this exact time during cleanup
-		const originalNow = Date.now;
-		Date.now = () => now.getTime();
+		const spy = spyOn(Date, 'now').mockReturnValue(now.getTime());
 
 		try {
 			const expiredId = insertSession(db, userId, now);
@@ -132,7 +130,7 @@ describe('cleanupExpiredSessions', () => {
 			const remaining = db.select().from(sessions).all();
 			expect(remaining.some((s) => s.id === expiredId)).toBe(false);
 		} finally {
-			Date.now = originalNow;
+			spy.mockRestore();
 		}
 	});
 
@@ -341,16 +339,14 @@ describe('getSession', () => {
 		const db = state.db!;
 		const userId = await insertUser(db);
 		const now = new Date();
-		// Mock Date.now
-		const originalNow = Date.now;
-		Date.now = () => now.getTime();
+		const spy = spyOn(Date, 'now').mockReturnValue(now.getTime());
 
 		try {
 			const sessionId = insertSession(db, userId, now);
 			const result = await getSession(sessionId);
 			expect(result).toBeNull();
 		} finally {
-			Date.now = originalNow;
+			spy.mockRestore();
 		}
 	});
 
