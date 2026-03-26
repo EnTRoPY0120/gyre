@@ -182,7 +182,7 @@ export function checkRateLimit(
 }
 
 export class AccountLockout {
-	private cleanupInterval: NodeJS.Timeout;
+	private cleanupInterval: NodeJS.Timeout | undefined;
 
 	constructor() {
 		// Clean up expired entries every 15 minutes
@@ -201,6 +201,13 @@ export class AccountLockout {
 				sql`(${loginLockouts.failedAttempts} = 0 OR ${loginLockouts.lockedUntil} < ${oneHourAgo.getTime() / 1000}) AND ${loginLockouts.lockedUntil} < ${now.getTime() / 1000}`
 			)
 			.run();
+	}
+
+	stop(): void {
+		if (this.cleanupInterval) {
+			clearInterval(this.cleanupInterval);
+			this.cleanupInterval = undefined;
+		}
 	}
 
 	check(username: string): { locked: boolean; lockedUntil: number; retryAfter: number } {

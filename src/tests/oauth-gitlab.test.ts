@@ -140,7 +140,7 @@ describe('GitLabProvider.getAuthorizationUrl()', () => {
 	test('does not duplicate read_api when already present in scopes', async () => {
 		const provider = makeProvider({ roleMapping: '{}', scopes: 'read_user read_api' });
 		const url = await provider.getAuthorizationUrl('s');
-		const scope = url.searchParams.get('scope') ?? '';
+		const scope = decodeURIComponent(url.searchParams.get('scope') ?? '');
 		const count = scope.split(',').filter((s) => s === 'read_api').length;
 		expect(count).toBe(1);
 	});
