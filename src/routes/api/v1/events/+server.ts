@@ -89,7 +89,14 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 			let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 			let unsubscribe: () => void;
 
+			// Idempotency guard: cleanup may be triggered from multiple paths
+			// (abort signal, ReadableStream cancel(), SHUTDOWN event, buffer overflow).
+			// Without this flag, release() would be called multiple times, corrupting
+			// the per-session/per-user connection slot count.
+			let isCleanedUp = false;
 			const cleanup = () => {
+				if (isCleanedUp) return;
+				isCleanedUp = true;
 				release();
 				unsubscribe?.();
 				if (timeoutHandle) {
