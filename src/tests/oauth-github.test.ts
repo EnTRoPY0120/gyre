@@ -1,8 +1,30 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import {
+	describe,
+	test,
+	expect,
+	beforeAll,
+	afterAll,
+	beforeEach,
+	afterEach,
+	mock,
+	spyOn
+} from 'bun:test';
 
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
-spyOn(console, 'warn').mockImplementation(() => {});
+let consoleLogSpy: ReturnType<typeof spyOn>;
+let consoleErrorSpy: ReturnType<typeof spyOn>;
+let consoleWarnSpy: ReturnType<typeof spyOn>;
+
+beforeAll(() => {
+	consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+	consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
+	consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterAll(() => {
+	consoleLogSpy.mockRestore();
+	consoleErrorSpy.mockRestore();
+	consoleWarnSpy.mockRestore();
+});
 
 mock.module('../lib/server/auth/crypto.js', () => ({
 	decryptSecret: (s: string) => `decrypted_${s}`
@@ -348,14 +370,14 @@ describe('GitHubProvider.getUserInfo() — fetchGroups with roleMapping', () => 
 	});
 
 	test('includes org names in groups', async () => {
-		const provider = makeProvider({ roleMapping: '{}' as unknown as string });
+		const provider = makeProvider({ roleMapping: '{}' });
 		const info = await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });
 		expect(info.groups).toContain('my-org');
 		expect(info.groups).toContain('another-org');
 	});
 
 	test('includes org/team-slug format for each team', async () => {
-		const provider = makeProvider({ roleMapping: '{}' as unknown as string });
+		const provider = makeProvider({ roleMapping: '{}' });
 		const info = await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });
 		expect(info.groups).toContain('my-org/backend-team');
 		expect(info.groups).toContain('another-org/all-team');

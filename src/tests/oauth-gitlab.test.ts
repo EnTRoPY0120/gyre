@@ -1,8 +1,14 @@
-import { describe, test, expect, mock, spyOn } from 'bun:test';
+import { describe, test, expect, afterAll, mock, spyOn } from 'bun:test';
 
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
-spyOn(console, 'warn').mockImplementation(() => {});
+const consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
+const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+
+afterAll(() => {
+	consoleLogSpy.mockRestore();
+	consoleErrorSpy.mockRestore();
+	consoleWarnSpy.mockRestore();
+});
 
 mock.module('../lib/server/auth/crypto.js', () => ({
 	decryptSecret: (s: string) => `decrypted_${s}`

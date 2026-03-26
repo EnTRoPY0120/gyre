@@ -41,6 +41,14 @@ export class RateLimiter {
 	}
 
 	/**
+	 * stop clears the internal cleanup interval.
+	 * Call this when disposing of a RateLimiter instance.
+	 */
+	stop(): void {
+		clearInterval(this.cleanupInterval);
+	}
+
+	/**
 	 * check implements the Sliding Window Counter algorithm.
 	 * It approximates the request count in the sliding window using:
 	 * count = current_window_count + previous_window_count * (1 - fraction_of_current_window_elapsed)
