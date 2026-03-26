@@ -144,6 +144,9 @@ describe('getSetting', () => {
 			.where(eq(schema.appSettings.key, key));
 
 		// Advance Date.now past the 100ms TTL
+		// Note: originalNow captures the already-patched global test Date.now.
+		// This is intentional nesting on top of the global Date.now test patch
+		// so future readers understand the capture/restore behavior when calling getSetting.
 		const originalNow = Date.now;
 		Date.now = () => originalNow() + 200;
 		try {

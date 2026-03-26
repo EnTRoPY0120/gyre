@@ -376,3 +376,8 @@ describe('setEventBusShuttingDown()', () => {
 		expect(() => unsub()).not.toThrow();
 	});
 });
+
+// ⚠️ WARNING: Do NOT add any tests below this point. setEventBusShuttingDown()
+// sets an unresettable module-level flag that permanently disables subscribe().
+// Any tests added after this block will fail because subscribe() will always return
+// a no-op subscriber. This describe block must remain the final block in the file.

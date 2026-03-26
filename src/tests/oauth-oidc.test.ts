@@ -1,8 +1,20 @@
-import { describe, test, expect, mock, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
-spyOn(console, 'warn').mockImplementation(() => {});
+let consoleLogSpy: ReturnType<typeof spyOn>;
+let consoleErrorSpy: ReturnType<typeof spyOn>;
+let consoleWarnSpy: ReturnType<typeof spyOn>;
+
+beforeEach(() => {
+	consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+	consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
+	consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+});
+
+afterEach(() => {
+	consoleLogSpy.mockRestore();
+	consoleErrorSpy.mockRestore();
+	consoleWarnSpy.mockRestore();
+});
 
 mock.module('../lib/server/auth/crypto.js', () => ({
 	decryptSecret: (s: string) => `decrypted_${s}`
@@ -104,19 +116,14 @@ describe('OIDCProvider — constructor', () => {
 				})
 		).toThrow(OAuthError);
 
-		expect(() => {
-			try {
-				new OIDCProvider({
-					config: { ...mockConfig, issuerUrl: null } as never,
-					redirectUri: 'https://app.example.com/cb'
-				});
-			} catch (e) {
-				if (e instanceof OAuthError) {
-					expect(e.code).toBe('INVALID_CONFIG');
-				}
-				throw e;
-			}
-		}).toThrow();
+		try {
+			new OIDCProvider({
+				config: { ...mockConfig, issuerUrl: null } as never,
+				redirectUri: 'https://app.example.com/cb'
+			});
+		} catch (e) {
+			expect(e).toMatchObject({ code: 'INVALID_CONFIG' });
+		}
 	});
 });
 

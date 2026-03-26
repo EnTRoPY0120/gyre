@@ -13,10 +13,9 @@ describe('RateLimiter', () => {
 	});
 
 	afterEach(() => {
-		// Reassign to allow GC to collect the old instance and its internal interval.
-		// clearInterval is not exposed publicly; unref() on construction already
-		// prevents the interval from keeping the process alive.
-		limiter = new RateLimiter();
+		// Explicitly stop the interval to avoid lingering timers.
+		// The stop() method clears the internal setInterval created in the constructor.
+		limiter.stop();
 	});
 
 	describe('basic rate limiting', () => {
