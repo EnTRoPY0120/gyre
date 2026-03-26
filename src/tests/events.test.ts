@@ -248,7 +248,7 @@ describe('Poll change detection', () => {
 		// Wait for initial poll (empty)
 		await wait(150);
 
-		// Add a resource — with SETTLING_PERIOD_MS=0 it should be notified immediately
+		// Add a resource — with SETTLING_PERIOD_MS=-1 it should be notified immediately
 		mockResources = [makeResource('new-app', 'flux-system', 'v1')];
 		await wait(150);
 
