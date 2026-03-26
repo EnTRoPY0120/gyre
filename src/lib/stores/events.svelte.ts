@@ -20,6 +20,7 @@ export interface ResourceEvent {
 	clusterId?: string;
 	resourceType?: string;
 	serverSessionId?: string;
+	reason?: string;
 	resource?: {
 		metadata: {
 			name: string;
@@ -218,16 +219,16 @@ class RealtimeStore {
 			};
 
 			this.eventSource.onerror = () => {
-				// readyState === CLOSED means the server closed the connection cleanly;
-				// readyState === CONNECTING means a connection attempt failed or was interrupted.
 				const rs = this.eventSource?.readyState;
 				if (rs === EventSource.CLOSED) {
 					logger.info('[SSE] Connection closed');
+					this.status = 'disconnected';
+					this.notifyStatusChange('disconnected');
 				} else {
 					logger.warn('[SSE] Connection error');
+					this.status = 'error';
+					this.notifyStatusChange('error');
 				}
-				this.status = 'error';
-				this.notifyStatusChange('error');
 				this.eventSource?.close();
 				this.eventSource = null;
 				this.scheduleReconnect();
@@ -295,11 +296,17 @@ class RealtimeStore {
 
 	private handleMessage(data: ResourceEvent) {
 		if (data.type === 'SHUTDOWN') {
+			const permanent = data.reason === 'server_shutdown';
 			logger.info(
-				'[SSE] Received SHUTDOWN event from server, disconnecting and preventing reconnects.'
+				`[SSE] Received SHUTDOWN event from server (reason: ${data.reason || 'unknown'}), disconnecting and ${
+					permanent ? 'preventing' : 'allowing'
+				} reconnects.`
 			);
-			this.isServerShutdown = true;
+			this.isServerShutdown = permanent;
 			this.disconnect();
+			if (!permanent) {
+				this.scheduleReconnect();
+			}
 			return;
 		}
 
