@@ -29,21 +29,18 @@ mock.module('arctic', () => ({
 	}
 }));
 
-// IMPORTANT: Mock OIDCProvider BEFORE importing GoogleProvider
-const mockGetUserInfo = mock(async () => ({
+let mockJwtClaims: Record<string, unknown> = {
 	sub: '123',
 	email: 'user@google.com',
-	emailVerified: true,
-	username: 'user@google.com',
+	email_verified: true,
 	name: 'Test User',
-	groups: [] as string[]
-}));
+	preferred_username: 'user@google.com'
+};
 
-mock.module('../lib/server/auth/oauth/providers/oidc.js', () => ({
-	OIDCProvider: class MockOIDCProvider {
-		constructor() {}
-		getUserInfo = mockGetUserInfo;
-	}
+mock.module('jose', () => ({
+	createRemoteJWKSet: () => 'mock-jwks',
+	jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
+	decodeJwt: () => mockJwtClaims
 }));
 
 import { GoogleProvider } from '../lib/server/auth/oauth/providers/google.js';
@@ -161,65 +158,78 @@ describe('GoogleProvider.validateCallback()', () => {
 // ---------------------------------------------------------------------------
 
 describe('GoogleProvider.getUserInfo()', () => {
-	test('delegates to OIDCProvider.getUserInfo and returns userInfo', async () => {
-		mockGetUserInfo.mockImplementation(async () => ({
+	test('delegates to OIDCProvider and returns userInfo', async () => {
+		mockJwtClaims = {
 			sub: '123',
 			email: 'user@google.com',
-			emailVerified: true,
-			username: 'user@google.com',
+			email_verified: true,
 			name: 'Test User',
-			groups: [] as string[]
-		}));
+			preferred_username: 'user@google.com'
+		};
 
 		const provider = makeProvider();
-		const info = await provider.getUserInfo({ accessToken: 'token', tokenType: 'Bearer' });
+		const info = await provider.getUserInfo({
+			accessToken: 'token',
+			tokenType: 'Bearer',
+			idToken: 'mock-id-token'
+		});
 		expect(info.sub).toBe('123');
 		expect(info.email).toBe('user@google.com');
 		expect(info.name).toBe('Test User');
 	});
 
 	test('adds domain:<hd> to groups when hd claim is present', async () => {
-		mockGetUserInfo.mockImplementation(async () => ({
-			sub: '456',
+		mockJwtClaims = {
+			sub: '123',
 			email: 'user@company.com',
-			emailVerified: true,
-			username: 'user@company.com',
-			name: 'Corp User',
-			groups: [] as string[],
+			email_verified: true,
+			name: 'Test User',
+			preferred_username: 'user@company.com',
 			hd: 'company.com'
-		}));
+		};
 
 		const provider = makeProvider();
-		const info = await provider.getUserInfo({ accessToken: 'token', tokenType: 'Bearer' });
+		const info = await provider.getUserInfo({
+			accessToken: 'token',
+			tokenType: 'Bearer',
+			idToken: 'mock-id-token'
+		});
 		expect(info.groups).toContain('domain:company.com');
 	});
 
 	test('does not modify groups when hd claim is absent', async () => {
-		mockGetUserInfo.mockImplementation(async () => ({
-			sub: '789',
-			email: 'personal@gmail.com',
-			emailVerified: true,
-			username: 'personal@gmail.com',
-			name: 'Personal User',
-			groups: [] as string[]
-		}));
+		mockJwtClaims = {
+			sub: '123',
+			email: 'user@example.com',
+			email_verified: true,
+			name: 'Test User',
+			preferred_username: 'user@example.com'
+		};
 
 		const provider = makeProvider();
-		const info = await provider.getUserInfo({ accessToken: 'token', tokenType: 'Bearer' });
-		expect(info.groups).toEqual([]);
+		const info = await provider.getUserInfo({
+			accessToken: 'token',
+			tokenType: 'Bearer',
+			idToken: 'mock-id-token'
+		});
+		expect(info.groups).toBeUndefined();
 	});
 
 	test('throws OAuthError with USERINFO_FAILED when OIDCProvider throws', async () => {
-		mockGetUserInfo.mockImplementation(async () => {
-			throw new Error('OIDC failed');
-		});
-
 		const provider = makeProvider();
-		await expect(
-			provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' })
-		).rejects.toMatchObject({
-			name: 'OAuthError',
-			code: 'USERINFO_FAILED'
+		// Without idToken and without discovery mocked, OIDCProvider calls discover() → fetch throws
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+			throw new Error('Network error');
 		});
+		try {
+			await expect(
+				provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' })
+			).rejects.toMatchObject({
+				name: 'OAuthError',
+				code: 'USERINFO_FAILED'
+			});
+		} finally {
+			spy.mockRestore();
+		}
 	});
 });
