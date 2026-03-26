@@ -78,15 +78,29 @@ function makeProvider(overrides: Record<string, unknown> = {}) {
 	});
 }
 
+interface FetchMockContext {
+	url: string | null;
+	body: string | null;
+}
+
+function createFetchMock(responseFn: (url: string) => Response) {
+	const ctx: FetchMockContext = { url: null, body: null };
+	const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+		const urlStr = url.toString();
+		ctx.url = urlStr;
+		ctx.body = init?.body?.toString() ?? null;
+		return responseFn(urlStr);
+	});
+	return { spy, ctx };
+}
+
 // ---------------------------------------------------------------------------
 // Issuer URL normalization
 // ---------------------------------------------------------------------------
 
 describe('GitLabProvider — issuerUrl normalization', () => {
 	test('strips trailing slash from issuerUrl when making API calls', async () => {
-		let capturedUrl: string | null = null;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
-			capturedUrl = url.toString();
+		const { spy, ctx } = createFetchMock(() => {
 			return new Response(
 				JSON.stringify({
 					id: 1,
@@ -102,7 +116,7 @@ describe('GitLabProvider — issuerUrl normalization', () => {
 		try {
 			const provider = makeProvider({ issuerUrl: 'https://gitlab.com/' });
 			await provider.getUserInfo({ accessToken: 'tok', tokenType: 'Bearer' });
-			expect(capturedUrl).toBe('https://gitlab.com/api/v4/user');
+			expect(ctx.url).toBe('https://gitlab.com/api/v4/user');
 		} finally {
 			spy.mockRestore();
 		}
