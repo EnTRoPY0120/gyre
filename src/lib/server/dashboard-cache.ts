@@ -6,15 +6,15 @@ type DashboardEntry = { data: unknown; timestamp: number };
 
 const cache = new Map<string, DashboardEntry>();
 
-function prune() {
+function prune(upcomingKey: string) {
 	const now = Date.now();
 	for (const [key, entry] of cache) {
 		if (now - entry.timestamp >= DASHBOARD_CACHE_TTL_MS) {
 			cache.delete(key);
 		}
 	}
-	// Reserve a slot for the upcoming insert so the size never exceeds MAX
-	if (cache.size >= MAX_DASHBOARD_CACHE_SIZE) {
+	// Only reserve a slot when the key is new (an update keeps the same size)
+	if (cache.size >= MAX_DASHBOARD_CACHE_SIZE && !cache.has(upcomingKey)) {
 		const toRemove = cache.size - MAX_DASHBOARD_CACHE_SIZE + 1;
 		const sorted = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
 		sorted.slice(0, toRemove).forEach(([k]) => cache.delete(k));
@@ -23,14 +23,16 @@ function prune() {
 
 export function getDashboardCache(key: string): unknown | null {
 	const entry = cache.get(key);
-	if (entry && Date.now() - entry.timestamp < DASHBOARD_CACHE_TTL_MS) {
-		return entry.data;
+	if (!entry) return null;
+	if (Date.now() - entry.timestamp >= DASHBOARD_CACHE_TTL_MS) {
+		cache.delete(key);
+		return null;
 	}
-	return null;
+	return entry.data;
 }
 
 export function setDashboardCache(key: string, data: unknown) {
-	prune();
+	prune(key);
 	cache.set(key, { data, timestamp: Date.now() });
 }
 
