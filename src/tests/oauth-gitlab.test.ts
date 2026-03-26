@@ -141,7 +141,7 @@ describe('GitLabProvider.getAuthorizationUrl()', () => {
 		const provider = makeProvider({ roleMapping: '{}', scopes: 'read_user read_api' });
 		const url = await provider.getAuthorizationUrl('s');
 		const scope = decodeURIComponent(url.searchParams.get('scope') ?? '');
-		const count = scope.split(',').filter((s) => s === 'read_api').length;
+		const count = scope.split(/[,\s]+/).filter((s) => s === 'read_api').length;
 		expect(count).toBe(1);
 	});
 
