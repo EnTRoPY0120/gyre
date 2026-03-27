@@ -58,16 +58,19 @@
 		}, 0);
 	}
 
-	function closeMenu() {
+	function closeMenu(restoreFocus = true) {
 		isOpen = false;
 		logoutError = null;
-		previousActiveElement?.focus();
+		if (restoreFocus) {
+			previousActiveElement?.focus();
+		}
 		previousActiveElement = null;
 	}
 
 	function handleTriggerClick() {
 		if (isOpen) {
-			closeMenu();
+			// Focus is already on the trigger — no need to restore
+			closeMenu(false);
 		} else {
 			openMenu();
 		}
@@ -89,10 +92,12 @@
 				break;
 			case 'Escape':
 				e.preventDefault();
-				closeMenu();
+				// Per ARIA pattern: Escape returns focus to the trigger
+				closeMenu(true);
 				break;
 			case 'Tab':
-				closeMenu();
+				// Tab moves focus naturally; don't steal it back to the trigger
+				closeMenu(false);
 				break;
 		}
 	}
@@ -107,7 +112,8 @@
 		if (isOpen) {
 			const target = e.target as HTMLElement;
 			if (!target.closest('.user-menu-container')) {
-				closeMenu();
+				// Don't steal focus from whatever the user just clicked
+				closeMenu(false);
 			}
 		}
 	}
@@ -142,9 +148,8 @@
 			in:scale={{ duration: 150, start: 0.95, opacity: 0 }}
 			out:fade={{ duration: 100 }}
 			class="absolute right-0 mt-2 w-56 origin-top-right rounded-xl border border-border/60 bg-background/95 p-1.5 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl"
-			role="menu"
-			aria-label="User menu"
 		>
+			<!-- Profile summary — outside the menu subtree intentionally -->
 			<div class="px-3 py-2">
 				<div class="flex items-center justify-between">
 					<p class="text-xs font-medium text-muted-foreground">Signed in as</p>
@@ -163,9 +168,10 @@
 				{/if}
 			</div>
 
-			<div class="my-1 h-px bg-border/50"></div>
+			<div aria-hidden="true" class="my-1 h-px bg-border/50"></div>
 
-			<div class="space-y-0.5">
+			<!-- Menu actions — role="menu" scoped to only the interactive items -->
+			<div role="menu" aria-label="User menu" class="space-y-0.5">
 				<div
 					role="menuitem"
 					aria-disabled="true"
@@ -190,7 +196,7 @@
 					</a>
 				{/if}
 
-				<div class="my-1 h-px bg-border/50"></div>
+				<div role="separator" class="my-1 h-px bg-border/50"></div>
 
 				<button
 					onclick={handleLogout}
