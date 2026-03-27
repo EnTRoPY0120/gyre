@@ -19,6 +19,7 @@
 	let isLocalUser = $derived(user?.isLocal !== false);
 	let logoutError = $state<string | null>(null);
 	let triggerButton = $state<HTMLButtonElement | null>(null);
+	let menuContainer = $state<HTMLDivElement | null>(null);
 	let previousActiveElement: HTMLElement | null = null;
 	let selectedIndex = $state(0);
 
@@ -52,7 +53,7 @@
 		isOpen = true;
 		// Focus first menu item on next tick
 		setTimeout(() => {
-			const firstItem = document.querySelector<HTMLElement>('[data-menu-item="0"]');
+			const firstItem = menuContainer?.querySelector<HTMLElement>('[data-menu-item="0"]');
 			firstItem?.focus();
 		}, 0);
 	}
@@ -97,7 +98,7 @@
 	}
 
 	function focusItem(index: number) {
-		const item = document.querySelector<HTMLElement>(`[data-menu-item="${index}"]`);
+		const item = menuContainer?.querySelector<HTMLElement>(`[data-menu-item="${index}"]`);
 		item?.focus();
 	}
 
@@ -114,7 +115,7 @@
 
 <svelte:window onclick={handleOutsideClick} />
 
-<div role="none" class="user-menu-container relative" onkeydown={handleMenuKeydown}>
+<div role="none" bind:this={menuContainer} class="user-menu-container relative" onkeydown={handleMenuKeydown}>
 	<button
 		bind:this={triggerButton}
 		type="button"
