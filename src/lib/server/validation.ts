@@ -36,7 +36,7 @@ export function isAllowedBackupExtension(name: string): boolean {
 	return name.endsWith('.db') || name.endsWith('.db.enc');
 }
 
-export const CEL_PATTERN = /^[a-zA-Z0-9_.()[\]"' !&|=<>+\-*/%?:,\n\r\t ]{1,500}$/;
+export const CEL_PATTERN = /^[a-zA-Z0-9_.()[\]"' !&|=<>+\-*/%?:,\n\r\t]{1,500}$/;
 
 export const LABEL_KEY_PATTERN =
 	/^([a-z0-9A-Z]([a-z0-9A-Z\-._]{0,61}[a-z0-9A-Z])?\/)?[a-zA-Z0-9]([a-zA-Z0-9\-._]{0,61}[a-zA-Z0-9])?$/;
@@ -103,6 +103,18 @@ export function validateSubstituteVars(vars: unknown): string | null {
 	return null;
 }
 
+/**
+ * Validates FluxCD resource spec fields that accept user input.
+ *
+ * Currently only validates Kustomization and HelmRelease because:
+ * - Kustomization: supports CEL expressions in healthCheckExprs, labels in
+ *   commonMetadata.labels, and substitution variables in postBuild.substitute
+ * - HelmRelease: supports labels in commonMetadata.labels
+ *
+ * Other FluxCD resources (GitRepository, HelmRepository, HelmChart, Bucket,
+ * OCIRepository, Alert, Provider, Receiver, etc.) do not accept CEL expressions,
+ * label maps, or substitution variables in their specs, so they return null.
+ */
 export function validateFluxResourceSpec(
 	resourceType: string,
 	spec: Record<string, unknown>
