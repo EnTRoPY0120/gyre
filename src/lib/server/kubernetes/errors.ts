@@ -142,7 +142,7 @@ export function handleApiError(err: unknown, contextMessage = 'Kubernetes API er
  */
 export function errorToHttpResponse(error: unknown): {
 	status: number;
-	body: { error: string; code?: string };
+	body: { error: string; message?: string; code?: string };
 } {
 	if (error instanceof KubernetesError) {
 		return {
@@ -177,6 +177,7 @@ export function errorToHttpResponse(error: unknown): {
 			status: httpError.status,
 			body: {
 				error: httpError.body?.message ?? 'An unexpected error occurred',
+				message: httpError.body?.message,
 				code: httpError.body?.code
 			}
 		};
