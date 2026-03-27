@@ -156,7 +156,7 @@
 	{#if isOpen}
 		<div
 			bind:this={dropdownPanelRef}
-			role="dialog"
+			role="region"
 			aria-label="Notifications"
 			tabindex="-1"
 			class="fixed right-4 left-4 z-50 mt-2 rounded-lg border border-gray-200 bg-card shadow-lg sm:absolute sm:right-0 sm:left-auto sm:w-96 dark:border-gray-700 dark:bg-gray-800 focus:outline-none"
