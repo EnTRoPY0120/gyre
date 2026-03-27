@@ -39,15 +39,22 @@ export function isAllowedBackupExtension(name: string): boolean {
 export const CEL_PATTERN = /^[a-zA-Z0-9_.()[\]"' !&|=<>+\-*/%?:,\n\r\t]{1,500}$/;
 
 export const LABEL_KEY_PATTERN =
-	/^([a-z0-9A-Z]([a-z0-9A-Z\-._]{0,61}[a-z0-9A-Z])?\/)?[a-zA-Z0-9]([a-zA-Z0-9\-._]{0,61}[a-zA-Z0-9])?$/;
+	/^([a-z0-9]([a-z0-9\-.]*)?[a-z0-9]?\/)?[a-zA-Z0-9]([a-zA-Z0-9\-._]{0,61}[a-zA-Z0-9])?$/;
 
 export const LABEL_VALUE_PATTERN = /^[a-zA-Z0-9]([a-zA-Z0-9\-._]{0,61}[a-zA-Z0-9])?$|^$/;
 
 export const SUBSTITUTE_VAR_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 
 export function validateLabelMap(labels: unknown): string | null {
-	if (labels === null || labels === undefined || labels === '') {
+	if (labels === null || labels === undefined) {
 		return null;
+	}
+
+	if (typeof labels === 'string') {
+		if (labels.trim() === '') {
+			return 'Invalid labels: empty string is not allowed';
+		}
+		return 'Labels must be an object';
 	}
 
 	if (typeof labels !== 'object') {
@@ -75,8 +82,15 @@ export function validateLabelMap(labels: unknown): string | null {
 }
 
 export function validateSubstituteVars(vars: unknown): string | null {
-	if (vars === null || vars === undefined || vars === '') {
+	if (vars === null || vars === undefined) {
 		return null;
+	}
+
+	if (typeof vars === 'string') {
+		if (vars.trim() === '') {
+			return 'Invalid substitute variables: empty string is not allowed';
+		}
+		return 'Substitute variables must be an object';
 	}
 
 	if (typeof vars !== 'object') {
@@ -124,20 +138,36 @@ export function validateFluxResourceSpec(
 	}
 
 	if (resourceType === 'Kustomization') {
-		const healthCheckExprs = spec.healthCheckExprs as Array<Record<string, unknown>> | undefined;
+		const healthCheckExprs = spec.healthCheckExprs as Array<unknown> | undefined;
 		if (healthCheckExprs && Array.isArray(healthCheckExprs)) {
 			for (const expr of healthCheckExprs) {
-				const inProgress = expr.inProgress as string | undefined;
-				const failed = expr.failed as string | undefined;
-				const current = expr.current as string | undefined;
+				if (!expr || typeof expr !== 'object') {
+					return 'Invalid healthCheckExprs item: must be a non-null object';
+				}
 
-				if (inProgress && !CEL_PATTERN.test(inProgress)) {
+				const exprObj = expr as Record<string, unknown>;
+				const inProgress = exprObj.inProgress;
+				const failed = exprObj.failed;
+				const current = exprObj.current;
+
+				if (inProgress !== undefined && typeof inProgress !== 'string') {
+					return 'healthCheckExprs.inProgress must be a string';
+				}
+				if (inProgress && typeof inProgress === 'string' && !CEL_PATTERN.test(inProgress)) {
 					return 'Invalid CEL expression in healthCheckExprs.inProgress';
 				}
-				if (failed && !CEL_PATTERN.test(failed)) {
+
+				if (failed !== undefined && typeof failed !== 'string') {
+					return 'healthCheckExprs.failed must be a string';
+				}
+				if (failed && typeof failed === 'string' && !CEL_PATTERN.test(failed)) {
 					return 'Invalid CEL expression in healthCheckExprs.failed';
 				}
-				if (current && !CEL_PATTERN.test(current)) {
+
+				if (current !== undefined && typeof current !== 'string') {
+					return 'healthCheckExprs.current must be a string';
+				}
+				if (current && typeof current === 'string' && !CEL_PATTERN.test(current)) {
 					return 'Invalid CEL expression in healthCheckExprs.current';
 				}
 			}
