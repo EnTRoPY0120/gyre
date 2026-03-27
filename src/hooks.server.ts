@@ -13,6 +13,7 @@ import {
 } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { getClusterById } from '$lib/server/clusters';
+import { errorToHttpResponse } from '$lib/server/kubernetes/errors';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -374,6 +375,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 			);
 		}
 
+		if (path.startsWith('/api/')) {
+			try {
+				const response = await resolve(event);
+				return recordResponse(response);
+			} catch (err) {
+				const { status, body } = errorToHttpResponse(err);
+				return recordResponse(
+					new Response(JSON.stringify(body), {
+						status,
+						headers: { 'Content-Type': 'application/json' }
+					})
+				);
+			}
+		}
+
 		const response = await resolve(event);
 		return recordResponse(response);
 	});
@@ -405,8 +421,17 @@ export function handleError({
 			? (error as { code: string }).code
 			: 'UNKNOWN';
 
+	const status =
+		typeof error === 'object' &&
+		error !== null &&
+		'status' in error &&
+		typeof (error as { status: unknown }).status === 'number'
+			? (error as { status: number }).status
+			: undefined;
+
 	return {
 		message: 'An unexpected error occurred',
-		code: ALLOWED_CODES.has(rawCode) ? rawCode : 'UNKNOWN'
+		code: ALLOWED_CODES.has(rawCode) ? rawCode : 'UNKNOWN',
+		status
 	};
 }

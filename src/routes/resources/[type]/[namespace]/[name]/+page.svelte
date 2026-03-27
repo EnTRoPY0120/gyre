@@ -494,93 +494,114 @@
 	</div>
 
 	<!-- Tab Content -->
-	<div class="pt-2">
-		{#if activeTab === 'overview'}
-			<div id="overview-panel" role="tabpanel" aria-labelledby="overview-tab">
-				<OverviewTab {resource} resourceType={data.resourceType} {conditions} />
-			</div>
-		{:else if activeTab === 'spec'}
-			<div id="spec-panel" role="tabpanel" aria-labelledby="spec-tab">
-				<CodeViewer
-					data={resource.spec as Record<string, unknown>}
-					title="Resource Spec"
-					showDownload={false}
-				/>
-			</div>
-		{:else if activeTab === 'status'}
-			<div id="status-panel" role="tabpanel" aria-labelledby="status-tab">
-				<CodeViewer
-					data={(resource.status as Record<string, unknown>) || {}}
-					title="Resource Status"
-					showDownload={false}
-				/>
-			</div>
-		{:else if activeTab === 'events'}
-			<div id="events-panel" role="tabpanel" aria-labelledby="events-tab">
-				<EventsTab
-					events={events}
-					loading={eventsLoading}
-					error={eventsError}
-					onRefresh={() => {
-						eventsFetched = false;
-						fetchEvents();
-					}}
-				/>
-			</div>
-		{:else if activeTab === 'logs'}
-			<div id="logs-panel" role="tabpanel" aria-labelledby="logs-tab">
-				{#key resourceKey}
-					<LogsTab
-						{logs}
-						{formattedLogs}
-						loading={logsLoading}
-						error={logsError}
-						{showRawLogs}
-						onRefresh={() => {
-							logsFetched = false;
-							fetchLogs();
-						}}
-						onToggleRaw={(v) => (showRawLogs = v)}
-						bind:logContainer
+	<svelte:boundary>
+		<div class="pt-2">
+			{#if activeTab === 'overview'}
+				<div id="overview-panel" role="tabpanel" aria-labelledby="overview-tab">
+					<OverviewTab {resource} resourceType={data.resourceType} {conditions} />
+				</div>
+			{:else if activeTab === 'spec'}
+				<div id="spec-panel" role="tabpanel" aria-labelledby="spec-tab">
+					<CodeViewer
+						data={resource.spec as Record<string, unknown>}
+						title="Resource Spec"
+						showDownload={false}
 					/>
-				{/key}
+				</div>
+			{:else if activeTab === 'status'}
+				<div id="status-panel" role="tabpanel" aria-labelledby="status-tab">
+					<CodeViewer
+						data={(resource.status as Record<string, unknown>) || {}}
+						title="Resource Status"
+						showDownload={false}
+					/>
+				</div>
+			{:else if activeTab === 'events'}
+				<div id="events-panel" role="tabpanel" aria-labelledby="events-tab">
+					<EventsTab
+						events={events}
+						loading={eventsLoading}
+						error={eventsError}
+						onRefresh={() => {
+							eventsFetched = false;
+							fetchEvents();
+						}}
+					/>
+				</div>
+			{:else if activeTab === 'logs'}
+				<div id="logs-panel" role="tabpanel" aria-labelledby="logs-tab">
+					{#key resourceKey}
+						<LogsTab
+							{logs}
+							{formattedLogs}
+							loading={logsLoading}
+							error={logsError}
+							{showRawLogs}
+							onRefresh={() => {
+								logsFetched = false;
+								fetchLogs();
+							}}
+							onToggleRaw={(v) => (showRawLogs = v)}
+							bind:logContainer
+						/>
+					{/key}
+				</div>
+			{:else if activeTab === 'history'}
+				<div id="history-panel" role="tabpanel" aria-labelledby="history-tab">
+					<HistoryTab
+						{timeline}
+						loading={historyLoading}
+						onRefresh={() => {
+							historyFetched = false;
+							fetchHistory();
+						}}
+						onRollback={handleRollback}
+					/>
+				</div>
+			{:else if activeTab === 'diff'}
+				<div id="diff-panel" role="tabpanel" aria-labelledby="diff-tab">
+					<DiffTab
+						{diffs}
+						loading={diffsLoading}
+						error={diffsError}
+						timestamp={diffsTimestamp}
+						cached={diffsCached}
+						revision={diffsRevision}
+						onRefresh={() => {
+							diffsFetched = false;
+							fetchDiff(true);
+						}}
+					/>
+				</div>
+			{:else if activeTab === 'yaml'}
+				<div id="yaml-panel" role="tabpanel" aria-labelledby="yaml-tab">
+					<CodeViewer
+						data={sanitizeResource(resource) as unknown as Record<string, unknown>}
+						title="Full Resource Manifest"
+					/>
+				</div>
+			{/if}
+		</div>
+
+		{#snippet failed(error, reset)}
+			<div class="flex flex-col items-center justify-center rounded-lg border border-destructive/20 bg-destructive/5 py-12 pt-2 text-center">
+				<svg class="h-10 w-10 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+				</svg>
+				<p class="mt-4 text-sm font-medium text-foreground">Failed to render resource details</p>
+				<p class="mt-1 text-sm text-muted-foreground">
+					{error instanceof Error ? error.message : 'An unexpected error occurred'}
+				</p>
+				<button
+					type="button"
+					class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+					onclick={reset}
+				>
+					Retry
+				</button>
 			</div>
-		{:else if activeTab === 'history'}
-			<div id="history-panel" role="tabpanel" aria-labelledby="history-tab">
-				<HistoryTab
-					{timeline}
-					loading={historyLoading}
-					onRefresh={() => {
-						historyFetched = false;
-						fetchHistory();
-					}}
-					onRollback={handleRollback}
-				/>
-			</div>
-		{:else if activeTab === 'diff'}
-			<div id="diff-panel" role="tabpanel" aria-labelledby="diff-tab">
-				<DiffTab
-					{diffs}
-					loading={diffsLoading}
-					error={diffsError}
-					timestamp={diffsTimestamp}
-					cached={diffsCached}
-					revision={diffsRevision}
-					onRefresh={() => {
-						diffsFetched = false;
-						fetchDiff(true);
-					}}
-				/>
-			</div>
-		{:else if activeTab === 'yaml'}
-			<div id="yaml-panel" role="tabpanel" aria-labelledby="yaml-tab">
-				<CodeViewer
-					data={sanitizeResource(resource) as unknown as Record<string, unknown>}
-					title="Full Resource Manifest"
-				/>
-			</div>
-		{/if}
-	</div>
+		{/snippet}
+	</svelte:boundary>
 </div>
 
 <ConfirmDialog
