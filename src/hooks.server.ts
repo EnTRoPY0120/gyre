@@ -1,5 +1,5 @@
 import { logger, withRequestContext } from '$lib/server/logger.js';
-import type { Handle } from '@sveltejs/kit';
+import { isRedirect, isHttpError, type Handle } from '@sveltejs/kit';
 import { getSession, extendSession, SESSION_DURATION_DAYS } from '$lib/server/auth';
 import { initializeGyre } from '$lib/server/initialize';
 import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
@@ -381,6 +381,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				const response = await resolve(event);
 				return recordResponse(response);
 			} catch (err) {
+				if (isRedirect(err) || isHttpError(err)) throw err;
 				logger.error(err, `Unhandled error in API route ${path}:`);
 				const { status, body } = errorToHttpResponse(err);
 				return recordResponse(
