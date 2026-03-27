@@ -18,6 +18,12 @@
 	let isOpen = $state(false);
 	let isLocalUser = $derived(user?.isLocal !== false);
 	let logoutError = $state<string | null>(null);
+	let triggerButton = $state<HTMLButtonElement | null>(null);
+	let previousActiveElement: HTMLElement | null = null;
+	let selectedIndex = $state(0);
+
+	// Compute the list of focusable menu items dynamically
+	const menuItemCount = $derived(isLocalUser ? 3 : 2); // Role, [ChangePassword], Logout
 
 	async function handleLogout() {
 		logoutError = null;
@@ -38,12 +44,69 @@
 		}
 	}
 
+	function openMenu() {
+		if (typeof document !== 'undefined') {
+			previousActiveElement = document.activeElement as HTMLElement;
+		}
+		selectedIndex = 0;
+		isOpen = true;
+		// Focus first menu item on next tick
+		setTimeout(() => {
+			const firstItem = document.querySelector<HTMLElement>('[data-menu-item="0"]');
+			firstItem?.focus();
+		}, 0);
+	}
+
+	function closeMenu() {
+		isOpen = false;
+		logoutError = null;
+		previousActiveElement?.focus();
+		previousActiveElement = null;
+	}
+
+	function handleTriggerClick() {
+		if (isOpen) {
+			closeMenu();
+		} else {
+			openMenu();
+		}
+	}
+
+	function handleMenuKeydown(e: KeyboardEvent) {
+		if (!isOpen) return;
+
+		switch (e.key) {
+			case 'ArrowDown':
+				e.preventDefault();
+				selectedIndex = (selectedIndex + 1) % menuItemCount;
+				focusItem(selectedIndex);
+				break;
+			case 'ArrowUp':
+				e.preventDefault();
+				selectedIndex = selectedIndex <= 0 ? menuItemCount - 1 : selectedIndex - 1;
+				focusItem(selectedIndex);
+				break;
+			case 'Escape':
+				e.preventDefault();
+				closeMenu();
+				break;
+			case 'Tab':
+				closeMenu();
+				break;
+		}
+	}
+
+	function focusItem(index: number) {
+		const item = document.querySelector<HTMLElement>(`[data-menu-item="${index}"]`);
+		item?.focus();
+	}
+
 	// Close menu on click outside
 	function handleOutsideClick(e: MouseEvent) {
 		if (isOpen) {
 			const target = e.target as HTMLElement;
 			if (!target.closest('.user-menu-container')) {
-				isOpen = false;
+				closeMenu();
 			}
 		}
 	}
@@ -51,14 +114,19 @@
 
 <svelte:window onclick={handleOutsideClick} />
 
-<div class="user-menu-container relative">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="user-menu-container relative" onkeydown={handleMenuKeydown}>
 	<button
+		bind:this={triggerButton}
 		type="button"
 		class={cn(
 			'flex h-10 items-center gap-2 rounded-full border border-border/50 bg-secondary/30 px-3 transition-all hover:bg-secondary/50 active:scale-95',
 			isOpen && 'bg-secondary/60 ring-2 ring-primary/20'
 		)}
-		onclick={() => (isOpen = !isOpen)}
+		onclick={handleTriggerClick}
+		aria-label="Open user menu"
+		aria-expanded={isOpen}
+		aria-haspopup="menu"
 	>
 		<div class="flex size-7 items-center justify-center rounded-full bg-primary/10 text-primary">
 			<UserIcon class="size-4" />
@@ -74,6 +142,8 @@
 			in:scale={{ duration: 150, start: 0.95, opacity: 0 }}
 			out:fade={{ duration: 100 }}
 			class="absolute right-0 mt-2 w-56 origin-top-right rounded-xl border border-border/60 bg-background/95 p-1.5 shadow-2xl ring-1 ring-black/5 backdrop-blur-xl"
+			role="menu"
+			aria-label="User menu"
 		>
 			<div class="px-3 py-2">
 				<div class="flex items-center justify-between">
@@ -97,6 +167,9 @@
 
 			<div class="space-y-0.5">
 				<button
+					role="menuitem"
+					tabindex={selectedIndex === 0 ? 0 : -1}
+					data-menu-item="0"
 					class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
 				>
 					<Shield class="size-4" />
@@ -106,6 +179,9 @@
 				{#if isLocalUser}
 					<a
 						href="/change-password"
+						role="menuitem"
+						tabindex={selectedIndex === 1 ? 0 : -1}
+						data-menu-item="1"
 						class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
 					>
 						<KeyRound class="size-4" />
@@ -117,6 +193,9 @@
 
 				<button
 					onclick={handleLogout}
+					role="menuitem"
+					tabindex={selectedIndex === (isLocalUser ? 2 : 1) ? 0 : -1}
+					data-menu-item={isLocalUser ? '2' : '1'}
 					class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-red-500 transition-all hover:bg-red-500/10 active:scale-[0.98]"
 				>
 					<LogOut class="size-4" />

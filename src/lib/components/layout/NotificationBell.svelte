@@ -5,6 +5,8 @@
 	let isOpen = $state(false);
 	let showAllClusters = $state(false);
 	let dropdownRef = $state<HTMLDivElement | null>(null);
+	let dropdownPanelRef = $state<HTMLDivElement | null>(null);
+	let bellButtonRef = $state<HTMLButtonElement | null>(null);
 
 	const currentCluster = $derived(clusterStore.current || 'in-cluster');
 	const notifications = $derived(
@@ -20,11 +22,18 @@
 	const status = $derived(eventsStore.status);
 
 	function toggleDropdown() {
-		isOpen = !isOpen;
+		if (isOpen) {
+			isOpen = false;
+			bellButtonRef?.focus();
+		} else {
+			isOpen = true;
+			setTimeout(() => dropdownPanelRef?.focus(), 0);
+		}
 	}
 
 	function closeDropdown() {
 		isOpen = false;
+		bellButtonRef?.focus();
 	}
 
 	function handleClickOutside(event: MouseEvent) {
@@ -106,10 +115,13 @@
 <div class="relative" bind:this={dropdownRef}>
 	<!-- Bell Button -->
 	<button
+		bind:this={bellButtonRef}
 		type="button"
 		class="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-accent hover:text-gray-700 dark:text-gray-400 dark:hover:bg-accent dark:hover:text-gray-200"
 		onclick={toggleDropdown}
-		aria-label="Notifications"
+		aria-label="Notifications{unreadCount > 0 ? `, ${unreadCount} unread` : ''}"
+		aria-expanded={isOpen}
+		aria-haspopup="dialog"
 	>
 		<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path
@@ -129,8 +141,9 @@
 			</span>
 		{/if}
 
-		<!-- Connection Status Dot -->
+		<!-- Connection Status Dot (decorative – text label in footer conveys status) -->
 		<span
+			aria-hidden="true"
 			class="absolute right-0.5 bottom-0.5 h-2 w-2 rounded-full {status === 'connected'
 				? 'bg-green-400'
 				: status === 'connecting'
@@ -142,7 +155,11 @@
 	<!-- Dropdown -->
 	{#if isOpen}
 		<div
-			class="fixed right-4 left-4 z-50 mt-2 rounded-lg border border-gray-200 bg-card shadow-lg sm:absolute sm:right-0 sm:left-auto sm:w-96 dark:border-gray-700 dark:bg-gray-800"
+			bind:this={dropdownPanelRef}
+			role="dialog"
+			aria-label="Notifications"
+			tabindex="-1"
+			class="fixed right-4 left-4 z-50 mt-2 rounded-lg border border-gray-200 bg-card shadow-lg sm:absolute sm:right-0 sm:left-auto sm:w-96 dark:border-gray-700 dark:bg-gray-800 focus:outline-none"
 		>
 			<!-- Header -->
 			<div
@@ -196,6 +213,7 @@
 				<div class="flex items-center gap-2 rounded-md bg-secondary/30 p-1">
 					<button
 						type="button"
+						aria-pressed={!showAllClusters}
 						class="flex h-11 flex-1 items-center justify-center rounded-sm px-2 py-1 text-[10px] font-medium transition-colors {showAllClusters
 							? 'text-muted-foreground hover:bg-secondary/50'
 							: 'bg-background text-foreground shadow-sm'}"
@@ -205,6 +223,7 @@
 					</button>
 					<button
 						type="button"
+						aria-pressed={showAllClusters}
 						class="flex h-11 flex-1 items-center justify-center rounded-sm px-2 py-1 text-[10px] font-medium transition-colors {!showAllClusters
 							? 'text-muted-foreground hover:bg-secondary/50'
 							: 'bg-background text-foreground shadow-sm'}"
@@ -216,7 +235,7 @@
 			</div>
 
 			<!-- Notification List -->
-			<div class="max-h-96 overflow-y-auto">
+			<div class="max-h-96 overflow-y-auto" aria-live="polite" aria-label="Notification list">
 				{#if notifications.length === 0}
 					<div class="flex flex-col items-center justify-center py-8 text-center">
 						<svg
@@ -313,9 +332,9 @@
 									</div>
 								</div>
 
-								<!-- Unread indicator -->
+								<!-- Unread indicator (decorative – read state conveyed by opacity on parent) -->
 								{#if !notification.read}
-									<div class="flex-shrink-0">
+									<div aria-hidden="true" class="flex-shrink-0">
 										<span class="h-2 w-2 rounded-full bg-blue-500"></span>
 									</div>
 								{/if}

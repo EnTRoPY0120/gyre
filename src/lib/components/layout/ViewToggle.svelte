@@ -4,16 +4,17 @@
 	const viewMode = $derived(preferences.viewMode);
 </script>
 
-<div class="inline-flex shrink-0 self-start rounded-lg border border-border bg-card p-1">
+<div role="group" aria-label="View mode" class="inline-flex shrink-0 self-start rounded-lg border border-border bg-card p-1">
 	<button
 		type="button"
+		aria-pressed={viewMode === 'table'}
 		class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
 		'table'
 			? 'bg-primary text-primary-foreground'
 			: 'text-muted-foreground hover:text-foreground'}"
 		onclick={() => preferences.setViewMode('table')}
 	>
-		<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<svg aria-hidden="true" class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"
@@ -26,13 +27,14 @@
 
 	<button
 		type="button"
+		aria-pressed={viewMode === 'grid'}
 		class="inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium transition-colors {viewMode ===
 		'grid'
 			? 'bg-muted text-foreground'
 			: 'text-muted-foreground hover:text-foreground'}"
 		onclick={() => preferences.setViewMode('grid')}
 	>
-		<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+		<svg aria-hidden="true" class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 			<path
 				stroke-linecap="round"
 				stroke-linejoin="round"
