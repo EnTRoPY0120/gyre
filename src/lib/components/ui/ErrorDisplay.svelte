@@ -19,7 +19,7 @@
 	<div
 		class="mb-6 flex h-24 w-24 items-center justify-center rounded-full {is404
 			? 'bg-primary/10'
-			: 'bg-red-100'}"
+			: 'bg-destructive/10'}"
 	>
 		{#if is404}
 			<svg class="h-12 w-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -48,7 +48,7 @@
 	</h1>
 
 	<!-- Error Title -->
-	<h2 class="mb-4 text-2xl font-semibold text-gray-900">
+	<h2 class="mb-4 text-2xl font-semibold text-foreground">
 		{#if is404}
 			Page Not Found
 		{:else if status === 500}
@@ -61,7 +61,7 @@
 	</h2>
 
 	<!-- Error Message -->
-	<p class="mb-8 max-w-md text-gray-600">
+	<p class="mb-8 max-w-md text-muted-foreground">
 		{#if is404}
 			The page you're looking for doesn't exist or has been moved.
 		{:else}
@@ -73,7 +73,7 @@
 	<div class="flex gap-4">
 		<button
 			type="button"
-			class="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-5 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200"
+			class="inline-flex items-center gap-2 rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/80"
 			onclick={() => window.history.back()}
 		>
 			<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
