@@ -32,7 +32,7 @@
 				/>
 			</svg>
 		{:else}
-			<svg class="h-12 w-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+			<svg class="h-12 w-12 text-destructive" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path
 					stroke-linecap="round"
 					stroke-linejoin="round"
@@ -44,7 +44,7 @@
 	</div>
 
 	<!-- Error Status -->
-	<h1 class="mb-2 text-6xl font-bold {is404 ? 'text-primary' : 'text-red-600'}">
+	<h1 class="mb-2 text-6xl font-bold {is404 ? 'text-primary' : 'text-destructive'}">
 		{status}
 	</h1>
 
