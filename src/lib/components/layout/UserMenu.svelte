@@ -114,8 +114,7 @@
 
 <svelte:window onclick={handleOutsideClick} />
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div class="user-menu-container relative" onkeydown={handleMenuKeydown}>
+<div role="none" class="user-menu-container relative" onkeydown={handleMenuKeydown}>
 	<button
 		bind:this={triggerButton}
 		type="button"
@@ -166,15 +165,16 @@
 			<div class="my-1 h-px bg-border/50"></div>
 
 			<div class="space-y-0.5">
-				<button
+				<div
 					role="menuitem"
-					tabindex={selectedIndex === 0 ? 0 : -1}
+					aria-disabled="true"
+					tabindex="-1"
 					data-menu-item="0"
-					class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-all hover:bg-accent hover:text-foreground"
+					class="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground"
 				>
 					<Shield class="size-4" />
 					Role: <span class="font-medium text-foreground capitalize">{user?.role}</span>
-				</button>
+				</div>
 
 				{#if isLocalUser}
 					<a
