@@ -29,8 +29,10 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
 		class="group flex items-center gap-1.5 rounded-md border border-transparent bg-secondary/50 px-2 py-1 text-xs font-medium transition-all hover:border-border hover:bg-secondary/80 sm:gap-2 sm:px-3 sm:py-1.5"
+		aria-label="Current cluster: {currentCluster === 'in-cluster' ? 'In-cluster' : currentCluster}. Click to switch cluster"
 	>
 		<div
+			aria-hidden="true"
 			class={cn(
 				'h-1.5 w-1.5 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.4)] transition-transform group-hover:scale-125',
 				connected ? 'bg-emerald-500' : 'bg-destructive shadow-[0_0_8px_rgba(239,68,68,0.4)]'
@@ -91,6 +93,7 @@
 					)}
 				>
 					<div
+						aria-hidden="true"
 						class={cn(
 							'h-1.5 w-1.5 rounded-full transition-all duration-300',
 							cluster === currentCluster

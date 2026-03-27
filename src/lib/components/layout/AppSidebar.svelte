@@ -156,7 +156,7 @@
 				<button
 					onclick={() => sidebarOpen.toggle()}
 					class="rounded-lg p-2 text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground active:scale-95"
-					title="Collapse Sidebar"
+					aria-label="Collapse Sidebar"
 				>
 					<Icon name="chevron-left" size={20} />
 				</button>
@@ -165,7 +165,7 @@
 				<button
 					onclick={() => sidebarOpen.toggle()}
 					class="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-sidebar-accent hover:text-primary active:scale-95"
-					title="Expand Sidebar"
+					aria-label="Expand Sidebar"
 				>
 					<Icon name="menu" size={24} />
 				</button>
@@ -192,7 +192,7 @@
 					? 'bg-primary text-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.3)]'
 					: 'text-muted-foreground hover:bg-muted hover:text-foreground'
 			)}
-			title={!isOpen ? 'Dashboard' : ''}
+			aria-label={!isOpen ? 'Dashboard' : undefined}
 		>
 			<Icon
 				name="dashboard"
@@ -262,7 +262,7 @@
 						? 'bg-primary text-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.4)]'
 						: 'text-muted-foreground hover:bg-primary/10 hover:text-primary'
 				)}
-				title={!isOpen ? 'Create Resource' : ''}
+				aria-label={!isOpen ? 'Create Resource' : undefined}
 			>
 				<div
 					class={cn(
@@ -307,7 +307,7 @@
 								? 'w-full justify-between px-3 py-2 font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase hover:text-primary'
 								: 'mx-auto justify-center rounded-lg p-2.5 text-muted-foreground hover:bg-muted hover:text-primary active:scale-95'
 						)}
-						title={!isOpen ? group.name : ''}
+						aria-label={!isOpen ? group.name : undefined}
 					>
 						<div class="flex items-center gap-2.5 whitespace-nowrap">
 							<Icon
@@ -408,7 +408,7 @@
 						? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-[0_4px_20px_-4px_rgba(234,179,8,0.2)]'
 						: 'text-muted-foreground hover:bg-sidebar-accent hover:text-foreground'
 				)}
-				title={!isOpen ? 'Settings' : ''}
+				aria-label={!isOpen ? 'Settings' : undefined}
 			>
 				<Icon
 					name="settings"
