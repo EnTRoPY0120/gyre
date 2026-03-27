@@ -9,7 +9,7 @@
 
 	let { status: statusProp, message: messageProp, onRetry }: Props = $props();
 
-	const status = $derived(statusProp ?? $page.error?.status ?? $page.status);
+	const status = $derived(statusProp ?? $page.error?.status ?? $page.status ?? 500);
 	const message = $derived(messageProp ?? $page.error?.message ?? 'An unexpected error occurred');
 
 	const is404 = $derived(status === 404);
