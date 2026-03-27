@@ -14,6 +14,7 @@ import {
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { getClusterById } from '$lib/server/clusters';
 import { errorToHttpResponse } from '$lib/server/kubernetes/errors';
+import { normalizeError } from '$lib/utils/error-normalization';
 
 // Initialize Gyre on first request
 let initialized = false;
@@ -380,6 +381,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				const response = await resolve(event);
 				return recordResponse(response);
 			} catch (err) {
+				logger.error(err, `Unhandled error in API route ${path}:`);
 				const { status, body } = errorToHttpResponse(err);
 				return recordResponse(
 					new Response(JSON.stringify(body), {
@@ -412,26 +414,6 @@ export function handleError({
 		logger.error(error, `Error in ${event.url.pathname}:`);
 	}
 
-	const ALLOWED_CODES = new Set(['INVALID_INPUT', 'NOT_AUTHORIZED', 'NOT_FOUND', 'UNKNOWN']);
-	const rawCode =
-		typeof error === 'object' &&
-		error !== null &&
-		'code' in error &&
-		typeof (error as { code: unknown }).code === 'string'
-			? (error as { code: string }).code
-			: 'UNKNOWN';
-
-	const status =
-		typeof error === 'object' &&
-		error !== null &&
-		'status' in error &&
-		typeof (error as { status: unknown }).status === 'number'
-			? (error as { status: number }).status
-			: undefined;
-
-	return {
-		message: 'An unexpected error occurred',
-		code: ALLOWED_CODES.has(rawCode) ? rawCode : 'UNKNOWN',
-		status
-	};
+	const { code, status } = normalizeError(error);
+	return { message: 'An unexpected error occurred', code, status };
 }

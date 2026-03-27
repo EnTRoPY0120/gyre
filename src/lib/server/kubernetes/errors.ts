@@ -155,14 +155,29 @@ export function errorToHttpResponse(error: unknown): {
 	}
 
 	if (error instanceof ConfigurationError) {
-		// Configuration errors might be safe? But safer to be generic if unsure.
-		// Assuming ConfigurationError messages are safe (internal config issues, not user data).
-		// But let's be safe.
 		return {
 			status: 500,
 			body: {
 				error: 'Configuration error',
 				code: 'ConfigurationError'
+			}
+		};
+	}
+
+	// SvelteKit HttpError (thrown via error()) has status + body properties
+	if (
+		typeof error === 'object' &&
+		error !== null &&
+		'status' in error &&
+		'body' in error &&
+		typeof (error as { status: unknown }).status === 'number'
+	) {
+		const httpError = error as { status: number; body: { message?: string; code?: string } };
+		return {
+			status: httpError.status,
+			body: {
+				error: httpError.body?.message ?? 'An unexpected error occurred',
+				code: httpError.body?.code
 			}
 		};
 	}
