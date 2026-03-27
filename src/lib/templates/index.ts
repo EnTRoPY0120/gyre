@@ -348,6 +348,7 @@ spec:
 			path: 'spec.timeout',
 			type: 'duration',
 			section: 'advanced',
+			default: '10m',
 			placeholder: '60s',
 			description: 'Timeout for Git operations',
 			validation: {
@@ -657,6 +658,7 @@ spec:
 			path: 'spec.timeout',
 			type: 'duration',
 			section: 'advanced',
+			default: '10m',
 			placeholder: '60s',
 			description: 'Timeout for index download operations',
 			validation: {
@@ -970,6 +972,7 @@ spec:
 			path: 'spec.timeout',
 			type: 'duration',
 			section: 'health',
+			default: '10m',
 			placeholder: '5m',
 			description: 'Timeout for health checks and operations',
 			validation: {
@@ -1252,6 +1255,13 @@ spec:
 			defaultExpanded: false
 		},
 		{
+			id: 'resourceLimits',
+			title: 'Resource Limits',
+			description: 'CPU and memory constraints for deployed workloads',
+			collapsible: true,
+			defaultExpanded: false
+		},
+		{
 			id: 'install',
 			title: 'Install Options',
 			description: 'Helm install action configuration',
@@ -1452,12 +1462,28 @@ spec:
 						{ label: 'Secret', value: 'Secret' }
 					]
 				},
-				{ name: 'name', label: 'Name', path: 'name', type: 'string' },
+				{
+					name: 'name',
+					label: 'Name',
+					path: 'name',
+					type: 'string'
+				},
+				{
+					name: 'namespace',
+					label: 'Namespace',
+					path: 'namespace',
+					type: 'string',
+					placeholder: 'flux-system',
+					description:
+						'Namespace of the referenced resource. Leave blank to use the HelmRelease namespace.'
+				},
 				{ name: 'valuesKey', label: 'Values Key', path: 'valuesKey', type: 'string' },
 				{ name: 'targetPath', label: 'Target Path', path: 'targetPath', type: 'string' },
 				{ name: 'optional', label: 'Optional', path: 'optional', type: 'boolean' }
 			],
-			description: 'References to ConfigMaps or Secrets for values'
+			description: 'References to ConfigMaps or Secrets containing Helm values.',
+			helpText:
+				"Security: valuesFrom can reference resources from any namespace if the controller's RBAC permits it. Prefer referencing Secrets and ConfigMaps in the same namespace as the HelmRelease to limit exposure."
 		},
 		{
 			name: 'dependsOn',
@@ -1490,6 +1516,48 @@ spec:
 			section: 'release',
 			placeholder: 'team: frontend',
 			description: 'Annotations to apply to all resources'
+		},
+		{
+			name: 'resourceLimitsCpu',
+			label: 'CPU Limit',
+			path: 'spec.values.resources.limits.cpu',
+			type: 'string',
+			section: 'resourceLimits',
+			placeholder: '500m',
+			description:
+				'Maximum CPU for deployed pods (e.g. 500m, 1). Sets spec.values.resources.limits.cpu.',
+			helpText:
+				'Most Helm charts expose resources.limits.cpu in their values. If your chart uses a different key, edit spec.values directly.'
+		},
+		{
+			name: 'resourceLimitsMemory',
+			label: 'Memory Limit',
+			path: 'spec.values.resources.limits.memory',
+			type: 'string',
+			section: 'resourceLimits',
+			placeholder: '128Mi',
+			description:
+				'Maximum memory for deployed pods (e.g. 128Mi, 1Gi). Sets spec.values.resources.limits.memory.'
+		},
+		{
+			name: 'resourceRequestsCpu',
+			label: 'CPU Request',
+			path: 'spec.values.resources.requests.cpu',
+			type: 'string',
+			section: 'resourceLimits',
+			placeholder: '100m',
+			description:
+				'Requested CPU for scheduling (e.g. 100m). Sets spec.values.resources.requests.cpu.'
+		},
+		{
+			name: 'resourceRequestsMemory',
+			label: 'Memory Request',
+			path: 'spec.values.resources.requests.memory',
+			type: 'string',
+			section: 'resourceLimits',
+			placeholder: '64Mi',
+			description:
+				'Requested memory for scheduling (e.g. 64Mi). Sets spec.values.resources.requests.memory.'
 		},
 
 		// Upgrade & Rollback
@@ -1537,6 +1605,7 @@ spec:
 			path: 'spec.timeout',
 			type: 'duration',
 			section: 'advanced',
+			default: '10m',
 			placeholder: '5m',
 			description: 'Timeout for Helm operations',
 			validation: {
@@ -2106,6 +2175,7 @@ spec:
 			path: 'spec.timeout',
 			type: 'duration',
 			section: 'advanced',
+			default: '10m',
 			placeholder: '60s',
 			description: 'Timeout for bucket operations',
 			validation: {
@@ -2376,6 +2446,7 @@ spec:
 			path: 'spec.timeout',
 			type: 'duration',
 			section: 'advanced',
+			default: '10m',
 			placeholder: '60s',
 			description: 'Timeout for OCI operations',
 			validation: {
@@ -2801,6 +2872,7 @@ spec:
 			path: 'spec.timeout',
 			type: 'duration',
 			section: 'provider',
+			default: '10m',
 			placeholder: '30s',
 			description: 'Timeout for sending notifications',
 			validation: {

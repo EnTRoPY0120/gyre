@@ -16,7 +16,7 @@ import {
 } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { checkPermission } from '$lib/server/rbac.js';
-import { validateK8sNamespace } from '$lib/server/validation';
+import { validateK8sNamespace, validateFluxResourceSpec } from '$lib/server/validation';
 import { VALID_SORT_BY, VALID_SORT_ORDER } from '$lib/config/sorting';
 
 /** Zod schema for POST create FluxCD resource request body – used for OpenAPI and runtime validation */
@@ -270,6 +270,11 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		throw error(400, {
 			message: `apiVersion mismatch: body declares "${body.apiVersion}" but "${resolvedType}" requires "${resourceDef.apiVersion}"`
 		});
+	}
+
+	const specError = validateFluxResourceSpec(resolvedType, body.spec ?? {});
+	if (specError) {
+		throw error(422, { message: specError });
 	}
 
 	const reqCache: ReqCache = new Map();
