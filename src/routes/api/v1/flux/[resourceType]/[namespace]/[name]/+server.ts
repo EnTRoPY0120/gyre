@@ -20,7 +20,11 @@ import { logAudit } from '$lib/server/audit.js';
 import { deleteResource } from '$lib/server/kubernetes/flux/actions.js';
 import type { K8sResource } from '$lib/types/kubernetes';
 import yaml from 'js-yaml';
-import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
+import {
+	validateK8sNamespace,
+	validateK8sName,
+	validateFluxResourceSpec
+} from '$lib/server/validation';
 
 export const _metadata = {
 	GET: {
@@ -276,6 +280,14 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		throw error(400, {
 			message: `apiVersion mismatch: expected "${resourceDef.apiVersion}", got "${resource.apiVersion}"`
 		});
+	}
+
+	const specError = validateFluxResourceSpec(
+		resolvedType,
+		(resource.spec ?? {}) as Record<string, unknown>
+	);
+	if (specError) {
+		throw error(422, { message: specError });
 	}
 
 	// Validate name and namespace match

@@ -12,7 +12,18 @@ import {
 	getResourceTypeByPlural,
 	FLUX_RESOURCES
 } from '../lib/server/kubernetes/flux/resources.js';
-import { K8S_NAME_REGEX, validateK8sNamespace, validateK8sName } from '../lib/server/validation.js';
+import {
+	K8S_NAME_REGEX,
+	validateK8sNamespace,
+	validateK8sName,
+	validateLabelMap,
+	validateSubstituteVars,
+	validateFluxResourceSpec,
+	CEL_PATTERN,
+	LABEL_KEY_PATTERN,
+	LABEL_VALUE_PATTERN,
+	SUBSTITUTE_VAR_PATTERN
+} from '../lib/server/validation.js';
 
 // ---------------------------------------------------------------------------
 // apiVersion / kind mismatch logic (mirrors POST handler checks)
@@ -78,7 +89,7 @@ describe('PUT kind validation logic', () => {
 
 	test('all resource definitions have kind matching their type key', () => {
 		for (const [type, def] of Object.entries(FLUX_RESOURCES)) {
-			expect(def.kind).toBe(type);
+			expect(def.kind).toBe(type as keyof typeof FLUX_RESOURCES);
 		}
 	});
 });
@@ -221,5 +232,214 @@ count: 42
 		expect(result.suspended).toBe(false);
 		expect(result.value).toBeNull();
 		expect(result.count).toBe(42);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Server-side spec validation (Item 1 of Issue #308)
+// ---------------------------------------------------------------------------
+
+describe('CEL_PATTERN validation', () => {
+	test('accepts valid CEL expressions', () => {
+		const valid = [
+			'status.phase == "Running"',
+			'metadata.name == "test"',
+			'status.readyReplicas >= 1',
+			'has(status.conditions)',
+			'items[0].name'
+		];
+		for (const expr of valid) {
+			expect(CEL_PATTERN.test(expr)).toBe(true);
+		}
+	});
+
+	test('rejects CEL expressions with disallowed characters', () => {
+		const invalid = [
+			'$(whoami)',
+			'`cat /etc/passwd`',
+			'{{template}}',
+			'; rm -rf /',
+			'\\$(cat /etc/passwd)'
+		];
+		for (const expr of invalid) {
+			expect(CEL_PATTERN.test(expr)).toBe(false);
+		}
+	});
+});
+
+describe('LABEL_KEY_PATTERN validation', () => {
+	test('accepts valid label keys', () => {
+		const valid = ['app', 'app.kubernetes.io/name', 'my-label', 'a'.repeat(63)];
+		for (const key of valid) {
+			expect(LABEL_KEY_PATTERN.test(key)).toBe(true);
+		}
+	});
+
+	test('rejects label keys over 63 characters', () => {
+		expect(LABEL_KEY_PATTERN.test('a'.repeat(64))).toBe(false);
+		expect(LABEL_KEY_PATTERN.test('prefix/a'.repeat(32))).toBe(false);
+	});
+
+	test('rejects label keys with invalid characters', () => {
+		const invalid = ['has/slash/inside', 'has spaces', 'has@special', 'has//doubleslash'];
+		for (const key of invalid) {
+			expect(LABEL_KEY_PATTERN.test(key)).toBe(false);
+		}
+	});
+});
+
+describe('LABEL_VALUE_PATTERN validation', () => {
+	test('accepts valid label values', () => {
+		const valid = ['production', 'v1.0.0', 'my_label', 'my-label', 'a'.repeat(63), ''];
+		for (const val of valid) {
+			expect(LABEL_VALUE_PATTERN.test(val)).toBe(true);
+		}
+	});
+
+	test('rejects label values with disallowed chars', () => {
+		const invalid = ['has/slash/inside', 'has spaces', 'has@special'];
+		for (const val of invalid) {
+			expect(LABEL_VALUE_PATTERN.test(val)).toBe(false);
+		}
+	});
+});
+
+describe('SUBSTITUTE_VAR_PATTERN validation', () => {
+	test('accepts valid variable names', () => {
+		const valid = ['CLUSTER_NAME', 'cluster_name', 'a', '_private', 'var123'];
+		for (const v of valid) {
+			expect(SUBSTITUTE_VAR_PATTERN.test(v)).toBe(true);
+		}
+	});
+
+	test('rejects variable names starting with a digit', () => {
+		expect(SUBSTITUTE_VAR_PATTERN.test('123var')).toBe(false);
+		expect(SUBSTITUTE_VAR_PATTERN.test('1')).toBe(false);
+	});
+
+	test('rejects variable names with hyphens', () => {
+		expect(SUBSTITUTE_VAR_PATTERN.test('cluster-name')).toBe(false);
+	});
+});
+
+describe('validateLabelMap', () => {
+	test('returns null for valid label maps', () => {
+		expect(validateLabelMap({})).toBeNull();
+		expect(validateLabelMap({ app: 'myapp' })).toBeNull();
+		expect(validateLabelMap({ app: 'myapp', 'app.kubernetes.io/version': 'v1' })).toBeNull();
+	});
+
+	test('rejects label keys over 63 chars', () => {
+		const result = validateLabelMap({ [('a' as string).repeat(64)]: 'value' });
+		expect(result).not.toBeNull();
+	});
+
+	test('rejects label values with disallowed chars', () => {
+		const result = validateLabelMap({ app: 'has spaces' });
+		expect(result).not.toBeNull();
+	});
+
+	test('rejects non-object input', () => {
+		expect(validateLabelMap('string')).not.toBeNull();
+		expect(validateLabelMap([1, 2, 3])).not.toBeNull();
+	});
+});
+
+describe('validateSubstituteVars', () => {
+	test('returns null for valid substitute variables', () => {
+		expect(validateSubstituteVars({})).toBeNull();
+		expect(validateSubstituteVars({ CLUSTER_NAME: 'prod' })).toBeNull();
+	});
+
+	test('rejects variable names starting with a digit', () => {
+		const result = validateSubstituteVars({ '123var': 'value' });
+		expect(result).not.toBeNull();
+	});
+
+	test('rejects values over 1000 chars', () => {
+		const longValue = 'a'.repeat(1001);
+		const result = validateSubstituteVars({ myvar: longValue });
+		expect(result).not.toBeNull();
+	});
+
+	test('rejects non-object input', () => {
+		expect(validateSubstituteVars('string')).not.toBeNull();
+	});
+});
+
+describe('validateFluxResourceSpec', () => {
+	test('Kustomization: accepts valid CEL expressions', () => {
+		const spec = {
+			healthCheckExprs: [
+				{ inProgress: 'status.phase == "Running"', current: 'status.readyReplicas >= 1' }
+			]
+		};
+		expect(validateFluxResourceSpec('Kustomization', spec)).toBeNull();
+	});
+
+	test('Kustomization: rejects invalid CEL expressions', () => {
+		const spec = {
+			healthCheckExprs: [{ current: '$(whoami)' }]
+		};
+		const result = validateFluxResourceSpec('Kustomization', spec);
+		expect(result).not.toBeNull();
+	});
+
+	test('Kustomization: accepts valid commonMetadata labels', () => {
+		const spec = {
+			commonMetadata: { labels: { app: 'myapp' } }
+		};
+		expect(validateFluxResourceSpec('Kustomization', spec)).toBeNull();
+	});
+
+	test('Kustomization: rejects invalid commonMetadata labels', () => {
+		const spec = {
+			commonMetadata: { labels: { invalid_key_: 'value' } }
+		};
+		const result = validateFluxResourceSpec('Kustomization', spec);
+		expect(result).not.toBeNull();
+	});
+
+	test('Kustomization: accepts valid substitute variables', () => {
+		const spec = {
+			postBuild: { substitute: { CLUSTER_NAME: 'prod' } }
+		};
+		expect(validateFluxResourceSpec('Kustomization', spec)).toBeNull();
+	});
+
+	test('Kustomization: rejects invalid substitute variables', () => {
+		const spec = {
+			postBuild: { substitute: { '123invalid': 'value' } }
+		};
+		const result = validateFluxResourceSpec('Kustomization', spec);
+		expect(result).not.toBeNull();
+	});
+
+	test('HelmRelease: accepts valid commonMetadata labels', () => {
+		const spec = {
+			commonMetadata: { labels: { app: 'myapp' } }
+		};
+		expect(validateFluxResourceSpec('HelmRelease', spec)).toBeNull();
+	});
+
+	test('HelmRelease: rejects invalid commonMetadata labels', () => {
+		const spec = {
+			commonMetadata: { labels: { 'Invalid Key': 'value' } }
+		};
+		const result = validateFluxResourceSpec('HelmRelease', spec);
+		expect(result).not.toBeNull();
+	});
+
+	test('unknown resource type returns null', () => {
+		expect(validateFluxResourceSpec('UnknownType', {})).toBeNull();
+	});
+
+	test('null/undefined spec returns null', () => {
+		expect(
+			validateFluxResourceSpec('Kustomization', null as unknown as Record<string, unknown>)
+		).toBeNull();
+		expect(
+			validateFluxResourceSpec('Kustomization', undefined as unknown as Record<string, unknown>)
+		).toBeNull();
 	});
 });
