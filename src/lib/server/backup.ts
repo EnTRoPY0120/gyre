@@ -381,8 +381,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 				'audit_logs',
 				'rbac_policies',
 				'rbac_bindings',
-				'auth_providers',
-				'user_providers'
+				'auth_providers'
 			];
 			const missing = requiredTables.filter((t) => !tableNames.includes(t));
 			if (missing.length > 0) {
@@ -392,10 +391,17 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 				);
 			}
 
+			if (!tableNames.includes('accounts') && !tableNames.includes('user_providers')) {
+				throw new BackupError(
+					'Invalid backup: missing required auth account data tables: accounts or legacy user_providers',
+					400
+				);
+			}
+
 			// Check users table has expected columns
 			const userCols = testDb.prepare('PRAGMA table_info(users)').all() as { name: string }[];
 			const userColNames = userCols.map((c) => c.name);
-			const requiredUserCols = ['id', 'username', 'role', 'password_hash'];
+			const requiredUserCols = ['id', 'username', 'role'];
 			const missingCols = requiredUserCols.filter((c) => !userColNames.includes(c));
 			if (missingCols.length > 0) {
 				throw new BackupError(

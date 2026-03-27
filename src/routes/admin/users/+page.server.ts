@@ -4,6 +4,7 @@ import { fail } from '@sveltejs/kit';
 import {
 	listUsersPaginated,
 	getUserById,
+	hasManagedPassword,
 	createUser,
 	updateUser,
 	deleteUser,
@@ -231,6 +232,12 @@ export const actions: Actions = {
 		const targetUser = await getUserById(userId);
 		if (targetUser && targetUser.isLocal === false) {
 			return fail(400, { error: 'Cannot reset password for SSO users' });
+		}
+		if (targetUser && !(await hasManagedPassword(targetUser.id))) {
+			return fail(400, {
+				error:
+					'The in-cluster admin password is managed via the Kubernetes secret and cannot be reset here'
+			});
 		}
 
 		try {

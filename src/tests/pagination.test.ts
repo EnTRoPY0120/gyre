@@ -36,8 +36,10 @@ const CREATE_USERS_TABLE = `
 	CREATE TABLE IF NOT EXISTS users (
 		id TEXT PRIMARY KEY,
 		username TEXT NOT NULL UNIQUE,
-		password_hash TEXT NOT NULL,
 		email TEXT,
+		name TEXT NOT NULL DEFAULT '',
+		email_verified INTEGER NOT NULL DEFAULT 0,
+		image TEXT,
 		role TEXT NOT NULL DEFAULT 'viewer',
 		active INTEGER NOT NULL DEFAULT 1,
 		is_local INTEGER NOT NULL DEFAULT 1,
@@ -47,9 +49,32 @@ const CREATE_USERS_TABLE = `
 	)
 `;
 
+const CREATE_ACCOUNTS_TABLE = `
+	CREATE TABLE IF NOT EXISTS accounts (
+		id TEXT PRIMARY KEY,
+		created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+		updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+		provider_id TEXT NOT NULL,
+		account_id TEXT NOT NULL,
+		user_id TEXT NOT NULL,
+		access_token TEXT,
+		refresh_token TEXT,
+		id_token TEXT,
+		access_token_expires_at INTEGER,
+		refresh_token_expires_at INTEGER,
+		scope TEXT,
+		password TEXT,
+		last_login_at INTEGER,
+		access_token_encrypted TEXT,
+		refresh_token_encrypted TEXT,
+		id_token_encrypted TEXT
+	)
+`;
+
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
 	sqlite.exec(CREATE_USERS_TABLE);
+	sqlite.exec(CREATE_ACCOUNTS_TABLE);
 	return drizzle(sqlite, { schema });
 }
 

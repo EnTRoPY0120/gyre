@@ -2,7 +2,8 @@ import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { deleteSession, deleteUserSessions } from '$lib/server/auth';
+import { deleteUserSessions } from '$lib/server/auth';
+import { applyBetterAuthCookies, getBetterAuth } from '$lib/server/auth/better-auth';
 import { logLogout } from '$lib/server/audit';
 
 export const _metadata = {
@@ -49,11 +50,16 @@ export const POST: RequestHandler = async ({ request, cookies, locals, getClient
 	try {
 		const ipAddress = getClientAddress();
 		const { all } = await request.json().catch(() => ({}));
+		const auth = getBetterAuth();
 
 		// Use the middleware-validated session id, not the raw cookie value,
 		// so an attacker-supplied cookie cannot delete an arbitrary session.
 		if (locals.session) {
-			await deleteSession(locals.session.id);
+			const signOutResult = await auth.api.signOut({
+				headers: request.headers,
+				returnHeaders: true
+			});
+			applyBetterAuthCookies(cookies, signOutResult.headers);
 		}
 
 		// Invalidate all sessions and emit audit event only when authenticated.

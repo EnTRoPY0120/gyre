@@ -49,14 +49,13 @@ export const _metadata = {
 	}
 };
 import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
-import { createSession, rotateSession, cleanupSetupTokenFile } from '$lib/server/auth';
-import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
+import { cleanupSetupTokenFile } from '$lib/server/auth';
+import {
+	createBetterAuthSessionForUser,
+	ensureBetterAuthOAuthAccount
+} from '$lib/server/auth/better-auth';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { computeStateFingerprint } from '$lib/server/auth/pkce';
-import { encryptSecret } from '$lib/server/auth/crypto';
-import { getDb } from '$lib/server/db';
-import { userProviders } from '$lib/server/db/schema';
-import { and, eq } from 'drizzle-orm';
 
 /**
  * GET /api/auth/[providerId]/callback
@@ -191,34 +190,12 @@ export const GET: RequestHandler = async (event) => {
 			);
 		}
 
-		// Store OAuth tokens encrypted at rest before minting the session.
-		// Performing the DB write first ensures no live session exists if persistence fails.
-		if (tokens.accessToken) {
-			const db = await getDb();
-			const tokenExpiresAt =
-				tokens.expiresIn != null ? new Date(Date.now() + tokens.expiresIn * 1000) : null;
-
-			await db
-				.update(userProviders)
-				.set({
-					accessTokenEncrypted: encryptSecret(tokens.accessToken),
-					refreshTokenEncrypted: tokens.refreshToken ? encryptSecret(tokens.refreshToken) : null,
-					tokenExpiresAt
-				})
-				.where(and(eq(userProviders.userId, user.id), eq(userProviders.providerId, providerId)));
-		}
-
-		// Create or rotate session (rotation prevents session fixation attacks).
-		// Session is only created after token persistence succeeds.
-		const existingSessionId = cookies.get('gyre_session');
-		const userAgent = request.headers.get('user-agent') ?? undefined;
-		const sessionId = existingSessionId
-			? await rotateSession(existingSessionId, user.id, ipAddress, userAgent)
-			: await createSession(user.id, ipAddress, userAgent);
+		await ensureBetterAuthOAuthAccount(user.id, providerId, userInfo.sub, tokens);
+		await createBetterAuthSessionForUser(cookies, user.id, {
+			ipAddress,
+			userAgent: request.headers.get('user-agent') ?? undefined
+		});
 		cleanupSetupTokenFile();
-
-		// Set session cookie
-		cookies.set('gyre_session', sessionId, DEFAULT_COOKIE_OPTIONS);
 
 		logger.info({ providerId, userId: user.id }, 'SSO login successful');
 
