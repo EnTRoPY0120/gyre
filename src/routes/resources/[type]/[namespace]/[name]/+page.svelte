@@ -495,6 +495,7 @@
 	</div>
 
 	<!-- Tab Content -->
+	{#key activeTab}
 	<svelte:boundary>
 		<div class="pt-2">
 			{#if activeTab === 'overview'}
@@ -585,13 +586,16 @@
 		</div>
 
 		{#snippet failed(error, reset)}
-			<ErrorDisplay
-				status={500}
-				message={error instanceof Error ? error.message : 'An unexpected error occurred'}
-				onRetry={reset}
-			/>
+			<div id="{activeTab}-panel" role="tabpanel" aria-labelledby="{activeTab}-tab">
+				<ErrorDisplay
+					status={500}
+					message={error instanceof Error ? error.message : 'An unexpected error occurred'}
+					onRetry={reset}
+				/>
+			</div>
 		{/snippet}
 	</svelte:boundary>
+	{/key}
 </div>
 
 <ConfirmDialog
