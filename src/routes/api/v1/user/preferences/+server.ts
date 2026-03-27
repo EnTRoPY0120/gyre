@@ -8,6 +8,7 @@ import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
 import { requirePermission } from '$lib/server/rbac';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { logAudit } from '$lib/server/audit';
 
 const preferencesSchema = z.object({
 	theme: z.enum(['light', 'dark', 'system']).optional(),
@@ -137,12 +138,15 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 		};
 
 		await db
-
 			.update(users)
-
 			.set({ preferences: mergedPreferences })
-
 			.where(eq(users.id, locals.user.id));
+
+		await logAudit(locals.user, 'preferences:update', {
+			resourceType: 'UserPreferences',
+			clusterId: locals.cluster,
+			details: { updatedFields: Object.keys(newPreferences) }
+		});
 
 		return json({ success: true, preferences: mergedPreferences });
 	} catch (err) {
