@@ -4,15 +4,13 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import {
 	authenticateUser,
-	createSession,
-	rotateSession,
 	getUserByUsername,
 	normalizeUsername,
 	hashPassword,
 	verifyPassword
 } from '$lib/server/auth';
 import { logLogin } from '$lib/server/audit';
-import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
+import { createBetterAuthSessionForUser } from '$lib/server/auth/better-auth';
 
 // Generate a real bcrypt hash at startup for timing-attack mitigation (avoids malformed-hash fast-path)
 const DUMMY_HASH: Promise<string> = hashPassword('__dummy_password_for_timing__');
@@ -157,9 +155,7 @@ export const POST: RequestHandler = async (event) => {
 			throw error(403, { message: 'Account is disabled. Please contact an administrator.' });
 		}
 
-		// Authenticate user
 		const user = await authenticateUser(canonicalUsername, password);
-
 		if (!user) {
 			accountLockout.recordFailure(canonicalUsername, 5);
 			await logLogin(existingUser, false, ipAddress, 'invalid_password');
@@ -169,18 +165,10 @@ export const POST: RequestHandler = async (event) => {
 		// Reset lockout on successful login
 		accountLockout.recordSuccess(canonicalUsername);
 
-		// Session fixation prevention: rotate session if one already exists
-		const userAgent = request.headers.get('user-agent') || undefined;
-		const existingSessionId = cookies.get('gyre_session');
-		let sessionId: string;
-		if (existingSessionId) {
-			sessionId = await rotateSession(existingSessionId, user.id, ipAddress, userAgent);
-		} else {
-			sessionId = await createSession(user.id, ipAddress, userAgent);
-		}
-
-		// Set session cookie
-		cookies.set('gyre_session', sessionId, DEFAULT_COOKIE_OPTIONS);
+		await createBetterAuthSessionForUser(cookies, user.id, {
+			ipAddress,
+			userAgent: request.headers.get('user-agent') ?? undefined
+		});
 
 		await logLogin(user, true, ipAddress);
 

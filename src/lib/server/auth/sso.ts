@@ -5,7 +5,7 @@
 
 import { logger } from '../logger.js';
 import { getDb } from '$lib/server/db';
-import { users, userProviders, type AuthProvider } from '$lib/server/db/schema';
+import { accounts, users, type AuthProvider } from '$lib/server/db/schema';
 import type { User } from '$lib/server/db/schema';
 import {
 	generateUserId,
@@ -28,7 +28,7 @@ export interface SSOUserResult {
 
 /**
  * Create or update a user from SSO login.
- * If the user already exists (linked via userProviders), update last login.
+ * If the user already exists (linked via a Better Auth account), update last login.
  * If the user doesn't exist and auto-provisioning is enabled, create new user.
  *
  * @param providerId - Auth provider ID
@@ -43,22 +43,17 @@ export async function createOrUpdateSSOUser(
 ): Promise<SSOUserResult> {
 	const db = await getDb();
 
-	// Check if user already exists via provider link
-	const existingLink = await db.query.userProviders.findFirst({
-		where: and(
-			eq(userProviders.providerId, providerId),
-			eq(userProviders.providerUserId, userInfo.sub)
-		)
+	// Check if user already exists via Better Auth account link
+	const existingLink = await db.query.accounts.findFirst({
+		where: and(eq(accounts.providerId, providerId), eq(accounts.accountId, userInfo.sub))
 	});
 
 	if (existingLink) {
-		// User exists - update last login time
+		// User exists - update last login time on the Better Auth account row.
 		await db
-			.update(userProviders)
+			.update(accounts)
 			.set({ lastLoginAt: new Date() })
-			.where(
-				and(eq(userProviders.userId, existingLink.userId), eq(userProviders.providerId, providerId))
-			);
+			.where(and(eq(accounts.userId, existingLink.userId), eq(accounts.providerId, providerId)));
 
 		// Get and return user
 		const user = await db.query.users.findFirst({
@@ -68,6 +63,33 @@ export async function createOrUpdateSSOUser(
 		if (!user) {
 			logger.warn(`Orphaned provider link found for userId ${existingLink.userId}`);
 			return { user: null, reason: 'user_not_found' };
+		}
+
+		// Keep Better Auth-compatible user fields fresh for long-lived SSO users.
+		const profileUpdates: Partial<typeof user> = {};
+		const nextName = userInfo.name || user.username;
+		const nextImage = typeof userInfo.picture === 'string' ? userInfo.picture : null;
+		const nextEmail = extractEmail(userInfo, providerConfig) ?? user.email;
+		const nextEmailVerified = userInfo.emailVerified ?? user.emailVerified;
+
+		if (user.name !== nextName) {
+			profileUpdates.name = nextName;
+		}
+		if ((user.image ?? null) !== nextImage) {
+			profileUpdates.image = nextImage;
+		}
+		if ((user.email ?? null) !== (nextEmail ?? null)) {
+			profileUpdates.email = nextEmail ?? null;
+		}
+		if (user.emailVerified !== nextEmailVerified) {
+			profileUpdates.emailVerified = nextEmailVerified;
+		}
+
+		if (Object.keys(profileUpdates).length > 0) {
+			await db
+				.update(users)
+				.set({ ...profileUpdates, updatedAt: new Date() })
+				.where(eq(users.id, user.id));
 		}
 
 		// Re-evaluate role from current IdP groups in case membership changed
@@ -127,7 +149,14 @@ export async function createOrUpdateSSOUser(
 			return { user: updatedUser };
 		}
 
-		return { user };
+		const refreshedUser =
+			Object.keys(profileUpdates).length > 0
+				? await db.query.users.findFirst({
+						where: eq(users.id, user.id)
+					})
+				: user;
+
+		return { user: refreshedUser ?? null };
 	}
 
 	// User doesn't exist - check auth settings and provider config
@@ -198,8 +227,10 @@ export async function createOrUpdateSSOUser(
 	const newUser = {
 		id: userId,
 		username: finalUsername,
-		passwordHash: '', // No password for SSO users
 		email: email || null,
+		name: userInfo.name || finalUsername,
+		emailVerified: userInfo.emailVerified ?? !!email,
+		image: typeof userInfo.picture === 'string' ? userInfo.picture : null,
 		role: role,
 		active: true,
 		isLocal: false // Mark as SSO user
@@ -218,14 +249,6 @@ export async function createOrUpdateSSOUser(
 
 	// Auto-bind user to default RBAC policies based on role
 	await bindUserToDefaultPolicies(user);
-
-	// Link user to provider
-	await db.insert(userProviders).values({
-		userId: userId,
-		providerId: providerId,
-		providerUserId: userInfo.sub,
-		lastLoginAt: new Date()
-	});
 
 	logger.info(
 		`Auto-provisioned new SSO user: ${finalUsername} with role ${role} from provider ${providerId}`

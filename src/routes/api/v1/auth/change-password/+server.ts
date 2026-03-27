@@ -2,7 +2,14 @@ import { logger } from '$lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { updateUserPassword, verifyPassword, isPasswordInHistory } from '$lib/server/auth';
+import {
+	getCredentialPasswordHash,
+	hasManagedPassword,
+	isPasswordInHistory,
+	verifyPassword,
+	verifyManagedUserPassword
+} from '$lib/server/auth';
+import { applyBetterAuthCookies, getBetterAuth } from '$lib/server/auth/better-auth';
 import { logAudit } from '$lib/server/audit';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 
@@ -67,7 +74,7 @@ export const _metadata = {
  * POST /api/auth/change-password
  * Change user's password (requires authentication)
  */
-export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
+export const POST: RequestHandler = async ({ request, locals, setHeaders, cookies }) => {
 	try {
 		// Require authentication
 		if (!locals.user) {
@@ -82,6 +89,13 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 		// Validate inputs
 		if (!currentPassword || !newPassword) {
 			throw error(400, { message: 'Current password and new password are required' });
+		}
+
+		if (!(await hasManagedPassword(locals.user.id))) {
+			throw error(403, {
+				message:
+					'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
+			});
 		}
 
 		// Validate new password strength
@@ -105,7 +119,14 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 
 		// Verify current password
 		const { user } = locals;
-		const isCurrentValid = await verifyPassword(currentPassword, user.passwordHash);
+		const currentCredentialHash = await getCredentialPasswordHash(user.id);
+		if (!currentCredentialHash) {
+			throw error(403, {
+				message:
+					'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
+			});
+		}
+		const isCurrentValid = await verifyManagedUserPassword(user, currentPassword);
 
 		if (!isCurrentValid) {
 			await logAudit(user, 'password_change_failed', {
@@ -117,7 +138,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 		}
 
 		// Prevent using same password
-		const isSamePassword = await verifyPassword(newPassword, user.passwordHash);
+		const isSamePassword = await verifyPassword(newPassword, currentCredentialHash);
 		if (isSamePassword) {
 			throw error(400, { message: 'New password must be different from current password' });
 		}
@@ -135,8 +156,19 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 			});
 		}
 
-		// Update password
-		await updateUserPassword(user.id, newPassword);
+		// Update password through Better Auth so the credential account remains the
+		// sole live password source of truth.
+		const auth = getBetterAuth();
+		const changePasswordResult = await auth.api.changePassword({
+			headers: request.headers,
+			body: {
+				currentPassword,
+				newPassword,
+				revokeOtherSessions: false
+			},
+			returnHeaders: true
+		});
+		applyBetterAuthCookies(cookies, changePasswordResult.headers);
 
 		// Log successful password change
 		await logAudit(user, 'password_changed', {

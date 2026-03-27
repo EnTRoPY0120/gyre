@@ -8,6 +8,18 @@ import { sql } from 'drizzle-orm';
  */
 export function initDatabase(): void {
 	const db = getDbSync();
+	const hasLegacyUserProviders =
+		(db
+			.select({ name: sql`name` })
+			.from(sql`sqlite_master`)
+			.where(sql`type = 'table' AND name = 'user_providers'`)
+			.get() as { name: string } | undefined) != null;
+	const hasLegacyPasswordHashColumn =
+		(db
+			.select({ name: sql`name` })
+			.from(sql`pragma_table_info('users')`)
+			.where(sql`name = 'password_hash'`)
+			.get() as { name: string } | undefined) != null;
 
 	// App Settings table (must be initialized first to store migration flags)
 	db.run(sql`
@@ -23,8 +35,10 @@ export function initDatabase(): void {
 		CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY,
 			username TEXT NOT NULL UNIQUE COLLATE NOCASE,
-			password_hash TEXT NOT NULL,
 			email TEXT,
+			name TEXT NOT NULL DEFAULT '',
+			email_verified INTEGER NOT NULL DEFAULT 0,
+			image TEXT,
 			role TEXT NOT NULL DEFAULT 'viewer',
 			active INTEGER NOT NULL DEFAULT 1,
 			is_local INTEGER NOT NULL DEFAULT 1,
@@ -87,22 +101,135 @@ export function initDatabase(): void {
 	}
 
 	// Add preferences column if it doesn't exist (for existing databases)
-	try {
-		db.run(sql`ALTER TABLE users ADD COLUMN preferences TEXT`);
-	} catch {
-		// Column might already exist
+	for (const ddl of [
+		sql`ALTER TABLE users ADD COLUMN preferences TEXT`,
+		sql`ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
+		sql`ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0`,
+		sql`ALTER TABLE users ADD COLUMN image TEXT`
+	]) {
+		try {
+			db.run(ddl);
+		} catch (err) {
+			if (err instanceof Error && err.message.includes('duplicate column name')) {
+				continue;
+			}
+			logger.error(err, '[DB] Failed to add Better Auth user column:');
+			throw err;
+		}
 	}
+
+	// Backfill new Better Auth-compatible user fields for existing rows.
+	db.run(sql`UPDATE users SET name = username WHERE name = '' OR name IS NULL`);
 
 	// Sessions table
 	db.run(sql`
 		CREATE TABLE IF NOT EXISTS sessions (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
+			token TEXT NOT NULL UNIQUE,
 			expires_at INTEGER NOT NULL,
 			ip_address TEXT,
 			user_agent TEXT,
 			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)
+	`);
+
+	for (const ddl of [
+		sql`ALTER TABLE sessions ADD COLUMN token TEXT`,
+		sql`ALTER TABLE sessions ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (unixepoch())`
+	]) {
+		try {
+			db.run(ddl);
+		} catch (err) {
+			if (err instanceof Error && err.message.includes('duplicate column name')) {
+				continue;
+			}
+			logger.error(err, '[DB] Failed to add Better Auth session column:');
+			throw err;
+		}
+	}
+
+	db.run(sql`UPDATE sessions SET token = id WHERE token IS NULL OR token = ''`);
+	db.run(sql`UPDATE sessions SET updated_at = created_at WHERE updated_at IS NULL`);
+
+	// Better Auth accounts table
+	db.run(sql`
+		CREATE TABLE IF NOT EXISTS accounts (
+			id TEXT PRIMARY KEY,
+			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			provider_id TEXT NOT NULL,
+			account_id TEXT NOT NULL,
+			user_id TEXT NOT NULL,
+			access_token TEXT,
+			refresh_token TEXT,
+			id_token TEXT,
+			access_token_expires_at INTEGER,
+			refresh_token_expires_at INTEGER,
+			scope TEXT,
+			password TEXT,
+			last_login_at INTEGER,
+			access_token_encrypted TEXT,
+			refresh_token_encrypted TEXT,
+			id_token_encrypted TEXT,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		)
+	`);
+
+	for (const ddl of [
+		sql`ALTER TABLE accounts ADD COLUMN last_login_at INTEGER`,
+		sql`ALTER TABLE accounts ADD COLUMN access_token_encrypted TEXT`,
+		sql`ALTER TABLE accounts ADD COLUMN refresh_token_encrypted TEXT`,
+		sql`ALTER TABLE accounts ADD COLUMN id_token_encrypted TEXT`
+	]) {
+		try {
+			db.run(ddl);
+		} catch (err) {
+			if (err instanceof Error && err.message.includes('duplicate column name')) {
+				continue;
+			}
+			logger.error(err, '[DB] Failed to add Better Auth account column:');
+			throw err;
+		}
+	}
+
+	if (hasLegacyPasswordHashColumn) {
+		db.run(sql`
+			INSERT OR IGNORE INTO accounts (
+				id,
+				provider_id,
+				account_id,
+				user_id,
+				password,
+				created_at,
+				updated_at
+			)
+			SELECT
+				'credential:' || id,
+				'credential',
+				id,
+				id,
+				password_hash,
+				created_at,
+				updated_at
+			FROM users
+			WHERE is_local = 1
+				AND password_hash IS NOT NULL
+				AND password_hash != ''
+		`);
+	}
+
+	// Better Auth verifications table
+	db.run(sql`
+		CREATE TABLE IF NOT EXISTS verifications (
+			id TEXT PRIMARY KEY,
+			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			value TEXT NOT NULL,
+			expires_at INTEGER NOT NULL,
+			identifier TEXT NOT NULL
 		)
 	`);
 
@@ -246,36 +373,154 @@ export function initDatabase(): void {
 		)
 	`);
 
-	// User Providers table (links users to SSO providers)
-	db.run(sql`
-		CREATE TABLE IF NOT EXISTS user_providers (
-			user_id TEXT NOT NULL,
-			provider_id TEXT NOT NULL,
-			provider_user_id TEXT NOT NULL,
-			last_login_at INTEGER,
-			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
-			PRIMARY KEY (user_id, provider_id),
-			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-			FOREIGN KEY (provider_id) REFERENCES auth_providers(id) ON DELETE CASCADE
-		)
-	`);
-
-	// Migration: add OAuth token columns to user_providers (for token refresh support)
-	for (const ddl of [
-		sql`ALTER TABLE user_providers ADD COLUMN access_token_encrypted TEXT`,
-		sql`ALTER TABLE user_providers ADD COLUMN refresh_token_encrypted TEXT`,
-		sql`ALTER TABLE user_providers ADD COLUMN token_expires_at INTEGER`
-	]) {
-		try {
-			db.run(ddl);
-		} catch (err) {
-			// SQLite signals a duplicate column with "duplicate column name: <col>" — safe to skip.
-			// Any other error (lock, corruption, syntax) must be surfaced.
-			if (err instanceof Error && err.message.includes('duplicate column name')) {
-				continue;
+	if (hasLegacyUserProviders) {
+		for (const ddl of [
+			sql`ALTER TABLE user_providers ADD COLUMN access_token_encrypted TEXT`,
+			sql`ALTER TABLE user_providers ADD COLUMN refresh_token_encrypted TEXT`,
+			sql`ALTER TABLE user_providers ADD COLUMN token_expires_at INTEGER`
+		]) {
+			try {
+				db.run(ddl);
+			} catch (err) {
+				if (err instanceof Error && err.message.includes('duplicate column name')) {
+					continue;
+				}
+				logger.error(err, '[DB] Failed to add OAuth token column to legacy user_providers:');
+				throw err;
 			}
-			logger.error(err, '[DB] Failed to add OAuth token column to user_providers:');
-			throw err;
+		}
+
+		db.run(sql`
+			INSERT OR IGNORE INTO accounts (
+				id,
+				provider_id,
+				account_id,
+				user_id,
+				last_login_at,
+				access_token_encrypted,
+				refresh_token_encrypted,
+				access_token_expires_at,
+				created_at,
+				updated_at
+			)
+			SELECT
+				'oauth:' || provider_id || ':' || provider_user_id,
+				provider_id,
+				provider_user_id,
+				user_id,
+				last_login_at,
+				access_token_encrypted,
+				refresh_token_encrypted,
+				token_expires_at,
+				created_at,
+				COALESCE(last_login_at, created_at)
+			FROM user_providers
+		`);
+
+		db.run(sql`
+			UPDATE accounts
+			SET
+				last_login_at = COALESCE(
+					(
+						SELECT up.last_login_at
+						FROM user_providers up
+						WHERE up.user_id = accounts.user_id
+							AND up.provider_id = accounts.provider_id
+							AND up.provider_user_id = accounts.account_id
+					),
+					accounts.last_login_at
+				),
+				access_token_encrypted = COALESCE(
+					(
+						SELECT up.access_token_encrypted
+						FROM user_providers up
+						WHERE up.user_id = accounts.user_id
+							AND up.provider_id = accounts.provider_id
+							AND up.provider_user_id = accounts.account_id
+					),
+					accounts.access_token_encrypted
+				),
+				refresh_token_encrypted = COALESCE(
+					(
+						SELECT up.refresh_token_encrypted
+						FROM user_providers up
+						WHERE up.user_id = accounts.user_id
+							AND up.provider_id = accounts.provider_id
+							AND up.provider_user_id = accounts.account_id
+					),
+					accounts.refresh_token_encrypted
+				),
+				access_token_expires_at = COALESCE(
+					(
+						SELECT up.token_expires_at
+						FROM user_providers up
+						WHERE up.user_id = accounts.user_id
+							AND up.provider_id = accounts.provider_id
+							AND up.provider_user_id = accounts.account_id
+					),
+					accounts.access_token_expires_at
+				)
+			WHERE accounts.provider_id != 'credential'
+		`);
+
+		db.run(sql`DROP TABLE IF EXISTS user_providers`);
+	}
+
+	if (hasLegacyPasswordHashColumn) {
+		db.run(sql`PRAGMA foreign_keys = OFF`);
+		try {
+			db.transaction((tx) => {
+				tx.run(sql`
+					CREATE TABLE users_next (
+						id TEXT PRIMARY KEY,
+						username TEXT NOT NULL UNIQUE COLLATE NOCASE,
+						email TEXT,
+						name TEXT NOT NULL DEFAULT '',
+						email_verified INTEGER NOT NULL DEFAULT 0,
+						image TEXT,
+						role TEXT NOT NULL DEFAULT 'viewer',
+						active INTEGER NOT NULL DEFAULT 1,
+						is_local INTEGER NOT NULL DEFAULT 1,
+						created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+						updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+						preferences TEXT
+					)
+				`);
+				tx.run(sql`
+					INSERT INTO users_next (
+						id,
+						username,
+						email,
+						name,
+						email_verified,
+						image,
+						role,
+						active,
+						is_local,
+						created_at,
+						updated_at,
+						preferences
+					)
+					SELECT
+						id,
+						username,
+						email,
+						COALESCE(name, username, ''),
+						COALESCE(email_verified, 0),
+						image,
+						role,
+						active,
+						is_local,
+						created_at,
+						updated_at,
+						preferences
+					FROM users
+				`);
+				tx.run(sql`DROP TABLE users`);
+				tx.run(sql`ALTER TABLE users_next RENAME TO users`);
+			});
+		} finally {
+			db.run(sql`PRAGMA foreign_keys = ON`);
 		}
 	}
 
@@ -333,6 +578,7 @@ export function initDatabase(): void {
 	// Indexes (CREATE INDEX IF NOT EXISTS is idempotent — safe for new and existing databases)
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at)`);
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id)`);
+	db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_token ON sessions (token)`);
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_user_id ON audit_logs (user_id)`);
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs (action)`);
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs (created_at)`);
@@ -345,6 +591,14 @@ export function initDatabase(): void {
 	db.run(
 		sql`CREATE INDEX IF NOT EXISTS idx_password_history_user_id ON password_history (user_id)`
 	);
+	db.run(
+		sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_provider_account ON accounts (provider_id, account_id)`
+	);
+	db.run(sql`CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts (user_id)`);
+	db.run(
+		sql`CREATE INDEX IF NOT EXISTS idx_verifications_identifier ON verifications (identifier)`
+	);
+	db.run(sql`CREATE INDEX IF NOT EXISTS idx_verifications_value ON verifications (value)`);
 	db.run(
 		sql`CREATE INDEX IF NOT EXISTS idx_resource_lookup ON reconciliation_history (resource_type, namespace, name, cluster_id)`
 	);

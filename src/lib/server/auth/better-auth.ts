@@ -1,0 +1,322 @@
+import { betterAuth } from 'better-auth';
+import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { parseSetCookieHeader } from 'better-auth/cookies';
+import { makeSignature } from 'better-auth/crypto';
+import { username } from 'better-auth/plugins/username';
+import type { Cookies } from '@sveltejs/kit';
+import { logger } from '$lib/server/logger.js';
+import { getDb, getDbSync, schema } from '$lib/server/db';
+import { DEFAULT_COOKIE_OPTIONS, IS_PROD } from '$lib/server/config';
+import { encryptSecret } from '$lib/server/auth/crypto';
+import { users, type Session, type User } from '$lib/server/db/schema';
+import {
+	MAX_SESSIONS_PER_USER,
+	SESSION_DURATION_DAYS,
+	hashPassword,
+	normalizeUsername,
+	verifyPassword
+} from '$lib/server/auth';
+import type { OAuthTokens } from '$lib/server/auth/oauth';
+import { eq } from 'drizzle-orm';
+
+export const BETTER_AUTH_BASE_PATH = '/api/v1/auth';
+export const BETTER_AUTH_SESSION_COOKIE_NAME = 'gyre_session';
+
+function createBetterAuth() {
+	return betterAuth({
+		appName: 'Gyre',
+		basePath: BETTER_AUTH_BASE_PATH,
+		secret: getBetterAuthSecret(),
+		useSecureCookies: IS_PROD,
+		database: drizzleAdapter(getDbSync(), {
+			provider: 'sqlite',
+			schema,
+			usePlural: true,
+			camelCase: false,
+			transaction: true
+		}),
+		emailAndPassword: {
+			enabled: true,
+			minPasswordLength: 8,
+			maxPasswordLength: 128,
+			disableSignUp: true,
+			autoSignIn: false,
+			password: {
+				hash: hashPassword,
+				verify: async ({ hash, password }) => verifyPassword(password, hash)
+			}
+		},
+		plugins: [
+			username({
+				minUsernameLength: 3,
+				maxUsernameLength: 64,
+				usernameNormalization: normalizeUsername
+			})
+		],
+		cookies: {
+			sessionToken: {
+				name: BETTER_AUTH_SESSION_COOKIE_NAME,
+				attributes: DEFAULT_COOKIE_OPTIONS
+			}
+		},
+		session: {
+			expiresIn: SESSION_DURATION_DAYS * 24 * 60 * 60,
+			updateAge: (SESSION_DURATION_DAYS * 24 * 60 * 60) / 2,
+			modelName: 'sessions',
+			additionalFields: {}
+		},
+		user: {
+			modelName: 'users',
+			additionalFields: {
+				role: {
+					type: 'string',
+					required: false,
+					defaultValue: 'viewer'
+				},
+				active: {
+					type: 'boolean',
+					required: false,
+					defaultValue: true
+				},
+				isLocal: {
+					type: 'boolean',
+					required: false,
+					fieldName: 'is_local',
+					defaultValue: true
+				},
+				preferences: {
+					type: 'string',
+					required: false,
+					returned: false
+				}
+			}
+		},
+		account: {
+			modelName: 'accounts',
+			additionalFields: {
+				lastLoginAt: {
+					type: 'date',
+					required: false,
+					fieldName: 'last_login_at'
+				},
+				accessTokenEncrypted: {
+					type: 'string',
+					required: false,
+					fieldName: 'access_token_encrypted',
+					returned: false
+				},
+				refreshTokenEncrypted: {
+					type: 'string',
+					required: false,
+					fieldName: 'refresh_token_encrypted',
+					returned: false
+				},
+				idTokenEncrypted: {
+					type: 'string',
+					required: false,
+					fieldName: 'id_token_encrypted',
+					returned: false
+				}
+			}
+		},
+		verification: {
+			modelName: 'verifications'
+		}
+	});
+}
+
+let authInstance: ReturnType<typeof createBetterAuth> | null = null;
+
+function getBetterAuthSecret(): string {
+	return (
+		process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_ENCRYPTION_KEY ?? 'gyre-dev-auth-secret'
+	);
+}
+
+export function getBetterAuth() {
+	if (authInstance) {
+		return authInstance;
+	}
+
+	authInstance = createBetterAuth();
+
+	return authInstance;
+}
+
+export type BetterAuthInstance = ReturnType<typeof getBetterAuth>;
+
+function toSvelteCookieOptions(attributes: {
+	path?: string;
+	domain?: string;
+	expires?: Date;
+	httpOnly?: boolean;
+	maxAge?: number;
+	sameSite?: string;
+	secure?: boolean;
+}) {
+	return {
+		path: attributes.path || '/',
+		domain: attributes.domain,
+		expires: attributes.expires,
+		httpOnly: attributes.httpOnly,
+		maxAge: attributes.maxAge,
+		sameSite: (attributes.sameSite || DEFAULT_COOKIE_OPTIONS.sameSite) as 'lax' | 'strict' | 'none',
+		secure: attributes.secure
+	};
+}
+
+export function applyBetterAuthCookies(cookies: Cookies, headers: Headers): void {
+	const setCookieHeader = headers.get('set-cookie');
+	if (!setCookieHeader) {
+		return;
+	}
+
+	const parsedCookies = parseSetCookieHeader(setCookieHeader);
+	for (const [name, { value, ...options }] of parsedCookies) {
+		cookies.set(
+			name,
+			value,
+			toSvelteCookieOptions({
+				path: options.path,
+				domain: options.domain,
+				expires: options.expires,
+				httpOnly: options.httponly,
+				maxAge: options['max-age'],
+				sameSite: options.samesite,
+				secure: options.secure
+			})
+		);
+	}
+}
+
+export async function getBetterAuthSession(
+	request: Request,
+	cookies: Cookies
+): Promise<{
+	session: Session;
+	user: User;
+} | null> {
+	const auth = getBetterAuth();
+	const result = await auth.api.getSession({
+		headers: request.headers,
+		returnHeaders: true
+	});
+
+	applyBetterAuthCookies(cookies, result.headers);
+
+	if (!result.response) {
+		return null;
+	}
+
+	const db = await getDb();
+	const fullUser = await db.query.users.findFirst({
+		where: eq(users.id, result.response.user.id)
+	});
+
+	if (!fullUser || !fullUser.active) {
+		return null;
+	}
+
+	return {
+		session: result.response.session as Session,
+		user: fullUser
+	};
+}
+
+export async function ensureBetterAuthOAuthAccount(
+	userId: string,
+	providerId: string,
+	providerUserId: string,
+	tokens?: OAuthTokens
+): Promise<void> {
+	const ctx = await getBetterAuth().$context;
+	const existingAccount = (await ctx.internalAdapter.findAccounts(userId)).find(
+		(account) => account.providerId === providerId
+	);
+
+	const accountData = {
+		userId,
+		providerId,
+		accountId: providerUserId,
+		accessToken: null,
+		refreshToken: null,
+		idToken: null,
+		accessTokenExpiresAt:
+			tokens?.expiresIn != null
+				? new Date(Date.now() + tokens.expiresIn * 1000)
+				: (existingAccount?.accessTokenExpiresAt ?? null),
+		scope: tokens?.scope ?? existingAccount?.scope ?? null,
+		lastLoginAt: new Date(),
+		accessTokenEncrypted: tokens?.accessToken
+			? encryptSecret(tokens.accessToken)
+			: (((existingAccount as Record<string, unknown> | undefined)?.accessTokenEncrypted as
+					| string
+					| null
+					| undefined) ?? null),
+		refreshTokenEncrypted: tokens?.refreshToken
+			? encryptSecret(tokens.refreshToken)
+			: (((existingAccount as Record<string, unknown> | undefined)?.refreshTokenEncrypted as
+					| string
+					| null
+					| undefined) ?? null),
+		idTokenEncrypted: tokens?.idToken
+			? encryptSecret(tokens.idToken)
+			: (((existingAccount as Record<string, unknown> | undefined)?.idTokenEncrypted as
+					| string
+					| null
+					| undefined) ?? null)
+	};
+
+	if (existingAccount) {
+		await ctx.internalAdapter.updateAccount(existingAccount.id, accountData);
+		return;
+	}
+
+	await ctx.internalAdapter.linkAccount(accountData);
+}
+
+export async function createBetterAuthSessionForUser(
+	cookies: Cookies,
+	userId: string,
+	sessionDetails?: {
+		ipAddress?: string;
+		userAgent?: string;
+	}
+): Promise<Session> {
+	const ctx = await getBetterAuth().$context;
+	const existingSessions = await ctx.internalAdapter.listSessions(userId, {
+		onlyActiveSessions: true
+	});
+	if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
+		const tokensToEvict = existingSessions
+			.slice()
+			.sort(
+				(left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
+			)
+			.slice(0, existingSessions.length - MAX_SESSIONS_PER_USER + 1)
+			.map((session) => session.token);
+		if (tokensToEvict.length > 0) {
+			await ctx.internalAdapter.deleteSessions(tokensToEvict);
+			logger.info(
+				{ userId, evictCount: tokensToEvict.length },
+				`[Auth] Evicted ${tokensToEvict.length} oldest session(s) to enforce MAX_SESSIONS_PER_USER=${MAX_SESSIONS_PER_USER}`
+			);
+		}
+	}
+	const session = await ctx.internalAdapter.createSession(userId, false, {
+		ipAddress: sessionDetails?.ipAddress ?? null,
+		userAgent: sessionDetails?.userAgent ?? null
+	});
+	const signedToken = `${session.token}.${await makeSignature(session.token, ctx.secret)}`;
+
+	cookies.set(
+		ctx.authCookies.sessionToken.name,
+		signedToken,
+		toSvelteCookieOptions({
+			...ctx.authCookies.sessionToken.attributes,
+			maxAge: ctx.sessionConfig.expiresIn
+		})
+	);
+
+	return session as Session;
+}

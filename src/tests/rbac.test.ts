@@ -27,8 +27,10 @@ const CREATE_USERS = `
 	CREATE TABLE IF NOT EXISTS users (
 		id TEXT PRIMARY KEY,
 		username TEXT NOT NULL UNIQUE,
-		password_hash TEXT NOT NULL,
 		email TEXT,
+		name TEXT NOT NULL DEFAULT '',
+		email_verified INTEGER NOT NULL DEFAULT 0,
+		image TEXT,
 		role TEXT NOT NULL DEFAULT 'viewer',
 		active INTEGER NOT NULL DEFAULT 1,
 		is_local INTEGER NOT NULL DEFAULT 1,
@@ -75,8 +77,10 @@ function makeUser(id: string, role: 'admin' | 'editor' | 'viewer' = 'viewer'): U
 	return {
 		id,
 		username: id,
-		passwordHash: 'hash',
 		email: null,
+		name: id,
+		emailVerified: false,
+		image: null,
 		role,
 		active: true,
 		isLocal: true,

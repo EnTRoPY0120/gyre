@@ -1,9 +1,9 @@
 import { logger } from './logger.js';
 import bcrypt from 'bcryptjs';
-import { getDb, getDbSync, type NewUser, type NewSession, type User } from './db/index.js';
-import { users, sessions, passwordHistory } from './db/schema.js';
+import { getDb, getDbSync, type NewUser, type User } from './db/index.js';
+import { users, sessions, passwordHistory, accounts } from './db/schema.js';
 import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
-import { eq, and, gt, lte, sql, or, inArray, desc, asc } from 'drizzle-orm';
+import { eq, and, lte, sql, or, inArray, desc } from 'drizzle-orm';
 import { randomBytes, randomInt } from 'node:crypto';
 import { bindUserToDefaultPolicies } from './rbac-defaults.js';
 import { passwordSchema } from '../utils/validation.js';
@@ -19,7 +19,7 @@ export const SESSION_DURATION_DAYS = 2;
 const PASSWORD_HISTORY_LIMIT = 5;
 const ADMIN_SECRET_NAME = 'gyre-initial-admin-secret';
 const _maxSessionsEnv = parseInt(process.env.MAX_SESSIONS_PER_USER ?? '', 10);
-const MAX_SESSIONS_PER_USER =
+export const MAX_SESSIONS_PER_USER =
 	Number.isFinite(_maxSessionsEnv) && _maxSessionsEnv > 0 ? _maxSessionsEnv : 10;
 
 function warnIfWeakAdminPassword(password: string): void {
@@ -151,6 +151,32 @@ export function generateUserId(): string {
 	return randomBytes(16).toString('hex');
 }
 
+export async function getCredentialPasswordHash(userId: string): Promise<string | null> {
+	const db = await getDb();
+	const account = await db.query.accounts.findFirst({
+		where: and(eq(accounts.userId, userId), eq(accounts.providerId, 'credential'))
+	});
+
+	return account?.password || null;
+}
+
+export async function hasManagedPassword(userId: string): Promise<boolean> {
+	return Boolean(await getCredentialPasswordHash(userId));
+}
+
+export async function verifyManagedUserPassword(user: User, password: string): Promise<boolean> {
+	if (normalizeUsername(user.username) === 'admin' && isInClusterMode()) {
+		return validateInClusterAdmin(password);
+	}
+
+	const credentialPasswordHash = await getCredentialPasswordHash(user.id);
+	if (!credentialPasswordHash) {
+		return false;
+	}
+
+	return verifyPassword(password, credentialPasswordHash);
+}
+
 // User management
 export async function createUser(
 	username: string,
@@ -165,13 +191,20 @@ export async function createUser(
 	const newUser: NewUser = {
 		id: generateUserId(),
 		username: normalizedUsername,
-		passwordHash,
+		name: normalizedUsername,
 		role,
 		email: email || null,
 		active: true
 	};
 
 	await db.insert(users).values(newUser);
+	await db.insert(accounts).values({
+		id: generateUserId(),
+		providerId: 'credential',
+		accountId: newUser.id,
+		userId: newUser.id,
+		password: passwordHash
+	});
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, newUser.id)
 	});
@@ -282,7 +315,7 @@ export async function isPasswordInHistory(
 export async function updateUserPassword(id: string, newPassword: string): Promise<void> {
 	const db = await getDb();
 
-	const currentUser = await getUserById(id);
+	const currentCredentialHash = await getCredentialPasswordHash(id);
 	// Hash before the transaction — bcrypt is async and cannot run inside a sync tx callback.
 	const newPasswordHash = await hashPassword(newPassword);
 	const now = Date.now();
@@ -290,12 +323,12 @@ export async function updateUserPassword(id: string, newPassword: string): Promi
 	await db.transaction((tx) => {
 		// Archive the old hash and prune history atomically with the password update
 		// so a crash between the two operations cannot leave the DB in a partial state.
-		if (currentUser?.passwordHash) {
+		if (currentCredentialHash) {
 			tx.insert(passwordHistory)
 				.values({
 					id: generateUserId(),
 					userId: id,
-					passwordHash: currentUser.passwordHash,
+					passwordHash: currentCredentialHash,
 					createdAtMs: now
 				})
 				.run();
@@ -313,10 +346,23 @@ export async function updateUserPassword(id: string, newPassword: string): Promi
 			}
 		}
 
-		tx.update(users)
-			.set({ passwordHash: newPasswordHash, updatedAt: new Date() })
-			.where(eq(users.id, id))
+		const updatedCredentialAccount = tx
+			.update(accounts)
+			.set({ password: newPasswordHash, updatedAt: new Date() })
+			.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
 			.run();
+
+		if (updatedCredentialAccount.changes === 0) {
+			tx.insert(accounts)
+				.values({
+					id: generateUserId(),
+					providerId: 'credential',
+					accountId: id,
+					userId: id,
+					password: newPasswordHash
+				})
+				.run();
+		}
 	});
 }
 
@@ -352,120 +398,6 @@ export async function listUsersPaginated(options?: {
 	);
 
 	return { users: result.items, total: result.total };
-}
-
-// Session management
-export async function createSession(
-	userId: string,
-	ipAddress?: string,
-	userAgent?: string
-): Promise<string> {
-	const db = await getDb();
-
-	const sessionId = generateSessionId();
-	const expiresAt = new Date();
-	expiresAt.setDate(expiresAt.getDate() + SESSION_DURATION_DAYS);
-
-	const newSession: NewSession = {
-		id: sessionId,
-		userId,
-		expiresAt,
-		ipAddress: ipAddress || null,
-		userAgent: userAgent || null
-	};
-
-	// Perform select, insert, and eviction atomically to prevent concurrent
-	// requests from exceeding MAX_SESSIONS_PER_USER.
-	let evictCount = 0;
-	db.transaction((tx) => {
-		const existingSessions = tx
-			.select({ id: sessions.id })
-			.from(sessions)
-			.where(eq(sessions.userId, userId))
-			.orderBy(asc(sessions.createdAt))
-			.all();
-
-		tx.insert(sessions).values(newSession).run();
-
-		if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
-			evictCount = existingSessions.length - MAX_SESSIONS_PER_USER + 1;
-			const toEvict = existingSessions.slice(0, evictCount).map((s) => s.id);
-			tx.delete(sessions).where(inArray(sessions.id, toEvict)).run();
-		}
-	});
-
-	if (evictCount > 0) {
-		logger.info(
-			{ userId, evictCount },
-			`[Auth] Evicted ${evictCount} oldest session(s) to enforce MAX_SESSIONS_PER_USER=${MAX_SESSIONS_PER_USER}`
-		);
-	}
-
-	return sessionId;
-}
-
-export async function getSession(
-	sessionId: string
-): Promise<{ session: typeof sessions.$inferSelect; user: User } | null> {
-	const db = await getDb();
-	const now = new Date();
-
-	// Query session first
-	const session = await db.query.sessions.findFirst({
-		where: and(eq(sessions.id, sessionId), gt(sessions.expiresAt, now))
-	});
-
-	if (!session) {
-		return null;
-	}
-
-	// Query user separately (manual join to avoid ORM relation issues)
-	const user = await db.query.users.findFirst({
-		where: eq(users.id, session.userId)
-	});
-
-	if (!user) {
-		return null;
-	}
-
-	if (!user.active) {
-		// Revoke all DB sessions so every other client is also logged out.
-		// The caller (hooks.server.ts) is responsible for clearing the cookie.
-		await deleteUserSessions(user.id);
-		return null;
-	}
-
-	return { session, user };
-}
-
-export async function extendSession(sessionId: string): Promise<Date> {
-	const newExpiresAt = new Date(Date.now() + SESSION_DURATION_DAYS * 24 * 60 * 60 * 1000);
-	const db = await getDb();
-	await db.update(sessions).set({ expiresAt: newExpiresAt }).where(eq(sessions.id, sessionId));
-	return newExpiresAt;
-}
-
-export async function rotateSession(
-	oldSessionId: string,
-	userId: string,
-	ipAddress?: string,
-	userAgent?: string
-): Promise<string> {
-	const db = await getDb();
-	// Only delete the old session if it actually belongs to this user;
-	// prevents an attacker-supplied cookie from deleting an arbitrary session.
-	const existing = await db.query.sessions.findFirst({
-		where: eq(sessions.id, oldSessionId)
-	});
-	if (existing?.userId === userId) {
-		await deleteSession(oldSessionId);
-	}
-	return createSession(userId, ipAddress, userAgent);
-}
-
-export async function deleteSession(sessionId: string): Promise<void> {
-	const db = await getDb();
-	await db.delete(sessions).where(eq(sessions.id, sessionId));
 }
 
 export async function deleteUserSessions(userId: string): Promise<void> {
@@ -698,7 +630,7 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 			const newUser: NewUser = {
 				id: generateUserId(),
 				username: 'admin',
-				passwordHash: '', // Empty hash - we validate against K8s secret
+				name: 'admin',
 				role: 'admin',
 				email: 'admin@gyre.local',
 				active: true
@@ -719,12 +651,21 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 	const newUser: NewUser = {
 		id: generateUserId(),
 		username: 'admin',
-		passwordHash, // Store hash in SQLite for local dev
+		name: 'admin',
 		role: 'admin',
 		email: 'admin@gyre.local',
 		active: true
 	};
 	db.insert(users).values(newUser).run();
+	db.insert(accounts)
+		.values({
+			id: generateUserId(),
+			providerId: 'credential',
+			accountId: newUser.id,
+			userId: newUser.id,
+			password: passwordHash
+		})
+		.run();
 
 	return { password, mode: 'local' };
 }
@@ -749,16 +690,7 @@ export async function authenticateUser(username: string, password: string): Prom
 		return null;
 	}
 
-	let isValid: boolean;
-
-	// In-cluster mode: Admin password is in K8s secret
-	// Local dev mode: All passwords (including admin) are in SQLite
-	if (username.trim().toLowerCase() === 'admin' && isInClusterMode()) {
-		isValid = await validateInClusterAdmin(password);
-	} else {
-		// Validate against SQLite password hash
-		isValid = await verifyPassword(password, user.passwordHash);
-	}
+	const isValid = await verifyManagedUserPassword(user, password);
 
 	if (!isValid) {
 		loginAttemptsTotal.labels('failure').inc();
