@@ -5,6 +5,7 @@ declare global {
 		interface Error {
 			message: string;
 			code?: string;
+			status?: number;
 		}
 		interface Locals {
 			requestId: string;
