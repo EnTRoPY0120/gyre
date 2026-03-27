@@ -10,7 +10,7 @@ import { z } from '$lib/server/openapi';
 import { authProviderSchema } from '$lib/server/auth/schemas';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
-import { authProviders } from '$lib/server/db/schema';
+import { accounts, authProviders } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { eq } from 'drizzle-orm';
@@ -291,8 +291,10 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			throw error(404, { message: 'Provider not found' });
 		}
 
-		// Delete provider (cascade will delete user_providers links)
-		await db.delete(authProviders).where(eq(authProviders.id, params.id));
+		await db.transaction((tx) => {
+			tx.delete(accounts).where(eq(accounts.providerId, params.id)).run();
+			tx.delete(authProviders).where(eq(authProviders.id, params.id)).run();
+		});
 
 		logger.info({ providerId: params.id, providerName: provider.name }, 'Deleted auth provider');
 
