@@ -83,6 +83,7 @@ export async function createOrUpdateSSOUser(
 		}
 		if ((user.email ?? null) !== (nextEmail ?? null)) {
 			profileUpdates.email = nextEmail ?? null;
+			profileUpdates.emailVerified = false;
 		}
 		if (nextEmailVerified === true && user.emailVerified !== true) {
 			profileUpdates.emailVerified = true;

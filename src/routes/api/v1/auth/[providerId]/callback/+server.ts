@@ -190,9 +190,7 @@ export const GET: RequestHandler = async (event) => {
 			);
 		}
 
-		if (!result.accountLinked) {
-			await ensureBetterAuthOAuthAccount(user.id, providerId, userInfo.sub, tokens);
-		}
+		await ensureBetterAuthOAuthAccount(user.id, providerId, userInfo.sub, tokens);
 		await createBetterAuthSessionForUser(cookies, user.id, {
 			ipAddress,
 			userAgent: request.headers.get('user-agent') ?? undefined
