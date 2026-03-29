@@ -52,12 +52,6 @@ export async function createOrUpdateSSOUser(
 	});
 
 	if (existingLink) {
-		// User exists - update last login time on the Better Auth account row.
-		await db
-			.update(accounts)
-			.set({ lastLoginAt: new Date() })
-			.where(and(eq(accounts.userId, existingLink.userId), eq(accounts.providerId, providerId)));
-
 		// Get and return user
 		const user = await db.query.users.findFirst({
 			where: eq(users.id, existingLink.userId)
@@ -70,15 +64,15 @@ export async function createOrUpdateSSOUser(
 
 		// Keep Better Auth-compatible user fields fresh for long-lived SSO users.
 		const profileUpdates: Partial<typeof user> = {};
-		const nextName = userInfo.name || user.username;
-		const nextImage = typeof userInfo.picture === 'string' ? userInfo.picture : null;
+		const nextName = typeof userInfo.name === 'string' ? userInfo.name : undefined;
+		const nextImage = typeof userInfo.picture === 'string' ? userInfo.picture : undefined;
 		const nextEmail = extractEmail(userInfo, providerConfig) ?? user.email;
 		const nextEmailVerified = userInfo.emailVerified === true ? true : undefined;
 
-		if (user.name !== nextName) {
+		if (nextName !== undefined && user.name !== nextName) {
 			profileUpdates.name = nextName;
 		}
-		if ((user.image ?? null) !== nextImage) {
+		if (nextImage !== undefined && (user.image ?? null) !== nextImage) {
 			profileUpdates.image = nextImage;
 		}
 		if ((user.email ?? null) !== (nextEmail ?? null)) {
@@ -159,6 +153,10 @@ export async function createOrUpdateSSOUser(
 						where: eq(users.id, user.id)
 					})
 				: user;
+
+		if (refreshedUser) {
+			await bindUserToDefaultPolicies(refreshedUser);
+		}
 
 		return { user: refreshedUser ?? null };
 	}

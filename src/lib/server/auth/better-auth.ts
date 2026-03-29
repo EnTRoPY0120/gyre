@@ -8,7 +8,7 @@ import { logger } from '$lib/server/logger.js';
 import { getDb, getDbSync, schema } from '$lib/server/db';
 import { DEFAULT_COOKIE_OPTIONS, IS_PROD } from '$lib/server/config';
 import { encryptSecret } from '$lib/server/auth/crypto';
-import { users, type Session, type User } from '$lib/server/db/schema';
+import { accounts, users, type Session, type User } from '$lib/server/db/schema';
 import {
 	MAX_SESSIONS_PER_USER,
 	SESSION_DURATION_DAYS,
@@ -17,7 +17,7 @@ import {
 	verifyPassword
 } from '$lib/server/auth';
 import type { OAuthTokens } from '$lib/server/auth/oauth';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 export const BETTER_AUTH_BASE_PATH = '/api/v1/auth';
 export const BETTER_AUTH_SESSION_COOKIE_NAME = 'gyre_session';
@@ -265,9 +265,10 @@ export async function ensureBetterAuthOAuthAccount(
 	tokens?: OAuthTokens
 ): Promise<void> {
 	const ctx = await getBetterAuth().$context;
-	const existingAccount = (await ctx.internalAdapter.findAccounts(userId)).find(
-		(account) => account.providerId === providerId
-	);
+	const db = await getDb();
+	const existingAccount = await db.query.accounts.findFirst({
+		where: and(eq(accounts.providerId, providerId), eq(accounts.accountId, providerUserId))
+	});
 
 	const accountData = {
 		userId,
