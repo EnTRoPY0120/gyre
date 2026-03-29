@@ -128,9 +128,17 @@ function createBetterAuth() {
 let authInstance: ReturnType<typeof createBetterAuth> | null = null;
 
 function getBetterAuthSecret(): string {
-	return (
-		process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_ENCRYPTION_KEY ?? 'gyre-dev-auth-secret'
-	);
+	const configuredSecret = process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_ENCRYPTION_KEY;
+
+	if (configuredSecret) {
+		return configuredSecret;
+	}
+
+	if (process.env.NODE_ENV === 'production') {
+		throw new Error('Better Auth requires BETTER_AUTH_SECRET or AUTH_ENCRYPTION_KEY in production');
+	}
+
+	return 'gyre-dev-auth-secret';
 }
 
 export function getBetterAuth() {
@@ -189,6 +197,27 @@ export function applyBetterAuthCookies(cookies: Cookies, headers: Headers): void
 	}
 }
 
+export function clearBetterAuthSessionCookie(cookies: Cookies): void {
+	cookies.delete(BETTER_AUTH_SESSION_COOKIE_NAME, {
+		path: DEFAULT_COOKIE_OPTIONS.path
+	});
+}
+
+async function deleteBetterAuthSessionRow(sessionLike: Record<string, unknown>): Promise<void> {
+	const db = await getDb();
+	const sessionId = typeof sessionLike.id === 'string' ? sessionLike.id : null;
+	const sessionToken = typeof sessionLike.token === 'string' ? sessionLike.token : null;
+
+	if (sessionId) {
+		await db.delete(schema.sessions).where(eq(schema.sessions.id, sessionId));
+		return;
+	}
+
+	if (sessionToken) {
+		await db.delete(schema.sessions).where(eq(schema.sessions.token, sessionToken));
+	}
+}
+
 export async function getBetterAuthSession(
 	request: Request,
 	cookies: Cookies
@@ -214,6 +243,12 @@ export async function getBetterAuthSession(
 	});
 
 	if (!fullUser || !fullUser.active) {
+		try {
+			await deleteBetterAuthSessionRow(result.response.session as Record<string, unknown>);
+		} catch (err) {
+			logger.warn(err, '[Auth] Failed to delete stale Better Auth session row');
+		}
+		clearBetterAuthSessionCookie(cookies);
 		return null;
 	}
 
@@ -319,4 +354,28 @@ export async function createBetterAuthSessionForUser(
 	);
 
 	return session as Session;
+}
+
+export async function revokeBetterAuthSessionByCookieValue(
+	signedSessionCookie: string
+): Promise<void> {
+	const tokenSeparatorIndex = signedSessionCookie.lastIndexOf('.');
+	if (tokenSeparatorIndex <= 0) {
+		return;
+	}
+
+	const rawToken = signedSessionCookie.slice(0, tokenSeparatorIndex);
+	const providedSignature = signedSessionCookie.slice(tokenSeparatorIndex + 1);
+
+	if (!rawToken || !providedSignature) {
+		return;
+	}
+
+	const ctx = await getBetterAuth().$context;
+	const expectedSignature = await makeSignature(rawToken, ctx.secret);
+	if (providedSignature !== expectedSignature) {
+		return;
+	}
+
+	await ctx.internalAdapter.deleteSessions([rawToken]);
 }

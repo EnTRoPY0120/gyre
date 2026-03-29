@@ -10,7 +10,10 @@ import {
 	verifyPassword
 } from '$lib/server/auth';
 import { logLogin } from '$lib/server/audit';
-import { createBetterAuthSessionForUser } from '$lib/server/auth/better-auth';
+import {
+	createBetterAuthSessionForUser,
+	revokeBetterAuthSessionByCookieValue
+} from '$lib/server/auth/better-auth';
 
 // Generate a real bcrypt hash at startup for timing-attack mitigation (avoids malformed-hash fast-path)
 const DUMMY_HASH: Promise<string> = hashPassword('__dummy_password_for_timing__');
@@ -164,6 +167,15 @@ export const POST: RequestHandler = async (event) => {
 
 		// Reset lockout on successful login
 		accountLockout.recordSuccess(canonicalUsername);
+
+		const existingSessionCookie = cookies.get('gyre_session');
+		if (existingSessionCookie) {
+			try {
+				await revokeBetterAuthSessionByCookieValue(existingSessionCookie);
+			} catch (err) {
+				logger.warn(err, '[Auth] Failed to revoke pre-existing session during login');
+			}
+		}
 
 		await createBetterAuthSessionForUser(cookies, user.id, {
 			ipAddress,

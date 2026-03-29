@@ -3,6 +3,7 @@ import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import {
+	addPasswordHistory,
 	getCredentialPasswordHash,
 	hasManagedPassword,
 	isPasswordInHistory,
@@ -168,6 +169,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			},
 			returnHeaders: true
 		});
+		await addPasswordHistory(user.id, currentCredentialHash);
 		applyBetterAuthCookies(cookies, changePasswordResult.headers);
 
 		// Log successful password change
