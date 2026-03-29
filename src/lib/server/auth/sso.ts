@@ -280,6 +280,9 @@ export async function createOrUpdateSSOUser(
 		`Auto-provisioned new SSO user: ${finalUsername} with role ${role} from provider ${providerId}`
 	);
 
+	// accountLinked=true means this function already created the Better Auth
+	// account row with the current login tokens, so the callback can skip
+	// ensureBetterAuthOAuthAccount() for this newly provisioned user.
 	return { user, accountLinked: true };
 }
 
