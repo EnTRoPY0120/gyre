@@ -153,6 +153,18 @@ export function generateUserId(): string {
 
 export async function getCredentialPasswordHash(userId: string): Promise<string | null> {
 	const db = await getDb();
+	const user = await db.query.users.findFirst({
+		where: eq(users.id, userId)
+	});
+
+	if (!user) {
+		return null;
+	}
+
+	if (normalizeUsername(user.username) === 'admin' && isInClusterMode()) {
+		return null;
+	}
+
 	const account = await db.query.accounts.findFirst({
 		where: and(eq(accounts.userId, userId), eq(accounts.providerId, 'credential'))
 	});
@@ -197,13 +209,17 @@ export async function createUser(
 		active: true
 	};
 
-	await db.insert(users).values(newUser);
-	await db.insert(accounts).values({
-		id: generateUserId(),
-		providerId: 'credential',
-		accountId: newUser.id,
-		userId: newUser.id,
-		password: passwordHash
+	await db.transaction((tx) => {
+		tx.insert(users).values(newUser).run();
+		tx.insert(accounts)
+			.values({
+				id: generateUserId(),
+				providerId: 'credential',
+				accountId: newUser.id,
+				userId: newUser.id,
+				password: passwordHash
+			})
+			.run();
 	});
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, newUser.id)
@@ -656,16 +672,18 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 		email: 'admin@gyre.local',
 		active: true
 	};
-	db.insert(users).values(newUser).run();
-	db.insert(accounts)
-		.values({
-			id: generateUserId(),
-			providerId: 'credential',
-			accountId: newUser.id,
-			userId: newUser.id,
-			password: passwordHash
-		})
-		.run();
+	db.transaction((tx) => {
+		tx.insert(users).values(newUser).run();
+		tx.insert(accounts)
+			.values({
+				id: generateUserId(),
+				providerId: 'credential',
+				accountId: newUser.id,
+				userId: newUser.id,
+				password: passwordHash
+			})
+			.run();
+	});
 
 	return { password, mode: 'local' };
 }

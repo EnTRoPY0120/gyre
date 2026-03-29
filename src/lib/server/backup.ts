@@ -391,9 +391,9 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 				);
 			}
 
-			if (!tableNames.includes('accounts') && !tableNames.includes('user_providers')) {
+			if (!tableNames.includes('accounts')) {
 				throw new BackupError(
-					'Invalid backup: missing required auth account data tables: accounts or legacy user_providers',
+					'Invalid backup: missing required auth account data table: accounts',
 					400
 				);
 			}

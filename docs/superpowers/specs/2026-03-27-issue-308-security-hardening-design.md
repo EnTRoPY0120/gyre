@@ -13,7 +13,7 @@ Follow-up to #266 (initial security fix). Four items identified during the secur
 
 ## Branch
 
-```
+```text
 feat/308-security-hardening
 ```
 

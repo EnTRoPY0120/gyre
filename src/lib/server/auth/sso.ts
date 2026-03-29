@@ -14,7 +14,8 @@ import {
 	deleteUserSessions
 } from '$lib/server/auth';
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
-import type { OAuthUserInfo } from './oauth/types';
+import { encryptSecret } from './crypto.js';
+import type { OAuthTokens, OAuthUserInfo } from './oauth/types';
 import { eq, and } from 'drizzle-orm';
 import { getAuthSettings } from '../settings.js';
 
@@ -23,6 +24,7 @@ import { getAuthSettings } from '../settings.js';
  */
 export interface SSOUserResult {
 	user: User | null;
+	accountLinked?: boolean;
 	reason?: 'signup_disabled' | 'domain_not_allowed' | 'auto_provision_disabled' | 'user_not_found';
 }
 
@@ -39,7 +41,8 @@ export interface SSOUserResult {
 export async function createOrUpdateSSOUser(
 	providerId: string,
 	userInfo: OAuthUserInfo,
-	providerConfig: AuthProvider
+	providerConfig: AuthProvider,
+	tokens?: OAuthTokens
 ): Promise<SSOUserResult> {
 	const db = await getDb();
 
@@ -70,7 +73,7 @@ export async function createOrUpdateSSOUser(
 		const nextName = userInfo.name || user.username;
 		const nextImage = typeof userInfo.picture === 'string' ? userInfo.picture : null;
 		const nextEmail = extractEmail(userInfo, providerConfig) ?? user.email;
-		const nextEmailVerified = userInfo.emailVerified ?? user.emailVerified;
+		const nextEmailVerified = userInfo.emailVerified === true ? true : undefined;
 
 		if (user.name !== nextName) {
 			profileUpdates.name = nextName;
@@ -81,8 +84,8 @@ export async function createOrUpdateSSOUser(
 		if ((user.email ?? null) !== (nextEmail ?? null)) {
 			profileUpdates.email = nextEmail ?? null;
 		}
-		if (user.emailVerified !== nextEmailVerified) {
-			profileUpdates.emailVerified = nextEmailVerified;
+		if (nextEmailVerified === true && user.emailVerified !== true) {
+			profileUpdates.emailVerified = true;
 		}
 
 		if (Object.keys(profileUpdates).length > 0) {
@@ -229,14 +232,36 @@ export async function createOrUpdateSSOUser(
 		username: finalUsername,
 		email: email || null,
 		name: userInfo.name || finalUsername,
-		emailVerified: userInfo.emailVerified ?? !!email,
 		image: typeof userInfo.picture === 'string' ? userInfo.picture : null,
 		role: role,
 		active: true,
 		isLocal: false // Mark as SSO user
 	};
+	const nextEmailVerified = userInfo.emailVerified === true ? true : undefined;
 
-	await db.insert(users).values(newUser);
+	await db.transaction((tx) => {
+		tx.insert(users)
+			.values(nextEmailVerified === true ? { ...newUser, emailVerified: true } : newUser)
+			.run();
+		tx.insert(accounts)
+			.values({
+				id: generateUserId(),
+				userId,
+				providerId,
+				accountId: userInfo.sub,
+				accessToken: null,
+				refreshToken: null,
+				idToken: null,
+				accessTokenExpiresAt:
+					tokens?.expiresIn != null ? new Date(Date.now() + tokens.expiresIn * 1000) : null,
+				scope: tokens?.scope ?? null,
+				lastLoginAt: new Date(),
+				accessTokenEncrypted: tokens?.accessToken ? encryptSecret(tokens.accessToken) : null,
+				refreshTokenEncrypted: tokens?.refreshToken ? encryptSecret(tokens.refreshToken) : null,
+				idTokenEncrypted: tokens?.idToken ? encryptSecret(tokens.idToken) : null
+			})
+			.run();
+	});
 
 	// Get the created user for binding policies
 	const user = await db.query.users.findFirst({
@@ -254,7 +279,7 @@ export async function createOrUpdateSSOUser(
 		`Auto-provisioned new SSO user: ${finalUsername} with role ${role} from provider ${providerId}`
 	);
 
-	return { user };
+	return { user, accountLinked: true };
 }
 
 /**

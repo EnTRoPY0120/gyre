@@ -161,7 +161,7 @@ export const GET: RequestHandler = async (event) => {
 		const userInfo = await provider.getUserInfo(tokens);
 
 		// Auto-provision user or find existing user
-		const result = await createOrUpdateSSOUser(providerId, userInfo, provider.config);
+		const result = await createOrUpdateSSOUser(providerId, userInfo, provider.config, tokens);
 
 		// Check if user creation/retrieval was successful
 		if (!result.user) {
@@ -190,7 +190,9 @@ export const GET: RequestHandler = async (event) => {
 			);
 		}
 
-		await ensureBetterAuthOAuthAccount(user.id, providerId, userInfo.sub, tokens);
+		if (!result.accountLinked) {
+			await ensureBetterAuthOAuthAccount(user.id, providerId, userInfo.sub, tokens);
+		}
 		await createBetterAuthSessionForUser(cookies, user.id, {
 			ipAddress,
 			userAgent: request.headers.get('user-agent') ?? undefined
