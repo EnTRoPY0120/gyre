@@ -1,6 +1,6 @@
 import { logger } from './logger.js';
 import bcrypt from 'bcryptjs';
-import { getDb, getDbSync, type NewUser, type User } from './db/index.js';
+import { getDb, getDbSync, type Account, type NewUser, type User } from './db/index.js';
 import { users, sessions, passwordHistory, accounts } from './db/schema.js';
 import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
 import { eq, and, lte, sql, or, inArray, desc } from 'drizzle-orm';
@@ -172,6 +172,15 @@ export async function getCredentialPasswordHash(userId: string): Promise<string 
 	return account?.password || null;
 }
 
+export async function getCredentialAccount(userId: string): Promise<Account | null> {
+	const db = await getDb();
+	const account = await db.query.accounts.findFirst({
+		where: and(eq(accounts.userId, userId), eq(accounts.providerId, 'credential'))
+	});
+
+	return account || null;
+}
+
 export async function hasManagedPassword(userId: string): Promise<boolean> {
 	return Boolean(await getCredentialPasswordHash(userId));
 }
@@ -289,21 +298,9 @@ export async function addPasswordHistory(userId: string, oldPasswordHash: string
 	// Insert and prune atomically so a crash between the two operations cannot
 	// leave the history table with more than PASSWORD_HISTORY_LIMIT entries.
 	// Ordering by createdAtMs (milliseconds) avoids ties at second resolution.
+	// The unique index on (user_id, password_hash) makes this idempotent across
+	// retries and concurrent rotations of the same live credential.
 	await db.transaction((tx) => {
-		// Idempotent: skip if this exact stored hash is already in history for this
-		// user. On retry (rotation failed, same currentCredentialHash re-submitted)
-		// we avoid a duplicate slot that would crowd out real historical entries.
-		const existing = tx
-			.select({ id: passwordHistory.id })
-			.from(passwordHistory)
-			.where(
-				and(eq(passwordHistory.userId, userId), eq(passwordHistory.passwordHash, oldPasswordHash))
-			)
-			.get();
-		if (existing) {
-			return;
-		}
-
 		tx.insert(passwordHistory)
 			.values({
 				id: generateUserId(),
@@ -311,6 +308,7 @@ export async function addPasswordHistory(userId: string, oldPasswordHash: string
 				passwordHash: oldPasswordHash,
 				createdAtMs: now
 			})
+			.onConflictDoNothing()
 			.run();
 
 		const rows = tx
@@ -365,6 +363,7 @@ export async function updateUserPassword(id: string, newPassword: string): Promi
 					passwordHash: currentCredentialHash,
 					createdAtMs: now
 				})
+				.onConflictDoNothing()
 				.run();
 
 			const rows = tx

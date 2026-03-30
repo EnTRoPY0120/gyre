@@ -4,6 +4,7 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import {
 	addPasswordHistory,
+	getCredentialAccount,
 	getCredentialPasswordHash,
 	isInClusterAdmin,
 	isPasswordInHistory,
@@ -97,12 +98,23 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			});
 		}
 
-		// Single credential read. getCredentialPasswordHash returns null for two
-		// distinct cases: the in-cluster admin (username=admin + K8s env) and a
-		// local user with no credential account (data integrity issue). Distinguish
-		// them so the error message is actionable in each case.
+		// Distinguish between a missing credential row (data integrity issue) and
+		// the in-cluster admin path, where getCredentialPasswordHash intentionally
+		// returns null so the Kubernetes secret remains the source of truth.
+		const credentialAccount = await getCredentialAccount(locals.user.id);
 		const currentCredentialHash = await getCredentialPasswordHash(locals.user.id);
 		if (!currentCredentialHash) {
+			if (!credentialAccount) {
+				logger.error(
+					{ userId: locals.user.id },
+					'[Auth] Local user is missing a credential account'
+				);
+				throw error(500, {
+					message:
+						'Account configuration error: credential account missing for this user. Contact your administrator.'
+				});
+			}
+
 			if (isInClusterAdmin(locals.user)) {
 				throw error(403, {
 					message:
@@ -110,12 +122,12 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 				});
 			}
 			logger.error(
-				{ userId: locals.user.id },
-				'[Auth] Local user has no credential account or empty password hash'
+				{ userId: locals.user.id, credentialAccountId: credentialAccount.id },
+				'[Auth] Local user credential account has no password hash'
 			);
 			throw error(500, {
 				message:
-					'Account configuration error: no credential found for this user. Contact your administrator.'
+					'Account configuration error: credential password hash missing for this user. Contact your administrator.'
 			});
 		}
 
@@ -170,11 +182,9 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			});
 		}
 
-		// Record current password in history BEFORE rotating. If the history write
-		// fails, the credential is unchanged and the caller gets a 500 with no
-		// partial state. If the rotation later fails, the history entry is stale
-		// (old hash still matches the live credential) — harmless compared to the
-		// reverse where the credential changes but history is never written.
+		// Record current password in history BEFORE rotating. addPasswordHistory is
+		// idempotent for (user.id, currentCredentialHash), so retries do not crowd
+		// out real history entries before the live credential changes.
 		await addPasswordHistory(user.id, currentCredentialHash);
 
 		// Update password through Better Auth so the credential account remains the
