@@ -21,9 +21,9 @@ feat/308-security-hardening
 
 ## Item 1: Server-side spec validation
 
-### New functions in `src/lib/server/validation.ts`
+### Implemented validation helpers in `src/lib/server/validation.ts`
 
-Add three validation helpers and one dispatcher:
+The following constants and functions are already implemented:
 
 ```typescript
 // Reuse/mirror the client-side CEL_VALIDATION pattern from templates/index.ts
@@ -67,7 +67,7 @@ After apiVersion check (~line 273), before calling `createFluxResource`:
 ```typescript
 import { validateK8sNamespace, validateFluxResourceSpec } from '$lib/server/validation';
 // ...
-const specError = validateFluxResourceSpec(resolvedType, body.spec);
+const specError = validateFluxResourceSpec(resolvedType, body.spec ?? {});
 if (specError) {
 	throw error(422, { message: specError });
 }

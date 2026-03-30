@@ -375,6 +375,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 			const requiredTables = [
 				'users',
 				'sessions',
+				'verifications',
 				'app_settings',
 				'clusters',
 				'cluster_contexts',
