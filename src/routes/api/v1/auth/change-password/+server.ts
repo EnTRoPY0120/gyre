@@ -5,6 +5,7 @@ import type { RequestHandler } from './$types';
 import {
 	addPasswordHistory,
 	getCredentialPasswordHash,
+	isInClusterAdmin,
 	isPasswordInHistory,
 	verifyPassword
 } from '$lib/server/auth';
@@ -96,14 +97,25 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			});
 		}
 
-		// Single credential read — null means in-cluster-admin or no credential account.
-		// getCredentialPasswordHash already returns null for the in-cluster admin user,
-		// so this single check covers both that case and the missing-account case.
+		// Single credential read. getCredentialPasswordHash returns null for two
+		// distinct cases: the in-cluster admin (username=admin + K8s env) and a
+		// local user with no credential account (data integrity issue). Distinguish
+		// them so the error message is actionable in each case.
 		const currentCredentialHash = await getCredentialPasswordHash(locals.user.id);
 		if (!currentCredentialHash) {
-			throw error(403, {
+			if (isInClusterAdmin(locals.user)) {
+				throw error(403, {
+					message:
+						'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
+				});
+			}
+			logger.error(
+				{ userId: locals.user.id },
+				'[Auth] Local user has no credential account or empty password hash'
+			);
+			throw error(500, {
 				message:
-					'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
+					'Account configuration error: no credential found for this user. Contact your administrator.'
 			});
 		}
 

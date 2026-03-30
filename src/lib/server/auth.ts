@@ -176,6 +176,10 @@ export async function hasManagedPassword(userId: string): Promise<boolean> {
 	return Boolean(await getCredentialPasswordHash(userId));
 }
 
+export function isInClusterAdmin(user: User): boolean {
+	return normalizeUsername(user.username) === 'admin' && isInClusterMode();
+}
+
 export async function verifyManagedUserPassword(user: User, password: string): Promise<boolean> {
 	if (normalizeUsername(user.username) === 'admin' && isInClusterMode()) {
 		return validateInClusterAdmin(password);
@@ -286,6 +290,20 @@ export async function addPasswordHistory(userId: string, oldPasswordHash: string
 	// leave the history table with more than PASSWORD_HISTORY_LIMIT entries.
 	// Ordering by createdAtMs (milliseconds) avoids ties at second resolution.
 	await db.transaction((tx) => {
+		// Idempotent: skip if this exact stored hash is already in history for this
+		// user. On retry (rotation failed, same currentCredentialHash re-submitted)
+		// we avoid a duplicate slot that would crowd out real historical entries.
+		const existing = tx
+			.select({ id: passwordHistory.id })
+			.from(passwordHistory)
+			.where(
+				and(eq(passwordHistory.userId, userId), eq(passwordHistory.passwordHash, oldPasswordHash))
+			)
+			.get();
+		if (existing) {
+			return;
+		}
+
 		tx.insert(passwordHistory)
 			.values({
 				id: generateUserId(),
