@@ -67,7 +67,9 @@ const CREATE_ACCOUNTS_TABLE = `
 		last_login_at INTEGER,
 		access_token_encrypted TEXT,
 		refresh_token_encrypted TEXT,
-		id_token_encrypted TEXT
+		id_token_encrypted TEXT,
+		UNIQUE (provider_id, account_id),
+		FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 	)
 `;
 

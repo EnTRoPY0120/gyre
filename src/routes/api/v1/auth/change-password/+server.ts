@@ -120,13 +120,8 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 
 		// Verify current password
 		const { user } = locals;
-		const currentCredentialHash = await getCredentialPasswordHash(user.id);
-		if (!currentCredentialHash) {
-			throw error(403, {
-				message:
-					'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
-			});
-		}
+		// hasManagedPassword above already confirmed the hash exists
+		const currentCredentialHash = (await getCredentialPasswordHash(user.id))!;
 		const isCurrentValid = await verifyManagedUserPassword(user, currentPassword);
 
 		if (!isCurrentValid) {

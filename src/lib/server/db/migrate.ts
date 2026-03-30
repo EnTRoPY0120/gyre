@@ -20,6 +20,12 @@ export function initDatabase(): void {
 			.from(sql`pragma_table_info('users')`)
 			.where(sql`name = 'password_hash'`)
 			.get() as { name: string } | undefined) != null;
+	const hasNullableSessionToken =
+		(db
+			.select({ notnull: sql<number>`notnull` })
+			.from(sql`pragma_table_info('sessions')`)
+			.where(sql`name = 'token' AND notnull = 0`)
+			.get() as { notnull: number } | undefined) != null;
 
 	// App Settings table (must be initialized first to store migration flags)
 	db.run(sql`
@@ -153,6 +159,39 @@ export function initDatabase(): void {
 
 	db.run(sql`UPDATE sessions SET token = id WHERE token IS NULL OR token = ''`);
 	db.run(sql`UPDATE sessions SET updated_at = created_at WHERE updated_at IS NULL`);
+
+	if (hasNullableSessionToken) {
+		db.run(sql`PRAGMA foreign_keys = OFF`);
+		try {
+			db.transaction((tx) => {
+				tx.run(sql`
+					CREATE TABLE sessions_next (
+						id TEXT PRIMARY KEY,
+						user_id TEXT NOT NULL,
+						token TEXT NOT NULL UNIQUE,
+						expires_at INTEGER NOT NULL,
+						ip_address TEXT,
+						user_agent TEXT,
+						created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+						updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+						FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+					)
+				`);
+				tx.run(sql`
+					INSERT INTO sessions_next (id, user_id, token, expires_at, ip_address, user_agent, created_at, updated_at)
+					SELECT id, user_id, token, expires_at, ip_address, user_agent, created_at, updated_at
+					FROM sessions
+				`);
+				tx.run(sql`DROP TABLE sessions`);
+				tx.run(sql`ALTER TABLE sessions_next RENAME TO sessions`);
+			});
+		} catch (err) {
+			logger.error(err, '[DB] Failed to enforce NOT NULL on sessions.token:');
+			throw err;
+		} finally {
+			db.run(sql`PRAGMA foreign_keys = ON`);
+		}
+	}
 
 	// Better Auth accounts table
 	db.run(sql`
@@ -420,47 +459,15 @@ export function initDatabase(): void {
 		db.run(sql`
 			UPDATE accounts
 			SET
-				last_login_at = COALESCE(
-					(
-						SELECT up.last_login_at
-						FROM user_providers up
-						WHERE up.user_id = accounts.user_id
-							AND up.provider_id = accounts.provider_id
-							AND up.provider_user_id = accounts.account_id
-					),
-					accounts.last_login_at
-				),
-				access_token_encrypted = COALESCE(
-					(
-						SELECT up.access_token_encrypted
-						FROM user_providers up
-						WHERE up.user_id = accounts.user_id
-							AND up.provider_id = accounts.provider_id
-							AND up.provider_user_id = accounts.account_id
-					),
-					accounts.access_token_encrypted
-				),
-				refresh_token_encrypted = COALESCE(
-					(
-						SELECT up.refresh_token_encrypted
-						FROM user_providers up
-						WHERE up.user_id = accounts.user_id
-							AND up.provider_id = accounts.provider_id
-							AND up.provider_user_id = accounts.account_id
-					),
-					accounts.refresh_token_encrypted
-				),
-				access_token_expires_at = COALESCE(
-					(
-						SELECT up.token_expires_at
-						FROM user_providers up
-						WHERE up.user_id = accounts.user_id
-							AND up.provider_id = accounts.provider_id
-							AND up.provider_user_id = accounts.account_id
-					),
-					accounts.access_token_expires_at
-				)
-			WHERE accounts.provider_id != 'credential'
+				last_login_at = COALESCE(up.last_login_at, last_login_at),
+				access_token_encrypted = COALESCE(up.access_token_encrypted, access_token_encrypted),
+				refresh_token_encrypted = COALESCE(up.refresh_token_encrypted, refresh_token_encrypted),
+				access_token_expires_at = COALESCE(up.token_expires_at, access_token_expires_at)
+			FROM user_providers AS up
+			WHERE accounts.user_id = up.user_id
+				AND accounts.provider_id = up.provider_id
+				AND accounts.account_id = up.provider_user_id
+				AND accounts.provider_id != 'credential'
 		`);
 
 		db.run(sql`DROP TABLE IF EXISTS user_providers`);
