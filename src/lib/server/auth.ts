@@ -347,12 +347,18 @@ export async function isPasswordInHistory(
 export async function updateUserPassword(id: string, newPassword: string): Promise<void> {
 	const db = await getDb();
 
-	const currentCredentialHash = await getCredentialPasswordHash(id);
 	// Hash before the transaction — bcrypt is async and cannot run inside a sync tx callback.
 	const newPasswordHash = await hashPassword(newPassword);
 	const now = Date.now();
 
 	await db.transaction((tx) => {
+		const currentCredential = tx
+			.select({ password: accounts.password })
+			.from(accounts)
+			.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
+			.get();
+		const currentCredentialHash = currentCredential?.password || null;
+
 		// Archive the old hash and prune history atomically with the password update
 		// so a crash between the two operations cannot leave the DB in a partial state.
 		if (currentCredentialHash) {
