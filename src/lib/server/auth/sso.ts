@@ -25,7 +25,12 @@ import { getAuthSettings } from '../settings.js';
 export interface SSOUserResult {
 	user: User | null;
 	accountLinked?: boolean;
-	reason?: 'signup_disabled' | 'domain_not_allowed' | 'auto_provision_disabled' | 'user_not_found';
+	reason?:
+		| 'signup_disabled'
+		| 'domain_not_allowed'
+		| 'auto_provision_disabled'
+		| 'user_not_found'
+		| 'user_disabled';
 }
 
 /**
@@ -60,6 +65,11 @@ export async function createOrUpdateSSOUser(
 		if (!user) {
 			logger.warn(`Orphaned provider link found for userId ${existingLink.userId}`);
 			return { user: null, reason: 'user_not_found' };
+		}
+
+		if (!user.active) {
+			logger.warn(`Blocked SSO login attempt for disabled user ${user.id}`);
+			return { user: null, reason: 'user_disabled' };
 		}
 
 		// Keep Better Auth-compatible user fields fresh for long-lived SSO users.

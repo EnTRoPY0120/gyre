@@ -92,6 +92,12 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			throw error(400, { message: 'Current password and new password are required' });
 		}
 
+		if (locals.user.isLocal === false) {
+			throw error(403, {
+				message: 'This account is managed via SSO and has no local password.'
+			});
+		}
+
 		if (!(await hasManagedPassword(locals.user.id))) {
 			throw error(403, {
 				message:

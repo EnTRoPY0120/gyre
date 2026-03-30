@@ -320,17 +320,26 @@ export async function createBetterAuthSessionForUser(
 	}
 ): Promise<Session> {
 	const ctx = await getBetterAuth().$context;
-	const existingSessions = await ctx.internalAdapter.listSessions(userId, {
+	// Create the session first so the user always gets a session, then evict
+	// any sessions that exceed the per-user limit. This avoids a TOCTOU race
+	// where two concurrent logins both read N-1 sessions and skip eviction,
+	// ending up with N+1. With create-then-evict both concurrent creates will
+	// prune the same excess tokens and converge to MAX_SESSIONS_PER_USER.
+	const session = await ctx.internalAdapter.createSession(userId, false, {
+		ipAddress: sessionDetails?.ipAddress ?? null,
+		userAgent: sessionDetails?.userAgent ?? null
+	});
+	const allSessions = await ctx.internalAdapter.listSessions(userId, {
 		onlyActiveSessions: true
 	});
-	if (existingSessions.length >= MAX_SESSIONS_PER_USER) {
-		const tokensToEvict = existingSessions
-			.slice()
+	if (allSessions.length > MAX_SESSIONS_PER_USER) {
+		const tokensToEvict = allSessions
+			.filter((s) => s.token !== session.token)
 			.sort(
 				(left, right) => new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime()
 			)
-			.slice(0, existingSessions.length - MAX_SESSIONS_PER_USER + 1)
-			.map((session) => session.token);
+			.slice(0, allSessions.length - MAX_SESSIONS_PER_USER)
+			.map((s) => s.token);
 		if (tokensToEvict.length > 0) {
 			await ctx.internalAdapter.deleteSessions(tokensToEvict);
 			logger.info(
@@ -339,10 +348,6 @@ export async function createBetterAuthSessionForUser(
 			);
 		}
 	}
-	const session = await ctx.internalAdapter.createSession(userId, false, {
-		ipAddress: sessionDetails?.ipAddress ?? null,
-		userAgent: sessionDetails?.userAgent ?? null
-	});
 	const signedToken = `${session.token}.${await makeSignature(session.token, ctx.secret)}`;
 
 	cookies.set(
