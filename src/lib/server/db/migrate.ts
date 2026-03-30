@@ -582,6 +582,39 @@ export function initDatabase(): void {
 		)
 	`);
 
+	// Migration: add unique constraint on password_history(user_id, password_hash)
+	try {
+		const result = db
+			.select({ value: sql`value` })
+			.from(sql`app_settings`)
+			.where(sql`key = 'migrations.password_history_user_hash_unique'`)
+			.get() as { value: string } | undefined;
+
+		if (!result || result.value !== 'true') {
+			db.transaction((tx) => {
+				tx.run(sql`
+					DELETE FROM password_history
+					WHERE id NOT IN (
+						SELECT MIN(id) FROM password_history
+						GROUP BY user_id, password_hash
+					)
+				`);
+				tx.run(sql`
+					CREATE UNIQUE INDEX IF NOT EXISTS idx_password_history_user_hash
+					ON password_history (user_id, password_hash)
+				`);
+				tx.run(sql`
+					INSERT OR REPLACE INTO app_settings (key, value, updated_at)
+					VALUES ('migrations.password_history_user_hash_unique', 'true', (unixepoch()))
+				`);
+			});
+			logger.info('[DB] Migration: added unique constraint on password_history');
+		}
+	} catch (error) {
+		logger.error(error, '[DB] Failed to add unique constraint on password_history:');
+		throw error;
+	}
+
 	// Indexes (CREATE INDEX IF NOT EXISTS is idempotent — safe for new and existing databases)
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at)`);
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id)`);
@@ -597,6 +630,9 @@ export function initDatabase(): void {
 	);
 	db.run(
 		sql`CREATE INDEX IF NOT EXISTS idx_password_history_user_id ON password_history (user_id)`
+	);
+	db.run(
+		sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_password_history_user_hash ON password_history (user_id, password_hash)`
 	);
 	db.run(
 		sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_provider_account ON accounts (provider_id, account_id)`
