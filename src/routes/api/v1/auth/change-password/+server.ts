@@ -5,10 +5,8 @@ import type { RequestHandler } from './$types';
 import {
 	addPasswordHistory,
 	getCredentialPasswordHash,
-	hasManagedPassword,
 	isPasswordInHistory,
-	verifyPassword,
-	verifyManagedUserPassword
+	verifyPassword
 } from '$lib/server/auth';
 import { applyBetterAuthCookies, getBetterAuth } from '$lib/server/auth/better-auth';
 import { logAudit } from '$lib/server/audit';
@@ -98,7 +96,11 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			});
 		}
 
-		if (!(await hasManagedPassword(locals.user.id))) {
+		// Single credential read — null means in-cluster-admin or no credential account.
+		// getCredentialPasswordHash already returns null for the in-cluster admin user,
+		// so this single check covers both that case and the missing-account case.
+		const currentCredentialHash = await getCredentialPasswordHash(locals.user.id);
+		if (!currentCredentialHash) {
 			throw error(403, {
 				message:
 					'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
@@ -124,11 +126,9 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			});
 		}
 
-		// Verify current password
+		// Verify current password using the hash already in hand — no second DB read.
 		const { user } = locals;
-		// hasManagedPassword above already confirmed the hash exists
-		const currentCredentialHash = (await getCredentialPasswordHash(user.id))!;
-		const isCurrentValid = await verifyManagedUserPassword(user, currentPassword);
+		const isCurrentValid = await verifyPassword(currentPassword, currentCredentialHash);
 
 		if (!isCurrentValid) {
 			await logAudit(user, 'password_change_failed', {
@@ -158,6 +158,13 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			});
 		}
 
+		// Record current password in history BEFORE rotating. If the history write
+		// fails, the credential is unchanged and the caller gets a 500 with no
+		// partial state. If the rotation later fails, the history entry is stale
+		// (old hash still matches the live credential) — harmless compared to the
+		// reverse where the credential changes but history is never written.
+		await addPasswordHistory(user.id, currentCredentialHash);
+
 		// Update password through Better Auth so the credential account remains the
 		// sole live password source of truth.
 		const auth = getBetterAuth();
@@ -170,7 +177,6 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			},
 			returnHeaders: true
 		});
-		await addPasswordHistory(user.id, currentCredentialHash);
 		applyBetterAuthCookies(cookies, changePasswordResult.headers);
 
 		// Log successful password change
