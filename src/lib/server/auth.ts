@@ -189,12 +189,23 @@ export function isInClusterAdmin(user: User): boolean {
 	return normalizeUsername(user.username) === 'admin' && isInClusterMode();
 }
 
+// Internal helper: fetch the credential hash directly by userId, skipping the
+// user-row re-fetch and in-cluster-admin re-check. Callers must have already
+// handled the in-cluster-admin case before calling this.
+async function getCredentialHashDirect(userId: string): Promise<string | null> {
+	const db = await getDb();
+	const account = await db.query.accounts.findFirst({
+		where: and(eq(accounts.userId, userId), eq(accounts.providerId, 'credential'))
+	});
+	return account?.password || null;
+}
+
 export async function verifyManagedUserPassword(user: User, password: string): Promise<boolean> {
 	if (normalizeUsername(user.username) === 'admin' && isInClusterMode()) {
 		return validateInClusterAdmin(password);
 	}
 
-	const credentialPasswordHash = await getCredentialPasswordHash(user.id);
+	const credentialPasswordHash = await getCredentialHashDirect(user.id);
 	if (!credentialPasswordHash) {
 		return false;
 	}
