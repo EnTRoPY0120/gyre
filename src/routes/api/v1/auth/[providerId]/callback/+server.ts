@@ -175,6 +175,8 @@ export const GET: RequestHandler = async (event) => {
 				message = 'Account auto-provisioning is disabled. Please contact your administrator.';
 			} else if (result.reason === 'user_not_found') {
 				message = 'Your user account could not be found. Please contact your administrator.';
+			} else if (result.reason === 'user_disabled') {
+				message = 'Your account has been disabled. Please contact your administrator.';
 			}
 
 			throw redirect(302, `/login?error=${encodeURIComponent(message)}`);
