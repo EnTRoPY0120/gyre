@@ -668,7 +668,20 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 				email: 'admin@gyre.local',
 				active: true
 			};
-			db.insert(users).values(newUser).run();
+			db.transaction((tx) => {
+				tx.insert(users).values(newUser).run();
+				// Keep a credential account row for symmetry with local mode while
+				// leaving the Kubernetes secret as the sole password source of truth.
+				tx.insert(accounts)
+					.values({
+						id: generateUserId(),
+						providerId: 'credential',
+						accountId: newUser.id,
+						userId: newUser.id,
+						password: null
+					})
+					.run();
+			});
 			return { password, mode: 'in-cluster' };
 		}
 		return { password: null, mode: 'in-cluster' };

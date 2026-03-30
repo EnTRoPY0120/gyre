@@ -1,10 +1,17 @@
-import { describe, test, expect, mock } from 'bun:test';
+import { describe, test, expect, mock, beforeEach } from 'bun:test';
+import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
+import type { Cookies } from '@sveltejs/kit';
+import type { User } from '../lib/server/db/schema.js';
 
-const authState = {
-	credentialAccount: { id: 'cred-1' } as { id: string } | null,
-	credentialHash: 'stored-hash' as string | null,
-	isInClusterAdmin: false
-};
+function createAuthState() {
+	return {
+		credentialAccount: { id: 'cred-1' } as { id: string } | null,
+		credentialHash: 'stored-hash' as string | null,
+		isInClusterAdmin: false
+	};
+}
+
+const authState = createAuthState();
 
 mock.module('$lib/server/auth', () => ({
 	addPasswordHistory: async () => {},
@@ -42,28 +49,79 @@ mock.module('$lib/server/rate-limiter', () => ({
 
 import { POST } from '../routes/api/v1/auth/change-password/+server.js';
 
-function buildEvent() {
+type ChangePasswordEvent = Parameters<typeof POST>[0];
+
+function createCookies(): Cookies {
 	return {
-		request: new Request('http://localhost/api/v1/auth/change-password', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({
-				currentPassword: 'CurrentPassword123!',
-				newPassword: 'NewPassword123!'
-			})
-		}),
-		locals: {
-			user: {
-				id: 'user-1',
-				username: 'admin',
-				isLocal: true
-			},
-			session: null
-		},
-		setHeaders: () => {},
-		cookies: {}
+		get: () => undefined,
+		getAll: () => [],
+		set: () => {},
+		delete: () => {},
+		serialize: () => ''
 	};
 }
+
+function createUser(): User {
+	const now = new Date();
+	return {
+		id: 'user-1',
+		username: 'admin',
+		email: 'admin@gyre.local',
+		name: 'admin',
+		emailVerified: false,
+		image: null,
+		role: 'admin',
+		active: true,
+		isLocal: true,
+		createdAt: now,
+		updatedAt: now,
+		preferences: null
+	};
+}
+
+function buildEvent(): ChangePasswordEvent {
+	const request = new Request('http://localhost/api/v1/auth/change-password', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({
+			currentPassword: 'CurrentPassword123!',
+			newPassword: 'NewPassword123!'
+		})
+	});
+	const event = {
+		request,
+		cookies: createCookies(),
+		fetch,
+		getClientAddress: () => '127.0.0.1',
+		locals: {
+			requestId: 'req-1',
+			cluster: undefined,
+			user: createUser(),
+			session: null
+		},
+		params: {},
+		platform: undefined,
+		route: {
+			id: '/api/v1/auth/change-password'
+		},
+		setHeaders: () => {},
+		url: new URL(request.url),
+		isDataRequest: false,
+		isSubRequest: false,
+		tracing: {
+			enabled: false,
+			root: trace.wrapSpanContext(INVALID_SPAN_CONTEXT),
+			current: trace.wrapSpanContext(INVALID_SPAN_CONTEXT)
+		},
+		isRemoteRequest: false
+	} satisfies ChangePasswordEvent;
+
+	return event;
+}
+
+beforeEach(() => {
+	Object.assign(authState, createAuthState());
+});
 
 describe('change-password route credential handling', () => {
 	test('returns actionable 500 when the credential account row is missing', async () => {
@@ -71,7 +129,7 @@ describe('change-password route credential handling', () => {
 		authState.credentialHash = null;
 		authState.isInClusterAdmin = false;
 
-		await expect(POST(buildEvent() as never)).rejects.toMatchObject({
+		await expect(POST(buildEvent())).rejects.toMatchObject({
 			status: 500,
 			body: {
 				message:
@@ -85,7 +143,7 @@ describe('change-password route credential handling', () => {
 		authState.credentialHash = null;
 		authState.isInClusterAdmin = true;
 
-		await expect(POST(buildEvent() as never)).rejects.toMatchObject({
+		await expect(POST(buildEvent())).rejects.toMatchObject({
 			status: 403,
 			body: {
 				message:
