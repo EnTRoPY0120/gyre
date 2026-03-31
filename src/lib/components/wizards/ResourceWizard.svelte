@@ -282,12 +282,16 @@
 
 		// Custom pattern validation
 		if (field.validation?.pattern && typeof value === 'string') {
-			if (!safeRegex(field.validation.pattern)) {
+			try {
+				if (!safeRegex(field.validation.pattern)) {
+					return `Invalid validation pattern for ${field.label}`;
+				}
+				const regex = new RegExp(field.validation.pattern);
+				if (!regex.test(value)) {
+					return field.validation.message || `Invalid format for ${field.label}`;
+				}
+			} catch {
 				return `Invalid validation pattern for ${field.label}`;
-			}
-			const regex = new RegExp(field.validation.pattern);
-			if (!regex.test(value)) {
-				return field.validation.message || `Invalid format for ${field.label}`;
 			}
 		}
 

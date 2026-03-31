@@ -134,18 +134,38 @@ class RealtimeStore {
 					// Legacy format: [[key, string], ...] — discard, will re-populate from events
 					this.lastNotificationState = new Map();
 				} else if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.entries)) {
-					// Current format: entries are NotificationState objects — validate shape
-					const validEntries = (parsed.entries as unknown[]).filter(
-						(entry): entry is [string, NotificationState] =>
-							Array.isArray(entry) &&
-							entry.length === 2 &&
-							typeof entry[0] === 'string' &&
-							typeof entry[1] === 'object' &&
-							entry[1] !== null &&
-							'revision' in entry[1] &&
-							'readyStatus' in entry[1] &&
-							'readyReason' in entry[1] &&
-							'messagePreview' in entry[1]
+					// Current format: entries are NotificationState objects.
+					// Validate present fields and normalize missing optional ones — JSON.stringify
+					// drops undefined values so keys like revision/readyStatus/readyReason may be absent.
+					const validEntries = (parsed.entries as unknown[]).flatMap<[string, NotificationState]>(
+						(entry) => {
+							if (
+								!Array.isArray(entry) ||
+								entry.length !== 2 ||
+								typeof entry[0] !== 'string' ||
+								typeof entry[1] !== 'object' ||
+								entry[1] === null
+							) {
+								return [];
+							}
+							const raw = entry[1] as Record<string, unknown>;
+							// Reject entries where a present field has an unexpected type
+							if ('revision' in raw && typeof raw.revision !== 'string') return [];
+							if ('readyStatus' in raw && typeof raw.readyStatus !== 'string') return [];
+							if ('readyReason' in raw && typeof raw.readyReason !== 'string') return [];
+							if ('messagePreview' in raw && typeof raw.messagePreview !== 'string') return [];
+							return [
+								[
+									entry[0],
+									{
+										revision: typeof raw.revision === 'string' ? raw.revision : undefined,
+										readyStatus: typeof raw.readyStatus === 'string' ? raw.readyStatus : undefined,
+										readyReason: typeof raw.readyReason === 'string' ? raw.readyReason : undefined,
+										messagePreview: typeof raw.messagePreview === 'string' ? raw.messagePreview : ''
+									}
+								]
+							];
+						}
 					);
 					this.lastNotificationState = new Map(validEntries);
 					if (parsed.sessionId) {
