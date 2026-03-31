@@ -15,6 +15,13 @@ import {
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
+interface NotificationState {
+	revision: string | undefined;
+	readyStatus: string | undefined;
+	readyReason: string | undefined;
+	messagePreview: string;
+}
+
 export interface ResourceEvent {
 	type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'CONNECTED' | 'HEARTBEAT' | 'ERROR' | 'SHUTDOWN';
 	clusterId?: string;
@@ -70,8 +77,8 @@ class RealtimeStore {
 	private isServerShutdown = false;
 
 	// Notification state cache to prevent duplicate notifications
-	// Key: `${resourceType}/${namespace}/${name}`, Value: `${readyStatus}/${readyMessageHash}`
-	private lastNotificationState: Map<string, string> = new Map();
+	// Key: `${clusterId}/${resourceType}/${namespace}/${name}`, Value: NotificationState object
+	private lastNotificationState: Map<string, NotificationState> = new Map();
 
 	// Tracks the server process session; used to detect server restarts and clear stale state
 	private lastServerSessionId: string | null = null;
@@ -119,15 +126,18 @@ class RealtimeStore {
 				}));
 			}
 
-			// Load notification state cache (handles legacy array format and current object format)
+			// Load notification state cache (handles legacy string format and current object format)
 			const storedState = localStorage.getItem(NOTIFICATION_STATE_STORAGE_KEY);
 			if (storedState) {
 				const parsed = JSON.parse(storedState);
 				if (Array.isArray(parsed)) {
-					// Legacy format: [[key, value], ...]
-					this.lastNotificationState = new Map(parsed);
+					// Legacy format: [[key, string], ...] — discard, will re-populate from events
+					this.lastNotificationState = new Map();
 				} else if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.entries)) {
-					this.lastNotificationState = new Map(parsed.entries);
+					// Current format: entries are NotificationState objects
+					this.lastNotificationState = new Map(
+						parsed.entries as Array<[string, NotificationState]>
+					);
 					if (parsed.sessionId) {
 						this.lastServerSessionId = parsed.sessionId;
 					}
@@ -371,40 +381,39 @@ class RealtimeStore {
 		const messagePreview = readyCondition?.message?.substring(0, MESSAGE_PREVIEW_LENGTH) || '';
 
 		// Match the server-side notificationState structure exactly (no extra fields)
-		const currentState = JSON.stringify({
-			revision: revision,
+		const currentStateObj: NotificationState = {
+			revision,
 			readyStatus: readyCondition?.status,
 			readyReason: readyCondition?.reason,
-			messagePreview: messagePreview
-		});
+			messagePreview
+		};
 
 		const previousState = this.lastNotificationState.get(resourceKey);
 
 		// Skip notification if this exact state was already notified
 		// Exception: Always notify ADDED and DELETED events
-		if (event.type === 'MODIFIED' && previousState === currentState) {
+		if (
+			event.type === 'MODIFIED' &&
+			JSON.stringify(currentStateObj) === JSON.stringify(previousState)
+		) {
 			// This is a duplicate notification - same resource in same state
-			const parsedState = JSON.parse(currentState);
 			logger.debug(
-				`[Notification] Skipping duplicate for ${resourceKey}: state unchanged (revision: ${parsedState.revision || 'none'})`
+				`[Notification] Skipping duplicate for ${resourceKey}: state unchanged (revision: ${revision || 'none'})`
 			);
 			return;
 		}
 
 		// Update the state cache (will be persisted with notification)
-		this.lastNotificationState.set(resourceKey, currentState);
+		this.lastNotificationState.set(resourceKey, currentStateObj);
 
 		// Log state change for debugging
 		if (previousState) {
-			const prevParsed = JSON.parse(previousState);
-			const currParsed = JSON.parse(currentState);
 			logger.debug(
-				`[Notification] State change for ${resourceKey}: revision "${prevParsed.revision || 'none'}" -> "${currParsed.revision || 'none'}", ready: ${currParsed.readyStatus}`
+				`[Notification] State change for ${resourceKey}: revision "${previousState.revision || 'none'}" -> "${revision || 'none'}", ready: ${currentStateObj.readyStatus}`
 			);
 		} else {
-			const currParsed = JSON.parse(currentState);
 			logger.debug(
-				`[Notification] New notification for ${resourceKey}: ${event.type}, revision: ${currParsed.revision || 'none'}`
+				`[Notification] New notification for ${resourceKey}: ${event.type}, revision: ${revision || 'none'}`
 			);
 		}
 

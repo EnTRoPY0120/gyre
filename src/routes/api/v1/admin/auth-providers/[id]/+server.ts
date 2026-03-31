@@ -146,7 +146,15 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		const sanitizedProvider = {
 			...provider,
 			clientSecretEncrypted: '***',
-			roleMapping: provider.roleMapping ? JSON.parse(provider.roleMapping) : null
+			roleMapping: (() => {
+				if (!provider.roleMapping) return null;
+				try {
+					return JSON.parse(provider.roleMapping);
+				} catch {
+					logger.warn({ providerId: provider.id }, '[auth-providers] Malformed roleMapping JSON');
+					return null;
+				}
+			})()
 		};
 
 		return json({ provider: sanitizedProvider });
@@ -252,7 +260,15 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			provider: {
 				...updatedProvider,
 				clientSecretEncrypted: '***',
-				roleMapping: updatedProvider?.roleMapping ? JSON.parse(updatedProvider.roleMapping) : null
+				roleMapping: (() => {
+					if (!updatedProvider?.roleMapping) return null;
+					try {
+						return JSON.parse(updatedProvider.roleMapping);
+					} catch {
+						logger.warn({ providerId: params.id }, '[auth-providers] Malformed roleMapping JSON');
+						return null;
+					}
+				})()
 			}
 		});
 	} catch (err) {
