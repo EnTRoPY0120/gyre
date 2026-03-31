@@ -134,10 +134,20 @@ class RealtimeStore {
 					// Legacy format: [[key, string], ...] — discard, will re-populate from events
 					this.lastNotificationState = new Map();
 				} else if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.entries)) {
-					// Current format: entries are NotificationState objects
-					this.lastNotificationState = new Map(
-						parsed.entries as Array<[string, NotificationState]>
+					// Current format: entries are NotificationState objects — validate shape
+					const validEntries = (parsed.entries as unknown[]).filter(
+						(entry): entry is [string, NotificationState] =>
+							Array.isArray(entry) &&
+							entry.length === 2 &&
+							typeof entry[0] === 'string' &&
+							typeof entry[1] === 'object' &&
+							entry[1] !== null &&
+							'revision' in entry[1] &&
+							'readyStatus' in entry[1] &&
+							'readyReason' in entry[1] &&
+							'messagePreview' in entry[1]
 					);
+					this.lastNotificationState = new Map(validEntries);
 					if (parsed.sessionId) {
 						this.lastServerSessionId = parsed.sessionId;
 					}

@@ -17,6 +17,7 @@ import {
 	renameSync
 } from 'node:fs';
 import { join, basename } from 'node:path';
+import { validateDatabaseUrl } from './db/path-validation.js';
 import { tmpdir } from 'node:os';
 import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
@@ -28,9 +29,8 @@ const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
 const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups');
 
-// Validate DATABASE_URL does not contain path traversal
-if (databaseUrl.includes('..')) {
-	throw new Error(`Invalid DATABASE_URL: path traversal detected: ${databaseUrl}`);
+if (process.env.DATABASE_URL) {
+	validateDatabaseUrl(databaseUrl);
 }
 
 /**
