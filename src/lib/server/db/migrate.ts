@@ -111,7 +111,8 @@ export function initDatabase(): void {
 		sql`ALTER TABLE users ADD COLUMN preferences TEXT`,
 		sql`ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
 		sql`ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0`,
-		sql`ALTER TABLE users ADD COLUMN image TEXT`
+		sql`ALTER TABLE users ADD COLUMN image TEXT`,
+		sql`ALTER TABLE users ADD COLUMN requires_password_change INTEGER NOT NULL DEFAULT 0`
 	]) {
 		try {
 			db.run(ddl);

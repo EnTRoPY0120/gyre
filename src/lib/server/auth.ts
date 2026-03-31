@@ -32,8 +32,11 @@ function warnIfWeakAdminPassword(password: string): void {
 	}
 }
 
-// Store generated password temporarily for first-time setup display
-let generatedAdminPassword: string | null = null;
+// Pre-computed dummy hash for constant-time comparisons (prevents timing-based enumeration)
+const DUMMY_HASH: Promise<string> = bcrypt.hash('__dummy_password_for_timing__', SALT_ROUNDS);
+
+// Tracks whether a setup token file has been written and not yet consumed
+let pendingSetupCleanup = false;
 
 // Path to the local-dev setup token file; cleared after first successful login
 let setupTokenFilePath: string | null = null;
@@ -47,16 +50,16 @@ export function setSetupTokenFile(filePath: string): void {
 }
 
 export function cleanupSetupTokenFile(): void {
-	if (generatedAdminPassword === null || setupTokenFilePath === null) return;
+	if (!pendingSetupCleanup || setupTokenFilePath === null) return;
 	const filePath = setupTokenFilePath;
 	try {
 		unlinkSync(filePath);
 		setupTokenFilePath = null;
-		generatedAdminPassword = null;
+		pendingSetupCleanup = false;
 	} catch (err) {
 		if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
 			setupTokenFilePath = null;
-			generatedAdminPassword = null;
+			pendingSetupCleanup = false;
 		} else {
 			logger.error(
 				{ err, filePath },
@@ -127,10 +130,11 @@ export function generateStrongPassword(): string {
 }
 
 /**
- * Get the generated admin password (for initial setup display)
+ * @deprecated The generated admin password is no longer stored in memory.
+ * It is returned directly from createDefaultAdminIfNeeded() and written to a restricted temp file.
  */
 export function getGeneratedAdminPassword(): string | null {
-	return generatedAdminPassword;
+	return null;
 }
 
 // Password hashing
@@ -189,6 +193,11 @@ export function isInClusterAdmin(user: User): boolean {
 	return normalizeUsername(user.username) === 'admin' && isInClusterMode();
 }
 
+export async function clearRequiresPasswordChange(userId: string): Promise<void> {
+	const db = await getDb();
+	await db.update(users).set({ requiresPasswordChange: false }).where(eq(users.id, userId));
+}
+
 // Internal helper: fetch the credential hash directly by userId, skipping the
 // user-row re-fetch and in-cluster-admin re-check. Callers must have already
 // handled the in-cluster-admin case before calling this.
@@ -207,6 +216,8 @@ export async function verifyManagedUserPassword(user: User, password: string): P
 
 	const credentialPasswordHash = await getCredentialHashDirect(user.id);
 	if (!credentialPasswordHash) {
+		// Run dummy verification to prevent timing-based enumeration of SSO vs credential accounts
+		await verifyPassword(password, await DUMMY_HASH);
 		return false;
 	}
 
@@ -583,7 +594,7 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 		// Use ADMIN_PASSWORD from env if provided, otherwise generate a strong one
 		const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
 		if (process.env.ADMIN_PASSWORD) warnIfWeakAdminPassword(process.env.ADMIN_PASSWORD);
-		generatedAdminPassword = password;
+		pendingSetupCleanup = true;
 
 		// Hash for storage
 		inClusterAdminPasswordHash = await hashPassword(password);
@@ -683,7 +694,8 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 				name: 'admin',
 				role: 'admin',
 				email: 'admin@gyre.local',
-				active: true
+				active: true,
+				requiresPasswordChange: true
 			};
 			db.transaction((tx) => {
 				tx.insert(users).values(newUser).run();
@@ -707,7 +719,7 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 	// Local development mode: Use env var or generate password
 	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
 	if (process.env.ADMIN_PASSWORD) warnIfWeakAdminPassword(process.env.ADMIN_PASSWORD);
-	generatedAdminPassword = password;
+	pendingSetupCleanup = true;
 
 	const db = getDbSync();
 	const passwordHash = await hashPassword(password);
@@ -717,7 +729,8 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 		name: 'admin',
 		role: 'admin',
 		email: 'admin@gyre.local',
-		active: true
+		active: true,
+		requiresPasswordChange: true
 	};
 	db.transaction((tx) => {
 		tx.insert(users).values(newUser).run();

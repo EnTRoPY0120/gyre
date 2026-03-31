@@ -4,6 +4,7 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import {
 	addPasswordHistory,
+	clearRequiresPasswordChange,
 	getCredentialAccount,
 	getCredentialPasswordHash,
 	isInClusterAdmin,
@@ -207,6 +208,8 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			ipAddress: locals.session?.ipAddress || undefined,
 			details: { userId: user.id }
 		});
+
+		await clearRequiresPasswordChange(user.id);
 
 		return json({
 			success: true,
