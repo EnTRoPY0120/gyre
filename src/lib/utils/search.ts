@@ -1,4 +1,5 @@
 import Fuse from 'fuse.js';
+import safeRegex from 'safe-regex2';
 import { logger } from './logger.js';
 
 const MAX_QUERY_LENGTH = 500;
@@ -52,13 +53,15 @@ function getFuseInstance<T>(items: T[], keys: string[], caseSensitive: boolean):
 }
 
 /**
- * Returns false if the pattern contains nested quantifiers that cause catastrophic backtracking.
+ * Returns false if the pattern could cause catastrophic backtracking (ReDoS).
+ * Delegates to safe-regex2 for comprehensive detection.
  */
 function isSafeRegex(pattern: string): boolean {
-	// Detect (X+)+ / (X*)* / (X{n,m})+ / (X|Y)+ patterns that cause exponential backtracking
-	return (
-		!/\([^)]*(?:[+*]|\{[^}]*\})[^)]*\)[+*{]/.test(pattern) && !/\([^)]*\|[^)]*\)[+*{]/.test(pattern)
-	);
+	try {
+		return safeRegex(pattern);
+	} catch {
+		return false;
+	}
 }
 
 /**

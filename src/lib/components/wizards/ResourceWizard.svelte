@@ -14,8 +14,9 @@
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import safeRegex from 'safe-regex2';
 
-	// Kubernetes name/namespace validation (RFC 1123 DNS label)
-	const K8S_NAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+	// Kubernetes name/namespace validation — RFC 1123 DNS label, max 63 chars.
+	// Kept in sync with K8S_NAME_REGEX in src/lib/server/validation.ts.
+	const K8S_NAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 	let {
 		template,

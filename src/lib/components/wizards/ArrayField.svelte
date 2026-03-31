@@ -140,8 +140,8 @@
 													{@const rec = item.val as Record<string, unknown>}
 													{field.options?.find(
 														(o) => String(o.value) === String(rec[field.name])
-													)?.label ||
-														rec[field.name] ||
+													)?.label ??
+														rec[field.name] ??
 														`Select ${field.label}`}
 												{:else}
 													{`Select ${field.label}`}
