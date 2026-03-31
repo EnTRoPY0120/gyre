@@ -47,7 +47,8 @@ export const _metadata = {
 								id: z.string(),
 								username: z.string(),
 								email: z.string().nullable(),
-								role: z.string()
+								role: z.string(),
+								requiresPasswordChange: z.boolean()
 							})
 						})
 					}
@@ -190,7 +191,8 @@ export const POST: RequestHandler = async (event) => {
 				id: user.id,
 				username: user.username,
 				email: user.email,
-				role: user.role
+				role: user.role,
+				requiresPasswordChange: user.requiresPasswordChange
 			}
 		});
 	} catch (err) {

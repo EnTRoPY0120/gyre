@@ -79,7 +79,7 @@
 
 			toast.success('Login successful! Redirecting...');
 
-			if (password === 'admin' && result.user?.role === 'admin') {
+			if (result.user?.requiresPasswordChange) {
 				window.location.href = '/change-password?first=true';
 			} else {
 				const returnTo = page.url.searchParams.get('returnTo');

@@ -22,6 +22,9 @@ export const users = sqliteTable('users', {
 		.default('viewer'),
 	active: integer('active', { mode: 'boolean' }).notNull().default(true),
 	isLocal: integer('is_local', { mode: 'boolean' }).notNull().default(true), // true = local auth (password), false = SSO-only
+	requiresPasswordChange: integer('requires_password_change', { mode: 'boolean' })
+		.notNull()
+		.default(false),
 	createdAt: integer('created_at', { mode: 'timestamp' })
 		.notNull()
 		.default(sql`(unixepoch())`),

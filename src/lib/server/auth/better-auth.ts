@@ -4,6 +4,7 @@ import { parseSetCookieHeader } from 'better-auth/cookies';
 import { makeSignature } from 'better-auth/crypto';
 import { username } from 'better-auth/plugins/username';
 import type { Cookies } from '@sveltejs/kit';
+import { randomBytes } from 'node:crypto';
 import { logger } from '$lib/server/logger.js';
 import { getDb, getDbSync, schema } from '$lib/server/db';
 import { DEFAULT_COOKIE_OPTIONS, IS_PROD } from '$lib/server/config';
@@ -127,6 +128,17 @@ function createBetterAuth() {
 
 let authInstance: ReturnType<typeof createBetterAuth> | null = null;
 
+let _ephemeralSecret: string | null = null;
+function getEphemeralSecret(): string {
+	if (!_ephemeralSecret) {
+		_ephemeralSecret = randomBytes(32).toString('hex');
+		logger.warn(
+			'[Auth] No BETTER_AUTH_SECRET or AUTH_ENCRYPTION_KEY configured — using an ephemeral random secret. All sessions will be invalidated on restart. Set BETTER_AUTH_SECRET to persist sessions.'
+		);
+	}
+	return _ephemeralSecret;
+}
+
 function getBetterAuthSecret(): string {
 	const configuredSecret = process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_ENCRYPTION_KEY;
 
@@ -138,7 +150,7 @@ function getBetterAuthSecret(): string {
 		throw new Error('Better Auth requires BETTER_AUTH_SECRET or AUTH_ENCRYPTION_KEY in production');
 	}
 
-	return 'gyre-dev-auth-secret';
+	return getEphemeralSecret();
 }
 
 export function getBetterAuth() {
