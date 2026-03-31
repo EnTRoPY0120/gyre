@@ -73,10 +73,14 @@
 		items = items.map((i) => (i.id === id ? { ...i, val: newValue } : i));
 	}
 
+	function isRecord(val: unknown): val is Record<string, unknown> {
+		return typeof val === 'object' && val !== null && !Array.isArray(val);
+	}
+
 	function updateObjectItem(id: string, fieldName: string, newValue: unknown) {
 		items = items.map((i) => {
 			if (i.id === id) {
-				const item = { ...(i.val as Record<string, unknown>) };
+				const item = { ...(isRecord(i.val) ? i.val : {}) };
 				item[fieldName] = newValue;
 				return { ...i, val: item };
 			}
@@ -112,18 +116,18 @@
 								{#if field.referenceType || field.referenceTypeField}
 									<ReferenceField
 										id="item-{item.id}-{field.name}"
-										value={String((item.val as any)[field.name] ?? '')}
+										value={String(isRecord(item.val) ? (item.val[field.name] ?? '') : '')}
 										onValueChange={(v) => updateObjectItem(item.id, field.name, v)}
 										referenceType={field.referenceType}
 										referenceTypeField={field.referenceTypeField}
-										formValues={item.val as any}
+										formValues={isRecord(item.val) ? item.val : {}}
 										placeholder={field.placeholder}
 										{disabled}
 									/>
 								{:else if field.type === 'select'}
 									<Select.Root
 										type="single"
-										value={String((item.val as any)[field.name] ?? '')}
+										value={String(isRecord(item.val) ? (item.val[field.name] ?? '') : '')}
 										onValueChange={(v) => updateObjectItem(item.id, field.name, v)}
 										{disabled}
 									>
@@ -132,11 +136,16 @@
 											class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
 										>
 											<Select.Value placeholder="Select {field.label}">
-												{field.options?.find(
-													(o) => String(o.value) === String((item.val as any)[field.name])
-												)?.label ||
-													(item.val as any)[field.name] ||
-													`Select ${field.label}`}
+												{#if isRecord(item.val)}
+													{@const rec = item.val as Record<string, unknown>}
+													{field.options?.find(
+														(o) => String(o.value) === String(rec[field.name])
+													)?.label ||
+														rec[field.name] ||
+														`Select ${field.label}`}
+												{:else}
+													{`Select ${field.label}`}
+												{/if}
 											</Select.Value>
 										</Select.Trigger>
 										<Select.Content>
@@ -149,7 +158,7 @@
 									<input
 										id="item-{item.id}-{field.name}"
 										type="text"
-										value={(item.val as any)[field.name] ?? ''}
+										value={isRecord(item.val) ? (item.val[field.name] ?? '') : ''}
 										oninput={(e) =>
 											updateObjectItem(item.id, field.name, (e.target as HTMLInputElement).value)}
 										placeholder={field.placeholder}

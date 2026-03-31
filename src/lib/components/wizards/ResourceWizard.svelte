@@ -12,6 +12,10 @@
 	import * as Select from '$lib/components/ui/select';
 	import { parse, parseDocument, YAMLError } from 'yaml';
 	import { getCsrfToken } from '$lib/utils/csrf';
+	import safeRegex from 'safe-regex2';
+
+	// Kubernetes name/namespace validation (RFC 1123 DNS label)
+	const K8S_NAME_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 
 	let {
 		template,
@@ -189,9 +193,13 @@
 			success = true;
 
 			setTimeout(() => {
-				void goto(
-					`/resources/${template.plural}/${parsed.metadata?.namespace}/${parsed.metadata?.name}`
-				);
+				const ns = parsed.metadata?.namespace;
+				const name = parsed.metadata?.name;
+				if (ns && name && K8S_NAME_RE.test(ns) && K8S_NAME_RE.test(name)) {
+					void goto(`/resources/${template.plural}/${ns}/${name}`);
+				} else {
+					void goto(`/resources/${template.plural}`);
+				}
 			}, 1500);
 		} catch (err) {
 			error = (err as Error).message;
@@ -273,6 +281,9 @@
 
 		// Custom pattern validation
 		if (field.validation?.pattern && typeof value === 'string') {
+			if (!safeRegex(field.validation.pattern)) {
+				return `Invalid validation pattern for ${field.label}`;
+			}
 			const regex = new RegExp(field.validation.pattern);
 			if (!regex.test(value)) {
 				return field.validation.message || `Invalid format for ${field.label}`;

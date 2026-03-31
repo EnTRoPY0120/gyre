@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
 import { mkdir } from 'node:fs/promises';
 import { mkdirSync } from 'node:fs';
-import { dirname, normalize } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import * as schema from './schema.js';
 
 // Determine database path
@@ -12,10 +12,15 @@ import * as schema from './schema.js';
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
 if (process.env.DATABASE_URL) {
-	const normalized = normalize(databaseUrl);
-	const segments = normalized.split(/[\\/]/);
-	if (segments.some((seg) => seg === '..')) {
-		throw new Error('DATABASE_URL must not contain path traversal sequences (..)');
+	const resolved = resolve(databaseUrl);
+	const allowedRoots = ['/data', resolve('./data')];
+	const isAllowed = allowedRoots.some(
+		(root) => resolved === root || resolved.startsWith(root + '/')
+	);
+	if (!isAllowed) {
+		throw new Error(
+			`DATABASE_URL resolves to a disallowed path: ${resolved}. Must be under /data or ./data`
+		);
 	}
 }
 logger.info(`[DB] Database location: ${databaseUrl}`);
