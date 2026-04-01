@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { Search, X } from 'lucide-svelte';
 
 	interface Props {
@@ -10,6 +11,10 @@
 	let { value = '', placeholder = 'Search resources...', onSearch }: Props = $props();
 
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+	onDestroy(() => {
+		if (debounceTimer) clearTimeout(debounceTimer);
+	});
 
 	function handleInput(e: Event) {
 		const target = e.target as HTMLInputElement;

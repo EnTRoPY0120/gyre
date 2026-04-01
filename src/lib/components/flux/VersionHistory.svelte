@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { formatDistanceToNow, formatDuration, intervalToDuration } from 'date-fns';
 	import type { ReconciliationEntry } from '$lib/types/reconciliation';
 
@@ -15,7 +16,7 @@
 
 	// Filter state
 	let filterStatus = $state<'all' | 'success' | 'failure'>('all');
-	let expandedEntries = $state<Set<string>>(new Set());
+	let expandedEntries = new SvelteSet<string>();
 
 	const filteredTimeline = $derived(
 		filterStatus === 'all' ? timeline : timeline.filter((e) => e.status === filterStatus)
@@ -30,7 +31,6 @@
 		} else {
 			expandedEntries.add(id);
 		}
-		expandedEntries = new Set(expandedEntries);
 	}
 
 	function getStatusDotClass(status: string) {

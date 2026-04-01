@@ -26,7 +26,9 @@ import { decryptSecret } from '$lib/server/auth/crypto';
 /**
  * In-memory cache for OIDC discovery documents
  * TTL: 1 hour (discovery endpoints rarely change)
+ * Bounded to MAX_CACHE_SIZE entries; evicts expired then oldest-first when full.
  */
+const MAX_CACHE_SIZE = 50;
 const discoveryCache = new Map<
 	string,
 	{
@@ -34,6 +36,20 @@ const discoveryCache = new Map<
 		expiresAt: number;
 	}
 >();
+
+function setDiscoveryCache(issuer: string, discovery: OIDCDiscovery): void {
+	const now = Date.now();
+	// Sweep expired entries first
+	for (const [key, entry] of discoveryCache) {
+		if (now >= entry.expiresAt) discoveryCache.delete(key);
+	}
+	// If still at capacity, evict oldest (Map insertion order)
+	if (discoveryCache.size >= MAX_CACHE_SIZE) {
+		const oldest = discoveryCache.keys().next().value;
+		if (oldest !== undefined) discoveryCache.delete(oldest);
+	}
+	discoveryCache.set(issuer, { discovery, expiresAt: now + 60 * 60 * 1000 });
+}
 
 export class OIDCProvider implements IOAuthProvider {
 	public readonly config;
@@ -79,11 +95,7 @@ export class OIDCProvider implements IOAuthProvider {
 				throw new Error('Invalid discovery document: missing required endpoints');
 			}
 
-			// Cache for 1 hour
-			discoveryCache.set(issuer, {
-				discovery,
-				expiresAt: Date.now() + 60 * 60 * 1000
-			});
+			setDiscoveryCache(issuer, discovery);
 
 			return discovery;
 		} catch (error) {

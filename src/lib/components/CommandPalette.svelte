@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -180,7 +180,7 @@
 		return iconMap[type] || 'file';
 	}
 
-	onMount(() => {
+	$effect(() => {
 		window.addEventListener('keydown', handleKeydown);
 		const unsubscribe = commandPaletteOpen.subscribe((v) => { if (v && !open) open = true; });
 
