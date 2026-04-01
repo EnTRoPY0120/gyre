@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Cleanup untagged images
-        uses: snok/container-retention-policy@v3.0.1
+        uses: snok/container-retention-policy@3b0972b2276b171b212f8c4efbca59ebba26eceb # v3.0.1
         with:
           image-names: gyre
           cut-off: 7d
@@ -26,7 +26,7 @@ jobs:
           timestamp-to-use: created_at
 
       - name: Cleanup old PR images
-        uses: snok/container-retention-policy@v3.0.1
+        uses: snok/container-retention-policy@3b0972b2276b171b212f8c4efbca59ebba26eceb # v3.0.1
         with:
           image-names: gyre
           cut-off: 7d
@@ -35,21 +35,6 @@ jobs:
           image-tags: 'pr-*'
           tag-selection: tagged
           keep-n-most-recent: 5
-          timestamp-to-use: created_at
-
-      # Cleans up legacy SHA-tagged releases (e.g. v0.1.0-abc1234) that
-      # accumulated before SHA tag generation was removed from build.yml.
-      # This step can be removed once all pre-existing SHA tags have expired.
-      - name: Cleanup legacy SHA-tagged releases
-        uses: snok/container-retention-policy@v3.0.1
-        with:
-          image-names: gyre
-          cut-off: 14d
-          account: user
-          token: ${{ secrets.GITHUB_TOKEN }}
-          image-tags: 'v*-*'
-          tag-selection: tagged
-          keep-n-most-recent: 0
           timestamp-to-use: created_at
 
       - name: Cleanup summary
@@ -62,7 +47,6 @@ jobs:
           echo "|------|------------------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| **Untagged images** | 7 days | Automatically removed |" >> $GITHUB_STEP_SUMMARY
           echo "| **PR tags** (\`pr-*\`) | 7 days | Keep 5 most recent |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Legacy SHA tags** (\`v*-*\`) | 14 days | Transitional — remove step once expired |" >> $GITHUB_STEP_SUMMARY
           echo "| **Release tags** (\`v*.*.*\`) | Forever | Not matched by cleanup rules |" >> $GITHUB_STEP_SUMMARY
           echo "| **latest / main / develop** | Forever | Not matched by cleanup rules |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
