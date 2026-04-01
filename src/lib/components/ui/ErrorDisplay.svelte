@@ -65,6 +65,8 @@
 	<p class="mb-8 max-w-md text-muted-foreground">
 		{#if is404}
 			The page you're looking for doesn't exist or has been moved.
+		{:else if status >= 500}
+			An unexpected error occurred. Please try again later.
 		{:else}
 			{message}
 		{/if}

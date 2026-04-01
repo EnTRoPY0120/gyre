@@ -64,26 +64,37 @@ import { registerFluxValidation } from './yamlValidator';
 				defineMonacoThemes(monaco);
 				registerFluxLanguageFeatures(monaco);
 
-				// Configure Monaco environment - use CDN for workers in production
+				// Configure Monaco environment - bundle workers via Vite for same-origin serving
 				self.MonacoEnvironment = {
-					getWorkerUrl: function (_moduleId: string, label: string) {
-						// Use jsdelivr CDN for workers to avoid bundling issues
-						// IMPORTANT: Keep this version in sync with package.json "monaco-editor" version
-						const version = '0.55.1'; // Match installed version
-						const base = `https://cdn.jsdelivr.net/npm/monaco-editor@${version}/min/vs`;
+					getWorker: async function (_moduleId: string, label: string) {
 						if (label === 'json') {
-							return `${base}/language/json/json.worker.js`;
+							const { default: JsonWorker } = await import(
+								'monaco-editor/esm/vs/language/json/json.worker?worker'
+							);
+							return new JsonWorker();
 						}
 						if (label === 'css' || label === 'scss' || label === 'less') {
-							return `${base}/language/css/css.worker.js`;
+							const { default: CssWorker } = await import(
+								'monaco-editor/esm/vs/language/css/css.worker?worker'
+							);
+							return new CssWorker();
 						}
 						if (label === 'html' || label === 'handlebars' || label === 'razor') {
-							return `${base}/language/html/html.worker.js`;
+							const { default: HtmlWorker } = await import(
+								'monaco-editor/esm/vs/language/html/html.worker?worker'
+							);
+							return new HtmlWorker();
 						}
 						if (label === 'typescript' || label === 'javascript') {
-							return `${base}/language/typescript/ts.worker.js`;
+							const { default: TsWorker } = await import(
+								'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
+							);
+							return new TsWorker();
 						}
-						return `${base}/editor/editor.worker.js`;
+						const { default: EditorWorker } = await import(
+							'monaco-editor/esm/vs/editor/editor.worker?worker'
+						);
+						return new EditorWorker();
 					}
 				};
 

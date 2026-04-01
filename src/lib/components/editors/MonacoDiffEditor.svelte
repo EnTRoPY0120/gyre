@@ -53,11 +53,17 @@ import { defineMonacoThemes } from './monacoTheme';
 				// Configure Monaco environment if not already done
 				if (!self.MonacoEnvironment) {
 					self.MonacoEnvironment = {
-						getWorkerUrl: function (_moduleId: string, label: string) {
-							const version = '0.55.1';
-							const base = `https://cdn.jsdelivr.net/npm/monaco-editor@${version}/min/vs`;
-							if (label === 'json') return `${base}/language/json/json.worker.js`;
-							return `${base}/editor/editor.worker.js`;
+						getWorker: async function (_moduleId: string, label: string) {
+							if (label === 'json') {
+								const { default: JsonWorker } = await import(
+									'monaco-editor/esm/vs/language/json/json.worker?worker'
+								);
+								return new JsonWorker();
+							}
+							const { default: EditorWorker } = await import(
+								'monaco-editor/esm/vs/editor/editor.worker?worker'
+							);
+							return new EditorWorker();
 						}
 					};
 				}
