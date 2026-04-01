@@ -30,10 +30,9 @@ spec:
     {{- toYaml .Values.networkPolicy.ingress.additionalRules | nindent 4 }}
     {{- end }}
     {{- if and (not .Values.networkPolicy.ingress.podSelector) (not .Values.networkPolicy.ingress.additionalRules) }}
-    # No ingress selectors configured: allow all ingress by default so the app
-    # is reachable. Restrict to specific sources in production by setting
-    # networkPolicy.ingress.podSelector or networkPolicy.ingress.additionalRules.
-    - {}
+    # No ingress selectors configured: all ingress is denied by default.
+    # Set networkPolicy.ingress.podSelector or networkPolicy.ingress.additionalRules
+    # to allow traffic from specific sources.
     {{- end }}
   egress:
     # Allow DNS resolution
