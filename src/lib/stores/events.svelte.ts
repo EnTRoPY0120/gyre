@@ -4,6 +4,7 @@
  */
 
 import { preferences } from './preferences.svelte';
+import { clusterStore } from './cluster.svelte';
 import { logger } from '$lib/utils/logger.js';
 import {
 	MAX_RECONNECT_ATTEMPTS,
@@ -63,8 +64,13 @@ export interface NotificationMessage {
 type EventCallback = (event: ResourceEvent) => void;
 type StatusCallback = (status: ConnectionStatus) => void;
 
-const NOTIFICATIONS_STORAGE_KEY = 'gyre_notifications';
-const NOTIFICATION_STATE_STORAGE_KEY = 'gyre_notification_state';
+function getStorageKeys() {
+	const cluster = clusterStore.current ?? 'default';
+	return {
+		notifications: `gyre_notifications_${cluster}`,
+		state: `gyre_notification_state_${cluster}`
+	};
+}
 
 class RealtimeStore {
 	private eventSource: EventSource | null = null;
@@ -110,12 +116,10 @@ class RealtimeStore {
 	}
 
 	private loadFromStorage() {
+		const keys = getStorageKeys();
 		try {
-			// Load notifications
-			// We now support both the old global key and new per-cluster keys indirectly
-			// For simplicity and backward compatibility, we'll load the main key
-			// but future versions could migrate to a more granular approach if needed
-			const storedNotifications = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
+			// Load notifications for the current cluster
+			const storedNotifications = localStorage.getItem(keys.notifications);
 			if (storedNotifications) {
 				const parsed = JSON.parse(storedNotifications);
 				// Convert timestamp strings back to Date objects and ensure clusterId exists
@@ -127,7 +131,7 @@ class RealtimeStore {
 			}
 
 			// Load notification state cache (handles legacy string format and current object format)
-			const storedState = localStorage.getItem(NOTIFICATION_STATE_STORAGE_KEY);
+			const storedState = localStorage.getItem(keys.state);
 			if (storedState) {
 				const parsed = JSON.parse(storedState);
 				if (Array.isArray(parsed)) {
@@ -177,35 +181,36 @@ class RealtimeStore {
 		} catch (err) {
 			logger.error(err, '[Storage] Failed to load persisted notifications:');
 			// Clear corrupted data
-			localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
-			localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
+			localStorage.removeItem(keys.notifications);
+			localStorage.removeItem(keys.state);
 		}
 	}
 
 	private saveToStorage() {
 		if (typeof window === 'undefined') return;
 
+		const keys = getStorageKeys();
 		try {
 			// Save only the most recent notifications to avoid localStorage quota issues.
 			const toSave = this.notifications.slice(0, MAX_NOTIFICATIONS);
-			localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(toSave));
+			localStorage.setItem(keys.notifications, JSON.stringify(toSave));
 
 			// Save notification state cache with sessionId for cross-reload desync detection
 			const stateArray = Array.from(this.lastNotificationState.entries());
 			localStorage.setItem(
-				NOTIFICATION_STATE_STORAGE_KEY,
+				keys.state,
 				JSON.stringify({ sessionId: this.lastServerSessionId, entries: stateArray })
 			);
 		} catch (err) {
 			if (err instanceof DOMException && err.name === 'QuotaExceededError') {
 				try {
 					const reduced = this.notifications.slice(0, Math.floor(MAX_NOTIFICATIONS / 2));
-					localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
-					localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(reduced));
+					localStorage.removeItem(keys.state);
+					localStorage.setItem(keys.notifications, JSON.stringify(reduced));
 					logger.warn('[Storage] localStorage quota exceeded, saved reduced notification set');
 				} catch {
-					localStorage.removeItem(NOTIFICATIONS_STORAGE_KEY);
-					localStorage.removeItem(NOTIFICATION_STATE_STORAGE_KEY);
+					localStorage.removeItem(keys.notifications);
+					localStorage.removeItem(keys.state);
 					logger.warn('[Storage] localStorage quota exceeded, cleared notifications storage');
 				}
 			} else {
