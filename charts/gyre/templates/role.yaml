@@ -10,5 +10,12 @@ rules:
 - apiGroups: [""]
   resources:
     - secrets
-  verbs: ["get", "list", "watch", "create", "update", "patch"]
+  verbs: ["create"]
+- apiGroups: [""]
+  resources:
+    - secrets
+  resourceNames:
+    - {{ .Values.admin.secretName }}
+    - {{ include "gyre.fullname" . }}-encryption
+  verbs: ["get", "list", "watch", "update", "patch"]
 {{- end }}
