@@ -64,7 +64,7 @@ export function validateRequestSize(
 	limit: number,
 	method?: string
 ): { valid: true } | { valid: false; limit: number; size: number } {
-	if (!contentLength) {
+	if (contentLength == null || contentLength === '') {
 		if (method && BODY_METHODS.has(method.toUpperCase())) {
 			return { valid: false, limit, size: 0 };
 		}

@@ -438,6 +438,11 @@ export const rateLimits = sqliteTable('rate_limits', {
 	currentWindowCount: integer('current_window_count').notNull().default(0),
 	previousWindowCount: integer('previous_window_count').notNull().default(0),
 	lastWindowStart: integer('last_window_start').notNull().default(0),
+	// expireAt is set to currentWindowStart + 2 * windowMs on every write so cleanup()
+	// deletes only rows whose sliding window has fully elapsed, not by a fixed horizon.
+	expireAt: integer('expire_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date()),
 	updatedAt: integer('updated_at', { mode: 'timestamp' })
 		.notNull()
 		.$defaultFn(() => new Date())

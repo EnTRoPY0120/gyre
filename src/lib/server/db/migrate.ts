@@ -681,10 +681,19 @@ function initRateLimitsTable(db: ReturnType<typeof getDbSync>): void {
 			current_window_count INTEGER NOT NULL DEFAULT 0,
 			previous_window_count INTEGER NOT NULL DEFAULT 0,
 			last_window_start INTEGER NOT NULL DEFAULT 0,
+			expire_at INTEGER NOT NULL DEFAULT (unixepoch() + 120),
 			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 		)
 	`);
 	db.run(sql`
-		CREATE INDEX IF NOT EXISTS idx_rate_limits_updated_at ON rate_limits (updated_at)
+		CREATE INDEX IF NOT EXISTS idx_rate_limits_expire_at ON rate_limits (expire_at)
 	`);
+	// Migration: add expire_at to tables created before this column was introduced
+	try {
+		db.run(
+			sql`ALTER TABLE rate_limits ADD COLUMN expire_at INTEGER NOT NULL DEFAULT (unixepoch() + 120)`
+		);
+	} catch {
+		// Column already exists — safe to ignore
+	}
 }
