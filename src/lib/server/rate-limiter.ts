@@ -10,7 +10,16 @@ export class RateLimiter {
 
 	constructor() {
 		// Clean up expired entries every 5 minutes
-		this.cleanupInterval = setInterval(() => this.cleanup(), 5 * 60 * 1000);
+		this.cleanupInterval = setInterval(
+			() => {
+				try {
+					this.cleanup();
+				} catch (err) {
+					logger.error(err, 'Rate limiter cleanup failed');
+				}
+			},
+			5 * 60 * 1000
+		);
 		// Allow the process to exit even if the interval is still running
 		this.cleanupInterval.unref?.();
 	}
@@ -66,75 +75,80 @@ export class RateLimiter {
 		// for the window immediately after the one we write.
 		const expireAt = new Date(currentWindowStart + 2 * windowMs);
 
-		return db.transaction((tx) => {
-			const row = tx.select().from(rateLimits).where(eq(rateLimits.key, key)).get();
+		// 'immediate' acquires a write lock up-front so concurrent processes block
+		// on entry rather than racing through the read phase before either writes.
+		return db.transaction(
+			(tx) => {
+				const row = tx.select().from(rateLimits).where(eq(rateLimits.key, key)).get();
 
-			let currentWindowCount = 0;
-			let previousWindowCount = 0;
+				let currentWindowCount = 0;
+				let previousWindowCount = 0;
 
-			if (row) {
-				if (row.lastWindowStart === currentWindowStart) {
-					// Same window — carry forward both counts
-					currentWindowCount = row.currentWindowCount;
-					previousWindowCount = row.previousWindowCount;
-				} else if (row.lastWindowStart === currentWindowStart - windowMs) {
-					// Advanced exactly one window — previous becomes the old current
-					previousWindowCount = row.currentWindowCount;
-				}
-				// else: multiple windows have elapsed — history is irrelevant, keep both at 0
-			}
-
-			// Calculate the estimated count in the sliding window
-			const elapsedInCurrentWindow = now - currentWindowStart;
-			const weight = 1 - elapsedInCurrentWindow / windowMs;
-			const estimatedCount = currentWindowCount + 1 + previousWindowCount * weight;
-
-			if (estimatedCount > limit) {
-				// Refresh expireAt even on 429 so the row isn't cleaned up while this IP
-				// is still actively making (rate-limited) requests.
 				if (row) {
-					tx.update(rateLimits).set({ expireAt }).where(eq(rateLimits.key, key)).run();
+					if (row.lastWindowStart === currentWindowStart) {
+						// Same window — carry forward both counts
+						currentWindowCount = row.currentWindowCount;
+						previousWindowCount = row.previousWindowCount;
+					} else if (row.lastWindowStart === currentWindowStart - windowMs) {
+						// Advanced exactly one window — previous becomes the old current
+						previousWindowCount = row.currentWindowCount;
+					}
+					// else: multiple windows have elapsed — history is irrelevant, keep both at 0
 				}
-				const retryAfter = Math.ceil((currentWindowStart + windowMs - now) / 1000);
-				return {
-					limited: true,
-					remaining: 0,
-					resetAt: currentWindowStart + windowMs,
-					retryAfter
-				};
-			}
 
-			// Persist incremented count via upsert
-			tx.insert(rateLimits)
-				.values({
-					key,
-					currentWindowCount: currentWindowCount + 1,
-					previousWindowCount,
-					lastWindowStart: currentWindowStart,
-					expireAt,
-					updatedAt: new Date()
-				})
-				.onConflictDoUpdate({
-					target: rateLimits.key,
-					set: {
+				// Calculate the estimated count in the sliding window
+				const elapsedInCurrentWindow = now - currentWindowStart;
+				const weight = 1 - elapsedInCurrentWindow / windowMs;
+				const estimatedCount = currentWindowCount + 1 + previousWindowCount * weight;
+
+				if (estimatedCount > limit) {
+					// Refresh expireAt even on 429 so the row isn't cleaned up while this IP
+					// is still actively making (rate-limited) requests.
+					if (row) {
+						tx.update(rateLimits).set({ expireAt }).where(eq(rateLimits.key, key)).run();
+					}
+					const retryAfter = Math.ceil((currentWindowStart + windowMs - now) / 1000);
+					return {
+						limited: true,
+						remaining: 0,
+						resetAt: currentWindowStart + windowMs,
+						retryAfter
+					};
+				}
+
+				// Persist incremented count via upsert
+				tx.insert(rateLimits)
+					.values({
+						key,
 						currentWindowCount: currentWindowCount + 1,
 						previousWindowCount,
 						lastWindowStart: currentWindowStart,
 						expireAt,
 						updatedAt: new Date()
-					}
-				})
-				.run();
+					})
+					.onConflictDoUpdate({
+						target: rateLimits.key,
+						set: {
+							currentWindowCount: currentWindowCount + 1,
+							previousWindowCount,
+							lastWindowStart: currentWindowStart,
+							expireAt,
+							updatedAt: new Date()
+						}
+					})
+					.run();
 
-			const remaining = Math.max(0, limit - Math.floor(estimatedCount));
+				const remaining = Math.max(0, limit - Math.floor(estimatedCount));
 
-			return {
-				limited: false,
-				remaining,
-				resetAt: currentWindowStart + windowMs,
-				retryAfter: 0
-			};
-		});
+				return {
+					limited: false,
+					remaining,
+					resetAt: currentWindowStart + windowMs,
+					retryAfter: 0
+				};
+			},
+			{ behavior: 'immediate' }
+		);
 	}
 }
 
