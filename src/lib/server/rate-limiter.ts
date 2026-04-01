@@ -2,20 +2,10 @@ import crypto from 'crypto';
 import { logger } from './logger.js';
 import { error } from '@sveltejs/kit';
 import { getDbSync } from './db/index.js';
-import { loginLockouts } from './db/schema.js';
+import { loginLockouts, rateLimits } from './db/schema.js';
 import { eq, sql } from 'drizzle-orm';
 
-interface RateLimitEntry {
-	currentWindowCount: number;
-	previousWindowCount: number;
-	lastWindowStart: number;
-}
-
-// NOTE: This rate limiter is in-memory and single-instance only. In a multi-replica
-// deployment, state is not shared across instances and is lost on restart. For
-// production multi-instance deployments, consider a Redis or database-backed implementation.
 export class RateLimiter {
-	private storage: Map<string, RateLimitEntry> = new Map();
 	private cleanupInterval: NodeJS.Timeout;
 
 	constructor() {
@@ -26,18 +16,14 @@ export class RateLimiter {
 	}
 
 	/**
-	 * cleanup removes expired entries from the storage
+	 * cleanup removes stale entries from the database (older than 1 hour)
 	 */
-	private cleanup() {
-		const now = Date.now();
-		// In a real sliding window, "expired" depends on the windowMs of the check.
-		// For simplicity in cleanup, we'll keep entries for at least 1 hour
-		const oneHourAgo = now - 60 * 60 * 1000;
-		for (const [key, entry] of this.storage.entries()) {
-			if (entry.lastWindowStart < oneHourAgo) {
-				this.storage.delete(key);
-			}
-		}
+	private cleanup(): void {
+		const db = getDbSync();
+		const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+		db.delete(rateLimits)
+			.where(sql`${rateLimits.updatedAt} < ${oneHourAgo}`)
+			.run();
 	}
 
 	/**
@@ -53,6 +39,9 @@ export class RateLimiter {
 	 * It approximates the request count in the sliding window using:
 	 * count = current_window_count + previous_window_count * (1 - fraction_of_current_window_elapsed)
 	 *
+	 * State is persisted in the database so it survives restarts and is shared
+	 * across multiple app instances.
+	 *
 	 * @param key Unique identifier (e.g., IP address)
 	 * @param limit Max number of requests allowed
 	 * @param windowMs Time window in milliseconds
@@ -67,34 +56,31 @@ export class RateLimiter {
 		resetAt: number;
 		retryAfter: number;
 	} {
+		const db = getDbSync();
 		const now = Date.now();
 		const currentWindowStart = Math.floor(now / windowMs) * windowMs;
 
-		let entry = this.storage.get(key);
+		const row = db.select().from(rateLimits).where(eq(rateLimits.key, key)).get();
 
-		if (!entry) {
-			entry = {
-				currentWindowCount: 0,
-				previousWindowCount: 0,
-				lastWindowStart: currentWindowStart
-			};
-		} else if (entry.lastWindowStart !== currentWindowStart) {
-			// If we've moved to a new window
-			if (entry.lastWindowStart === currentWindowStart - windowMs) {
-				// We moved to the immediately following window
-				entry.previousWindowCount = entry.currentWindowCount;
-			} else {
-				// We moved several windows ahead
-				entry.previousWindowCount = 0;
+		let currentWindowCount = 0;
+		let previousWindowCount = 0;
+
+		if (row) {
+			if (row.lastWindowStart === currentWindowStart) {
+				// Same window — carry forward both counts
+				currentWindowCount = row.currentWindowCount;
+				previousWindowCount = row.previousWindowCount;
+			} else if (row.lastWindowStart === currentWindowStart - windowMs) {
+				// Advanced exactly one window — previous becomes the old current
+				previousWindowCount = row.currentWindowCount;
 			}
-			entry.currentWindowCount = 0;
-			entry.lastWindowStart = currentWindowStart;
+			// else: multiple windows have elapsed — history is irrelevant, keep both at 0
 		}
 
 		// Calculate the estimated count in the sliding window
 		const elapsedInCurrentWindow = now - currentWindowStart;
 		const weight = 1 - elapsedInCurrentWindow / windowMs;
-		const estimatedCount = entry.currentWindowCount + 1 + entry.previousWindowCount * weight;
+		const estimatedCount = currentWindowCount + 1 + previousWindowCount * weight;
 
 		if (estimatedCount > limit) {
 			const retryAfter = Math.ceil((currentWindowStart + windowMs - now) / 1000);
@@ -106,9 +92,25 @@ export class RateLimiter {
 			};
 		}
 
-		// Increment count for current window
-		entry.currentWindowCount++;
-		this.storage.set(key, entry);
+		// Persist incremented count via upsert
+		db.insert(rateLimits)
+			.values({
+				key,
+				currentWindowCount: currentWindowCount + 1,
+				previousWindowCount,
+				lastWindowStart: currentWindowStart,
+				updatedAt: new Date()
+			})
+			.onConflictDoUpdate({
+				target: rateLimits.key,
+				set: {
+					currentWindowCount: currentWindowCount + 1,
+					previousWindowCount,
+					lastWindowStart: currentWindowStart,
+					updatedAt: new Date()
+				}
+			})
+			.run();
 
 		const remaining = Math.max(0, limit - Math.floor(estimatedCount));
 

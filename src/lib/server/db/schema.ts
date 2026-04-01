@@ -430,6 +430,22 @@ export const loginLockouts = sqliteTable('login_lockouts', {
 export type LoginLockout = typeof loginLockouts.$inferSelect;
 export type NewLoginLockout = typeof loginLockouts.$inferInsert;
 
+// Rate Limits table (for persistent sliding-window rate limiting)
+// lastWindowStart stores raw milliseconds (Date.now()) — do NOT use { mode: 'timestamp' }
+// as that would divide by 1000 and break the sliding window algorithm.
+export const rateLimits = sqliteTable('rate_limits', {
+	key: text('key').primaryKey(),
+	currentWindowCount: integer('current_window_count').notNull().default(0),
+	previousWindowCount: integer('previous_window_count').notNull().default(0),
+	lastWindowStart: integer('last_window_start').notNull().default(0),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+		.notNull()
+		.$defaultFn(() => new Date())
+});
+
+export type RateLimit = typeof rateLimits.$inferSelect;
+export type NewRateLimit = typeof rateLimits.$inferInsert;
+
 // Reconciliation History table (tracks all reconciliation attempts for FluxCD resources)
 export const reconciliationHistory = sqliteTable(
 	'reconciliation_history',

@@ -131,7 +131,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Validate request size to prevent DoS attacks
 		const sizeLimit = getRequestSizeLimit(path, request.method);
 		const contentLength = request.headers.get('content-length') ?? undefined;
-		const sizeValidation = validateRequestSize(contentLength, sizeLimit);
+		const sizeValidation = validateRequestSize(contentLength, sizeLimit, request.method);
 
 		if (!sizeValidation.valid) {
 			logger.warn(
