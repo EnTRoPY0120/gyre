@@ -19,8 +19,8 @@ import {
 import { join, basename } from 'node:path';
 import { validateDatabaseUrl } from './db/path-validation.js';
 import { tmpdir } from 'node:os';
-import crypto from 'node:crypto';
 import Database from 'better-sqlite3';
+import { aesGcmEncrypt, aesGcmDecrypt, IV_LENGTH, AUTH_TAG_LENGTH } from './aes-gcm.js';
 
 import { MAX_LOCAL_BACKUPS } from './config/constants.js';
 import { closeDb } from './db/index.js';
@@ -40,10 +40,6 @@ if (process.env.DATABASE_URL) {
  */
 export const BACKUP_FILENAME_RE =
 	/^gyre-backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.db(\.enc)?$/;
-
-const ENCRYPTION_ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16; // 128-bit IV
-const AUTH_TAG_LENGTH = 16; // 128-bit GCM auth tag
 
 /**
  * Custom error for backup operations with HTTP status support
@@ -99,10 +95,7 @@ function getBackupEncryptionKey(): Buffer | null {
  * Output binary format: [16-byte IV][16-byte authTag][ciphertext]
  */
 function encryptBackup(data: Buffer, key: Buffer): Buffer {
-	const iv = crypto.randomBytes(IV_LENGTH);
-	const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, key, iv);
-	const ciphertext = Buffer.concat([cipher.update(data), cipher.final()]);
-	const authTag = cipher.getAuthTag();
+	const { iv, ciphertext, authTag } = aesGcmEncrypt(data, key);
 	return Buffer.concat([iv, authTag, ciphertext]);
 }
 
@@ -120,11 +113,8 @@ function decryptBackup(data: Buffer, key: Buffer): Buffer {
 	const authTag = data.subarray(IV_LENGTH, IV_LENGTH + AUTH_TAG_LENGTH);
 	const ciphertext = data.subarray(IV_LENGTH + AUTH_TAG_LENGTH);
 
-	const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, key, iv);
-	decipher.setAuthTag(authTag);
-
 	try {
-		return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+		return aesGcmDecrypt(iv, ciphertext, authTag, key);
 	} catch {
 		throw new BackupError('Failed to decrypt backup: incorrect key or tampered data.', 400);
 	}

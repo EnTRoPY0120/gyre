@@ -17,6 +17,22 @@ const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount
 const SALT_ROUNDS = 12;
 export const SESSION_DURATION_DAYS = 2;
 const PASSWORD_HISTORY_LIMIT = 5;
+
+type Tx = Parameters<Parameters<Awaited<ReturnType<typeof getDb>>['transaction']>[0]>[0];
+
+function prunePasswordHistoryInTx(tx: Tx, userId: string): void {
+	const rows = tx
+		.select({ id: passwordHistory.id })
+		.from(passwordHistory)
+		.where(eq(passwordHistory.userId, userId))
+		.orderBy(desc(passwordHistory.createdAtMs))
+		.all();
+
+	if (rows.length > PASSWORD_HISTORY_LIMIT) {
+		const toDelete = rows.slice(PASSWORD_HISTORY_LIMIT).map((r) => r.id);
+		tx.delete(passwordHistory).where(inArray(passwordHistory.id, toDelete)).run();
+	}
+}
 const ADMIN_SECRET_NAME = 'gyre-initial-admin-secret';
 const _maxSessionsEnv = parseInt(process.env.MAX_SESSIONS_PER_USER ?? '', 10);
 export const MAX_SESSIONS_PER_USER =
@@ -333,17 +349,7 @@ export async function addPasswordHistory(userId: string, oldPasswordHash: string
 			.onConflictDoNothing()
 			.run();
 
-		const rows = tx
-			.select({ id: passwordHistory.id })
-			.from(passwordHistory)
-			.where(eq(passwordHistory.userId, userId))
-			.orderBy(desc(passwordHistory.createdAtMs))
-			.all();
-
-		if (rows.length > PASSWORD_HISTORY_LIMIT) {
-			const toDelete = rows.slice(PASSWORD_HISTORY_LIMIT).map((r) => r.id);
-			tx.delete(passwordHistory).where(inArray(passwordHistory.id, toDelete)).run();
-		}
+		prunePasswordHistoryInTx(tx, userId);
 	});
 }
 
@@ -394,17 +400,7 @@ export async function updateUserPassword(id: string, newPassword: string): Promi
 				.onConflictDoNothing()
 				.run();
 
-			const rows = tx
-				.select({ id: passwordHistory.id })
-				.from(passwordHistory)
-				.where(eq(passwordHistory.userId, id))
-				.orderBy(desc(passwordHistory.createdAtMs))
-				.all();
-
-			if (rows.length > PASSWORD_HISTORY_LIMIT) {
-				const toDelete = rows.slice(PASSWORD_HISTORY_LIMIT).map((r) => r.id);
-				tx.delete(passwordHistory).where(inArray(passwordHistory.id, toDelete)).run();
-			}
+			prunePasswordHistoryInTx(tx, id);
 		}
 
 		const updatedCredentialAccount = tx
