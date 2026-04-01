@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ url }) => {
 
 	// Batch-fetch policies for all users in a single JOIN query (avoids N+1)
 	const allPoliciesByUser = await getAllUserPolicies(users.map((u) => u.id));
-	const userPolicies: Record<string, Awaited<ReturnType<typeof getAllUserPolicies>>[string]> = {};
+	const userPolicies: Awaited<ReturnType<typeof getAllUserPolicies>> = {};
 	for (const user of users) {
 		userPolicies[user.id] = allPoliciesByUser[user.id] ?? [];
 	}
