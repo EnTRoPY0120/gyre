@@ -156,7 +156,9 @@ class ResourceCacheStore {
 
 	async fetchResource(type: string, namespace: string, name: string): Promise<FluxResource | null> {
 		try {
-			const res = await fetchWithRetry(`/api/v1/flux/${type}/${namespace}/${name}`);
+			const res = await fetchWithRetry(
+				`/api/v1/flux/${encodeURIComponent(type)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`
+			);
 			if (!res.ok) throw new Error(`Failed to fetch ${type}/${namespace}/${name}`);
 			const resource = await res.json();
 			this.setResource(type, namespace, name, resource);

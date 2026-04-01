@@ -21,6 +21,7 @@ const config = {
 				'font-src': ['self', 'data:'],
 				'connect-src': ['self'],
 				'worker-src': ['self'], // Monaco workers bundled locally, served from same origin
+				'form-action': ['self'],
 				'frame-ancestors': ['none'],
 				'object-src': ['none'],
 				'base-uri': ['self']

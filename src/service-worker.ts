@@ -61,9 +61,10 @@ self.addEventListener('fetch', (event) => {
 			}
 
 			const isStaticAsset =
-				ASSETS.includes(url.pathname) ||
-				url.pathname.startsWith('/_app/') ||
-				/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/.test(url.pathname);
+				!url.pathname.startsWith('/api/') &&
+				(ASSETS.includes(url.pathname) ||
+					url.pathname.startsWith('/_app/') ||
+					/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/.test(url.pathname));
 
 			if (response.status === 200 && isStaticAsset) {
 				cache.put(fetchEvent.request, response.clone());
