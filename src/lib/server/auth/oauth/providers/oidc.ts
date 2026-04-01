@@ -29,6 +29,7 @@ import { decryptSecret } from '$lib/server/auth/crypto';
  * Bounded to MAX_CACHE_SIZE entries; evicts expired then oldest-first when full.
  */
 const MAX_CACHE_SIZE = 50;
+const DISCOVERY_TTL_MS = 60 * 60 * 1000; // 1 hour
 const discoveryCache = new Map<
 	string,
 	{
@@ -48,7 +49,7 @@ function setDiscoveryCache(issuer: string, discovery: OIDCDiscovery): void {
 		const oldest = discoveryCache.keys().next().value;
 		if (oldest !== undefined) discoveryCache.delete(oldest);
 	}
-	discoveryCache.set(issuer, { discovery, expiresAt: now + 60 * 60 * 1000 });
+	discoveryCache.set(issuer, { discovery, expiresAt: now + DISCOVERY_TTL_MS });
 }
 
 export class OIDCProvider implements IOAuthProvider {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { tick } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import * as Dialog from '$lib/components/ui/dialog';
@@ -182,7 +182,7 @@
 
 	$effect(() => {
 		window.addEventListener('keydown', handleKeydown);
-		const unsubscribe = commandPaletteOpen.subscribe((v) => { if (v && !open) open = true; });
+		const unsubscribe = commandPaletteOpen.subscribe((v) => { untrack(() => { if (v && !open) open = true; }); });
 
 		return () => {
 			window.removeEventListener('keydown', handleKeydown);
