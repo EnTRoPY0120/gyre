@@ -76,20 +76,9 @@ function setSecurityHeaders(response: Response): void {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	response.headers.set(
-		'Content-Security-Policy',
-		[
-			"default-src 'self'",
-			"script-src 'self' 'unsafe-inline'",
-			"style-src 'self' 'unsafe-inline'",
-			"img-src 'self' data: blob:",
-			"font-src 'self' data:",
-			"connect-src 'self'",
-			"frame-ancestors 'none'",
-			"object-src 'none'",
-			"base-uri 'self'"
-		].join('; ')
-	);
+	// Content-Security-Policy is managed by SvelteKit via kit.csp in svelte.config.js,
+	// which injects per-request nonces into inline hydration scripts. Setting it here
+	// would overwrite those nonces and break page hydration.
 	if (IS_PROD) {
 		response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 	}

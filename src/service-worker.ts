@@ -60,7 +60,12 @@ self.addEventListener('fetch', (event) => {
 				throw new Error('invalid response from fetch');
 			}
 
-			if (response.status === 200) {
+			const isStaticAsset =
+				ASSETS.includes(url.pathname) ||
+				url.pathname.startsWith('/_app/') ||
+				/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/.test(url.pathname);
+
+			if (response.status === 200 && isStaticAsset) {
 				cache.put(fetchEvent.request, response.clone());
 			}
 
