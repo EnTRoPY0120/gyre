@@ -28,6 +28,6 @@ spec:
             value: /
       backendRefs:
         - name: {{ include "gyre.fullname" . }}
-          port: {{ .Values.service.targetPort }}
+          port: {{ .Values.service.port }}
     {{- end }}
 {{- end }}

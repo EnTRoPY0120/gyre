@@ -228,8 +228,9 @@ networkPolicy:
   apiServerNamespace: default
   ingress:
     # Restrict ingress to pods matching these labels (e.g. your ingress controller).
-    # When empty (default), all ingress is allowed so the app is reachable out of
-    # the box. Set this in production to limit ingress to known sources.
+    # When both podSelector and additionalRules are empty (default), no ingress rules
+    # are emitted and all ingress is denied by default. Set networkPolicy.ingress.podSelector
+    # or networkPolicy.ingress.additionalRules to allow traffic from specific sources.
     podSelector: {}
       # Example: Allow from ingress-nginx
       # matchLabels:
