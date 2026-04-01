@@ -38,7 +38,7 @@ jobs:
         id: bun-lock-hash
         run: |
           if [ -f bun.lock ]; then
-            echo "hash=$(shasum bun.lock | cut -d ' ' -f 1)" >> $GITHUB_OUTPUT
+            echo "hash=$(sha256sum bun.lock | awk '{print $1}')" >> $GITHUB_OUTPUT
             echo "lockfile_exists=true" >> $GITHUB_OUTPUT
           else
             echo "lockfile_exists=false" >> $GITHUB_OUTPUT
