@@ -5,7 +5,7 @@ import {
 	getAllPoliciesPaginated,
 	createPolicy,
 	deletePolicy,
-	getUserPolicies,
+	getAllUserPolicies,
 	bindPolicyToUser,
 	unbindPolicyFromUser,
 	isAdmin,
@@ -32,10 +32,11 @@ export const load: PageServerLoad = async ({ url }) => {
 		listUsers()
 	]);
 
-	// Get policies for each user
-	const userPolicies: Record<string, Awaited<ReturnType<typeof getUserPolicies>>> = {};
+	// Batch-fetch policies for all users in a single JOIN query (avoids N+1)
+	const allPoliciesByUser = await getAllUserPolicies(users.map((u) => u.id));
+	const userPolicies: Record<string, Awaited<ReturnType<typeof getAllUserPolicies>>[string]> = {};
 	for (const user of users) {
-		userPolicies[user.id] = await getUserPolicies(user.id);
+		userPolicies[user.id] = allPoliciesByUser[user.id] ?? [];
 	}
 
 	return {

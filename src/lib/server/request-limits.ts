@@ -44,21 +44,30 @@ export function getRequestSizeLimit(path: string, method: string): number {
 	return REQUEST_LIMITS.JSON_API;
 }
 
+// Methods that carry a request body and must include a Content-Length header.
+// DELETE is excluded: it rarely carries a body and requiring Content-Length
+// would break standard DELETE requests.
+const BODY_METHODS = new Set(['POST', 'PUT', 'PATCH']);
+
 /**
  * Check if request size exceeds limit based on the Content-Length header.
  * Returns { valid: true } or { valid: false, limit, size }.
  *
- * Limitation: Content-Length is optional in HTTP and absent for chunked
- * transfer-encoded requests. When the header is missing this function
- * allows the request through — the route handler is responsible for
- * enforcing size limits on the parsed body in those cases (e.g. checking
- * File.size after formData() for uploads, or body byte length after json()).
+ * For body-carrying methods (POST, PUT, PATCH), a missing Content-Length
+ * header is treated as invalid to prevent DoS via unbounded chunked payloads.
+ *
+ * Limitation: Content-Length can be spoofed. Route handlers must enforce
+ * size limits on parsed bodies as a second line of defense.
  */
 export function validateRequestSize(
 	contentLength: string | number | undefined,
-	limit: number
+	limit: number,
+	method?: string
 ): { valid: true } | { valid: false; limit: number; size: number } {
 	if (!contentLength) {
+		if (method && BODY_METHODS.has(method.toUpperCase())) {
+			return { valid: false, limit, size: 0 };
+		}
 		return { valid: true };
 	}
 

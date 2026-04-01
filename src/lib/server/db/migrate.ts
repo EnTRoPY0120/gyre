@@ -571,6 +571,9 @@ export function initDatabase(): void {
 	// Login Lockouts table
 	initLockoutsTable(db);
 
+	// Rate Limits table
+	initRateLimitsTable(db);
+
 	// Password History table
 	db.run(sql`
 		CREATE TABLE IF NOT EXISTS password_history (
@@ -665,5 +668,23 @@ function initLockoutsTable(db: ReturnType<typeof getDbSync>): void {
 			locked_until INTEGER,
 			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 		)
+	`);
+}
+
+/**
+ * Initialize rate limits table for persistent sliding-window rate limiting
+ */
+function initRateLimitsTable(db: ReturnType<typeof getDbSync>): void {
+	db.run(sql`
+		CREATE TABLE IF NOT EXISTS rate_limits (
+			key TEXT PRIMARY KEY,
+			current_window_count INTEGER NOT NULL DEFAULT 0,
+			previous_window_count INTEGER NOT NULL DEFAULT 0,
+			last_window_start INTEGER NOT NULL DEFAULT 0,
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+		)
+	`);
+	db.run(sql`
+		CREATE INDEX IF NOT EXISTS idx_rate_limits_updated_at ON rate_limits (updated_at)
 	`);
 }

@@ -2,7 +2,7 @@ import type { User } from './db/schema.js';
 import { getDbSync } from './db/index.js';
 import { rbacPolicies, rbacBindings } from './db/schema.js';
 import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
-import { eq, and, or, sql } from 'drizzle-orm';
+import { eq, and, or, sql, inArray } from 'drizzle-orm';
 import { logger } from './logger.js';
 
 /**
@@ -252,6 +252,34 @@ export async function getUserPolicies(userId: string) {
 		.where(eq(rbacBindings.userId, userId));
 
 	return results.map((r) => r.policy);
+}
+
+/**
+ * Get all policies for a set of users in a single JOIN query.
+ * Returns a record mapping each userId to its array of policies.
+ * Users with no bindings will not appear as keys in the result.
+ */
+export async function getAllUserPolicies(
+	userIds: string[]
+): Promise<Record<string, (typeof rbacPolicies.$inferSelect)[]>> {
+	if (userIds.length === 0) return {};
+
+	const db = getDbSync();
+	const results = await db
+		.select({
+			userId: rbacBindings.userId,
+			policy: rbacPolicies
+		})
+		.from(rbacBindings)
+		.innerJoin(rbacPolicies, eq(rbacBindings.policyId, rbacPolicies.id))
+		.where(inArray(rbacBindings.userId, userIds));
+
+	const grouped: Record<string, (typeof rbacPolicies.$inferSelect)[]> = {};
+	for (const row of results) {
+		if (!grouped[row.userId]) grouped[row.userId] = [];
+		grouped[row.userId].push(row.policy);
+	}
+	return grouped;
 }
 
 /**
