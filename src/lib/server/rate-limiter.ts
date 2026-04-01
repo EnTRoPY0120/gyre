@@ -69,16 +69,19 @@ export class RateLimiter {
 		retryAfter: number;
 	} {
 		const db = getDbSync();
-		const now = Date.now();
-		const currentWindowStart = Math.floor(now / windowMs) * windowMs;
-		// expireAt covers two full windows so previousWindowCount data remains valid
-		// for the window immediately after the one we write.
-		const expireAt = new Date(currentWindowStart + 2 * windowMs);
 
 		// 'immediate' acquires a write lock up-front so concurrent processes block
 		// on entry rather than racing through the read phase before either writes.
 		return db.transaction(
 			(tx) => {
+				// Compute timestamps inside the transaction so they reflect the time
+				// after the write lock is acquired, not before waiting for it.
+				const now = Date.now();
+				const currentWindowStart = Math.floor(now / windowMs) * windowMs;
+				// expireAt covers two full windows so previousWindowCount data remains valid
+				// for the window immediately after the one we write.
+				const expireAt = new Date(currentWindowStart + 2 * windowMs);
+
 				const row = tx.select().from(rateLimits).where(eq(rateLimits.key, key)).get();
 
 				let currentWindowCount = 0;
@@ -138,7 +141,7 @@ export class RateLimiter {
 					})
 					.run();
 
-				const remaining = Math.max(0, limit - Math.floor(estimatedCount));
+				const remaining = Math.max(0, limit - Math.ceil(estimatedCount));
 
 				return {
 					limited: false,
