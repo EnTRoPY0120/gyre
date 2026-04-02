@@ -17,7 +17,7 @@ import {
 	renameSync
 } from 'node:fs';
 import { join, basename } from 'node:path';
-import { validateDatabaseUrl } from './db/path-validation.js';
+import { validateDatabaseUrl, validateBackupDir } from './db/path-validation.js';
 import { tmpdir } from 'node:os';
 import Database from 'better-sqlite3';
 import { aesGcmEncrypt, aesGcmDecrypt, IV_LENGTH, AUTH_TAG_LENGTH } from './aes-gcm.js';
@@ -29,9 +29,8 @@ const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
 const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups');
 
-if (process.env.DATABASE_URL) {
-	validateDatabaseUrl(databaseUrl);
-}
+validateDatabaseUrl(databaseUrl);
+validateBackupDir(backupDir);
 
 /**
  * Canonical backup filename pattern.

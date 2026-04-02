@@ -21,32 +21,62 @@ function canonicalize(p: string): string {
 }
 
 /**
- * Validates that a database URL resolves to an allowed root directory.
- * Canonicalizes both the target path and each allowed root via realpathSync
- * so symlinks are followed before comparison.
- * Uses path.relative for platform-aware containment checking.
+ * Validates that a path is contained within one of the allowed root directories.
+ * Two independent gates:
+ *   1. Raw segment check — rejects any path containing '..' before normalization.
+ *   2. Canonicalization check — resolves symlinks then verifies containment via path.relative.
  *
- * Allowed roots: /data (production PV mount) or ./data (local development).
- *
- * @throws if the path resolves outside the allowed roots.
- * @returns the canonicalized path for informational use.
+ * @throws if the path contains traversal sequences or resolves outside the allowed roots.
+ * @returns the canonicalized path.
  */
-export function validateDatabaseUrl(databaseUrl: string): string {
-	const realPath = canonicalize(databaseUrl);
+function validatePathUnderRoots(rawPath: string, allowedRoots: string[], label: string): string {
+	// Gate 1: reject raw '..' segments before any normalization
+	const segments = rawPath.replace(/\\/g, '/').split('/');
+	if (segments.includes('..')) {
+		throw new Error(`${label} contains path traversal sequences: ${rawPath}`);
+	}
 
-	const allowedRoots = ['/data', resolve('./data')].map(canonicalize);
+	// Gate 2: canonicalize (follows symlinks), then containment check
+	const realPath = canonicalize(rawPath);
+	const canonicalRoots = allowedRoots.map(canonicalize);
 
-	// path.relative is platform-aware: if realPath is outside root, the result starts with '..'
-	const isAllowed = allowedRoots.some((root) => {
+	// path.relative is platform-aware: result starts with '..' when realPath is outside root
+	const isAllowed = canonicalRoots.some((root) => {
 		const rel = relative(normalize(root), normalize(realPath));
 		return !rel.startsWith('..');
 	});
 
 	if (!isAllowed) {
 		throw new Error(
-			`DATABASE_URL resolves to a disallowed path: ${realPath}. Must be under /data or ./data`
+			`${label} resolves to a disallowed path: ${realPath}. Must be under ${allowedRoots.join(' or ')}`
 		);
 	}
 
 	return realPath;
+}
+
+/**
+ * Validates that a database URL resolves to an allowed root directory.
+ * Allowed roots: /data (production PV mount) or ./data (local development).
+ *
+ * @throws if the path resolves outside the allowed roots.
+ * @returns the canonicalized path for informational use.
+ */
+export function validateDatabaseUrl(databaseUrl: string): string {
+	return validatePathUnderRoots(databaseUrl, ['/data', resolve('./data')], 'DATABASE_URL');
+}
+
+/**
+ * Validates that a backup directory resolves to an allowed root directory.
+ * Allowed roots: /data/backups (production PV mount) or ./data/backups (local development).
+ *
+ * @throws if the path resolves outside the allowed roots.
+ * @returns the canonicalized path for informational use.
+ */
+export function validateBackupDir(backupDir: string): string {
+	return validatePathUnderRoots(
+		backupDir,
+		['/data/backups', resolve('./data/backups')],
+		'BACKUP_DIR'
+	);
 }

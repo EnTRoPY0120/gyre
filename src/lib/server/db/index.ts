@@ -12,9 +12,7 @@ import * as schema from './schema.js';
 // - Local development: ./data/gyre.db (relative to project root)
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
-if (process.env.DATABASE_URL) {
-	validateDatabaseUrl(databaseUrl);
-}
+validateDatabaseUrl(databaseUrl);
 logger.info(`[DB] Database location: ${databaseUrl}`);
 
 // Ensure directory exists (async)
