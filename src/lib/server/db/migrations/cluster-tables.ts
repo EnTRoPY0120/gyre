@@ -44,16 +44,19 @@ export function initClusterTables(db: Db): void {
 
 		if (!result || result.value !== 'true') {
 			db.transaction((tx) => {
+				// Keep the canonical row per (cluster_id, context_name): prefer is_current=1, then newest created_at
 				tx.run(sql`
 					DELETE FROM cluster_contexts
 					WHERE id NOT IN (
-						SELECT MIN(id) FROM cluster_contexts
-						GROUP BY cluster_id, context_name
+						SELECT id FROM (
+							SELECT id,
+								ROW_NUMBER() OVER (
+									PARTITION BY cluster_id, context_name
+									ORDER BY is_current DESC, created_at DESC
+								) AS rn
+							FROM cluster_contexts
+						) WHERE rn = 1
 					)
-				`);
-				tx.run(sql`
-					CREATE UNIQUE INDEX IF NOT EXISTS idx_cluster_contexts_cluster_context
-					ON cluster_contexts (cluster_id, context_name)
 				`);
 				tx.run(sql`
 					INSERT OR REPLACE INTO app_settings (key, value, updated_at)
@@ -62,6 +65,17 @@ export function initClusterTables(db: Db): void {
 			});
 			logger.info('[DB] Migration: added unique constraint on cluster_contexts');
 		}
+	} catch (error) {
+		logger.error(error, '[DB] Failed to add unique constraint on cluster_contexts:');
+		throw error;
+	}
+
+	// Always ensure the index exists (IF NOT EXISTS makes this idempotent)
+	try {
+		db.run(sql`
+			CREATE UNIQUE INDEX IF NOT EXISTS idx_cluster_contexts_cluster_context
+			ON cluster_contexts (cluster_id, context_name)
+		`);
 	} catch (error) {
 		logger.error(error, '[DB] Failed to add unique constraint on cluster_contexts:');
 		throw error;

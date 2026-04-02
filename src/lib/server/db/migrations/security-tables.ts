@@ -105,7 +105,6 @@ export function initSecurityTables(db: Db, flags: MigrationFlags): void {
 			updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 		)
 	`);
-	db.run(sql`CREATE INDEX IF NOT EXISTS idx_rate_limits_expire_at ON rate_limits (expire_at)`);
 	// Migration: add expire_at to tables created before this column was introduced
 	try {
 		db.run(
@@ -114,6 +113,7 @@ export function initSecurityTables(db: Db, flags: MigrationFlags): void {
 	} catch {
 		// Column already exists — safe to ignore
 	}
+	db.run(sql`CREATE INDEX IF NOT EXISTS idx_rate_limits_expire_at ON rate_limits (expire_at)`);
 
 	// Password History table
 	db.run(sql`
