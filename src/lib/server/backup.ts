@@ -26,11 +26,12 @@ import { MAX_LOCAL_BACKUPS } from './config/constants.js';
 import { closeDb } from './db/index.js';
 
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
-const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
-const backupDir = process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups');
-
-validateDatabaseUrl(databaseUrl);
-validateBackupDir(backupDir);
+const databaseUrl = validateDatabaseUrl(
+	process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db')
+);
+const backupDir = validateBackupDir(
+	process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups')
+);
 
 /**
  * Canonical backup filename pattern.

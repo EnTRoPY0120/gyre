@@ -1,4 +1,4 @@
-import { resolve, dirname, basename, join, relative, normalize } from 'node:path';
+import { resolve, dirname, basename, join, relative, normalize, isAbsolute } from 'node:path';
 import { realpathSync } from 'node:fs';
 
 /**
@@ -40,10 +40,12 @@ function validatePathUnderRoots(rawPath: string, allowedRoots: string[], label: 
 	const realPath = canonicalize(rawPath);
 	const canonicalRoots = allowedRoots.map(canonicalize);
 
-	// path.relative is platform-aware: result starts with '..' when realPath is outside root
+	// path.relative is platform-aware: result starts with '..' when realPath is outside root.
+	// isAbsolute(rel) guards against Windows cross-drive results (e.g. 'D:\file') which would
+	// not start with '..' yet are clearly outside the allowed root.
 	const isAllowed = canonicalRoots.some((root) => {
 		const rel = relative(normalize(root), normalize(realPath));
-		return !rel.startsWith('..');
+		return !rel.startsWith('..') && !isAbsolute(rel);
 	});
 
 	if (!isAllowed) {
