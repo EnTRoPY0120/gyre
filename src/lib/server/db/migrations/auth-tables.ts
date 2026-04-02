@@ -68,16 +68,27 @@ export function initAuthTables(db: Db, flags: MigrationFlags): void {
 					groups.get(normalized)!.push(user);
 				}
 
+				// Pass 1: Set all users to unique temp names to avoid cross-update conflicts
+				for (const user of allUsers) {
+					const tempName = `__tmp__${user.id}`;
+					tx.run(sql`UPDATE users SET username = ${tempName} WHERE id = ${user.id}`);
+				}
+
+				// Pass 2: Assign final names, tracking globally taken names to prevent collisions
+				const taken = new Set<string>();
 				for (const [normalized, group] of groups) {
-					if (group.length === 1) {
-						tx.run(sql`UPDATE users SET username = ${normalized} WHERE id = ${group[0].id}`);
-					} else {
-						group.sort((a, b) => a.id.localeCompare(b.id));
-						for (let i = 0; i < group.length; i++) {
-							const finalUsername = i === 0 ? normalized : `${normalized}_${i}`;
-							tx.run(sql`UPDATE users SET username = ${finalUsername} WHERE id = ${group[i].id}`);
-						}
+					group.sort((a, b) => a.id.localeCompare(b.id));
+					if (group.length > 1) {
 						logger.warn(`[DB] Migration: resolved username collision across ${group.length} users`);
+					}
+					let counter = 1;
+					for (let i = 0; i < group.length; i++) {
+						let candidate = i === 0 ? normalized : `${normalized}_${i}`;
+						while (taken.has(candidate)) {
+							candidate = `${normalized}_${counter++}`;
+						}
+						taken.add(candidate);
+						tx.run(sql`UPDATE users SET username = ${candidate} WHERE id = ${group[i].id}`);
 					}
 				}
 
@@ -260,19 +271,22 @@ export function initAuthTables(db: Db, flags: MigrationFlags): void {
 						is_local INTEGER NOT NULL DEFAULT 1,
 						created_at INTEGER NOT NULL DEFAULT (unixepoch()),
 						updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
-						preferences TEXT
+						preferences TEXT,
+						requires_password_change INTEGER NOT NULL DEFAULT 0
 					)
 				`);
 				tx.run(sql`
 					INSERT INTO users_next (
 						id, username, email, name, email_verified, image,
-						role, active, is_local, created_at, updated_at, preferences
+						role, active, is_local, created_at, updated_at, preferences,
+						requires_password_change
 					)
 					SELECT
 						id, username, email,
 						COALESCE(name, username, ''),
 						COALESCE(email_verified, 0),
-						image, role, active, is_local, created_at, updated_at, preferences
+						image, role, active, is_local, created_at, updated_at, preferences,
+						COALESCE(requires_password_change, 0)
 					FROM users
 				`);
 				tx.run(sql`DROP TABLE users`);

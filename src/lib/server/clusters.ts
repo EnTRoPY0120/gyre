@@ -370,8 +370,18 @@ async function checkApiReachability(kc: k8s.KubeConfig): Promise<HealthCheckResu
 		};
 	} catch (networkError) {
 		const error = networkError instanceof Error ? networkError.message : 'Network error';
-		let details = error;
 
+		// Auth/cert errors must bubble up to checkAuthAndVersion for proper diagnosis
+		if (
+			error.includes('Unauthorized') ||
+			error.includes('401') ||
+			error.includes('certificate') ||
+			error.includes('x509')
+		) {
+			throw networkError;
+		}
+
+		let details = error;
 		if (error.includes('ENOTFOUND') || error.includes('getaddrinfo')) {
 			details = 'DNS resolution failed. Check if the server address in kubeconfig is correct.';
 		} else if (error.includes('ECONNREFUSED') || error.includes('ECONNRESET')) {
@@ -455,7 +465,10 @@ async function checkAuthAndVersion(
 		}
 
 		const isAuthFailure =
-			error.includes('Unauthorized') || error.includes('401') || error.includes('certificate');
+			error.includes('Unauthorized') ||
+			error.includes('401') ||
+			error.includes('certificate') ||
+			error.includes('x509');
 		const sanitizedDetails = sanitizeK8sErrorMessage(details);
 
 		checks.push({
@@ -477,64 +490,50 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 	const clusterName = cluster?.name || 'Unknown';
 	const checks: HealthCheckResult[] = [];
 
+	async function fail(
+		details: string | undefined,
+		extraChecks?: HealthCheckResult[]
+	): Promise<ClusterHealthCheck> {
+		if (cluster) await updateCluster(id, { lastError: details });
+		return {
+			connected: false,
+			clusterName,
+			checks: [...checks, ...(extraChecks ?? [])],
+			error: details,
+			timestamp: new Date()
+		};
+	}
+
 	try {
 		const kubeconfig = await getClusterKubeconfig(id);
 		if (!kubeconfig) {
 			const error = 'Kubeconfig not found or failed to decrypt';
-			if (cluster) await updateCluster(id, { lastError: error });
-			return {
-				connected: false,
-				clusterName,
-				checks: [
-					{
-						name: 'Kubeconfig Access',
-						passed: false,
-						message: 'Failed to retrieve kubeconfig',
-						details: error
-					}
-				],
-				error,
-				timestamp: new Date()
-			};
+			return await fail(error, [
+				{
+					name: 'Kubeconfig Access',
+					passed: false,
+					message: 'Failed to retrieve kubeconfig',
+					details: error
+				}
+			]);
 		}
 
 		const { check: parseCheck, kc } = checkKubeconfigParse(kubeconfig);
 		checks.push(parseCheck);
 		if (!parseCheck.passed || !kc) {
-			if (cluster) await updateCluster(id, { lastError: parseCheck.details });
-			return {
-				connected: false,
-				clusterName,
-				checks,
-				error: parseCheck.details,
-				timestamp: new Date()
-			};
+			return await fail(parseCheck.details);
 		}
 
 		const reachabilityCheck = await checkApiReachability(kc);
 		checks.push(reachabilityCheck);
 		if (!reachabilityCheck.passed) {
-			if (cluster) await updateCluster(id, { lastError: reachabilityCheck.details });
-			return {
-				connected: false,
-				clusterName,
-				checks,
-				error: reachabilityCheck.details,
-				timestamp: new Date()
-			};
+			return await fail(reachabilityCheck.details);
 		}
 
 		const authResult = await checkAuthAndVersion(kc);
 		checks.push(...authResult.checks);
 		if (authResult.error) {
-			if (cluster) await updateCluster(id, { lastError: authResult.error });
-			return {
-				connected: false,
-				clusterName,
-				checks,
-				error: authResult.error,
-				timestamp: new Date()
-			};
+			return await fail(authResult.error);
 		}
 
 		if (cluster) await updateCluster(id, { lastConnectedAt: new Date(), lastError: null });
