@@ -371,10 +371,12 @@ async function checkApiReachability(kc: k8s.KubeConfig): Promise<HealthCheckResu
 	} catch (networkError) {
 		const error = networkError instanceof Error ? networkError.message : 'Network error';
 
-		// Auth/cert errors must bubble up to checkAuthAndVersion for proper diagnosis
+		// Auth/cert/authz errors must bubble up to checkAuthAndVersion for proper diagnosis
 		if (
 			error.includes('Unauthorized') ||
 			error.includes('401') ||
+			error.includes('Forbidden') ||
+			error.includes('403') ||
 			error.includes('certificate') ||
 			error.includes('x509')
 		) {
@@ -524,7 +526,16 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 			return await fail(parseCheck.details);
 		}
 
-		const reachabilityCheck = await checkApiReachability(kc);
+		let reachabilityCheck: HealthCheckResult;
+		try {
+			reachabilityCheck = await checkApiReachability(kc);
+		} catch {
+			// Server responded with an auth/cert/authz error — it is reachable, so let
+			// checkAuthAndVersion produce the proper diagnostic instead of a network failure
+			const authResult = await checkAuthAndVersion(kc);
+			checks.push(...authResult.checks);
+			return await fail(authResult.error);
+		}
 		checks.push(reachabilityCheck);
 		if (!reachabilityCheck.passed) {
 			return await fail(reachabilityCheck.details);
