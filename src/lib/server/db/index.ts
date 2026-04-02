@@ -10,6 +10,8 @@ import * as schema from './schema.js';
 // Determine database path
 // - Production (in-cluster): /data/gyre.db (PersistentVolume mount)
 // - Local development: ./data/gyre.db (relative to project root)
+// validateDatabaseUrl throws a descriptive error on invalid paths; this is
+// intentional fail-fast behaviour — a bad DATABASE_URL must halt startup.
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
 const databasePath = validateDatabaseUrl(
 	process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db')

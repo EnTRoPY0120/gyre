@@ -13,7 +13,14 @@ function canonicalize(p: string): string {
 		try {
 			const resolved = resolve(p);
 			const realDir = realpathSync(dirname(resolved));
-			return join(realDir, basename(resolved));
+			const candidate = join(realDir, basename(resolved));
+			// Attempt to resolve the final component as well; if it now exists
+			// (e.g. as a symlink) follow it to its real target.
+			try {
+				return realpathSync(candidate);
+			} catch {
+				return candidate;
+			}
 		} catch {
 			return normalize(resolve(p));
 		}
