@@ -75,7 +75,10 @@ export function sanitizeK8sErrorMessage(message: string): string {
 			// Redact full URLs (scheme://host[:port]/path?query#fragment)
 			.replace(/https?:\/\/[^\s]+/g, '[REDACTED URL]')
 			// Redact IPv4 addresses
-			.replace(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/g, '[REDACTED IP]')
+			.replace(
+				/\b(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])(\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])){3}\b/g,
+				'[REDACTED IP]'
+			)
 			// Redact IPv6 addresses (simplified pattern)
 			.replace(/\[?[0-9a-fA-F:]+:[0-9a-fA-F:]+\]?/g, '[REDACTED IP]')
 			// Redact possible sensitive tokens in messages
