@@ -176,7 +176,7 @@
 		'file-edit': FileEdit,
 		'alert-triangle': AlertTriangle,
 		'help-circle': HelpCircle,
-		'rerotate-ccw': RotateCcw,
+		'rotate-ccw': RotateCcw,
 		'circle-off': CircleOff,
 		history: History,
 		'hard-drive': HardDrive,
