@@ -11,13 +11,14 @@ import * as schema from './schema.js';
 // - Production (in-cluster): /data/gyre.db (PersistentVolume mount)
 // - Local development: ./data/gyre.db (relative to project root)
 const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
-const databaseUrl = process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db');
-validateDatabaseUrl(databaseUrl);
-logger.info(`[DB] Database location: ${databaseUrl}`);
+const databasePath = validateDatabaseUrl(
+	process.env.DATABASE_URL || (isInCluster ? '/data/gyre.db' : './data/gyre.db')
+);
+logger.info(`[DB] Database location: ${databasePath}`);
 
 // Ensure directory exists (async)
 async function ensureDbDirectory() {
-	const dir = dirname(databaseUrl);
+	const dir = dirname(databasePath);
 	try {
 		await mkdir(dir, { recursive: true });
 	} catch (err: unknown) {
@@ -30,7 +31,7 @@ async function ensureDbDirectory() {
 
 // Ensure directory exists (sync)
 function ensureDbDirectorySync() {
-	const dir = dirname(databaseUrl);
+	const dir = dirname(databasePath);
 	try {
 		mkdirSync(dir, { recursive: true });
 	} catch (err: unknown) {
@@ -51,7 +52,7 @@ export async function getDb() {
 		if (!dbInitPromise) {
 			dbInitPromise = (async () => {
 				await ensureDbDirectory();
-				const sqlite = new Database(databaseUrl);
+				const sqlite = new Database(databasePath);
 				// Enable WAL mode for better concurrency
 				sqlite.pragma('journal_mode = WAL');
 				sqlite.pragma('foreign_keys = ON');
@@ -78,7 +79,7 @@ export function getDbSync() {
 	}
 	if (!db) {
 		ensureDbDirectorySync(); // Create directory if it doesn't exist
-		const sqlite = new Database(databaseUrl);
+		const sqlite = new Database(databasePath);
 		sqlite.pragma('journal_mode = WAL');
 		sqlite.pragma('foreign_keys = ON');
 		// Prevent SQLITE_BUSY errors under concurrent writes

@@ -33,10 +33,7 @@ describe('validateDatabaseUrl', () => {
 
 	describe('accepts valid paths', () => {
 		test('accepts /data/gyre.db (production default)', () => {
-			// Path may not exist on dev machine — just check it does not throw a traversal error
-			expect(() => validateDatabaseUrl('/data/gyre.db')).not.toThrow(
-				'contains path traversal sequences'
-			);
+			expect(() => validateDatabaseUrl('/data/gyre.db')).not.toThrow();
 		});
 
 		test('accepts ./data/gyre.db (development default)', () => {
@@ -71,9 +68,7 @@ describe('validateBackupDir', () => {
 
 	describe('accepts valid paths', () => {
 		test('accepts /data/backups (production default)', () => {
-			expect(() => validateBackupDir('/data/backups')).not.toThrow(
-				'contains path traversal sequences'
-			);
+			expect(() => validateBackupDir('/data/backups')).not.toThrow();
 		});
 
 		test('accepts ./data/backups (development default)', () => {
