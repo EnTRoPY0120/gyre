@@ -52,7 +52,7 @@ export interface TemplateSection {
 }
 
 const CEL_VALIDATION = {
-	pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%?:,\\n\\r\\t ]{1,500}$',
+	pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%:, ]{1,500}$',
 	message:
 		'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
 };
@@ -266,7 +266,7 @@ spec:
 				'The interval at which to check the upstream repository for changes. Flux supports: 1h30m, 5m, 30s, etc.',
 			docsUrl: 'https://fluxcd.io/flux/components/source/gitrepositories/#interval',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -352,7 +352,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for Git operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -551,7 +551,7 @@ spec:
 			}
 		},
 		{
-			name: 'url',
+			name: 'url_oci',
 			label: 'Repository URL',
 			path: 'spec.url',
 			type: 'string',
@@ -579,7 +579,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for new chart versions',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -662,7 +662,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for index download operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		}
@@ -830,7 +830,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to reconcile the Kustomization',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -976,7 +976,7 @@ spec:
 			placeholder: '5m',
 			description: 'Timeout for health checks and operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1018,7 +1018,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1392,7 +1392,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to reconcile the release',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -1609,7 +1609,7 @@ spec:
 			placeholder: '5m',
 			description: 'Timeout for Helm operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -1871,7 +1871,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for new chart versions',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -2106,7 +2106,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for changes',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -2179,7 +2179,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for bucket operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2395,7 +2395,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for changes',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -2450,7 +2450,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for OCI operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -2876,7 +2876,7 @@ spec:
 			placeholder: '30s',
 			description: 'Timeout for sending notifications',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -3072,7 +3072,7 @@ spec:
 			placeholder: '10m',
 			description: 'Reconciliation interval',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -3198,7 +3198,7 @@ spec:
 			default: '5m',
 			description: 'How often to scan for new images',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
