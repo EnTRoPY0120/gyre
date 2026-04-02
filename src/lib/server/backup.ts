@@ -32,6 +32,8 @@ const databaseUrl = validateDatabaseUrl(
 const backupDir = validateBackupDir(
 	process.env.BACKUP_DIR || (isInCluster ? '/data/backups' : './data/backups')
 );
+logger.info(`[Backup] Database URL: ${databaseUrl}`);
+logger.info(`[Backup] Backup directory: ${backupDir}`);
 
 /**
  * Canonical backup filename pattern.
