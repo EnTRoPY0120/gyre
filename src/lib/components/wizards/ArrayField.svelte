@@ -87,6 +87,18 @@
 			return i;
 		});
 	}
+
+	function handleReferenceValueChange(
+		id: string,
+		field: TemplateField,
+		nextValue: string,
+		selection?: { namespace?: string }
+	) {
+		updateObjectItem(id, field.name, nextValue);
+		if (field.referenceNamespaceField) {
+			updateObjectItem(id, field.referenceNamespaceField, selection?.namespace ?? '');
+		}
+	}
 </script>
 
 <div class="flex flex-col gap-4">
@@ -117,9 +129,13 @@
 									<ReferenceField
 										id="item-{item.id}-{field.name}"
 										value={String(isRecord(item.val) ? (item.val[field.name] ?? '') : '')}
-										onValueChange={(v) => updateObjectItem(item.id, field.name, v)}
+										onValueChange={(nextValue, selection) =>
+											handleReferenceValueChange(item.id, field, nextValue, selection)}
 										referenceType={field.referenceType}
 										referenceTypeField={field.referenceTypeField}
+										referenceNamespace={field.referenceNamespaceField && isRecord(item.val)
+											? String(item.val[field.referenceNamespaceField] ?? '')
+											: ''}
 										formValues={isRecord(item.val) ? item.val : {}}
 										placeholder={field.placeholder}
 										{disabled}

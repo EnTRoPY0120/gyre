@@ -1,42 +1,13 @@
 <script lang="ts">
-import { cn } from '$lib/utils';
-import { getPluralByKind } from '$lib/templates';
-import { fetchWithRetry } from '$lib/utils/fetch';
-import { logger } from '$lib/utils/logger.js';
-import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-svelte';
-import { onMount } from 'svelte';
-
-	let {
-		id,
-		value = $bindable(''),
-		referenceType,
-		referenceTypeField,
-		formValues = {},
-		placeholder = 'Select resource...',
-		disabled = false,
-		error = '',
-		onValueChange
-	}: {
-		id?: string;
-		value: string;
-		referenceType?: string | string[];
-		referenceTypeField?: string;
-		formValues?: Record<string, unknown>;
-		placeholder?: string;
-		disabled?: boolean;
-		error?: string;
-		onValueChange?: (value: string) => void;
-	} = $props();
-
-	let open = $state(false);
-	let loading = $state(false);
-	let resources = $state<string[]>([]);
-	let searchQuery = $state('');
-	let focusedIndex = $state(-1);
-	let container: HTMLDivElement | undefined = $state();
-	let searchInput: HTMLInputElement | undefined = $state();
+	import { resolveResourceRouteType } from '$lib/config/resources';
+	import { cn } from '$lib/utils';
+	import { fetchWithRetry } from '$lib/utils/fetch';
+	import { logger } from '$lib/utils/logger.js';
+	import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-svelte';
+	import { onMount } from 'svelte';
 
 	interface K8sResourceItem {
+		kind?: string;
 		metadata: {
 			name: string;
 			namespace?: string;
@@ -47,24 +18,59 @@ import { onMount } from 'svelte';
 		items?: K8sResourceItem[];
 	}
 
-	function pluralizeKind(kind: string): string {
-		const plural = getPluralByKind(kind);
-		if (plural) return plural;
+	export interface ReferenceOption {
+		key: string;
+		kind: string;
+		name: string;
+		namespace?: string;
+		label: string;
+		searchText: string;
+	}
 
-		const lower = kind.toLowerCase();
-		if (lower.endsWith('y') && !['ay', 'ey', 'iy', 'oy', 'uy'].some((v) => lower.endsWith(v))) {
-			return lower.slice(0, -1) + 'ies';
-		}
-		if (
-			lower.endsWith('s') ||
-			lower.endsWith('x') ||
-			lower.endsWith('z') ||
-			lower.endsWith('ch') ||
-			lower.endsWith('sh')
-		) {
-			return lower + 'es';
-		}
-		return lower + 's';
+	let {
+		id,
+		value = $bindable(''),
+		referenceType,
+		referenceTypeField,
+		referenceNamespace = '',
+		formValues = {},
+		placeholder = 'Select resource...',
+		disabled = false,
+		error = '',
+		onValueChange
+	}: {
+		id?: string;
+		value: string;
+		referenceType?: string | string[];
+		referenceTypeField?: string;
+		referenceNamespace?: string;
+		formValues?: Record<string, unknown>;
+		placeholder?: string;
+		disabled?: boolean;
+		error?: string;
+		onValueChange?: (value: string, selection?: ReferenceOption) => void;
+	} = $props();
+
+	let open = $state(false);
+	let loading = $state(false);
+	let resources = $state<ReferenceOption[]>([]);
+	let searchQuery = $state('');
+	let focusedIndex = $state(-1);
+	let container: HTMLDivElement | undefined = $state();
+	let searchInput: HTMLInputElement | undefined = $state();
+	let selectedLabel = $state('');
+	let lastSelectedValue = $state(value);
+
+	function buildOptionLabel(
+		name: string,
+		namespace: string | undefined,
+		kind: string,
+		includeKind: boolean
+	): string {
+		const details: string[] = [];
+		if (namespace) details.push(namespace);
+		if (includeKind) details.push(kind);
+		return details.length > 0 ? `${name} (${details.join(', ')})` : name;
 	}
 
 	// Resolve the actual resource types to fetch
@@ -78,11 +84,46 @@ import { onMount } from 'svelte';
 		return [];
 	});
 
-	const filteredResources = $derived(
-		searchQuery === ''
-			? resources
-			: resources.filter((r) => r.toLowerCase().includes(searchQuery.toLowerCase()))
-	);
+	const filteredResources = $derived.by(() => {
+		const query = searchQuery.trim().toLowerCase();
+		if (query === '') return resources;
+		return resources.filter((resource) => resource.searchText.includes(query));
+	});
+
+	const selectedResource = $derived.by(() => {
+		if (!value) return null;
+
+		if (referenceNamespace) {
+			return (
+				resources.find(
+					(resource) => resource.name === value && resource.namespace === referenceNamespace
+				) ?? null
+			);
+		}
+
+		if (selectedLabel) {
+			return (
+				resources.find(
+					(resource) => resource.name === value && resource.label === selectedLabel
+				) ?? null
+			);
+		}
+
+		return resources.find((resource) => resource.name === value) ?? null;
+	});
+
+	const displayValue = $derived.by(() => {
+		if (!value) return placeholder;
+		return selectedResource?.label || selectedLabel || (referenceNamespace ? `${value} (${referenceNamespace})` : value);
+	});
+
+	$effect(() => {
+		const currentValue = value;
+		if (currentValue !== lastSelectedValue) {
+			selectedLabel = '';
+			lastSelectedValue = currentValue;
+		}
+	});
 
 	async function fetchResources() {
 		if (activeReferenceTypes.length === 0) {
@@ -91,40 +132,72 @@ import { onMount } from 'svelte';
 		}
 
 		loading = true;
-		resources = []; // Clear resources before starting fetch
+		resources = [];
 		try {
+			const includeKindInLabel = activeReferenceTypes.length > 1;
 			const fetchPromises = activeReferenceTypes
 				.filter((kind) => kind !== '*')
 				.map(async (kind) => {
-					const pluralToUse = pluralizeKind(kind);
+					const routeType = resolveResourceRouteType(kind);
+					if (!routeType) {
+						throw new Error(`Unknown reference type: ${kind}`);
+					}
 
-					const res = await fetchWithRetry(`/api/v1/flux/${pluralToUse}`);
+					const res = await fetchWithRetry(`/api/v1/flux/${routeType}`);
 					if (!res.ok) {
 						const errorBody = await res.text();
 						throw new Error(
-							`Failed to fetch ${pluralToUse}: ${res.status} ${res.statusText} - ${errorBody}`
+							`Failed to fetch ${routeType}: ${res.status} ${res.statusText} - ${errorBody}`
 						);
 					}
+
 					const data = (await res.json()) as K8sResourceList;
-					return data.items?.map((item: K8sResourceItem) => item.metadata.name) || [];
+					return (
+						data.items?.map((item) => {
+							const optionKind = item.kind || kind;
+							const optionNamespace = item.metadata.namespace;
+							const label = buildOptionLabel(
+								item.metadata.name,
+								optionNamespace,
+								optionKind,
+								includeKindInLabel
+							);
+
+							return {
+								key: `${optionKind}:${optionNamespace || ''}:${item.metadata.name}`,
+								kind: optionKind,
+								name: item.metadata.name,
+								namespace: optionNamespace,
+								label,
+								searchText: [item.metadata.name, optionNamespace, optionKind]
+									.filter(Boolean)
+									.join(' ')
+									.toLowerCase()
+							} satisfies ReferenceOption;
+						}) || []
+					);
 				});
 
 			const results = await Promise.allSettled(fetchPromises);
-			const allNames: string[] = [];
+			const nextResources: ReferenceOption[] = [];
 
 			results.forEach((result) => {
 				if (result.status === 'fulfilled') {
-					allNames.push(...result.value);
+					nextResources.push(...result.value);
 				} else {
-					logger.error(result.reason instanceof Error ? result.reason : new Error(String(result.reason)), 'Failed to fetch resources:');
+					logger.error(
+						result.reason instanceof Error ? result.reason : new Error(String(result.reason)),
+						'Failed to fetch resources:'
+					);
 				}
 			});
 
-			// Deduplicate and sort
-			resources = [...new Set(allNames)].sort();
+			resources = Array.from(
+				new Map(nextResources.map((resource) => [resource.key, resource])).values()
+			).sort((a, b) => a.label.localeCompare(b.label));
 		} catch (err) {
 			logger.error(err, 'Failed to fetch resources:');
-			resources = []; // Clear on error
+			resources = [];
 		} finally {
 			loading = false;
 		}
@@ -137,17 +210,18 @@ import { onMount } from 'svelte';
 			searchQuery = '';
 			focusedIndex = -1;
 			fetchResources();
-			// Focus search input on next tick
 			setTimeout(() => {
 				searchInput?.focus();
 			}, 0);
 		}
 	}
 
-	function handleSelect(resource: string) {
-		value = resource;
+	function handleSelect(resource: ReferenceOption) {
+		lastSelectedValue = resource.name;
+		selectedLabel = resource.label;
+		value = resource.name;
 		open = false;
-		onValueChange?.(resource);
+		onValueChange?.(resource.name, resource);
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -169,8 +243,7 @@ import { onMount } from 'svelte';
 			case 'ArrowUp':
 				e.preventDefault();
 				if (filteredResources.length > 0) {
-					focusedIndex =
-						focusedIndex <= 0 ? filteredResources.length - 1 : focusedIndex - 1;
+					focusedIndex = focusedIndex <= 0 ? filteredResources.length - 1 : focusedIndex - 1;
 				}
 				break;
 			case 'Enter':
@@ -187,6 +260,10 @@ import { onMount } from 'svelte';
 				open = false;
 				break;
 		}
+	}
+
+	function isSelectedResource(resource: ReferenceOption): boolean {
+		return selectedResource?.key === resource.key;
 	}
 
 	// Close on click outside
@@ -226,7 +303,7 @@ import { onMount } from 'svelte';
 		aria-haspopup="listbox"
 	>
 		<span class={cn('truncate', !value && 'text-muted-foreground')}>
-			{value || placeholder}
+			{displayValue}
 		</span>
 		<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
 	</button>
@@ -255,7 +332,7 @@ import { onMount } from 'svelte';
 				{:else if filteredResources.length === 0}
 					<div class="py-6 text-center text-sm text-zinc-500">No resources found.</div>
 				{:else}
-					{#each filteredResources as resource, i}
+					{#each filteredResources as resource, i (resource.key)}
 						<button
 							type="button"
 							class={cn(
@@ -264,13 +341,16 @@ import { onMount } from 'svelte';
 							)}
 							onclick={() => handleSelect(resource)}
 							role="option"
-							aria-selected={value === resource}
+							aria-selected={isSelectedResource(resource)}
 							tabindex="-1"
 						>
 							<Check
-								class={cn('mr-2 h-4 w-4', value === resource ? 'opacity-100' : 'opacity-0')}
+								class={cn(
+									'mr-2 h-4 w-4',
+									isSelectedResource(resource) ? 'opacity-100' : 'opacity-0'
+								)}
 							/>
-							{resource}
+							{resource.label}
 						</button>
 					{/each}
 				{/if}

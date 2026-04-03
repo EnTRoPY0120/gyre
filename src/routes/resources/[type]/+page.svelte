@@ -2,6 +2,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
+	import { resolveResourceRouteType } from '$lib/config/resources';
 	import { preferences } from '$lib/stores/preferences.svelte';
 	import { eventsStore } from '$lib/stores/events.svelte';
 	import { onMount, untrack } from 'svelte';
@@ -56,14 +57,9 @@
 	// Real-time updates via SSE
 	onMount(() => {
 		const unsubscribe = eventsStore.onEvent((event) => {
-			// Check if event is relevant to current view
-			// Event resourceType is e.g., 'GitRepository'
-			// Page resourceType is e.g., 'gitrepositories'
-			const eventType = event.resourceType?.toLowerCase();
-			const pageType = data.resourceType.toLowerCase();
+			const eventRouteType = event.resourceType ? resolveResourceRouteType(event.resourceType) : null;
 
-			// Simple pluralization check or direct match
-			if (eventType && (pageType === eventType + 's' || pageType === eventType)) {
+			if (eventRouteType === data.resourceType) {
 				// Invalidate the load function dependency to trigger a background refresh
 				invalidate(`flux:${data.resourceType}`);
 			}

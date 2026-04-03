@@ -56,10 +56,13 @@
 		}
 	});
 
-	// Sync initial data to cache on mount
-	onMount(() => {
+	// Keep the cache aligned with the latest loader result so invalidations don't leave stale data behind.
+	$effect(() => {
 		resourceCache.setResource(data.resourceType, data.namespace, data.name, data.resource);
+	});
 
+	// Real-time updates via SSE
+	onMount(() => {
 		const unsubscribe = eventsStore.onEvent((event) => {
 			if (
 				event.resource &&
