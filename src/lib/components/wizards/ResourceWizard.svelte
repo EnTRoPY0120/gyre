@@ -221,6 +221,25 @@
 		}
 	}
 
+	function handleReferenceValueChange(
+		field: (typeof template.fields)[0],
+		nextValue: string,
+		selection?: { namespace?: string }
+	) {
+		formValues[field.name] = nextValue;
+		handleFieldChange(field);
+
+		if (!field.referenceNamespaceField) return;
+
+		formValues[field.referenceNamespaceField] = selection?.namespace ?? '';
+		const namespaceField = template.fields.find(
+			(candidate) => candidate.name === field.referenceNamespaceField
+		);
+		if (namespaceField) {
+			handleFieldChange(namespaceField);
+		}
+	}
+
 	function toggleMode(newMode: 'wizard' | 'yaml') {
 		if (newMode === 'wizard') {
 			updateFormFromYaml();
@@ -504,14 +523,19 @@
 																error={validationErrors[field.name]}
 															/>
 														{:else if field.referenceType || field.referenceTypeField}
-															<ReferenceField
-																bind:value={formValues[field.name] as string}
-																referenceType={field.referenceType}
-																referenceTypeField={field.referenceTypeField}
-																{formValues}
-																placeholder={field.placeholder || field.description}
-																error={validationErrors[field.name]}
-															/>
+											<ReferenceField
+												bind:value={formValues[field.name] as string}
+												referenceType={field.referenceType}
+												referenceTypeField={field.referenceTypeField}
+												referenceNamespace={field.referenceNamespaceField
+													? String(formValues[field.referenceNamespaceField] ?? '')
+													: ''}
+												{formValues}
+												placeholder={field.placeholder || field.description}
+												error={validationErrors[field.name]}
+												onValueChange={(nextValue, selection) =>
+													handleReferenceValueChange(field, nextValue, selection)}
+											/>
 														{:else}
 															<input
 																id="field-{field.name}"
@@ -617,14 +641,19 @@
 													error={validationErrors[field.name]}
 												/>
 											{:else if field.referenceType || field.referenceTypeField}
-												<ReferenceField
-													bind:value={formValues[field.name] as string}
-													referenceType={field.referenceType}
-													referenceTypeField={field.referenceTypeField}
-													{formValues}
-													placeholder={field.placeholder || field.description}
-													error={validationErrors[field.name]}
-												/>
+										<ReferenceField
+											bind:value={formValues[field.name] as string}
+											referenceType={field.referenceType}
+											referenceTypeField={field.referenceTypeField}
+											referenceNamespace={field.referenceNamespaceField
+												? String(formValues[field.referenceNamespaceField] ?? '')
+												: ''}
+											{formValues}
+											placeholder={field.placeholder || field.description}
+											error={validationErrors[field.name]}
+											onValueChange={(nextValue, selection) =>
+												handleReferenceValueChange(field, nextValue, selection)}
+										/>
 											{:else}
 												<input
 													id="field-{field.name}"

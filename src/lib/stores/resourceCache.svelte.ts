@@ -1,4 +1,5 @@
 import { eventsStore } from './events.svelte';
+import { resolveResourceRouteType } from '$lib/config/resources';
 import type { FluxResource } from '$lib/types/flux';
 import { fetchWithRetry } from '$lib/utils/fetch';
 import { logger } from '$lib/utils/logger.js';
@@ -16,6 +17,10 @@ class ResourceCacheStore {
 	private resourceCache = $state<Record<string, CacheEntry<FluxResource>>>({});
 	private listCache = $state<Record<string, CacheEntry<FluxResource[]>>>({});
 	private ttl = 30000;
+
+	private normalizeType(type: string): string {
+		return resolveResourceRouteType(type) ?? type;
+	}
 
 	constructor() {
 		if (typeof window !== 'undefined') {
@@ -42,11 +47,20 @@ class ResourceCacheStore {
 	}
 
 	private getResourceKey(type: string, namespace: string, name: string): string {
-		return `${type}:${namespace}:${name}`;
+		return `${this.normalizeType(type)}:${namespace}:${name}`;
 	}
 
 	private getListKey(type: string, namespace?: string): string {
-		return namespace ? `${type}:${namespace}` : type;
+		const normalizedType = this.normalizeType(type);
+		return namespace ? `${normalizedType}:${namespace}` : normalizedType;
+	}
+
+	private getCachedResourceEntry(type: string, namespace: string, name: string) {
+		return this.resourceCache[this.getResourceKey(type, namespace, name)] ?? null;
+	}
+
+	private getCachedListEntry(type: string, namespace?: string) {
+		return this.listCache[this.getListKey(type, namespace)] ?? null;
 	}
 
 	private pruneEntries<T>(cache: Record<string, CacheEntry<T>>, maxSize: number): void {
@@ -71,8 +85,7 @@ class ResourceCacheStore {
 	}
 
 	getResource(type: string, namespace: string, name: string): FluxResource | null {
-		const key = this.getResourceKey(type, namespace, name);
-		const entry = this.resourceCache[key];
+		const entry = this.getCachedResourceEntry(type, namespace, name);
 
 		if (entry && Date.now() - entry.timestamp < this.ttl) {
 			entry.lastAccess = Date.now();
@@ -93,8 +106,7 @@ class ResourceCacheStore {
 	}
 
 	getList(type: string, namespace?: string): FluxResource[] | null {
-		const key = this.getListKey(type, namespace);
-		const entry = this.listCache[key];
+		const entry = this.getCachedListEntry(type, namespace);
 
 		if (entry && Date.now() - entry.timestamp < this.ttl) {
 			entry.lastAccess = Date.now();
@@ -138,34 +150,38 @@ class ResourceCacheStore {
 	}
 
 	async fetchList(type: string, namespace?: string): Promise<FluxResource[]> {
+		const normalizedType = this.normalizeType(type);
+		const staleEntry = this.getCachedListEntry(normalizedType, namespace);
 		const url = namespace
-			? `/api/v1/flux/${encodeURIComponent(type)}?namespace=${encodeURIComponent(namespace)}`
-			: `/api/v1/flux/${encodeURIComponent(type)}`;
+			? `/api/v1/flux/${encodeURIComponent(normalizedType)}?namespace=${encodeURIComponent(namespace)}`
+			: `/api/v1/flux/${encodeURIComponent(normalizedType)}`;
 		try {
 			const res = await fetchWithRetry(url);
-			if (!res.ok) throw new Error(`Failed to fetch ${type} list`);
+			if (!res.ok) throw new Error(`Failed to fetch ${normalizedType} list`);
 			const data = await res.json();
 			const items = data.items || [];
-			this.setList(type, items, namespace);
+			this.setList(normalizedType, items, namespace);
 			return items;
 		} catch (err) {
-			logger.error(err, `Error fetching ${type} list:`);
-			return [];
+			logger.error(err, `Error fetching ${normalizedType} list:`);
+			return staleEntry?.data ?? [];
 		}
 	}
 
 	async fetchResource(type: string, namespace: string, name: string): Promise<FluxResource | null> {
+		const normalizedType = this.normalizeType(type);
+		const staleEntry = this.getCachedResourceEntry(normalizedType, namespace, name);
 		try {
 			const res = await fetchWithRetry(
-				`/api/v1/flux/${encodeURIComponent(type)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`
+				`/api/v1/flux/${encodeURIComponent(normalizedType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`
 			);
-			if (!res.ok) throw new Error(`Failed to fetch ${type}/${namespace}/${name}`);
+			if (!res.ok) throw new Error(`Failed to fetch ${normalizedType}/${namespace}/${name}`);
 			const resource = await res.json();
-			this.setResource(type, namespace, name, resource);
+			this.setResource(normalizedType, namespace, name, resource);
 			return resource;
 		} catch (err) {
-			logger.error(err, `Error fetching resource ${type}/${namespace}/${name}:`);
-			return null;
+			logger.error(err, `Error fetching resource ${normalizedType}/${namespace}/${name}:`);
+			return staleEntry?.data ?? null;
 		}
 	}
 }

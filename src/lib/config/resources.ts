@@ -1,4 +1,4 @@
-import { FluxResourceType, type ResourceGroup } from '$lib/types/flux';
+import { FluxResourceType, type ResourceGroup, type ResourceInfo } from '$lib/types/flux';
 
 /**
  * All FluxCD resource configurations organized by category
@@ -145,20 +145,39 @@ export const resourceGroups: ResourceGroup[] = [
 	}
 ];
 
+const allResources: ResourceInfo[] = resourceGroups.flatMap((group) => group.resources);
+
 /**
  * Get resource info by type
  */
 export function getResourceInfo(type: string) {
-	for (const group of resourceGroups) {
-		const resource = group.resources.find((r) => r.type === type);
-		if (resource) return resource;
-	}
-	return null;
+	return allResources.find((resource) => resource.type === type) ?? null;
+}
+
+/**
+ * Get resource info by canonical kind name
+ */
+export function getResourceInfoByKind(kind: string) {
+	return allResources.find((resource) => resource.kind === kind) ?? null;
+}
+
+/**
+ * Resolve either a plural route type or canonical kind to the route type
+ */
+export function resolveResourceRouteType(typeOrKind: string): FluxResourceType | null {
+	return getResourceInfo(typeOrKind)?.type ?? getResourceInfoByKind(typeOrKind)?.type ?? null;
+}
+
+/**
+ * Resolve either a plural route type or canonical kind to the canonical kind
+ */
+export function resolveResourceKind(typeOrKind: string): string | null {
+	return getResourceInfo(typeOrKind)?.kind ?? getResourceInfoByKind(typeOrKind)?.kind ?? null;
 }
 
 /**
  * Get all resource types
  */
 export function getAllResourceTypes(): string[] {
-	return resourceGroups.flatMap((group) => group.resources.map((r) => r.type));
+	return allResources.map((resource) => resource.type);
 }

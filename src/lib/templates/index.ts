@@ -41,6 +41,7 @@ export interface TemplateField {
 	virtual?: boolean; // UI-only field, do not persist to YAML
 	referenceType?: string | string[]; // Resource type(s) to autocomplete from
 	referenceTypeField?: string; // Field to get the reference type from
+	referenceNamespaceField?: string; // Sibling field to auto-fill with selected namespace
 }
 
 export interface TemplateSection {
@@ -796,7 +797,8 @@ spec:
 			section: 'source',
 			placeholder: 'flux-system',
 			description: 'Name of the source resource',
-			referenceTypeField: 'sourceKind'
+			referenceTypeField: 'sourceKind',
+			referenceNamespaceField: 'sourceNamespace'
 		},
 		{
 			name: 'sourceNamespace',
@@ -1348,7 +1350,8 @@ spec:
 			section: 'chart',
 			placeholder: 'bitnami',
 			description: 'Name of the source resource',
-			referenceTypeField: 'chartSourceKind'
+			referenceTypeField: 'chartSourceKind',
+			referenceNamespaceField: 'chartSourceNamespace'
 		},
 		{
 			name: 'chartSourceNamespace',
@@ -2633,7 +2636,8 @@ spec:
 					required: true,
 					placeholder: '* or resource name',
 					description: 'Resource name; use * to watch all resources of that kind',
-					referenceTypeField: 'kind'
+					referenceTypeField: 'kind',
+					referenceNamespaceField: 'namespace'
 				}
 			],
 			placeholder: 'GitRepository',
@@ -3033,7 +3037,8 @@ spec:
 					required: true,
 					placeholder: '* or resource name',
 					description: 'Resource name; use * to watch all resources of that kind',
-					referenceTypeField: 'kind'
+					referenceTypeField: 'kind',
+					referenceNamespaceField: 'namespace'
 				}
 			],
 			placeholder: 'GitRepository',
