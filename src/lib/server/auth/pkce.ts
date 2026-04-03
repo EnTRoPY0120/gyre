@@ -86,22 +86,6 @@ export function generatePKCEPair(): { verifier: string; challenge: string } {
 }
 
 /**
- * Compute the OAuth state fingerprint that binds a state cookie to the originating request.
- * The fingerprint is stored alongside the state in the cookie (as `state|fingerprint`) but
- * never sent to the IdP, so it must match on the return trip.
- *
- * Both the login and callback handlers must call this with the same inputs to produce a
- * consistent value.
- *
- * @param ipAddress - Client IP address
- * @param userAgent - User-Agent header value (empty string if absent)
- * @returns 64-character hex SHA-256 digest
- */
-export function computeStateFingerprint(ipAddress: string, userAgent: string): string {
-	return crypto.createHash('sha256').update(`${ipAddress}|${userAgent}`).digest('hex');
-}
-
-/**
  * Validate PKCE parameters for correctness.
  * Useful for input validation.
  */

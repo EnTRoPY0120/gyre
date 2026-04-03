@@ -55,7 +55,6 @@ import {
 	ensureBetterAuthOAuthAccount
 } from '$lib/server/auth/better-auth';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
-import { computeStateFingerprint } from '$lib/server/auth/pkce';
 
 /**
  * GET /api/auth/[providerId]/callback
@@ -103,38 +102,12 @@ export const GET: RequestHandler = async (event) => {
 			throw error(400, { message: 'Missing code or state parameter' });
 		}
 
-		// Validate state (CSRF protection) with mandatory request fingerprint binding.
-		// Cookie format: `state|sha256(ip|ua)` — both parts are required.
-		const storedStateCookie = cookies.get(`oauth_state_${providerId}`);
-		const pipeIndex = storedStateCookie?.lastIndexOf('|') ?? -1;
-		const storedState = pipeIndex > -1 ? storedStateCookie!.slice(0, pipeIndex) : null;
-		const storedFingerprint = pipeIndex > -1 ? storedStateCookie!.slice(pipeIndex + 1) : null;
-
-		if (!storedFingerprint) {
-			logger.error(
-				{ providerId, err: new Error('Missing state fingerprint') },
-				'OAuth state cookie is missing fingerprint'
-			);
-			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
-		}
-
+		// Validate state (CSRF protection) against the browser-scoped one-time cookie.
+		const storedState = cookies.get(`oauth_state_${providerId}`);
 		if (!storedState || storedState !== returnedState) {
 			logger.error(
 				{ err: new Error('State mismatch: CSRF state validation failed') },
 				'CSRF state validation failed'
-			);
-			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
-		}
-
-		// Verify request fingerprint — detects state cookie reuse across different sessions
-		const currentFingerprint = computeStateFingerprint(
-			ipAddress,
-			request.headers.get('user-agent') ?? ''
-		);
-		if (storedFingerprint !== currentFingerprint) {
-			logger.warn(
-				{ providerId },
-				'OAuth state fingerprint mismatch — possible session hijack attempt'
 			);
 			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
 		}

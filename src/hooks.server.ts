@@ -32,16 +32,6 @@ const PUBLIC_ROUTES = [
 	'/logo.svg'
 ];
 
-// OAuth callback and login initiation routes are dynamic but public
-const PUBLIC_ROUTE_PREFIXES = [
-	'/api/auth/oidc/',
-	'/api/v1/auth/oidc/',
-	'/api/auth/github/',
-	'/api/v1/auth/github/',
-	'/api/auth/google/',
-	'/api/v1/auth/google/'
-];
-
 // Static asset patterns
 const STATIC_PATTERNS = [
 	/^\/_app\//,
@@ -52,14 +42,16 @@ const STATIC_PATTERNS = [
 
 const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
 
-function isPublicRoute(path: string): boolean {
+const PUBLIC_OAUTH_ROUTE_PATTERN = /^\/api(?:\/v1)?\/auth\/[^/]+\/(?:login|callback)\/?$/;
+
+export function isPublicRoute(path: string): boolean {
 	// Check exact matches
 	if (PUBLIC_ROUTES.some((route) => path === route || path.startsWith(route + '/'))) {
 		return true;
 	}
 
-	// Check for OAuth routes which are public
-	if (PUBLIC_ROUTE_PREFIXES.some((prefix) => path.startsWith(prefix))) {
+	// Check for dynamic OAuth login/callback routes which are public.
+	if (PUBLIC_OAUTH_ROUTE_PATTERN.test(path)) {
 		return true;
 	}
 

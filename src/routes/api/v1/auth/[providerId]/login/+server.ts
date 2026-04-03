@@ -45,11 +45,7 @@ export const _metadata = {
 		}
 	}
 };
-import {
-	generateState,
-	generateCodeVerifier,
-	computeStateFingerprint
-} from '$lib/server/auth/pkce';
+import { generateState, generateCodeVerifier } from '$lib/server/auth/pkce';
 import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
@@ -61,7 +57,7 @@ const STATE_COOKIE_MAX_AGE = 60 * 10;
  * Initiates OAuth login flow
  */
 export const GET: RequestHandler = async (event) => {
-	const { params, cookies, request, getClientAddress, setHeaders } = event;
+	const { params, cookies, getClientAddress, setHeaders } = event;
 	const { providerId } = params;
 
 	try {
@@ -82,13 +78,9 @@ export const GET: RequestHandler = async (event) => {
 		// Generate CSRF protection state
 		const state = generateState();
 
-		// Bind state to request fingerprint (IP + UA) for extra CSRF protection.
-		// The fingerprint is stored alongside the state in the cookie but never
-		// sent to the IdP, so it must match on the return trip.
-		const fingerprint = computeStateFingerprint(ipAddress, request.headers.get('user-agent') ?? '');
-
-		// Store state|fingerprint in cookie; only raw state goes to IdP
-		cookies.set(`oauth_state_${providerId}`, `${state}|${fingerprint}`, {
+		// Store the one-time state in an httpOnly cookie so the callback can verify
+		// the browser that started the flow without depending on unstable IP/UA data.
+		cookies.set(`oauth_state_${providerId}`, state, {
 			...DEFAULT_COOKIE_OPTIONS,
 			maxAge: STATE_COOKIE_MAX_AGE
 		});

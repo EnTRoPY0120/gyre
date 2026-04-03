@@ -17,7 +17,7 @@
 	let errors = $state<Record<string, string>>({});
 
 	let hasProviders = $derived(providers.length > 0);
-	let showLocalLogin = $derived(hasProviders ? localLoginEnabled : true);
+	let showLocalLogin = $derived(localLoginEnabled);
 	let showProviders = $derived(hasProviders);
 	let hasAnyAuth = $derived(showLocalLogin || showProviders);
 

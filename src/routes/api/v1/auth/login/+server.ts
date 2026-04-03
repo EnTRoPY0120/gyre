@@ -10,6 +10,7 @@ import {
 	verifyPassword
 } from '$lib/server/auth';
 import { logLogin } from '$lib/server/audit';
+import { getAuthSettings } from '$lib/server/settings';
 import {
 	createBetterAuthSessionForUser,
 	revokeBetterAuthSessionByCookieValue
@@ -103,13 +104,14 @@ export const _metadata = {
  * Authenticate user and create session
  */
 export const POST: RequestHandler = async (event) => {
-	const { request, cookies, getClientAddress, setHeaders, locals } = event;
-
-	if (!locals.cluster) {
-		throw error(400, { message: 'Missing cluster context' });
-	}
+	const { request, cookies, getClientAddress, setHeaders } = event;
 
 	try {
+		const authSettings = await getAuthSettings();
+		if (!authSettings.localLoginEnabled) {
+			throw error(403, { message: 'Local username/password sign-in is disabled.' });
+		}
+
 		const body = await request.json();
 		const { username, password } = body;
 
@@ -153,10 +155,10 @@ export const POST: RequestHandler = async (event) => {
 		}
 
 		if (!existingUser.active) {
-			// Still do dummy verification here if we want to be super careful,
-			// though account being disabled is already a "user exists" indicator.
+			await verifyPassword(password, await DUMMY_HASH);
+			accountLockout.recordFailure(canonicalUsername, 5);
 			await logLogin(existingUser, false, ipAddress, 'account_disabled');
-			throw error(403, { message: 'Account is disabled. Please contact an administrator.' });
+			throw error(401, { message: 'Invalid username or password' });
 		}
 
 		const user = await authenticateUser(canonicalUsername, password);
