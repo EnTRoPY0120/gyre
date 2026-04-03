@@ -61,6 +61,14 @@
 		return [];
 	}
 
+	function getInitialReferenceNamespace(): string {
+		return referenceNamespace;
+	}
+
+	function getInitialReferenceTypeKey(): string {
+		return getInitialReferenceTypes().join('\u0000');
+	}
+
 	let open = $state(false);
 	let loading = $state(false);
 	let resources = $state<ReferenceOption[]>([]);
@@ -71,9 +79,23 @@
 	let selectedKey = $state<string | null>(null);
 	let selectedLabel = $state('');
 	let lastSelectedValue = $state(value);
-	let lastReferenceNamespace = $state<string | null>(null);
-	let lastReferenceType = $state<string | null>(null);
+	let lastReferenceNamespace = $state(getInitialReferenceNamespace());
+	let lastReferenceType = $state(getInitialReferenceTypeKey());
 	let fetchRequestId = 0;
+	let activeFetchController: AbortController | null = null;
+
+	function cancelActiveFetch() {
+		activeFetchController?.abort();
+		activeFetchController = null;
+		fetchRequestId += 1;
+		loading = false;
+	}
+
+	function isAbortError(error: unknown): boolean {
+		return error instanceof DOMException
+			? error.name === 'AbortError'
+			: error instanceof Error && error.name === 'AbortError';
+	}
 
 	function parseOptionKey(key: string) {
 		const firstSeparator = key.indexOf(':');
@@ -151,25 +173,25 @@
 		const currentNamespace = referenceNamespace;
 		const currentReferenceType = activeReferenceTypes.join('\u0000');
 
-		if (lastReferenceNamespace === null || lastReferenceType === null) {
-			lastReferenceNamespace = currentNamespace;
-			lastReferenceType = currentReferenceType;
-			return;
-		}
-
 		if (currentNamespace !== lastReferenceNamespace) {
-			selectedKey = null;
-			selectedLabel = '';
 			lastSelectedValue = value;
-			fetchRequestId += 1;
+			if (open) {
+				cancelActiveFetch();
+				void fetchResources();
+			}
 			lastReferenceNamespace = currentNamespace;
 		}
 
 		if (currentReferenceType !== lastReferenceType) {
+			cancelActiveFetch();
 			selectedKey = null;
 			selectedLabel = '';
 			lastSelectedValue = value;
+			resources = [];
 			lastReferenceType = currentReferenceType;
+			if (open) {
+				void fetchResources();
+			}
 		}
 	});
 
@@ -183,12 +205,16 @@
 	});
 
 	async function fetchResources() {
+		cancelActiveFetch();
+		const controller = new AbortController();
+		activeFetchController = controller;
 		const currentFetchId = ++fetchRequestId;
 
 		if (activeReferenceTypes.length === 0) {
 			if (currentFetchId === fetchRequestId) {
 				resources = [];
 				loading = false;
+				activeFetchController = null;
 			}
 			return;
 		}
@@ -196,15 +222,28 @@
 		loading = true;
 		try {
 			const includeKindInLabel = activeReferenceTypes.length > 1;
-			const fetchPromises = activeReferenceTypes
+			const existingResourcesByKind = new Map<string, ReferenceOption[]>();
+			for (const resource of resources) {
+				const kindResources = existingResourcesByKind.get(resource.kind) ?? [];
+				kindResources.push(resource);
+				existingResourcesByKind.set(resource.kind, kindResources);
+			}
+
+			const fetchTargets = activeReferenceTypes
 				.filter((kind) => kind !== '*')
-				.map(async (kind) => {
+				.map((kind) => ({
+					kind,
+					promise: (async () => {
 					const routeType = resolveResourceRouteType(kind);
 					if (!routeType) {
 						throw new Error(`Unknown reference type: ${kind}`);
 					}
 
-					const res = await fetchWithRetry(`/api/v1/flux/${routeType}`);
+					const res = await fetchWithRetry(
+						`/api/v1/flux/${routeType}`,
+						{ signal: controller.signal },
+						{ maxRetries: 0 }
+					);
 					if (!res.ok) {
 						const errorBody = await res.text();
 						throw new Error(
@@ -237,17 +276,27 @@
 							} satisfies ReferenceOption;
 						}) || []
 					);
-				});
+					})()
+				}));
 
-			const results = await Promise.allSettled(fetchPromises);
-			const nextResources: ReferenceOption[] = [];
+			const results = await Promise.allSettled(fetchTargets.map((target) => target.promise));
+			const freshResourcesByKind = new Map<string, ReferenceOption[]>();
+			let sawFailure = false;
 
-			results.forEach((result) => {
+			results.forEach((result, index) => {
 				if (currentFetchId !== fetchRequestId) return;
 
+				const { kind } = fetchTargets[index];
+
 				if (result.status === 'fulfilled') {
-					nextResources.push(...result.value);
+					freshResourcesByKind.set(kind, result.value);
+				} else if (!isAbortError(result.reason)) {
+					sawFailure = true;
 				} else {
+					return;
+				}
+
+				if (result.status === 'rejected' && !isAbortError(result.reason)) {
 					logger.error(
 						result.reason instanceof Error ? result.reason : new Error(String(result.reason)),
 						'Failed to fetch resources:'
@@ -255,17 +304,38 @@
 				}
 			});
 
-			if (currentFetchId === fetchRequestId && nextResources.length > 0) {
-				resources = Array.from(
-					new Map(nextResources.map((resource) => [resource.key, resource])).values()
-				).sort((a, b) => a.label.localeCompare(b.label));
+			if (currentFetchId === fetchRequestId) {
+				const allKindsSucceeded = fetchTargets.every(({ kind }) => freshResourcesByKind.has(kind));
+				const mergedResources = new Map<string, ReferenceOption>();
+
+				for (const { kind } of fetchTargets) {
+					const kindResources = freshResourcesByKind.get(kind) ?? existingResourcesByKind.get(kind) ?? [];
+					for (const resource of kindResources) {
+						mergedResources.set(resource.key, resource);
+					}
+				}
+
+				if (allKindsSucceeded) {
+					resources = Array.from(mergedResources.values()).sort((a, b) =>
+						a.label.localeCompare(b.label)
+					);
+				} else if (!sawFailure) {
+					resources = Array.from(mergedResources.values()).sort((a, b) =>
+						a.label.localeCompare(b.label)
+					);
+				} else if (mergedResources.size > 0) {
+					resources = Array.from(mergedResources.values()).sort((a, b) =>
+						a.label.localeCompare(b.label)
+					);
+				}
 			}
 		} catch (err) {
-			if (currentFetchId === fetchRequestId) {
+			if (currentFetchId === fetchRequestId && !isAbortError(err)) {
 				logger.error(err, 'Failed to fetch resources:');
 			}
 		} finally {
 			if (currentFetchId === fetchRequestId) {
+				activeFetchController = null;
 				loading = false;
 			}
 		}
