@@ -61,6 +61,7 @@
 	let selectedKey = $state<string | null>(null);
 	let selectedLabel = $state('');
 	let lastSelectedValue = $state(value);
+	let lastReferenceNamespace = $state('');
 	let fetchRequestId = 0;
 
 	function parseOptionKey(key: string) {
@@ -141,6 +142,17 @@
 		}
 
 		return referenceNamespace ? `${value} (${referenceNamespace})` : value;
+	});
+
+	$effect(() => {
+		const currentNamespace = referenceNamespace;
+		if (currentNamespace !== lastReferenceNamespace) {
+			selectedKey = null;
+			selectedLabel = '';
+			lastSelectedValue = value;
+			lastReferenceNamespace = currentNamespace;
+			fetchRequestId += 1;
+		}
 	});
 
 	$effect(() => {
