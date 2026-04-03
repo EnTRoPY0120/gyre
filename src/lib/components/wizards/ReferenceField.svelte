@@ -62,6 +62,7 @@
 	let selectedLabel = $state('');
 	let lastSelectedValue = $state(value);
 	let lastReferenceNamespace = $state('');
+	let lastReferenceType = $state('');
 	let fetchRequestId = 0;
 
 	function parseOptionKey(key: string) {
@@ -147,11 +148,23 @@
 	$effect(() => {
 		const currentNamespace = referenceNamespace;
 		if (currentNamespace !== lastReferenceNamespace) {
+			if (lastSelectedValue !== value) {
+				selectedKey = null;
+				selectedLabel = '';
+				lastSelectedValue = value;
+				fetchRequestId += 1;
+			}
+			lastReferenceNamespace = currentNamespace;
+		}
+	});
+
+	$effect(() => {
+		const currentReferenceType = activeReferenceTypes.join('\u0000');
+		if (currentReferenceType !== lastReferenceType) {
 			selectedKey = null;
 			selectedLabel = '';
 			lastSelectedValue = value;
-			lastReferenceNamespace = currentNamespace;
-			fetchRequestId += 1;
+			lastReferenceType = currentReferenceType;
 		}
 	});
 
