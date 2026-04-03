@@ -51,6 +51,16 @@
 		onValueChange?: (value: string, selection?: ReferenceOption) => void;
 	} = $props();
 
+	function getInitialReferenceTypes(): string[] {
+		if (referenceTypeField) {
+			const typeFromField = formValues[referenceTypeField];
+			return typeFromField ? [String(typeFromField)] : [];
+		}
+		if (Array.isArray(referenceType)) return referenceType;
+		if (referenceType) return [referenceType];
+		return [];
+	}
+
 	let open = $state(false);
 	let loading = $state(false);
 	let resources = $state<ReferenceOption[]>([]);
@@ -61,8 +71,8 @@
 	let selectedKey = $state<string | null>(null);
 	let selectedLabel = $state('');
 	let lastSelectedValue = $state(value);
-	let lastReferenceNamespace = $state('');
-	let lastReferenceType = $state('');
+	let lastReferenceNamespace = $state<string | null>(null);
+	let lastReferenceType = $state<string | null>(null);
 	let fetchRequestId = 0;
 
 	function parseOptionKey(key: string) {
@@ -95,15 +105,7 @@
 	}
 
 	// Resolve the actual resource types to fetch
-	const activeReferenceTypes = $derived.by(() => {
-		if (referenceTypeField) {
-			const typeFromField = formValues[referenceTypeField];
-			return typeFromField ? [String(typeFromField)] : [];
-		}
-		if (Array.isArray(referenceType)) return referenceType;
-		if (referenceType) return [referenceType];
-		return [];
-	});
+	const activeReferenceTypes = $derived.by(() => getInitialReferenceTypes());
 
 	const filteredResources = $derived.by(() => {
 		const query = searchQuery.trim().toLowerCase();
@@ -147,19 +149,22 @@
 
 	$effect(() => {
 		const currentNamespace = referenceNamespace;
+		const currentReferenceType = activeReferenceTypes.join('\u0000');
+
+		if (lastReferenceNamespace === null || lastReferenceType === null) {
+			lastReferenceNamespace = currentNamespace;
+			lastReferenceType = currentReferenceType;
+			return;
+		}
+
 		if (currentNamespace !== lastReferenceNamespace) {
-			if (lastSelectedValue !== value) {
-				selectedKey = null;
-				selectedLabel = '';
-				lastSelectedValue = value;
-				fetchRequestId += 1;
-			}
+			selectedKey = null;
+			selectedLabel = '';
+			lastSelectedValue = value;
+			fetchRequestId += 1;
 			lastReferenceNamespace = currentNamespace;
 		}
-	});
 
-	$effect(() => {
-		const currentReferenceType = activeReferenceTypes.join('\u0000');
 		if (currentReferenceType !== lastReferenceType) {
 			selectedKey = null;
 			selectedLabel = '';
@@ -189,7 +194,6 @@
 		}
 
 		loading = true;
-		resources = [];
 		try {
 			const includeKindInLabel = activeReferenceTypes.length > 1;
 			const fetchPromises = activeReferenceTypes
@@ -251,7 +255,7 @@
 				}
 			});
 
-			if (currentFetchId === fetchRequestId) {
+			if (currentFetchId === fetchRequestId && nextResources.length > 0) {
 				resources = Array.from(
 					new Map(nextResources.map((resource) => [resource.key, resource])).values()
 				).sort((a, b) => a.label.localeCompare(b.label));
@@ -259,7 +263,6 @@
 		} catch (err) {
 			if (currentFetchId === fetchRequestId) {
 				logger.error(err, 'Failed to fetch resources:');
-				resources = [];
 			}
 		} finally {
 			if (currentFetchId === fetchRequestId) {
