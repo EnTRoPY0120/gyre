@@ -525,6 +525,7 @@
 															/>
 														{:else if field.referenceType || field.referenceTypeField}
 											<ReferenceField
+												id="field-{field.name}"
 												bind:value={formValues[field.name] as string}
 												referenceType={field.referenceType}
 												referenceTypeField={field.referenceTypeField}
@@ -643,6 +644,7 @@
 												/>
 											{:else if field.referenceType || field.referenceTypeField}
 										<ReferenceField
+											id="field-{field.name}"
 											bind:value={formValues[field.name] as string}
 											referenceType={field.referenceType}
 											referenceTypeField={field.referenceTypeField}

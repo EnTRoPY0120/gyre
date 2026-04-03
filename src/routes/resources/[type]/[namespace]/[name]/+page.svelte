@@ -63,16 +63,20 @@
 	});
 
 	// Real-time updates via SSE
-		onMount(() => {
-			const unsubscribe = eventsStore.onEvent((event) => {
-				if (
-					event.resource &&
-					event.resource.metadata.name === data.name &&
-					event.resource.metadata.namespace === data.namespace &&
-					resolveResourceRouteType(event.resourceType ?? '') === data.resourceType
-				) {
-					invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
-				}
+	onMount(() => {
+		const unsubscribe = eventsStore.onEvent((event) => {
+			const resolvedEventType =
+				resolveResourceRouteType(event.resourceType ?? '') ??
+				resolveResourceRouteType(data.resource.kind);
+
+			if (
+				event.resource &&
+				event.resource.metadata.name === data.name &&
+				event.resource.metadata.namespace === data.namespace &&
+				resolvedEventType === data.resourceType
+			) {
+				invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
+			}
 		});
 		return unsubscribe;
 	});
