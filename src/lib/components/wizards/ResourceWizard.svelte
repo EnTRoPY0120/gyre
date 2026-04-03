@@ -230,8 +230,9 @@
 		handleFieldChange(field);
 
 		if (!field.referenceNamespaceField) return;
+		if (selection?.namespace === undefined) return;
 
-		formValues[field.referenceNamespaceField] = selection?.namespace ?? '';
+		formValues[field.referenceNamespaceField] = selection.namespace;
 		const namespaceField = template.fields.find(
 			(candidate) => candidate.name === field.referenceNamespaceField
 		);

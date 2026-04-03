@@ -157,7 +157,14 @@ class ResourceCacheStore {
 			: `/api/v1/flux/${encodeURIComponent(normalizedType)}`;
 		try {
 			const res = await fetchWithRetry(url);
-			if (!res.ok) throw new Error(`Failed to fetch ${normalizedType} list`);
+			if (!res.ok) {
+				if (res.status >= 400 && res.status < 500) {
+					this.setList(normalizedType, [], namespace);
+					return [];
+				}
+
+				throw new Error(`Failed to fetch ${normalizedType} list: ${res.status}`);
+			}
 			const data = await res.json();
 			const items = data.items || [];
 			this.setList(normalizedType, items, namespace);
@@ -175,7 +182,14 @@ class ResourceCacheStore {
 			const res = await fetchWithRetry(
 				`/api/v1/flux/${encodeURIComponent(normalizedType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`
 			);
-			if (!res.ok) throw new Error(`Failed to fetch ${normalizedType}/${namespace}/${name}`);
+			if (!res.ok) {
+				if (res.status >= 400 && res.status < 500) {
+					this.invalidateResource(normalizedType, namespace, name);
+					return null;
+				}
+
+				throw new Error(`Failed to fetch ${normalizedType}/${namespace}/${name}: ${res.status}`);
+			}
 			const resource = await res.json();
 			this.setResource(normalizedType, namespace, name, resource);
 			return resource;

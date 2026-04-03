@@ -58,8 +58,27 @@
 	let focusedIndex = $state(-1);
 	let container: HTMLDivElement | undefined = $state();
 	let searchInput: HTMLInputElement | undefined = $state();
+	let selectedKey = $state<string | null>(null);
 	let selectedLabel = $state('');
 	let lastSelectedValue = $state(value);
+	let fetchRequestId = 0;
+
+	function parseOptionKey(key: string) {
+		const firstSeparator = key.indexOf(':');
+		const secondSeparator = key.indexOf(':', firstSeparator + 1);
+		return {
+			kind: key.slice(0, firstSeparator),
+			namespace: key.slice(firstSeparator + 1, secondSeparator),
+			name: key.slice(secondSeparator + 1)
+		};
+	}
+
+	function optionMatchesCurrentValue(resource: Pick<ReferenceOption, 'name' | 'namespace'>): boolean {
+		return (
+			resource.name === value &&
+			(!referenceNamespace || (resource.namespace ?? '') === referenceNamespace)
+		);
+	}
 
 	function buildOptionLabel(
 		name: string,
@@ -93,41 +112,54 @@
 	const selectedResource = $derived.by(() => {
 		if (!value) return null;
 
-		if (referenceNamespace) {
-			return (
-				resources.find(
-					(resource) => resource.name === value && resource.namespace === referenceNamespace
-				) ?? null
-			);
+		if (selectedKey) {
+			const selectedByKey = resources.find((resource) => resource.key === selectedKey);
+			if (selectedByKey && optionMatchesCurrentValue(selectedByKey)) {
+				return selectedByKey;
+			}
 		}
 
-		if (selectedLabel) {
-			return (
-				resources.find(
-					(resource) => resource.name === value && resource.label === selectedLabel
-				) ?? null
-			);
-		}
-
-		return resources.find((resource) => resource.name === value) ?? null;
+		const matches = resources.filter((resource) => optionMatchesCurrentValue(resource));
+		return matches.length === 1 ? matches[0] : null;
 	});
 
 	const displayValue = $derived.by(() => {
 		if (!value) return placeholder;
-		return selectedResource?.label || selectedLabel || (referenceNamespace ? `${value} (${referenceNamespace})` : value);
+
+		if (selectedResource) {
+			return selectedResource.label;
+		}
+
+		if (selectedKey) {
+			const selectedIdentity = parseOptionKey(selectedKey);
+			if (
+				selectedIdentity.name === value &&
+				(!referenceNamespace || selectedIdentity.namespace === referenceNamespace)
+			) {
+				return selectedLabel;
+			}
+		}
+
+		return referenceNamespace ? `${value} (${referenceNamespace})` : value;
 	});
 
 	$effect(() => {
 		const currentValue = value;
 		if (currentValue !== lastSelectedValue) {
+			selectedKey = null;
 			selectedLabel = '';
 			lastSelectedValue = currentValue;
 		}
 	});
 
 	async function fetchResources() {
+		const currentFetchId = ++fetchRequestId;
+
 		if (activeReferenceTypes.length === 0) {
-			resources = [];
+			if (currentFetchId === fetchRequestId) {
+				resources = [];
+				loading = false;
+			}
 			return;
 		}
 
@@ -182,6 +214,8 @@
 			const nextResources: ReferenceOption[] = [];
 
 			results.forEach((result) => {
+				if (currentFetchId !== fetchRequestId) return;
+
 				if (result.status === 'fulfilled') {
 					nextResources.push(...result.value);
 				} else {
@@ -192,14 +226,20 @@
 				}
 			});
 
-			resources = Array.from(
-				new Map(nextResources.map((resource) => [resource.key, resource])).values()
-			).sort((a, b) => a.label.localeCompare(b.label));
+			if (currentFetchId === fetchRequestId) {
+				resources = Array.from(
+					new Map(nextResources.map((resource) => [resource.key, resource])).values()
+				).sort((a, b) => a.label.localeCompare(b.label));
+			}
 		} catch (err) {
-			logger.error(err, 'Failed to fetch resources:');
-			resources = [];
+			if (currentFetchId === fetchRequestId) {
+				logger.error(err, 'Failed to fetch resources:');
+				resources = [];
+			}
 		} finally {
-			loading = false;
+			if (currentFetchId === fetchRequestId) {
+				loading = false;
+			}
 		}
 	}
 
@@ -217,6 +257,7 @@
 	}
 
 	function handleSelect(resource: ReferenceOption) {
+		selectedKey = resource.key;
 		lastSelectedValue = resource.name;
 		selectedLabel = resource.label;
 		value = resource.name;
