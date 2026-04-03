@@ -1,7 +1,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { subscribe, type SSEEvent } from '$lib/server/events.js';
-import { checkPermission } from '$lib/server/rbac.js';
+import { checkClusterWideReadPermission } from '$lib/server/rbac.js';
 import { sseConnectionLimiter } from '$lib/server/rate-limiter.js';
 import { logger } from '$lib/server/logger.js';
 import { sseConnectionsRejectedTotal } from '$lib/server/metrics.js';
@@ -37,13 +37,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 	}
 
 	// Check permission
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		undefined,
-		undefined,
-		locals.cluster
-	);
+	const hasPermission = await checkClusterWideReadPermission(locals.user, locals.cluster);
 	if (!hasPermission) {
 		return error(403, { message: 'Permission denied' });
 	}

@@ -4,14 +4,14 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getKubeConfig } from '$lib/server/kubernetes/client.js';
 import * as k8s from '@kubernetes/client-node';
-import { checkPermission } from '$lib/server/rbac.js';
+import { checkClusterWideReadPermission } from '$lib/server/rbac.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const _metadata = {
 	GET: {
 		summary: 'Get Flux version',
 		description:
-			'Retrieve the Flux version installed in the cluster by inspecting deployment labels in the flux-system namespace.',
+			'Retrieve the Flux version installed in the cluster by inspecting deployment labels in the flux-system namespace. Requires explicit cluster-wide read permission.',
 		tags: ['Flux'],
 		responses: {
 			200: {
@@ -42,13 +42,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	// Check permission
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		undefined,
-		undefined,
-		locals.cluster
-	);
+	const hasPermission = await checkClusterWideReadPermission(locals.user, locals.cluster);
 	if (!hasPermission) {
 		throw error(403, { message: 'Permission denied' });
 	}

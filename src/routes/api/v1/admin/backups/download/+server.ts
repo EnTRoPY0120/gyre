@@ -22,7 +22,7 @@ import {
 	BACKUP_FILENAME_RE
 } from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
-import { checkPermission } from '$lib/server/rbac';
+import { requirePermission } from '$lib/server/rbac';
 import { createReadStream, statSync } from 'node:fs';
 import { basename } from 'node:path';
 
@@ -36,7 +36,7 @@ export const _metadata = {
 	GET: {
 		summary: 'Download database backup',
 		description:
-			'Download a specific database backup file as a SQLite binary. Encrypted backups are decrypted before download. Read permission required.',
+			'Download a specific database backup file as a SQLite binary. Encrypted backups are decrypted before download. Admin permission required.',
 		tags: ['Admin'],
 		request: {
 			query: z.object({
@@ -60,7 +60,7 @@ export const _metadata = {
 				content: { 'application/json': { schema: errorSchema } }
 			},
 			403: {
-				description: 'Permission denied',
+				description: 'Admin permission required',
 				content: { 'application/json': { schema: errorSchema } }
 			},
 			404: {
@@ -93,16 +93,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	try {
-		const allowed = await checkPermission(
-			locals.user,
-			'read',
-			'DatabaseBackup',
-			undefined,
-			clusterId
-		);
-		if (!allowed) {
-			throw error(403, { message: 'Permission denied', code: 'Forbidden' });
-		}
+		await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
 
 		await logAudit(locals.user, 'backup:download', {
 			resourceType: 'DatabaseBackup',

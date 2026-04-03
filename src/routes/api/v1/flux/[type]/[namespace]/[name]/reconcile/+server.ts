@@ -2,7 +2,7 @@ import { error, json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { reconcileResource } from '$lib/server/kubernetes/flux/actions';
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import { resolveFluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import { checkPermission } from '$lib/server/rbac.js';
 import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
@@ -17,7 +17,7 @@ export const _metadata = {
 		tags: ['Flux'],
 		request: {
 			params: z.object({
-				type: z.string().openapi({ example: 'GitRepository' }),
+				type: z.string().openapi({ example: 'gitrepositories' }),
 				namespace: z.string().openapi({ example: 'flux-system' }),
 				name: z.string().openapi({ example: 'my-repo' })
 			})
@@ -45,15 +45,20 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 	}
 
 	const { type, namespace, name } = params;
+	const resolvedType = resolveFluxResourceType(type);
 
 	validateK8sNamespace(namespace);
 	validateK8sName(name);
+
+	if (!resolvedType) {
+		throw error(400, { message: `Invalid resource type: ${type}` });
+	}
 
 	// Check permission for write action
 	const hasPermission = await checkPermission(
 		locals.user,
 		'write',
-		type as FluxResourceType,
+		resolvedType,
 		namespace,
 		locals.cluster
 	);
@@ -63,12 +68,20 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 	}
 
 	try {
-		await reconcileResource(type as FluxResourceType, namespace, name, locals.cluster);
+		await reconcileResource(resolvedType, namespace, name, locals.cluster);
 
 		// Log the audit event
-		await logResourceWrite(locals.user, type, 'reconcile', name, namespace, locals.cluster, {
-			ipAddress: getClientAddress()
-		});
+		await logResourceWrite(
+			locals.user,
+			resolvedType,
+			'reconcile',
+			name,
+			namespace,
+			locals.cluster,
+			{
+				ipAddress: getClientAddress()
+			}
+		);
 
 		// Capture a trigger-only history entry. No resource is passed so only
 		// the trigger metadata (who, when) is stored — no stale revision or status
@@ -76,7 +89,7 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 		// captured separately by the event watcher once FluxCD completes the cycle.
 		try {
 			await captureReconciliation({
-				resourceType: type as FluxResourceType,
+				resourceType: resolvedType,
 				namespace,
 				name,
 				clusterId: locals.cluster ?? 'in-cluster',
@@ -91,7 +104,7 @@ export const POST: RequestHandler = async ({ params, locals, getClientAddress })
 	} catch (err) {
 		// Log failed audit event with sanitized error and success: false
 		await logAudit(locals.user, 'write:reconcile', {
-			resourceType: type,
+			resourceType: resolvedType,
 			resourceName: name,
 			namespace,
 			clusterId: locals.cluster,

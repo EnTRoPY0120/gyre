@@ -16,7 +16,13 @@ mock.module('../lib/server/db/index.js', () => ({
 	schema
 }));
 
-import { checkPermission, isAdmin, requirePermission, RbacError } from '../lib/server/rbac.js';
+import {
+	checkClusterWideReadPermission,
+	checkPermission,
+	isAdmin,
+	requirePermission,
+	RbacError
+} from '../lib/server/rbac.js';
 import type { User } from '../lib/server/db/schema.js';
 
 // ---------------------------------------------------------------------------
@@ -84,6 +90,7 @@ function makeUser(id: string, role: 'admin' | 'editor' | 'viewer' = 'viewer'): U
 		role,
 		active: true,
 		isLocal: true,
+		requiresPasswordChange: false,
 		createdAt: new Date(),
 		updatedAt: new Date(),
 		preferences: null
@@ -145,7 +152,7 @@ describe('checkPermission', () => {
 
 	test('write policy grants read via hierarchy', async () => {
 		const db = state.db!;
-		const user = makeUser('user-write');
+		const user = makeUser('user-write', 'editor');
 
 		await db.insert(schema.rbacPolicies).values({
 			id: 'p-write',
@@ -161,9 +168,43 @@ describe('checkPermission', () => {
 		expect(await checkPermission(user, 'admin')).toBe(false);
 	});
 
-	test('admin policy grants read, write, and admin', async () => {
+	test('editor can use viewer-scoped policies via role hierarchy', async () => {
 		const db = state.db!;
-		const user = makeUser('user-admin-policy');
+		const user = makeUser('user-editor-viewer-policy', 'editor');
+
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-viewer-read',
+			name: 'viewer-read-policy',
+			role: 'viewer',
+			action: 'read',
+			isActive: true
+		});
+		await db.insert(schema.rbacBindings).values({ userId: user.id, policyId: 'p-viewer-read' });
+
+		expect(await checkPermission(user, 'read')).toBe(true);
+		expect(await checkPermission(user, 'write')).toBe(false);
+	});
+
+	test('viewer cannot use editor-scoped policies', async () => {
+		const db = state.db!;
+		const user = makeUser('user-viewer-editor-policy', 'viewer');
+
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-editor-write',
+			name: 'editor-write-policy',
+			role: 'editor',
+			action: 'write',
+			isActive: true
+		});
+		await db.insert(schema.rbacBindings).values({ userId: user.id, policyId: 'p-editor-write' });
+
+		expect(await checkPermission(user, 'read')).toBe(false);
+		expect(await checkPermission(user, 'write')).toBe(false);
+	});
+
+	test('editor cannot use admin-scoped policies', async () => {
+		const db = state.db!;
+		const user = makeUser('user-editor-admin-policy', 'editor');
 
 		await db.insert(schema.rbacPolicies).values({
 			id: 'p-admin',
@@ -174,9 +215,9 @@ describe('checkPermission', () => {
 		});
 		await db.insert(schema.rbacBindings).values({ userId: user.id, policyId: 'p-admin' });
 
-		expect(await checkPermission(user, 'read')).toBe(true);
-		expect(await checkPermission(user, 'write')).toBe(true);
-		expect(await checkPermission(user, 'admin')).toBe(true);
+		expect(await checkPermission(user, 'read')).toBe(false);
+		expect(await checkPermission(user, 'write')).toBe(false);
+		expect(await checkPermission(user, 'admin')).toBe(false);
 	});
 
 	test('inactive policy is ignored', async () => {
@@ -341,6 +382,94 @@ describe('checkPermission', () => {
 	});
 });
 
+describe('checkClusterWideReadPermission', () => {
+	beforeEach(() => {
+		state.db = setupInMemoryDb();
+	});
+
+	test('requires an unscoped policy for cluster-wide reads', async () => {
+		const db = state.db!;
+		const user = makeUser('user-cluster-wide');
+
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-cluster-wide',
+			name: 'cluster-wide-read',
+			role: 'viewer',
+			action: 'read',
+			clusterId: 'cluster-a',
+			isActive: true,
+			resourceType: null,
+			namespacePattern: null
+		});
+		await db.insert(schema.rbacBindings).values({ userId: user.id, policyId: 'p-cluster-wide' });
+
+		expect(await checkClusterWideReadPermission(user, 'cluster-a')).toBe(true);
+		expect(await checkClusterWideReadPermission(user, 'cluster-b')).toBe(false);
+	});
+
+	test('rejects resource-scoped policies for cluster-wide reads', async () => {
+		const db = state.db!;
+		const user = makeUser('user-resource-scoped');
+
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-resource-scoped',
+			name: 'resource-scoped-read',
+			role: 'viewer',
+			action: 'read',
+			clusterId: 'cluster-a',
+			resourceType: 'Kustomization',
+			isActive: true
+		});
+		await db.insert(schema.rbacBindings).values({
+			userId: user.id,
+			policyId: 'p-resource-scoped'
+		});
+
+		expect(await checkClusterWideReadPermission(user, 'cluster-a')).toBe(false);
+	});
+
+	test('rejects namespace-scoped policies for cluster-wide reads', async () => {
+		const db = state.db!;
+		const user = makeUser('user-namespace-scoped');
+
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-namespace-scoped',
+			name: 'namespace-scoped-read',
+			role: 'viewer',
+			action: 'read',
+			clusterId: 'cluster-a',
+			namespacePattern: 'flux-system',
+			isActive: true
+		});
+		await db.insert(schema.rbacBindings).values({
+			userId: user.id,
+			policyId: 'p-namespace-scoped'
+		});
+
+		expect(await checkClusterWideReadPermission(user, 'cluster-a')).toBe(false);
+	});
+
+	test('applies the same role hierarchy rules', async () => {
+		const db = state.db!;
+		const user = makeUser('viewer-bound-to-editor', 'viewer');
+
+		await db.insert(schema.rbacPolicies).values({
+			id: 'p-editor-cluster-wide',
+			name: 'editor-cluster-wide',
+			role: 'editor',
+			action: 'read',
+			clusterId: 'cluster-a',
+			isActive: true
+		});
+		await db.insert(schema.rbacBindings).values({
+			userId: user.id,
+			policyId: 'p-editor-cluster-wide'
+		});
+
+		expect(await checkClusterWideReadPermission(user, 'cluster-a')).toBe(false);
+	});
+});
+
 describe('requirePermission', () => {
 	beforeEach(() => {
 		state.db = setupInMemoryDb();
@@ -375,6 +504,7 @@ describe('requirePermission', () => {
 		} catch (err) {
 			expect(err).toBeInstanceOf(RbacError);
 			expect((err as RbacError).action).toBe('write');
+			expect((err as RbacError).status).toBe(403);
 		}
 	});
 

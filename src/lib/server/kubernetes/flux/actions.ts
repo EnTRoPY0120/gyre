@@ -1,5 +1,16 @@
 import { getCustomObjectsApi, handleK8sError } from '../client';
-import { getResourceDef, getResourceTypeByPlural } from './resources';
+import { getResourceDef, resolveFluxResourceType } from './resources';
+
+function requireResourceDef(resourceType: string) {
+	const resolvedType = resolveFluxResourceType(resourceType);
+	const resourceDef = resolvedType ? getResourceDef(resolvedType) : undefined;
+
+	if (!resourceDef) {
+		throw new Error(`Unknown resource type: ${resourceType}`);
+	}
+
+	return resourceDef;
+}
 
 /**
  * Suspend or Resume a FluxCD resource
@@ -12,17 +23,7 @@ export async function toggleSuspendResource(
 	suspend: boolean,
 	context?: string
 ): Promise<void> {
-	let resourceDef = getResourceDef(resourceType);
-	if (!resourceDef) {
-		const key = getResourceTypeByPlural(resourceType);
-		if (key) {
-			resourceDef = getResourceDef(key);
-		}
-	}
-
-	if (!resourceDef) {
-		throw new Error(`Unknown resource type: ${resourceType}`);
-	}
+	const resourceDef = requireResourceDef(resourceType);
 
 	const api = await getCustomObjectsApi(context);
 
@@ -65,17 +66,7 @@ export async function reconcileResource(
 	name: string,
 	context?: string
 ): Promise<void> {
-	let resourceDef = getResourceDef(resourceType);
-	if (!resourceDef) {
-		const key = getResourceTypeByPlural(resourceType);
-		if (key) {
-			resourceDef = getResourceDef(key);
-		}
-	}
-
-	if (!resourceDef) {
-		throw new Error(`Unknown resource type: ${resourceType}`);
-	}
+	const resourceDef = requireResourceDef(resourceType);
 
 	const api = await getCustomObjectsApi(context);
 	const now = new Date().toISOString();
@@ -119,17 +110,7 @@ export async function deleteResource(
 	name: string,
 	context?: string
 ): Promise<void> {
-	let resourceDef = getResourceDef(resourceType);
-	if (!resourceDef) {
-		const key = getResourceTypeByPlural(resourceType);
-		if (key) {
-			resourceDef = getResourceDef(key);
-		}
-	}
-
-	if (!resourceDef) {
-		throw new Error(`Unknown resource type: ${resourceType}`);
-	}
+	const resourceDef = requireResourceDef(resourceType);
 
 	const api = await getCustomObjectsApi(context);
 
