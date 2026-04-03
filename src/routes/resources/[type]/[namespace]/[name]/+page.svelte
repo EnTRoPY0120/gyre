@@ -65,9 +65,13 @@
 	// Real-time updates via SSE
 	onMount(() => {
 		const unsubscribe = eventsStore.onEvent((event) => {
+			const eventKind =
+				typeof event.resource === 'object' && event.resource !== null && 'kind' in event.resource
+					? String((event.resource as { kind?: string }).kind ?? '')
+					: '';
 			const resolvedEventType =
 				resolveResourceRouteType(event.resourceType ?? '') ??
-				resolveResourceRouteType(data.resource.kind);
+				resolveResourceRouteType(eventKind);
 
 			if (
 				event.resource &&
