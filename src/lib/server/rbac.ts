@@ -12,10 +12,67 @@ import { logger } from './logger.js';
  * - admin: Delete resources, manage policies
  */
 export type RbacAction = 'read' | 'write' | 'admin';
+type RbacRole = 'admin' | 'editor' | 'viewer';
 
 // Allowlist for namespace GLOB patterns: Kubernetes namespace chars plus * and ? wildcards.
 // Kubernetes namespace names are lowercase alphanumeric with hyphens.
 const NAMESPACE_PATTERN_REGEX = /^[a-z0-9*?][a-z0-9\-*?]*$/;
+
+const ROLE_RANK: Record<RbacRole, number> = {
+	viewer: 0,
+	editor: 1,
+	admin: 2
+};
+
+function getAllowedPolicyRoles(userRole: User['role']): RbacRole[] {
+	return (Object.entries(ROLE_RANK) as Array<[RbacRole, number]>)
+		.filter(([, rank]) => rank <= ROLE_RANK[userRole])
+		.map(([role]) => role);
+}
+
+function getActionCondition(action: RbacAction) {
+	return or(
+		eq(rbacPolicies.action, action),
+		// Admin action allows everything below it
+		and(eq(rbacPolicies.action, 'admin'), sql`${sql.param(action)} IN ('read', 'write')`),
+		// Write action allows read
+		and(eq(rbacPolicies.action, 'write'), eq(sql`${sql.param(action)}`, 'read'))
+	);
+}
+
+async function getValidBoundPolicyIds(userId: string): Promise<string[]> {
+	const db = getDbSync();
+
+	const userBindings = await db
+		.select({
+			policyId: rbacBindings.policyId
+		})
+		.from(rbacBindings)
+		.where(eq(rbacBindings.userId, userId));
+
+	if (userBindings.length === 0) {
+		return [];
+	}
+
+	const policyIds = userBindings.map((binding) => binding.policyId);
+	const candidatePolicies = await db
+		.select({ id: rbacPolicies.id, namespacePattern: rbacPolicies.namespacePattern })
+		.from(rbacPolicies)
+		.where(and(inArray(rbacPolicies.id, policyIds), eq(rbacPolicies.isActive, true)));
+
+	const validPolicyIds: string[] = [];
+	for (const policy of candidatePolicies) {
+		if (policy.namespacePattern !== null && !isValidNamespacePattern(policy.namespacePattern)) {
+			logger.warn(
+				`Skipping RBAC policy ${policy.id} with invalid namespacePattern: "${policy.namespacePattern}"`
+			);
+			continue;
+		}
+		validPolicyIds.push(policy.id);
+	}
+
+	return validPolicyIds;
+}
 
 /**
  * Returns true if the given namespace GLOB pattern is safe to execute.
@@ -48,43 +105,7 @@ export async function checkPermission(
 	}
 
 	const db = getDbSync();
-
-	// Get all policies bound to this user
-	const userBindings = await db
-		.select({
-			policyId: rbacBindings.policyId
-		})
-		.from(rbacBindings)
-		.where(eq(rbacBindings.userId, user.id));
-
-	if (userBindings.length === 0) {
-		return false;
-	}
-
-	const policyIds = userBindings.map((b) => b.policyId);
-
-	// Fetch namespace patterns for all candidate policies so we can validate them
-	// before passing them to SQLite GLOB. Policies with invalid patterns are skipped.
-	const candidatePolicies = await db
-		.select({ id: rbacPolicies.id, namespacePattern: rbacPolicies.namespacePattern })
-		.from(rbacPolicies)
-		.where(
-			and(
-				sql`${rbacPolicies.id} IN (${sql.join(policyIds, sql`, `)})`,
-				eq(rbacPolicies.isActive, true)
-			)
-		);
-
-	const validPolicyIds: string[] = [];
-	for (const policy of candidatePolicies) {
-		if (policy.namespacePattern !== null && !isValidNamespacePattern(policy.namespacePattern)) {
-			logger.warn(
-				`Skipping RBAC policy ${policy.id} with invalid namespacePattern: "${policy.namespacePattern}"`
-			);
-			continue;
-		}
-		validPolicyIds.push(policy.id);
-	}
+	const validPolicyIds = await getValidBoundPolicyIds(user.id);
 
 	if (validPolicyIds.length === 0) {
 		return false;
@@ -95,15 +116,11 @@ export async function checkPermission(
 		// Policy must be active
 		eq(rbacPolicies.isActive, true),
 		// Policy must be one of the validated policies
-		sql`${rbacPolicies.id} IN (${sql.join(validPolicyIds, sql`, `)})`,
+		inArray(rbacPolicies.id, validPolicyIds),
+		// Policy role must apply to this user's role
+		inArray(rbacPolicies.role, getAllowedPolicyRoles(user.role)),
 		// Action must be allowed (read < write < admin hierarchy)
-		or(
-			eq(rbacPolicies.action, action),
-			// Admin action allows everything below it
-			and(eq(rbacPolicies.action, 'admin'), sql`${sql.param(action)} IN ('read', 'write')`),
-			// Write action allows read
-			and(eq(rbacPolicies.action, 'write'), eq(sql`${sql.param(action)}`, 'read'))
-		)
+		getActionCondition(action)
 	];
 
 	// If resource type specified, check if policy allows it (or allows all with null)
@@ -151,6 +168,52 @@ export async function checkPermission(
 }
 
 /**
+ * Check if a user has permission to read cluster-wide data.
+ *
+ * Unlike checkPermission(), this requires an explicit unscoped policy:
+ * - resourceType must be null
+ * - namespacePattern must be null
+ * - clusterId must match the current cluster or be null
+ */
+export async function checkClusterWideReadPermission(
+	user: User,
+	clusterId?: string
+): Promise<boolean> {
+	if (user.role === 'admin') {
+		return true;
+	}
+
+	const validPolicyIds = await getValidBoundPolicyIds(user.id);
+	if (validPolicyIds.length === 0) {
+		return false;
+	}
+
+	const db = getDbSync();
+	const conditions = [
+		eq(rbacPolicies.isActive, true),
+		inArray(rbacPolicies.id, validPolicyIds),
+		inArray(rbacPolicies.role, getAllowedPolicyRoles(user.role)),
+		getActionCondition('read'),
+		sql`${rbacPolicies.resourceType} IS NULL`,
+		sql`${rbacPolicies.namespacePattern} IS NULL`
+	];
+
+	if (clusterId) {
+		conditions.push(
+			or(sql`${rbacPolicies.clusterId} IS NULL`, eq(rbacPolicies.clusterId, clusterId))
+		);
+	}
+
+	const matchingPolicies = await db
+		.select({ count: sql<number>`count(*)` })
+		.from(rbacPolicies)
+		.where(and(...conditions))
+		.get();
+
+	return (matchingPolicies?.count ?? 0) > 0;
+}
+
+/**
  * Require permission or throw error
  */
 export async function requirePermission(
@@ -170,6 +233,9 @@ export async function requirePermission(
  * Custom RBAC error
  */
 export class RbacError extends Error {
+	status = 403;
+	body: { message: string; code: string };
+
 	constructor(
 		message: string,
 		public action: RbacAction,
@@ -177,6 +243,10 @@ export class RbacError extends Error {
 	) {
 		super(message);
 		this.name = 'RbacError';
+		this.body = {
+			message,
+			code: 'Forbidden'
+		};
 	}
 }
 

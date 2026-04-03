@@ -3,14 +3,14 @@ import { z } from '$lib/server/openapi';
 import { k8sEventSchema } from '$lib/server/kubernetes/schemas';
 import type { RequestHandler } from './$types';
 import { getAllRecentEvents } from '$lib/server/kubernetes/events';
-import { checkPermission } from '$lib/server/rbac.js';
+import { checkClusterWideReadPermission } from '$lib/server/rbac.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 
 export const _metadata = {
 	GET: {
 		summary: 'List recent cluster events',
 		description:
-			'Retrieve recent Kubernetes events across all namespaces. Use the limit parameter to control how many events are returned.',
+			'Retrieve recent Kubernetes events across all namespaces. Requires explicit cluster-wide read permission. Use the limit parameter to control how many events are returned.',
 		tags: ['Flux'],
 		request: {
 			query: z.object({
@@ -47,13 +47,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	// Check permission
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		undefined,
-		undefined,
-		locals.cluster
-	);
+	const hasPermission = await checkClusterWideReadPermission(locals.user, locals.cluster);
 	if (!hasPermission) {
 		throw error(403, { message: 'Permission denied' });
 	}

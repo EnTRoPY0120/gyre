@@ -27,7 +27,7 @@ export const _metadata = {
 	GET: {
 		summary: 'List database backups',
 		description:
-			'Retrieve a list of all available database backup files. Read permission required.',
+			'Retrieve a list of all available database backup files. Admin permission required.',
 		tags: ['Admin'],
 		responses: {
 			200: {
@@ -43,7 +43,7 @@ export const _metadata = {
 				content: { 'application/json': { schema: errorSchema } }
 			},
 			403: {
-				description: 'Permission denied',
+				description: 'Admin permission required',
 				content: { 'application/json': { schema: errorSchema } }
 			},
 			500: {
@@ -146,7 +146,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	}
 
 	const clusterId = locals.cluster || 'in-cluster';
-	await requirePermission(locals.user, 'read', 'DatabaseBackup', undefined, clusterId);
+	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
 
 	try {
 		const backups = listBackups();

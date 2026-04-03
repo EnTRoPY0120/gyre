@@ -178,3 +178,15 @@ export function getResourceTypeByPlural(plural: string): FluxResourceType | unde
 	}
 	return undefined;
 }
+
+/**
+ * Resolve either a canonical kind (e.g. Kustomization) or plural route param
+ * (e.g. kustomizations) to the canonical Flux resource type.
+ */
+export function resolveFluxResourceType(resourceType: string): FluxResourceType | undefined {
+	if (resourceType in FLUX_RESOURCES) {
+		return resourceType as FluxResourceType;
+	}
+
+	return getResourceTypeByPlural(resourceType);
+}

@@ -4,13 +4,14 @@ import type { RequestHandler } from './$types';
 import { listFluxResources, type ReqCache } from '$lib/server/kubernetes/client';
 import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
 import { getResourceStatus } from '$lib/utils/relationships';
-import { checkPermission } from '$lib/server/rbac.js';
+import { checkClusterWideReadPermission } from '$lib/server/rbac.js';
 import { logger } from '$lib/server/logger.js';
 
 export const _metadata = {
 	GET: {
 		summary: 'Get FluxCD overview',
-		description: 'Retrieve status summaries for all FluxCD resource types.',
+		description:
+			'Retrieve status summaries for all FluxCD resource types. Requires explicit cluster-wide read permission.',
 		tags: ['Flux'],
 		responses: {
 			200: {
@@ -46,13 +47,7 @@ export const GET: RequestHandler = async ({ locals, setHeaders }) => {
 	}
 
 	// Check permission
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		undefined,
-		undefined,
-		locals.cluster
-	);
+	const hasPermission = await checkClusterWideReadPermission(locals.user, locals.cluster);
 	if (!hasPermission) {
 		throw error(403, { message: 'Permission denied' });
 	}

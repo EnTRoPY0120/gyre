@@ -4,6 +4,7 @@ import {
 	getResourceTypeByPlural,
 	getAllResourceTypes,
 	getAllResourcePlurals,
+	resolveFluxResourceType,
 	FLUX_RESOURCES
 } from '../lib/server/kubernetes/flux/resources.js';
 
@@ -99,6 +100,30 @@ describe('getResourceTypeByPlural', () => {
 	test('bidirectional: consistent with getResourceDef', () => {
 		for (const [type, def] of Object.entries(FLUX_RESOURCES)) {
 			expect(getResourceTypeByPlural(def.plural)).toBe(type);
+		}
+	});
+});
+
+describe('resolveFluxResourceType', () => {
+	test('returns canonical kind when a kind is provided', () => {
+		expect(resolveFluxResourceType('Kustomization')).toBe('Kustomization');
+		expect(resolveFluxResourceType('GitRepository')).toBe('GitRepository');
+	});
+
+	test('resolves plural route params to canonical kinds', () => {
+		expect(resolveFluxResourceType('kustomizations')).toBe('Kustomization');
+		expect(resolveFluxResourceType('gitrepositories')).toBe('GitRepository');
+	});
+
+	test('returns undefined for unknown identifiers', () => {
+		expect(resolveFluxResourceType('unknownresources')).toBeUndefined();
+		expect(resolveFluxResourceType('')).toBeUndefined();
+	});
+
+	test('resolves every supported kind and plural', () => {
+		for (const [type, def] of Object.entries(FLUX_RESOURCES)) {
+			expect(resolveFluxResourceType(type)).toBe(type);
+			expect(resolveFluxResourceType(def.plural)).toBe(type);
 		}
 	});
 });
