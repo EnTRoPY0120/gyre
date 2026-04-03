@@ -110,6 +110,27 @@ describe('Flux action routes normalize plural resource types', () => {
 		expect(capturedLogWrites[0][2]).toBe('reconcile');
 	});
 
+	test('reconcile route accepts singular PascalCase resource names', async () => {
+		const response = await reconcilePOST(buildEvent('GitRepository'));
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({
+			success: true,
+			message: 'Reconciliation triggered for demo'
+		});
+		expect(capturedPermissionChecks).toHaveLength(1);
+		expect(capturedPermissionChecks[0][1]).toBe('write');
+		expect(capturedPermissionChecks[0][2]).toBe('GitRepository');
+		expect(capturedReconcileCalls[0]).toEqual([
+			'GitRepository',
+			'flux-system',
+			'demo',
+			'in-cluster'
+		]);
+		expect(capturedLogWrites[0][1]).toBe('GitRepository');
+		expect(capturedLogWrites[0][2]).toBe('reconcile');
+	});
+
 	test('suspend route resolves plural params before RBAC and action execution', async () => {
 		await suspendPOST(buildEvent('gitrepositories'));
 
