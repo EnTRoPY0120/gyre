@@ -174,6 +174,39 @@ export async function createOrUpdateSSOUser(
 	// User doesn't exist - check auth settings and provider config
 	const authSettings = await getAuthSettings();
 
+	// Extract username and email from user info before deciding whether this login
+	// can create a new user so disabled local accounts cannot be bypassed by SSO.
+	const username = normalizeUsername(extractUsername(userInfo, providerConfig));
+	if (!username) {
+		logger.error(
+			`Could not extract a valid username for SSO user ${userInfo.sub} from provider ${providerId}`
+		);
+		return { user: null, reason: 'user_not_found' };
+	}
+	const email = extractEmail(userInfo, providerConfig);
+
+	const disabledUserByUsername = await db.query.users.findFirst({
+		where: and(eq(users.username, username), eq(users.active, false))
+	});
+	if (disabledUserByUsername) {
+		logger.warn(
+			`Blocked SSO auto-provision for disabled username match ${username} on provider ${providerId}`
+		);
+		return { user: null, reason: 'user_disabled' };
+	}
+
+	if (email) {
+		const disabledUserByEmail = await db.query.users.findFirst({
+			where: and(eq(users.email, email), eq(users.active, false))
+		});
+		if (disabledUserByEmail) {
+			logger.warn(
+				`Blocked SSO auto-provision for disabled email match ${email} on provider ${providerId}`
+			);
+			return { user: null, reason: 'user_disabled' };
+		}
+	}
+
 	// Check if signup is allowed
 	if (!authSettings.allowSignup) {
 		logger.info(`Signup disabled, user ${userInfo.sub} not allowed to register`);
@@ -187,16 +220,6 @@ export async function createOrUpdateSSOUser(
 		);
 		return { user: null, reason: 'auto_provision_disabled' };
 	}
-
-	// Extract username and email from user info
-	const username = normalizeUsername(extractUsername(userInfo, providerConfig));
-	if (!username) {
-		logger.error(
-			`Could not extract a valid username for SSO user ${userInfo.sub} from provider ${providerId}`
-		);
-		return { user: null, reason: 'user_not_found' };
-	}
-	const email = extractEmail(userInfo, providerConfig);
 
 	// Check domain allowlist (only for new users)
 	if (authSettings.domainAllowlist.length > 0) {
