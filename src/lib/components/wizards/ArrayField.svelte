@@ -95,8 +95,8 @@
 		selection?: { namespace?: string }
 	) {
 		updateObjectItem(id, field.name, nextValue);
-		if (field.referenceNamespaceField) {
-			updateObjectItem(id, field.referenceNamespaceField, selection?.namespace ?? '');
+		if (field.referenceNamespaceField && selection?.namespace !== undefined) {
+			updateObjectItem(id, field.referenceNamespaceField, selection.namespace);
 		}
 	}
 </script>

@@ -2,6 +2,7 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
+	import { resolveResourceRouteType } from '$lib/config/resources';
 	import { eventsStore } from '$lib/stores/events.svelte';
 	import { createAutoRefresh } from '$lib/utils/polling.svelte';
 	import { onMount, untrack } from 'svelte';
@@ -62,16 +63,16 @@
 	});
 
 	// Real-time updates via SSE
-	onMount(() => {
-		const unsubscribe = eventsStore.onEvent((event) => {
-			if (
-				event.resource &&
-				event.resource.metadata.name === data.name &&
-				event.resource.metadata.namespace === data.namespace &&
-				event.resourceType === data.resource.kind
-			) {
-				invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
-			}
+		onMount(() => {
+			const unsubscribe = eventsStore.onEvent((event) => {
+				if (
+					event.resource &&
+					event.resource.metadata.name === data.name &&
+					event.resource.metadata.namespace === data.namespace &&
+					resolveResourceRouteType(event.resourceType ?? '') === data.resourceType
+				) {
+					invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
+				}
 		});
 		return unsubscribe;
 	});
