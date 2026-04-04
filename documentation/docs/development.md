@@ -125,8 +125,8 @@ npm run serve
 
 ```sh
 git add package.json charts/gyre/Chart.yaml
-git commit -m "chore: bump version to v0.2.0"
-git tag -a v0.2.0 -m "Release v0.2.0"
+git commit -m "chore: bump version to v0.5.0"
+git tag -a v0.5.0 -m "Release v0.5.0"
 git push origin main --tags
 ```
 

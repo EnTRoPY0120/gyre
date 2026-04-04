@@ -34,7 +34,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
-    semver: '>=0.1.0'
+    semver: '>=0.5.0'
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
