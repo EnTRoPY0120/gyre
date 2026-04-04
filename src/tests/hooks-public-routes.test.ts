@@ -13,4 +13,11 @@ describe('hooks public auth route detection', () => {
 		expect(isPublicRoute('/api/v1/auth/enterprise-sso/logout')).toBe(false);
 		expect(isPublicRoute('/api/v1/auth/enterprise-sso/login/extra')).toBe(false);
 	});
+
+	test('requires exact matches for non-prefix public routes', () => {
+		expect(isPublicRoute('/login')).toBe(true);
+		expect(isPublicRoute('/login/extra')).toBe(false);
+		expect(isPublicRoute('/logo.svg')).toBe(true);
+		expect(isPublicRoute('/logo.svg/extra')).toBe(false);
+	});
 });

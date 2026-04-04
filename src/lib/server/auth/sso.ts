@@ -16,7 +16,7 @@ import {
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
 import { encryptSecret } from './crypto.js';
 import type { OAuthTokens, OAuthUserInfo } from './oauth/types';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { getAuthSettings } from '../settings.js';
 
 /**
@@ -76,8 +76,10 @@ export async function createOrUpdateSSOUser(
 		const profileUpdates: Partial<typeof user> = {};
 		const nextName = typeof userInfo.name === 'string' ? userInfo.name : undefined;
 		const nextImage = typeof userInfo.picture === 'string' ? userInfo.picture : undefined;
-		const nextEmail = extractEmail(userInfo, providerConfig) ?? canonicalizeEmail(user.email);
-		const nextEmailVerified = userInfo.emailVerified === true ? true : undefined;
+		const nextEmail = extractEmail(userInfo, providerConfig);
+		const currentEmail = canonicalizeEmail(user.email);
+		const nextEmailVerified =
+			typeof userInfo.emailVerified === 'boolean' ? userInfo.emailVerified : undefined;
 
 		if (nextName !== undefined && user.name !== nextName) {
 			profileUpdates.name = nextName;
@@ -85,11 +87,16 @@ export async function createOrUpdateSSOUser(
 		if (nextImage !== undefined && (user.image ?? null) !== nextImage) {
 			profileUpdates.image = nextImage;
 		}
-		if ((user.email ?? null) !== (nextEmail ?? null)) {
-			profileUpdates.email = nextEmail ?? null;
+		if (nextEmail !== undefined && currentEmail !== nextEmail) {
+			profileUpdates.email = nextEmail;
+			profileUpdates.emailVerified = nextEmailVerified === true;
+		} else if (
+			nextEmail !== undefined &&
+			nextEmailVerified === false &&
+			user.emailVerified !== false
+		) {
 			profileUpdates.emailVerified = false;
-		}
-		if (nextEmailVerified === true && user.emailVerified !== true) {
+		} else if (nextEmailVerified === true && user.emailVerified !== true) {
 			profileUpdates.emailVerified = true;
 		}
 
@@ -197,7 +204,7 @@ export async function createOrUpdateSSOUser(
 
 	if (email) {
 		const disabledUserByEmail = await db.query.users.findFirst({
-			where: and(eq(users.email, email), eq(users.active, false))
+			where: and(sql`lower(${users.email}) = lower(${email})`, eq(users.active, false))
 		});
 		if (disabledUserByEmail) {
 			logger.warn(
@@ -428,14 +435,15 @@ function extractUsername(userInfo: OAuthUserInfo, config: AuthProvider): string 
  * @returns Email string or undefined
  */
 function extractEmail(userInfo: OAuthUserInfo, config: AuthProvider): string | undefined {
-	const email = extractClaim(userInfo, config.emailClaim);
+	const email = canonicalizeEmail(extractClaim(userInfo, config.emailClaim));
 	if (email && isValidEmail(email)) {
-		return canonicalizeEmail(email);
+		return email;
 	}
 
 	// Fallback to userInfo.email
-	if (userInfo.email && isValidEmail(userInfo.email)) {
-		return canonicalizeEmail(userInfo.email);
+	const fallbackEmail = canonicalizeEmail(userInfo.email);
+	if (fallbackEmail && isValidEmail(fallbackEmail)) {
+		return fallbackEmail;
 	}
 
 	return undefined;

@@ -22,7 +22,16 @@ export const STATIC_PATTERNS = [
 const PUBLIC_OAUTH_ROUTE_PATTERN = /^\/api(?:\/v1)?\/auth\/[^/]+\/(?:login|callback)\/?$/;
 
 export function isPublicRoute(path: string): boolean {
-	if (PUBLIC_ROUTES.some((route) => path === route || path.startsWith(route + '/'))) {
+	if (
+		PUBLIC_ROUTES.some((route) => {
+			if (route.endsWith('/*')) {
+				const prefix = route.slice(0, -2);
+				return path === prefix || path.startsWith(prefix + '/');
+			}
+
+			return path === route;
+		})
+	) {
 		return true;
 	}
 
