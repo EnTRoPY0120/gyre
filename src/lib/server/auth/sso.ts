@@ -76,7 +76,7 @@ export async function createOrUpdateSSOUser(
 		const profileUpdates: Partial<typeof user> = {};
 		const nextName = typeof userInfo.name === 'string' ? userInfo.name : undefined;
 		const nextImage = typeof userInfo.picture === 'string' ? userInfo.picture : undefined;
-		const nextEmail = extractEmail(userInfo, providerConfig) ?? user.email;
+		const nextEmail = extractEmail(userInfo, providerConfig) ?? canonicalizeEmail(user.email);
 		const nextEmailVerified = userInfo.emailVerified === true ? true : undefined;
 
 		if (nextName !== undefined && user.name !== nextName) {
@@ -430,15 +430,20 @@ function extractUsername(userInfo: OAuthUserInfo, config: AuthProvider): string 
 function extractEmail(userInfo: OAuthUserInfo, config: AuthProvider): string | undefined {
 	const email = extractClaim(userInfo, config.emailClaim);
 	if (email && isValidEmail(email)) {
-		return email;
+		return canonicalizeEmail(email);
 	}
 
 	// Fallback to userInfo.email
 	if (userInfo.email && isValidEmail(userInfo.email)) {
-		return userInfo.email;
+		return canonicalizeEmail(userInfo.email);
 	}
 
 	return undefined;
+}
+
+function canonicalizeEmail(email: string | null | undefined): string | undefined {
+	const canonicalEmail = email?.trim().toLowerCase();
+	return canonicalEmail || undefined;
 }
 
 /**
