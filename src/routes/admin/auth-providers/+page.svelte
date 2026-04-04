@@ -145,10 +145,12 @@
 
 		try {
 			const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
+			const { roleMapping: _roleMapping, ...providerData } = formData;
+			const body = roleMapping === null ? providerData : { ...providerData, roleMapping };
 			const response = await fetch('/api/v1/admin/auth-providers', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-				body: JSON.stringify({ ...formData, roleMapping })
+				body: JSON.stringify(body)
 			});
 
 			if (!response.ok) {

@@ -40,6 +40,12 @@ const discoveryCache = new Map<
 	}
 >();
 
+function normalizeIssuerUrl(issuerUrl: string): string {
+	const issuer = assertSafeIssuerUrl(issuerUrl);
+	const pathname = issuer.pathname.replace(/\/+$/, '');
+	return `${issuer.origin}${pathname}`;
+}
+
 function setDiscoveryCache(issuer: string, discovery: OIDCDiscovery): void {
 	const now = Date.now();
 	// Sweep expired entries first
@@ -57,6 +63,7 @@ function setDiscoveryCache(issuer: string, discovery: OIDCDiscovery): void {
 export class OIDCProvider implements IOAuthProvider {
 	public readonly config;
 	private readonly redirectUri: string;
+	private readonly normalizedIssuer: string;
 
 	constructor(options: OAuthProviderOptions) {
 		this.config = options.config;
@@ -67,7 +74,7 @@ export class OIDCProvider implements IOAuthProvider {
 		}
 
 		try {
-			assertSafeIssuerUrl(this.config.issuerUrl);
+			this.normalizedIssuer = normalizeIssuerUrl(this.config.issuerUrl);
 		} catch (error) {
 			throw new OAuthError(
 				error instanceof Error ? error.message : 'OIDC issuer URL is invalid',
@@ -82,7 +89,7 @@ export class OIDCProvider implements IOAuthProvider {
 	 * Results are cached for 1 hour.
 	 */
 	private async discover(): Promise<OIDCDiscovery> {
-		const issuer = assertSafeIssuerUrl(this.config.issuerUrl!).toString().replace(/\/$/, '');
+		const issuer = this.normalizedIssuer;
 
 		// Check cache
 		const cached = discoveryCache.get(issuer);
@@ -252,7 +259,7 @@ export class OIDCProvider implements IOAuthProvider {
 			const JWKS = jose.createRemoteJWKSet(new URL(discovery.jwks_uri));
 
 			await jose.jwtVerify(idToken, JWKS, {
-				issuer: this.config.issuerUrl || undefined,
+				issuer: this.normalizedIssuer,
 				audience: this.config.clientId,
 				clockTolerance: 30 // 30 seconds clock skew tolerance
 			});
@@ -413,6 +420,10 @@ export class OIDCProvider implements IOAuthProvider {
 		}
 
 		// Include all claims for custom extraction
-		return { ...claims, ...userInfo };
+		const sanitizedUserInfo = Object.fromEntries(
+			Object.entries(userInfo).filter(([, value]) => value !== undefined)
+		) as OAuthUserInfo;
+
+		return { ...claims, ...sanitizedUserInfo };
 	}
 }

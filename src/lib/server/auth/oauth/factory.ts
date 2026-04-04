@@ -134,7 +134,7 @@ export function validateProviderConfig(config: Partial<AuthProvider>): {
 	if (config.type === ProviderType.OIDC || config.type === ProviderType.OAUTH2_GENERIC) {
 		const issuerUrl = config.issuerUrl?.trim();
 		if (!issuerUrl) {
-			errors.push('Issuer URL is required for OIDC providers');
+			errors.push('Issuer URL is required for this provider');
 		} else {
 			const validationError = getIssuerUrlValidationError(issuerUrl);
 			if (validationError) {
