@@ -79,7 +79,7 @@
 
 			toast.success('Login successful! Redirecting...');
 
-			if (result.user?.requiresPasswordChange) {
+			if (result.user?.requiresPasswordChange && result.user?.canChangePassword) {
 				window.location.href = '/change-password?first=true';
 			} else {
 				const returnTo = page.url.searchParams.get('returnTo');

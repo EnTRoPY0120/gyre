@@ -5,6 +5,17 @@ import type { MigrationFlags } from './auth-tables.js';
 
 type Db = ReturnType<typeof getDbSync>;
 
+function isDuplicateColumnError(err: unknown): boolean {
+	if (!(err instanceof Error)) return false;
+
+	if (err.message.includes('duplicate column name')) {
+		return true;
+	}
+
+	const cause = 'cause' in err ? err.cause : undefined;
+	return cause instanceof Error && cause.message.includes('duplicate column name');
+}
+
 export function initSecurityTables(db: Db, flags: MigrationFlags): void {
 	const { hasLegacyUserProviders } = flags;
 
@@ -44,7 +55,7 @@ export function initSecurityTables(db: Db, flags: MigrationFlags): void {
 			try {
 				db.run(ddl);
 			} catch (err) {
-				if (err instanceof Error && err.message.includes('duplicate column name')) {
+				if (isDuplicateColumnError(err)) {
 					continue;
 				}
 				logger.error(err, '[DB] Failed to add OAuth token column to legacy user_providers:');
@@ -70,10 +81,10 @@ export function initSecurityTables(db: Db, flags: MigrationFlags): void {
 		db.run(sql`
 			UPDATE accounts
 			SET
-				last_login_at = COALESCE(up.last_login_at, last_login_at),
-				access_token_encrypted = COALESCE(up.access_token_encrypted, access_token_encrypted),
-				refresh_token_encrypted = COALESCE(up.refresh_token_encrypted, refresh_token_encrypted),
-				access_token_expires_at = COALESCE(up.token_expires_at, access_token_expires_at)
+				last_login_at = COALESCE(up.last_login_at, accounts.last_login_at),
+				access_token_encrypted = COALESCE(up.access_token_encrypted, accounts.access_token_encrypted),
+				refresh_token_encrypted = COALESCE(up.refresh_token_encrypted, accounts.refresh_token_encrypted),
+				access_token_expires_at = COALESCE(up.token_expires_at, accounts.access_token_expires_at)
 			FROM user_providers AS up
 			WHERE accounts.user_id = up.user_id
 				AND accounts.provider_id = up.provider_id

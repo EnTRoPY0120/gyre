@@ -31,10 +31,10 @@ export function initDatabase(): void {
 
 		hasNullableSessionToken:
 			(db
-				.select({ notnull: sql<number>`notnull` })
+				.select({ notNull: sql<number>`"notnull"` })
 				.from(sql`pragma_table_info('sessions')`)
-				.where(sql`name = 'token' AND notnull = 0`)
-				.get() as { notnull: number } | undefined) != null
+				.where(sql`name = 'token' AND "notnull" = 0`)
+				.get() as { notNull: number } | undefined) != null
 	};
 
 	initAuthTables(db, flags);

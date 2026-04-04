@@ -9,6 +9,7 @@ function createRouteState() {
 		localLoginEnabled: true,
 		existingUser: activeUser as User | null,
 		authenticatedUser: activeUser as User | null,
+		canChangePassword: true,
 		verifyPasswordCalls: [] as Array<{ password: string; hash: string }>,
 		loginLogCalls: [] as Array<{
 			user: User | null;
@@ -24,6 +25,7 @@ const routeState = createRouteState();
 mock.module('$lib/server/auth', () => ({
 	authenticateUser: async () => routeState.authenticatedUser,
 	getUserByUsername: async () => routeState.existingUser,
+	hasManagedPassword: async () => routeState.canChangePassword,
 	normalizeUsername: (username: string) => username.toLowerCase().trim(),
 	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
 	verifyPassword: async (password: string, hash: string) => {
@@ -162,6 +164,30 @@ describe('login route', () => {
 		expect(response.status).toBe(200);
 		expect(body.success).toBe(true);
 		expect(body.user.username).toBe('admin');
+		expect(body.user.canChangePassword).toBe(true);
+	});
+
+	test('returns canChangePassword=true for local first-login accounts', async () => {
+		routeState.authenticatedUser = createUser({ requiresPasswordChange: true });
+
+		const response = await POST(buildEvent());
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.user.requiresPasswordChange).toBe(true);
+		expect(body.user.canChangePassword).toBe(true);
+	});
+
+	test('returns canChangePassword=false for managed-password accounts', async () => {
+		routeState.canChangePassword = false;
+		routeState.authenticatedUser = createUser({ requiresPasswordChange: true });
+
+		const response = await POST(buildEvent());
+		const body = await response.json();
+
+		expect(response.status).toBe(200);
+		expect(body.user.requiresPasswordChange).toBe(true);
+		expect(body.user.canChangePassword).toBe(false);
 	});
 
 	test('returns a generic invalid-credentials error for disabled accounts', async () => {

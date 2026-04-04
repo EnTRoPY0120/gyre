@@ -4,6 +4,17 @@ import type { getDbSync } from '../index.js';
 
 type Db = ReturnType<typeof getDbSync>;
 
+function isDuplicateColumnError(err: unknown): boolean {
+	if (!(err instanceof Error)) return false;
+
+	if (err.message.includes('duplicate column name')) {
+		return true;
+	}
+
+	const cause = 'cause' in err ? err.cause : undefined;
+	return cause instanceof Error && cause.message.includes('duplicate column name');
+}
+
 export interface MigrationFlags {
 	hasLegacyUserProviders: boolean;
 	hasLegacyPasswordHashColumn: boolean;
@@ -113,7 +124,7 @@ export function initAuthTables(db: Db, flags: MigrationFlags): void {
 		try {
 			db.run(ddl);
 		} catch (err) {
-			if (err instanceof Error && err.message.includes('duplicate column name')) {
+			if (isDuplicateColumnError(err)) {
 				continue;
 			}
 			logger.error(err, '[DB] Failed to add Better Auth user column:');
@@ -145,7 +156,7 @@ export function initAuthTables(db: Db, flags: MigrationFlags): void {
 		try {
 			db.run(ddl);
 		} catch (err) {
-			if (err instanceof Error && err.message.includes('duplicate column name')) {
+			if (isDuplicateColumnError(err)) {
 				continue;
 			}
 			logger.error(err, '[DB] Failed to add Better Auth session column:');
@@ -222,7 +233,7 @@ export function initAuthTables(db: Db, flags: MigrationFlags): void {
 		try {
 			db.run(ddl);
 		} catch (err) {
-			if (err instanceof Error && err.message.includes('duplicate column name')) {
+			if (isDuplicateColumnError(err)) {
 				continue;
 			}
 			logger.error(err, '[DB] Failed to add Better Auth account column:');

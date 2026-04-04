@@ -5,6 +5,7 @@ import type { RequestHandler } from './$types';
 import {
 	authenticateUser,
 	getUserByUsername,
+	hasManagedPassword,
 	normalizeUsername,
 	hashPassword,
 	verifyPassword
@@ -12,6 +13,7 @@ import {
 import { logLogin } from '$lib/server/audit';
 import { getAuthSettings } from '$lib/server/settings';
 import {
+	BETTER_AUTH_SESSION_COOKIE_NAME,
 	createBetterAuthSessionForUser,
 	revokeBetterAuthSessionByCookieValue
 } from '$lib/server/auth/better-auth';
@@ -49,7 +51,8 @@ export const _metadata = {
 								username: z.string(),
 								email: z.string().nullable(),
 								role: z.string(),
-								requiresPasswordChange: z.boolean()
+								requiresPasswordChange: z.boolean(),
+								canChangePassword: z.boolean()
 							})
 						})
 					}
@@ -171,7 +174,7 @@ export const POST: RequestHandler = async (event) => {
 		// Reset lockout on successful login
 		accountLockout.recordSuccess(canonicalUsername);
 
-		const existingSessionCookie = cookies.get('gyre_session');
+		const existingSessionCookie = cookies.get(BETTER_AUTH_SESSION_COOKIE_NAME);
 		if (existingSessionCookie) {
 			try {
 				await revokeBetterAuthSessionByCookieValue(existingSessionCookie);
@@ -184,6 +187,7 @@ export const POST: RequestHandler = async (event) => {
 			ipAddress,
 			userAgent: request.headers.get('user-agent') ?? undefined
 		});
+		const canChangePassword = user.isLocal !== false && (await hasManagedPassword(user.id));
 
 		await logLogin(user, true, ipAddress);
 
@@ -194,7 +198,8 @@ export const POST: RequestHandler = async (event) => {
 				username: user.username,
 				email: user.email,
 				role: user.role,
-				requiresPasswordChange: user.requiresPasswordChange
+				requiresPasswordChange: user.requiresPasswordChange,
+				canChangePassword
 			}
 		});
 	} catch (err) {

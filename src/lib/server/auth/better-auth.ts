@@ -28,11 +28,10 @@ function createBetterAuth() {
 		appName: 'Gyre',
 		basePath: BETTER_AUTH_BASE_PATH,
 		secret: getBetterAuthSecret(),
-		useSecureCookies: IS_PROD,
 		database: drizzleAdapter(getDbSync(), {
 			provider: 'sqlite',
 			schema,
-			usePlural: true,
+			usePlural: false,
 			camelCase: false,
 			transaction: true
 		}),
@@ -54,12 +53,6 @@ function createBetterAuth() {
 				usernameNormalization: normalizeUsername
 			})
 		],
-		cookies: {
-			sessionToken: {
-				name: BETTER_AUTH_SESSION_COOKIE_NAME,
-				attributes: DEFAULT_COOKIE_OPTIONS
-			}
-		},
 		session: {
 			expiresIn: SESSION_DURATION_DAYS * 24 * 60 * 60,
 			updateAge: (SESSION_DURATION_DAYS * 24 * 60 * 60) / 2,
@@ -122,6 +115,16 @@ function createBetterAuth() {
 		},
 		verification: {
 			modelName: 'verifications'
+		},
+		advanced: {
+			useSecureCookies: IS_PROD,
+			defaultCookieAttributes: DEFAULT_COOKIE_OPTIONS,
+			cookies: {
+				session_token: {
+					name: BETTER_AUTH_SESSION_COOKIE_NAME,
+					attributes: DEFAULT_COOKIE_OPTIONS
+				}
+			}
 		}
 	});
 }
@@ -246,8 +249,14 @@ export async function getBetterAuthSession(
 	applyBetterAuthCookies(cookies, result.headers);
 
 	if (!result.response) {
+		logger.warn('[Auth] getBetterAuthSession: getSession returned null (no valid session found)');
 		return null;
 	}
+
+	logger.debug(
+		{ userId: result.response.user.id },
+		'[Auth] getBetterAuthSession: session found, loading full user'
+	);
 
 	const db = await getDb();
 	const fullUser = await db.query.users.findFirst({
@@ -255,6 +264,10 @@ export async function getBetterAuthSession(
 	});
 
 	if (!fullUser || !fullUser.active) {
+		logger.warn(
+			{ userId: result.response.user.id, userFound: !!fullUser, active: fullUser?.active },
+			'[Auth] getBetterAuthSession: user not found or inactive, revoking session'
+		);
 		try {
 			await deleteBetterAuthSessionRow(result.response.session as Record<string, unknown>);
 		} catch (err) {

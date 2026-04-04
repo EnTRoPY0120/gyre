@@ -1,6 +1,9 @@
 import { logger, withRequestContext } from '$lib/server/logger.js';
 import { isRedirect, isHttpError, type Handle } from '@sveltejs/kit';
-import { getBetterAuthSession } from '$lib/server/auth/better-auth';
+import {
+	BETTER_AUTH_SESSION_COOKIE_NAME,
+	getBetterAuthSession
+} from '$lib/server/auth/better-auth';
 import { initializeGyre } from '$lib/server/initialize';
 import { httpRequestDurationMicroseconds } from '$lib/server/metrics';
 import { getRequestSizeLimit, validateRequestSize, formatSize } from '$lib/server/request-limits';
@@ -103,14 +106,33 @@ export const handle: Handle = async ({ event, resolve }) => {
 			);
 		}
 
+		// Initialize Gyre on first request — promise lock prevents concurrent init calls
+		if (!initialized) {
+			if (!initializingPromise) {
+				initializingPromise = initializeGyre()
+					.then(() => {
+						initialized = true;
+					})
+					.catch((error) => {
+						logger.error(error, 'Failed to initialize Gyre:');
+						// Continue anyway - let the request fail naturally if DB is truly broken
+					})
+					.finally(() => {
+						initializingPromise = undefined;
+					});
+			}
+			await initializingPromise;
+		}
+
 		// Global rate limiting: 300 req/min per IP (skip static assets and health checks)
+		// Run this only after initialization so the backing table exists on a fresh database.
 		const isStaticAsset = STATIC_PATTERNS.some((p) => p.test(path));
 		const isHealthEndpoint =
 			path === '/api/health' ||
 			path === '/api/v1/health' ||
 			path === '/api/flux/health' ||
 			path === '/api/v1/flux/health';
-		if (!isStaticAsset && !isHealthEndpoint) {
+		if (initialized && !isStaticAsset && !isHealthEndpoint) {
 			const ip = event.getClientAddress();
 			// Pass a no-op setHeaders so the global limiter doesn't set X-RateLimit-* on the event —
 			// endpoint-specific limiters own those headers and SvelteKit throws if they're set twice.
@@ -139,31 +161,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 			}
 		}
 
-		// Initialize Gyre on first request — promise lock prevents concurrent init calls
-		if (!initialized) {
-			if (!initializingPromise) {
-				initializingPromise = initializeGyre()
-					.then(() => {
-						initialized = true;
-					})
-					.catch((error) => {
-						logger.error(error, 'Failed to initialize Gyre:');
-						// Continue anyway - let the request fail naturally if DB is truly broken
-					})
-					.finally(() => {
-						initializingPromise = undefined;
-					});
-			}
-			await initializingPromise;
-		}
-
 		// Initialize locals with defaults
 		event.locals.user = null;
 		event.locals.session = null;
 		event.locals.cluster = undefined;
 
 		// Check for session cookie
-		if (cookies.get('gyre_session')) {
+		if (cookies.get(BETTER_AUTH_SESSION_COOKIE_NAME)) {
 			const sessionData = await getBetterAuthSession(request, cookies);
 			if (sessionData) {
 				event.locals.user = sessionData.user;
@@ -178,7 +182,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				// Session is expired, invalid, or the user has been deactivated
 				// (getSession already revoked all DB sessions in the inactive-user case).
 				// Clear the stale cookie so the client doesn't keep replaying it.
-				cookies.delete('gyre_session', { path: '/' });
+				cookies.delete(BETTER_AUTH_SESSION_COOKIE_NAME, { path: '/' });
 			}
 		}
 

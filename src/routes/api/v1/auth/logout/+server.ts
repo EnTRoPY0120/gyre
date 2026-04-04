@@ -3,7 +3,11 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { deleteUserSessions } from '$lib/server/auth';
-import { applyBetterAuthCookies, getBetterAuth } from '$lib/server/auth/better-auth';
+import {
+	applyBetterAuthCookies,
+	BETTER_AUTH_SESSION_COOKIE_NAME,
+	getBetterAuth
+} from '$lib/server/auth/better-auth';
 import { logLogout } from '$lib/server/audit';
 
 export const _metadata = {
@@ -70,7 +74,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals, getClient
 			await logLogout(locals.user, ipAddress);
 		}
 
-		cookies.delete('gyre_session', { path: '/' });
+		cookies.delete(BETTER_AUTH_SESSION_COOKIE_NAME, { path: '/' });
 
 		return json({ success: true });
 	} catch (err) {

@@ -691,7 +691,7 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 				role: 'admin',
 				email: 'admin@gyre.local',
 				active: true,
-				requiresPasswordChange: true
+				requiresPasswordChange: false
 			};
 			db.transaction((tx) => {
 				tx.insert(users).values(newUser).run();
