@@ -10,58 +10,13 @@ import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { getClusterById } from '$lib/server/clusters';
 import { errorToHttpResponse } from '$lib/server/kubernetes/errors';
 import { normalizeError } from '$lib/utils/error-normalization';
+import { isPublicRoute, STATIC_PATTERNS } from '$lib/isPublicRoute.js';
 
 // Initialize Gyre on first request
 let initialized = false;
 let initializingPromise: Promise<void> | undefined;
 
-// Public routes that don't require authentication or CSRF protection.
-// NOTE: /api/v1/auth/login and other auth-related routes are split here to ensure
-// that authenticated routes like /api/v1/auth/change-password or logout ARE protected by CSRF.
-const PUBLIC_ROUTES = [
-	'/login',
-	'/api/health',
-	'/api/v1/health',
-	'/api/auth/login',
-	'/api/v1/auth/login',
-	'/api/flux/health',
-	'/api/v1/flux/health',
-	'/metrics',
-	'/manifest.json',
-	'/favicon.ico',
-	'/logo.svg'
-];
-
-// Static asset patterns
-const STATIC_PATTERNS = [
-	/^\/_app\//,
-	/^\/fonts\//,
-	/^\/images\//,
-	/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/
-];
-
 const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
-
-const PUBLIC_OAUTH_ROUTE_PATTERN = /^\/api(?:\/v1)?\/auth\/[^/]+\/(?:login|callback)\/?$/;
-
-export function isPublicRoute(path: string): boolean {
-	// Check exact matches
-	if (PUBLIC_ROUTES.some((route) => path === route || path.startsWith(route + '/'))) {
-		return true;
-	}
-
-	// Check for dynamic OAuth login/callback routes which are public.
-	if (PUBLIC_OAUTH_ROUTE_PATTERN.test(path)) {
-		return true;
-	}
-
-	// Check static patterns
-	if (STATIC_PATTERNS.some((pattern) => pattern.test(path))) {
-		return true;
-	}
-
-	return false;
-}
 
 function setSecurityHeaders(response: Response): void {
 	response.headers.set('X-Content-Type-Options', 'nosniff');

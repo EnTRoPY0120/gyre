@@ -25,7 +25,7 @@ mock.module('$lib/server/auth', () => ({
 	authenticateUser: async () => routeState.authenticatedUser,
 	getUserByUsername: async () => routeState.existingUser,
 	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	hashPassword: async () => 'dummy-hash',
+	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
 	verifyPassword: async (password: string, hash: string) => {
 		routeState.verifyPasswordCalls.push({ password, hash });
 		return false;

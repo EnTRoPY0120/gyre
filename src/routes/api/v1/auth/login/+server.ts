@@ -72,7 +72,7 @@ export const _metadata = {
 				}
 			},
 			403: {
-				description: 'Account is disabled',
+				description: 'Local username/password sign-in is disabled',
 				content: {
 					'application/json': {
 						schema: z.object({ message: z.string() })

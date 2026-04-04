@@ -84,11 +84,13 @@ function createUser(): User {
 	};
 }
 
-function createCookies(): Cookies {
+function createCookies(overrides: { stateCookie?: string; verifierCookie?: string } = {}): Cookies {
 	return {
 		get: (name: string) => {
-			if (name === 'oauth_state_custom-provider') return 'state-123';
-			if (name === 'oauth_verifier_custom-provider') return 'verifier-123';
+			if (name === 'oauth_state_custom-provider') return overrides.stateCookie ?? 'state-123';
+			if (name === 'oauth_verifier_custom-provider') {
+				return overrides.verifierCookie ?? 'verifier-123';
+			}
 			return undefined;
 		},
 		getAll: () => [],
@@ -100,9 +102,16 @@ function createCookies(): Cookies {
 	};
 }
 
-function buildEvent(): CallbackEvent {
+function buildEvent(
+	overrides: { returnedState?: string | null; stateCookie?: string; verifierCookie?: string } = {}
+): CallbackEvent {
+	const searchParams = new URLSearchParams({ code: 'auth-code' });
+	if (overrides.returnedState !== null) {
+		searchParams.set('state', overrides.returnedState ?? 'state-123');
+	}
+
 	const request = new Request(
-		'http://localhost/api/v1/auth/custom-provider/callback?code=auth-code&state=state-123',
+		`http://localhost/api/v1/auth/custom-provider/callback?${searchParams.toString()}`,
 		{
 			method: 'GET',
 			headers: { 'user-agent': 'bun-test' }
@@ -111,7 +120,10 @@ function buildEvent(): CallbackEvent {
 
 	return {
 		request,
-		cookies: createCookies(),
+		cookies: createCookies({
+			stateCookie: overrides.stateCookie,
+			verifierCookie: overrides.verifierCookie
+		}),
 		fetch,
 		getClientAddress: () => '127.0.0.1',
 		locals: {
@@ -156,5 +168,17 @@ describe('oauth callback route', () => {
 		expect(callbackState.sessionCreations).toEqual([
 			{ userId: 'user-1', ipAddress: '127.0.0.1', userAgent: 'bun-test' }
 		]);
+	});
+
+	test('rejects mismatched state without creating a session', async () => {
+		await expect(GET(buildEvent({ returnedState: 'wrong-state' }))).rejects.toMatchObject({
+			status: 400,
+			body: {
+				message: 'Invalid state parameter (possible CSRF attack)'
+			}
+		});
+
+		expect(callbackState.sessionCreations).toEqual([]);
+		expect(callbackState.deletedCookies).toEqual([]);
 	});
 });

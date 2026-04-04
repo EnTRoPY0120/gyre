@@ -117,4 +117,48 @@ describe('SSO auto provisioning', () => {
 
 		expect(result).toEqual({ user: null, reason: 'user_disabled' });
 	});
+
+	test('blocks auto-provision when a disabled email match exists with different casing', async () => {
+		dbState.disabledUserByUsername = null;
+		dbState.disabledUserByEmail = {
+			id: 'user-disabled-email',
+			active: false,
+			email: 'disabled@example.com'
+		};
+
+		const result = await createOrUpdateSSOUser(
+			'oidc-provider',
+			{
+				sub: 'oidc-user-2',
+				email: 'Disabled@Example.com',
+				preferred_username: 'another-user',
+				name: 'Disabled Email User'
+			},
+			{
+				id: 'oidc-provider',
+				name: 'OIDC',
+				type: 'oidc',
+				enabled: true,
+				clientId: 'client-id',
+				clientSecretEncrypted: 'secret',
+				issuerUrl: 'https://issuer.example.com',
+				authorizationUrl: null,
+				tokenUrl: null,
+				userInfoUrl: null,
+				jwksUrl: null,
+				autoProvision: true,
+				defaultRole: 'viewer',
+				roleMapping: null,
+				roleClaim: 'groups',
+				usernameClaim: 'preferred_username',
+				emailClaim: 'email',
+				usePkce: true,
+				scopes: 'openid profile email',
+				createdAt: new Date(),
+				updatedAt: new Date()
+			}
+		);
+
+		expect(result).toEqual({ user: null, reason: 'user_disabled' });
+	});
 });
