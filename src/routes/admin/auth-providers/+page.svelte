@@ -129,12 +129,16 @@
 			return null;
 		}
 
-		const parsed = parseRoleMappingInput(trimmed);
-		if (!parsed) {
+		try {
+			const parsed = parseRoleMappingInput(trimmed);
+			if (!parsed) {
+				return null;
+			}
+
+			return Object.values(parsed).every((groups) => groups.length === 0) ? null : parsed;
+		} catch {
 			return null;
 		}
-
-		return Object.values(parsed).every((groups) => groups.length === 0) ? null : parsed;
 	}
 
 	async function handleCreate() {
