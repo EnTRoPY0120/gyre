@@ -169,7 +169,11 @@
 		<Tooltip.Provider delayDuration={200}>
 			<Tooltip.Root>
 				<Tooltip.Trigger>
-					{@render actionButton(action)}
+					{#snippet child({ props })}
+						<span {...props}>
+							{@render actionButton(action)}
+						</span>
+					{/snippet}
 				</Tooltip.Trigger>
 				<Tooltip.Content side="top">
 					<p class="text-xs">
