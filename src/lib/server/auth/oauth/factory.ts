@@ -14,6 +14,7 @@ import { getIssuerUrlValidationError } from './url-security';
 import { getDb } from '$lib/server/db';
 import { authProviders } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { parseRoleMappingInput } from '$lib/auth/role-mapping';
 
 /**
  * Create an OAuth provider instance from configuration
@@ -153,12 +154,9 @@ export function validateProviderConfig(config: Partial<AuthProvider>): {
 	// Validate role mapping JSON if provided
 	if (config.roleMapping) {
 		try {
-			const mapping = JSON.parse(config.roleMapping);
-			if (typeof mapping !== 'object' || mapping === null) {
-				errors.push('Role mapping must be a valid JSON object');
-			}
-		} catch {
-			errors.push('Role mapping must be valid JSON');
+			parseRoleMappingInput(config.roleMapping);
+		} catch (error) {
+			errors.push(error instanceof Error ? error.message : 'Role mapping must be valid JSON');
 		}
 	}
 

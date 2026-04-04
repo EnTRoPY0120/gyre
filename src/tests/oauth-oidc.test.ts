@@ -168,6 +168,29 @@ describe('OIDCProvider — discover()', () => {
 		}
 	});
 
+	test('passes an AbortSignal when fetching the discovery document', async () => {
+		const uniqueIssuer = `https://discover-signal-${Date.now()}.example.com`;
+		const discovery = {
+			...MOCK_DISCOVERY,
+			issuer: uniqueIssuer,
+			authorization_endpoint: `${uniqueIssuer}/auth`,
+			token_endpoint: `${uniqueIssuer}/token`,
+			jwks_uri: `${uniqueIssuer}/.well-known/jwks`
+		};
+		const provider = makeProvider({ issuerUrl: uniqueIssuer });
+		let fetchOptions: RequestInit | undefined;
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+			fetchOptions = init;
+			return new Response(JSON.stringify(discovery), { status: 200 });
+		});
+		try {
+			await provider.getAuthorizationUrl('state', 'verifier');
+			expect(fetchOptions?.signal).toBeInstanceOf(AbortSignal);
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
 	test('caches discovery doc for 1 hour (second call uses cache)', async () => {
 		const uniqueIssuer = `https://cache-test-${Date.now()}.example.com`;
 		const discovery = {
@@ -503,6 +526,39 @@ describe('OIDCProvider.getUserInfo()', () => {
 		}
 	});
 
+	test('passes an AbortSignal when fetching userinfo', async () => {
+		const uniqueIssuer = `https://userinfo-signal-${Date.now()}.example.com`;
+		const discovery = {
+			...MOCK_DISCOVERY,
+			issuer: uniqueIssuer,
+			authorization_endpoint: `${uniqueIssuer}/auth`,
+			token_endpoint: `${uniqueIssuer}/token`,
+			jwks_uri: `${uniqueIssuer}/.well-known/jwks`,
+			userinfo_endpoint: `${uniqueIssuer}/userinfo`
+		};
+		const provider = makeProvider({ issuerUrl: uniqueIssuer });
+		let userinfoOptions: RequestInit | undefined;
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+			const urlStr = url.toString();
+			if (urlStr.includes('.well-known/openid-configuration')) {
+				return new Response(JSON.stringify(discovery), { status: 200 });
+			}
+			if (urlStr.includes('/userinfo')) {
+				userinfoOptions = init;
+				return new Response(JSON.stringify({ sub: 'user-123', email: 'user@example.com' }), {
+					status: 200
+				});
+			}
+			return new Response('not found', { status: 404 });
+		});
+		try {
+			await provider.getUserInfo({ accessToken: 'access-token', tokenType: 'Bearer' });
+			expect(userinfoOptions?.signal).toBeInstanceOf(AbortSignal);
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
 	test('throws OAuthError with NO_USER_INFO when no idToken and no userinfo_endpoint', async () => {
 		const uniqueIssuer = `https://no-userinfo-${Date.now()}.example.com`;
 		const discoveryNoUserinfo = {
@@ -625,6 +681,19 @@ describe('validateProviderConfig', () => {
 		expect(validation.valid).toBe(false);
 		expect(validation.errors).toContain(
 			'Issuer URL must not use private, loopback, or reserved IP addresses'
+		);
+	});
+
+	test('rejects role mappings that are valid JSON but not string-array objects', () => {
+		const validation = validateProviderConfig({
+			...mockConfig,
+			clientSecretEncrypted: 'encrypted-secret',
+			roleMapping: '{"admin":"not-an-array"}'
+		});
+
+		expect(validation.valid).toBe(false);
+		expect(validation.errors).toContain(
+			'roleMapping must be an object mapping role names to arrays of group strings'
 		);
 	});
 });

@@ -34,6 +34,12 @@ describe('parseRoleMappingInput', () => {
 			'roleMapping must be an object mapping role names to arrays of group strings'
 		);
 	});
+
+	test('rejects non-plain objects', () => {
+		expect(() => parseRoleMappingInput(new Date())).toThrow(
+			'roleMapping must be an object mapping role names to arrays of group strings'
+		);
+	});
 });
 
 describe('stringifyRoleMappingForForm', () => {

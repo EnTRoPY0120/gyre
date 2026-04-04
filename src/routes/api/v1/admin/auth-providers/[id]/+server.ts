@@ -11,6 +11,7 @@ import { authProviderSchema } from '$lib/server/auth/schemas';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
 import { parseRoleMappingInput } from '$lib/auth/role-mapping';
+import { parseRoleMappingSafe } from '$lib/server/auth/role-mapping';
 import { accounts, authProviders } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
@@ -147,14 +148,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 		const sanitizedProvider = {
 			...provider,
 			clientSecretEncrypted: '***',
-			roleMapping: (() => {
-				try {
-					return parseRoleMappingInput(provider.roleMapping);
-				} catch {
-					logger.warn({ providerId: provider.id }, '[auth-providers] Malformed roleMapping JSON');
-					return null;
-				}
-			})()
+			roleMapping: parseRoleMappingSafe(provider.roleMapping, provider.id)
 		};
 
 		return json({ provider: sanitizedProvider });
@@ -259,14 +253,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			provider: {
 				...updatedProvider,
 				clientSecretEncrypted: '***',
-				roleMapping: (() => {
-					try {
-						return parseRoleMappingInput(updatedProvider?.roleMapping);
-					} catch {
-						logger.warn({ providerId: params.id }, '[auth-providers] Malformed roleMapping JSON');
-						return null;
-					}
-				})()
+				roleMapping: parseRoleMappingSafe(updatedProvider?.roleMapping, params.id)
 			}
 		});
 	} catch (err) {

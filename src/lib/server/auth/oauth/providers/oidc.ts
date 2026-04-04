@@ -31,6 +31,7 @@ import { assertSafeIssuerUrl, assertSafeOidcDiscoveryDocument } from '../url-sec
  */
 const MAX_CACHE_SIZE = 50;
 const DISCOVERY_TTL_MS = 60 * 60 * 1000; // 1 hour
+const REQUEST_TIMEOUT_MS = 10_000;
 const discoveryCache = new Map<
 	string,
 	{
@@ -93,9 +94,14 @@ export class OIDCProvider implements IOAuthProvider {
 		const discoveryUrl = issuer.endsWith('/')
 			? `${issuer}.well-known/openid-configuration`
 			: `${issuer}/.well-known/openid-configuration`;
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
 		try {
-			const response = await fetch(discoveryUrl, { redirect: 'error' });
+			const response = await fetch(discoveryUrl, {
+				redirect: 'error',
+				signal: controller.signal
+			});
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
@@ -118,6 +124,8 @@ export class OIDCProvider implements IOAuthProvider {
 				'DISCOVERY_FAILED',
 				error
 			);
+		} finally {
+			clearTimeout(timeoutId);
 		}
 	}
 
@@ -178,7 +186,7 @@ export class OIDCProvider implements IOAuthProvider {
 
 		// Exchange code for token
 		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 10_000);
+		const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
 		try {
 			const response = await fetch(discovery.token_endpoint, {
@@ -273,11 +281,15 @@ export class OIDCProvider implements IOAuthProvider {
 			throw new OAuthError('No ID token and no userinfo endpoint available', 'NO_USER_INFO');
 		}
 
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
 		try {
 			const response = await fetch(discovery.userinfo_endpoint, {
 				headers: {
 					Authorization: `Bearer ${tokens.accessToken}`
 				},
+				signal: controller.signal,
 				redirect: 'error'
 			});
 
@@ -293,6 +305,8 @@ export class OIDCProvider implements IOAuthProvider {
 				'USERINFO_FAILED',
 				error
 			);
+		} finally {
+			clearTimeout(timeoutId);
 		}
 	}
 
@@ -311,7 +325,7 @@ export class OIDCProvider implements IOAuthProvider {
 		});
 
 		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), 10_000);
+		const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
 		try {
 			const response = await fetch(discovery.token_endpoint, {
