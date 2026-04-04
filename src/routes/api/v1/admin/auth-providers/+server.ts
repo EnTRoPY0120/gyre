@@ -11,6 +11,7 @@ import { authProviderSchema, providerTypeSchema } from '$lib/server/auth/schemas
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
 import { parseRoleMappingInput } from '$lib/auth/role-mapping';
+import { parseRoleMappingSafe } from '$lib/server/auth/role-mapping';
 
 export const _metadata = {
 	GET: {
@@ -116,14 +117,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 		const sanitizedProviders = providers.map((p) => ({
 			...p,
 			clientSecretEncrypted: '***', // Don't send encrypted secret to client
-			roleMapping: (() => {
-				try {
-					return parseRoleMappingInput(p.roleMapping);
-				} catch {
-					logger.warn({ providerId: p.id }, '[auth-providers] Malformed roleMapping JSON');
-					return null;
-				}
-			})()
+			roleMapping: parseRoleMappingSafe(p.roleMapping, p.id)
 		}));
 
 		return json({ providers: sanitizedProviders });

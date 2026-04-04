@@ -9,6 +9,27 @@ function stripIpv6Brackets(hostname: string): string {
 	return hostname;
 }
 
+function extractMappedIpv4Suffix(suffix: string): string | null {
+	if (isIP(suffix) === 4) {
+		return suffix;
+	}
+
+	const groups = suffix.split(':');
+	if (
+		groups.length !== 2 ||
+		groups.some((group) => group.length === 0 || group.length > 4 || !/^[\da-f]+$/i.test(group))
+	) {
+		return null;
+	}
+
+	const octets = groups.flatMap((group) => {
+		const value = Number.parseInt(group, 16);
+		return [(value >> 8) & 0xff, value & 0xff];
+	});
+
+	return octets.join('.');
+}
+
 function isUnsafeIpv4Address(address: string): boolean {
 	const octets = address.split('.').map((part) => Number.parseInt(part, 10));
 	if (octets.length !== 4 || octets.some((octet) => Number.isNaN(octet))) {
@@ -41,8 +62,8 @@ function isUnsafeIpv6Address(address: string): boolean {
 	if (normalized.startsWith('2001:db8')) return true;
 
 	if (normalized.startsWith('::ffff:')) {
-		const mappedIpv4 = normalized.slice('::ffff:'.length);
-		if (isIP(mappedIpv4) === 4) {
+		const mappedIpv4 = extractMappedIpv4Suffix(normalized.slice('::ffff:'.length));
+		if (mappedIpv4) {
 			return isUnsafeIpv4Address(mappedIpv4);
 		}
 	}
@@ -51,7 +72,7 @@ function isUnsafeIpv6Address(address: string): boolean {
 }
 
 function getUnsafeHostnameError(hostname: string): string | null {
-	const normalized = stripIpv6Brackets(hostname).toLowerCase();
+	const normalized = stripIpv6Brackets(hostname).replace(/\.$/, '').toLowerCase();
 	if (normalized === 'localhost' || normalized.endsWith('.localhost')) {
 		return 'must not use localhost hosts';
 	}
@@ -68,7 +89,12 @@ function getUnsafeHostnameError(hostname: string): string | null {
 	return null;
 }
 
-function validateRemoteHttpsUrl(urlString: string, fieldName: string, allowPath = true): URL {
+function validateRemoteHttpsUrl(
+	urlString: string,
+	fieldName: string,
+	allowPath = true,
+	allowQueryAndFragment = true
+): URL {
 	let url: URL;
 	try {
 		url = new URL(urlString);
@@ -88,6 +114,10 @@ function validateRemoteHttpsUrl(urlString: string, fieldName: string, allowPath 
 		throw new Error(`${fieldName} must not include a path`);
 	}
 
+	if (!allowQueryAndFragment && (url.search || url.hash)) {
+		throw new Error(`${fieldName} must not include query parameters or fragments`);
+	}
+
 	const hostError = getUnsafeHostnameError(url.hostname);
 	if (hostError) {
 		throw new Error(`${fieldName} ${hostError}`);
@@ -98,16 +128,16 @@ function validateRemoteHttpsUrl(urlString: string, fieldName: string, allowPath 
 
 function normalizeIssuerForComparison(urlString: string): string {
 	const url = new URL(urlString);
+	if (url.search || url.hash) {
+		throw new Error('Issuer URL must not include query parameters or fragments');
+	}
 	const pathname = url.pathname.replace(/\/+$/, '');
 	return `${url.origin}${pathname}`;
 }
 
 export function getIssuerUrlValidationError(issuerUrl: string): string | null {
 	try {
-		const url = validateRemoteHttpsUrl(issuerUrl.trim(), 'Issuer URL');
-		if (url.search || url.hash) {
-			return 'Issuer URL must not include query parameters or fragments';
-		}
+		validateRemoteHttpsUrl(issuerUrl.trim(), 'Issuer URL', true, false);
 		return null;
 	} catch (error) {
 		return error instanceof Error ? error.message : 'Issuer URL is invalid';
@@ -128,7 +158,8 @@ export function assertSafeOidcDiscoveryDocument(
 	discovery: OIDCDiscovery,
 	configuredIssuerUrl: string
 ): void {
-	validateRemoteHttpsUrl(discovery.issuer, 'Discovery issuer');
+	validateRemoteHttpsUrl(discovery.issuer, 'Discovery issuer', true, false);
+	validateRemoteHttpsUrl(configuredIssuerUrl, 'Issuer URL', true, false);
 
 	if (
 		normalizeIssuerForComparison(discovery.issuer) !==

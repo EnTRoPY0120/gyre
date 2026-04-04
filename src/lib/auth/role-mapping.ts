@@ -11,6 +11,10 @@ function isRoleMapping(value: unknown): value is RoleMapping {
 		return false;
 	}
 
+	if (Object.getPrototypeOf(value) !== Object.prototype) {
+		return false;
+	}
+
 	return Object.values(value).every(
 		(groups) => Array.isArray(groups) && groups.every((group) => typeof group === 'string')
 	);

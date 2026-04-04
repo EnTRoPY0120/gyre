@@ -123,6 +123,20 @@
 		selectedProvider = null;
 	}
 
+	function normalizeRoleMappingForSave(value: string) {
+		const trimmed = value.trim();
+		if (!trimmed || trimmed === DEFAULT_ROLE_MAPPING_TEMPLATE.trim()) {
+			return null;
+		}
+
+		const parsed = parseRoleMappingInput(trimmed);
+		if (!parsed) {
+			return null;
+		}
+
+		return Object.values(parsed).every((groups) => groups.length === 0) ? null : parsed;
+	}
+
 	async function handleCreate() {
 		if (roleMappingError) return;
 		error = '';
@@ -130,7 +144,7 @@
 		loading = true;
 
 		try {
-			const roleMapping = parseRoleMappingInput(formData.roleMapping);
+			const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
 			const response = await fetch('/api/v1/admin/auth-providers', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
@@ -160,7 +174,7 @@
 		loading = true;
 
 		try {
-			const roleMapping = parseRoleMappingInput(formData.roleMapping);
+			const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
 			// Only send changed fields
 			const updates: Record<string, unknown> = {
 				name: formData.name,
