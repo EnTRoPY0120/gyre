@@ -96,14 +96,29 @@ spec:
               key: {{ $key }}
         {{- end }}
         {{- end }}
+        {{- if and .Values.ingress.enabled (gt (len .Values.ingress.hosts) 0) }}
+        {{- $host := (index .Values.ingress.hosts 0).host }}
+        {{- $protocol := ternary "https" "http" (gt (len .Values.ingress.tls) 0) }}
+        {{- $origin := printf "%s://%s" $protocol $host }}
         - name: ORIGIN
-          {{- if and .Values.ingress.enabled (gt (len .Values.ingress.hosts) 0) }}
-          {{- $host := (index .Values.ingress.hosts 0).host }}
-          {{- $protocol := ternary "https" "http" (gt (len .Values.ingress.tls) 0) }}
-          value: "{{ $protocol }}://{{ $host }}"
-          {{- else }}
-          value: "http://{{ include "gyre.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local"
-          {{- end }}
+          value: {{ $origin | quote }}
+        - name: BETTER_AUTH_URL
+          value: {{ $origin | quote }}
+        {{- else if and .Values.gatewayApi.enabled (gt (len .Values.gatewayApi.hostnames) 0) }}
+        {{- $host := index .Values.gatewayApi.hostnames 0 }}
+        {{- $protocol := ternary "https" "http" .Values.gatewayApi.tls }}
+        {{- $origin := printf "%s://%s" $protocol $host }}
+        - name: ORIGIN
+          value: {{ $origin | quote }}
+        - name: BETTER_AUTH_URL
+          value: {{ $origin | quote }}
+        {{- else }}
+        {{- $origin := printf "http://%s.%s.svc.cluster.local" (include "gyre.fullname" .) .Release.Namespace }}
+        - name: ORIGIN
+          value: {{ $origin | quote }}
+        - name: BETTER_AUTH_URL
+          value: {{ $origin | quote }}
+        {{- end }}
         {{- $encSecretName := .Values.encryption.existingSecret | default (printf "%s-encryption" (include "gyre.fullname" .)) }}
         {{- if or .Values.encryption.existingSecret (and .Values.encryption.allowInline .Values.encryption.gyreKey) }}
         - name: GYRE_ENCRYPTION_KEY

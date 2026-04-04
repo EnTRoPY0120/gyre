@@ -77,6 +77,8 @@ gatewayApi:
     #   namespace: gateway-namespace
   hostnames:
     - gyre.local
+  # Set to true if the gateway terminates TLS (used to derive ORIGIN/BETTER_AUTH_URL protocol).
+  tls: false
   # Optional: HTTPRoute rules customization
   rules: []
     # - matches:
