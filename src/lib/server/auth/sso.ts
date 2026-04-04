@@ -3,6 +3,7 @@
  * Handles automatic user creation and role mapping from SSO providers.
  */
 
+import { createHash } from 'node:crypto';
 import { logger } from '../logger.js';
 import { getDb } from '$lib/server/db';
 import { accounts, users, type AuthProvider } from '$lib/server/db/schema';
@@ -96,7 +97,11 @@ export async function createOrUpdateSSOUser(
 			user.emailVerified !== false
 		) {
 			profileUpdates.emailVerified = false;
-		} else if (nextEmailVerified === true && user.emailVerified !== true) {
+		} else if (
+			nextEmail !== undefined &&
+			nextEmailVerified === true &&
+			user.emailVerified !== true
+		) {
 			profileUpdates.emailVerified = true;
 		}
 
@@ -197,7 +202,7 @@ export async function createOrUpdateSSOUser(
 	});
 	if (disabledUserByUsername) {
 		logger.warn(
-			`Blocked SSO auto-provision for disabled username match ${username} on provider ${providerId}`
+			`Blocked SSO auto-provision for disabled username match redactedUsername=${hashIdentifier(username)} on provider ${providerId}`
 		);
 		return { user: null, reason: 'user_disabled' };
 	}
@@ -208,7 +213,7 @@ export async function createOrUpdateSSOUser(
 		});
 		if (disabledUserByEmail) {
 			logger.warn(
-				`Blocked SSO auto-provision for disabled email match ${email} on provider ${providerId}`
+				`Blocked SSO auto-provision for disabled email match redactedEmail=${hashIdentifier(email)} on provider ${providerId}`
 			);
 			return { user: null, reason: 'user_disabled' };
 		}
@@ -452,6 +457,10 @@ function extractEmail(userInfo: OAuthUserInfo, config: AuthProvider): string | u
 function canonicalizeEmail(email: string | null | undefined): string | undefined {
 	const canonicalEmail = email?.trim().toLowerCase();
 	return canonicalEmail || undefined;
+}
+
+function hashIdentifier(value: string): string {
+	return createHash('sha256').update(value).digest('hex').slice(0, 12);
 }
 
 /**

@@ -255,6 +255,49 @@ describe('SSO auto provisioning', () => {
 		expect(dbState.updatedUserSets).toHaveLength(0);
 	});
 
+	test('does not verify an existing email when the IdP omits the email claim', async () => {
+		dbState.existingLink = { userId: 'existing-user-id' };
+		dbState.userLookups = [
+			{
+				id: 'existing-user-id',
+				username: 'existing-user',
+				email: 'verified@example.com',
+				name: 'Existing User',
+				image: null,
+				role: 'viewer',
+				active: true,
+				isLocal: false,
+				emailVerified: false
+			}
+		];
+
+		const result = await createOrUpdateSSOUser(
+			'oidc-provider',
+			{
+				sub: 'oidc-user-3a',
+				preferred_username: 'existing-user',
+				name: 'Existing User',
+				emailVerified: true
+			},
+			createProviderConfig('missing.email')
+		);
+
+		expect(result).toEqual({
+			user: {
+				id: 'existing-user-id',
+				username: 'existing-user',
+				email: 'verified@example.com',
+				name: 'Existing User',
+				image: null,
+				role: 'viewer',
+				active: true,
+				isLocal: false,
+				emailVerified: false
+			}
+		});
+		expect(dbState.updatedUserSets.some((values) => values.emailVerified === true)).toBeFalse();
+	});
+
 	test('canonicalizes configured email claims before validating and saving them', async () => {
 		dbState.existingLink = { userId: 'existing-user-id' };
 		dbState.userLookups = [
