@@ -4,6 +4,7 @@
  */
 
 import { logger } from '$lib/server/logger.js';
+import { parseRoleMappingInput } from '$lib/auth/role-mapping';
 import type { PageServerLoad } from './$types';
 import { getDb } from '$lib/server/db';
 
@@ -17,7 +18,15 @@ export const load: PageServerLoad = async () => {
 		// Sanitize client secrets
 		const sanitizedProviders = providers.map((p) => ({
 			...p,
-			clientSecretEncrypted: '***'
+			clientSecretEncrypted: '***',
+			roleMapping: (() => {
+				try {
+					return parseRoleMappingInput(p.roleMapping);
+				} catch {
+					logger.warn({ providerId: p.id }, '[auth-providers] Malformed roleMapping JSON');
+					return null;
+				}
+			})()
 		}));
 
 		return {

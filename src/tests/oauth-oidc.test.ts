@@ -38,6 +38,7 @@ mock.module('jose', () => ({
 }));
 
 import { OIDCProvider } from '../lib/server/auth/oauth/providers/oidc.js';
+import { validateProviderConfig } from '../lib/server/auth/oauth/index.js';
 import { OAuthError } from '../lib/server/auth/oauth/types.js';
 
 const MOCK_DISCOVERY = {
@@ -124,6 +125,16 @@ describe('OIDCProvider — constructor', () => {
 		} catch (e) {
 			expect(e).toMatchObject({ code: 'INVALID_CONFIG' });
 		}
+	});
+
+	test('rejects insecure issuer URLs during construction', () => {
+		expect(
+			() =>
+				new OIDCProvider({
+					config: { ...mockConfig, issuerUrl: 'http://127.0.0.1:8080' } as never,
+					redirectUri: 'https://app.example.com/cb'
+				})
+		).toThrow(OAuthError);
 	});
 });
 
@@ -229,6 +240,56 @@ describe('OIDCProvider — discover()', () => {
 					response_types_supported: ['code'],
 					subject_types_supported: ['public'],
 					id_token_signing_alg_values_supported: ['RS256']
+				}),
+				{ status: 200 }
+			);
+		});
+		try {
+			await expect(provider.getAuthorizationUrl('state', 'verifier')).rejects.toMatchObject({
+				name: 'OAuthError',
+				code: 'DISCOVERY_FAILED'
+			});
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	test('throws OAuthError with DISCOVERY_FAILED when discovery issuer does not match config', async () => {
+		const uniqueIssuer = `https://issuer-mismatch-${Date.now()}.example.com`;
+		const provider = makeProvider({ issuerUrl: uniqueIssuer });
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+			return new Response(
+				JSON.stringify({
+					...MOCK_DISCOVERY,
+					issuer: 'https://unexpected.example.com',
+					authorization_endpoint: `${uniqueIssuer}/auth`,
+					token_endpoint: `${uniqueIssuer}/token`,
+					jwks_uri: `${uniqueIssuer}/.well-known/jwks`
+				}),
+				{ status: 200 }
+			);
+		});
+		try {
+			await expect(provider.getAuthorizationUrl('state', 'verifier')).rejects.toMatchObject({
+				name: 'OAuthError',
+				code: 'DISCOVERY_FAILED'
+			});
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	test('throws OAuthError with DISCOVERY_FAILED when discovery exposes an unsafe endpoint host', async () => {
+		const uniqueIssuer = `https://unsafe-endpoint-${Date.now()}.example.com`;
+		const provider = makeProvider({ issuerUrl: uniqueIssuer });
+		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+			return new Response(
+				JSON.stringify({
+					...MOCK_DISCOVERY,
+					issuer: uniqueIssuer,
+					authorization_endpoint: `${uniqueIssuer}/auth`,
+					token_endpoint: `${uniqueIssuer}/token`,
+					jwks_uri: 'https://127.0.0.1/.well-known/jwks'
 				}),
 				{ status: 200 }
 			);
@@ -504,8 +565,7 @@ describe('OIDCProvider — mapClaimsToUserInfo()', () => {
 		expect(info.groups).toEqual(['admin', 'developers']);
 	});
 
-	test('passes string groups claim through as raw string (not converted to array due to spread override)', async () => {
-		// TODO: The spread { ...userInfo, ...claims } overwrites the mapped groups array with the raw string value. This means string roleClaims are not converted to arrays as intended. This is a known implementation quirk.
+	test('normalizes string groups claims to arrays without losing the raw claim fields', async () => {
 		const uniqueIssuer = `https://string-group-${Date.now()}.example.com`;
 		const discovery = {
 			...MOCK_DISCOVERY,
@@ -535,10 +595,37 @@ describe('OIDCProvider — mapClaimsToUserInfo()', () => {
 		});
 		try {
 			const info = await provider.getUserInfo({ accessToken: 'token', tokenType: 'Bearer' });
-			expect(info['groups']).toBe('single-group');
+			expect(info.groups).toEqual(['single-group']);
+			expect(info.email).toBe('other@example.com');
 		} finally {
 			spy.mockRestore();
 		}
+	});
+});
+
+describe('validateProviderConfig', () => {
+	test('rejects non-HTTPS issuer URLs for OIDC providers', () => {
+		const validation = validateProviderConfig({
+			...mockConfig,
+			clientSecretEncrypted: 'encrypted-secret',
+			issuerUrl: 'http://issuer.example.com'
+		});
+
+		expect(validation.valid).toBe(false);
+		expect(validation.errors).toContain('Issuer URL must use HTTPS');
+	});
+
+	test('rejects localhost and reserved IP issuer URLs', () => {
+		const validation = validateProviderConfig({
+			...mockConfig,
+			clientSecretEncrypted: 'encrypted-secret',
+			issuerUrl: 'https://127.0.0.1:8443'
+		});
+
+		expect(validation.valid).toBe(false);
+		expect(validation.errors).toContain(
+			'Issuer URL must not use private, loopback, or reserved IP addresses'
+		);
 	});
 });
 

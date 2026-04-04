@@ -10,6 +10,7 @@ import { z } from '$lib/server/openapi';
 import { authProviderSchema } from '$lib/server/auth/schemas';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
+import { parseRoleMappingInput } from '$lib/auth/role-mapping';
 import { accounts, authProviders } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
@@ -147,9 +148,8 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 			...provider,
 			clientSecretEncrypted: '***',
 			roleMapping: (() => {
-				if (!provider.roleMapping) return null;
 				try {
-					return JSON.parse(provider.roleMapping);
+					return parseRoleMappingInput(provider.roleMapping);
 				} catch {
 					logger.warn({ providerId: provider.id }, '[auth-providers] Malformed roleMapping JSON');
 					return null;
@@ -214,17 +214,16 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		if (body.autoProvision !== undefined) updates.autoProvision = body.autoProvision;
 		if (body.defaultRole !== undefined) updates.defaultRole = body.defaultRole;
 		if (body.roleMapping !== undefined) {
-			if (body.roleMapping !== null) {
-				const roleMappingSchema = z.record(z.string(), z.array(z.string()));
-				const result = roleMappingSchema.safeParse(body.roleMapping);
-				if (!result.success) {
-					throw error(400, {
-						message: 'roleMapping must be an object mapping role names to arrays of group strings'
-					});
-				}
-				updates.roleMapping = JSON.stringify(result.data);
-			} else {
-				updates.roleMapping = null;
+			try {
+				const parsedRoleMapping = parseRoleMappingInput(body.roleMapping);
+				updates.roleMapping = parsedRoleMapping ? JSON.stringify(parsedRoleMapping) : null;
+			} catch (parseError) {
+				throw error(400, {
+					message:
+						parseError instanceof Error
+							? parseError.message
+							: 'roleMapping must be an object mapping role names to arrays of group strings'
+				});
 			}
 		}
 		if (body.roleClaim !== undefined) updates.roleClaim = body.roleClaim;
@@ -261,9 +260,8 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 				...updatedProvider,
 				clientSecretEncrypted: '***',
 				roleMapping: (() => {
-					if (!updatedProvider?.roleMapping) return null;
 					try {
-						return JSON.parse(updatedProvider.roleMapping);
+						return parseRoleMappingInput(updatedProvider?.roleMapping);
 					} catch {
 						logger.warn({ providerId: params.id }, '[auth-providers] Malformed roleMapping JSON');
 						return null;

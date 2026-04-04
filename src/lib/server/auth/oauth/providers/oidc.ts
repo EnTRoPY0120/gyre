@@ -22,6 +22,7 @@ import type {
 import { OAuthError } from '../types';
 import { generateCodeChallenge } from '$lib/server/auth/pkce';
 import { decryptSecret } from '$lib/server/auth/crypto';
+import { assertSafeIssuerUrl, assertSafeOidcDiscoveryDocument } from '../url-security';
 
 /**
  * In-memory cache for OIDC discovery documents
@@ -60,8 +61,18 @@ export class OIDCProvider implements IOAuthProvider {
 		this.config = options.config;
 		this.redirectUri = options.redirectUri || `/api/v1/auth/${this.config.id}/callback`;
 
-		if (!this.config.issuerUrl) {
+		if (!this.config.issuerUrl?.trim()) {
 			throw new OAuthError('OIDC provider requires issuerUrl', 'INVALID_CONFIG');
+		}
+
+		try {
+			assertSafeIssuerUrl(this.config.issuerUrl);
+		} catch (error) {
+			throw new OAuthError(
+				error instanceof Error ? error.message : 'OIDC issuer URL is invalid',
+				'INVALID_CONFIG',
+				error
+			);
 		}
 	}
 
@@ -70,7 +81,7 @@ export class OIDCProvider implements IOAuthProvider {
 	 * Results are cached for 1 hour.
 	 */
 	private async discover(): Promise<OIDCDiscovery> {
-		const issuer = this.config.issuerUrl!;
+		const issuer = assertSafeIssuerUrl(this.config.issuerUrl!).toString().replace(/\/$/, '');
 
 		// Check cache
 		const cached = discoveryCache.get(issuer);
@@ -84,7 +95,7 @@ export class OIDCProvider implements IOAuthProvider {
 			: `${issuer}/.well-known/openid-configuration`;
 
 		try {
-			const response = await fetch(discoveryUrl);
+			const response = await fetch(discoveryUrl, { redirect: 'error' });
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
@@ -95,6 +106,8 @@ export class OIDCProvider implements IOAuthProvider {
 			if (!discovery.authorization_endpoint || !discovery.token_endpoint || !discovery.jwks_uri) {
 				throw new Error('Invalid discovery document: missing required endpoints');
 			}
+
+			assertSafeOidcDiscoveryDocument(discovery, issuer);
 
 			setDiscoveryCache(issuer, discovery);
 
@@ -175,7 +188,8 @@ export class OIDCProvider implements IOAuthProvider {
 					Accept: 'application/json'
 				},
 				body: body.toString(),
-				signal: controller.signal
+				signal: controller.signal,
+				redirect: 'error'
 			});
 
 			if (!response.ok) {
@@ -263,7 +277,8 @@ export class OIDCProvider implements IOAuthProvider {
 			const response = await fetch(discovery.userinfo_endpoint, {
 				headers: {
 					Authorization: `Bearer ${tokens.accessToken}`
-				}
+				},
+				redirect: 'error'
 			});
 
 			if (!response.ok) {
@@ -306,7 +321,8 @@ export class OIDCProvider implements IOAuthProvider {
 					Accept: 'application/json'
 				},
 				body: body.toString(),
-				signal: controller.signal
+				signal: controller.signal,
+				redirect: 'error'
 			});
 
 			if (!response.ok) {
@@ -383,6 +399,6 @@ export class OIDCProvider implements IOAuthProvider {
 		}
 
 		// Include all claims for custom extraction
-		return { ...userInfo, ...claims };
+		return { ...claims, ...userInfo };
 	}
 }
