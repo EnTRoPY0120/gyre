@@ -5,11 +5,12 @@
  */
 
 import { logger } from '$lib/server/logger.js';
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import { authProviderSchema, providerTypeSchema } from '$lib/server/auth/schemas';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
+import { parseRoleMappingInput } from '$lib/auth/role-mapping';
 
 export const _metadata = {
 	GET: {
@@ -114,7 +115,15 @@ export const GET: RequestHandler = async ({ locals }) => {
 		// Remove sensitive data before sending to client
 		const sanitizedProviders = providers.map((p) => ({
 			...p,
-			clientSecretEncrypted: '***' // Don't send encrypted secret to client
+			clientSecretEncrypted: '***', // Don't send encrypted secret to client
+			roleMapping: (() => {
+				try {
+					return parseRoleMappingInput(p.roleMapping);
+				} catch {
+					logger.warn({ providerId: p.id }, '[auth-providers] Malformed roleMapping JSON');
+					return null;
+				}
+			})()
 		}));
 
 		return json({ providers: sanitizedProviders });
@@ -166,18 +175,16 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 			throw error(400, { message: 'Missing required fields' });
 		}
 
-		// Validate roleMapping shape before persisting — each value must be an array
-		// of strings, matching the Record<string, string[]> expected by mapRoleFromGroups.
-		let validatedRoleMapping: Record<string, string[]> | null = roleMapping ?? null;
-		if (roleMapping != null) {
-			const roleMappingSchema = z.record(z.string(), z.array(z.string()));
-			const result = roleMappingSchema.safeParse(roleMapping);
-			if (!result.success) {
-				throw error(400, {
-					message: 'roleMapping must be an object mapping role names to arrays of group strings'
-				});
-			}
-			validatedRoleMapping = result.data;
+		let validatedRoleMapping: Record<string, string[]> | null = null;
+		try {
+			validatedRoleMapping = parseRoleMappingInput(roleMapping);
+		} catch (parseError) {
+			throw error(400, {
+				message:
+					parseError instanceof Error
+						? parseError.message
+						: 'roleMapping must be an object mapping role names to arrays of group strings'
+			});
 		}
 
 		// Encrypt client secret
@@ -222,16 +229,14 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 			success: true,
 			provider: {
 				...newProvider,
-				clientSecretEncrypted: '***' // Don't send back to client
+				clientSecretEncrypted: '***', // Don't send back to client
+				roleMapping: validatedRoleMapping
 			}
 		});
 	} catch (err) {
-		logger.error(err, 'Failed to create auth provider:');
+		if (isHttpError(err) || isRedirect(err)) throw err;
 
-		// Re-throw SvelteKit errors
-		if (err instanceof Response) {
-			throw err;
-		}
+		logger.error(err, 'Failed to create auth provider:');
 
 		throw error(500, { message: 'Failed to create provider' });
 	}

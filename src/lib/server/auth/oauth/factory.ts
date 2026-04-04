@@ -10,6 +10,7 @@ import { OIDCProvider } from './providers/oidc';
 import { GitHubProvider } from './providers/github';
 import { GitLabProvider } from './providers/gitlab';
 import { GoogleProvider } from './providers/google';
+import { getIssuerUrlValidationError } from './url-security';
 import { getDb } from '$lib/server/db';
 import { authProviders } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
@@ -130,14 +131,13 @@ export function validateProviderConfig(config: Partial<AuthProvider>): {
 
 	// Type-specific validation
 	if (config.type === ProviderType.OIDC || config.type === ProviderType.OAUTH2_GENERIC) {
-		if (!config.issuerUrl?.trim()) {
+		const issuerUrl = config.issuerUrl?.trim();
+		if (!issuerUrl) {
 			errors.push('Issuer URL is required for OIDC providers');
 		} else {
-			// Validate URL format
-			try {
-				new URL(config.issuerUrl);
-			} catch {
-				errors.push('Issuer URL must be a valid URL');
+			const validationError = getIssuerUrlValidationError(issuerUrl);
+			if (validationError) {
+				errors.push(validationError);
 			}
 		}
 	}

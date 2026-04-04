@@ -1,5 +1,10 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import {
+		DEFAULT_ROLE_MAPPING_TEMPLATE,
+		parseRoleMappingInput,
+		stringifyRoleMappingForForm
+	} from '$lib/auth/role-mapping';
 	import type { PageData } from './$types';
 	import * as Select from '$lib/components/ui/select';
 	import { getCsrfToken } from '$lib/utils/csrf';
@@ -33,14 +38,10 @@
 		}
 
 		try {
-			const parsed = JSON.parse(mapping);
-			if (typeof parsed !== 'object' || parsed === null) {
-				roleMappingError = 'Role mapping must be a JSON object';
-			} else {
-				roleMappingError = '';
-			}
+			parseRoleMappingInput(mapping);
+			roleMappingError = '';
 		} catch (e) {
-			roleMappingError = 'Invalid JSON: ' + (e instanceof Error ? e.message : 'Parse error');
+			roleMappingError = e instanceof Error ? e.message : 'Role mapping is invalid';
 		}
 	});
 
@@ -54,7 +55,7 @@
 		issuerUrl: '',
 		autoProvision: true,
 		defaultRole: 'viewer' as UserRole,
-		roleMapping: '{\n  "admin": [],\n  "editor": [],\n  "viewer": []\n}',
+		roleMapping: DEFAULT_ROLE_MAPPING_TEMPLATE,
 		roleClaim: 'groups',
 		usernameClaim: 'preferred_username',
 		emailClaim: 'email',
@@ -73,7 +74,7 @@
 			issuerUrl: '',
 			autoProvision: true,
 			defaultRole: 'viewer',
-			roleMapping: '{\n  "admin": [],\n  "editor": [],\n  "viewer": []\n}',
+			roleMapping: DEFAULT_ROLE_MAPPING_TEMPLATE,
 			roleClaim: 'groups',
 			usernameClaim: 'preferred_username',
 			emailClaim: 'email',
@@ -96,7 +97,7 @@
 			issuerUrl: provider.issuerUrl || '',
 			autoProvision: provider.autoProvision,
 			defaultRole: provider.defaultRole as UserRole,
-			roleMapping: provider.roleMapping || '{\n  "admin": [],\n  "editor": [],\n  "viewer": []\n}',
+			roleMapping: stringifyRoleMappingForForm(provider.roleMapping, DEFAULT_ROLE_MAPPING_TEMPLATE),
 			roleClaim: provider.roleClaim,
 			usernameClaim: provider.usernameClaim,
 			emailClaim: provider.emailClaim,
@@ -129,10 +130,11 @@
 		loading = true;
 
 		try {
+			const roleMapping = parseRoleMappingInput(formData.roleMapping);
 			const response = await fetch('/api/v1/admin/auth-providers', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-				body: JSON.stringify(formData)
+				body: JSON.stringify({ ...formData, roleMapping })
 			});
 
 			if (!response.ok) {
@@ -158,6 +160,7 @@
 		loading = true;
 
 		try {
+			const roleMapping = parseRoleMappingInput(formData.roleMapping);
 			// Only send changed fields
 			const updates: Record<string, unknown> = {
 				name: formData.name,
@@ -167,7 +170,7 @@
 				issuerUrl: formData.issuerUrl,
 				autoProvision: formData.autoProvision,
 				defaultRole: formData.defaultRole,
-				roleMapping: formData.roleMapping,
+				roleMapping,
 				roleClaim: formData.roleClaim,
 				usernameClaim: formData.usernameClaim,
 				emailClaim: formData.emailClaim,
@@ -531,6 +534,7 @@
 								<Select.Item value="oauth2-google">Google OAuth</Select.Item>
 								<Select.Item value="oauth2-github">GitHub OAuth</Select.Item>
 								<Select.Item value="oauth2-gitlab">GitLab OAuth</Select.Item>
+								<Select.Item value="oauth2-generic">Generic OAuth2</Select.Item>
 							</Select.Content>
 						</Select.Root>
 					</div>
@@ -565,17 +569,21 @@
 				</div>
 
 				<!-- OIDC/GitLab Settings -->
-				{#if formData.type === 'oidc' || formData.type === 'oauth2-gitlab'}
+				{#if formData.type === 'oidc' ||
+					formData.type === 'oauth2-generic' ||
+					formData.type === 'oauth2-gitlab'}
 					<div>
 						<label for="issuer-url" class="mb-1 block text-sm font-medium text-slate-300">
-							{formData.type === 'oidc' ? 'Issuer URL' : 'GitLab Instance URL'}
+							{formData.type === 'oauth2-gitlab' ? 'GitLab Instance URL' : 'Issuer URL'}
 						</label>
 						<input
 							id="issuer-url"
 							type="url"
 							bind:value={formData.issuerUrl}
-							placeholder={formData.type === 'oidc' ? 'https://accounts.google.com' : 'https://gitlab.com'}
-							required={formData.type === 'oidc'}
+							placeholder={formData.type === 'oauth2-gitlab'
+								? 'https://gitlab.com'
+								: 'https://accounts.google.com'}
+							required={formData.type !== 'oauth2-gitlab'}
 							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						/>
 						{#if formData.type === 'oauth2-gitlab'}
@@ -782,6 +790,7 @@
 								<Select.Item value="oauth2-google">Google OAuth</Select.Item>
 								<Select.Item value="oauth2-github">GitHub OAuth</Select.Item>
 								<Select.Item value="oauth2-gitlab">GitLab OAuth</Select.Item>
+								<Select.Item value="oauth2-generic">Generic OAuth2</Select.Item>
 							</Select.Content>
 						</Select.Root>
 					</div>
@@ -816,17 +825,21 @@
 				</div>
 
 				<!-- OIDC/GitLab Settings -->
-				{#if formData.type === 'oidc' || formData.type === 'oauth2-gitlab'}
+				{#if formData.type === 'oidc' ||
+					formData.type === 'oauth2-generic' ||
+					formData.type === 'oauth2-gitlab'}
 					<div>
 						<label for="edit-issuer-url" class="mb-1 block text-sm font-medium text-slate-300">
-							{formData.type === 'oidc' ? 'Issuer URL' : 'GitLab Instance URL'}
+							{formData.type === 'oauth2-gitlab' ? 'GitLab Instance URL' : 'Issuer URL'}
 						</label>
 						<input
 							id="edit-issuer-url"
 							type="url"
 							bind:value={formData.issuerUrl}
-							placeholder={formData.type === 'oidc' ? 'https://accounts.google.com' : 'https://gitlab.com'}
-							required={formData.type === 'oidc'}
+							placeholder={formData.type === 'oauth2-gitlab'
+								? 'https://gitlab.com'
+								: 'https://accounts.google.com'}
+							required={formData.type !== 'oauth2-gitlab'}
 							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
 						/>
 					</div>
