@@ -13,6 +13,7 @@ image:
 imagePullSecrets: []
 nameOverride: ''
 fullnameOverride: ''
+origin: ''
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -77,7 +78,8 @@ gatewayApi:
     #   namespace: gateway-namespace
   hostnames:
     - gyre.local
-  # Set to true if the gateway terminates TLS (used to derive ORIGIN/BETTER_AUTH_URL protocol).
+  # Set to true if the gateway terminates TLS.
+  # This changes derived ORIGIN/BETTER_AUTH_URL values from http:// to https://.
   tls: false
   # Optional: HTTPRoute rules customization
   rules: []
@@ -207,7 +209,8 @@ auth:
   #     roleMapping: '{"admin":["DevOps"],"editor":["Developers"]}'
   # Provider secrets from existing Kubernetes Secret (recommended for production)
   # If set, clientSecret values in providers[] are ignored
-  # Secret should have keys like: PROVIDER_0_CLIENT_SECRET, PROVIDER_1_CLIENT_SECRET, etc.
+  # Secret should have keys like: PROVIDER_GITHUB_CLIENT_SECRET or
+  # PROVIDER_CORPORATE_SSO_CLIENT_SECRET.
   providersExistingSecret: ""
 # Metrics and Monitoring
 metrics:
@@ -226,7 +229,9 @@ networkPolicy:
   enabled: true
   # Namespace where kube-dns runs (used in egress DNS rule)
   dnsNamespace: kube-system
-  # Namespace where the Kubernetes API server endpoint lives (used in egress API rule)
+  # DEPRECATED: Use networkPolicy.egress.apiServer.namespaceSelector instead.
+  # Namespace where the Kubernetes API server endpoint lives when the new
+  # structured API server egress config is left unset.
   apiServerNamespace: default
   ingress:
     # Restrict ingress to pods matching these labels (e.g. your ingress controller).
@@ -251,6 +256,13 @@ networkPolicy:
       #   - protocol: TCP
       #     port: 3000
   egress:
+    apiServer:
+      namespaceSelector: {}
+      podSelector: {}
+      ipBlocks: []
+      ports:
+        - 443
+        - 6443
     additionalRules: []
       # Example additional egress rules:
       # - to:

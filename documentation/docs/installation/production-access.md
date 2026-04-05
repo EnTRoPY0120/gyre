@@ -82,11 +82,16 @@ The [Kubernetes Gateway API](https://gateway-api.sigs.k8s.io/) is the evolution 
 To use the Gateway API, enable it in your `values.yaml` and reference your existing `Gateway`:
 
 ```yaml
+origin: https://gyre.example.com
+
 gatewayApi:
   enabled: true
   parentRefs:
     - name: my-gateway
       namespace: gateway-namespace
+  # Set this to true when the Gateway terminates TLS so Gyre derives
+  # https:// ORIGIN/BETTER_AUTH_URL values.
+  tls: true
   hostnames:
     - gyre.example.com
   # Default rule points to the Gyre service, but you can override it:
@@ -97,6 +102,8 @@ gatewayApi:
   #       - name: gyre
   #         port: 80
 ```
+
+Use `origin` when the public hostname is inherited from the Gateway or listener and is not repeated in chart values. When `origin` is empty, Gyre derives it from ingress first, then `gatewayApi.hostnames`, then falls back to the in-cluster service URL.
 
 **Note:** Ensure your cluster has a Gateway API implementation installed (e.g., GKE Gateway, Istio, Linkerd, or an updated Nginx/Traefik controller with Gateway API support).
 

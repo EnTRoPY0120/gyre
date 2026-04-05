@@ -96,29 +96,22 @@ spec:
               key: {{ $key }}
         {{- end }}
         {{- end }}
-        {{- if and .Values.ingress.enabled (gt (len .Values.ingress.hosts) 0) }}
+        {{- $originState := dict "value" (printf "http://%s.%s.svc.cluster.local" (include "gyre.fullname" .) .Release.Namespace) }}
+        {{- if .Values.origin }}
+        {{- $_ := set $originState "value" .Values.origin }}
+        {{- else if and .Values.ingress.enabled (gt (len .Values.ingress.hosts) 0) }}
         {{- $host := (index .Values.ingress.hosts 0).host }}
         {{- $protocol := ternary "https" "http" (gt (len .Values.ingress.tls) 0) }}
-        {{- $origin := printf "%s://%s" $protocol $host }}
-        - name: ORIGIN
-          value: {{ $origin | quote }}
-        - name: BETTER_AUTH_URL
-          value: {{ $origin | quote }}
+        {{- $_ := set $originState "value" (printf "%s://%s" $protocol $host) }}
         {{- else if and .Values.gatewayApi.enabled (gt (len .Values.gatewayApi.hostnames) 0) }}
         {{- $host := index .Values.gatewayApi.hostnames 0 }}
         {{- $protocol := ternary "https" "http" .Values.gatewayApi.tls }}
-        {{- $origin := printf "%s://%s" $protocol $host }}
-        - name: ORIGIN
-          value: {{ $origin | quote }}
-        - name: BETTER_AUTH_URL
-          value: {{ $origin | quote }}
-        {{- else }}
-        {{- $origin := printf "http://%s.%s.svc.cluster.local" (include "gyre.fullname" .) .Release.Namespace }}
-        - name: ORIGIN
-          value: {{ $origin | quote }}
-        - name: BETTER_AUTH_URL
-          value: {{ $origin | quote }}
+        {{- $_ := set $originState "value" (printf "%s://%s" $protocol $host) }}
         {{- end }}
+        - name: ORIGIN
+          value: {{ get $originState "value" | quote }}
+        - name: BETTER_AUTH_URL
+          value: {{ get $originState "value" | quote }}
         {{- $encSecretName := .Values.encryption.existingSecret | default (printf "%s-encryption" (include "gyre.fullname" .)) }}
         {{- if or .Values.encryption.existingSecret (and .Values.encryption.allowInline .Values.encryption.gyreKey) }}
         - name: GYRE_ENCRYPTION_KEY
@@ -151,11 +144,12 @@ spec:
         # Provider client secrets from existing secret
         {{- if .Values.auth.providersExistingSecret }}
         {{- range $provider := .Values.auth.providers }}
-        - name: GYRE_AUTH_PROVIDER_{{ $provider.name | upper | replace "-" "_" | replace " " "_" }}_CLIENT_SECRET
+        {{- $providerKey := regexReplaceAll "[^A-Z0-9]" ($provider.name | upper) "_" }}
+        - name: GYRE_AUTH_PROVIDER_{{ $providerKey }}_CLIENT_SECRET
           valueFrom:
             secretKeyRef:
               name: {{ $.Values.auth.providersExistingSecret }}
-              key: PROVIDER_{{ $provider.name | upper | replace "-" "_" | replace " " "_" }}_CLIENT_SECRET
+              key: PROVIDER_{{ $providerKey }}_CLIENT_SECRET
               optional: true
         {{- end }}
         {{- end }}

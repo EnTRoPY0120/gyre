@@ -12,6 +12,7 @@ This guide provides a detailed reference for all configuration options available
 | ------------------ | -------------------------------------- | ------- |
 | `nameOverride`     | Override chart name                    | `""`    |
 | `fullnameOverride` | Override fully qualified app name      | `""`    |
+| `origin`           | Explicit ORIGIN/BETTER_AUTH_URL value  | `""`    |
 | `replicaCount`     | Number of replicas (SQLite requires 1) | `1`     |
 
 ## Image Configuration
@@ -49,6 +50,16 @@ This guide provides a detailed reference for all configuration options available
 | `ingress.annotations` | Ingress annotations         | `{}`            |
 | `ingress.hosts`       | Ingress hosts configuration | See values.yaml |
 | `ingress.tls`         | Ingress TLS configuration   | `[]`            |
+
+## Gateway API Configuration
+
+| Parameter               | Description                                                                        | Default         |
+| ----------------------- | ---------------------------------------------------------------------------------- | --------------- |
+| `gatewayApi.enabled`    | Enable Gateway API HTTPRoute generation                                            | `false`         |
+| `gatewayApi.parentRefs` | Gateway parent references                                                          | `[]`            |
+| `gatewayApi.hostnames`  | Hostnames used for HTTPRoute matching and ORIGIN derivation when `origin` is unset | See values.yaml |
+| `gatewayApi.tls`        | Treat derived ORIGIN/BETTER_AUTH_URL as `https://` when the Gateway terminates TLS | `false`         |
+| `gatewayApi.rules`      | Optional HTTPRoute rule overrides                                                  | `[]`            |
 
 ## Persistence
 
@@ -117,13 +128,25 @@ This guide provides a detailed reference for all configuration options available
 
 ## Network Policy
 
-| Parameter                                 | Description                          | Default |
-| ----------------------------------------- | ------------------------------------ | ------- |
-| `networkPolicy.enabled`                   | Enable NetworkPolicy                 | `false` |
-| `networkPolicy.ingress.podSelector`       | Pod selector for ingress rules       | `{}`    |
-| `networkPolicy.ingress.namespaceSelector` | Namespace selector for ingress rules | `{}`    |
-| `networkPolicy.ingress.additionalRules`   | Additional ingress rules             | `[]`    |
-| `networkPolicy.egress.additionalRules`    | Additional egress rules              | `[]`    |
+| Parameter                                          | Description                                                         | Default      |
+| -------------------------------------------------- | ------------------------------------------------------------------- | ------------ |
+| `networkPolicy.enabled`                            | Enable NetworkPolicy                                                | `true`       |
+| `networkPolicy.apiServerNamespace`                 | Deprecated fallback namespace selector for Kubernetes API egress    | `default`    |
+| `networkPolicy.ingress.podSelector`                | Pod selector for ingress rules                                      | `{}`         |
+| `networkPolicy.ingress.namespaceSelector`          | Namespace selector for ingress rules                                | `{}`         |
+| `networkPolicy.ingress.additionalRules`            | Additional ingress rules                                            | `[]`         |
+| `networkPolicy.egress.apiServer.namespaceSelector` | Namespace selector for Kubernetes API egress targets                | `{}`         |
+| `networkPolicy.egress.apiServer.podSelector`       | Optional pod selector paired with the API-server namespace selector | `{}`         |
+| `networkPolicy.egress.apiServer.ipBlocks`          | CIDRs for managed control-plane API endpoints                       | `[]`         |
+| `networkPolicy.egress.apiServer.ports`             | Allowed TCP ports for Kubernetes API egress                         | `[443,6443]` |
+| `networkPolicy.egress.additionalRules`             | Additional egress rules                                             | `[]`         |
+
+`ORIGIN` and `BETTER_AUTH_URL` resolve in this order:
+
+1. `origin` when non-empty
+2. The first enabled ingress host
+3. The first `gatewayApi.hostnames` entry, using `gatewayApi.tls` to choose `http` vs `https`
+4. The in-cluster service URL fallback
 
 ## Application Configuration
 
@@ -143,6 +166,20 @@ This guide provides a detailed reference for all configuration options available
 | `encryption.gyreKey`        | Key for encrypting cluster kubeconfigs  | `""`    |
 | `encryption.authKey`        | Key for encrypting OAuth client secrets | `""`    |
 | `encryption.existingSecret` | Existing secret with encryption keys    | `""`    |
+
+## Auth Provider Secret Convention
+
+When `auth.providersExistingSecret` is set, each provider secret must use the provider-name convention shared by Helm and the runtime:
+
+- Secret key format: `PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET`
+- Env var format: `GYRE_AUTH_PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET`
+- Sanitization: uppercase the provider name and replace every non-`[A-Z0-9]` character with `_`
+
+Examples:
+
+- `GitHub` -> `PROVIDER_GITHUB_CLIENT_SECRET`
+- `Corporate SSO` -> `PROVIDER_CORPORATE_SSO_CLIENT_SECRET`
+- `oauth2.generic` -> `PROVIDER_OAUTH2_GENERIC_CLIENT_SECRET`
 
 ## Upgrade Procedure
 

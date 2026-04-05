@@ -1,4 +1,9 @@
 {{- if .Values.rbac.create -}}
+{{- $generatedEncryptionSecretName := printf "%s-encryption" (include "gyre.fullname" .) -}}
+{{- $secretNames := list .Values.admin.secretName $generatedEncryptionSecretName -}}
+{{- if and .Values.encryption.existingSecret (ne .Values.encryption.existingSecret $generatedEncryptionSecretName) -}}
+{{- $secretNames = append $secretNames .Values.encryption.existingSecret -}}
+{{- end -}}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -15,7 +20,8 @@ rules:
   resources:
     - secrets
   resourceNames:
-    - {{ .Values.admin.secretName }}
-    - {{ include "gyre.fullname" . }}-encryption
+    {{- range $secretName := uniq $secretNames }}
+    - {{ $secretName }}
+    {{- end }}
   verbs: ["get", "list", "watch", "update", "patch"]
 {{- end }}
