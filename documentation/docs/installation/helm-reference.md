@@ -128,18 +128,18 @@ This guide provides a detailed reference for all configuration options available
 
 ## Network Policy
 
-| Parameter                                          | Description                                                         | Default      |
-| -------------------------------------------------- | ------------------------------------------------------------------- | ------------ |
-| `networkPolicy.enabled`                            | Enable NetworkPolicy                                                | `true`       |
-| `networkPolicy.apiServerNamespace`                 | Deprecated fallback namespace selector for Kubernetes API egress    | `default`    |
-| `networkPolicy.ingress.podSelector`                | Pod selector for ingress rules                                      | `{}`         |
-| `networkPolicy.ingress.namespaceSelector`          | Namespace selector for ingress rules                                | `{}`         |
-| `networkPolicy.ingress.additionalRules`            | Additional ingress rules                                            | `[]`         |
-| `networkPolicy.egress.apiServer.namespaceSelector` | Namespace selector for Kubernetes API egress targets                | `{}`         |
-| `networkPolicy.egress.apiServer.podSelector`       | Optional pod selector paired with the API-server namespace selector | `{}`         |
-| `networkPolicy.egress.apiServer.ipBlocks`          | CIDRs for managed control-plane API endpoints                       | `[]`         |
-| `networkPolicy.egress.apiServer.ports`             | Allowed TCP ports for Kubernetes API egress                         | `[443,6443]` |
-| `networkPolicy.egress.additionalRules`             | Additional egress rules                                             | `[]`         |
+| Parameter                                          | Description                                                                    | Default      |
+| -------------------------------------------------- | ------------------------------------------------------------------------------ | ------------ |
+| `networkPolicy.enabled`                            | Enable NetworkPolicy                                                           | `true`       |
+| `networkPolicy.apiServerNamespace`                 | Deprecated fallback namespace name for Kubernetes API egress (e.g., `default`) | `default`    |
+| `networkPolicy.ingress.podSelector`                | Pod selector for ingress rules                                                 | `{}`         |
+| `networkPolicy.ingress.namespaceSelector`          | Namespace selector for ingress rules                                           | `{}`         |
+| `networkPolicy.ingress.additionalRules`            | Additional ingress rules                                                       | `[]`         |
+| `networkPolicy.egress.apiServer.namespaceSelector` | Namespace selector for Kubernetes API egress targets                           | `{}`         |
+| `networkPolicy.egress.apiServer.podSelector`       | Optional pod selector paired with the API-server namespace selector            | `{}`         |
+| `networkPolicy.egress.apiServer.ipBlocks`          | CIDRs for managed control-plane API endpoints                                  | `[]`         |
+| `networkPolicy.egress.apiServer.ports`             | Allowed TCP ports for Kubernetes API egress                                    | `[443,6443]` |
+| `networkPolicy.egress.additionalRules`             | Additional egress rules                                                        | `[]`         |
 
 `ORIGIN` and `BETTER_AUTH_URL` resolve in this order:
 

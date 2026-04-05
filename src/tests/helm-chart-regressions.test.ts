@@ -44,7 +44,10 @@ describe('helm chart regressions', () => {
 
 		expect(source).toContain('.Values.origin');
 		expect(source).toContain('.Values.gatewayApi.tls');
+		expect(source).toContain('{{- $seen := dict }}');
 		expect(source).toContain('regexReplaceAll "[^A-Z0-9]" ($provider.name | upper) "_"');
+		expect(source).toContain('hasKey $seen $providerKey');
+		expect(source).toContain('index $seen $providerKey');
 		expect(source).toContain('GYRE_AUTH_PROVIDER_{{ $providerKey }}_CLIENT_SECRET');
 		expect(source).toContain('PROVIDER_{{ $providerKey }}_CLIENT_SECRET');
 	});
@@ -52,7 +55,9 @@ describe('helm chart regressions', () => {
 	test('values schema includes origin, gatewayApi.tls, and networkPolicy.egress.apiServer', () => {
 		const schema = JSON.parse(readRepoFile('../charts/gyre/values.schema.json'));
 
-		expect(schema.properties.origin.type).toBe('string');
+		expect(schema.properties.origin.anyOf).toBeDefined();
+		expect(schema.properties.origin.anyOf[0].const).toBe('');
+		expect(schema.properties.origin.anyOf[1].pattern).toBe('^https?://.+');
 		expect(schema.properties.gatewayApi.properties.tls.type).toBe('boolean');
 		expect(schema.properties.networkPolicy.properties.egress.properties.apiServer).toBeDefined();
 		expect(
