@@ -29,7 +29,15 @@
     },
     "nameOverride": { "type": "string" },
     "fullnameOverride": { "type": "string" },
-    "origin": { "type": "string" },
+    "origin": {
+      "anyOf": [
+        { "const": "" },
+        {
+          "type": "string",
+          "pattern": "^https?://.+"
+        }
+      ]
+    },
     "serviceAccount": {
       "type": "object",
       "additionalProperties": false,
