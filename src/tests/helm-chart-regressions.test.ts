@@ -57,7 +57,7 @@ describe('helm chart regressions', () => {
 
 		expect(schema.properties.origin.anyOf).toBeDefined();
 		expect(schema.properties.origin.anyOf[0].const).toBe('');
-		expect(schema.properties.origin.anyOf[1].pattern).toBe('^https?://.+');
+		expect(schema.properties.origin.anyOf[1].pattern).toBe('^https?://\\S+$');
 		expect(schema.properties.gatewayApi.properties.tls.type).toBe('boolean');
 		expect(schema.properties.networkPolicy.properties.egress.properties.apiServer).toBeDefined();
 		expect(

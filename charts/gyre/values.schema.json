@@ -34,7 +34,7 @@
         { "const": "" },
         {
           "type": "string",
-          "pattern": "^https?://.+"
+          "pattern": "^https?://\\S+$"
         }
       ]
     },
