@@ -11,7 +11,7 @@ Thank you for your interest in contributing to Gyre! This document outlines the 
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (latest version)
-- [Node.js](https://nodejs.org/) 18+ (for some dev tools)
+- [Node.js](https://nodejs.org/) 22
 - A Kubernetes cluster with FluxCD installed (for testing)
 - Git
 
@@ -99,14 +99,20 @@ gyre/
 Always run these before committing:
 
 ```bash
+# Format code
+bun run format
+
+# Lint
+bun run lint
+
 # Type-check
 bun run check
 
-# Lint and format check
-bun run lint
+# Run automated tests
+bun test
 
-# Auto-format code
-bun run format
+# Verify the production build
+bun run build
 ```
 
 ### Styling
@@ -220,22 +226,23 @@ Use the same type prefixes as commit messages:
 
 1. **Create a branch** from `main` following the naming convention above.
 2. **Make your changes** following the code standards.
-3. **Test your changes** manually in a cluster.
-4. **Run quality checks** (`bun run check`, `bun run lint`).
+3. **Test your changes** manually in a cluster when the change affects runtime behavior.
+4. **Run quality checks** (`bun run format`, `bun run lint`, `bun run check`, `bun test`, `bun run build`).
 5. **Commit** using conventional commit format.
 6. **Push** your branch and open a Pull Request.
 
 ## Testing
 
-**Important**: This project currently does not have automated tests. All testing is manual.
+Gyre has an automated Bun test suite, and CI enforces formatting, linting, type-checking, tests, and build validation on pull requests.
 
 ### Before Submitting a PR
 
-1. **Test in a real Kubernetes cluster** with FluxCD installed.
-2. **Test both success and error paths**.
-3. **Check browser console** for client-side errors.
-4. **Review server logs** for backend issues.
-5. **Test on different screen sizes** for UI changes.
+1. **Run the local quality gates**: `bun run format`, `bun run lint`, `bun run check`, `bun test`, `bun run build`.
+2. **Test in a real Kubernetes cluster** with FluxCD installed when the change affects cluster behavior or deployment flows.
+3. **Test both success and error paths**.
+4. **Check browser console** for client-side errors.
+5. **Review server logs** for backend issues.
+6. **Test on different screen sizes** for UI changes.
 
 ### Setting Up a Test Environment
 

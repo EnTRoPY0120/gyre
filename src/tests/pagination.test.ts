@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 import { Database } from 'bun:sqlite';
@@ -22,7 +22,11 @@ mock.module('../lib/server/rbac-defaults.js', () => ({
 }));
 
 mock.module('bcryptjs', () => ({
-	hash: async () => 'hashed_password',
+	default: {
+		hash: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+		compare: async () => true
+	},
+	hash: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
 	compare: async () => true
 }));
 
@@ -43,6 +47,7 @@ const CREATE_USERS_TABLE = `
 		role TEXT NOT NULL DEFAULT 'viewer',
 		active INTEGER NOT NULL DEFAULT 1,
 		is_local INTEGER NOT NULL DEFAULT 1,
+		requires_password_change INTEGER NOT NULL DEFAULT 0,
 		created_at INTEGER NOT NULL DEFAULT (unixepoch()),
 		updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
 		preferences TEXT
@@ -88,17 +93,8 @@ describe('Pagination Logic', () => {
 
 		// Create some test users
 		prefix = `pagetest_${Date.now()}`;
-		// We insert directly using helper or createUser function?
-		// createUser uses getDb(), which is mocked to return state.db.
-		// So we can use createUser.
-
 		for (let i = 0; i < 15; i++) {
-			try {
-				await createUser(`${prefix}_${i}`, 'password123', 'viewer', `${prefix}_${i}@example.com`);
-			} catch (e) {
-				// eslint-disable-next-line no-console
-				console.error('Failed to create test user', e);
-			}
+			await createUser(`${prefix}_${i}`, 'password123', 'viewer', `${prefix}_${i}@example.com`);
 		}
 	});
 
@@ -164,4 +160,8 @@ describe('Pagination – empty database', () => {
 		expect(result.total).toBe(0);
 		expect(result.users).toHaveLength(0);
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });

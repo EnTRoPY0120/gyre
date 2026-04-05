@@ -12,7 +12,7 @@ RUN go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
 # Use Node.js as the builder base so better-sqlite3 compiles against the same
 # Node.js ABI that the runtime uses (avoids ERR_DLOPEN_FAILED at startup).
 # Bun is copied in solely for fast installs that respect bun.lock.
-FROM node:25-alpine3.23 AS builder
+FROM node:22-alpine3.23 AS builder
 
 WORKDIR /build
 
@@ -42,7 +42,7 @@ RUN bun install --production --frozen-lockfile
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:25-alpine3.23 AS runtime
+FROM node:22-alpine3.23 AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
@@ -107,5 +107,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/metrics', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 # Start the application
-# Node.js 18+ handles signals properly, no init system needed
+# Node.js 22+ handles signals properly, no init system needed
 CMD ["node", "build/index.js"]

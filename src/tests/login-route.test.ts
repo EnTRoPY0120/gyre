@@ -56,7 +56,9 @@ mock.module('$lib/server/auth/better-auth', () => ({
 mock.module('$lib/server/logger.js', () => ({
 	logger: {
 		error: () => {},
-		warn: () => {}
+		warn: () => {},
+		info: () => {},
+		debug: () => {}
 	}
 }));
 

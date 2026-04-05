@@ -26,13 +26,11 @@ mock.module('../lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
 	captureReconciliation: async () => {}
 }));
 
-// Mock constants with short intervals for fast tests.
-// SETTLING_PERIOD_MS is set to -1 so that `now - firstSeen > SETTLING_PERIOD_MS` is always
-// true (even 0 > -1), meaning every newly-seen resource is treated as immediately settled
-// and triggers ADDED events on the very first poll.
+// Mock constants with short intervals for fast tests while still exercising
+// the real settling path.
 mock.module('../lib/server/config/constants.js', () => ({
-	SETTLING_PERIOD_MS: -1,
-	POLL_INTERVAL_MS: 50, // Fast polling for tests
+	SETTLING_PERIOD_MS: 60,
+	POLL_INTERVAL_MS: 20,
 	HEARTBEAT_INTERVAL_MS: 10000 // Long heartbeat (avoid heartbeats in tests)
 }));
 
@@ -107,7 +105,7 @@ describe('subscribe()', () => {
 		const unsub = subscribe((e) => events.push(e), clusterId);
 		try {
 			// Wait for at least one poll cycle to run
-			await wait(150);
+			await wait(260);
 			// CONNECTED is sent synchronously; ADDED comes from the poll worker
 			expect(events.some((e) => e.type === 'CONNECTED')).toBe(true);
 			expect(events.some((e) => e.type === 'ADDED')).toBe(true);
@@ -167,7 +165,7 @@ describe('subscribe()', () => {
 
 		// Set resources and wait for poll
 		mockResources = [makeResource('my-app', 'flux-system', 'v1')];
-		await wait(150);
+		await wait(260);
 
 		try {
 			// Both received CONNECTED synchronously
@@ -248,13 +246,41 @@ describe('Poll change detection', () => {
 		// Wait for initial poll (empty)
 		await wait(150);
 
-		// Add a resource — with SETTLING_PERIOD_MS=-1 it should be notified immediately
+		// Add a resource and confirm it is not emitted until the settling window passes.
 		mockResources = [makeResource('new-app', 'flux-system', 'v1')];
-		await wait(150);
+		await wait(50);
+		expect(events.some((e) => e.type === 'ADDED')).toBe(false);
+
+		await wait(220);
 
 		try {
 			const added = events.filter((e) => e.type === 'ADDED');
 			expect(added.length).toBeGreaterThan(0);
+		} finally {
+			unsub();
+		}
+	});
+
+	test('resource must remain present past the settling threshold before ADDED is emitted', async () => {
+		const events: SSEEvent[] = [];
+		const clusterId = uniqueClusterId('added-stable');
+		mockResources = [];
+
+		const unsub = subscribe((e) => events.push(e), clusterId);
+		await wait(60);
+
+		mockResources = [makeResource('flappy-app', 'flux-system', 'v1')];
+		await wait(50);
+		mockResources = [];
+		await wait(140);
+
+		expect(events.some((e) => e.type === 'ADDED')).toBe(false);
+
+		mockResources = [makeResource('flappy-app', 'flux-system', 'v2')];
+		await wait(260);
+
+		try {
+			expect(events.filter((e) => e.type === 'ADDED')).toHaveLength(4);
 		} finally {
 			unsub();
 		}

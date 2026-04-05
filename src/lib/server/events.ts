@@ -52,6 +52,7 @@ interface ClusterContext {
 	lastStates: Map<string, string>;
 	lastNotificationStates: Map<string, string>;
 	resourceFirstSeen: Map<string, number>;
+	announcedResources: Set<string>;
 }
 
 // Map of active polling workers per cluster
@@ -142,7 +143,8 @@ export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluste
 			inflightPollPromise: null,
 			lastStates: new Map(),
 			lastNotificationStates: new Map(),
-			resourceFirstSeen: new Map()
+			resourceFirstSeen: new Map(),
+			announcedResources: new Set()
 		};
 		activeWorkers.set(clusterId, context);
 	}
@@ -213,6 +215,7 @@ function stopWorker(context: ClusterContext, reason: string = 'no active subscri
 	context.lastStates.clear();
 	context.lastNotificationStates.clear();
 	context.resourceFirstSeen.clear();
+	context.announcedResources.clear();
 	logger.info(
 		{ clusterId: context.clusterId, reason },
 		'[EventBus] Stopping consolidated polling worker'
@@ -318,7 +321,9 @@ async function poll(context: ClusterContext) {
 							? now - context.resourceFirstSeen.get(key)! > SETTLING_PERIOD_MS
 							: true; // no firstSeen entry + exists in lastStates = already settled
 
-						if (!previousState) {
+						const hasAnnouncedResource = context.announcedResources.has(key);
+
+						if (!hasAnnouncedResource) {
 							if (isSettled) {
 								resourceUpdatesTotal.labels(context.clusterId, resourceType, 'added').inc();
 
@@ -361,8 +366,9 @@ async function poll(context: ClusterContext) {
 									},
 									timestamp: new Date().toISOString()
 								});
+								context.announcedResources.add(key);
+								context.lastNotificationStates.set(key, notificationState);
 							}
-							context.lastNotificationStates.set(key, notificationState);
 						} else if (previousState && previousState !== currentState) {
 							const previousNotificationState = context.lastNotificationStates.get(key);
 
@@ -442,24 +448,27 @@ async function poll(context: ClusterContext) {
 							// Clear status gauge
 							fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
 
-							resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
-							broadcast(context, {
-								type: 'DELETED',
-								clusterId: context.clusterId,
-								resourceType: type,
-								resource: {
-									metadata: {
-										name: name,
-										namespace: namespace,
-										uid: 'unknown'
-									}
-								},
-								timestamp: new Date().toISOString()
-							});
+							if (context.announcedResources.has(key)) {
+								resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
+								broadcast(context, {
+									type: 'DELETED',
+									clusterId: context.clusterId,
+									resourceType: type,
+									resource: {
+										metadata: {
+											name: name,
+											namespace: namespace,
+											uid: 'unknown'
+										}
+									},
+									timestamp: new Date().toISOString()
+								});
+							}
 
 							context.lastStates.delete(key);
 							context.lastNotificationStates.delete(key);
 							context.resourceFirstSeen.delete(key);
+							context.announcedResources.delete(key);
 						}
 					}
 				}

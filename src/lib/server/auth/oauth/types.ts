@@ -51,7 +51,10 @@ export interface OAuthUserInfo {
 	/** Locale/language */
 	locale?: string;
 
-	/** Raw claims from IdP (for custom claim extraction) */
+	/** Original claims from the IdP before normalization */
+	rawClaims?: Record<string, unknown>;
+
+	/** Additional non-conflicting claims from the IdP */
 	[key: string]: unknown;
 }
 

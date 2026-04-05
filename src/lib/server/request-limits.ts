@@ -44,11 +44,6 @@ export function getRequestSizeLimit(path: string, method: string): number {
 	return REQUEST_LIMITS.JSON_API;
 }
 
-// Methods that carry a request body and must include a Content-Length header.
-// DELETE is excluded: it rarely carries a body and requiring Content-Length
-// would break standard DELETE requests.
-const _BODY_METHODS = new Set(['POST', 'PUT', 'PATCH']);
-
 /**
  * Check if request size exceeds limit based on the Content-Length header.
  * Returns { valid: true } or { valid: false, limit, size }.

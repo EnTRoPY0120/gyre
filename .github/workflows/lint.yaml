@@ -1,4 +1,4 @@
-name: Lint and Type-Check
+name: Quality Gates
 
 on:
   push:
@@ -18,7 +18,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint-typecheck:
+  quality:
+    name: Format, Lint, Check, Test, Build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -27,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
-          node-version: '22'
+          node-version-file: '.node-version'
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -63,6 +64,9 @@ jobs:
 
       - name: Run typecheck (SvelteKit)
         run: bun run check
+
+      - name: Run tests (Bun)
+        run: bun test
 
       - name: Run build test
         run: bun run build

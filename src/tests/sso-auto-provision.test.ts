@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 
 function flattenSqlParts(value: unknown): string[] {
 	if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -121,7 +121,10 @@ mock.module('$lib/server/rbac-defaults.js', () => ({
 }));
 
 mock.module('$lib/server/auth/crypto.js', () => ({
-	encryptSecret: (value: string) => `encrypted:${value}`
+	encryptSecret: (value: string) => `encrypted:${value}`,
+	decryptSecret: (value: string) =>
+		value.startsWith('encrypted:') ? value.slice('encrypted:'.length) : value,
+	_resetKeyCache: () => {}
 }));
 
 mock.module('$lib/server/settings.js', () => ({
@@ -140,7 +143,8 @@ mock.module('$lib/server/logger.js', () => ({
 	}
 }));
 
-import { createOrUpdateSSOUser } from '../lib/server/auth/sso.js';
+const { createOrUpdateSSOUser } =
+	(await import('../lib/server/auth/sso.js?test=sso-auto-provision')) as typeof import('../lib/server/auth/sso.js');
 
 function createProviderConfig(emailClaim = 'email') {
 	return {
@@ -385,4 +389,8 @@ describe('SSO auto provisioning', () => {
 			expect.objectContaining({ email: 'fallback@example.com', emailVerified: false })
 		);
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });

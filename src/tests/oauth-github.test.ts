@@ -27,7 +27,10 @@ afterAll(() => {
 });
 
 mock.module('../lib/server/auth/crypto.js', () => ({
-	decryptSecret: (s: string) => `decrypted_${s}`
+	encryptSecret: (value: string) => `encrypted:${value}`,
+	decryptSecret: (value: string) =>
+		value.startsWith('encrypted:') ? value.slice('encrypted:'.length) : `decrypted_${value}`,
+	_resetKeyCache: () => {}
 }));
 
 mock.module('../lib/server/auth/pkce.js', () => ({

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
 
 const capturedPermissionChecks: unknown[][] = [];
@@ -51,6 +51,8 @@ import { POST as reconcilePOST } from '../routes/api/v1/flux/[type]/[namespace]/
 import { POST as resumePOST } from '../routes/api/v1/flux/[type]/[namespace]/[name]/resume/+server.js';
 import { POST as suspendPOST } from '../routes/api/v1/flux/[type]/[namespace]/[name]/suspend/+server.js';
 
+mock.restore();
+
 function createUser(role: User['role'] = 'editor'): User {
 	const now = new Date();
 	return {
@@ -91,6 +93,10 @@ beforeEach(() => {
 	capturedReconcileCalls.length = 0;
 	capturedToggleSuspendCalls.length = 0;
 	capturedLogWrites.length = 0;
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 describe('Flux action routes normalize plural resource types', () => {
