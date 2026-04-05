@@ -29,6 +29,7 @@
     },
     "nameOverride": { "type": "string" },
     "fullnameOverride": { "type": "string" },
+    "origin": { "type": "string" },
     "serviceAccount": {
       "type": "object",
       "additionalProperties": false,
@@ -104,6 +105,7 @@
           "type": "array",
           "items": { "type": "string" }
         },
+        "tls": { "type": "boolean" },
         "rules": {
           "type": "array",
           "items": { "type": "object" }
@@ -259,6 +261,26 @@
           "type": "object",
           "additionalProperties": false,
           "properties": {
+            "apiServer": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "namespaceSelector": { "type": "object" },
+                "podSelector": { "type": "object" },
+                "ipBlocks": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "ports": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                  }
+                }
+              }
+            },
             "additionalRules": {
               "type": "array",
               "items": { "type": "object" }

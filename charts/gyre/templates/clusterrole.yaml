@@ -72,6 +72,22 @@ rules:
     - receivers/status
   verbs: ["get", "list", "watch"]
 
+# FluxCD Image Automation Controller Resources
+- apiGroups: ["image.toolkit.fluxcd.io"]
+  resources:
+    - imagerepositories
+    - imagepolicies
+    - imageupdateautomations
+  verbs: {{ $verbs | toJson }}
+
+# FluxCD Image Automation Controller Status
+- apiGroups: ["image.toolkit.fluxcd.io"]
+  resources:
+    - imagerepositories/status
+    - imagepolicies/status
+    - imageupdateautomations/status
+  verbs: ["get", "list", "watch"]
+
 # Core Kubernetes Resources (read-only)
 - apiGroups: [""]
   resources:

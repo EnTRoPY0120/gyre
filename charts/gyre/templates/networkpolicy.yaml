@@ -48,19 +48,37 @@ spec:
         port: 53
       - protocol: TCP
         port: 53
-    # Allow outbound traffic to any pod in the configured namespace (default: "default") on
-    # API ports 443/6443. This reaches the Kubernetes API via the "kubernetes" Service that
-    # lives in the default namespace. It is intentionally permissive within that namespace;
-    # use networkPolicy.apiServerNamespace to restrict to a tighter namespace if needed.
+    {{- $apiServer := .Values.networkPolicy.egress.apiServer }}
+    {{- $apiServerHasTargets := or $apiServer.namespaceSelector $apiServer.podSelector (gt (len ($apiServer.ipBlocks | default (list))) 0) }}
+    # Allow outbound traffic to the Kubernetes API server. Configure
+    # networkPolicy.egress.apiServer for managed control plane IPs or selector-based targeting.
+    # networkPolicy.apiServerNamespace remains as a deprecated fallback for older installs.
     - to:
+      {{- if $apiServerHasTargets }}
+      {{- if or $apiServer.namespaceSelector $apiServer.podSelector }}
+      - {{- if $apiServer.namespaceSelector }}
+        namespaceSelector:
+          {{- toYaml $apiServer.namespaceSelector | nindent 10 }}
+        {{- end }}
+        {{- if $apiServer.podSelector }}
+        podSelector:
+          {{- toYaml $apiServer.podSelector | nindent 10 }}
+        {{- end }}
+      {{- end }}
+      {{- range $cidr := $apiServer.ipBlocks }}
+      - ipBlock:
+          cidr: {{ $cidr | quote }}
+      {{- end }}
+      {{- else }}
       - namespaceSelector:
           matchLabels:
             kubernetes.io/metadata.name: {{ .Values.networkPolicy.apiServerNamespace }}
+      {{- end }}
       ports:
+      {{- range $port := $apiServer.ports }}
       - protocol: TCP
-        port: 443
-      - protocol: TCP
-        port: 6443
+        port: {{ $port }}
+      {{- end }}
     {{- if .Values.networkPolicy.egress.additionalRules }}
     {{- toYaml .Values.networkPolicy.egress.additionalRules | nindent 4 }}
     {{- end }}

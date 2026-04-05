@@ -44,7 +44,8 @@ type ProviderSeedConfig = z.infer<typeof ProviderSeedConfigSchema>;
 /**
  * Seed OAuth providers from environment variables.
  * Providers are read from GYRE_AUTH_PROVIDERS env var (JSON array).
- * Client secrets can be overridden from GYRE_AUTH_PROVIDER_{index}_CLIENT_SECRET env vars.
+ * Client secrets can be overridden from
+ * GYRE_AUTH_PROVIDER_{SANITIZED_PROVIDER_NAME}_CLIENT_SECRET env vars.
  *
  * @returns Object with created and skipped counts
  */
