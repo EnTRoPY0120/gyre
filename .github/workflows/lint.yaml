@@ -35,6 +35,11 @@ jobs:
         with:
           bun-version: 1.3.11
 
+      - name: Print runtime versions
+        run: |
+          bun --version
+          node --version
+
       - name: Get bun.lock file for caching
         id: bun-lock-hash
         run: |

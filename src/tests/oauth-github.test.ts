@@ -65,7 +65,8 @@ mock.module('arctic', () => ({
 	}
 }));
 
-import { GitHubProvider } from '../lib/server/auth/oauth/providers/github.js';
+const { GitHubProvider } =
+	(await import('../lib/server/auth/oauth/providers/github.js?test=oauth-github')) as typeof import('../lib/server/auth/oauth/providers/github.js');
 
 const mockConfig = {
 	id: 'github-1',

@@ -1,8 +1,8 @@
 import { afterAll, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
-spyOn(console, 'warn').mockImplementation(() => {});
+const consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
+const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
 let arcticShouldThrow = false;
 let lastAuthorizationRequest:
@@ -112,6 +112,9 @@ beforeEach(() => {
 });
 
 afterAll(() => {
+	consoleLogSpy.mockRestore();
+	consoleErrorSpy.mockRestore();
+	consoleWarnSpy.mockRestore();
 	delete process.env.AUTH_ENCRYPTION_KEY;
 	_resetKeyCache();
 });

@@ -1,12 +1,13 @@
 import { describe, test, expect, afterEach } from 'bun:test';
-import {
+const {
 	encryptSecret,
 	decryptSecret,
 	generateEncryptionKey,
 	isUsingDevelopmentKey,
 	testEncryption,
 	_resetKeyCache
-} from '../lib/server/auth/crypto';
+} =
+	(await import('../lib/server/auth/crypto.js?test=crypto')) as typeof import('../lib/server/auth/crypto.js');
 
 describe('Encryption Module', () => {
 	const originalEnv = process.env.AUTH_ENCRYPTION_KEY;

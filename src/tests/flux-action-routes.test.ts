@@ -12,6 +12,21 @@ mock.module('$lib/server/rbac.js', () => ({
 	checkPermission: async (...args: unknown[]) => {
 		capturedPermissionChecks.push(args);
 		return permissionAllowed;
+	},
+	checkClusterWideReadPermission: async () => permissionAllowed,
+	requirePermission: async (...args: unknown[]) => {
+		capturedPermissionChecks.push(args);
+		if (!permissionAllowed) {
+			throw new Error('Forbidden');
+		}
+	},
+	isAdmin: (user: { role?: string } | null | undefined) => user?.role === 'admin',
+	isValidNamespacePattern: () => true,
+	RbacError: class MockRbacError extends Error {
+		constructor(message = 'Forbidden') {
+			super(message);
+			this.name = 'RbacError';
+		}
 	}
 }));
 
@@ -47,9 +62,12 @@ mock.module('$lib/server/kubernetes/flux/reconciliation-tracker', () => ({
 	captureReconciliation: async () => {}
 }));
 
-import { POST as reconcilePOST } from '../routes/api/v1/flux/[type]/[namespace]/[name]/reconcile/+server.js';
-import { POST as resumePOST } from '../routes/api/v1/flux/[type]/[namespace]/[name]/resume/+server.js';
-import { POST as suspendPOST } from '../routes/api/v1/flux/[type]/[namespace]/[name]/suspend/+server.js';
+const { POST: reconcilePOST } =
+	(await import('../routes/api/v1/flux/[type]/[namespace]/[name]/reconcile/+server.js?test=flux-action-routes')) as typeof import('../routes/api/v1/flux/[type]/[namespace]/[name]/reconcile/+server.js');
+const { POST: resumePOST } =
+	(await import('../routes/api/v1/flux/[type]/[namespace]/[name]/resume/+server.js?test=flux-action-routes')) as typeof import('../routes/api/v1/flux/[type]/[namespace]/[name]/resume/+server.js');
+const { POST: suspendPOST } =
+	(await import('../routes/api/v1/flux/[type]/[namespace]/[name]/suspend/+server.js?test=flux-action-routes')) as typeof import('../routes/api/v1/flux/[type]/[namespace]/[name]/suspend/+server.js');
 
 mock.restore();
 

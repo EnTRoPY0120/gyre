@@ -7,12 +7,9 @@
  */
 import { describe, test, expect } from 'bun:test';
 import yaml from 'js-yaml';
-import {
-	getResourceDef,
-	getResourceTypeByPlural,
-	FLUX_RESOURCES
-} from '../lib/server/kubernetes/flux/resources.js';
-import {
+const { getResourceDef, getResourceTypeByPlural, FLUX_RESOURCES } =
+	(await import('../lib/server/kubernetes/flux/resources.js?test=flux-security')) as typeof import('../lib/server/kubernetes/flux/resources.js');
+const {
 	K8S_NAME_REGEX,
 	validateK8sNamespace,
 	validateK8sName,
@@ -23,7 +20,8 @@ import {
 	LABEL_KEY_PATTERN,
 	LABEL_VALUE_PATTERN,
 	SUBSTITUTE_VAR_PATTERN
-} from '../lib/server/validation.js';
+} =
+	(await import('../lib/server/validation.js?test=flux-security')) as typeof import('../lib/server/validation.js');
 
 // ---------------------------------------------------------------------------
 // apiVersion / kind mismatch logic (mirrors POST handler checks)

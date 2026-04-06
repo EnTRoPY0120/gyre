@@ -39,7 +39,8 @@ mock.module('../lib/server/logger.js', () => ({
 	logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} }
 }));
 
-import { subscribe, closeAllEventStreams, setEventBusShuttingDown } from '../lib/server/events.js';
+const { subscribe, closeAllEventStreams, setEventBusShuttingDown } =
+	(await import('../lib/server/events.js?test=events')) as typeof import('../lib/server/events.js');
 import type { SSEEvent } from '../lib/server/events.js';
 
 // ---------------------------------------------------------------------------

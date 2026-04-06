@@ -5,61 +5,74 @@
  * kind/apiVersion check added in GH #286.
  */
 import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
-import {
-	sanitizeFilename,
-	isAllowedBackupExtension,
-	isAllowedBackupMimeType
-} from '../lib/server/validation.js';
+const { sanitizeFilename, isAllowedBackupExtension, isAllowedBackupMimeType } =
+	(await import('../lib/server/validation.js?test=file-upload-security')) as typeof import('../lib/server/validation.js');
 
 const clusterActionState = {
-	isAdmin: true,
 	createClusterCalls: [] as Array<Record<string, unknown>>,
 	logClusterChangeCalls: [] as Array<unknown[]>
 };
 
-mock.module('$lib/server/clusters', () => ({
-	getAllClustersPaginated: async () => ({ clusters: [], total: 0 }),
-	createCluster: async (input: Record<string, unknown>) => {
-		clusterActionState.createClusterCalls.push(input);
-		return {
-			id: 'cluster-1',
-			name: input.name,
-			description: input.description ?? null,
-			contextCount: 1
-		};
-	},
-	updateCluster: async () => null,
-	deleteCluster: async () => {},
-	testClusterConnection: async () => ({
-		connected: true,
-		clusterName: 'cluster-1',
-		timestamp: new Date().toISOString(),
-		checks: []
-	}),
-	getClusterById: async () => null
-}));
+function registerRouteMocks() {
+	mock.module('$lib/server/clusters', () => ({
+		getAllClustersPaginated: async () => ({ clusters: [], total: 0 }),
+		createCluster: async (input: Record<string, unknown>) => {
+			clusterActionState.createClusterCalls.push(input);
+			return {
+				id: 'cluster-1',
+				name: input.name,
+				description: input.description ?? null,
+				contextCount: 1
+			};
+		},
+		updateCluster: async () => null,
+		deleteCluster: async () => {},
+		testClusterConnection: async () => ({
+			connected: true,
+			clusterName: 'cluster-1',
+			timestamp: new Date().toISOString(),
+			checks: []
+		}),
+		getClusterById: async () => null
+	}));
 
-mock.module('$lib/server/rbac', () => ({
-	isAdmin: () => clusterActionState.isAdmin
-}));
+	mock.module('$lib/server/rbac', () => ({
+		isAdmin: () => true
+	}));
 
-mock.module('$lib/server/audit', () => ({
-	logClusterChange: async (...args: unknown[]) => {
-		clusterActionState.logClusterChangeCalls.push(args);
-	}
-}));
+	mock.module('$lib/server/rbac.js', () => ({
+		isAdmin: () => true
+	}));
 
-mock.module('$lib/server/logger.js', () => ({
-	logger: {
-		error: () => {},
-		info: () => {},
-		warn: () => {}
-	}
-}));
+	mock.module('$lib/server/audit', () => ({
+		logClusterChange: async (...args: unknown[]) => {
+			clusterActionState.logClusterChangeCalls.push(args);
+		}
+	}));
 
-import { actions } from '../routes/admin/clusters/+page.server.js';
+	mock.module('$lib/server/logger.js', () => ({
+		logger: {
+			error: () => {},
+			info: () => {},
+			warn: () => {}
+		}
+	}));
+}
 
-mock.restore();
+let actionsImportCounter = 0;
+
+async function loadActions() {
+	registerRouteMocks();
+	const { actions } = (await import(
+		`../routes/admin/clusters/+page.server.js?test=file-upload-security-${++actionsImportCounter}`
+	)) as typeof import('../routes/admin/clusters/+page.server.js');
+	mock.restore();
+	return actions;
+}
+
+afterAll(() => {
+	mock.restore();
+});
 
 // ---------------------------------------------------------------------------
 // sanitizeFilename
@@ -225,11 +238,11 @@ describe('cluster create action kubeconfig validation', () => {
 	}
 
 	async function submitCreate(kubeconfig: string) {
+		const actions = await loadActions();
 		return actions.create!(buildEvent(kubeconfig));
 	}
 
 	beforeEach(() => {
-		clusterActionState.isAdmin = true;
 		clusterActionState.createClusterCalls.length = 0;
 		clusterActionState.logClusterChangeCalls.length = 0;
 	});
