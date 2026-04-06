@@ -144,7 +144,6 @@ afterEach(() => {
 afterAll(() => {
 	delete process.env.AUTH_ENCRYPTION_KEY;
 	_resetKeyCache();
-	mock.restore();
 });
 
 describe('OIDCProvider', () => {

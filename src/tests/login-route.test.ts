@@ -73,12 +73,6 @@ mock.module('$lib/server/rate-limiter', () => ({
 
 import { POST } from '../routes/api/v1/auth/login/+server.js';
 
-mock.restore();
-
-afterAll(() => {
-	mock.restore();
-});
-
 type LoginEvent = Parameters<typeof POST>[0];
 
 function createUser(overrides: Partial<User> = {}): User {
