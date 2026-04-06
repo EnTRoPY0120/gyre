@@ -137,9 +137,12 @@ export class GoogleProvider implements IOAuthProvider {
 			// This can be used for domain restrictions (e.g., only allow @company.com)
 			const hostedDomain = userInfo.rawClaims?.hd;
 			if (typeof hostedDomain === 'string' && hostedDomain.length > 0) {
-				// Store hosted domain in groups for potential role mapping
+				const normalizedDomain = hostedDomain.trim().toLowerCase();
+				const domainGroup = `domain:${normalizedDomain}`;
 				userInfo.groups = userInfo.groups || [];
-				userInfo.groups.push(`domain:${hostedDomain}`);
+				if (!userInfo.groups.includes(domainGroup)) {
+					userInfo.groups.push(domainGroup);
+				}
 			}
 
 			return userInfo;

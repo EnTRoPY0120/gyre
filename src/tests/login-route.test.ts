@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
@@ -72,6 +72,12 @@ mock.module('$lib/server/rate-limiter', () => ({
 }));
 
 import { POST } from '../routes/api/v1/auth/login/+server.js';
+
+mock.restore();
+
+afterAll(() => {
+	mock.restore();
+});
 
 type LoginEvent = Parameters<typeof POST>[0];
 

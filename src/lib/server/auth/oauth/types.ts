@@ -52,7 +52,7 @@ export interface OAuthUserInfo {
 	locale?: string;
 
 	/** Original claims from the IdP before normalization */
-	rawClaims?: Record<string, unknown>;
+	readonly rawClaims?: Readonly<Record<string, unknown>>;
 
 	/** Additional non-conflicting claims from the IdP */
 	[key: string]: unknown;

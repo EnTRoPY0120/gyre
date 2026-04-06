@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from 'bun:test';
+import { describe, test, expect, mock, afterAll, beforeEach } from 'bun:test';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
@@ -51,6 +51,12 @@ mock.module('$lib/server/rate-limiter', () => ({
 }));
 
 import { POST } from '../routes/api/v1/auth/change-password/+server.js';
+
+mock.restore();
+
+afterAll(() => {
+	mock.restore();
+});
 
 type ChangePasswordEvent = Parameters<typeof POST>[0];
 

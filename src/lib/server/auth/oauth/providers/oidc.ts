@@ -383,6 +383,10 @@ export class OIDCProvider implements IOAuthProvider {
 				scope: data.scope
 			};
 		} catch (error) {
+			if (error instanceof OAuthError) {
+				throw error;
+			}
+
 			throw new OAuthError(
 				`Failed to refresh token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 				'TOKEN_REFRESH_FAILED',

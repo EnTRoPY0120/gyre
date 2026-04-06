@@ -262,6 +262,8 @@ contexts: []
 			status: 400,
 			data: { error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1' }
 		});
+		expect(clusterActionState.createClusterCalls).toHaveLength(0);
+		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
 	});
 
 	test('rejects missing apiVersion', async () => {
@@ -275,6 +277,8 @@ contexts: []
 			status: 400,
 			data: { error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1' }
 		});
+		expect(clusterActionState.createClusterCalls).toHaveLength(0);
+		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
 	});
 
 	test('rejects wrong kind', async () => {
@@ -289,6 +293,8 @@ contexts: []
 			status: 400,
 			data: { error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1' }
 		});
+		expect(clusterActionState.createClusterCalls).toHaveLength(0);
+		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
 	});
 
 	test('rejects wrong apiVersion', async () => {
@@ -303,6 +309,8 @@ contexts: []
 			status: 400,
 			data: { error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1' }
 		});
+		expect(clusterActionState.createClusterCalls).toHaveLength(0);
+		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
 	});
 
 	test('rejects clusters as a non-array value', async () => {
@@ -317,6 +325,8 @@ contexts: []
 			status: 400,
 			data: { error: 'Invalid kubeconfig: clusters and contexts must be arrays' }
 		});
+		expect(clusterActionState.createClusterCalls).toHaveLength(0);
+		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
 	});
 
 	test('rejects contexts as a non-array value', async () => {
@@ -331,6 +341,8 @@ contexts: nope
 			status: 400,
 			data: { error: 'Invalid kubeconfig: clusters and contexts must be arrays' }
 		});
+		expect(clusterActionState.createClusterCalls).toHaveLength(0);
+		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
 	});
 
 	test('rejects parse failures', async () => {
@@ -340,6 +352,8 @@ contexts: nope
 			status: 400,
 			data: { error: 'Invalid kubeconfig format: could not parse as YAML or JSON' }
 		});
+		expect(clusterActionState.createClusterCalls).toHaveLength(0);
+		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
 	});
 });
 

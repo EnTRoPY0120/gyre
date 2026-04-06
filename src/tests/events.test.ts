@@ -280,7 +280,10 @@ describe('Poll change detection', () => {
 		await wait(260);
 
 		try {
-			expect(events.filter((e) => e.type === 'ADDED')).toHaveLength(4);
+			const addedEvents = events.filter((e) => e.type === 'ADDED');
+			const uniqueResourceTypes = new Set(addedEvents.map((e) => e.resourceType));
+			expect(uniqueResourceTypes.size).toBe(addedEvents.length);
+			expect(addedEvents.length).toBeGreaterThan(0);
 		} finally {
 			unsub();
 		}

@@ -30,7 +30,8 @@ mock.module('bcryptjs', () => ({
 	compare: async () => true
 }));
 
-import { listUsersPaginated, createUser } from '../lib/server/auth.js';
+const { listUsersPaginated, createUser } =
+	(await import('../lib/server/auth.js?test=pagination')) as typeof import('../lib/server/auth.js');
 
 // ---------------------------------------------------------------------------
 // Helpers

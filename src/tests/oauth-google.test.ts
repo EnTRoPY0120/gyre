@@ -171,4 +171,23 @@ describe('GoogleProvider', () => {
 		expect(userInfo.groups).toContain('domain:company.com');
 		expect(userInfo.rawClaims?.hd).toBe('company.com');
 	});
+
+	test('does not add domain group when hd claim is absent', async () => {
+		mockJwtClaims = {
+			sub: '123',
+			email: 'user@gmail.com',
+			email_verified: true,
+			name: 'Test User',
+			preferred_username: 'user@gmail.com'
+		};
+
+		const userInfo = await makeProvider().getUserInfo({
+			accessToken: 'token',
+			tokenType: 'Bearer',
+			idToken: 'id-token'
+		});
+
+		expect(userInfo.groups?.some((g) => g.startsWith('domain:'))).toBeFalsy();
+		expect(userInfo.rawClaims?.hd).toBeUndefined();
+	});
 });

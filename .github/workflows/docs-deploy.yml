@@ -7,6 +7,7 @@ on:
     paths:
       - 'documentation/**'
       - '.github/workflows/docs-deploy.yml'
+      - '.node-version'
   workflow_dispatch:
 
 permissions:
