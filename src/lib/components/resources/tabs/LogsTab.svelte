@@ -30,9 +30,17 @@
 
 	const LEVEL_OPTIONS = ['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR'] as const;
 
+	// Detect nested quantifiers — the primary ReDoS trigger: (a+)+, (a|a)*, etc.
+	const REDOS_HEURISTIC = /\([^)]*[+*][^)]*\)[+*?]|\([^)]*\)[+*]\s*[+*]/;
+
+	function isSafePattern(pattern: string): boolean {
+		return !REDOS_HEURISTIC.test(pattern);
+	}
+
 	// Derive regex and error synchronously so filtering is always consistent
 	const compiledRegex = $derived.by<RegExp | null>(() => {
 		if (!useRegex || !searchQuery) return null;
+		if (!isSafePattern(searchQuery)) return null;
 		try {
 			return new RegExp(searchQuery, 'i');
 		} catch {
@@ -42,6 +50,7 @@
 
 	const regexError = $derived.by<string | null>(() => {
 		if (!useRegex || !searchQuery) return null;
+		if (!isSafePattern(searchQuery)) return 'Pattern may cause performance issues';
 		try {
 			new RegExp(searchQuery, 'i');
 			return null;

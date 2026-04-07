@@ -431,7 +431,18 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 		// Replace the database file, closing the cached connection first so
 		// subsequent operations open a fresh handle to the new database.
 		closeDb();
-		copyFileSync(tempPath, databaseUrl);
+		try {
+			renameSync(tempPath, databaseUrl); // atomic on same filesystem
+		} catch (e: any) {
+			if (e.code === 'EXDEV') {
+				// Cross-device: fall back to copy+delete (not atomic — log warning)
+				logger.warn('[Backup] restore: cross-device rename fell back to copy — not atomic');
+				copyFileSync(tempPath, databaseUrl);
+				unlinkSync(tempPath);
+			} else {
+				throw e;
+			}
+		}
 
 		// Verify the restored database passes integrity check
 		const verifyDb = new Database(databaseUrl, { readonly: true });

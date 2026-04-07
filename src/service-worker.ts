@@ -67,7 +67,7 @@ self.addEventListener('fetch', (event) => {
 					/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/.test(url.pathname));
 
 			if (response.status === 200 && isStaticAsset) {
-				cache.put(fetchEvent.request, response.clone());
+				fetchEvent.waitUntil(cache.put(fetchEvent.request, response.clone()));
 			}
 
 			return response;

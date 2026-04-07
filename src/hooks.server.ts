@@ -106,6 +106,32 @@ export const handle: Handle = async ({ event, resolve }) => {
 			);
 		}
 
+		// Streaming size guard: catches chunked/transfer-encoded requests that omit
+		// Content-Length. The TransformStream counts bytes as they flow through;
+		// if the limit is breached the stream errors, causing any downstream body
+		// read (json/formData/arrayBuffer) to throw — caught below at resolve time.
+		if (request.body && STATE_CHANGING_METHODS.includes(request.method)) {
+			let bytesRead = 0;
+			const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>({
+				transform(chunk, controller) {
+					bytesRead += chunk.byteLength;
+					if (bytesRead > sizeLimit) {
+						controller.error(
+							Object.assign(new Error('Payload Too Large'), {
+								isPayloadTooLarge: true,
+								limit: sizeLimit,
+								size: bytesRead
+							})
+						);
+						return;
+					}
+					controller.enqueue(chunk);
+				}
+			});
+			request.body.pipeTo(writable).catch(() => {});
+			event.request = new Request(request, { body: readable, duplex: 'half' } as RequestInit);
+		}
+
 		// Initialize Gyre on first request — promise lock prevents concurrent init calls
 		if (!initialized) {
 			if (!initializingPromise) {
@@ -192,29 +218,9 @@ export const handle: Handle = async ({ event, resolve }) => {
 			STATE_CHANGING_METHODS.includes(request.method) &&
 			!isPublicRoute(path)
 		) {
-			let csrfToken = request.headers.get('x-csrf-token') ?? '';
-
-			// If header is missing, check form data for _csrf (common for SvelteKit form actions)
-			if (!csrfToken) {
-				const contentType = request.headers.get('content-type') || '';
-				const contentLengthBytes = parseInt(request.headers.get('content-length') ?? '0', 10);
-
-				// Only attempt to parse form data if it's a standard form post and within a reasonable size (10MB)
-				// to avoid memory exhaustion from cloning large payloads (e.g. backup restores).
-				if (
-					(contentType.includes('application/x-www-form-urlencoded') ||
-						contentType.includes('multipart/form-data')) &&
-					contentLengthBytes < 10 * 1024 * 1024
-				) {
-					try {
-						// NOTE: Cloning request doubles memory for the duration of parsing.
-						const formData = await request.clone().formData();
-						csrfToken = formData.get('_csrf')?.toString() ?? '';
-					} catch (e) {
-						logger.warn('Failed to parse form data for CSRF validation:', e);
-					}
-				}
-			}
+			// Fail-closed: require the x-csrf-token header; no form-body fallback.
+			// This app is a SPA — the client always injects the token as a header.
+			const csrfToken = request.headers.get('x-csrf-token') ?? '';
 
 			if (!validateCsrfToken(event.locals.session.id, csrfToken)) {
 				logger.warn('CSRF token validation failed', {
@@ -306,6 +312,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 				const response = await resolve(event);
 				return recordResponse(response);
 			} catch (err) {
+				if ((err as any)?.isPayloadTooLarge) {
+					logger.warn(
+						{ method: request.method, path, size: (err as any).size, limit: (err as any).limit },
+						'Chunked request size exceeded limit'
+					);
+					return recordResponse(
+						new Response(
+							JSON.stringify({
+								error: 'Payload Too Large',
+								message: `Request payload exceeds maximum size of ${formatSize((err as any).limit)}`
+							}),
+							{ status: 413, headers: { 'Content-Type': 'application/json' } }
+						)
+					);
+				}
 				if (isRedirect(err) || isHttpError(err)) throw err;
 				logger.error(err, `Unhandled error in API route ${path}:`);
 				const { status, body } = errorToHttpResponse(err);
@@ -318,8 +339,26 @@ export const handle: Handle = async ({ event, resolve }) => {
 			}
 		}
 
-		const response = await resolve(event);
-		return recordResponse(response);
+		try {
+			const response = await resolve(event);
+			return recordResponse(response);
+		} catch (err) {
+			if ((err as any)?.isPayloadTooLarge) {
+				logger.warn(
+					{ method: request.method, path, size: (err as any).size, limit: (err as any).limit },
+					'Chunked request size exceeded limit'
+				);
+				const redirectParams = new URLSearchParams(url.search);
+				redirectParams.set('_error', 'payload_too_large');
+				return recordResponse(
+					new Response(null, {
+						status: 303,
+						headers: { Location: `${path}?${redirectParams}` }
+					})
+				);
+			}
+			throw err;
+		}
 	});
 };
 
