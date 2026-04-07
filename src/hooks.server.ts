@@ -223,9 +223,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 			STATE_CHANGING_METHODS.includes(request.method) &&
 			!isPublicRoute(path)
 		) {
-			// Fail-closed: require the x-csrf-token header; no form-body fallback.
-			// This app is a SPA — the client always injects the token as a header.
-			const csrfToken = request.headers.get('x-csrf-token') ?? '';
+			// Header first; fall back to form body for use:enhance forms that still
+			// submit _csrf as a hidden field until they are migrated to the header.
+			// Only call formData() when the header is absent to avoid consuming the
+			// body on every request. Clone event.request (not the original `request`
+			// whose body is already piped into the size-guard transform).
+			const headerToken = request.headers.get('x-csrf-token');
+			let csrfToken: string;
+			if (headerToken !== null) {
+				csrfToken = headerToken;
+			} else {
+				try {
+					const fd = await event.request.clone().formData();
+					csrfToken = (fd.get('_csrf') as string) ?? '';
+				} catch {
+					csrfToken = '';
+				}
+			}
 
 			if (!validateCsrfToken(event.locals.session.id, csrfToken)) {
 				logger.warn('CSRF token validation failed', {
