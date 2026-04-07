@@ -31,12 +31,14 @@
 	const LEVEL_OPTIONS = ['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR'] as const;
 
 	// Detect nested quantifiers and alternation-only repeated groups — the primary
-	// ReDoS triggers: (a+)+, (a|a)*, (a|aa)+, etc.
+	// ReDoS triggers: (a+)+, (a|a)*, (a|aa)+, (?:a|aa)+, (?<r>a|aa)+, etc.
 	// Clause 1: group with internal quantifier followed by external repetition: (a+)*
 	// Clause 2: double quantifier: (a)++
 	// Clause 3: group with alternation (no internal quantifier) followed by repetition: (a|b)*
+	//   The (?:\?(?::|<[^>]*>))? prefix skips optional (?:…) / (?<name>…) syntax so
+	//   the negative lookahead only sees the group body, not the '?' in the prefix.
 	const REDOS_HEURISTIC =
-		/\([^)]*[+*][^)]*\)[+*?]|\([^)]*\)[+*]\s*[+*]|\((?![^)]*[*+?{])[^)]*\|[^)]*\)[+*?]/;
+		/\([^)]*[+*][^)]*\)[+*?]|\([^)]*\)[+*]\s*[+*]|\((?:\?(?::|<[^>]*>))?(?![^)]*[*+?{])[^)]*\|[^)]*\)[+*?]/;
 
 	function isSafePattern(pattern: string): boolean {
 		// Strip escaped sequences first so "\+" or "\(" don't look like active quantifiers.
