@@ -16,7 +16,7 @@ import {
 	readFileSync,
 	renameSync
 } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, dirname } from 'node:path';
 import { validateDatabaseUrl, validateBackupDir } from './db/path-validation.js';
 import { tmpdir } from 'node:os';
 import Database from 'better-sqlite3';
@@ -319,7 +319,10 @@ export function deleteBackup(filename: string): boolean {
  */
 export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata> {
 	ensureBackupDir();
-	const tempPath = join(backupDir, `_restore-temp-${Date.now()}.db`);
+	// Place the temp file beside the target DB so renameSync stays on the same
+	// filesystem and the swap is atomic. Using backupDir risks a cross-mount
+	// EXDEV fallback that copies rather than renames.
+	const tempPath = join(dirname(databaseUrl), `_restore-temp-${Date.now()}.db`);
 
 	try {
 		// Validate the buffer is a valid SQLite database (exact 16-byte header check)

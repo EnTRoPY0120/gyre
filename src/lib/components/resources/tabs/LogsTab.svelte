@@ -34,7 +34,8 @@
 	const REDOS_HEURISTIC = /\([^)]*[+*][^)]*\)[+*?]|\([^)]*\)[+*]\s*[+*]/;
 
 	function isSafePattern(pattern: string): boolean {
-		return !REDOS_HEURISTIC.test(pattern);
+		// Strip escaped sequences first so "\+" or "\(" don't look like active quantifiers.
+		return !REDOS_HEURISTIC.test(pattern.replace(/\\./g, ''));
 	}
 
 	// Derive regex and error synchronously so filtering is always consistent

@@ -129,7 +129,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 				}
 			});
 			request.body.pipeTo(writable).catch(() => {});
-			event.request = new Request(request, { body: readable, duplex: 'half' } as RequestInit);
+			// Tee the readable so backpressure never stalls the transform when a
+			// handler ignores the body. The drain side guarantees bytes always flow
+			// through transform(), keeping bytesRead accurate regardless of handler.
+			const [handlerReadable, drainReadable] = readable.tee();
+			drainReadable.pipeTo(new WritableStream()).catch(() => {});
+			event.request = new Request(request, { body: handlerReadable, duplex: 'half' } as RequestInit);
 		}
 
 		// Initialize Gyre on first request — promise lock prevents concurrent init calls
