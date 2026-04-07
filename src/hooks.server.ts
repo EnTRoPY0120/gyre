@@ -67,6 +67,42 @@ export const handle: Handle = async ({ event, resolve }) => {
 			return response;
 		};
 
+		function isPayloadTooLargeError(
+			err: unknown
+		): err is { isPayloadTooLarge: true; size: number; limit: number } {
+			return Boolean((err as any)?.isPayloadTooLarge);
+		}
+
+		function payloadTooLargeResponse(
+			err: { size: number; limit: number },
+			req: Request,
+			reqPath: string
+		): Response {
+			logger.warn(
+				{ method: req.method, path: reqPath, size: err.size, limit: err.limit },
+				'Chunked request size exceeded limit'
+			);
+			if (reqPath.startsWith('/api/')) {
+				return recordResponse(
+					new Response(
+						JSON.stringify({
+							error: 'Payload Too Large',
+							message: `Request payload exceeds maximum size of ${formatSize(err.limit)}`
+						}),
+						{ status: 413, headers: { 'Content-Type': 'application/json' } }
+					)
+				);
+			}
+			const redirectParams = new URLSearchParams(url.search);
+			redirectParams.set('_error', 'payload_too_large');
+			return recordResponse(
+				new Response(null, {
+					status: 303,
+					headers: { Location: `${reqPath}?${redirectParams}` }
+				})
+			);
+		}
+
 		// Validate request size to prevent DoS attacks
 		const sizeLimit = getRequestSizeLimit(path, request.method);
 		const contentLength = request.headers.get('content-length') ?? undefined;
@@ -107,35 +143,41 @@ export const handle: Handle = async ({ event, resolve }) => {
 		}
 
 		// Streaming size guard: catches chunked/transfer-encoded requests that omit
-		// Content-Length. The TransformStream counts bytes as they flow through;
-		// if the limit is breached the stream errors, causing any downstream body
-		// read (json/formData/arrayBuffer) to throw — caught below at resolve time.
+		// Content-Length. The full body is piped through the transform before the
+		// handler runs so size violations are rejected immediately. Using
+		// ByteLengthQueuingStrategy lets the readable buffer up to sizeLimit bytes
+		// so pipeTo can resolve without a concurrent reader; event.request is only
+		// constructed after the guard resolves successfully.
 		if (request.body && STATE_CHANGING_METHODS.includes(request.method)) {
 			let bytesRead = 0;
-			const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>({
-				transform(chunk, controller) {
-					bytesRead += chunk.byteLength;
-					if (bytesRead > sizeLimit) {
-						controller.error(
-							Object.assign(new Error('Payload Too Large'), {
-								isPayloadTooLarge: true,
-								limit: sizeLimit,
-								size: bytesRead
-							})
-						);
-						return;
+			const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>(
+				{
+					transform(chunk, controller) {
+						bytesRead += chunk.byteLength;
+						if (bytesRead > sizeLimit) {
+							controller.error(
+								Object.assign(new Error('Payload Too Large'), {
+									isPayloadTooLarge: true,
+									limit: sizeLimit,
+									size: bytesRead
+								})
+							);
+							return;
+						}
+						controller.enqueue(chunk);
 					}
-					controller.enqueue(chunk);
-				}
-			});
-			request.body.pipeTo(writable).catch(() => {});
-			// Tee the readable so backpressure never stalls the transform when a
-			// handler ignores the body. The drain side guarantees bytes always flow
-			// through transform(), keeping bytesRead accurate regardless of handler.
-			const [handlerReadable, drainReadable] = readable.tee();
-			drainReadable.pipeTo(new WritableStream()).catch(() => {});
+				},
+				undefined,
+				new ByteLengthQueuingStrategy({ highWaterMark: sizeLimit })
+			);
+			try {
+				await request.body.pipeTo(writable);
+			} catch (err) {
+				if (isPayloadTooLargeError(err)) return payloadTooLargeResponse(err, request, path);
+				// Swallow other pipe errors (client disconnected, stream aborted, etc.)
+			}
 			event.request = new Request(request, {
-				body: handlerReadable,
+				body: readable,
 				duplex: 'half'
 			} as RequestInit);
 		}
@@ -228,18 +270,28 @@ export const handle: Handle = async ({ event, resolve }) => {
 		) {
 			// Header first; fall back to form body for use:enhance forms that still
 			// submit _csrf as a hidden field until they are migrated to the header.
-			// Only call formData() when the header is absent to avoid consuming the
-			// body on every request. Clone event.request (not the original `request`
-			// whose body is already piped into the size-guard transform).
+			// Only call formData() when the header is absent and the content-type is
+			// form-compatible to avoid parsing non-form bodies or masking size errors.
+			// Clone event.request (not the original `request` whose body is already
+			// piped into the size-guard transform).
 			const headerToken = request.headers.get('x-csrf-token');
 			let csrfToken: string;
 			if (headerToken !== null) {
 				csrfToken = headerToken;
 			} else {
-				try {
-					const fd = await event.request.clone().formData();
-					csrfToken = (fd.get('_csrf') as string) ?? '';
-				} catch {
+				const contentType = request.headers.get('content-type') ?? '';
+				const isFormCompatible =
+					contentType.startsWith('multipart/form-data') ||
+					contentType.startsWith('application/x-www-form-urlencoded');
+				if (isFormCompatible) {
+					try {
+						const fd = await event.request.clone().formData();
+						csrfToken = (fd.get('_csrf') as string) ?? '';
+					} catch (err) {
+						if (isPayloadTooLargeError(err)) throw err;
+						csrfToken = '';
+					}
+				} else {
 					csrfToken = '';
 				}
 			}
@@ -334,21 +386,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				const response = await resolve(event);
 				return recordResponse(response);
 			} catch (err) {
-				if ((err as any)?.isPayloadTooLarge) {
-					logger.warn(
-						{ method: request.method, path, size: (err as any).size, limit: (err as any).limit },
-						'Chunked request size exceeded limit'
-					);
-					return recordResponse(
-						new Response(
-							JSON.stringify({
-								error: 'Payload Too Large',
-								message: `Request payload exceeds maximum size of ${formatSize((err as any).limit)}`
-							}),
-							{ status: 413, headers: { 'Content-Type': 'application/json' } }
-						)
-					);
-				}
+				if (isPayloadTooLargeError(err)) return payloadTooLargeResponse(err, request, path);
 				if (isRedirect(err) || isHttpError(err)) throw err;
 				logger.error(err, `Unhandled error in API route ${path}:`);
 				const { status, body } = errorToHttpResponse(err);
@@ -365,20 +403,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			const response = await resolve(event);
 			return recordResponse(response);
 		} catch (err) {
-			if ((err as any)?.isPayloadTooLarge) {
-				logger.warn(
-					{ method: request.method, path, size: (err as any).size, limit: (err as any).limit },
-					'Chunked request size exceeded limit'
-				);
-				const redirectParams = new URLSearchParams(url.search);
-				redirectParams.set('_error', 'payload_too_large');
-				return recordResponse(
-					new Response(null, {
-						status: 303,
-						headers: { Location: `${path}?${redirectParams}` }
-					})
-				);
-			}
+			if (isPayloadTooLargeError(err)) return payloadTooLargeResponse(err, request, path);
 			throw err;
 		}
 	});
