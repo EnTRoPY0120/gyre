@@ -148,7 +148,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// ByteLengthQueuingStrategy lets the readable buffer up to sizeLimit bytes
 		// so pipeTo can resolve without a concurrent reader; event.request is only
 		// constructed after the guard resolves successfully.
-		if (request.body && STATE_CHANGING_METHODS.includes(request.method)) {
+		// Skip pre-read when Content-Length is present — the header-based check
+		// above already enforces the limit without consuming the stream.
+		if (
+			request.body &&
+			STATE_CHANGING_METHODS.includes(request.method) &&
+			!request.headers.has('content-length')
+		) {
 			let bytesRead = 0;
 			const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>(
 				{
@@ -286,7 +292,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 				if (isFormCompatible) {
 					try {
 						const fd = await event.request.clone().formData();
-						csrfToken = (fd.get('_csrf') as string) ?? '';
+						const rawToken = fd.get('_csrf');
+						csrfToken = typeof rawToken === 'string' ? rawToken : '';
 					} catch (err) {
 						if (isPayloadTooLargeError(err)) throw err;
 						csrfToken = '';
