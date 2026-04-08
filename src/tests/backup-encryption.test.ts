@@ -5,7 +5,9 @@ import {
 	_encryptBackup,
 	_decryptBackup,
 	_getBackupEncryptionKey,
+	_resetBackupEncryptionKeyCache,
 	getDecryptedBackupBuffer,
+	getDecryptedBackupBufferFromBuffer,
 	BackupError
 } from '../lib/server/backup';
 
@@ -24,6 +26,7 @@ describe('Backup Encryption Module', () => {
 		} else {
 			delete process.env.BACKUP_ENCRYPTION_KEY;
 		}
+		_resetBackupEncryptionKeyCache();
 	});
 
 	describe('_encryptBackup / _decryptBackup round-trip', () => {
@@ -189,6 +192,31 @@ describe('Backup Encryption Module', () => {
 				existsSpy.mockRestore();
 				readSpy.mockRestore();
 			}
+		});
+	});
+
+	describe('getDecryptedBackupBufferFromBuffer', () => {
+		const validKeyHex = 'c'.repeat(64);
+
+		test('returns plaintext unchanged for unencrypted .db uploads', () => {
+			const plaintext = Buffer.from('SQLite format 3\0test');
+			expect(getDecryptedBackupBufferFromBuffer('upload.db', plaintext)).toEqual(plaintext);
+		});
+
+		test('decrypts encrypted .db.enc upload payloads', () => {
+			process.env.BACKUP_ENCRYPTION_KEY = validKeyHex;
+
+			const plaintext = Buffer.from('SQLite format 3\0test');
+			const encrypted = _encryptBackup(plaintext, Buffer.from(validKeyHex, 'hex'));
+
+			expect(getDecryptedBackupBufferFromBuffer('upload.db.enc', encrypted)).toEqual(plaintext);
+		});
+
+		test('throws BackupError for encrypted uploads when the key is unset', () => {
+			delete process.env.BACKUP_ENCRYPTION_KEY;
+			expect(() =>
+				getDecryptedBackupBufferFromBuffer('upload.db.enc', Buffer.alloc(64))
+			).toThrow(BackupError);
 		});
 	});
 });

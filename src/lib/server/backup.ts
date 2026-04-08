@@ -285,16 +285,24 @@ export function getDecryptedBackupBuffer(filename: string): Buffer | null {
 	if (!filePath) return null;
 
 	const data = readFileSync(filePath);
+	return getDecryptedBackupBufferFromBuffer(filename, data);
+}
 
-	if (filename.endsWith('.db.enc')) {
-		const key = getBackupEncryptionKey();
-		if (!key) {
-			throw new BackupError('BACKUP_ENCRYPTION_KEY is not set; cannot decrypt this backup.', 500);
-		}
-		return decryptBackup(data, key);
+/**
+ * Convert an uploaded or in-memory backup payload to a plain SQLite buffer.
+ * If the filename ends with .db.enc, the payload is decrypted first.
+ */
+export function getDecryptedBackupBufferFromBuffer(filename: string, data: Buffer): Buffer {
+	if (!filename.endsWith('.db.enc')) {
+		return data;
 	}
 
-	return data;
+	const key = getBackupEncryptionKey();
+	if (!key) {
+		throw new BackupError('BACKUP_ENCRYPTION_KEY is not set; cannot decrypt this backup.', 500);
+	}
+
+	return decryptBackup(data, key);
 }
 
 /**
@@ -526,3 +534,6 @@ function pruneOldBackups(): void {
 // — Test-only exports (underscore-prefixed, not part of the public API) —
 export { encryptBackup as _encryptBackup, decryptBackup as _decryptBackup };
 export { getBackupEncryptionKey as _getBackupEncryptionKey };
+export function _resetBackupEncryptionKeyCache(): void {
+	cachedEncryptionKey = undefined;
+}
