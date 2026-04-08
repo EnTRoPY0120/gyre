@@ -27,14 +27,30 @@
 	];
 
 	let loading = $state(false);
+	let isDirty = $state(false);
 
-	// Local state for form initialized from store
+	// Local state for form synced from store when the form is clean
 	let enabled = $state(preferences.notifications.enabled ?? true);
 	let selectedResourceTypes = $state(preferences.notifications.resourceTypes ?? []);
 	let selectedEventTypes = $state<('success' | 'failure' | 'warning' | 'info' | 'error')[]>(
 		preferences.notifications.events ?? ['success', 'failure', 'warning', 'info', 'error']
 	);
 	let namespaceInput = $state(preferences.notifications.namespaces?.join(', ') ?? '');
+
+	$effect(() => {
+		if (!isDirty) {
+			enabled = preferences.notifications.enabled ?? true;
+			selectedResourceTypes = preferences.notifications.resourceTypes ?? [];
+			selectedEventTypes = preferences.notifications.events ?? [
+				'success',
+				'failure',
+				'warning',
+				'info',
+				'error'
+			];
+			namespaceInput = preferences.notifications.namespaces?.join(', ') ?? '';
+		}
+	});
 
 	async function savePreferences() {
 		loading = true;
@@ -60,6 +76,7 @@
 			if (!res.ok) throw new Error('Failed to save');
 
 			preferences.setNotifications(newPrefs);
+			isDirty = false;
 			toast.success('Notification settings saved successfully');
 		} catch (err) {
 			logger.error(err);
@@ -70,6 +87,7 @@
 	}
 
 	function toggleResourceType(type: string) {
+		isDirty = true;
 		if (selectedResourceTypes.includes(type)) {
 			selectedResourceTypes = selectedResourceTypes.filter((t) => t !== type);
 		} else {
@@ -78,6 +96,7 @@
 	}
 
 	function toggleEventType(type: 'success' | 'failure' | 'warning' | 'info' | 'error') {
+		isDirty = true;
 		if (selectedEventTypes.includes(type)) {
 			selectedEventTypes = selectedEventTypes.filter((t) => t !== type);
 		} else {
@@ -102,7 +121,11 @@
 				<p class="text-sm text-muted-foreground">Enable or disable real-time notifications</p>
 			</div>
 			<div class="flex items-center">
-				<Checkbox id="notifications-enabled" bind:checked={enabled} />
+				<Checkbox
+					id="notifications-enabled"
+					bind:checked={enabled}
+					onchange={() => (isDirty = true)}
+				/>
 			</div>
 		</div>
 
@@ -157,6 +180,7 @@
 					<Input
 						placeholder="e.g. flux-system, production, monitoring"
 						bind:value={namespaceInput}
+						oninput={() => (isDirty = true)}
 						class="max-w-md"
 					/>
 				</div>

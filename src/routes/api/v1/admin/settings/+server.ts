@@ -41,7 +41,6 @@ export const _metadata = {
 					}
 				}
 			},
-			400: { description: 'Missing cluster context' },
 			401: { description: 'Unauthorized' },
 			403: { description: 'Admin access required' }
 		}
@@ -73,7 +72,7 @@ export const _metadata = {
 					}
 				}
 			},
-			400: { description: 'Invalid request or missing cluster context' },
+			400: { description: 'Invalid request body' },
 			401: { description: 'Unauthorized' },
 			403: { description: 'Admin access required' }
 		}
@@ -88,10 +87,6 @@ export const GET: RequestHandler = async ({ locals }) => {
 	// Check authentication
 	if (!locals.user) {
 		throw error(401, { message: 'Unauthorized' });
-	}
-
-	if (!locals.cluster) {
-		throw error(400, { message: 'Missing cluster context' });
 	}
 
 	// Enforce RBAC (checkPermission short-circuits for admin role)
@@ -147,10 +142,6 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 	// Check authentication
 	if (!locals.user) {
 		throw error(401, { message: 'Unauthorized' });
-	}
-
-	if (!locals.cluster) {
-		throw error(400, { message: 'Missing cluster context' });
 	}
 
 	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
