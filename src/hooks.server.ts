@@ -73,9 +73,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			if (typeof err !== 'object' || err === null) return false;
 			const e = err as Record<string, unknown>;
 			return (
-				e.isPayloadTooLarge === true &&
-				typeof e.size === 'number' &&
-				typeof e.limit === 'number'
+				e.isPayloadTooLarge === true && typeof e.size === 'number' && typeof e.limit === 'number'
 			);
 		}
 
