@@ -227,7 +227,7 @@
 				<input
 					bind:this={restoreInput}
 					type="file"
-					accept=".db,.sqlite,.sqlite3"
+					accept=".db,.db.enc"
 					class="hidden"
 					onchange={handleFileSelect}
 				/>
@@ -406,7 +406,8 @@
 			<h3 class="font-semibold text-purple-900 dark:text-purple-100">Restore from Backup</h3>
 			<p class="mt-2 text-sm text-purple-800 dark:text-purple-200">
 				Upload a previously downloaded backup file to restore the database. A safety backup is
-				always created before restoring. The file must be a valid Gyre SQLite database.
+				always created before restoring. Accepted formats: <code class="font-mono">.db</code>
+				(unencrypted) and <code class="font-mono">.db.enc</code> (AES-256-GCM encrypted).
 			</p>
 		</div>
 

@@ -6,7 +6,6 @@ import { users } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
-import { requirePermission } from '$lib/server/rbac';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { logAudit } from '$lib/server/audit';
 
@@ -61,7 +60,7 @@ export const _metadata = {
 				}
 			},
 			400: {
-				description: 'Bad request (missing cluster context, invalid JSON, or validation failure)',
+				description: 'Bad request (invalid JSON or validation failure)',
 				content: { 'application/json': { schema: errorSchema } }
 			},
 			401: {
@@ -80,13 +79,6 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 	if (!locals.user) {
 		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	}
-
-	if (!locals.cluster) {
-		throw error(400, { message: 'Missing cluster context', code: 'BadRequest' });
-	}
-
-	// Ensure the user has at least 'read' permission on the cluster to manage their own notifications
-	await requirePermission(locals.user, 'read', undefined, undefined, locals.cluster);
 
 	checkRateLimit({ setHeaders }, `preferences:${locals.user.id}`, 30, 60 * 1000);
 
@@ -144,7 +136,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 
 		await logAudit(locals.user, 'preferences:update', {
 			resourceType: 'UserPreferences',
-			clusterId: locals.cluster,
+			...(locals.cluster ? { clusterId: locals.cluster } : {}),
 			details: { updatedFields: Object.keys(newPreferences) }
 		});
 
