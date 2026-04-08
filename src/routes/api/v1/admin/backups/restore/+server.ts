@@ -7,7 +7,11 @@ import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z, errorSchema } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { restoreFromBuffer } from '$lib/server/backup';
+import {
+	restoreFromBuffer,
+	getDecryptedBackupBufferFromBuffer,
+	BackupError
+} from '$lib/server/backup';
 import { logAudit } from '$lib/server/audit';
 import { requirePermission } from '$lib/server/rbac';
 import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
@@ -30,7 +34,10 @@ export const _metadata = {
 						schema: z.object({
 							file: z
 								.any()
-								.openapi({ description: 'SQLite database backup file (.db)', format: 'binary' })
+								.openapi({
+									description: 'SQLite database backup file (.db or .db.enc)',
+									format: 'binary'
+								})
 						})
 					}
 				}
@@ -118,8 +125,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		const arrayBuffer = await file.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
+		const restoreBuffer = getDecryptedBackupBufferFromBuffer(file.name, buffer);
 
-		const result = await restoreFromBuffer(buffer);
+		const result = await restoreFromBuffer(restoreBuffer);
 
 		await logAudit(locals.user, 'backup:restore', {
 			resourceType: 'DatabaseBackup',
@@ -137,6 +145,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			backup: result
 		});
 	} catch (err) {
+		if (err instanceof BackupError) {
+			logger.error(err, 'Backup restore error:');
+			const code =
+				err.status === 400
+					? 'BadRequest'
+					: err.status === 404
+						? 'NotFound'
+						: 'InternalServerError';
+			const message = code !== 'InternalServerError' ? err.message : 'Failed to restore backup';
+			throw error(err.status, { message, code });
+		}
 		const status =
 			err !== null && typeof err === 'object' && 'status' in err
 				? (err as { status: unknown }).status
