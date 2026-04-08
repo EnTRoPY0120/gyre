@@ -214,9 +214,9 @@ describe('Backup Encryption Module', () => {
 
 		test('throws BackupError for encrypted uploads when the key is unset', () => {
 			delete process.env.BACKUP_ENCRYPTION_KEY;
-			expect(() =>
-				getDecryptedBackupBufferFromBuffer('upload.db.enc', Buffer.alloc(64))
-			).toThrow(BackupError);
+			expect(() => getDecryptedBackupBufferFromBuffer('upload.db.enc', Buffer.alloc(64))).toThrow(
+				BackupError
+			);
 		});
 	});
 });

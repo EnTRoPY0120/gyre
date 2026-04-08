@@ -32,12 +32,10 @@ export const _metadata = {
 				content: {
 					'multipart/form-data': {
 						schema: z.object({
-							file: z
-								.any()
-								.openapi({
-									description: 'SQLite database backup file (.db or .db.enc)',
-									format: 'binary'
-								})
+							file: z.any().openapi({
+								description: 'SQLite database backup file (.db or .db.enc)',
+								format: 'binary'
+							})
 						})
 					}
 				}
@@ -147,12 +145,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	} catch (err) {
 		if (err instanceof BackupError) {
 			logger.error(err, 'Backup restore error:');
-			const code =
-				err.status === 400
-					? 'BadRequest'
-					: err.status === 404
-						? 'NotFound'
-						: 'InternalServerError';
+			const code = err.status === 400 ? 'BadRequest' : 'InternalServerError';
 			const message = code !== 'InternalServerError' ? err.message : 'Failed to restore backup';
 			throw error(err.status, { message, code });
 		}
