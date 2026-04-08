@@ -80,7 +80,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		): Response {
 			logger.warn(
 				{ method: req.method, path: reqPath, size: err.size, limit: err.limit },
-				'Chunked request size exceeded limit'
+				'Request size exceeded limit'
 			);
 			if (reqPath.startsWith('/api/')) {
 				return recordResponse(
@@ -109,36 +109,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const sizeValidation = validateRequestSize(contentLength, sizeLimit, request.method);
 
 		if (!sizeValidation.valid) {
-			logger.warn(
-				{ method: request.method, path, size: sizeValidation.size, limit: sizeValidation.limit },
-				'Request size exceeded limit'
-			);
-
-			// For API routes return a JSON 413.
-			// For page/form routes redirect back to the same URL with an error param so
-			// the user sees the form rather than a raw JSON response in the browser.
+			// For API routes return a JSON 413; for page/form routes redirect back with
+			// an error param so the user sees the form rather than a raw JSON response.
 			// NOTE: Pages that receive this redirect must read ?_error=payload_too_large
 			// from their load function and surface it to the user.
-			if (path.startsWith('/api/')) {
-				return recordResponse(
-					new Response(
-						JSON.stringify({
-							error: 'Payload Too Large',
-							message: `Request payload exceeds maximum size of ${formatSize(sizeValidation.limit)}`
-						}),
-						{ status: 413, headers: { 'Content-Type': 'application/json' } }
-					)
-				);
-			}
-
-			// Preserve existing query params (e.g. search/pagination state) in the redirect.
-			const redirectParams = new URLSearchParams(url.search);
-			redirectParams.set('_error', 'payload_too_large');
-			return recordResponse(
-				new Response(null, {
-					status: 303,
-					headers: { Location: `${path}?${redirectParams}` }
-				})
+			return payloadTooLargeResponse(
+				{ size: sizeValidation.size, limit: sizeValidation.limit },
+				request,
+				path
 			);
 		}
 
