@@ -180,7 +180,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 				await request.body.pipeTo(writable);
 			} catch (err) {
 				if (isPayloadTooLargeError(err)) return payloadTooLargeResponse(err, request, path);
-				// Swallow other pipe errors (client disconnected, stream aborted, etc.)
+				// Any other pipe failure (client disconnect, stream abort, upstream error)
+				// leaves `readable` in an errored state. Do not hand a broken stream to
+				// downstream handlers — return a stream-failure response instead.
+				return recordResponse(new Response('Stream error', { status: 499 }));
 			}
 			event.request = new Request(request, {
 				body: readable,
