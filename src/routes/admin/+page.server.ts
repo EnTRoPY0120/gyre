@@ -1,3 +1,4 @@
+import { env } from '$env/dynamic/private';
 import type { PageServerLoad } from './$types';
 
 function formatEnvironment(nodeEnv: string | undefined): string | null {
@@ -19,14 +20,14 @@ function formatEnvironment(nodeEnv: string | undefined): string | null {
  * Load function for admin settings landing page
  */
 export const load: PageServerLoad = async () => {
-	const inCluster = Boolean(process.env.KUBERNETES_SERVICE_HOST);
+	const inCluster = Boolean(env.KUBERNETES_SERVICE_HOST);
 
 	return {
 		systemInfo: {
 			deploymentMode: inCluster ? 'In-cluster' : 'Local',
 			clusterAccess: inCluster ? 'In-cluster Kubernetes API' : 'Local kubeconfig contexts',
 			databaseEngine: 'SQLite',
-			environment: formatEnvironment(process.env.NODE_ENV)
+			environment: formatEnvironment(env.NODE_ENV)
 		}
 	};
 };
