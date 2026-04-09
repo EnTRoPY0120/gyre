@@ -53,11 +53,13 @@
 
 	// Form values derived from parsing the current YAML
 	let formValues = $state<Record<string, unknown>>({});
+	let hasInitializedFormValues = $state(false);
 
 	// Update currentYaml when template changes
 	$effect(() => {
 		currentYaml = template.yaml;
 		yamlError = null;
+		hasInitializedFormValues = false;
 	});
 
 	// Validate YAML in real-time when in YAML mode
@@ -102,17 +104,26 @@
 				}
 			});
 			formValues = values;
+			hasInitializedFormValues = true;
 		} catch (err) {
 			logger.error(err, 'Failed to parse initial YAML');
 			formValues = {};
 			yamlError = 'Failed to parse template YAML';
+			hasInitializedFormValues = true;
 		}
+	});
+
+	$effect(() => {
+		if (mode !== 'wizard' || !currentYaml || !hasInitializedFormValues) return;
+
+		JSON.stringify(formValues);
+		updateYamlFromForm();
 	});
 
 	// Synchronize YAML when form values change (Wizard -> YAML)
 	function updateYamlFromForm() {
 		try {
-			const doc = parseDocument(currentYaml);
+			const doc = parseDocument(currentYaml || template.yaml);
 
 			template.fields.forEach((field) => {
 				if (field.virtual) return;
@@ -186,8 +197,25 @@
 		return undefined;
 	}
 
+	function ensureTemplateField(field: TemplateField): TemplateField {
+		const existingField = template.fields.find((candidate) => candidate.name === field.name);
+		if (existingField) {
+			return existingField;
+		}
+
+		template.fields = [...template.fields, field];
+		return field;
+	}
+
+	function commitFieldValue(field: TemplateField) {
+		const nextValue = coerceFieldValue(field, formValues[field.name]);
+		formValues[field.name] = nextValue;
+		handleFieldChange(field);
+	}
+
 	function setFieldValue(field: TemplateField, value: unknown) {
-		formValues[field.name] = coerceFieldValue(field, value);
+		formValues[field.name] =
+			field.type === 'number' && typeof value === 'string' ? value : coerceFieldValue(field, value);
 		handleFieldChange(field);
 	}
 
@@ -202,15 +230,13 @@
 		logger.warn(
 			`ResourceWizard: template field "${fieldName}" is missing from template.fields; using fallback validation flow`
 		);
-		setFieldValue(
-			{
-				name: fieldName,
-				label: fieldName,
-				path: fieldName,
-				type: 'string'
-			},
-			value
-		);
+		const fallbackField = ensureTemplateField({
+			name: fieldName,
+			label: fieldName,
+			path: fieldName,
+			type: 'string'
+		});
+		setFieldValue(fallbackField, value);
 	}
 
 	async function handleSubmit() {
@@ -230,6 +256,15 @@
 		error = null;
 
 		try {
+			if (mode === 'wizard') {
+				template.fields.forEach((field) => {
+					if (field.type === 'number') {
+						commitFieldValue(field);
+					}
+				});
+				updateYamlFromForm();
+			}
+
 			const parsed = parse(currentYaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
@@ -545,6 +580,7 @@
 														{:else if field.type === 'boolean'}
 															<div class="flex items-center gap-2">
 																<input
+																	id="field-{field.name}"
 																	type="checkbox"
 																	checked={Boolean(formValues[field.name])}
 																	onchange={(event) =>
@@ -598,11 +634,14 @@
 															<input
 																id="field-{field.name}"
 																type={field.type === 'number' ? 'number' : 'text'}
-																value={field.type === 'number'
-																	? ((formValues[field.name] as number | undefined) ?? '')
-																	: String(formValues[field.name] ?? '')}
+																value={String(formValues[field.name] ?? '')}
 																oninput={(event) =>
 																	setFieldValue(field, (event.currentTarget as HTMLInputElement).value)}
+																onblur={() => {
+																	if (field.type === 'number') {
+																		commitFieldValue(field);
+																	}
+																}}
 																placeholder={field.placeholder || field.description}
 																class={cn(
 																	'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
@@ -666,6 +705,7 @@
 											{:else if field.type === 'boolean'}
 												<div class="flex items-center gap-2">
 													<input
+														id="field-{field.name}"
 														type="checkbox"
 														checked={Boolean(formValues[field.name])}
 														onchange={(event) =>
@@ -719,11 +759,14 @@
 												<input
 													id="field-{field.name}"
 													type={field.type === 'number' ? 'number' : 'text'}
-													value={field.type === 'number'
-														? ((formValues[field.name] as number | undefined) ?? '')
-														: String(formValues[field.name] ?? '')}
+													value={String(formValues[field.name] ?? '')}
 													oninput={(event) =>
 														setFieldValue(field, (event.currentTarget as HTMLInputElement).value)}
+													onblur={() => {
+														if (field.type === 'number') {
+															commitFieldValue(field);
+														}
+													}}
 													placeholder={field.placeholder || field.description}
 													class={cn(
 														'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
