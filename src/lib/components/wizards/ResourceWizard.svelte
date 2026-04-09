@@ -191,6 +191,28 @@
 		handleFieldChange(field);
 	}
 
+	function setFieldValueByName(fieldName: string, value: unknown) {
+		const targetField = template.fields.find((candidate) => candidate.name === fieldName);
+
+		if (targetField) {
+			setFieldValue(targetField, value);
+			return;
+		}
+
+		logger.warn(
+			`ResourceWizard: template field "${fieldName}" is missing from template.fields; using fallback validation flow`
+		);
+		setFieldValue(
+			{
+				name: fieldName,
+				label: fieldName,
+				path: fieldName,
+				type: 'string'
+			},
+			value
+		);
+	}
+
 	async function handleSubmit() {
 		// Check for YAML syntax errors first
 		if (yamlError) {
@@ -272,7 +294,7 @@
 		if (namespaceField) {
 			setFieldValue(namespaceField, selection.namespace);
 		} else {
-			formValues[field.referenceNamespaceField] = selection.namespace;
+			setFieldValueByName(field.referenceNamespaceField, selection.namespace);
 		}
 	}
 
