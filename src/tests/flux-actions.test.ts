@@ -31,6 +31,7 @@ mock.module('../lib/server/kubernetes/client.js', () => ({
 
 const { toggleSuspendResource, reconcileResource, deleteResource } =
 	(await import('../lib/server/kubernetes/flux/actions.js?test=flux-actions')) as typeof import('../lib/server/kubernetes/flux/actions.js');
+mock.restore();
 
 describe('toggleSuspendResource', () => {
 	beforeEach(() => {

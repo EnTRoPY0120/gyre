@@ -20,6 +20,7 @@ mock.module('../lib/server/db/index.js', () => ({
 }));
 
 import { RateLimiter, SSEConnectionLimiter } from '../lib/server/rate-limiter';
+mock.restore();
 
 const CREATE_RATE_LIMITS_TABLE = `
 	CREATE TABLE IF NOT EXISTS rate_limits (

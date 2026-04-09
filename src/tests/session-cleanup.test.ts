@@ -16,6 +16,7 @@ mock.module('../lib/server/db/index.js', () => ({
 
 const { cleanupExpiredSessions, deleteUserSessions, generateSessionId, generateUserId } =
 	(await import('../lib/server/auth.js?test=session-cleanup')) as typeof import('../lib/server/auth.js');
+mock.restore();
 
 const CREATE_USERS_TABLE = `
 	CREATE TABLE IF NOT EXISTS users (

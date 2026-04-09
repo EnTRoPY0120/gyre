@@ -32,6 +32,7 @@ mock.module('bcryptjs', () => ({
 
 const { listUsersPaginated, createUser } =
 	(await import('../lib/server/auth.js?test=pagination')) as typeof import('../lib/server/auth.js');
+mock.restore();
 
 // ---------------------------------------------------------------------------
 // Helpers

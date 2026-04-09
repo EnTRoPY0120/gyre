@@ -24,6 +24,7 @@ import { OAuthError } from '../lib/server/auth/oauth/types.js';
 import { _resetKeyCache, encryptSecret } from '../lib/server/auth/crypto.js';
 const { OIDCProvider } =
 	(await import('../lib/server/auth/oauth/providers/oidc.js?test=oauth-oidc')) as typeof import('../lib/server/auth/oauth/providers/oidc.js');
+mock.restore();
 
 const BASE_DISCOVERY = {
 	issuer: 'https://provider.example.com',

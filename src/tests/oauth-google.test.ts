@@ -50,6 +50,7 @@ import { OAuthError } from '../lib/server/auth/oauth/types.js';
 import { _resetKeyCache, encryptSecret } from '../lib/server/auth/crypto.js';
 const { GoogleProvider } =
 	(await import('../lib/server/auth/oauth/providers/google.js?test=oauth-google')) as typeof import('../lib/server/auth/oauth/providers/google.js');
+mock.restore();
 
 const baseConfig = {
 	id: 'google-1',

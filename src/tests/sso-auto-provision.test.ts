@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 function flattenSqlParts(value: unknown): string[] {
 	if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -146,6 +146,7 @@ mock.module('$lib/server/logger.js', () => ({
 
 const { createOrUpdateSSOUser } =
 	(await import('../lib/server/auth/sso.js?test=sso-auto-provision')) as typeof import('../lib/server/auth/sso.js');
+mock.restore();
 
 function createProviderConfig(emailClaim = 'email') {
 	return {
@@ -390,8 +391,4 @@ describe('SSO auto provisioning', () => {
 			expect.objectContaining({ email: 'fallback@example.com', emailVerified: false })
 		);
 	});
-});
-
-afterAll(() => {
-	mock.restore();
 });

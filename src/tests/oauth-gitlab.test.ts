@@ -46,6 +46,7 @@ mock.module('$lib/server/logger.js', () => ({
 }));
 
 import { GitLabProvider } from '../lib/server/auth/oauth/providers/gitlab.js';
+mock.restore();
 
 const mockConfig = {
 	id: 'gitlab-1',

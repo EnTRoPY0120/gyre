@@ -21,6 +21,7 @@ import {
 	_decryptKubeconfig,
 	_resetEncryptionKeyCache
 } from '../lib/server/clusters';
+mock.restore();
 
 // ---------------------------------------------------------------------------
 // In-memory DB helpers

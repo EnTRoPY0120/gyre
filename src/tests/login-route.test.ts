@@ -162,6 +162,7 @@ mock.module('$lib/server/rate-limiter', () => ({
 
 const { POST } =
 	(await import('../routes/api/v1/auth/login/+server.js?test=login-route')) as typeof import('../routes/api/v1/auth/login/+server.js');
+mock.restore();
 
 type LoginEvent = Parameters<typeof POST>[0];
 

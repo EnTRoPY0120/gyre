@@ -32,6 +32,7 @@ const {
 	SETTINGS_KEYS
 } =
 	(await import('../lib/server/settings.js?test=settings')) as typeof import('../lib/server/settings.js');
+mock.restore();
 
 // ---------------------------------------------------------------------------
 // Helpers
