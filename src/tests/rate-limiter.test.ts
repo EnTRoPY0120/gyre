@@ -1,11 +1,17 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from '../lib/server/db/schema.js';
 
-const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+const state: {
+	db: ReturnType<typeof drizzle<typeof schema>> | null;
+	sqlite: Database | null;
+} = {
+	db: null,
+	sqlite: null
+};
 
 mock.module('../lib/server/db/index.js', () => ({
 	getDb: async () => state.db,
@@ -29,6 +35,7 @@ const CREATE_RATE_LIMITS_TABLE = `
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
 	sqlite.exec(CREATE_RATE_LIMITS_TABLE);
+	state.sqlite = sqlite;
 	return drizzle(sqlite, { schema });
 }
 
@@ -43,10 +50,12 @@ describe('RateLimiter', () => {
 	});
 
 	afterEach(() => {
-		state.db = null;
 		// Explicitly stop the interval to avoid lingering timers.
 		// The stop() method clears the internal setInterval created in the constructor.
 		limiter.stop();
+		state.sqlite?.close();
+		state.sqlite = null;
+		state.db = null;
 	});
 
 	describe('basic rate limiting', () => {

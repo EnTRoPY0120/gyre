@@ -135,9 +135,10 @@ export class GoogleProvider implements IOAuthProvider {
 
 			// Google-specific: Extract HD (hosted domain) claim if present
 			// This can be used for domain restrictions (e.g., only allow @company.com)
-			const hostedDomain = userInfo.rawClaims?.hd;
-			if (typeof hostedDomain === 'string' && hostedDomain.length > 0) {
-				const normalizedDomain = hostedDomain.trim().toLowerCase();
+			const hostedDomainRaw = userInfo.rawClaims?.hd;
+			const hostedDomain = typeof hostedDomainRaw === 'string' ? hostedDomainRaw.trim() : '';
+			if (hostedDomain.length > 0) {
+				const normalizedDomain = hostedDomain.toLowerCase();
 				const domainGroup = `domain:${normalizedDomain}`;
 				userInfo.groups = userInfo.groups || [];
 				if (!userInfo.groups.includes(domainGroup)) {

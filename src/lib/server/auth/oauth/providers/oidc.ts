@@ -32,6 +32,21 @@ import { assertSafeIssuerUrl, assertSafeOidcDiscoveryDocument } from '../url-sec
 const MAX_CACHE_SIZE = 50;
 const DISCOVERY_TTL_MS = 60 * 60 * 1000; // 1 hour
 const REQUEST_TIMEOUT_MS = 10_000;
+const STANDARD_OIDC_RESERVED_CLAIMS = [
+	'sub',
+	'email',
+	'emailVerified',
+	'email_verified',
+	'username',
+	'preferred_username',
+	'name',
+	'givenName',
+	'given_name',
+	'familyName',
+	'family_name',
+	'picture',
+	'locale'
+] as const;
 const discoveryCache = new Map<
 	string,
 	{
@@ -434,6 +449,7 @@ export class OIDCProvider implements IOAuthProvider {
 		) as OAuthUserInfo;
 
 		const reservedKeys = new Set([
+			...STANDARD_OIDC_RESERVED_CLAIMS,
 			...Object.keys(normalizedUserInfo),
 			this.config.roleClaim,
 			'groups',

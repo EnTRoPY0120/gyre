@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
@@ -111,7 +111,14 @@ mock.module('$lib/server/logger.js', () => ({
 
 mock.module('$lib/server/audit', () => ({
 	logAudit: async () => {},
-	logLogin: async () => {}
+	logLogin: async () => {},
+	logResourceWrite: async () => {}
+}));
+
+mock.module('$lib/server/audit.js', () => ({
+	logAudit: async () => {},
+	logLogin: async () => {},
+	logResourceWrite: async () => {}
 }));
 
 mock.module('$lib/server/rate-limiter', () => ({
@@ -123,9 +130,9 @@ mock.module('$lib/server/rate-limiter', () => ({
 	}
 }));
 
-const { POST } = (await import(
-	'../routes/api/v1/auth/change-password/+server.js?test=change-password-route'
-)) as typeof import('../routes/api/v1/auth/change-password/+server.js');
+const { POST } =
+	(await import('../routes/api/v1/auth/change-password/+server.js?test=change-password-route')) as typeof import('../routes/api/v1/auth/change-password/+server.js');
+mock.restore();
 
 type ChangePasswordEvent = Parameters<typeof POST>[0];
 

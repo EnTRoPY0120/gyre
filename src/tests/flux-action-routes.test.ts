@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
 
 const capturedPermissionChecks: unknown[][] = [];
@@ -7,6 +7,24 @@ const capturedToggleSuspendCalls: unknown[][] = [];
 const capturedLogWrites: unknown[][] = [];
 
 let permissionAllowed = true;
+
+class MockRbacError extends Error {
+	status = 403;
+	body: { message: string; code: string };
+
+	constructor(
+		message: string,
+		public action: string,
+		public resourceType?: string
+	) {
+		super(message);
+		this.name = 'RbacError';
+		this.body = {
+			message,
+			code: 'Forbidden'
+		};
+	}
+}
 
 mock.module('$lib/server/rbac.js', () => ({
 	checkPermission: async (...args: unknown[]) => {
@@ -17,17 +35,18 @@ mock.module('$lib/server/rbac.js', () => ({
 	requirePermission: async (...args: unknown[]) => {
 		capturedPermissionChecks.push(args);
 		if (!permissionAllowed) {
-			throw new Error('Forbidden');
+			const action = String(args[1] ?? 'read');
+			const resourceType = typeof args[2] === 'string' ? args[2] : undefined;
+			throw new MockRbacError(
+				`Permission denied: ${action} on ${resourceType || 'resource'}`,
+				action,
+				resourceType
+			);
 		}
 	},
 	isAdmin: (user: { role?: string } | null | undefined) => user?.role === 'admin',
 	isValidNamespacePattern: () => true,
-	RbacError: class MockRbacError extends Error {
-		constructor(message = 'Forbidden') {
-			super(message);
-			this.name = 'RbacError';
-		}
-	}
+	RbacError: MockRbacError
 }));
 
 mock.module('$lib/server/kubernetes/flux/actions', () => ({
@@ -43,7 +62,16 @@ mock.module('$lib/server/audit.js', () => ({
 	logResourceWrite: async (...args: unknown[]) => {
 		capturedLogWrites.push(args);
 	},
-	logAudit: async () => {}
+	logAudit: async () => {},
+	logLogin: async () => {}
+}));
+
+mock.module('$lib/server/audit', () => ({
+	logResourceWrite: async (...args: unknown[]) => {
+		capturedLogWrites.push(args);
+	},
+	logAudit: async () => {},
+	logLogin: async () => {}
 }));
 
 mock.module('$lib/server/kubernetes/errors.js', () => ({
@@ -111,10 +139,6 @@ beforeEach(() => {
 	capturedReconcileCalls.length = 0;
 	capturedToggleSuspendCalls.length = 0;
 	capturedLogWrites.length = 0;
-});
-
-afterAll(() => {
-	mock.restore();
 });
 
 describe('Flux action routes normalize plural resource types', () => {

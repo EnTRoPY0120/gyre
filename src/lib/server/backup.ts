@@ -542,4 +542,5 @@ export { encryptBackup as _encryptBackup, decryptBackup as _decryptBackup };
 export { getBackupEncryptionKey as _getBackupEncryptionKey };
 export function _resetBackupEncryptionKeyCache(): void {
 	cachedEncryptionKey = undefined;
+	cachedEncryptionKeySource = undefined;
 }

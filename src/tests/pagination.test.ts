@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 import { Database } from 'bun:sqlite';

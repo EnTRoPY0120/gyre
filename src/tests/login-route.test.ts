@@ -51,8 +51,7 @@ mock.module('$lib/server/auth.js', () => ({
 	isInClusterAdmin: () => false,
 	isPasswordInHistory: async () => false,
 	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	hashPassword: async () =>
-		'$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
 	verifyPassword: async (password: string, hash: string) => {
 		routeState.verifyPasswordCalls.push({ password, hash });
 		return false;
@@ -70,8 +69,7 @@ mock.module('$lib/server/auth.ts', () => ({
 	isInClusterAdmin: () => false,
 	isPasswordInHistory: async () => false,
 	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	hashPassword: async () =>
-		'$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
 	verifyPassword: async (password: string, hash: string) => {
 		routeState.verifyPasswordCalls.push({ password, hash });
 		return false;
@@ -88,6 +86,15 @@ mock.module('$lib/server/settings', () => ({
 
 mock.module('$lib/server/audit', () => ({
 	logAudit: async () => {},
+	logResourceWrite: async () => {},
+	logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
+		routeState.loginLogCalls.push({ user, success, ipAddress, reason });
+	}
+}));
+
+mock.module('$lib/server/audit.js', () => ({
+	logAudit: async () => {},
+	logResourceWrite: async () => {},
 	logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
 		routeState.loginLogCalls.push({ user, success, ipAddress, reason });
 	}
@@ -153,9 +160,8 @@ mock.module('$lib/server/rate-limiter', () => ({
 	}
 }));
 
-const { POST } = (await import(
-	'../routes/api/v1/auth/login/+server.js?test=login-route'
-)) as typeof import('../routes/api/v1/auth/login/+server.js');
+const { POST } =
+	(await import('../routes/api/v1/auth/login/+server.js?test=login-route')) as typeof import('../routes/api/v1/auth/login/+server.js');
 
 type LoginEvent = Parameters<typeof POST>[0];
 

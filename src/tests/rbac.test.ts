@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 
@@ -20,6 +20,7 @@ import type { User } from '../lib/server/db/schema.js';
 
 const { checkClusterWideReadPermission, checkPermission, isAdmin, requirePermission, RbacError } =
 	(await import('../lib/server/rbac.js?test=rbac')) as typeof import('../lib/server/rbac.js');
+mock.restore();
 
 // ---------------------------------------------------------------------------
 // Helpers

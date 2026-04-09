@@ -192,4 +192,23 @@ describe('GoogleProvider', () => {
 		expect(userInfo.groups?.some((g) => g.startsWith('domain:'))).toBeFalsy();
 		expect(userInfo.rawClaims?.hd).toBeUndefined();
 	});
+
+	test('does not add a domain group for whitespace-only hd values', async () => {
+		mockJwtClaims = {
+			sub: '123',
+			email: 'user@company.com',
+			email_verified: true,
+			name: 'Test User',
+			preferred_username: 'user@company.com',
+			hd: '   '
+		};
+
+		const userInfo = await makeProvider().getUserInfo({
+			accessToken: 'token',
+			tokenType: 'Bearer',
+			idToken: 'id-token'
+		});
+
+		expect(userInfo.groups?.some((g) => g.startsWith('domain:'))).toBeFalsy();
+	});
 });

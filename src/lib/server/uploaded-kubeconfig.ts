@@ -10,13 +10,7 @@ export class UploadedKubeconfigValidationError extends Error {
 export function validateUploadedKubeconfig(kubeconfig: string): void {
 	try {
 		const parsed = yaml.load(kubeconfig);
-		if (
-			parsed === null ||
-			parsed === undefined ||
-			typeof parsed !== 'object' ||
-			!(parsed as { clusters?: unknown }).clusters ||
-			!(parsed as { contexts?: unknown }).contexts
-		) {
+		if (parsed === null || parsed === undefined || typeof parsed !== 'object') {
 			throw new UploadedKubeconfigValidationError(
 				'Invalid kubeconfig: missing clusters or contexts'
 			);
@@ -28,6 +22,13 @@ export function validateUploadedKubeconfig(kubeconfig: string): void {
 			kind?: unknown;
 			apiVersion?: unknown;
 		};
+		const hasClusters = Object.prototype.hasOwnProperty.call(config, 'clusters');
+		const hasContexts = Object.prototype.hasOwnProperty.call(config, 'contexts');
+		if (!hasClusters || !hasContexts) {
+			throw new UploadedKubeconfigValidationError(
+				'Invalid kubeconfig: missing clusters or contexts'
+			);
+		}
 		if (config.kind !== 'Config' || config.apiVersion !== 'v1') {
 			throw new UploadedKubeconfigValidationError(
 				'Invalid kubeconfig: must have kind: Config and apiVersion: v1'

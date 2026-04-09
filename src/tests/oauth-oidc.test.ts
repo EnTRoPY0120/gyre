@@ -180,6 +180,35 @@ describe('OIDCProvider', () => {
 		expect(userInfo.department).toBe('platform');
 	});
 
+	test('does not leak standard snake_case claims into passthrough fields', async () => {
+		mockJwtClaims = {
+			sub: 'user-123',
+			email: 'user@example.com',
+			email_verified: true,
+			name: 'Test User',
+			preferred_username: 'testuser',
+			given_name: 'Test',
+			family_name: 'User',
+			locale: 'en',
+			department: 'platform'
+		};
+
+		const provider = makeProvider();
+		const userInfo = await provider.getUserInfo({
+			accessToken: 'access-token',
+			tokenType: 'Bearer',
+			idToken: 'id-token'
+		});
+
+		expect(userInfo.emailVerified).toBe(true);
+		expect(userInfo.givenName).toBe('Test');
+		expect(userInfo.familyName).toBe('User');
+		expect(userInfo).not.toHaveProperty('email_verified');
+		expect(userInfo).not.toHaveProperty('given_name');
+		expect(userInfo).not.toHaveProperty('family_name');
+		expect(userInfo.department).toBe('platform');
+	});
+
 	test.each([
 		['issuer', 'unexpected "iss" claim value'],
 		['audience', 'unexpected "aud" claim value'],
