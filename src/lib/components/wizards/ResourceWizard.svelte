@@ -5,7 +5,7 @@
 	import ArrayField from '$lib/components/wizards/ArrayField.svelte';
 	import ReferenceField from '$lib/components/wizards/ReferenceField.svelte';
 	import FieldHelp from '$lib/components/wizards/FieldHelp.svelte';
-	import type { ResourceTemplate } from '$lib/templates';
+	import type { ResourceTemplate, TemplateField } from '$lib/templates';
 	import { cn } from '$lib/utils';
 	import { logger } from '$lib/utils/logger.js';
 	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from 'lucide-svelte';
@@ -90,7 +90,7 @@
 				for (let i = 0; i < path.length; i++) {
 					if (!current) break;
 					if (i === path.length - 1) {
-						values[field.name] = current[path[i]];
+						values[field.name] = coerceFieldValue(field, current[path[i]]);
 					} else {
 						current = current[path[i]] as Record<string, unknown>;
 					}
@@ -117,8 +117,13 @@
 			template.fields.forEach((field) => {
 				if (field.virtual) return;
 
-				const value = formValues[field.name];
+				const value = coerceFieldValue(field, formValues[field.name]);
 				const path = field.path.split('.');
+
+				if (field.type === 'number' && value === undefined) {
+					doc.deleteIn(path);
+					return;
+				}
 
 				doc.setIn(path, value);
 			});
@@ -144,7 +149,7 @@
 				for (let i = 0; i < path.length; i++) {
 					if (!current) break;
 					if (i === path.length - 1) {
-						values[field.name] = current[path[i]];
+						values[field.name] = coerceFieldValue(field, current[path[i]]);
 					} else {
 						current = current[path[i]] as Record<string, unknown>;
 					}
@@ -158,6 +163,32 @@
 				yamlError = 'Invalid YAML syntax';
 			}
 		}
+	}
+
+	function coerceFieldValue(field: TemplateField, value: unknown): unknown {
+		if (field.type !== 'number') {
+			return value;
+		}
+
+		if (value === '' || value === null || value === undefined) {
+			return undefined;
+		}
+
+		if (typeof value === 'number') {
+			return Number.isFinite(value) ? value : undefined;
+		}
+
+		if (typeof value === 'string') {
+			const parsedValue = Number(value);
+			return Number.isFinite(parsedValue) ? parsedValue : undefined;
+		}
+
+		return undefined;
+	}
+
+	function setFieldValue(field: TemplateField, value: unknown) {
+		formValues[field.name] = coerceFieldValue(field, value);
+		handleFieldChange(field);
 	}
 
 	async function handleSubmit() {
@@ -191,11 +222,15 @@
 				throw new Error(data.message || 'Failed to create resource');
 			}
 
+			const createdResource = (await response.json()) as {
+				metadata?: { namespace?: string; name?: string };
+			};
+
 			success = true;
 
 			setTimeout(() => {
-				const ns = parsed.metadata?.namespace;
-				const name = parsed.metadata?.name;
+				const ns = createdResource.metadata?.namespace;
+				const name = createdResource.metadata?.name;
 				if (ns && name && K8S_NAME_RE.test(ns) && K8S_NAME_RE.test(name)) {
 					void goto(`/resources/${template.plural}/${ns}/${name}`);
 				} else {
@@ -226,18 +261,18 @@
 		nextValue: string,
 		selection?: { namespace?: string }
 	) {
-		formValues[field.name] = nextValue;
-		handleFieldChange(field);
+		setFieldValue(field, nextValue);
 
 		if (!field.referenceNamespaceField) return;
 		if (selection?.namespace === undefined) return;
 
-		formValues[field.referenceNamespaceField] = selection.namespace;
 		const namespaceField = template.fields.find(
 			(candidate) => candidate.name === field.referenceNamespaceField
 		);
 		if (namespaceField) {
-			handleFieldChange(namespaceField);
+			setFieldValue(namespaceField, selection.namespace);
+		} else {
+			formValues[field.referenceNamespaceField] = selection.namespace;
 		}
 	}
 
@@ -462,10 +497,7 @@
 															<Select.Root
 																type="single"
 																value={formValues[field.name] as string}
-																onValueChange={(v) => {
-																	formValues[field.name] = v;
-																	handleFieldChange(field);
-																}}
+																onValueChange={(v) => setFieldValue(field, v)}
 															>
 																<Select.Trigger
 																	id="field-{field.name}"
@@ -492,8 +524,9 @@
 															<div class="flex items-center gap-2">
 																<input
 																	type="checkbox"
-																	bind:checked={formValues[field.name] as boolean}
-																	onchange={() => handleFieldChange(field)}
+																	checked={Boolean(formValues[field.name])}
+																	onchange={(event) =>
+																		setFieldValue(field, (event.currentTarget as HTMLInputElement).checked)}
 																	class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 																/>
 																<span class="text-sm text-muted-foreground"
@@ -503,8 +536,9 @@
 														{:else if field.type === 'textarea'}
 															<textarea
 																id="field-{field.name}"
-																bind:value={formValues[field.name] as string}
-																oninput={() => handleFieldChange(field)}
+																value={String(formValues[field.name] ?? '')}
+																oninput={(event) =>
+																	setFieldValue(field, (event.currentTarget as HTMLTextAreaElement).value)}
 																placeholder={field.placeholder || field.description}
 																rows="4"
 																class={cn(
@@ -542,8 +576,11 @@
 															<input
 																id="field-{field.name}"
 																type={field.type === 'number' ? 'number' : 'text'}
-																bind:value={formValues[field.name] as string}
-																oninput={() => handleFieldChange(field)}
+																value={field.type === 'number'
+																	? ((formValues[field.name] as number | undefined) ?? '')
+																	: String(formValues[field.name] ?? '')}
+																oninput={(event) =>
+																	setFieldValue(field, (event.currentTarget as HTMLInputElement).value)}
 																placeholder={field.placeholder || field.description}
 																class={cn(
 																	'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
@@ -587,10 +624,7 @@
 												<Select.Root
 													type="single"
 													value={formValues[field.name] as string}
-													onValueChange={(v) => {
-														formValues[field.name] = v;
-														handleFieldChange(field);
-													}}
+													onValueChange={(v) => setFieldValue(field, v)}
 												>
 													<Select.Trigger
 														id="field-{field.name}"
@@ -611,8 +645,9 @@
 												<div class="flex items-center gap-2">
 													<input
 														type="checkbox"
-														bind:checked={formValues[field.name] as boolean}
-														onchange={() => handleFieldChange(field)}
+														checked={Boolean(formValues[field.name])}
+														onchange={(event) =>
+															setFieldValue(field, (event.currentTarget as HTMLInputElement).checked)}
 														class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
 													/>
 													<span class="text-sm text-muted-foreground"
@@ -622,8 +657,9 @@
 											{:else if field.type === 'textarea'}
 												<textarea
 													id="field-{field.name}"
-													bind:value={formValues[field.name] as string}
-													oninput={() => handleFieldChange(field)}
+													value={String(formValues[field.name] ?? '')}
+													oninput={(event) =>
+														setFieldValue(field, (event.currentTarget as HTMLTextAreaElement).value)}
 													placeholder={field.placeholder || field.description}
 													rows="4"
 													class={cn(
@@ -661,8 +697,11 @@
 												<input
 													id="field-{field.name}"
 													type={field.type === 'number' ? 'number' : 'text'}
-													bind:value={formValues[field.name] as string}
-													oninput={() => handleFieldChange(field)}
+													value={field.type === 'number'
+														? ((formValues[field.name] as number | undefined) ?? '')
+														: String(formValues[field.name] ?? '')}
+													oninput={(event) =>
+														setFieldValue(field, (event.currentTarget as HTMLInputElement).value)}
 													placeholder={field.placeholder || field.description}
 													class={cn(
 														'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',

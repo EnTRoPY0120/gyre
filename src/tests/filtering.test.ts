@@ -3,7 +3,8 @@ import { describe, test, expect, mock } from 'bun:test';
 mock.module('$app/environment', () => ({ dev: false }));
 mock.module('$env/dynamic/public', () => ({ env: {} }));
 
-const { searchParamsToFilters, parseLabels } = await import('../lib/utils/filtering.js');
+const { searchParamsToFilters, filtersToSearchParams, parseLabels, defaultFilterState } =
+	await import('../lib/utils/filtering.js');
 
 // ---------------------------------------------------------------------------
 // searchParamsToFilters
@@ -53,6 +54,33 @@ describe('searchParamsToFilters', () => {
 		const params = new URLSearchParams({ labels: 'c'.repeat(600) });
 		const result = searchParamsToFilters(params);
 		expect(result.labels).toHaveLength(500);
+	});
+
+	test('regex=1 enables regex mode', () => {
+		const params = new URLSearchParams({ regex: '1' });
+		const result = searchParamsToFilters(params);
+		expect(result.useRegex).toBe(true);
+	});
+
+	test('missing regex param restores default regex mode', () => {
+		const result = searchParamsToFilters(new URLSearchParams());
+		expect(result.useRegex).toBe(defaultFilterState.useRegex);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// filtersToSearchParams
+// ---------------------------------------------------------------------------
+
+describe('filtersToSearchParams', () => {
+	test('regex mode is persisted as regex=1', () => {
+		const params = filtersToSearchParams({ ...defaultFilterState, useRegex: true });
+		expect(params.get('regex')).toBe('1');
+	});
+
+	test('default regex mode is omitted from params', () => {
+		const params = filtersToSearchParams(defaultFilterState);
+		expect(params.has('regex')).toBe(false);
 	});
 });
 

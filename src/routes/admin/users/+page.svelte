@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { enhance, applyAction } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
-	import { page } from '$app/stores';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { UserPlus, AlertTriangle, CheckCircle2, XCircle } from 'lucide-svelte';
@@ -264,10 +263,12 @@
 							<div class="flex justify-end gap-2">
 								{#if user.isLocal}
 									<Button
+										type="button"
 										variant="ghost"
 										size="sm"
 										onclick={() => openResetPasswordModal(user)}
 										title="Reset Password"
+										aria-label={`Reset password for ${user.username}`}
 									>
 										<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 											<path
@@ -279,7 +280,14 @@
 										</svg>
 									</Button>
 								{/if}
-								<Button variant="ghost" size="sm" onclick={() => openEditModal(user)} title="Edit">
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									onclick={() => openEditModal(user)}
+									title="Edit"
+									aria-label={`Edit user ${user.username}`}
+								>
 									<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 										<path
 											stroke-linecap="round"
@@ -291,11 +299,13 @@
 								</Button>
 								{#if user.id !== data.currentUser.id}
 									<Button
+										type="button"
 										variant="ghost"
 										size="sm"
 										onclick={() => openDeleteModal(user)}
 										class="text-red-400 hover:text-red-300"
 										title="Delete"
+										aria-label={`Delete user ${user.username}`}
 									>
 										<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 											<path
@@ -600,10 +610,21 @@
 
 	<!-- Reset Password Modal -->
 	{#if resettingPassword}
-		<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+			role="dialog"
+			aria-modal="true"
+			tabindex="-1"
+			aria-labelledby="reset-password-title"
+			aria-describedby={passwordResetSuccess
+				? 'reset-password-success-message reset-password-generated-password reset-password-success-hint'
+				: 'reset-password-description new-password-hint reset-password-warning'}
+			onclick={(e) => e.target === e.currentTarget && closeModals()}
+			onkeydown={(e) => e.key === 'Escape' && closeModals()}
+		>
 			<div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-				<h2 class="mb-4 text-xl font-bold text-white">Reset Password</h2>
-				<p class="mb-4 text-slate-400">
+				<h2 id="reset-password-title" class="mb-4 text-xl font-bold text-white">Reset Password</h2>
+				<p id="reset-password-description" class="mb-4 text-slate-400">
 					Generate a new password for <strong class="text-white"
 						>{resettingPassword.username}</strong
 					>
@@ -611,19 +632,24 @@
 
 				{#if passwordResetSuccess}
 				<div class="space-y-4">
-					<div class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400">
+					<div
+						id="reset-password-success-message"
+						class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400"
+					>
 						<div class="flex items-center gap-2">
 							<CheckCircle2 size={16} />
 							Password reset successfully
 						</div>
 					</div>
-					<div class="rounded bg-slate-900 p-3">
+					<div id="reset-password-generated-password" class="rounded bg-slate-900 p-3">
 						<p class="text-xs text-slate-400">New Password:</p>
 						<p class="font-mono text-sm text-amber-400">{generatedPassword}</p>
-						<p class="mt-1 text-xs text-slate-500">Copy this now - it won't be shown again</p>
+						<p id="reset-password-success-hint" class="mt-1 text-xs text-slate-500">
+							Copy this now - it won't be shown again
+						</p>
 					</div>
 					<div class="flex justify-end pt-2">
-						<Button onclick={closeModals}>Done</Button>
+						<Button type="button" onclick={closeModals}>Done</Button>
 					</div>
 				</div>
 			{:else}
@@ -675,7 +701,7 @@
 						</p>
 					</div>
 
-					<p class="text-xs text-amber-400">
+					<p id="reset-password-warning" class="text-xs text-amber-400">
 						Copy the password before submitting - it will only be shown once after reset.
 					</p>
 

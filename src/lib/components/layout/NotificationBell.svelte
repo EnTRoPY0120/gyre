@@ -46,6 +46,20 @@
 		eventsStore.markAsRead(id);
 	}
 
+	function isNestedInteractiveTarget(
+		event: MouseEvent | KeyboardEvent,
+		currentTarget: EventTarget | null
+	): boolean {
+		if (!(event.target instanceof Element) || !(currentTarget instanceof Element)) {
+			return false;
+		}
+
+		const interactiveAncestor = event.target.closest(
+			'button, a, input, select, textarea, summary, [role="button"], [role="link"]'
+		);
+		return interactiveAncestor !== null && interactiveAncestor !== currentTarget;
+	}
+
 	function markAllAsRead() {
 		eventsStore.markAllAsRead(showAllClusters ? undefined : currentCluster);
 	}
@@ -119,7 +133,7 @@
 		type="button"
 		class="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-accent hover:text-gray-700 dark:text-gray-400 dark:hover:bg-accent dark:hover:text-gray-200"
 		onclick={toggleDropdown}
-		aria-label="Notifications{unreadCount > 0 ? `, ${unreadCount} unread` : ''}"
+		aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
 		aria-expanded={isOpen}
 		aria-haspopup="dialog"
 	>
@@ -263,8 +277,16 @@
 							class="w-full border-b border-gray-100 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-accent focus:bg-accent focus:outline-none dark:border-gray-700 dark:hover:bg-accent dark:focus:bg-accent {notification.read
 								? 'opacity-60'
 								: ''}"
-							onclick={() => markAsRead(notification.id)}
+							onclick={(event) => {
+								if (isNestedInteractiveTarget(event, event.currentTarget)) {
+									return;
+								}
+								markAsRead(notification.id);
+							}}
 							onkeydown={(e) => {
+								if (isNestedInteractiveTarget(e, e.currentTarget)) {
+									return;
+								}
 								if (e.key === 'Enter' || e.key === ' ') {
 									markAsRead(notification.id);
 									e.preventDefault();

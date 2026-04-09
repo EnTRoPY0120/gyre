@@ -217,6 +217,7 @@
 		filters.namespace = defaultFilterState.namespace;
 		filters.status = defaultFilterState.status;
 		filters.labels = defaultFilterState.labels;
+		filters.useRegex = defaultFilterState.useRegex;
 	}
 
 	function handleSearch() {
@@ -277,11 +278,13 @@
 							? 'bg-primary text-primary-foreground'
 							: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'}"
 						aria-pressed={sortBy === opt.key}
-						aria-label="Sort by {opt.label}: {sortBy === opt.key
-							? sortOrder === 'asc'
-								? 'ascending'
-								: 'descending'
-							: 'not sorted'}"
+						aria-label={`Sort by ${opt.label}: ${
+							sortBy === opt.key
+								? sortOrder === 'asc'
+									? 'ascending'
+									: 'descending'
+								: 'not sorted'
+						}`}
 						onclick={() => applySort(opt.key)}
 					>
 						{opt.label}

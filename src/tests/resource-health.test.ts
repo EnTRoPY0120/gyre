@@ -255,6 +255,10 @@ describe('hasActiveFilters', () => {
 	test('returns true when labels is set', () => {
 		expect(hasActiveFilters({ ...defaultFilterState, labels: 'app=foo' })).toBe(true);
 	});
+
+	test('returns true when regex mode is enabled', () => {
+		expect(hasActiveFilters({ ...defaultFilterState, useRegex: true })).toBe(true);
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -267,7 +271,8 @@ describe('filtersToSearchParams / searchParamsToFilters', () => {
 			search: 'nginx',
 			namespace: 'flux-system',
 			status: 'healthy' as const,
-			labels: 'app=foo'
+			labels: 'app=foo',
+			useRegex: true
 		};
 		const params = filtersToSearchParams(original);
 		const restored = searchParamsToFilters(params);
@@ -275,6 +280,7 @@ describe('filtersToSearchParams / searchParamsToFilters', () => {
 		expect(restored.namespace).toBe(original.namespace);
 		expect(restored.status).toBe(original.status);
 		expect(restored.labels).toBe(original.labels);
+		expect(restored.useRegex).toBe(original.useRegex);
 	});
 
 	test('empty default state produces empty params', () => {
@@ -288,5 +294,6 @@ describe('filtersToSearchParams / searchParamsToFilters', () => {
 		expect(filters.namespace).toBe('');
 		expect(filters.status).toBe('all');
 		expect(filters.labels).toBe('');
+		expect(filters.useRegex).toBe(false);
 	});
 });

@@ -296,6 +296,7 @@
 			<p class="mt-1 text-sm text-slate-400">Manage OAuth2 and OIDC authentication providers</p>
 		</div>
 		<button
+			type="button"
 			onclick={openCreateModal}
 			class="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-amber-400 sm:w-auto"
 		>
@@ -324,6 +325,7 @@
 				Get started by adding your first authentication provider
 			</p>
 			<button
+				type="button"
 				onclick={openCreateModal}
 				class="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-amber-400"
 			>
@@ -389,9 +391,11 @@
 						<div class="flex items-center gap-2">
 							<!-- Toggle Enabled/Disabled -->
 							<button
+								type="button"
 								onclick={() => toggleEnabled(provider)}
 								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
 								title={provider.enabled ? 'Disable' : 'Enable'}
+								aria-label={`${provider.enabled ? 'Disable' : 'Enable'} provider ${provider.name}`}
 							>
 								{#if provider.enabled}
 									<svg
@@ -426,9 +430,11 @@
 
 							<!-- Edit Button -->
 							<button
+								type="button"
 								onclick={() => openEditModal(provider)}
 								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
 								title="Edit"
+								aria-label={`Edit provider ${provider.name}`}
 							>
 								<svg
 									class="h-5 w-5 text-slate-400"
@@ -447,9 +453,11 @@
 
 							<!-- Delete Button -->
 							<button
+								type="button"
 								onclick={() => openDeleteModal(provider)}
 								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
 								title="Delete"
+								aria-label={`Delete provider ${provider.name}`}
 							>
 								<svg
 									class="h-5 w-5 text-red-400"
@@ -475,13 +483,22 @@
 
 <!-- Create Modal -->
 {#if showCreateModal}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+		role="dialog"
+		aria-modal="true"
+		tabindex="-1"
+		aria-labelledby="create-provider-title"
+		onclick={(e) => e.target === e.currentTarget && closeModals()}
+		onkeydown={(e) => e.key === 'Escape' && closeModals()}
+	>
 		<div
 			class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-lg"
 		>
 			<div class="mb-6 flex items-center justify-between">
-				<h2 class="text-xl font-bold text-slate-100">Add SSO Provider</h2>
+				<h2 id="create-provider-title" class="text-xl font-bold text-slate-100">Add SSO Provider</h2>
 				<button
+					type="button"
 					aria-label="Close"
 					onclick={closeModals}
 					class="text-slate-400 hover:text-slate-300"
@@ -732,13 +749,24 @@
 
 <!-- Edit Modal (similar structure to Create) -->
 {#if showEditModal && selectedProvider}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+		role="dialog"
+		aria-modal="true"
+		tabindex="-1"
+		aria-labelledby="edit-provider-title"
+		onclick={(e) => e.target === e.currentTarget && closeModals()}
+		onkeydown={(e) => e.key === 'Escape' && closeModals()}
+	>
 		<div
 			class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-lg"
 		>
 			<div class="mb-6 flex items-center justify-between">
-				<h2 class="text-xl font-bold text-slate-100">Edit Provider: {selectedProvider.name}</h2>
+				<h2 id="edit-provider-title" class="text-xl font-bold text-slate-100">
+					Edit Provider: {selectedProvider.name}
+				</h2>
 				<button
+					type="button"
 					aria-label="Close"
 					onclick={closeModals}
 					class="text-slate-400 hover:text-slate-300"
@@ -983,10 +1011,19 @@
 
 <!-- Delete Confirmation Modal -->
 {#if showDeleteModal && selectedProvider}
-	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+	<div
+		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+		role="dialog"
+		aria-modal="true"
+		tabindex="-1"
+		aria-labelledby="delete-provider-title"
+		aria-describedby="delete-provider-description"
+		onclick={(e) => e.target === e.currentTarget && closeModals()}
+		onkeydown={(e) => e.key === 'Escape' && closeModals()}
+	>
 		<div class="w-full max-w-md rounded-lg border border-slate-700 bg-slate-800 p-6">
-			<h2 class="text-xl font-bold text-slate-100">Delete Provider</h2>
-			<p class="mt-4 text-sm text-slate-300">
+			<h2 id="delete-provider-title" class="text-xl font-bold text-slate-100">Delete Provider</h2>
+			<p id="delete-provider-description" class="mt-4 text-sm text-slate-300">
 				Are you sure you want to delete <strong>{selectedProvider.name}</strong>? This action cannot
 				be undone and will affect all users linked to this provider.
 			</p>
@@ -1001,6 +1038,7 @@
 
 			<div class="mt-6 flex gap-3">
 				<button
+					type="button"
 					onclick={handleDelete}
 					disabled={loading}
 					class="flex-1 rounded-lg bg-red-500 px-4 py-2 font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
@@ -1008,6 +1046,7 @@
 					{loading ? 'Deleting...' : 'Delete'}
 				</button>
 				<button
+					type="button"
 					onclick={closeModals}
 					class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 transition-colors hover:bg-slate-700"
 				>
