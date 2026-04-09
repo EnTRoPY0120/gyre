@@ -8,6 +8,7 @@ afterAll(() => {
 	consoleLogSpy.mockRestore();
 	consoleErrorSpy.mockRestore();
 	consoleWarnSpy.mockRestore();
+	mock.restore();
 });
 
 mock.module('$lib/server/auth/crypto', () => ({
@@ -46,7 +47,6 @@ mock.module('$lib/server/logger.js', () => ({
 }));
 
 import { GitLabProvider } from '../lib/server/auth/oauth/providers/gitlab.js';
-mock.restore();
 
 const mockConfig = {
 	id: 'gitlab-1',

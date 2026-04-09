@@ -245,17 +245,17 @@ describe('Poll change detection', () => {
 		mockResources = [];
 		const unsub = subscribe((e) => events.push(e), clusterId);
 
-		// Wait for initial poll (empty)
-		await wait(150);
-
-		// Add a resource and confirm it is not emitted until the settling window passes.
-		mockResources = [makeResource('new-app', 'flux-system', 'v1')];
-		await wait(50);
-		expect(events.some((e) => e.type === 'ADDED')).toBe(false);
-
-		await wait(220);
-
 		try {
+			// Wait for initial poll (empty)
+			await wait(150);
+
+			// Add a resource and confirm it is not emitted until the settling window passes.
+			mockResources = [makeResource('new-app', 'flux-system', 'v1')];
+			await wait(50);
+			expect(events.some((e) => e.type === 'ADDED')).toBe(false);
+
+			await wait(220);
+
 			const added = events.filter((e) => e.type === 'ADDED');
 			expect(added.length).toBeGreaterThan(0);
 		} finally {

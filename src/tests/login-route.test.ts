@@ -22,59 +22,55 @@ function createRouteState() {
 
 const routeState = createRouteState();
 
-mock.module('$lib/server/auth', () => ({
-	addPasswordHistory: async () => {},
-	authenticateUser: async () => routeState.authenticatedUser,
-	clearRequiresPasswordChange: async () => {},
-	getCredentialAccount: async () => null,
-	getCredentialPasswordHash: async () => null,
-	getUserByUsername: async () => routeState.existingUser,
-	hasManagedPassword: async () => routeState.canChangePassword,
-	isInClusterAdmin: () => false,
-	isPasswordInHistory: async () => false,
-	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
-	verifyPassword: async (password: string, hash: string) => {
-		routeState.verifyPasswordCalls.push({ password, hash });
-		return false;
-	}
-}));
+function createAuthMock() {
+	return {
+		addPasswordHistory: async () => {},
+		authenticateUser: async () => routeState.authenticatedUser,
+		clearRequiresPasswordChange: async () => {},
+		getCredentialAccount: async () => null,
+		getCredentialPasswordHash: async () => null,
+		getUserByUsername: async () => routeState.existingUser,
+		hasManagedPassword: async () => routeState.canChangePassword,
+		isInClusterAdmin: () => false,
+		isPasswordInHistory: async () => false,
+		normalizeUsername: (username: string) => username.toLowerCase().trim(),
+		hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+		verifyPassword: async (password: string, hash: string) => {
+			routeState.verifyPasswordCalls.push({ password, hash });
+			return false;
+		}
+	};
+}
 
-mock.module('$lib/server/auth.js', () => ({
-	addPasswordHistory: async () => {},
-	authenticateUser: async () => routeState.authenticatedUser,
-	clearRequiresPasswordChange: async () => {},
-	getCredentialAccount: async () => null,
-	getCredentialPasswordHash: async () => null,
-	getUserByUsername: async () => routeState.existingUser,
-	hasManagedPassword: async () => routeState.canChangePassword,
-	isInClusterAdmin: () => false,
-	isPasswordInHistory: async () => false,
-	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
-	verifyPassword: async (password: string, hash: string) => {
-		routeState.verifyPasswordCalls.push({ password, hash });
-		return false;
-	}
-}));
+function createAuditMock() {
+	return {
+		logAudit: async () => {},
+		logResourceWrite: async () => {},
+		logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
+			routeState.loginLogCalls.push({ user, success, ipAddress, reason });
+		}
+	};
+}
 
-mock.module('$lib/server/auth.ts', () => ({
-	addPasswordHistory: async () => {},
-	authenticateUser: async () => routeState.authenticatedUser,
-	clearRequiresPasswordChange: async () => {},
-	getCredentialAccount: async () => null,
-	getCredentialPasswordHash: async () => null,
-	getUserByUsername: async () => routeState.existingUser,
-	hasManagedPassword: async () => routeState.canChangePassword,
-	isInClusterAdmin: () => false,
-	isPasswordInHistory: async () => false,
-	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
-	verifyPassword: async (password: string, hash: string) => {
-		routeState.verifyPasswordCalls.push({ password, hash });
-		return false;
-	}
-}));
+function createBetterAuthMock() {
+	return {
+		BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
+		applyBetterAuthCookies: () => {},
+		createBetterAuthSessionForUser: async () => {},
+		getBetterAuth: () => ({
+			api: {
+				changePassword: async () => ({
+					headers: new Headers()
+				})
+			}
+		}),
+		revokeBetterAuthSessionByCookieValue: async () => {}
+	};
+}
+
+for (const specifier of ['$lib/server/auth', '$lib/server/auth.js', '$lib/server/auth.ts']) {
+	mock.module(specifier, createAuthMock);
+}
 
 mock.module('$lib/server/settings', () => ({
 	getAuthSettings: async () => ({
@@ -84,63 +80,17 @@ mock.module('$lib/server/settings', () => ({
 	})
 }));
 
-mock.module('$lib/server/audit', () => ({
-	logAudit: async () => {},
-	logResourceWrite: async () => {},
-	logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
-		routeState.loginLogCalls.push({ user, success, ipAddress, reason });
-	}
-}));
+for (const specifier of ['$lib/server/audit', '$lib/server/audit.js']) {
+	mock.module(specifier, createAuditMock);
+}
 
-mock.module('$lib/server/audit.js', () => ({
-	logAudit: async () => {},
-	logResourceWrite: async () => {},
-	logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
-		routeState.loginLogCalls.push({ user, success, ipAddress, reason });
-	}
-}));
-
-mock.module('$lib/server/auth/better-auth', () => ({
-	BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
-	applyBetterAuthCookies: () => {},
-	createBetterAuthSessionForUser: async () => {},
-	getBetterAuth: () => ({
-		api: {
-			changePassword: async () => ({
-				headers: new Headers()
-			})
-		}
-	}),
-	revokeBetterAuthSessionByCookieValue: async () => {}
-}));
-
-mock.module('$lib/server/auth/better-auth.js', () => ({
-	BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
-	applyBetterAuthCookies: () => {},
-	createBetterAuthSessionForUser: async () => {},
-	getBetterAuth: () => ({
-		api: {
-			changePassword: async () => ({
-				headers: new Headers()
-			})
-		}
-	}),
-	revokeBetterAuthSessionByCookieValue: async () => {}
-}));
-
-mock.module('$lib/server/auth/better-auth.ts', () => ({
-	BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
-	applyBetterAuthCookies: () => {},
-	createBetterAuthSessionForUser: async () => {},
-	getBetterAuth: () => ({
-		api: {
-			changePassword: async () => ({
-				headers: new Headers()
-			})
-		}
-	}),
-	revokeBetterAuthSessionByCookieValue: async () => {}
-}));
+for (const specifier of [
+	'$lib/server/auth/better-auth',
+	'$lib/server/auth/better-auth.js',
+	'$lib/server/auth/better-auth.ts'
+]) {
+	mock.module(specifier, createBetterAuthMock);
+}
 
 mock.module('$lib/server/logger.js', () => ({
 	logger: {

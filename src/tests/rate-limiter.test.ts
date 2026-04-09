@@ -157,16 +157,19 @@ describe('RateLimiter', () => {
 		test('fresh instance shares persisted state through the backing database', () => {
 			// Exhaust a key in one instance
 			const old = new RateLimiter();
-			old.check('shared-key', 1, 60_000);
-			old.check('shared-key', 1, 60_000); // now blocked in old
 
 			// A new instance reads the same persisted counters.
 			const fresh = new RateLimiter();
-			const result = fresh.check('shared-key', 1, 60_000);
-			expect(result.limited).toBe(true);
+			try {
+				old.check('shared-key', 1, 60_000);
+				old.check('shared-key', 1, 60_000); // now blocked in old
 
-			old.stop();
-			fresh.stop();
+				const result = fresh.check('shared-key', 1, 60_000);
+				expect(result.limited).toBe(true);
+			} finally {
+				old.stop();
+				fresh.stop();
+			}
 		});
 
 		test('multiple requests from the same key within one window accumulate correctly', () => {

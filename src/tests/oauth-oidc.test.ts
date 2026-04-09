@@ -118,11 +118,15 @@ function mockOidcFetch(options: {
 async function expectOAuthError(promise: Promise<unknown>, code: string) {
 	try {
 		await promise;
-		expect.unreachable('expected OAuthError');
+		throw new Error('expected OAuthError');
 	} catch (error) {
+		if (!(error instanceof OAuthError)) {
+			throw error;
+		}
+
 		expect(error).toBeInstanceOf(OAuthError);
-		expect((error as OAuthError).code).toBe(code);
-		return error as OAuthError;
+		expect(error.code).toBe(code);
+		return error;
 	}
 }
 
