@@ -1,15 +1,15 @@
 /**
  * Security-focused tests for file upload validation.
  *
- * Covers sanitizeFilename, isAllowedBackupExtension, and the kubeconfig
- * kind/apiVersion check added in GH #286.
+ * Covers sanitizeFilename, backup upload validation, and uploaded kubeconfig
+ * structural validation.
  */
-import { describe, test, expect } from 'bun:test';
-import {
-	sanitizeFilename,
-	isAllowedBackupExtension,
-	isAllowedBackupMimeType
-} from '../lib/server/validation.js';
+import { describe, expect, test } from 'bun:test';
+
+const { sanitizeFilename, isAllowedBackupExtension, isAllowedBackupMimeType } =
+	(await import('../lib/server/validation.js?test=file-upload-security')) as typeof import('../lib/server/validation.js');
+const { UploadedKubeconfigValidationError, validateUploadedKubeconfig } =
+	(await import('../lib/server/uploaded-kubeconfig.js?test=file-upload-security')) as typeof import('../lib/server/uploaded-kubeconfig.js');
 
 // ---------------------------------------------------------------------------
 // sanitizeFilename
@@ -149,110 +149,105 @@ describe('isAllowedBackupMimeType', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Kubeconfig kind/apiVersion validation logic (mirrors +page.server.ts check)
+// Uploaded kubeconfig validation
 // ---------------------------------------------------------------------------
 
-describe('kubeconfig kind/apiVersion validation', () => {
-	// Inline the check from the route so we can test it without SvelteKit infra
-	function isValidKubeconfigStructure(parsed: unknown): boolean {
-		if (parsed === null || parsed === undefined || typeof parsed !== 'object') return false;
-		const config = parsed as Record<string, unknown>;
-		if (!config.clusters || !config.contexts) return false;
-		if (config.kind !== 'Config' || config.apiVersion !== 'v1') return false;
-		if (!Array.isArray(config.clusters) || !Array.isArray(config.contexts)) return false;
-		return true;
+describe('validateUploadedKubeconfig', () => {
+	function expectValidationError(kubeconfig: string, message: string) {
+		expect(() => validateUploadedKubeconfig(kubeconfig)).toThrow(
+			new UploadedKubeconfigValidationError(message)
+		);
 	}
 
-	test('accepts a valid kubeconfig object', () => {
-		expect(
-			isValidKubeconfigStructure({
-				apiVersion: 'v1',
-				kind: 'Config',
-				clusters: [{}],
-				contexts: [{}]
-			})
-		).toBe(true);
+	test('accepts a valid kubeconfig', () => {
+		expect(() =>
+			validateUploadedKubeconfig(`
+apiVersion: v1
+kind: Config
+clusters:
+  - name: demo
+    cluster: {}
+contexts:
+  - name: demo
+    context: {}
+`)
+		).not.toThrow();
 	});
 
 	test('rejects missing kind', () => {
-		expect(
-			isValidKubeconfigStructure({
-				apiVersion: 'v1',
-				clusters: [{}],
-				contexts: [{}]
-			})
-		).toBe(false);
+		expectValidationError(
+			`
+apiVersion: v1
+clusters: []
+contexts: []
+`,
+			'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
+		);
 	});
 
 	test('rejects missing apiVersion', () => {
-		expect(
-			isValidKubeconfigStructure({
-				kind: 'Config',
-				clusters: [{}],
-				contexts: [{}]
-			})
-		).toBe(false);
+		expectValidationError(
+			`
+kind: Config
+clusters: []
+contexts: []
+`,
+			'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
+		);
 	});
 
 	test('rejects wrong kind', () => {
-		expect(
-			isValidKubeconfigStructure({
-				apiVersion: 'v1',
-				kind: 'Secret',
-				clusters: [{}],
-				contexts: [{}]
-			})
-		).toBe(false);
+		expectValidationError(
+			`
+apiVersion: v1
+kind: Secret
+clusters: []
+contexts: []
+`,
+			'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
+		);
 	});
 
 	test('rejects wrong apiVersion', () => {
-		expect(
-			isValidKubeconfigStructure({
-				apiVersion: 'apps/v1',
-				kind: 'Config',
-				clusters: [{}],
-				contexts: [{}]
-			})
-		).toBe(false);
+		expectValidationError(
+			`
+apiVersion: apps/v1
+kind: Config
+clusters: []
+contexts: []
+`,
+			'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
+		);
 	});
 
-	test('rejects arbitrary JSON with clusters and contexts keys but no kind/apiVersion', () => {
-		expect(
-			isValidKubeconfigStructure({
-				clusters: ['a', 'b'],
-				contexts: ['c'],
-				data: 'anything goes'
-			})
-		).toBe(false);
+	test('rejects clusters as a non-array value', () => {
+		expectValidationError(
+			`
+apiVersion: v1
+kind: Config
+clusters: nope
+contexts: []
+`,
+			'Invalid kubeconfig: clusters and contexts must be arrays'
+		);
 	});
 
-	test('rejects clusters as a non-array truthy value', () => {
-		expect(
-			isValidKubeconfigStructure({
-				apiVersion: 'v1',
-				kind: 'Config',
-				clusters: 'not-an-array',
-				contexts: [{}]
-			})
-		).toBe(false);
+	test('rejects contexts as a non-array value', () => {
+		expectValidationError(
+			`
+apiVersion: v1
+kind: Config
+clusters: []
+contexts: nope
+`,
+			'Invalid kubeconfig: clusters and contexts must be arrays'
+		);
 	});
 
-	test('rejects contexts as a non-array truthy value', () => {
-		expect(
-			isValidKubeconfigStructure({
-				apiVersion: 'v1',
-				kind: 'Config',
-				clusters: [{}],
-				contexts: { 0: {} }
-			})
-		).toBe(false);
-	});
-
-	test('rejects null', () => {
-		expect(isValidKubeconfigStructure(null)).toBe(false);
-	});
-
-	test('rejects a plain string', () => {
-		expect(isValidKubeconfigStructure('not an object')).toBe(false);
+	test('rejects parse failures', () => {
+		expectValidationError(
+			'apiVersion: v1\nkind: Config\nclusters: [\ncontexts: []',
+			'Invalid kubeconfig format: could not parse as YAML or JSON'
+		);
 	});
 });

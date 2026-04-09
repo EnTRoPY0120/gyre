@@ -27,7 +27,19 @@ afterAll(() => {
 });
 
 mock.module('../lib/server/auth/crypto.js', () => ({
-	decryptSecret: (s: string) => `decrypted_${s}`
+	encryptSecret: (value: string) => `encrypted:mock-iv:${value}:mock-tag`,
+	decryptSecret: (value: string) => {
+		if (!value.startsWith('encrypted:')) {
+			throw new Error(`decryptSecret: malformed encrypted value: ${value}`);
+		}
+		const payload = value.slice('encrypted:'.length);
+		const parts = payload.split(':');
+		if (parts.length !== 3) {
+			throw new Error(`decryptSecret: expected iv:ciphertext:authTag format, got: ${payload}`);
+		}
+		return parts[1];
+	},
+	_resetKeyCache: () => {}
 }));
 
 mock.module('../lib/server/auth/pkce.js', () => ({
@@ -52,7 +64,9 @@ mock.module('arctic', () => ({
 	}
 }));
 
-import { GitHubProvider } from '../lib/server/auth/oauth/providers/github.js';
+const { GitHubProvider } =
+	(await import('../lib/server/auth/oauth/providers/github.js?test=oauth-github')) as typeof import('../lib/server/auth/oauth/providers/github.js');
+mock.restore();
 
 const mockConfig = {
 	id: 'github-1',
@@ -60,7 +74,7 @@ const mockConfig = {
 	type: 'oauth2-github',
 	enabled: true,
 	clientId: 'test-client-id',
-	clientSecretEncrypted: 'encrypted-secret',
+	clientSecretEncrypted: 'encrypted:mock-iv:test-client-secret:mock-tag',
 	issuerUrl: null,
 	authorizationUrl: null,
 	tokenUrl: null,

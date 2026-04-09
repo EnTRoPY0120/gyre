@@ -32,6 +32,21 @@ import { assertSafeIssuerUrl, assertSafeOidcDiscoveryDocument } from '../url-sec
 const MAX_CACHE_SIZE = 50;
 const DISCOVERY_TTL_MS = 60 * 60 * 1000; // 1 hour
 const REQUEST_TIMEOUT_MS = 10_000;
+const STANDARD_OIDC_RESERVED_CLAIMS = [
+	'sub',
+	'email',
+	'emailVerified',
+	'email_verified',
+	'username',
+	'preferred_username',
+	'name',
+	'givenName',
+	'given_name',
+	'familyName',
+	'family_name',
+	'picture',
+	'locale'
+] as const;
 const discoveryCache = new Map<
 	string,
 	{
@@ -240,6 +255,10 @@ export class OIDCProvider implements IOAuthProvider {
 				scope: data.scope
 			};
 		} catch (error) {
+			if (error instanceof OAuthError) {
+				throw error;
+			}
+
 			throw new OAuthError(
 				`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 				'TOKEN_EXCHANGE_FAILED',
@@ -379,6 +398,10 @@ export class OIDCProvider implements IOAuthProvider {
 				scope: data.scope
 			};
 		} catch (error) {
+			if (error instanceof OAuthError) {
+				throw error;
+			}
+
 			throw new OAuthError(
 				`Failed to refresh token: ${error instanceof Error ? error.message : 'Unknown error'}`,
 				'TOKEN_REFRESH_FAILED',
@@ -406,7 +429,8 @@ export class OIDCProvider implements IOAuthProvider {
 			givenName: claims.given_name as string | undefined,
 			familyName: claims.family_name as string | undefined,
 			picture: claims.picture as string | undefined,
-			locale: claims.locale as string | undefined
+			locale: claims.locale as string | undefined,
+			rawClaims: { ...claims }
 		};
 
 		// Extract groups/roles from configured claim
@@ -420,10 +444,21 @@ export class OIDCProvider implements IOAuthProvider {
 		}
 
 		// Include all claims for custom extraction
-		const sanitizedUserInfo = Object.fromEntries(
+		const normalizedUserInfo = Object.fromEntries(
 			Object.entries(userInfo).filter(([, value]) => value !== undefined)
 		) as OAuthUserInfo;
 
-		return { ...claims, ...sanitizedUserInfo };
+		const reservedKeys = new Set([
+			...STANDARD_OIDC_RESERVED_CLAIMS,
+			...Object.keys(normalizedUserInfo),
+			this.config.roleClaim,
+			'groups',
+			'rawClaims'
+		]);
+		const passthroughClaims = Object.fromEntries(
+			Object.entries(claims).filter(([key]) => !reservedKeys.has(key))
+		);
+
+		return { ...passthroughClaims, ...normalizedUserInfo };
 	}
 }

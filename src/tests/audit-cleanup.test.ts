@@ -35,11 +35,9 @@ mock.module('../lib/server/settings.js', () => ({
 	}
 }));
 
-import {
-	cleanupOldAuditLogs,
-	scheduleAuditLogCleanup,
-	stopAuditLogCleanup
-} from '../lib/server/audit.js';
+const { cleanupOldAuditLogs, scheduleAuditLogCleanup, stopAuditLogCleanup } =
+	(await import('../lib/server/audit.js?test=audit-cleanup')) as typeof import('../lib/server/audit.js');
+mock.restore();
 import { getCutoffDate, getRandomJitterMs, MS_PER_DAY } from '../lib/server/utils/time.js';
 
 // ---------------------------------------------------------------------------

@@ -64,6 +64,7 @@ export interface BackupMetadata {
 }
 
 let cachedEncryptionKey: Buffer | null | undefined = undefined;
+let cachedEncryptionKeySource: string | null | undefined = undefined;
 let hasWarnedUnencrypted = false;
 
 /**
@@ -76,8 +77,13 @@ let hasWarnedUnencrypted = false;
  * rotate the key, decrypt and re-encrypt existing backups manually first.
  */
 function getBackupEncryptionKey(): Buffer | null {
-	if (cachedEncryptionKey !== undefined) return cachedEncryptionKey;
-	const keyHex = process.env.BACKUP_ENCRYPTION_KEY;
+	const keyHex = process.env.BACKUP_ENCRYPTION_KEY ?? null;
+	if (cachedEncryptionKey !== undefined && cachedEncryptionKeySource === keyHex) {
+		return cachedEncryptionKey;
+	}
+
+	cachedEncryptionKeySource = keyHex;
+	cachedEncryptionKey = undefined;
 	if (!keyHex) {
 		cachedEncryptionKey = null;
 		return cachedEncryptionKey;
@@ -536,4 +542,5 @@ export { encryptBackup as _encryptBackup, decryptBackup as _decryptBackup };
 export { getBackupEncryptionKey as _getBackupEncryptionKey };
 export function _resetBackupEncryptionKeyCache(): void {
 	cachedEncryptionKey = undefined;
+	cachedEncryptionKeySource = undefined;
 }

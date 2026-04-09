@@ -22,7 +22,7 @@ mock.module('../lib/server/config/constants.js', () => ({
 	SETTINGS_CACHE_TTL_MS: 100
 }));
 
-import {
+const {
 	getSetting,
 	setSetting,
 	getAuthSettings,
@@ -30,7 +30,9 @@ import {
 	isSettingOverriddenByEnv,
 	seedAuthSettings,
 	SETTINGS_KEYS
-} from '../lib/server/settings.js';
+} =
+	(await import('../lib/server/settings.js?test=settings')) as typeof import('../lib/server/settings.js');
+mock.restore();
 
 // ---------------------------------------------------------------------------
 // Helpers

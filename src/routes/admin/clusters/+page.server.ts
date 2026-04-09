@@ -1,5 +1,4 @@
 import { logger } from '$lib/server/logger.js';
-import yaml from 'js-yaml';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
@@ -13,6 +12,10 @@ import {
 import { isAdmin } from '$lib/server/rbac';
 import { logClusterChange } from '$lib/server/audit';
 import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
+import {
+	UploadedKubeconfigValidationError,
+	validateUploadedKubeconfig
+} from '$lib/server/uploaded-kubeconfig.js';
 
 /**
  * Load function for cluster management page
@@ -102,35 +105,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			// Validate kubeconfig format (accepts both YAML and JSON)
-			const parsed = yaml.load(kubeconfig);
-			if (
-				parsed === null ||
-				parsed === undefined ||
-				typeof parsed !== 'object' ||
-				!(parsed as { clusters?: unknown }).clusters ||
-				!(parsed as { contexts?: unknown }).contexts
-			) {
-				return fail(400, { error: 'Invalid kubeconfig: missing clusters or contexts' });
-			}
-
-			const config = parsed as {
-				clusters?: unknown;
-				contexts?: unknown;
-				kind?: unknown;
-				apiVersion?: unknown;
-			};
-			if (config.kind !== 'Config' || config.apiVersion !== 'v1') {
-				return fail(400, {
-					error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
-				});
-			}
-
-			if (!Array.isArray(config.clusters) || !Array.isArray(config.contexts)) {
-				return fail(400, {
-					error: 'Invalid kubeconfig: clusters and contexts must be arrays'
-				});
-			}
+			validateUploadedKubeconfig(kubeconfig);
 
 			// Create cluster
 			const cluster = await createCluster({
@@ -147,12 +122,13 @@ export const actions: Actions = {
 
 			return { success: true, cluster };
 		} catch (error) {
+			if (error instanceof UploadedKubeconfigValidationError) {
+				return fail(400, { error: error.message });
+			}
+
 			logger.error(error, 'Error creating cluster:');
 			if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
 				return fail(400, { error: 'A cluster with this name already exists' });
-			}
-			if (error instanceof yaml.YAMLException) {
-				return fail(400, { error: 'Invalid kubeconfig format: could not parse as YAML or JSON' });
 			}
 			return fail(500, { error: 'Failed to create cluster' });
 		}

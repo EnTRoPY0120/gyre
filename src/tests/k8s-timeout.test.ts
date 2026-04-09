@@ -4,13 +4,14 @@ import { describe, test, expect, beforeEach, spyOn } from 'bun:test';
 spyOn(console, 'log').mockImplementation(() => {});
 spyOn(console, 'error').mockImplementation(() => {});
 import * as k8s from '@kubernetes/client-node';
-import {
+const {
 	DEFAULT_TIMEOUT_MS,
 	OPERATION_TIMEOUTS,
 	handleK8sError,
 	clearClientPool,
 	_createTimeoutMiddleware
-} from '../lib/server/kubernetes/client.js';
+} =
+	(await import('../lib/server/kubernetes/client.js?test=k8s-timeout')) as typeof import('../lib/server/kubernetes/client.js');
 import {
 	KubernetesTimeoutError,
 	ClusterUnavailableError,

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
+import { beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 import { Database } from 'bun:sqlite';
@@ -14,12 +14,9 @@ mock.module('../lib/server/db/index.js', () => ({
 	schema
 }));
 
-import {
-	cleanupExpiredSessions,
-	deleteUserSessions,
-	generateSessionId,
-	generateUserId
-} from '../lib/server/auth.js';
+const { cleanupExpiredSessions, deleteUserSessions, generateSessionId, generateUserId } =
+	(await import('../lib/server/auth.js?test=session-cleanup')) as typeof import('../lib/server/auth.js');
+mock.restore();
 
 const CREATE_USERS_TABLE = `
 	CREATE TABLE IF NOT EXISTS users (
@@ -32,6 +29,7 @@ const CREATE_USERS_TABLE = `
 		role TEXT NOT NULL DEFAULT 'viewer',
 		active INTEGER NOT NULL DEFAULT 1,
 		is_local INTEGER NOT NULL DEFAULT 1,
+		requires_password_change INTEGER NOT NULL DEFAULT 0,
 		created_at INTEGER NOT NULL DEFAULT (unixepoch()),
 		updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
 		preferences TEXT
@@ -88,7 +86,8 @@ function insertSession(db: TestDb, userId: string, expiresAt: Date, id = generat
 }
 
 function daysFromNow(days: number) {
-	return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+	const now = new Date();
+	return new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 describe('cleanupExpiredSessions', () => {
@@ -103,8 +102,9 @@ describe('cleanupExpiredSessions', () => {
 	test('deletes only expired sessions when mixed with valid ones', async () => {
 		const db = state.db!;
 		const userId = await insertUser(db);
+		const now = new Date();
 
-		const expiredId = insertSession(db, userId, new Date(Date.now() - 1000));
+		const expiredId = insertSession(db, userId, new Date(now.getTime() - 1000));
 		const validId = insertSession(db, userId, daysFromNow(7));
 
 		const deletedCount = await cleanupExpiredSessions();

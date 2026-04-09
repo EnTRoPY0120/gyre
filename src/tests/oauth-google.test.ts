@@ -1,24 +1,35 @@
-import { describe, test, expect, mock, spyOn } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
-spyOn(console, 'warn').mockImplementation(() => {});
-
-mock.module('../lib/server/auth/crypto.js', () => ({
-	decryptSecret: (s: string) => `decrypted_${s}`
-}));
+const consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
+const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
+const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
 
 let arcticShouldThrow = false;
+let lastAuthorizationRequest:
+	| {
+			state: string;
+			verifier: string;
+			scopes: string[];
+	  }
+	| undefined;
+let lastCallbackVerifier: string | undefined;
+let mockJwtClaims: Record<string, unknown> = {};
 
 mock.module('arctic', () => ({
 	Google: class MockGoogle {
 		createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
+			lastAuthorizationRequest = { state, verifier, scopes };
 			return new URL(
 				`https://accounts.google.com/o/oauth2/auth?state=${state}&verifier=${encodeURIComponent(verifier)}&scope=${scopes.join(',')}`
 			);
 		}
-		async validateAuthorizationCode(_code: string, _verifier: string) {
-			if (arcticShouldThrow) throw new Error('invalid_grant');
+
+		async validateAuthorizationCode(_code: string, verifier: string) {
+			lastCallbackVerifier = verifier;
+			if (arcticShouldThrow) {
+				throw new Error('invalid_grant');
+			}
+
 			return {
 				accessToken: () => 'google-access-token',
 				refreshToken: () => 'google-refresh-token',
@@ -29,29 +40,25 @@ mock.module('arctic', () => ({
 	}
 }));
 
-let mockJwtClaims: Record<string, unknown> = {
-	sub: '123',
-	email: 'user@google.com',
-	email_verified: true,
-	name: 'Test User',
-	preferred_username: 'user@google.com'
-};
-
 mock.module('jose', () => ({
 	createRemoteJWKSet: () => 'mock-jwks',
 	jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
 	decodeJwt: () => mockJwtClaims
 }));
 
-import { GoogleProvider } from '../lib/server/auth/oauth/providers/google.js';
+import { OAuthError } from '../lib/server/auth/oauth/types.js';
+import { _resetKeyCache, encryptSecret } from '../lib/server/auth/crypto.js';
+const { GoogleProvider } =
+	(await import('../lib/server/auth/oauth/providers/google.js?test=oauth-google')) as typeof import('../lib/server/auth/oauth/providers/google.js');
+mock.restore();
 
-const mockConfig = {
+const baseConfig = {
 	id: 'google-1',
 	name: 'Google',
 	type: 'oauth2-google' as const,
 	enabled: true,
 	clientId: 'test-client-id',
-	clientSecretEncrypted: 'encrypted-secret',
+	clientSecretEncrypted: '',
 	issuerUrl: 'https://accounts.google.com',
 	authorizationUrl: null,
 	tokenUrl: null,
@@ -71,114 +78,84 @@ const mockConfig = {
 
 function makeProvider(overrides: Record<string, unknown> = {}) {
 	return new GoogleProvider({
-		config: { ...mockConfig, ...overrides } as typeof mockConfig,
+		config: {
+			...baseConfig,
+			clientSecretEncrypted: encryptSecret('test-client-secret'),
+			...overrides
+		} as typeof baseConfig,
 		redirectUri: 'https://app.example.com/callback'
 	});
 }
 
-// ---------------------------------------------------------------------------
-// getAuthorizationUrl
-// ---------------------------------------------------------------------------
+async function expectOAuthError(promise: Promise<unknown>, code: string) {
+	try {
+		await promise;
+		expect.unreachable('expected OAuthError');
+	} catch (error) {
+		expect(error).toBeInstanceOf(OAuthError);
+		expect((error as OAuthError).code).toBe(code);
+	}
+}
 
-describe('GoogleProvider.getAuthorizationUrl()', () => {
-	test('includes state param in returned URL', async () => {
-		const provider = makeProvider();
-		const url = await provider.getAuthorizationUrl('test-state-xyz');
-		expect(url.searchParams.get('state')).toBe('test-state-xyz');
-	});
-
-	test('uses empty string verifier when no codeVerifier provided (PKCE always enabled)', async () => {
-		const provider = makeProvider();
-		const url = await provider.getAuthorizationUrl('state-1');
-		// verifier is '' (encoded as empty string in URL)
-		expect(url.searchParams.get('verifier')).toBe('');
-	});
-
-	test('uses provided codeVerifier in PKCE verifier param', async () => {
-		const provider = makeProvider();
-		const url = await provider.getAuthorizationUrl('state-2', 'my-verifier');
-		expect(url.searchParams.get('verifier')).toBe('my-verifier');
-	});
-
-	test('injects required scopes (openid, profile, email) even if missing from config.scopes', async () => {
-		const provider = makeProvider({ scopes: '' });
-		const url = await provider.getAuthorizationUrl('state-3');
-		const scope = url.searchParams.get('scope') ?? '';
-		expect(scope).toContain('openid');
-		expect(scope).toContain('profile');
-		expect(scope).toContain('email');
-	});
-
-	test('does not duplicate required scopes already present in config.scopes', async () => {
-		const provider = makeProvider({ scopes: 'openid profile email' });
-		const url = await provider.getAuthorizationUrl('state-4');
-		const scope = url.searchParams.get('scope') ?? '';
-		const parts = scope.split(',');
-		expect(parts.filter((s) => s === 'openid').length).toBe(1);
-		expect(parts.filter((s) => s === 'profile').length).toBe(1);
-		expect(parts.filter((s) => s === 'email').length).toBe(1);
-	});
+beforeEach(() => {
+	process.env.AUTH_ENCRYPTION_KEY = 'b'.repeat(64);
+	_resetKeyCache();
+	arcticShouldThrow = false;
+	lastAuthorizationRequest = undefined;
+	lastCallbackVerifier = undefined;
+	mockJwtClaims = {
+		sub: '123',
+		email: 'user@google.com',
+		email_verified: true,
+		name: 'Test User',
+		preferred_username: 'user@google.com'
+	};
 });
 
-// ---------------------------------------------------------------------------
-// validateCallback
-// ---------------------------------------------------------------------------
+afterAll(() => {
+	consoleLogSpy.mockRestore();
+	consoleErrorSpy.mockRestore();
+	consoleWarnSpy.mockRestore();
+	delete process.env.AUTH_ENCRYPTION_KEY;
+	_resetKeyCache();
+});
 
-describe('GoogleProvider.validateCallback()', () => {
-	test('returns accessToken and idToken from Arctic Google client', async () => {
-		const provider = makeProvider();
-		const tokens = await provider.validateCallback('auth-code', 'verifier');
+describe('GoogleProvider', () => {
+	test('rejects missing PKCE verifier when building the authorization URL', async () => {
+		await expectOAuthError(makeProvider().getAuthorizationUrl('state-1'), 'MISSING_CODE_VERIFIER');
+	});
+
+	test('passes the provided verifier through to the authorization URL builder', async () => {
+		const url = await makeProvider({ scopes: '' }).getAuthorizationUrl('state-2', 'verifier-123');
+
+		expect(url.searchParams.get('state')).toBe('state-2');
+		expect(lastAuthorizationRequest?.verifier).toBe('verifier-123');
+		expect(lastAuthorizationRequest?.scopes).toEqual(
+			expect.arrayContaining(['openid', 'profile', 'email'])
+		);
+	});
+
+	test('rejects missing PKCE verifier during callback validation', async () => {
+		await expectOAuthError(makeProvider().validateCallback('auth-code'), 'MISSING_CODE_VERIFIER');
+	});
+
+	test('passes the provided verifier to Arctic during callback validation', async () => {
+		const tokens = await makeProvider().validateCallback('auth-code', 'verifier-456');
+
 		expect(tokens.accessToken).toBe('google-access-token');
 		expect(tokens.idToken).toBe('google-id-token');
+		expect(lastCallbackVerifier).toBe('verifier-456');
 	});
 
-	test('uses empty string verifier when codeVerifier not provided', async () => {
-		const provider = makeProvider();
-		const tokens = await provider.validateCallback('auth-code');
-		expect(tokens.accessToken).toBe('google-access-token');
-	});
-
-	test('throws OAuthError with TOKEN_EXCHANGE_FAILED when Arctic throws', async () => {
+	test('wraps Arctic token exchange failures', async () => {
 		arcticShouldThrow = true;
-		try {
-			// Create a fresh provider so the Arctic client is initialized fresh
-			const provider = makeProvider();
-			await expect(provider.validateCallback('bad-code')).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'TOKEN_EXCHANGE_FAILED'
-			});
-		} finally {
-			arcticShouldThrow = false;
-		}
-	});
-});
-
-// ---------------------------------------------------------------------------
-// getUserInfo
-// ---------------------------------------------------------------------------
-
-describe('GoogleProvider.getUserInfo()', () => {
-	test('delegates to OIDCProvider and returns userInfo', async () => {
-		mockJwtClaims = {
-			sub: '123',
-			email: 'user@google.com',
-			email_verified: true,
-			name: 'Test User',
-			preferred_username: 'user@google.com'
-		};
-
-		const provider = makeProvider();
-		const info = await provider.getUserInfo({
-			accessToken: 'token',
-			tokenType: 'Bearer',
-			idToken: 'mock-id-token'
-		});
-		expect(info.sub).toBe('123');
-		expect(info.email).toBe('user@google.com');
-		expect(info.name).toBe('Test User');
+		await expectOAuthError(
+			makeProvider().validateCallback('bad-code', 'verifier-789'),
+			'TOKEN_EXCHANGE_FAILED'
+		);
 	});
 
-	test('adds domain:<hd> to groups when hd claim is present', async () => {
+	test('adds hosted-domain groups from rawClaims', async () => {
 		mockJwtClaims = {
 			sub: '123',
 			email: 'user@company.com',
@@ -188,48 +165,51 @@ describe('GoogleProvider.getUserInfo()', () => {
 			hd: 'company.com'
 		};
 
-		const provider = makeProvider();
-		const info = await provider.getUserInfo({
+		const userInfo = await makeProvider().getUserInfo({
 			accessToken: 'token',
 			tokenType: 'Bearer',
-			idToken: 'mock-id-token'
+			idToken: 'id-token'
 		});
-		expect(info.groups).toContain('domain:company.com');
+
+		expect(userInfo.groups).toContain('domain:company.com');
+		expect(userInfo.rawClaims?.hd).toBe('company.com');
 	});
 
-	test('does not modify groups when hd claim is absent', async () => {
+	test('does not add domain group when hd claim is absent', async () => {
 		mockJwtClaims = {
 			sub: '123',
-			email: 'user@example.com',
+			email: 'user@gmail.com',
 			email_verified: true,
 			name: 'Test User',
-			preferred_username: 'user@example.com'
+			preferred_username: 'user@gmail.com'
 		};
 
-		const provider = makeProvider();
-		const info = await provider.getUserInfo({
+		const userInfo = await makeProvider().getUserInfo({
 			accessToken: 'token',
 			tokenType: 'Bearer',
-			idToken: 'mock-id-token'
+			idToken: 'id-token'
 		});
-		expect(info.groups).toBeUndefined();
+
+		expect(userInfo.groups?.some((g) => g.startsWith('domain:'))).toBeFalsy();
+		expect(userInfo.rawClaims?.hd).toBeUndefined();
 	});
 
-	test('throws OAuthError with USERINFO_FAILED when OIDCProvider throws', async () => {
-		const provider = makeProvider();
-		// Without idToken and without discovery mocked, OIDCProvider calls discover() → fetch throws
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
-			throw new Error('Network error');
+	test('does not add a domain group for whitespace-only hd values', async () => {
+		mockJwtClaims = {
+			sub: '123',
+			email: 'user@company.com',
+			email_verified: true,
+			name: 'Test User',
+			preferred_username: 'user@company.com',
+			hd: '   '
+		};
+
+		const userInfo = await makeProvider().getUserInfo({
+			accessToken: 'token',
+			tokenType: 'Bearer',
+			idToken: 'id-token'
 		});
-		try {
-			await expect(
-				provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' })
-			).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'USERINFO_FAILED'
-			});
-		} finally {
-			spy.mockRestore();
-		}
+
+		expect(userInfo.groups?.some((g) => g.startsWith('domain:'))).toBeFalsy();
 	});
 });

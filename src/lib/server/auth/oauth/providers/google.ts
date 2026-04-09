@@ -73,6 +73,10 @@ export class GoogleProvider implements IOAuthProvider {
 	 * Generate authorization URL using Arctic's Google client
 	 */
 	async getAuthorizationUrl(state: string, codeVerifier?: string): Promise<URL> {
+		if (!codeVerifier) {
+			throw new OAuthError('PKCE code verifier required', 'MISSING_CODE_VERIFIER');
+		}
+
 		const client = this.getClient();
 
 		// Parse scopes
@@ -86,21 +90,21 @@ export class GoogleProvider implements IOAuthProvider {
 			}
 		}
 
-		// Google requires a code verifier for PKCE (always enabled)
-		const verifier = codeVerifier || '';
-
-		return client.createAuthorizationURL(state, verifier, scopes);
+		return client.createAuthorizationURL(state, codeVerifier, scopes);
 	}
 
 	/**
 	 * Exchange authorization code for tokens using Arctic
 	 */
 	async validateCallback(code: string, codeVerifier?: string): Promise<OAuthTokens> {
+		if (!codeVerifier) {
+			throw new OAuthError('PKCE code verifier required', 'MISSING_CODE_VERIFIER');
+		}
+
 		const client = this.getClient();
-		const verifier = codeVerifier || '';
 
 		try {
-			const tokens = await client.validateAuthorizationCode(code, verifier);
+			const tokens = await client.validateAuthorizationCode(code, codeVerifier);
 
 			return {
 				accessToken: tokens.accessToken(),
@@ -131,11 +135,15 @@ export class GoogleProvider implements IOAuthProvider {
 
 			// Google-specific: Extract HD (hosted domain) claim if present
 			// This can be used for domain restrictions (e.g., only allow @company.com)
-			const rawClaims = userInfo as Record<string, unknown>;
-			if (rawClaims.hd) {
-				// Store hosted domain in groups for potential role mapping
+			const hostedDomainRaw = userInfo.rawClaims?.hd;
+			const hostedDomain = typeof hostedDomainRaw === 'string' ? hostedDomainRaw.trim() : '';
+			if (hostedDomain.length > 0) {
+				const normalizedDomain = hostedDomain.toLowerCase();
+				const domainGroup = `domain:${normalizedDomain}`;
 				userInfo.groups = userInfo.groups || [];
-				userInfo.groups.push(`domain:${rawClaims.hd}`);
+				if (!userInfo.groups.includes(domainGroup)) {
+					userInfo.groups.push(domainGroup);
+				}
 			}
 
 			return userInfo;

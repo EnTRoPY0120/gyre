@@ -1,5 +1,6 @@
 import { expect, test, describe, spyOn } from 'bun:test';
-import { logger } from '../lib/server/logger.js';
+const { logger } =
+	(await import('../lib/server/logger.js?test=logger')) as typeof import('../lib/server/logger.js');
 
 describe('Logger Redaction', () => {
 	test('redacts sensitive fields like password', () => {

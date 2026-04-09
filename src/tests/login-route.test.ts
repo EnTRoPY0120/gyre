@@ -22,17 +22,55 @@ function createRouteState() {
 
 const routeState = createRouteState();
 
-mock.module('$lib/server/auth', () => ({
-	authenticateUser: async () => routeState.authenticatedUser,
-	getUserByUsername: async () => routeState.existingUser,
-	hasManagedPassword: async () => routeState.canChangePassword,
-	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
-	verifyPassword: async (password: string, hash: string) => {
-		routeState.verifyPasswordCalls.push({ password, hash });
-		return false;
-	}
-}));
+function createAuthMock() {
+	return {
+		addPasswordHistory: async () => {},
+		authenticateUser: async () => routeState.authenticatedUser,
+		clearRequiresPasswordChange: async () => {},
+		getCredentialAccount: async () => null,
+		getCredentialPasswordHash: async () => null,
+		getUserByUsername: async () => routeState.existingUser,
+		hasManagedPassword: async () => routeState.canChangePassword,
+		isInClusterAdmin: () => false,
+		isPasswordInHistory: async () => false,
+		normalizeUsername: (username: string) => username.toLowerCase().trim(),
+		hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+		verifyPassword: async (password: string, hash: string) => {
+			routeState.verifyPasswordCalls.push({ password, hash });
+			return false;
+		}
+	};
+}
+
+function createAuditMock() {
+	return {
+		logAudit: async () => {},
+		logResourceWrite: async () => {},
+		logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
+			routeState.loginLogCalls.push({ user, success, ipAddress, reason });
+		}
+	};
+}
+
+function createBetterAuthMock() {
+	return {
+		BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
+		applyBetterAuthCookies: () => {},
+		createBetterAuthSessionForUser: async () => {},
+		getBetterAuth: () => ({
+			api: {
+				changePassword: async () => ({
+					headers: new Headers()
+				})
+			}
+		}),
+		revokeBetterAuthSessionByCookieValue: async () => {}
+	};
+}
+
+for (const specifier of ['$lib/server/auth', '$lib/server/auth.js', '$lib/server/auth.ts']) {
+	mock.module(specifier, createAuthMock);
+}
 
 mock.module('$lib/server/settings', () => ({
 	getAuthSettings: async () => ({
@@ -42,21 +80,24 @@ mock.module('$lib/server/settings', () => ({
 	})
 }));
 
-mock.module('$lib/server/audit', () => ({
-	logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
-		routeState.loginLogCalls.push({ user, success, ipAddress, reason });
-	}
-}));
+for (const specifier of ['$lib/server/audit', '$lib/server/audit.js']) {
+	mock.module(specifier, createAuditMock);
+}
 
-mock.module('$lib/server/auth/better-auth', () => ({
-	createBetterAuthSessionForUser: async () => {},
-	revokeBetterAuthSessionByCookieValue: async () => {}
-}));
+for (const specifier of [
+	'$lib/server/auth/better-auth',
+	'$lib/server/auth/better-auth.js',
+	'$lib/server/auth/better-auth.ts'
+]) {
+	mock.module(specifier, createBetterAuthMock);
+}
 
 mock.module('$lib/server/logger.js', () => ({
 	logger: {
 		error: () => {},
-		warn: () => {}
+		warn: () => {},
+		info: () => {},
+		debug: () => {}
 	}
 }));
 
@@ -69,7 +110,9 @@ mock.module('$lib/server/rate-limiter', () => ({
 	}
 }));
 
-import { POST } from '../routes/api/v1/auth/login/+server.js';
+const { POST } =
+	(await import('../routes/api/v1/auth/login/+server.js?test=login-route')) as typeof import('../routes/api/v1/auth/login/+server.js');
+mock.restore();
 
 type LoginEvent = Parameters<typeof POST>[0];
 

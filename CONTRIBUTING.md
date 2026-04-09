@@ -17,13 +17,21 @@ The easiest way to start developing is using the provided devcontainer:
    bun run dev
    ```
 
+## Prerequisites
+
+- Bun
+- Node.js 22
+- Git
+
 ## Key Commands
 
 - `bun install` - Install dependencies
 - `bun run dev` - Start development server
-- `bun run check` - Type-check
-- `bun run lint` - Lint and format check
 - `bun run format` - Auto-format code
+- `bun run lint` - Lint code
+- `bun run check` - Type-check
+- `bun test` - Run the automated test suite
+- `bun run build` - Verify the production build
 
 ## Questions?
 

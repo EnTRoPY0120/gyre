@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1.4
+ARG NODE_VERSION=22
 # =============================================================================
 # Stage 0: Build Kustomize from source to ensure latest Go stdlib (fixes CVEs)
 # =============================================================================
@@ -12,7 +13,7 @@ RUN go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
 # Use Node.js as the builder base so better-sqlite3 compiles against the same
 # Node.js ABI that the runtime uses (avoids ERR_DLOPEN_FAILED at startup).
 # Bun is copied in solely for fast installs that respect bun.lock.
-FROM node:25-alpine3.23 AS builder
+FROM node:${NODE_VERSION}-alpine3.23 AS builder
 
 WORKDIR /build
 
@@ -42,7 +43,7 @@ RUN bun install --production --frozen-lockfile
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:25-alpine3.23 AS runtime
+FROM node:${NODE_VERSION}-alpine3.23 AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
@@ -107,5 +108,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/metrics', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 # Start the application
-# Node.js 18+ handles signals properly, no init system needed
+# Node.js 22+ handles signals properly for the main process, but this app also
+# spawns child processes via execFile("kustomize", ...) in the Flux diff route.
+# Use an init such as tini if zombie reaping or signal propagation becomes a
+# problem in your container runtime.
 CMD ["node", "build/index.js"]

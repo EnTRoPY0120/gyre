@@ -58,6 +58,9 @@ mock.module('$lib/server/db', () => ({
 					return dbState.existingLink;
 				}
 			},
+			appSettings: {
+				findFirst: async () => null
+			},
 			users: {
 				findFirst: async (args: { where?: unknown } | undefined) => {
 					dbState.userFindFirstArgs.push(args);
@@ -106,14 +109,20 @@ mock.module('$lib/server/db', () => ({
 				};
 			}
 		})
+	}),
+	getDbSync: () => ({
+		query: {
+			accounts: {
+				findFirst: () => null
+			},
+			appSettings: {
+				findFirst: () => null
+			},
+			users: {
+				findFirst: () => null
+			}
+		}
 	})
-}));
-
-mock.module('$lib/server/auth', () => ({
-	generateUserId: () => 'generated-user-id',
-	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	updateUser: async () => null,
-	deleteUserSessions: async () => {}
 }));
 
 mock.module('$lib/server/rbac-defaults.js', () => ({
@@ -121,15 +130,10 @@ mock.module('$lib/server/rbac-defaults.js', () => ({
 }));
 
 mock.module('$lib/server/auth/crypto.js', () => ({
-	encryptSecret: (value: string) => `encrypted:${value}`
-}));
-
-mock.module('$lib/server/settings.js', () => ({
-	getAuthSettings: async () => ({
-		allowSignup: true,
-		localLoginEnabled: true,
-		domainAllowlist: []
-	})
+	encryptSecret: (value: string) => `encrypted:${value}`,
+	decryptSecret: (value: string) =>
+		value.startsWith('encrypted:') ? value.slice('encrypted:'.length) : value,
+	_resetKeyCache: () => {}
 }));
 
 mock.module('$lib/server/logger.js', () => ({
@@ -140,7 +144,9 @@ mock.module('$lib/server/logger.js', () => ({
 	}
 }));
 
-import { createOrUpdateSSOUser } from '../lib/server/auth/sso.js';
+const { createOrUpdateSSOUser } =
+	(await import('../lib/server/auth/sso.js?test=sso-auto-provision')) as typeof import('../lib/server/auth/sso.js');
+mock.restore();
 
 function createProviderConfig(emailClaim = 'email') {
 	return {

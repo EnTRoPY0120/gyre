@@ -8,6 +8,7 @@ afterAll(() => {
 	consoleLogSpy.mockRestore();
 	consoleErrorSpy.mockRestore();
 	consoleWarnSpy.mockRestore();
+	mock.restore();
 });
 
 mock.module('$lib/server/auth/crypto', () => ({
