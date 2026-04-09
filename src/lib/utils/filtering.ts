@@ -12,7 +12,7 @@ export interface FilterState {
 	namespace: string;
 	status: ResourceHealth | 'all';
 	labels: string;
-	useRegex?: boolean;
+	useRegex: boolean;
 }
 
 export const defaultFilterState: FilterState = {
@@ -144,7 +144,8 @@ export function hasActiveFilters(filters: FilterState): boolean {
 		filters.search !== '' ||
 		filters.namespace !== '' ||
 		filters.status !== 'all' ||
-		filters.labels !== ''
+		filters.labels !== '' ||
+		filters.useRegex
 	);
 }
 
@@ -158,6 +159,7 @@ export function filtersToSearchParams(filters: FilterState): URLSearchParams {
 	if (filters.namespace) params.set('ns', filters.namespace);
 	if (filters.status !== 'all') params.set('status', filters.status);
 	if (filters.labels) params.set('labels', filters.labels);
+	if (filters.useRegex) params.set('regex', '1');
 
 	return params;
 }
@@ -172,6 +174,7 @@ export function searchParamsToFilters(params: URLSearchParams): FilterState {
 		search: (params.get('q') ?? '').slice(0, MAX_PARAM_LENGTH),
 		namespace: (params.get('ns') ?? '').slice(0, MAX_PARAM_LENGTH),
 		status,
-		labels: (params.get('labels') ?? '').slice(0, MAX_PARAM_LENGTH)
+		labels: (params.get('labels') ?? '').slice(0, MAX_PARAM_LENGTH),
+		useRegex: params.get('regex') === '1'
 	};
 }

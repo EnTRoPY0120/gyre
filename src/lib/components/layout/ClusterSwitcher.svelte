@@ -29,7 +29,9 @@
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
 		class="group flex items-center gap-1.5 rounded-md border border-transparent bg-secondary/50 px-2 py-1 text-xs font-medium transition-all hover:border-border hover:bg-secondary/80 sm:gap-2 sm:px-3 sm:py-1.5"
-		aria-label="Current cluster: {currentCluster === 'in-cluster' ? 'In-cluster' : currentCluster}. Click to switch cluster"
+		aria-label={`Current cluster: ${
+			currentCluster === 'in-cluster' ? 'In-cluster' : currentCluster
+		}. Click to switch cluster`}
 	>
 		<div
 			aria-hidden="true"

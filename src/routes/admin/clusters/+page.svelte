@@ -225,9 +225,9 @@
 					View Diagnostics
 				</Button>
 			</div>
-			{#if form.healthCheck.error}
-				<p class="mt-2 text-sm">{form.healthCheck.error}</p>
-			{/if}
+			<p class="mt-2 text-sm">
+				Connection checks failed. Open diagnostics for the detailed failure reason and checklist.
+			</p>
 		</div>
 	{:else if form?.error}
 		<div class="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">
