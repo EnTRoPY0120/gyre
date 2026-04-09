@@ -20,9 +20,13 @@ export function modalFocusTrap(node: HTMLElement) {
 			labelledBy && typeof document !== 'undefined'
 				? (document.getElementById(labelledBy) as HTMLElement | null)
 				: null;
-		const focusTarget = getFocusableElements(node)[0] ?? labelledElement ?? node;
+		const initialFocusSelector = node.getAttribute('data-initial-focus');
+		const initialFocusElement = initialFocusSelector
+			? (node.querySelector<HTMLElement>(initialFocusSelector) ?? null)
+			: null;
+		const focusTarget = initialFocusElement ?? getFocusableElements(node)[0] ?? labelledElement ?? node;
 
-		if (labelledElement && !labelledElement.hasAttribute('tabindex')) {
+		if (focusTarget === labelledElement && labelledElement && !labelledElement.hasAttribute('tabindex')) {
 			labelledElement.tabIndex = -1;
 		}
 
@@ -57,7 +61,17 @@ export function modalFocusTrap(node: HTMLElement) {
 	return {
 		destroy() {
 			node.removeEventListener('keydown', handleKeydown);
-			previousActiveElement?.focus();
+			const livePreviousActiveElement =
+				previousActiveElement?.isConnected &&
+				previousActiveElement.ownerDocument?.contains(previousActiveElement)
+					? previousActiveElement
+					: null;
+			const fallbackFocusTarget =
+				document.activeElement instanceof HTMLElement && document.activeElement.isConnected
+					? document.activeElement
+					: document.body;
+
+			(livePreviousActiveElement ?? fallbackFocusTarget).focus();
 			previousActiveElement = null;
 		}
 	};
