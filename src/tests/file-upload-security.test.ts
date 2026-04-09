@@ -1,78 +1,15 @@
 /**
  * Security-focused tests for file upload validation.
  *
- * Covers sanitizeFilename, isAllowedBackupExtension, and the kubeconfig
- * kind/apiVersion check added in GH #286.
+ * Covers sanitizeFilename, backup upload validation, and uploaded kubeconfig
+ * structural validation.
  */
-import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
+
 const { sanitizeFilename, isAllowedBackupExtension, isAllowedBackupMimeType } =
 	(await import('../lib/server/validation.js?test=file-upload-security')) as typeof import('../lib/server/validation.js');
-
-const clusterActionState = {
-	createClusterCalls: [] as Array<Record<string, unknown>>,
-	logClusterChangeCalls: [] as Array<unknown[]>
-};
-
-function registerRouteMocks() {
-	mock.module('$lib/server/clusters', () => ({
-		getAllClustersPaginated: async () => ({ clusters: [], total: 0 }),
-		createCluster: async (input: Record<string, unknown>) => {
-			clusterActionState.createClusterCalls.push(input);
-			return {
-				id: 'cluster-1',
-				name: input.name,
-				description: input.description ?? null,
-				contextCount: 1
-			};
-		},
-		updateCluster: async () => null,
-		deleteCluster: async () => {},
-		testClusterConnection: async () => ({
-			connected: true,
-			clusterName: 'cluster-1',
-			timestamp: new Date().toISOString(),
-			checks: []
-		}),
-		getClusterById: async () => null
-	}));
-
-	mock.module('$lib/server/rbac', () => ({
-		isAdmin: () => true
-	}));
-
-	mock.module('$lib/server/rbac.js', () => ({
-		isAdmin: () => true
-	}));
-
-	mock.module('$lib/server/audit', () => ({
-		logClusterChange: async (...args: unknown[]) => {
-			clusterActionState.logClusterChangeCalls.push(args);
-		}
-	}));
-
-	mock.module('$lib/server/logger.js', () => ({
-		logger: {
-			error: () => {},
-			info: () => {},
-			warn: () => {}
-		}
-	}));
-}
-
-let actionsImportCounter = 0;
-
-async function loadActions() {
-	registerRouteMocks();
-	const { actions } = (await import(
-		`../routes/admin/clusters/+page.server.js?test=file-upload-security-${++actionsImportCounter}`
-	)) as typeof import('../routes/admin/clusters/+page.server.js');
-	mock.restore();
-	return actions;
-}
-
-afterAll(() => {
-	mock.restore();
-});
+const { UploadedKubeconfigValidationError, validateUploadedKubeconfig } =
+	(await import('../lib/server/uploaded-kubeconfig.js?test=file-upload-security')) as typeof import('../lib/server/uploaded-kubeconfig.js');
 
 // ---------------------------------------------------------------------------
 // sanitizeFilename
@@ -212,43 +149,19 @@ describe('isAllowedBackupMimeType', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Kubeconfig validation via route action
+// Uploaded kubeconfig validation
 // ---------------------------------------------------------------------------
 
-describe('cluster create action kubeconfig validation', () => {
-	function buildEvent(kubeconfig: string) {
-		const formData = new FormData();
-		formData.set('name', 'demo-cluster');
-		formData.set('description', 'test');
-		formData.set('kubeconfig', kubeconfig);
-
-		return {
-			request: new Request('http://localhost/admin/clusters', {
-				method: 'POST',
-				body: formData
-			}),
-			locals: {
-				user: {
-					id: 'admin-1',
-					username: 'admin',
-					role: 'admin'
-				}
-			}
-		} as Parameters<NonNullable<typeof actions.create>>[0];
+describe('validateUploadedKubeconfig', () => {
+	function expectValidationError(kubeconfig: string, message: string) {
+		expect(() => validateUploadedKubeconfig(kubeconfig)).toThrow(
+			new UploadedKubeconfigValidationError(message)
+		);
 	}
 
-	async function submitCreate(kubeconfig: string) {
-		const actions = await loadActions();
-		return actions.create!(buildEvent(kubeconfig));
-	}
-
-	beforeEach(() => {
-		clusterActionState.createClusterCalls.length = 0;
-		clusterActionState.logClusterChangeCalls.length = 0;
-	});
-
-	test('accepts a valid kubeconfig via the route action', async () => {
-		const result = await submitCreate(`
+	test('accepts a valid kubeconfig', () => {
+		expect(() =>
+			validateUploadedKubeconfig(`
 apiVersion: v1
 kind: Config
 clusters:
@@ -257,119 +170,84 @@ clusters:
 contexts:
   - name: demo
     context: {}
-`);
-
-		expect(result).toMatchObject({ success: true });
-		expect(clusterActionState.createClusterCalls).toHaveLength(1);
-		expect(clusterActionState.logClusterChangeCalls).toHaveLength(1);
+`)
+		).not.toThrow();
 	});
 
-	test('rejects missing kind', async () => {
-		const result = await submitCreate(`
+	test('rejects missing kind', () => {
+		expectValidationError(
+			`
 apiVersion: v1
 clusters: []
 contexts: []
-`);
-
-		expect(result).toMatchObject({
-			status: 400,
-			data: { error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1' }
-		});
-		expect(clusterActionState.createClusterCalls).toHaveLength(0);
-		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
+`,
+			'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
+		);
 	});
 
-	test('rejects missing apiVersion', async () => {
-		const result = await submitCreate(`
+	test('rejects missing apiVersion', () => {
+		expectValidationError(
+			`
 kind: Config
 clusters: []
 contexts: []
-`);
-
-		expect(result).toMatchObject({
-			status: 400,
-			data: { error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1' }
-		});
-		expect(clusterActionState.createClusterCalls).toHaveLength(0);
-		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
+`,
+			'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
+		);
 	});
 
-	test('rejects wrong kind', async () => {
-		const result = await submitCreate(`
+	test('rejects wrong kind', () => {
+		expectValidationError(
+			`
 apiVersion: v1
 kind: Secret
 clusters: []
 contexts: []
-`);
-
-		expect(result).toMatchObject({
-			status: 400,
-			data: { error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1' }
-		});
-		expect(clusterActionState.createClusterCalls).toHaveLength(0);
-		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
+`,
+			'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
+		);
 	});
 
-	test('rejects wrong apiVersion', async () => {
-		const result = await submitCreate(`
+	test('rejects wrong apiVersion', () => {
+		expectValidationError(
+			`
 apiVersion: apps/v1
 kind: Config
 clusters: []
 contexts: []
-`);
-
-		expect(result).toMatchObject({
-			status: 400,
-			data: { error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1' }
-		});
-		expect(clusterActionState.createClusterCalls).toHaveLength(0);
-		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
+`,
+			'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
+		);
 	});
 
-	test('rejects clusters as a non-array value', async () => {
-		const result = await submitCreate(`
+	test('rejects clusters as a non-array value', () => {
+		expectValidationError(
+			`
 apiVersion: v1
 kind: Config
 clusters: nope
 contexts: []
-`);
-
-		expect(result).toMatchObject({
-			status: 400,
-			data: { error: 'Invalid kubeconfig: clusters and contexts must be arrays' }
-		});
-		expect(clusterActionState.createClusterCalls).toHaveLength(0);
-		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
+`,
+			'Invalid kubeconfig: clusters and contexts must be arrays'
+		);
 	});
 
-	test('rejects contexts as a non-array value', async () => {
-		const result = await submitCreate(`
+	test('rejects contexts as a non-array value', () => {
+		expectValidationError(
+			`
 apiVersion: v1
 kind: Config
 clusters: []
 contexts: nope
-`);
-
-		expect(result).toMatchObject({
-			status: 400,
-			data: { error: 'Invalid kubeconfig: clusters and contexts must be arrays' }
-		});
-		expect(clusterActionState.createClusterCalls).toHaveLength(0);
-		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
+`,
+			'Invalid kubeconfig: clusters and contexts must be arrays'
+		);
 	});
 
-	test('rejects parse failures', async () => {
-		const result = await submitCreate('apiVersion: v1\nkind: Config\nclusters: [\ncontexts: []');
-
-		expect(result).toMatchObject({
-			status: 400,
-			data: { error: 'Invalid kubeconfig format: could not parse as YAML or JSON' }
-		});
-		expect(clusterActionState.createClusterCalls).toHaveLength(0);
-		expect(clusterActionState.logClusterChangeCalls).toHaveLength(0);
+	test('rejects parse failures', () => {
+		expectValidationError(
+			'apiVersion: v1\nkind: Config\nclusters: [\ncontexts: []',
+			'Invalid kubeconfig format: could not parse as YAML or JSON'
+		);
 	});
-});
-
-afterAll(() => {
-	mock.restore();
 });
