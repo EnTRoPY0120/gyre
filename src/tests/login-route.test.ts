@@ -23,11 +23,55 @@ function createRouteState() {
 const routeState = createRouteState();
 
 mock.module('$lib/server/auth', () => ({
+	addPasswordHistory: async () => {},
 	authenticateUser: async () => routeState.authenticatedUser,
+	clearRequiresPasswordChange: async () => {},
+	getCredentialAccount: async () => null,
+	getCredentialPasswordHash: async () => null,
 	getUserByUsername: async () => routeState.existingUser,
 	hasManagedPassword: async () => routeState.canChangePassword,
+	isInClusterAdmin: () => false,
+	isPasswordInHistory: async () => false,
 	normalizeUsername: (username: string) => username.toLowerCase().trim(),
 	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+	verifyPassword: async (password: string, hash: string) => {
+		routeState.verifyPasswordCalls.push({ password, hash });
+		return false;
+	}
+}));
+
+mock.module('$lib/server/auth.js', () => ({
+	addPasswordHistory: async () => {},
+	authenticateUser: async () => routeState.authenticatedUser,
+	clearRequiresPasswordChange: async () => {},
+	getCredentialAccount: async () => null,
+	getCredentialPasswordHash: async () => null,
+	getUserByUsername: async () => routeState.existingUser,
+	hasManagedPassword: async () => routeState.canChangePassword,
+	isInClusterAdmin: () => false,
+	isPasswordInHistory: async () => false,
+	normalizeUsername: (username: string) => username.toLowerCase().trim(),
+	hashPassword: async () =>
+		'$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+	verifyPassword: async (password: string, hash: string) => {
+		routeState.verifyPasswordCalls.push({ password, hash });
+		return false;
+	}
+}));
+
+mock.module('$lib/server/auth.ts', () => ({
+	addPasswordHistory: async () => {},
+	authenticateUser: async () => routeState.authenticatedUser,
+	clearRequiresPasswordChange: async () => {},
+	getCredentialAccount: async () => null,
+	getCredentialPasswordHash: async () => null,
+	getUserByUsername: async () => routeState.existingUser,
+	hasManagedPassword: async () => routeState.canChangePassword,
+	isInClusterAdmin: () => false,
+	isPasswordInHistory: async () => false,
+	normalizeUsername: (username: string) => username.toLowerCase().trim(),
+	hashPassword: async () =>
+		'$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
 	verifyPassword: async (password: string, hash: string) => {
 		routeState.verifyPasswordCalls.push({ password, hash });
 		return false;
@@ -43,13 +87,51 @@ mock.module('$lib/server/settings', () => ({
 }));
 
 mock.module('$lib/server/audit', () => ({
+	logAudit: async () => {},
 	logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
 		routeState.loginLogCalls.push({ user, success, ipAddress, reason });
 	}
 }));
 
 mock.module('$lib/server/auth/better-auth', () => ({
+	BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
+	applyBetterAuthCookies: () => {},
 	createBetterAuthSessionForUser: async () => {},
+	getBetterAuth: () => ({
+		api: {
+			changePassword: async () => ({
+				headers: new Headers()
+			})
+		}
+	}),
+	revokeBetterAuthSessionByCookieValue: async () => {}
+}));
+
+mock.module('$lib/server/auth/better-auth.js', () => ({
+	BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
+	applyBetterAuthCookies: () => {},
+	createBetterAuthSessionForUser: async () => {},
+	getBetterAuth: () => ({
+		api: {
+			changePassword: async () => ({
+				headers: new Headers()
+			})
+		}
+	}),
+	revokeBetterAuthSessionByCookieValue: async () => {}
+}));
+
+mock.module('$lib/server/auth/better-auth.ts', () => ({
+	BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
+	applyBetterAuthCookies: () => {},
+	createBetterAuthSessionForUser: async () => {},
+	getBetterAuth: () => ({
+		api: {
+			changePassword: async () => ({
+				headers: new Headers()
+			})
+		}
+	}),
 	revokeBetterAuthSessionByCookieValue: async () => {}
 }));
 
@@ -71,7 +153,9 @@ mock.module('$lib/server/rate-limiter', () => ({
 	}
 }));
 
-import { POST } from '../routes/api/v1/auth/login/+server.js';
+const { POST } = (await import(
+	'../routes/api/v1/auth/login/+server.js?test=login-route'
+)) as typeof import('../routes/api/v1/auth/login/+server.js');
 
 type LoginEvent = Parameters<typeof POST>[0];
 

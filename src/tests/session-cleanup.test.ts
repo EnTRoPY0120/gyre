@@ -160,7 +160,3 @@ describe('deleteUserSessions', () => {
 		await expect(deleteUserSessions(userId)).resolves.toBeUndefined();
 	});
 });
-
-afterAll(() => {
-	mock.restore();
-});

@@ -510,7 +510,3 @@ describe('requirePermission', () => {
 		await expect(requirePermission(admin, 'admin')).resolves.toBeUndefined();
 	});
 });
-
-afterAll(() => {
-	mock.restore();
-});

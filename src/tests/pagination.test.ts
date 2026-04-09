@@ -162,7 +162,3 @@ describe('Pagination – empty database', () => {
 		expect(result.users).toHaveLength(0);
 	});
 });
-
-afterAll(() => {
-	mock.restore();
-});

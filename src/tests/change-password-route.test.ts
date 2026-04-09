@@ -15,22 +15,89 @@ const authState = createAuthState();
 
 mock.module('$lib/server/auth', () => ({
 	addPasswordHistory: async () => {},
+	authenticateUser: async () => null,
+	clearRequiresPasswordChange: async () => {},
+	getUserByUsername: async () => null,
+	hasManagedPassword: async () => true,
+	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
 	getCredentialAccount: async () => authState.credentialAccount,
 	getCredentialPasswordHash: async () => authState.credentialHash,
 	isInClusterAdmin: () => authState.isInClusterAdmin,
 	isPasswordInHistory: async () => false,
+	normalizeUsername: (username: string) => username.toLowerCase().trim(),
+	verifyPassword: async () => true
+}));
+
+mock.module('$lib/server/auth.js', () => ({
+	addPasswordHistory: async () => {},
+	authenticateUser: async () => null,
+	clearRequiresPasswordChange: async () => {},
+	getUserByUsername: async () => null,
+	hasManagedPassword: async () => true,
+	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+	getCredentialAccount: async () => authState.credentialAccount,
+	getCredentialPasswordHash: async () => authState.credentialHash,
+	isInClusterAdmin: () => authState.isInClusterAdmin,
+	isPasswordInHistory: async () => false,
+	normalizeUsername: (username: string) => username.toLowerCase().trim(),
+	verifyPassword: async () => true
+}));
+
+mock.module('$lib/server/auth.ts', () => ({
+	addPasswordHistory: async () => {},
+	authenticateUser: async () => null,
+	clearRequiresPasswordChange: async () => {},
+	getUserByUsername: async () => null,
+	hasManagedPassword: async () => true,
+	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+	getCredentialAccount: async () => authState.credentialAccount,
+	getCredentialPasswordHash: async () => authState.credentialHash,
+	isInClusterAdmin: () => authState.isInClusterAdmin,
+	isPasswordInHistory: async () => false,
+	normalizeUsername: (username: string) => username.toLowerCase().trim(),
 	verifyPassword: async () => true
 }));
 
 mock.module('$lib/server/auth/better-auth', () => ({
+	BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
 	applyBetterAuthCookies: () => {},
+	createBetterAuthSessionForUser: async () => {},
 	getBetterAuth: () => ({
 		api: {
 			changePassword: async () => ({
 				headers: new Headers()
 			})
 		}
-	})
+	}),
+	revokeBetterAuthSessionByCookieValue: async () => {}
+}));
+
+mock.module('$lib/server/auth/better-auth.js', () => ({
+	BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
+	applyBetterAuthCookies: () => {},
+	createBetterAuthSessionForUser: async () => {},
+	getBetterAuth: () => ({
+		api: {
+			changePassword: async () => ({
+				headers: new Headers()
+			})
+		}
+	}),
+	revokeBetterAuthSessionByCookieValue: async () => {}
+}));
+
+mock.module('$lib/server/auth/better-auth.ts', () => ({
+	BETTER_AUTH_SESSION_COOKIE_NAME: 'better-auth.session_token',
+	applyBetterAuthCookies: () => {},
+	createBetterAuthSessionForUser: async () => {},
+	getBetterAuth: () => ({
+		api: {
+			changePassword: async () => ({
+				headers: new Headers()
+			})
+		}
+	}),
+	revokeBetterAuthSessionByCookieValue: async () => {}
 }));
 
 mock.module('$lib/server/logger.js', () => ({
@@ -43,14 +110,22 @@ mock.module('$lib/server/logger.js', () => ({
 }));
 
 mock.module('$lib/server/audit', () => ({
-	logAudit: async () => {}
+	logAudit: async () => {},
+	logLogin: async () => {}
 }));
 
 mock.module('$lib/server/rate-limiter', () => ({
-	checkRateLimit: () => {}
+	checkRateLimit: () => {},
+	accountLockout: {
+		check: () => ({ locked: false, retryAfter: 0 }),
+		recordFailure: () => {},
+		recordSuccess: () => {}
+	}
 }));
 
-import { POST } from '../routes/api/v1/auth/change-password/+server.js';
+const { POST } = (await import(
+	'../routes/api/v1/auth/change-password/+server.js?test=change-password-route'
+)) as typeof import('../routes/api/v1/auth/change-password/+server.js');
 
 type ChangePasswordEvent = Parameters<typeof POST>[0];
 
