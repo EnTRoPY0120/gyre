@@ -166,6 +166,16 @@ describe('metrics handler auth behavior', () => {
 		expect((await response.text()).length).toBeGreaterThan(0);
 	});
 
+	test('returns 401 in production when bearer token is invalid', async () => {
+		const response = await callMetrics({
+			isProd: true,
+			metricsToken: 'secret-token',
+			authHeader: 'Bearer wrong-token'
+		});
+
+		expect(response.status).toBe(401);
+	});
+
 	test('returns 401 in non-production when token is configured but bearer token is missing', async () => {
 		const response = await callMetrics({
 			isProd: false,
@@ -185,6 +195,17 @@ describe('metrics handler auth behavior', () => {
 
 		expect(response.status).toBe(200);
 		expect((await response.text()).length).toBeGreaterThan(0);
+	});
+
+	test('returns 401 in non-production when token is configured and bearer token is invalid', async () => {
+		const response = await callMetrics({
+			isProd: false,
+			metricsToken: 'secret-token',
+			authHeader: 'Bearer wrong-token'
+		});
+
+		expect(response.status).toBe(401);
+		expect(await response.json()).toEqual({ error: 'Unauthorized' });
 	});
 
 	test('returns 200 in non-production when no token is configured', async () => {
