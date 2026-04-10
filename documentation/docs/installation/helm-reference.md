@@ -29,7 +29,7 @@ This guide provides a detailed reference for all configuration options available
 | Parameter                    | Description                  | Default |
 | ---------------------------- | ---------------------------- | ------- |
 | `serviceAccount.create`      | Create service account       | `true`  |
-| `serviceAccount.automount`   | Automount SA token           | `true`  |
+| `serviceAccount.automount`   | Automount SA token           | `false` |
 | `serviceAccount.annotations` | SA annotations               | `{}`    |
 | `serviceAccount.name`        | SA name (generated if empty) | `""`    |
 
@@ -88,7 +88,7 @@ This guide provides a detailed reference for all configuration options available
 | Parameter                   | Description    | Default |
 | --------------------------- | -------------- | ------- |
 | `resources.limits.cpu`      | CPU limit      | `500m`  |
-| `resources.limits.memory`   | Memory limit   | `512Mi` |
+| `resources.limits.memory`   | Memory limit   | `1Gi`   |
 | `resources.requests.cpu`    | CPU request    | `100m`  |
 | `resources.requests.memory` | Memory request | `128Mi` |
 
@@ -150,14 +150,24 @@ This guide provides a detailed reference for all configuration options available
 
 ## Application Configuration
 
-| Parameter                 | Description                                   | Default     |
-| ------------------------- | --------------------------------------------- | ----------- |
-| `config.create`           | Create ConfigMap for app configuration        | `true`      |
-| `config.logLevel`         | Application log level (debug/info/warn/error) | `info`      |
-| `config.sessionTimeout`   | Session timeout in milliseconds               | `604800000` |
-| `config.wsPingInterval`   | WebSocket ping interval in milliseconds       | `30000`     |
-| `config.cacheTtl`         | Cache TTL for dashboard data in seconds       | `30`        |
-| `config.additionalConfig` | Additional configuration key-value pairs      | `{}`        |
+| Parameter                    | Description                              | Default |
+| ---------------------------- | ---------------------------------------- | ------- |
+| `config.create`              | Create ConfigMap for app configuration   | `true`  |
+| `config.pollIntervalMs`      | Kubernetes API polling interval (ms)     | `5000`  |
+| `config.heartbeatIntervalMs` | SSE heartbeat interval (ms)              | `30000` |
+| `config.dashboardCacheTtlMs` | Dashboard cache TTL (ms)                 | `30000` |
+| `config.settlingPeriodMs`    | Settling period for ADDED events (ms)    | `30000` |
+| `config.additionalConfig`    | Additional configuration key-value pairs | `{}`    |
+
+Helm config keys map to these runtime env vars:
+
+| Helm key                     | Environment variable            |
+| ---------------------------- | ------------------------------- |
+| `config.pollIntervalMs`      | `GYRE_POLL_INTERVAL_MS`         |
+| `config.heartbeatIntervalMs` | `GYRE_HEARTBEAT_INTERVAL_MS`    |
+| `config.dashboardCacheTtlMs` | `GYRE_DASHBOARD_CACHE_TTL_MS`   |
+| `config.settlingPeriodMs`    | `GYRE_SETTLING_PERIOD_MS`       |
+| `config.additionalConfig`    | Pass-through key/value env vars |
 
 ## Encryption Configuration
 

@@ -12,7 +12,12 @@ The easiest way to start developing is using the provided devcontainer:
 
 1. Open the repository in VS Code with the **Dev Containers** extension.
 2. Press `F1` → **"Dev Containers: Reopen in Container"**.
-3. Inside the container, run:
+3. The container setup:
+   - installs Bun (if missing),
+   - runs `bun install`,
+   - mounts your host `~/.kube` at `/home/node/.kube` (read-only),
+   - installs Svelte/Tailwind/YAML/Kubernetes VS Code extensions.
+4. Inside the container, run:
    ```bash
    bun run dev
    ```
@@ -21,9 +26,8 @@ The easiest way to start developing is using the provided devcontainer:
 
 - `bun install` - Install dependencies
 - `bun run dev` - Start development server
-- `bun run check` - Type-check
-- `bun run lint` - Lint and format check
-- `bun run format` - Auto-format code
+- `bun run verify` - Local pre-commit/pre-push verification (auto-format + lint + typecheck + build)
+- `bun run verify:ci` - Strict CI-equivalent verification (no auto-format)
 
 ## Questions?
 

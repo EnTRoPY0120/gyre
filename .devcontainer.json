@@ -1,3 +1,28 @@
 {
-	"image": "mcr.microsoft.com/devcontainers/javascript-node"
+	"name": "Gyre Dev",
+	"image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+	"remoteUser": "node",
+	"mounts": ["source=${localEnv:HOME}/.kube,target=/home/node/.kube,type=bind,readonly"],
+	"remoteEnv": {
+		"BUN_INSTALL": "/home/node/.bun",
+		"PATH": "/home/node/.bun/bin:${containerEnv:PATH}"
+	},
+	"postCreateCommand": "bash -lc 'set -euo pipefail; if ! command -v bun >/dev/null 2>&1; then curl -fsSL https://bun.sh/install | bash; fi; export BUN_INSTALL=/home/node/.bun; export PATH=$BUN_INSTALL/bin:$PATH; bun install'",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"svelte.svelte-vscode",
+				"bradlc.vscode-tailwindcss",
+				"redhat.vscode-yaml",
+				"ms-kubernetes-tools.vscode-kubernetes-tools"
+			],
+			"settings": {
+				"editor.formatOnSave": true,
+				"files.associations": {
+					"*.yaml": "yaml",
+					"*.yml": "yaml"
+				}
+			}
+		}
+	}
 }

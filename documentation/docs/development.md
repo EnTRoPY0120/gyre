@@ -24,7 +24,7 @@ The easiest way to start developing is using the provided devcontainer:
 
 1. Open repository in VS Code with Dev Containers extension
 2. Press `F1` → "Dev Containers: Reopen in Container"
-3. Devcontainer automatically installs Bun, VS Code extensions, mounts `~/.kube`, and runs setup
+3. Devcontainer automatically installs Bun (if missing), runs `bun install`, mounts `~/.kube` read-only, and installs Svelte/Tailwind/YAML/Kubernetes VS Code extensions
 4. Optional: Create local kind cluster with FluxCD for testing
 
 ```sh
@@ -47,10 +47,11 @@ bun run dev --open      # Start dev server and open in browser
 ### Code Quality
 
 ```sh
-bun run check           # Type-check with svelte-check
+bun run verify          # Local gate: format + lint + typecheck + build
+bun run verify:ci       # Strict CI gate: format:check + lint + typecheck + build
 bun run check:watch     # Type-check in watch mode
-bun run lint            # Run prettier and eslint
-bun run format          # Format code with prettier
+bun run lint:fix        # Auto-fix lint issues where possible
+bun run format          # Format code
 ```
 
 ### Building & Testing
@@ -150,7 +151,7 @@ Multi-cluster support is implemented via `locals.cluster`.
 ### Security & RBAC
 
 - **Authentication**: Most API routes require a valid session via `locals.user`.
-- **RBAC**: Use `checkPermission(user, action, resourceType, namespace, clusterId)` or `requirePermission` to enforce access control. Standardized across all `src/routes/api` endpoints.
+- **RBAC**: Use `checkPermission(user, action, resourceType, namespace, clusterId)` or `requirePermission` to enforce access control. Standardized across all `src/routes/api/v1` endpoints.
 - **Error Handling**: Use `throw error(status, message)` consistently in API routes.
 
 ### Logging
@@ -225,9 +226,9 @@ The project includes full SSO support via Arctic and OIDC:
 - **Configuration**: Admin UI for provider setup (no restart required)
 - **User flow**: Login → OAuth redirect → Callback → Auto-provision user
 
-### WebSocket/SSE Notification System
+### SSE Notification System
 
-The real-time notification system uses Server-Sent Events (SSE) located in `src/routes/api/ws/events/+server.ts` with client store at `src/lib/stores/websocket.svelte.ts`.
+The real-time notification system uses Server-Sent Events (SSE) located in `src/routes/api/v1/events/+server.ts` with client store at `src/lib/stores/events.svelte.ts`.
 
 **Deduplication Strategy:**
 

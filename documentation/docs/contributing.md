@@ -21,7 +21,7 @@ The easiest way to start developing is using the provided devcontainer:
 
 1. Open the repository in VS Code with the Dev Containers extension
 2. Press `F1` → "Dev Containers: Reopen in Container"
-3. The devcontainer automatically installs Bun, VS Code extensions, mounts `~/.kube`, and runs setup
+3. The devcontainer automatically installs Bun (if missing), runs `bun install`, mounts `~/.kube` read-only, and installs Svelte/Tailwind/YAML/Kubernetes VS Code extensions
 4. Optional: Create a local kind cluster with FluxCD for testing
 
 ```bash
@@ -96,17 +96,14 @@ gyre/
 
 ### Code Quality Commands
 
-Always run these before committing:
+Use these before commit/push:
 
 ```bash
-# Type-check
-bun run check
+# Default local gate (auto-formats first)
+bun run verify
 
-# Lint and format check
-bun run lint
-
-# Auto-format code
-bun run format
+# Strict CI-equivalent gate (non-mutating)
+bun run verify:ci
 ```
 
 ### Styling
@@ -221,7 +218,7 @@ Use the same type prefixes as commit messages:
 1. **Create a branch** from `main` following the naming convention above.
 2. **Make your changes** following the code standards.
 3. **Test your changes** manually in a cluster.
-4. **Run quality checks** (`bun run check`, `bun run lint`).
+4. **Run quality checks** (`bun run verify` locally, `bun run verify:ci` for strict CI parity).
 5. **Commit** using conventional commit format.
 6. **Push** your branch and open a Pull Request.
 
@@ -276,7 +273,7 @@ When reporting bugs, please include:
 
 1. **Define types** in `src/lib/server/kubernetes/flux/types.ts`.
 2. **Add resource utilities** in `src/lib/server/kubernetes/flux/resources.ts`.
-3. **Create API routes** in `src/routes/api/flux/[resourceType]/`.
+3. **Create API routes** in `src/routes/api/v1/flux/[resourceType]/`.
 4. **Add UI components** in `src/lib/components/flux/resources/`.
 5. **Update navigation** in `src/routes/+layout.svelte`.
 6. **Add resource template** in `src/lib/templates/index.ts`.

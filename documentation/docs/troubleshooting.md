@@ -199,8 +199,8 @@ Common issues and their solutions.
 2. Reduce cache TTL:
 
    ```yaml
-   cache:
-     ttl: 10 # seconds
+   config:
+     dashboardCacheTtlMs: 10000 # 10 seconds
    ```
 
 3. Limit concurrent connections
@@ -240,7 +240,8 @@ Common issues and their solutions.
 
 1. Refresh page (hard refresh: Ctrl+Shift+R)
 
-2. Check WebSocket connection in browser DevTools
+2. Check SSE stream connection (`/api/v1/events`) in browser DevTools Network tab.
+   Server endpoint: `src/routes/api/v1/events/+server.ts`, client store: `src/lib/stores/events.svelte.ts`.
 
 3. Restart Gyre pod:
    ```bash
