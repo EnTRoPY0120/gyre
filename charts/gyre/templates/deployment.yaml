@@ -8,6 +8,9 @@ spec:
   replicas: {{ .Values.replicaCount }}
   strategy:
     type: Recreate  # Required for PVC with ReadWriteOnce
+  {{- if and .Values.config.additionalConfig (hasKey .Values.config.additionalConfig "BODY_SIZE_LIMIT") }}
+  {{- fail "config.additionalConfig.BODY_SIZE_LIMIT is reserved; use config.bodySizeLimit to avoid duplicate ownership." }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "gyre.selectorLabels" . | nindent 6 }}
@@ -88,6 +91,11 @@ spec:
             configMapKeyRef:
               name: {{ include "gyre.fullname" . }}-config
               key: GYRE_SETTLING_PERIOD_MS
+        - name: BODY_SIZE_LIMIT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "gyre.fullname" . }}-config
+              key: BODY_SIZE_LIMIT
         {{- range $key, $value := .Values.config.additionalConfig }}
         - name: {{ $key }}
           valueFrom:
