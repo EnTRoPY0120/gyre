@@ -14,6 +14,8 @@ data:
   GYRE_DASHBOARD_CACHE_TTL_MS: {{ .Values.config.dashboardCacheTtlMs | quote }}
   # Settling period after ADDED events before emitting notifications in milliseconds
   GYRE_SETTLING_PERIOD_MS: {{ .Values.config.settlingPeriodMs | quote }}
+  # Adapter-node max request body size (bytes, K/M/G suffix, or Infinity)
+  BODY_SIZE_LIMIT: {{ .Values.config.bodySizeLimit | quote }}
   {{- if .Values.config.additionalConfig }}
   {{- toYaml .Values.config.additionalConfig | nindent 2 }}
   {{- end }}

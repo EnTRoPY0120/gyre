@@ -3,8 +3,10 @@ import * as k8s from '@kubernetes/client-node';
 import { ConfigurationError } from './errors.js';
 
 /**
- * Configuration options for KubeConfig TLS and proxy settings.
- * Allows customization of certificate validation and HTTP proxies.
+ * Configuration options kept for internal compatibility.
+ *
+ * Gyre currently supports only kubeconfig-provided / in-cluster connectivity
+ * settings and rejects transport-layer overrides.
  */
 export interface KubeConfigOptions {
 	/** Custom CA certificate data (PEM format). Overrides the CA from kubeconfig. */
@@ -20,6 +22,40 @@ export interface KubeConfigOptions {
 }
 
 /**
+ * Reject unsupported kube transport overrides with a deterministic configuration error.
+ */
+export function assertSupportedKubeConfigOptions(options?: KubeConfigOptions): void {
+	if (!options) {
+		return;
+	}
+
+	const rejected: Array<keyof KubeConfigOptions> = [];
+	if (typeof options.caData === 'string' && options.caData.trim() !== '') {
+		rejected.push('caData');
+	}
+	if (options.insecureSkipVerify === true) {
+		rejected.push('insecureSkipVerify');
+	}
+	if (typeof options.httpProxy === 'string' && options.httpProxy.trim() !== '') {
+		rejected.push('httpProxy');
+	}
+	if (typeof options.httpsProxy === 'string' && options.httpsProxy.trim() !== '') {
+		rejected.push('httpsProxy');
+	}
+	if (typeof options.noProxy === 'string' && options.noProxy.trim() !== '') {
+		rejected.push('noProxy');
+	}
+
+	if (rejected.length > 0) {
+		throw new ConfigurationError(
+			`Unsupported kube connectivity override option(s): ${rejected.join(
+				', '
+			)}. Gyre currently supports only kubeconfig-provided / in-cluster connectivity settings.`
+		);
+	}
+}
+
+/**
  * Loads kubeconfig with automatic mode detection (like kubectl):
  * 1. In-cluster (production): Uses ServiceAccount if KUBERNETES_SERVICE_HOST is set
  * 2. Local development: Falls back to KUBECONFIG env var or ~/.kube/config
@@ -29,13 +65,13 @@ export interface KubeConfigOptions {
  */
 export function loadKubeConfig(options?: KubeConfigOptions): k8s.KubeConfig {
 	const config = new k8s.KubeConfig();
+	assertSupportedKubeConfigOptions(options);
 
 	try {
 		// Try in-cluster first (production mode)
 		if (process.env.KUBERNETES_SERVICE_HOST) {
 			config.loadFromCluster();
 			logger.info('✓ Using in-cluster configuration (ServiceAccount)');
-			applyConfigurationOptions(config, options);
 			return config;
 		}
 	} catch (error) {
@@ -47,7 +83,6 @@ export function loadKubeConfig(options?: KubeConfigOptions): k8s.KubeConfig {
 		// Tries: $KUBECONFIG, then ~/.kube/config
 		config.loadFromDefault();
 		logger.info('✓ Using local kubeconfig for development');
-		applyConfigurationOptions(config, options);
 		return config;
 	} catch (error) {
 		throw new ConfigurationError(
@@ -55,42 +90,6 @@ export function loadKubeConfig(options?: KubeConfigOptions): k8s.KubeConfig {
 				'For production: Ensure running in a pod with ServiceAccount. ' +
 				'For development: Set KUBECONFIG or create ~/.kube/config. ' +
 				`Error: ${error instanceof Error ? error.message : String(error)}`
-		);
-	}
-}
-
-/**
- * Apply TLS and proxy configuration options to a loaded KubeConfig.
- *
- * @experimental This function currently only logs configuration options.
- * Full implementation of custom CA certificates and proxy support requires
- * extending the HTTP agent creation and client-node configuration, which
- * is planned for a future enhancement.
- *
- * @param config - The KubeConfig to modify
- * @param options - Configuration options (currently unimplemented except for logging)
- */
-function applyConfigurationOptions(config: k8s.KubeConfig, options?: KubeConfigOptions): void {
-	if (!options) return;
-
-	// TODO(k8s-tls-proxy): Implement custom CA and proxy support
-	// - Pass caData to HTTP agent configuration
-	// - Create proxy agents based on HTTP_PROXY/HTTPS_PROXY
-	// - Wire into Kubernetes client factory
-
-	if (options.caData) {
-		logger.debug(
-			'Custom CA certificate option provided (unimplemented; see TODO in applyConfigurationOptions)'
-		);
-	}
-
-	if (options.insecureSkipVerify) {
-		logger.warn('⚠ TLS verification disabled for cluster (insecure, use for testing only)');
-	}
-
-	if (options.httpProxy || options.httpsProxy) {
-		logger.debug(
-			'Proxy configuration provided (unimplemented; see TODO in applyConfigurationOptions)'
 		);
 	}
 }

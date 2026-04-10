@@ -18,8 +18,8 @@ origin: ''
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
-  # Automatically mount a ServiceAccount's API credentials?
-  automount: false
+  # Automatically mount a ServiceAccount token for in-cluster Kubernetes authentication.
+  automount: true
   # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use.
@@ -284,6 +284,8 @@ config:
   dashboardCacheTtlMs: 30000
   # Settling period after ADDED events before emitting notifications in milliseconds (default: 30s)
   settlingPeriodMs: 30000
+  # Adapter-node hard ceiling for request body size; keep at least as large as the largest upload path.
+  bodySizeLimit: 500M
   # Additional configuration key-value pairs
   additionalConfig: {}
     # Example:
