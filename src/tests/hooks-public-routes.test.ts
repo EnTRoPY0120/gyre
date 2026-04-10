@@ -194,6 +194,8 @@ describe('metrics handler auth behavior', () => {
 		});
 
 		expect(response.status).toBe(401);
+		expect(response.headers.get('content-type')).toBe('application/json');
+		expect(await response.json()).toEqual({ error: 'Unauthorized' });
 	});
 
 	test('returns 401 in non-production when token is configured but bearer token is missing', async () => {
