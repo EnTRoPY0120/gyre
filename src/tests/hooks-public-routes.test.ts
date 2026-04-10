@@ -1,13 +1,81 @@
-import { describe, expect, test } from 'bun:test';
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { afterEach, describe, expect, mock, test } from 'bun:test';
+import type { User } from '../lib/server/db/schema.js';
 import { isPublicRoute } from '../lib/isPublicRoute.js';
+import * as actualConfig from '../lib/server/config.js';
+import * as actualConstants from '../lib/server/config/constants.js';
 
-const TEST_DIR = import.meta.dir;
-
-function readRepoFile(relativePath: string): string {
-	return readFileSync(resolve(TEST_DIR, '..', relativePath), 'utf8');
+function createUser(role: User['role'] = 'admin'): User {
+	const now = new Date();
+	return {
+		id: 'user-1',
+		username: 'admin',
+		email: null,
+		name: 'Admin',
+		emailVerified: false,
+		image: null,
+		role,
+		active: true,
+		isLocal: true,
+		requiresPasswordChange: false,
+		createdAt: now,
+		updatedAt: now,
+		preferences: null
+	};
 }
+
+async function callMetrics(options: {
+	isProd: boolean;
+	metricsToken?: string;
+	authHeader?: string;
+	user?: User | null;
+	cluster?: string;
+}): Promise<Response> {
+	mock.module('$lib/server/config', () => ({ ...actualConfig, IS_PROD: options.isProd }));
+	mock.module('$lib/server/config.js', () => ({ ...actualConfig, IS_PROD: options.isProd }));
+	mock.module('$lib/server/config/constants', () => ({
+		...actualConstants,
+		GYRE_METRICS_TOKEN: options.metricsToken ?? ''
+	}));
+	mock.module('$lib/server/config/constants.js', () => ({
+		...actualConstants,
+		GYRE_METRICS_TOKEN: options.metricsToken ?? ''
+	}));
+	mock.module('$lib/server/rate-limiter', () => ({
+		checkRateLimit: () => {}
+	}));
+	mock.module('$lib/server/rbac.js', () => ({
+		checkPermission: async (user: User) => user.role === 'admin'
+	}));
+	mock.module('$lib/server/metrics', () => ({
+		register: {
+			metrics: async () => '# mock metrics\n',
+			contentType: 'text/plain; version=0.0.4'
+		}
+	}));
+
+	const { GET: metricsGET } = await import(
+		`../routes/metrics/+server.js?case=${Date.now()}-${Math.random()}`
+	);
+
+	const headers = new Headers();
+	if (options.authHeader) {
+		headers.set('authorization', options.authHeader);
+	}
+
+	return metricsGET({
+		request: new Request('http://localhost/metrics', { headers }),
+		setHeaders: () => {},
+		getClientAddress: () => '127.0.0.1',
+		locals: {
+			user: options.user ?? null,
+			cluster: options.cluster
+		}
+	} as Parameters<typeof metricsGET>[0]);
+}
+
+afterEach(() => {
+	mock.restore();
+});
 
 describe('hooks public auth route detection', () => {
 	test('treats arbitrary provider login and callback routes as public', () => {
@@ -29,17 +97,72 @@ describe('hooks public auth route detection', () => {
 		expect(isPublicRoute('/logo.svg/extra')).toBe(false);
 	});
 
-	test('keeps /metrics public while enforcing production auth and non-production token behavior', () => {
-		const source = readRepoFile('routes/metrics/+server.ts');
-		const constantsSource = readRepoFile('lib/server/config/constants.ts');
-
+	test('keeps /metrics public', () => {
 		expect(isPublicRoute('/metrics')).toBe(true);
-		expect(source).toContain('if (IS_PROD) {');
-		expect(source).toContain('hasValidBearerToken');
-		expect(source).toContain('checkPermission(');
-		expect(source).toContain('else if (GYRE_METRICS_TOKEN)');
-		expect(constantsSource).toContain(
-			'In production, /metrics requires either this bearer token or an authenticated admin session.'
-		);
+	});
+});
+
+describe('metrics handler auth behavior', () => {
+	test('returns 401 in production when no bearer token and no authenticated user', async () => {
+		const response = await callMetrics({
+			isProd: true,
+			metricsToken: 'secret-token'
+		});
+
+		expect(response.status).toBe(401);
+		expect(await response.json()).toEqual({ error: 'Unauthorized' });
+	});
+
+	test('returns 200 in production with authenticated admin session', async () => {
+		const response = await callMetrics({
+			isProd: true,
+			metricsToken: 'secret-token',
+			user: createUser('admin'),
+			cluster: 'cluster-a'
+		});
+
+		expect(response.status).toBe(200);
+		expect((await response.text()).length).toBeGreaterThan(0);
+	});
+
+	test('returns 200 in production with valid bearer token and no session', async () => {
+		const response = await callMetrics({
+			isProd: true,
+			metricsToken: 'secret-token',
+			authHeader: 'Bearer secret-token'
+		});
+
+		expect(response.status).toBe(200);
+		expect((await response.text()).length).toBeGreaterThan(0);
+	});
+
+	test('returns 401 in non-production when token is configured but bearer token is missing', async () => {
+		const response = await callMetrics({
+			isProd: false,
+			metricsToken: 'secret-token'
+		});
+
+		expect(response.status).toBe(401);
+		expect(await response.json()).toEqual({ error: 'Unauthorized' });
+	});
+
+	test('returns 200 in non-production when token is configured and bearer token is valid', async () => {
+		const response = await callMetrics({
+			isProd: false,
+			metricsToken: 'secret-token',
+			authHeader: 'Bearer secret-token'
+		});
+
+		expect(response.status).toBe(200);
+		expect((await response.text()).length).toBeGreaterThan(0);
+	});
+
+	test('returns 200 in non-production when no token is configured', async () => {
+		const response = await callMetrics({
+			isProd: false
+		});
+
+		expect(response.status).toBe(200);
+		expect((await response.text()).length).toBeGreaterThan(0);
 	});
 });

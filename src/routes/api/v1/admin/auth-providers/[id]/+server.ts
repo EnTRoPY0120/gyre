@@ -190,29 +190,25 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		const body = await request.json();
-		const changedKeys = Object.keys(body).filter((key) => key !== 'clientSecret');
-
-		// Build update object (only include provided fields)
-		const updates: Record<string, unknown> = {
-			updatedAt: new Date()
-		};
+		// Build applied update object (only include known, provided fields)
+		const appliedUpdate: Record<string, unknown> = {};
 
 		// Update fields if provided
-		if (body.name !== undefined) updates.name = body.name;
-		if (body.type !== undefined) updates.type = body.type;
-		if (body.enabled !== undefined) updates.enabled = body.enabled;
-		if (body.clientId !== undefined) updates.clientId = body.clientId;
-		if (body.issuerUrl !== undefined) updates.issuerUrl = body.issuerUrl;
-		if (body.authorizationUrl !== undefined) updates.authorizationUrl = body.authorizationUrl;
-		if (body.tokenUrl !== undefined) updates.tokenUrl = body.tokenUrl;
-		if (body.userInfoUrl !== undefined) updates.userInfoUrl = body.userInfoUrl;
-		if (body.jwksUrl !== undefined) updates.jwksUrl = body.jwksUrl;
-		if (body.autoProvision !== undefined) updates.autoProvision = body.autoProvision;
-		if (body.defaultRole !== undefined) updates.defaultRole = body.defaultRole;
+		if (body.name !== undefined) appliedUpdate.name = body.name;
+		if (body.type !== undefined) appliedUpdate.type = body.type;
+		if (body.enabled !== undefined) appliedUpdate.enabled = body.enabled;
+		if (body.clientId !== undefined) appliedUpdate.clientId = body.clientId;
+		if (body.issuerUrl !== undefined) appliedUpdate.issuerUrl = body.issuerUrl;
+		if (body.authorizationUrl !== undefined) appliedUpdate.authorizationUrl = body.authorizationUrl;
+		if (body.tokenUrl !== undefined) appliedUpdate.tokenUrl = body.tokenUrl;
+		if (body.userInfoUrl !== undefined) appliedUpdate.userInfoUrl = body.userInfoUrl;
+		if (body.jwksUrl !== undefined) appliedUpdate.jwksUrl = body.jwksUrl;
+		if (body.autoProvision !== undefined) appliedUpdate.autoProvision = body.autoProvision;
+		if (body.defaultRole !== undefined) appliedUpdate.defaultRole = body.defaultRole;
 		if (body.roleMapping !== undefined) {
 			try {
 				const parsedRoleMapping = parseRoleMappingInput(body.roleMapping);
-				updates.roleMapping = parsedRoleMapping ? JSON.stringify(parsedRoleMapping) : null;
+				appliedUpdate.roleMapping = parsedRoleMapping ? JSON.stringify(parsedRoleMapping) : null;
 			} catch (parseError) {
 				throw error(400, {
 					message:
@@ -222,26 +218,28 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 				});
 			}
 		}
-		if (body.roleClaim !== undefined) updates.roleClaim = body.roleClaim;
-		if (body.usernameClaim !== undefined) updates.usernameClaim = body.usernameClaim;
-		if (body.emailClaim !== undefined) updates.emailClaim = body.emailClaim;
-		if (body.usePkce !== undefined) updates.usePkce = body.usePkce;
-		if (body.scopes !== undefined) updates.scopes = body.scopes;
+		if (body.roleClaim !== undefined) appliedUpdate.roleClaim = body.roleClaim;
+		if (body.usernameClaim !== undefined) appliedUpdate.usernameClaim = body.usernameClaim;
+		if (body.emailClaim !== undefined) appliedUpdate.emailClaim = body.emailClaim;
+		if (body.usePkce !== undefined) appliedUpdate.usePkce = body.usePkce;
+		if (body.scopes !== undefined) appliedUpdate.scopes = body.scopes;
 
 		// Handle client secret separately (needs encryption)
-		if (body.clientSecret) {
-			updates.clientSecretEncrypted = encryptSecret(body.clientSecret);
+		if (typeof body.clientSecret === 'string' && body.clientSecret.trim().length > 0) {
+			appliedUpdate.clientSecretEncrypted = encryptSecret(body.clientSecret);
 		}
+		const changedKeys = Object.keys(appliedUpdate).filter((key) => key !== 'clientSecretEncrypted');
+		const updatePayload: Record<string, unknown> = { ...appliedUpdate, updatedAt: new Date() };
 
 		// Validate updated configuration
-		const updatedConfig = { ...existingProvider, ...updates };
+		const updatedConfig = { ...existingProvider, ...updatePayload };
 		const validation = validateProviderConfig(updatedConfig);
 		if (!validation.valid) {
 			throw error(400, { message: validation.errors.join(', ') });
 		}
 
 		// Update in database
-		await db.update(authProviders).set(updates).where(eq(authProviders.id, params.id));
+		await db.update(authProviders).set(updatePayload).where(eq(authProviders.id, params.id));
 
 		logger.info({ providerId: params.id }, 'Updated auth provider');
 
@@ -255,7 +253,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			details: {
 				providerId: params.id,
 				changedKeys,
-				clientSecretUpdated: body.clientSecret !== undefined
+				clientSecretUpdated: !!appliedUpdate.clientSecretEncrypted
 			}
 		});
 
