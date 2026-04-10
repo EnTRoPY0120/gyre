@@ -68,11 +68,12 @@ beforeEach(() => {
 describe('flux [resourceType] RBAC boundaries', () => {
 	test('GET uses explicit cluster-wide read permission for all-namespace list', async () => {
 		allowClusterWide = false;
+		const locals = { user: createUser(), cluster: 'cluster-a' };
 
 		await expect(
 			listGET({
 				params: { resourceType: 'gitrepositories' },
-				locals: { user: createUser(), cluster: 'cluster-a' },
+				locals,
 				setHeaders: () => {},
 				request: new Request('http://localhost/api/v1/flux/gitrepositories'),
 				url: new URL('http://localhost/api/v1/flux/gitrepositories')
@@ -82,18 +83,18 @@ describe('flux [resourceType] RBAC boundaries', () => {
 			body: { message: 'Permission denied' }
 		});
 
-		expect(clusterWideChecks).toHaveLength(1);
-		expect(clusterWideChecks[0][1]).toBe('cluster-a');
-		expect(scopedChecks).toHaveLength(0);
+		expect(clusterWideChecks).toEqual([[locals.user, 'cluster-a']]);
+		expect(scopedChecks).toEqual([]);
 	});
 
 	test('POST still uses namespace-scoped checkPermission for writes', async () => {
 		allowScoped = false;
+		const locals = { user: createUser(), cluster: 'cluster-a' };
 
 		await expect(
 			createPOST({
 				params: { resourceType: 'gitrepositories' },
-				locals: { user: createUser(), cluster: 'cluster-a' },
+				locals,
 				request: new Request('http://localhost/api/v1/flux/gitrepositories', {
 					method: 'POST',
 					headers: { 'content-type': 'application/json' },
@@ -110,11 +111,7 @@ describe('flux [resourceType] RBAC boundaries', () => {
 			body: { message: 'Permission denied' }
 		});
 
-		expect(scopedChecks).toHaveLength(1);
-		expect(scopedChecks[0][1]).toBe('write');
-		expect(scopedChecks[0][2]).toBe('GitRepository');
-		expect(scopedChecks[0][3]).toBe('default');
-		expect(scopedChecks[0][4]).toBe('cluster-a');
-		expect(clusterWideChecks).toHaveLength(0);
+		expect(scopedChecks).toEqual([[locals.user, 'write', 'GitRepository', 'default', 'cluster-a']]);
+		expect(clusterWideChecks).toEqual([]);
 	});
 });

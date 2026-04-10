@@ -40,9 +40,10 @@ beforeEach(() => {
 
 describe('admin auth providers explicit in-handler guard', () => {
 	test('GET rejects authenticated non-admin users with 403', async () => {
+		const locals = { user: createUser('editor'), cluster: 'cluster-a' };
 		await expect(
 			providersGET({
-				locals: { user: createUser('editor'), cluster: 'cluster-a' }
+				locals
 			} as Parameters<typeof providersGET>[0])
 		).rejects.toMatchObject({
 			status: 403,
@@ -52,12 +53,14 @@ describe('admin auth providers explicit in-handler guard', () => {
 		expect(permissionChecks).toHaveLength(1);
 		expect(permissionChecks[0][1]).toBe('admin');
 		expect(permissionChecks[0][2]).toBe('AuthProvider');
+		expect(permissionChecks[0][4]).toBe(locals.cluster);
 	});
 
 	test('POST rejects authenticated non-admin users with 403 before mutation', async () => {
+		const locals = { user: createUser('editor'), cluster: 'cluster-a' };
 		await expect(
 			providersPOST({
-				locals: { user: createUser('editor'), cluster: 'cluster-a' },
+				locals,
 				setHeaders: () => {},
 				request: new Request('http://localhost/api/v1/admin/auth-providers', {
 					method: 'POST',
@@ -73,5 +76,6 @@ describe('admin auth providers explicit in-handler guard', () => {
 		expect(permissionChecks).toHaveLength(1);
 		expect(permissionChecks[0][1]).toBe('admin');
 		expect(permissionChecks[0][2]).toBe('AuthProvider');
+		expect(permissionChecks[0][4]).toBe(locals.cluster);
 	});
 });

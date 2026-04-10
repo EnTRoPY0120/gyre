@@ -323,5 +323,6 @@ describe('admin mutation audit events', () => {
 		expect(clearPoolCalls).toBe(1);
 		expect(auditCalls).toHaveLength(1);
 		expect(auditCalls[0][1]).toBe('k8s-client-pool:clear');
+		expect(auditCalls[0][2]?.clusterId).toBe('cluster-a');
 	});
 });

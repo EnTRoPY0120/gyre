@@ -49,9 +49,8 @@ export const POST: RequestHandler = async ({ locals }) => {
 	await logAudit(locals.user, 'k8s-client-pool:clear', {
 		resourceType: 'KubernetesClientPool',
 		resourceName: 'global',
-		details: {
-			clusterId: locals.cluster ?? null
-		}
+		clusterId: locals.cluster ?? null,
+		details: {}
 	});
 	return json({ message: 'Connection pool cleared' });
 };

@@ -282,6 +282,8 @@ describe('getAuthSettings', () => {
 		process.env.NODE_ENV = 'production';
 
 		try {
+			unsetEnv('GYRE_AUTH_ALLOW_SIGNUP');
+			timeOffset += 200; // ensure cached values from prior reads are expired
 			const settings = await getAuthSettings();
 			expect(settings.allowSignup).toBe(false);
 		} finally {
