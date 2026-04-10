@@ -318,6 +318,10 @@
           "type": "integer",
           "minimum": 1000
         },
+        "bodySizeLimit": {
+          "type": "string",
+          "pattern": "^(?:[0-9]+(?:[KMG])?|Infinity)$"
+        },
         "additionalConfig": { "type": "object" }
       }
     },

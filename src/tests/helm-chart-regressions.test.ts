@@ -52,6 +52,19 @@ describe('helm chart regressions', () => {
 		expect(source).toContain('PROVIDER_{{ $providerKey }}_CLIENT_SECRET');
 	});
 
+	test('values and templates include deployability defaults for service account and body size limit', () => {
+		const values = readRepoFile('../charts/gyre/values.yaml');
+		const configMap = readRepoFile('../charts/gyre/templates/configmap.yaml');
+		const deployment = readRepoFile('../charts/gyre/templates/deployment.yaml');
+
+		expect(values).toContain('automount: true');
+		expect(values).toContain('bodySizeLimit: 500M');
+		expect(configMap).toContain('BODY_SIZE_LIMIT: {{ .Values.config.bodySizeLimit | quote }}');
+		expect(deployment).toContain('- name: BODY_SIZE_LIMIT');
+		expect(deployment).toContain('key: BODY_SIZE_LIMIT');
+		expect(deployment).toContain('config.additionalConfig.BODY_SIZE_LIMIT is reserved');
+	});
+
 	test('values schema includes origin, gatewayApi.tls, and networkPolicy.egress.apiServer', () => {
 		const schema = JSON.parse(readRepoFile('../charts/gyre/values.schema.json'));
 
@@ -68,5 +81,9 @@ describe('helm chart regressions', () => {
 			schema.properties.networkPolicy.properties.egress.properties.apiServer.properties.ports.items
 				.type
 		).toBe('integer');
+		expect(schema.properties.config.properties.bodySizeLimit.type).toBe('string');
+		expect(schema.properties.config.properties.bodySizeLimit.pattern).toBe(
+			'^(?:[0-9]+(?:[KMG])?|Infinity)$'
+		);
 	});
 });

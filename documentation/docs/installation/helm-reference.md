@@ -26,12 +26,12 @@ This guide provides a detailed reference for all configuration options available
 
 ## Service Account
 
-| Parameter                    | Description                  | Default |
-| ---------------------------- | ---------------------------- | ------- |
-| `serviceAccount.create`      | Create service account       | `true`  |
-| `serviceAccount.automount`   | Automount SA token           | `false` |
-| `serviceAccount.annotations` | SA annotations               | `{}`    |
-| `serviceAccount.name`        | SA name (generated if empty) | `""`    |
+| Parameter                    | Description                                       | Default |
+| ---------------------------- | ------------------------------------------------- | ------- |
+| `serviceAccount.create`      | Create service account                            | `true`  |
+| `serviceAccount.automount`   | Automount SA token for in-cluster Kubernetes auth | `true`  |
+| `serviceAccount.annotations` | SA annotations                                    | `{}`    |
+| `serviceAccount.name`        | SA name (generated if empty)                      | `""`    |
 
 ## Service Configuration
 
@@ -150,14 +150,15 @@ This guide provides a detailed reference for all configuration options available
 
 ## Application Configuration
 
-| Parameter                    | Description                              | Default |
-| ---------------------------- | ---------------------------------------- | ------- |
-| `config.create`              | Create ConfigMap for app configuration   | `true`  |
-| `config.pollIntervalMs`      | Kubernetes API polling interval (ms)     | `5000`  |
-| `config.heartbeatIntervalMs` | SSE heartbeat interval (ms)              | `30000` |
-| `config.dashboardCacheTtlMs` | Dashboard cache TTL (ms)                 | `30000` |
-| `config.settlingPeriodMs`    | Settling period for ADDED events (ms)    | `30000` |
-| `config.additionalConfig`    | Additional configuration key-value pairs | `{}`    |
+| Parameter                    | Description                                                         | Default |
+| ---------------------------- | ------------------------------------------------------------------- | ------- |
+| `config.create`              | Create ConfigMap for app configuration                              | `true`  |
+| `config.pollIntervalMs`      | Kubernetes API polling interval (ms)                                | `5000`  |
+| `config.heartbeatIntervalMs` | SSE heartbeat interval (ms)                                         | `30000` |
+| `config.dashboardCacheTtlMs` | Dashboard cache TTL (ms)                                            | `30000` |
+| `config.settlingPeriodMs`    | Settling period for ADDED events (ms)                               | `30000` |
+| `config.bodySizeLimit`       | Adapter request-body ceiling (`N`, `NK`, `NM`, `NG`, or `Infinity`) | `500M`  |
+| `config.additionalConfig`    | Additional configuration key-value pairs                            | `{}`    |
 
 Helm config keys map to these runtime env vars:
 
@@ -167,7 +168,10 @@ Helm config keys map to these runtime env vars:
 | `config.heartbeatIntervalMs` | `GYRE_HEARTBEAT_INTERVAL_MS`    |
 | `config.dashboardCacheTtlMs` | `GYRE_DASHBOARD_CACHE_TTL_MS`   |
 | `config.settlingPeriodMs`    | `GYRE_SETTLING_PERIOD_MS`       |
+| `config.bodySizeLimit`       | `BODY_SIZE_LIMIT`               |
 | `config.additionalConfig`    | Pass-through key/value env vars |
+
+`config.additionalConfig.BODY_SIZE_LIMIT` is reserved and rejected at render time. Use `config.bodySizeLimit` instead.
 
 ## Encryption Configuration
 

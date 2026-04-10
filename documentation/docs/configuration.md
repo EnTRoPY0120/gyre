@@ -29,6 +29,11 @@ service:
   type: ClusterIP
   port: 80
 
+serviceAccount:
+  create: true
+  # Default keeps ServiceAccount token mounted for in-cluster auth.
+  automount: true
+
 ingress:
   enabled: false
 
@@ -63,10 +68,12 @@ config:
   heartbeatIntervalMs: 30000
   dashboardCacheTtlMs: 30000
   settlingPeriodMs: 30000
+  bodySizeLimit: 500M
   additionalConfig: {}
 ```
 
 `config.additionalConfig` is passed through as extra environment variables.
+`config.additionalConfig.BODY_SIZE_LIMIT` is reserved and rejected by the chart; use `config.bodySizeLimit`.
 
 ### Encryption and Secrets
 
@@ -131,6 +138,7 @@ Helm values map directly to runtime env vars:
 | `config.heartbeatIntervalMs` | `GYRE_HEARTBEAT_INTERVAL_MS`    |
 | `config.dashboardCacheTtlMs` | `GYRE_DASHBOARD_CACHE_TTL_MS`   |
 | `config.settlingPeriodMs`    | `GYRE_SETTLING_PERIOD_MS`       |
+| `config.bodySizeLimit`       | `BODY_SIZE_LIMIT`               |
 | `auth.localLoginEnabled`     | `GYRE_AUTH_LOCAL_LOGIN_ENABLED` |
 | `auth.allowSignup`           | `GYRE_AUTH_ALLOW_SIGNUP`        |
 | `auth.domainAllowlist`       | `GYRE_AUTH_DOMAIN_ALLOWLIST`    |

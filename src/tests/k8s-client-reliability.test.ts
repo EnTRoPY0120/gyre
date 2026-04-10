@@ -11,6 +11,8 @@ import {
 	gracefulShutdown,
 	auditLogSecretAccess
 } from '../lib/server/kubernetes/client.js';
+import { assertSupportedKubeConfigOptions } from '../lib/server/kubernetes/config.js';
+import { ConfigurationError } from '../lib/server/kubernetes/errors.js';
 
 // ---------------------------------------------------------------------------
 // HTTP Keep-Alive Configuration
@@ -172,19 +174,83 @@ describe('Secret Audit Logging', () => {
 // ---------------------------------------------------------------------------
 
 describe('Kubeconfig Configuration Options', () => {
-	test('KubeConfigOptions interface is properly defined', () => {
-		// This is a type-level test — it validates that the interface exists
-		// in actual code. At runtime, we just verify the concept works.
-		const options = {
-			caData: '-----BEGIN CERTIFICATE-----',
-			insecureSkipVerify: false,
-			httpProxy: 'http://proxy:8080',
-			httpsProxy: 'https://proxy:8443',
-			noProxy: 'localhost,.example.com'
-		};
+	test('allows undefined options', () => {
+		expect(() => assertSupportedKubeConfigOptions()).not.toThrow();
+	});
 
-		expect(options.caData).toBeDefined();
-		expect(options.insecureSkipVerify).toBe(false);
-		expect(options.httpProxy).toBeDefined();
+	test('allows empty options object', () => {
+		expect(() => assertSupportedKubeConfigOptions({})).not.toThrow();
+	});
+
+	test('allows insecureSkipVerify=false', () => {
+		expect(() =>
+			assertSupportedKubeConfigOptions({
+				insecureSkipVerify: false
+			})
+		).not.toThrow();
+	});
+
+	test('allows empty-string transport overrides', () => {
+		expect(() =>
+			assertSupportedKubeConfigOptions({
+				caData: '',
+				httpProxy: '',
+				httpsProxy: '',
+				noProxy: ''
+			})
+		).not.toThrow();
+	});
+
+	test('rejects caData override', () => {
+		expect(() =>
+			assertSupportedKubeConfigOptions({
+				caData: '-----BEGIN CERTIFICATE-----'
+			})
+		).toThrow(ConfigurationError);
+	});
+
+	test('rejects httpProxy override', () => {
+		expect(() =>
+			assertSupportedKubeConfigOptions({
+				httpProxy: 'http://proxy:8080'
+			})
+		).toThrow(ConfigurationError);
+	});
+
+	test('rejects httpsProxy override', () => {
+		expect(() =>
+			assertSupportedKubeConfigOptions({
+				httpsProxy: 'https://proxy:8443'
+			})
+		).toThrow(ConfigurationError);
+	});
+
+	test('rejects noProxy override', () => {
+		expect(() =>
+			assertSupportedKubeConfigOptions({
+				noProxy: 'localhost,.example.com'
+			})
+		).toThrow(ConfigurationError);
+	});
+
+	test('rejects multiple overrides and lists all rejected keys', () => {
+		try {
+			assertSupportedKubeConfigOptions({
+				caData: '-----BEGIN CERTIFICATE-----',
+				insecureSkipVerify: true,
+				httpProxy: 'http://proxy:8080',
+				httpsProxy: 'https://proxy:8443',
+				noProxy: 'localhost,.example.com'
+			});
+			throw new Error('Expected ConfigurationError');
+		} catch (error) {
+			expect(error).toBeInstanceOf(ConfigurationError);
+			const message = (error as Error).message;
+			expect(message).toContain('caData');
+			expect(message).toContain('insecureSkipVerify');
+			expect(message).toContain('httpProxy');
+			expect(message).toContain('httpsProxy');
+			expect(message).toContain('noProxy');
+		}
 	});
 });
