@@ -3,6 +3,7 @@ import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { clearClientPool } from '$lib/server/kubernetes/client.js';
 import { checkPermission } from '$lib/server/rbac.js';
+import { logAudit } from '$lib/server/audit';
 
 export const _metadata = {
 	POST: {
@@ -45,5 +46,12 @@ export const POST: RequestHandler = async ({ locals }) => {
 	}
 
 	clearClientPool();
+	await logAudit(locals.user, 'k8s-client-pool:clear', {
+		resourceType: 'KubernetesClientPool',
+		resourceName: 'global',
+		details: {
+			clusterId: locals.cluster ?? null
+		}
+	});
 	return json({ message: 'Connection pool cleared' });
 };

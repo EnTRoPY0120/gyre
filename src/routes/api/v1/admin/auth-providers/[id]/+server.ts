@@ -17,6 +17,7 @@ import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { eq } from 'drizzle-orm';
 import { checkPermission } from '$lib/server/rbac.js';
+import { logAudit } from '$lib/server/audit';
 
 export const _metadata = {
 	GET: {
@@ -189,6 +190,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		}
 
 		const body = await request.json();
+		const changedKeys = Object.keys(body).filter((key) => key !== 'clientSecret');
 
 		// Build update object (only include provided fields)
 		const updates: Record<string, unknown> = {
@@ -247,6 +249,15 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		const updatedProvider = await db.query.authProviders.findFirst({
 			where: eq(authProviders.id, params.id)
 		});
+		await logAudit(locals.user, 'auth-provider:update', {
+			resourceType: 'AuthProvider',
+			resourceName: updatedProvider?.name ?? existingProvider.name,
+			details: {
+				providerId: params.id,
+				changedKeys,
+				clientSecretUpdated: body.clientSecret !== undefined
+			}
+		});
 
 		return json({
 			success: true,
@@ -295,6 +306,14 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 		await db.transaction((tx) => {
 			tx.delete(accounts).where(eq(accounts.providerId, params.id)).run();
 			tx.delete(authProviders).where(eq(authProviders.id, params.id)).run();
+		});
+		await logAudit(locals.user, 'auth-provider:delete', {
+			resourceType: 'AuthProvider',
+			resourceName: provider.name,
+			details: {
+				providerId: params.id,
+				providerType: provider.type
+			}
 		});
 
 		logger.info({ providerId: params.id, providerName: provider.name }, 'Deleted auth provider');

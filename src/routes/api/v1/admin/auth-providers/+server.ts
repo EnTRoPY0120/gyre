@@ -89,6 +89,8 @@ import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { randomBytes } from 'node:crypto';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { checkPermission } from '$lib/server/rbac.js';
+import { logAudit } from '$lib/server/audit';
 
 /**
  * Generate a unique provider ID
@@ -102,9 +104,20 @@ function generateProviderId(): string {
  * List all auth providers (admin only)
  */
 export const GET: RequestHandler = async ({ locals }) => {
-	// Check authentication (hook enforces admin role for /api/v1/admin/* routes)
+	// Check authentication
 	if (!locals.user) {
 		throw error(401, { message: 'Unauthorized' });
+	}
+
+	const hasPermission = await checkPermission(
+		locals.user,
+		'admin',
+		'AuthProvider',
+		undefined,
+		locals.cluster
+	);
+	if (!hasPermission) {
+		throw error(403, { message: 'Admin access required' });
 	}
 
 	try {
@@ -132,9 +145,20 @@ export const GET: RequestHandler = async ({ locals }) => {
  * Create a new auth provider (admin only)
  */
 export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
-	// Check authentication (hook enforces admin role for /api/v1/admin/* routes)
+	// Check authentication
 	if (!locals.user) {
 		throw error(401, { message: 'Unauthorized' });
+	}
+
+	const hasPermission = await checkPermission(
+		locals.user,
+		'admin',
+		'AuthProvider',
+		undefined,
+		locals.cluster
+	);
+	if (!hasPermission) {
+		throw error(403, { message: 'Admin access required' });
 	}
 
 	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
@@ -216,6 +240,15 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 		// Insert into database
 		const db = await getDb();
 		await db.insert(authProviders).values(newProvider);
+		await logAudit(locals.user, 'auth-provider:create', {
+			resourceType: 'AuthProvider',
+			resourceName: newProvider.name,
+			details: {
+				providerId: newProvider.id,
+				providerType: newProvider.type,
+				enabled: newProvider.enabled
+			}
+		});
 
 		logger.info(`Created new auth provider: ${name} (${type})`);
 
