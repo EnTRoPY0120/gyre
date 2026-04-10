@@ -125,6 +125,17 @@ describe('metrics handler auth behavior', () => {
 		expect((await response.text()).length).toBeGreaterThan(0);
 	});
 
+	test('returns 403 in production with authenticated non-admin user and no bearer token', async () => {
+		const response = await callMetrics({
+			isProd: true,
+			metricsToken: 'secret-token',
+			user: createUser('editor'),
+			cluster: 'cluster-a'
+		});
+
+		expect(response.status).toBe(403);
+	});
+
 	test('returns 200 in production with valid bearer token and no session', async () => {
 		const response = await callMetrics({
 			isProd: true,
