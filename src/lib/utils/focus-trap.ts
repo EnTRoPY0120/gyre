@@ -24,9 +24,14 @@ export function modalFocusTrap(node: HTMLElement) {
 		const initialFocusElement = initialFocusSelector
 			? (node.querySelector<HTMLElement>(initialFocusSelector) ?? null)
 			: null;
-		const focusTarget = initialFocusElement ?? getFocusableElements(node)[0] ?? labelledElement ?? node;
+		const focusTarget =
+			initialFocusElement ?? getFocusableElements(node)[0] ?? labelledElement ?? node;
 
-		if (focusTarget === labelledElement && labelledElement && !labelledElement.hasAttribute('tabindex')) {
+		if (
+			focusTarget === labelledElement &&
+			labelledElement &&
+			!labelledElement.hasAttribute('tabindex')
+		) {
 			labelledElement.tabIndex = -1;
 		}
 

@@ -29,9 +29,10 @@ ingress:
   enabled: true
   className: nginx
   annotations:
-    # Important for real-time monitoring via WebSocket/SSE
+    # Important for long-lived SSE streaming
     nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
     nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-buffering: 'off'
     # Enable SSL redirection
     nginx.ingress.kubernetes.io/ssl-redirect: 'true'
     # Ensure large payloads can be sent (e.g., for large kubeconfigs)
@@ -58,7 +59,7 @@ ingress:
   annotations:
     # Traefik-specific middleware (e.g., for HTTPS redirect)
     traefik.ingress.kubernetes.io/router.middlewares: 'flux-system-redirect-https@kubernetescrd'
-    # Ensure WebSocket support
+    # Route through secure entrypoint
     traefik.ingress.kubernetes.io/router.entrypoints: 'websecure'
   hosts:
     - host: gyre.example.com
@@ -145,29 +146,24 @@ Gyre relies on standard `X-Forwarded-*` headers to correctly identify the origin
 
 ### SSL/TLS and Cookies
 
-If Gyre is accessed via HTTPS but the connection between the proxy and Gyre is HTTP, you **must** configure Gyre's session settings to ensure cookies are still transmitted securely.
-
-In your `values.yaml`:
+If Gyre is accessed through a proxy, ensure the public origin is correctly set so callback URLs and auth redirects are generated correctly:
 
 ```yaml
-session:
-  secure: true # Ensures cookies are only sent over HTTPS
-  sameSite: lax # Standard for most authentication flows
+origin: https://gyre.example.com
 ```
 
 ### Authentication Considerations
 
-When using an external authentication proxy (like Cloudflare Access or Tailscale Funnel), you might want to disable Gyre's internal authentication or integrate with it via SSO/OIDC.
+When using an external authentication proxy (like Cloudflare Access or Tailscale Funnel), integrate it with Gyre's current auth config model.
 
-- **SSO/OIDC Integration**: Recommended for production. Configure your identity provider in the `auth.oauth` section of `values.yaml`.
-- **Bypassing Local Auth**: If you trust your external proxy to handle all authentication, you can potentially disable local auth, but it's generally safer to keep it as a fallback or use OIDC.
+- **SSO/OIDC Integration**: Recommended for production. Configure providers in `auth.providers`.
+- **Local Login Toggle**: Control local username/password login with `auth.localLoginEnabled`.
 
 ---
 
-## Real-time Monitoring & WebSockets
+## Real-time Monitoring (SSE)
 
-Gyre uses Server-Sent Events (SSE) and WebSockets for real-time monitoring of FluxCD resources. For these to work through a proxy/ingress, ensure:
+Gyre uses Server-Sent Events (SSE) for real-time monitoring of FluxCD resources. For SSE to work through a proxy/ingress, ensure:
 
 1. **Timeouts**: Increase the proxy's read/write timeouts (as shown in the Nginx example above) to prevent premature connection drops.
-2. **Buffering**: Disable proxy buffering for long-lived connections if possible.
-3. **Protocol Upgrade**: Ensure your proxy correctly handles protocol upgrades for WebSockets.
+2. **Buffering**: Disable proxy buffering for the event stream endpoint (`/api/v1/events`).

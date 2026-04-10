@@ -12,7 +12,7 @@ Understanding Gyre's architecture helps you deploy, configure, and extend it eff
 ┌─────────────────┐
 │   User Browser  │
 └────────┬────────┘
-         │ HTTPS/WebSocket
+         │ HTTPS/SSE
          ▼
 ┌─────────────────┐
 │   Gyre Pod      │
@@ -52,12 +52,12 @@ Understanding Gyre's architecture helps you deploy, configure, and extend it eff
 - **Styling**: TailwindCSS v4 with custom zinc/gold theme
 - **Components**: shadcn-svelte + bits-ui
 - **State Management**: Svelte 5 runes-based stores
-- **Real-time Updates**: WebSocket client
+- **Real-time Updates**: SSE client (`src/lib/stores/events.svelte.ts`) connected to `src/routes/api/v1/events/+server.ts`
 
 ### Backend (SvelteKit API Routes)
 
 - **Runtime**: Node.js (via adapter-node)
-- **API**: RESTful endpoints in `src/routes/api/`
+- **API**: RESTful endpoints in `src/routes/api/v1/`
 - **Kubernetes**: @kubernetes/client-node for K8s API
 - **Authentication**: bcrypt + jose (JWT)
 - **Database**: SQLite with Drizzle ORM
@@ -93,9 +93,9 @@ src/lib/server/
 
 ### Real-time Updates
 
-1. Client connects to WebSocket
-2. Server starts K8s Watch API streams
-3. Resource changes trigger WebSocket events
+1. Client opens an SSE stream to `/api/v1/events`
+2. Server polls Kubernetes resources and emits normalized events
+3. Resource changes trigger SSE events
 4. Client receives updates and refreshes UI
 5. Audit log records actions
 
@@ -167,7 +167,7 @@ Multi-layer caching reduces K8s API calls:
 
 1. **Server Memory**: 30s TTL for dashboard data
 2. **API Responses**: 15s TTL for individual requests
-3. **WebSocket**: Invalidates cache on changes
+3. **Client-side Event Stream**: SSE keeps UI state fresh between cache refresh cycles
 
 ## Technology Stack
 
@@ -188,19 +188,13 @@ Multi-layer caching reduces K8s API calls:
 
 1. Define types in `src/lib/server/kubernetes/flux/types.ts`
 2. Add utilities in `src/lib/server/kubernetes/flux/resources.ts`
-3. Create API routes in `src/routes/api/flux/[type]/`
+3. Create API routes in `src/routes/api/v1/flux/[type]/`
 4. Add UI components in `src/lib/components/flux/resources/`
 5. Update navigation in sidebar
-
-### Custom Dashboard Widgets
-
-1. Create widget component in `src/lib/components/dashboard/`
-2. Add to widget registry
-3. Configure in database or UI
 
 ## Performance Considerations
 
 - **Large Clusters**: Consider increasing resources
 - **Multi-cluster**: Each cluster adds API overhead
-- **Real-time**: WebSocket connections have limits
+- **Real-time**: SSE connections have limits
 - **Database**: SQLite sufficient for most use cases

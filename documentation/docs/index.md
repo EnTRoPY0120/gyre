@@ -18,7 +18,7 @@ Gyre provides real-time monitoring, multi-cluster management, built-in RBAC, and
 🔐 **Built-in Authentication** - Local and SSO/OAuth support
 👥 **RBAC** - Fine-grained access control
 🌐 **Multi-cluster** - Manage multiple Kubernetes clusters
-📊 **Dashboard** - Customizable dashboards with widgets
+📊 **Dashboard** - Built-in overview cards for cluster health and Flux resource status
 
 ## Quick Start
 
@@ -59,7 +59,7 @@ Then open http://localhost:3000 in your browser.
 - **Framework:** [Svelte 5](https://svelte.dev) + SvelteKit
 - **Styling:** TailwindCSS v4 + shadcn-svelte
 - **Database:** SQLite with [Drizzle ORM](https://orm.drizzle.team)
-- **Kubernetes:** Native client with WebSocket support
+- **Kubernetes:** Native client with SSE-based real-time updates
 
 ## 📄 License
 

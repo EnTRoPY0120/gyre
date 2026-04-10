@@ -15,8 +15,9 @@ const FeatureList: FeatureItem[] = [
 		icon: '📊',
 		description: (
 			<>
-				Live updates via WebSocket provide instant visibility into your FluxCD resources. Watch
-				reconciliations happen in real-time and get immediate feedback on resource status changes.
+				Live updates via Server-Sent Events (SSE) provide instant visibility into your FluxCD
+				resources. Watch reconciliations happen in real-time and get immediate feedback on resource
+				status changes.
 			</>
 		)
 	},

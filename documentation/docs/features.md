@@ -10,20 +10,14 @@ Gyre provides a comprehensive set of features for managing FluxCD and Kubernetes
 
 ### Overview
 
-The main dashboard provides a high-level view of your cluster's health and status.
+The main dashboard provides a high-level view of cluster health and Flux resource status using built-in overview cards.
 
-### Widgets
+### Built-in Panels
 
-- **Resource Counts** - Quick overview of resource totals
-- **Recent Events** - Latest cluster events
-- **Health Status** - Cluster and resource health indicators
-- **Custom Widgets** - Build your own dashboard widgets
-
-### Customization
-
-- Drag-and-drop widget arrangement
-- Multiple dashboard layouts
-- Save and share dashboard configurations
+- **Cluster Connectivity** - Current API connectivity status for the active cluster
+- **Resource Group Totals** - Aggregated totals/health per Flux resource group
+- **Inventory Architecture** - Group-level breakdown of managed resources
+- **System Shortcuts** - Quick navigation to common operational pages
 
 ## Resource Management
 
@@ -58,7 +52,7 @@ The main dashboard provides a high-level view of your cluster's health and statu
 - Filter by namespace, status, type
 - Sort by any column
 - Bulk actions
-- Real-time updates
+- Real-time updates via SSE
 
 **Detail View:**
 
@@ -128,9 +122,8 @@ The main dashboard provides a high-level view of your cluster's health and statu
 ### Session Management
 
 - Secure HTTP-only cookies
-- Configurable session timeout
-- Concurrent session control
-- Session revocation
+- CSRF protection on state-changing requests
+- Session invalidation on logout
 
 ## RBAC (Role-Based Access Control)
 
@@ -238,17 +231,17 @@ Create new resources with guided forms:
 ### RESTful API
 
 - Full API access
-- Authentication via tokens or sessions
+- Session-based authentication
 - JSON responses
 - Pagination support
 
 ### Endpoints
 
-- `/api/flux/*` - Flux resource operations
-- `/api/clusters` - Cluster management
-- `/api/auth/*` - Authentication
-- `/api/users` - User management
-- `/api/rbac/*` - RBAC policies
+- `/api/v1/auth/*` - Login/logout/password change and OAuth flows
+- `/api/v1/flux/*` - Flux resource operations
+- `/api/v1/events` - SSE stream for real-time updates
+- `/api/v1/admin/*` - Admin settings, backups, and auth provider management
+- `/api/v1/user/preferences` - User-level UI preferences
 
 ## Security
 

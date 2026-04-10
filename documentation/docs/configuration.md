@@ -4,356 +4,142 @@ sidebar_position: 3
 
 # Configuration
 
-Configure Gyre to suit your environment and requirements.
+Configure Gyre through Helm values and environment variables.
 
 ## Overview
 
-Gyre can be configured through:
+Recommended order of precedence:
 
-1. Helm values (recommended)
-2. Environment variables
-3. Configuration file
+1. Helm values (`charts/gyre/values.yaml`)
+2. Environment variables (directly, or injected by Helm)
 
 ## Helm Configuration
 
-### Basic Configuration
-
-Create a `values.yaml` file:
+### Base Example
 
 ```yaml
-# replicas
 replicaCount: 1
 
-# image
 image:
   repository: ghcr.io/entropy0120/gyre
-  tag: latest
+  tag: ''
   pullPolicy: IfNotPresent
 
-# service
 service:
   type: ClusterIP
   port: 80
 
-# ingress
 ingress:
   enabled: false
-  className: nginx
-  annotations: {}
-  hosts:
-    - host: gyre.local
-      paths:
-        - path: /
-          pathType: Prefix
-```
 
-### Database Configuration
-
-Configure SQLite database:
-
-```yaml
 persistence:
   enabled: true
-  storageClass: standard
   accessMode: ReadWriteOnce
   size: 1Gi
 ```
 
-### Resource Configuration
-
-Adjust resource limits:
-
-```yaml
-resources:
-  limits:
-    cpu: 1000m
-    memory: 512Mi
-  requests:
-    cpu: 100m
-    memory: 128Mi
-```
-
-## Authentication Configuration
-
-### Local Authentication
-
-Enable local authentication (default):
+### Authentication
 
 ```yaml
 auth:
-  local:
-    enabled: true
+  localLoginEnabled: true
+  allowSignup: false
+  domainAllowlist: []
+  providers: []
+  providersExistingSecret: ''
 ```
 
-### SSO/OAuth Configuration
+`auth.providers` entries support OAuth/OIDC providers (for example GitHub, Google, generic OIDC).
 
-Configure OAuth providers:
+If `auth.providersExistingSecret` is set, provider client secrets are read from secret keys named:
+
+- `PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET`
+
+### Runtime / Performance
 
 ```yaml
-auth:
-  oauth:
-    enabled: true
-    providers:
-      - name: github
-        type: github
-        clientId: 'your-github-client-id'
-        clientSecret: 'your-github-client-secret'
-
-      - name: google
-        type: google
-        clientId: 'your-google-client-id'
-        clientSecret: 'your-google-client-secret'
-
-      - name: oidc
-        type: oidc
-        clientId: 'your-oidc-client-id'
-        clientSecret: 'your-oidc-client-secret'
-        issuer: 'https://your-oidc-provider.com'
+config:
+  pollIntervalMs: 5000
+  heartbeatIntervalMs: 30000
+  dashboardCacheTtlMs: 30000
+  settlingPeriodMs: 30000
+  additionalConfig: {}
 ```
 
-## Session Configuration
+`config.additionalConfig` is passed through as extra environment variables.
 
-Configure session settings:
+### Encryption and Secrets
 
 ```yaml
-session:
-  cookieName: gyre_session
-  maxAge: 86400 # 24 hours in seconds
-  secure: true # Use secure cookies
-  sameSite: lax
+encryption:
+  existingSecret: gyre-encryption
 ```
 
-## Multi-Cluster Configuration
+The referenced secret must provide:
 
-Add cluster contexts:
-
-```yaml
-clusters:
-  - name: production
-    context: prod-cluster
-    kubeconfig: |
-      apiVersion: v1
-      kind: Config
-      ...
-
-  - name: staging
-    context: staging-cluster
-    kubeconfig: |
-      ...
-```
+- `GYRE_ENCRYPTION_KEY`
+- `AUTH_ENCRYPTION_KEY`
 
 ## Environment Variables
 
-You can also configure Gyre using environment variables:
+### Core Runtime Variables
 
-| Variable              | Description                                        | Default         |
-| --------------------- | -------------------------------------------------- | --------------- |
-| `ADMIN_PASSWORD`      | Initial admin password                             | Auto-generated  |
-| `SESSION_SECRET`      | Session encryption key                             | Auto-generated  |
-| `GYRE_ENCRYPTION_KEY` | Key for encrypting cluster kubeconfigs (32 bytes)  | Required        |
-| `AUTH_ENCRYPTION_KEY` | Key for encrypting OAuth client secrets (32 bytes) | Required        |
-| `DATABASE_PATH`       | SQLite database path                               | `/data/gyre.db` |
-| `LOG_LEVEL`           | Logging level                                      | `info`          |
+| Variable                | Description                                   | Default / Notes                                             |
+| ----------------------- | --------------------------------------------- | ----------------------------------------------------------- |
+| `DATABASE_URL`          | SQLite database path                          | `/data/gyre.db` in-cluster, `./data/gyre.db` local fallback |
+| `GYRE_ENCRYPTION_KEY`   | Encryption key for stored kubeconfigs         | 64-char hex (32 bytes), required in production              |
+| `AUTH_ENCRYPTION_KEY`   | Encryption key for auth/OAuth secrets         | 64-char hex (32 bytes), required in production              |
+| `BETTER_AUTH_URL`       | Public app origin used for auth callback URLs | `http://localhost:5173` in `.env.example`                   |
+| `BETTER_AUTH_SECRET`    | Optional explicit Better Auth secret          | Falls back to `AUTH_ENCRYPTION_KEY` when unset              |
+| `ADMIN_PASSWORD`        | Optional initial admin password               | If unset, Gyre auto-generates on first startup              |
+| `BACKUP_ENCRYPTION_KEY` | Optional backup-file encryption key           | 64-char hex; when unset backups are plain `.db`             |
+| `NODE_ENV`              | Runtime mode                                  | `development` / `production`                                |
+| `BODY_SIZE_LIMIT`       | Adapter-level max request body size           | Set to `>= 500M` for kubeconfig/backup uploads              |
 
-### Example
+### Tunable Constants
 
-```yaml
-env:
-  - name: LOG_LEVEL
-    value: debug
-  - name: SESSION_SECRET
-    valueFrom:
-      secretKeyRef:
-        name: gyre-session-secret
-        key: secret
-```
+| Variable                               | Description                                    | Default                         |
+| -------------------------------------- | ---------------------------------------------- | ------------------------------- |
+| `GYRE_POLL_INTERVAL_MS`                | Kubernetes polling interval                    | `5000`                          |
+| `GYRE_HEARTBEAT_INTERVAL_MS`           | SSE heartbeat interval                         | `30000`                         |
+| `GYRE_DASHBOARD_CACHE_TTL_MS`          | Dashboard cache TTL                            | `30000`                         |
+| `GYRE_SETTLING_PERIOD_MS`              | Settling period for ADDED events               | `30000`                         |
+| `GYRE_SETTINGS_CACHE_TTL_MS`           | Settings cache TTL                             | `30000`                         |
+| `GYRE_MAX_LOCAL_BACKUPS`               | Max local backups retained                     | `10`                            |
+| `GYRE_METRICS_TOKEN`                   | Optional bearer token for `/metrics`           | Unset (public metrics endpoint) |
+| `GYRE_SSE_MAX_CONNECTIONS_PER_SESSION` | Max SSE connections per session                | `3`                             |
+| `GYRE_SSE_MAX_CONNECTIONS_PER_USER`    | Max SSE connections per user                   | `5`                             |
+| `GYRE_SSE_CONNECTION_TIMEOUT_MS`       | SSE connection lifetime (`0` disables timeout) | `0`                             |
 
-## RBAC Configuration
+### Auth Settings Overrides
 
-### Default Policies
+| Variable                                                     | Description                                  |
+| ------------------------------------------------------------ | -------------------------------------------- |
+| `GYRE_AUTH_LOCAL_LOGIN_ENABLED`                              | Enable/disable local username/password login |
+| `GYRE_AUTH_ALLOW_SIGNUP`                                     | Allow OAuth auto-signup                      |
+| `GYRE_AUTH_DOMAIN_ALLOWLIST`                                 | JSON array of allowed signup domains         |
+| `GYRE_AUTH_PROVIDERS`                                        | JSON array used to seed auth providers       |
+| `GYRE_AUTH_PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET` | Per-provider secret override                 |
 
-Create default RBAC policies:
+## Helm-to-Env Mapping
 
-```yaml
-rbac:
-  policies:
-    - name: viewer
-      rules:
-        - resources: ['*']
-          namespaces: ['*']
-          actions: ['view']
+Helm values map directly to runtime env vars:
 
-    - name: editor
-      rules:
-        - resources: ['*']
-          namespaces: ['*']
-          actions: ['view', 'edit', 'reconcile']
-
-    - name: admin
-      rules:
-        - resources: ['*']
-          namespaces: ['*']
-          actions: ['*']
-```
-
-### User Assignments
-
-Assign policies to users:
-
-```yaml
-rbac:
-  bindings:
-    - user: admin
-      policy: admin
-      cluster: '*'
-```
-
-## Advanced Configuration
-
-### Caching
-
-Configure caching behavior:
-
-```yaml
-cache:
-  enabled: true
-  ttl: 30 # seconds
-```
-
-### WebSocket
-
-Configure WebSocket settings:
-
-```yaml
-websocket:
-  enabled: true
-  pingInterval: 30 # seconds
-  reconnectInterval: 5 # seconds
-```
-
-### Audit Logging
-
-Enable audit logging:
-
-```yaml
-audit:
-  enabled: true
-  retention: 90 # days
-```
+| Helm key                     | Environment variable            |
+| ---------------------------- | ------------------------------- |
+| `config.pollIntervalMs`      | `GYRE_POLL_INTERVAL_MS`         |
+| `config.heartbeatIntervalMs` | `GYRE_HEARTBEAT_INTERVAL_MS`    |
+| `config.dashboardCacheTtlMs` | `GYRE_DASHBOARD_CACHE_TTL_MS`   |
+| `config.settlingPeriodMs`    | `GYRE_SETTLING_PERIOD_MS`       |
+| `auth.localLoginEnabled`     | `GYRE_AUTH_LOCAL_LOGIN_ENABLED` |
+| `auth.allowSignup`           | `GYRE_AUTH_ALLOW_SIGNUP`        |
+| `auth.domainAllowlist`       | `GYRE_AUTH_DOMAIN_ALLOWLIST`    |
+| `auth.providers`             | `GYRE_AUTH_PROVIDERS`           |
 
 ## Applying Configuration
-
-### Via Helm
 
 ```bash
 helm upgrade gyre oci://ghcr.io/entropy0120/charts/gyre \
   --namespace flux-system \
   -f values.yaml
 ```
-
-### Via kubectl
-
-Edit the ConfigMap:
-
-```bash
-kubectl edit configmap gyre-config -n flux-system
-```
-
-Then restart the deployment:
-
-```bash
-kubectl rollout restart deployment gyre -n flux-system
-```
-
-## Configuration Reference
-
-### Full values.yaml Example
-
-```yaml
-# Default values for gyre
-replicaCount: 1
-
-image:
-  repository: ghcr.io/entropy0120/gyre
-  tag: latest
-  pullPolicy: IfNotPresent
-
-service:
-  type: ClusterIP
-  port: 80
-
-ingress:
-  enabled: false
-  className: nginx
-  annotations: {}
-  hosts: []
-  tls: []
-
-persistence:
-  enabled: true
-  storageClass: standard
-  accessMode: ReadWriteOnce
-  size: 1Gi
-
-resources:
-  limits:
-    cpu: 1000m
-    memory: 512Mi
-  requests:
-    cpu: 100m
-    memory: 128Mi
-
-auth:
-  local:
-    enabled: true
-  oauth:
-    enabled: false
-    providers: []
-
-rbac:
-  enabled: true
-  policies: []
-  bindings: []
-
-clusterRole:
-  create: true
-  rules: []
-
-serviceAccount:
-  create: true
-  annotations: {}
-
-podAnnotations: {}
-podSecurityContext: {}
-securityContext: {}
-nodeSelector: {}
-tolerations: []
-affinity: {}
-```
-
-## Troubleshooting
-
-### Configuration Not Applied
-
-1. Check ConfigMap exists:
-
-   ```bash
-   kubectl get configmap -n flux-system
-   ```
-
-2. Verify pod is using latest config:
-
-   ```bash
-   kubectl describe pod -n flux-system -l app.kubernetes.io/name=gyre
-   ```
-
-3. Check logs:
-   ```bash
-   kubectl logs -n flux-system -l app.kubernetes.io/name=gyre
-   ```
-
-### Common Issues
-
-- **Changes not reflected**: Restart the deployment
-- **Permission errors**: Check RBAC policies
-- **Auth failures**: Verify OAuth credentials

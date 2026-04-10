@@ -4,22 +4,24 @@ sidebar_position: 7
 
 # API Reference
 
-Gyre provides a RESTful API for programmatic access to all features.
+Gyre exposes versioned HTTP endpoints under `/api/v1/*`.
 
 ## Overview
 
-Base URL: `https://your-gyre-instance/api`
+Base URL: `https://<host>/api/v1`
 
-Authentication: Session cookie or API token
+Authentication: Session cookie (`gyre_session`)
 
 Content-Type: `application/json`
+
+Compatibility note: unversioned `/api/*` paths are internally rewritten to `/api/v1/*` for backward compatibility (`src/hooks.ts`). The documented contract is `/api/v1/*`.
 
 ## Authentication
 
 ### Login
 
 ```http
-POST /api/auth/login
+POST /api/v1/auth/login
 Content-Type: application/json
 
 {
@@ -28,23 +30,29 @@ Content-Type: application/json
 }
 ```
 
-Response:
-
-```json
-{
-	"success": true,
-	"user": {
-		"id": "...",
-		"username": "admin",
-		"role": "admin"
-	}
-}
-```
-
 ### Logout
 
 ```http
-POST /api/auth/logout
+POST /api/v1/auth/logout
+```
+
+### Change Password
+
+```http
+POST /api/v1/auth/change-password
+Content-Type: application/json
+
+{
+  "currentPassword": "old-password",
+  "newPassword": "new-password"
+}
+```
+
+### OAuth / OIDC
+
+```http
+GET /api/v1/auth/{providerId}/login
+GET /api/v1/auth/{providerId}/callback
 ```
 
 ## Flux Resources
@@ -52,275 +60,135 @@ POST /api/auth/logout
 ### List Resources
 
 ```http
-GET /api/flux/[resourceType]?namespace=default&cluster=default
-```
-
-Parameters:
-
-- `namespace` - Filter by namespace
-- `cluster` - Filter by cluster context
-
-Response:
-
-```json
-{
-  "resources": [...],
-  "total": 42
-}
-```
-
-### Get Resource
-
-```http
-GET /api/flux/[resourceType]/[namespace]/[name]?cluster=default
+GET /api/v1/flux/{resourceType}?limit=50&offset=0&sortBy=name&sortOrder=asc
 ```
 
 ### Create Resource
 
 ```http
-POST /api/flux/[resourceType]
+POST /api/v1/flux/{resourceType}
 Content-Type: application/json
 
 {
-  "cluster": "default",
-  "resource": { ... }
+  "apiVersion": "source.toolkit.fluxcd.io/v1",
+  "kind": "GitRepository",
+  "metadata": {
+    "name": "app-config",
+    "namespace": "flux-system"
+  },
+  "spec": {
+    "interval": "1m",
+    "url": "https://github.com/org/repo"
+  }
 }
 ```
 
-### Update Resource
+### Get / Update / Delete Resource
 
 ```http
-PUT /api/flux/[resourceType]/[namespace]/[name]
-Content-Type: application/json
-
-{
-  "cluster": "default",
-  "resource": { ... }
-}
-```
-
-### Delete Resource
-
-```http
-DELETE /api/flux/[resourceType]/[namespace]/[name]?cluster=default
+GET /api/v1/flux/{resourceType}/{namespace}/{name}
+PUT /api/v1/flux/{resourceType}/{namespace}/{name}
+DELETE /api/v1/flux/{resourceType}/{namespace}/{name}
 ```
 
 ### Resource Actions
 
 ```http
-POST /api/flux/[resourceType]/[namespace]/[name]/reconcile
-POST /api/flux/[resourceType]/[namespace]/[name]/suspend
-POST /api/flux/[resourceType]/[namespace]/[name]/resume
+POST /api/v1/flux/{type}/{namespace}/{name}/reconcile
+POST /api/v1/flux/{type}/{namespace}/{name}/suspend
+POST /api/v1/flux/{type}/{namespace}/{name}/resume
+POST /api/v1/flux/{resourceType}/{namespace}/{name}/rollback
 ```
 
-## Clusters
-
-### List Clusters
+### Batch Actions
 
 ```http
-GET /api/clusters
+POST /api/v1/flux/batch/reconcile
+POST /api/v1/flux/batch/suspend
+POST /api/v1/flux/batch/resume
+POST /api/v1/flux/batch/delete
 ```
 
-### Add Cluster
+### Resource Diagnostics
 
 ```http
-POST /api/clusters
-Content-Type: application/json
-
-{
-  "name": "production",
-  "kubeconfig": "...",
-  "context": "default"
-}
+GET /api/v1/flux/{resourceType}/{namespace}/{name}/events
+GET /api/v1/flux/{resourceType}/{namespace}/{name}/history
+GET /api/v1/flux/{type}/{namespace}/{name}/logs
+GET /api/v1/flux/{resourceType}/{namespace}/{name}/diff
 ```
 
-### Remove Cluster
+### Overview / Health / Version
 
 ```http
-DELETE /api/clusters/[clusterId]
+GET /api/v1/flux/overview
+GET /api/v1/flux/events
+GET /api/v1/flux/health
+GET /api/v1/flux/version
 ```
 
-## Users
+## SSE Stream
 
-### List Users
-
-```http
-GET /api/users
-```
-
-### Create User
-
-```http
-POST /api/users
-Content-Type: application/json
-
-{
-  "username": "newuser",
-  "password": "...",
-  "role": "editor"
-}
-```
-
-### Update User
-
-```http
-PUT /api/users/[userId]
-Content-Type: application/json
-
-{
-  "role": "admin"
-}
-```
-
-### Delete User
-
-```http
-DELETE /api/users/[userId]
-```
-
-## RBAC
-
-### List Policies
-
-```http
-GET /api/rbac/policies
-```
-
-### Create Policy
-
-```http
-POST /api/rbac/policies
-Content-Type: application/json
-
-{
-  "name": "developer-policy",
-  "rules": [
-    {
-      "resources": ["kustomizations", "helmreleases"],
-      "namespaces": ["default", "staging"],
-      "actions": ["view", "edit"]
-    }
-  ]
-}
-```
-
-### Assign Policy to User
-
-```http
-POST /api/rbac/bindings
-Content-Type: application/json
-
-{
-  "userId": "...",
-  "policyId": "...",
-  "cluster": "default"
-}
-```
-
-## Events
-
-### Get Events
-
-```http
-GET /api/events?namespace=default&limit=50
-```
-
-Parameters:
-
-- `namespace` - Filter by namespace
-- `limit` - Maximum results (default: 50)
-
-## Health
-
-### Health Check
-
-```http
-GET /api/health
-```
-
-Response:
-
-```json
-{
-	"status": "healthy",
-	"version": "0.5.0",
-	"clusters": [
-		{
-			"name": "default",
-			"connected": true
-		}
-	]
-}
-```
-
-## WebSocket
-
-### Real-time Updates
-
-Connect to WebSocket for live updates:
+Use Server-Sent Events for real-time updates:
 
 ```javascript
-const ws = new WebSocket('wss://your-gyre-instance/api/ws');
+const events = new EventSource('/api/v1/events');
 
-ws.onmessage = (event) => {
-	const update = JSON.parse(event.data);
-	console.log('Resource update:', update);
+events.onmessage = (event) => {
+	const payload = JSON.parse(event.data);
+	console.log('SSE event:', payload);
 };
+```
+
+## Admin Endpoints
+
+These routes require an authenticated admin user:
+
+```http
+GET /api/v1/admin/settings
+PATCH /api/v1/admin/settings
+
+GET /api/v1/admin/auth-providers
+POST /api/v1/admin/auth-providers
+GET /api/v1/admin/auth-providers/{id}
+PATCH /api/v1/admin/auth-providers/{id}
+DELETE /api/v1/admin/auth-providers/{id}
+
+GET /api/v1/admin/backups
+POST /api/v1/admin/backups
+DELETE /api/v1/admin/backups?filename=<name>
+GET /api/v1/admin/backups/download?filename=<name>
+POST /api/v1/admin/backups/restore
+
+POST /api/v1/admin/k8s/clear-client-pool
+```
+
+## User Preferences
+
+```http
+POST /api/v1/user/preferences
+```
+
+## API Explorer
+
+Interactive OpenAPI explorer:
+
+```http
+GET /api/docs
+GET /api/docs/openapi.json
 ```
 
 ## Error Handling
 
-All errors follow this format:
+Errors are returned as JSON with an HTTP status code. Example:
 
 ```json
 {
-	"error": {
-		"code": "RESOURCE_NOT_FOUND",
-		"message": "Resource not found",
-		"details": {}
-	}
-}
-```
-
-Common HTTP status codes:
-
-- `200` - Success
-- `201` - Created
-- `400` - Bad Request
-- `401` - Unauthorized
-- `403` - Forbidden
-- `404` - Not Found
-- `500` - Internal Server Error
-
-## Rate Limiting
-
-API requests are rate-limited per user:
-
-- 100 requests per minute for authenticated users
-- 20 requests per minute for unauthenticated users
-
-## Pagination
-
-List endpoints support pagination:
-
-```http
-GET /api/flux/kustomizations?page=1&limit=20
-```
-
-Response includes:
-
-```json
-{
-  "resources": [...],
-  "pagination": {
-    "page": 1,
-    "limit": 20,
-    "total": 100,
-    "totalPages": 5
-  }
+	"error": "Forbidden",
+	"message": "Permission denied"
 }
 ```
 
 ---
 
-_Full API documentation coming soon. For now, explore the API routes in `src/routes/api/`._
+For implementation details, inspect `src/routes/api/v1/`.

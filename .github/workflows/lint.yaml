@@ -55,14 +55,5 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Check formatting (oxfmt)
-        run: bun run format:check
-
-      - name: Run lint (oxlint)
-        run: bun run lint
-
-      - name: Run typecheck (SvelteKit)
-        run: bun run check
-
-      - name: Run build test
-        run: bun run build
+      - name: Run verification gate (CI parity)
+        run: bun run verify:ci
