@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
 import { isPublicRoute } from '../lib/isPublicRoute.js';
 import * as actualConfig from '../lib/server/config.js';
 import * as actualConstants from '../lib/server/config/constants.js';
+
+let checkPermissionSpy: ReturnType<typeof spyOn> | undefined;
 
 function createUser(role: User['role'] = 'admin'): User {
 	const now = new Date();
@@ -43,7 +45,8 @@ async function callMetrics(options: {
 	mock.module('$lib/server/rate-limiter', () => ({
 		checkRateLimit: () => {}
 	}));
-	mock.module('$lib/server/rbac.js', () => ({
+
+	const rbacModule = {
 		checkPermission: async (
 			user: User,
 			permission: string,
@@ -55,7 +58,21 @@ async function callMetrics(options: {
 			expect(cluster).toBe(options.cluster);
 			return user.role === 'admin';
 		}
-	}));
+	};
+	checkPermissionSpy = spyOn(rbacModule, 'checkPermission').mockImplementation(
+		async (
+			user: User,
+			permission: string,
+			_resourceType: string | undefined,
+			_namespace: string | undefined,
+			cluster: string | undefined
+		) => {
+			expect(permission).toBe('admin');
+			expect(cluster).toBe(options.cluster);
+			return user.role === 'admin';
+		}
+	);
+	mock.module('$lib/server/rbac.js', () => rbacModule);
 	mock.module('$lib/server/metrics', () => ({
 		register: {
 			metrics: async () => '# mock metrics\n',
@@ -85,6 +102,7 @@ async function callMetrics(options: {
 
 afterEach(() => {
 	mock.restore();
+	checkPermissionSpy = undefined;
 });
 
 describe('hooks public auth route detection', () => {
@@ -142,6 +160,7 @@ describe('metrics handler auth behavior', () => {
 
 		expect(response.status).toBe(200);
 		expect((await response.text()).length).toBeGreaterThan(0);
+		expect(checkPermissionSpy).toHaveBeenCalled();
 	});
 
 	test('returns 403 in production with authenticated non-admin user and no bearer token', async () => {
@@ -153,6 +172,7 @@ describe('metrics handler auth behavior', () => {
 		});
 
 		expect(response.status).toBe(403);
+		expect(checkPermissionSpy).toHaveBeenCalled();
 	});
 
 	test('returns 200 in production with valid bearer token and no session', async () => {

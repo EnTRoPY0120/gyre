@@ -165,7 +165,9 @@ describe('Backup Encryption Module', () => {
 
 			// Mock existsSync to say the file exists, and readFileSync to return the encrypted buffer
 			const existsSpy = spyOn(nodeFs, 'existsSync').mockReturnValue(true);
-			const readSpy = spyOn(nodeFs, 'readFileSync').mockReturnValue(encrypted as unknown as string);
+			const readSpy = spyOn(nodeFs, 'readFileSync').mockImplementation(
+				() => encrypted as unknown as never
+			);
 
 			try {
 				const result = getDecryptedBackupBuffer(encFilename);
@@ -182,8 +184,8 @@ describe('Backup Encryption Module', () => {
 			delete process.env.BACKUP_ENCRYPTION_KEY;
 
 			const existsSpy = spyOn(nodeFs, 'existsSync').mockReturnValue(true);
-			const readSpy = spyOn(nodeFs, 'readFileSync').mockReturnValue(
-				Buffer.alloc(64) as unknown as string
+			const readSpy = spyOn(nodeFs, 'readFileSync').mockImplementation(
+				() => Buffer.alloc(64) as unknown as never
 			);
 
 			try {
