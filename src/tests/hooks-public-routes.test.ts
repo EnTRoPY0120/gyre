@@ -29,14 +29,17 @@ describe('hooks public auth route detection', () => {
 		expect(isPublicRoute('/logo.svg/extra')).toBe(false);
 	});
 
-	test('keeps /metrics public while using bearer auth only when GYRE_METRICS_TOKEN is configured', () => {
+	test('keeps /metrics public while enforcing production auth and non-production token behavior', () => {
 		const source = readRepoFile('routes/metrics/+server.ts');
 		const constantsSource = readRepoFile('lib/server/config/constants.ts');
 
 		expect(isPublicRoute('/metrics')).toBe(true);
-		expect(source).toContain('if (GYRE_METRICS_TOKEN) {');
-		expect(source).toContain('authHeader !== `Bearer ${GYRE_METRICS_TOKEN}`');
-		expect(source).not.toContain("locals.user?.role === 'admin'");
-		expect(constantsSource).toContain('If unset, /metrics is public.');
+		expect(source).toContain('if (IS_PROD) {');
+		expect(source).toContain('hasValidBearerToken');
+		expect(source).toContain('checkPermission(');
+		expect(source).toContain('else if (GYRE_METRICS_TOKEN)');
+		expect(constantsSource).toContain(
+			'In production, /metrics requires either this bearer token or an authenticated admin session.'
+		);
 	});
 });

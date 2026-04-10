@@ -15,7 +15,7 @@ import {
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { checkPermission } from '$lib/server/rbac.js';
+import { checkClusterWideReadPermission, checkPermission } from '$lib/server/rbac.js';
 import { validateK8sNamespace, validateFluxResourceSpec } from '$lib/server/validation';
 import { VALID_SORT_BY, VALID_SORT_ORDER } from '$lib/config/sorting';
 
@@ -33,7 +33,8 @@ const createFluxResourceBodySchema = z.looseObject({
 export const _metadata = {
 	GET: {
 		summary: 'List FluxCD resources',
-		description: 'Retrieve a paginated, sortable list of resources of a specific type.',
+		description:
+			'Retrieve a paginated, sortable list of resources of a specific type. Requires explicit cluster-wide read permission.',
 		tags: ['Flux'],
 		request: {
 			params: z.object({
@@ -162,14 +163,8 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request,
 
 	const listOptions: ListOptions = queryResult.data;
 
-	// Check permission (all namespaces)
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		resolvedType,
-		undefined,
-		locals.cluster
-	);
+	// Check permission (all namespaces requires explicit cluster-wide policy)
+	const hasPermission = await checkClusterWideReadPermission(locals.user, locals.cluster);
 
 	if (!hasPermission) {
 		throw error(403, { message: 'Permission denied' });

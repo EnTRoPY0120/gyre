@@ -16,6 +16,7 @@ import {
 	isSettingOverriddenByEnv
 } from '$lib/server/settings';
 import { checkPermission } from '$lib/server/rbac';
+import { logAudit } from '$lib/server/audit';
 
 export const _metadata = {
 	GET: {
@@ -170,17 +171,21 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 		if (!body || typeof body !== 'object') {
 			throw error(400, { message: 'Invalid request body' });
 		}
+		const changedKeys: string[] = [];
+		const requestedKeys = Object.keys(body);
 
 		// Update settings
 		if (typeof body.localLoginEnabled === 'boolean') {
 			if (!isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED)) {
 				await setSetting(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED, String(body.localLoginEnabled));
+				changedKeys.push(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED);
 			}
 		}
 
 		if (typeof body.allowSignup === 'boolean') {
 			if (!isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP)) {
 				await setSetting(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP, String(body.allowSignup));
+				changedKeys.push(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP);
 			}
 		}
 
@@ -194,6 +199,7 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 
 				const uniqueDomains = [...new Set(domains)];
 				await setSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST, JSON.stringify(uniqueDomains));
+				changedKeys.push(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST);
 			}
 		}
 
@@ -210,6 +216,7 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 				}
 
 				await setSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, String(retention));
+				changedKeys.push(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS);
 			}
 		}
 
@@ -218,6 +225,13 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 			getAuthSettings(),
 			getAuditLogRetentionDays()
 		]);
+		await logAudit(locals.user, 'settings:update', {
+			resourceType: 'AppSettings',
+			details: {
+				requestedKeys,
+				changedKeys
+			}
+		});
 		return json({
 			settings: {
 				localLoginEnabled: {

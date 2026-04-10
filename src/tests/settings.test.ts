@@ -276,6 +276,19 @@ describe('getAuthSettings', () => {
 		expect(settings.allowSignup).toBe(true);
 		expect(settings.domainAllowlist).toEqual([]);
 	});
+
+	test('defaults allowSignup to false in production when unset', async () => {
+		const previousNodeEnv = process.env.NODE_ENV;
+		process.env.NODE_ENV = 'production';
+
+		try {
+			const settings = await getAuthSettings();
+			expect(settings.allowSignup).toBe(false);
+		} finally {
+			if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+			else process.env.NODE_ENV = previousNodeEnv;
+		}
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -303,5 +316,22 @@ describe('seedAuthSettings', () => {
 			where: eq(schema.appSettings.key, SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED)
 		});
 		expect(row?.value).toBe('false');
+	});
+
+	test('seeds production-safe signup default when no env override is set', async () => {
+		const previousNodeEnv = process.env.NODE_ENV;
+		process.env.NODE_ENV = 'production';
+
+		try {
+			await seedAuthSettings();
+
+			const row = await state.db!.query.appSettings.findFirst({
+				where: eq(schema.appSettings.key, SETTINGS_KEYS.AUTH_ALLOW_SIGNUP)
+			});
+			expect(row?.value).toBe('false');
+		} finally {
+			if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+			else process.env.NODE_ENV = previousNodeEnv;
+		}
 	});
 });

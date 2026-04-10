@@ -101,7 +101,7 @@ resources:
 
 livenessProbe:
   httpGet:
-    path: /api/v1/flux/health
+    path: /api/v1/health
     port: 3000
   initialDelaySeconds: 30
   periodSeconds: 30
@@ -110,7 +110,7 @@ livenessProbe:
 
 readinessProbe:
   httpGet:
-    path: /api/v1/flux/health
+    path: /api/v1/health
     port: 3000
   initialDelaySeconds: 10
   periodSeconds: 10

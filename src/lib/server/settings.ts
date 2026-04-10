@@ -17,12 +17,23 @@ export const SETTINGS_KEYS = {
 } as const;
 
 // Default values
-const DEFAULTS: Record<string, string> = {
+const STATIC_DEFAULTS: Record<string, string> = {
 	[SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED]: 'true',
-	[SETTINGS_KEYS.AUTH_ALLOW_SIGNUP]: 'true',
 	[SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST]: '[]',
 	[SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS]: '90'
 };
+
+function isProductionMode(): boolean {
+	return process.env.NODE_ENV === 'production';
+}
+
+function getDefaultValue(key: string): string {
+	if (key === SETTINGS_KEYS.AUTH_ALLOW_SIGNUP) {
+		return isProductionMode() ? 'false' : 'true';
+	}
+
+	return STATIC_DEFAULTS[key] ?? '';
+}
 
 // Environment variable overrides (take precedence over DB)
 const ENV_OVERRIDES: Record<string, string> = {
@@ -64,7 +75,7 @@ export async function getSetting(key: string): Promise<string> {
 		where: eq(appSettings.key, key)
 	});
 
-	const value = setting?.value ?? DEFAULTS[key] ?? '';
+	const value = setting?.value ?? getDefaultValue(key);
 
 	// Update cache
 	cache.set(key, { value, timestamp: Date.now() });
@@ -186,9 +197,9 @@ export function isSettingOverriddenByEnv(key: string): boolean {
 export async function seedAuthSettings(): Promise<void> {
 	const db = await getDb();
 
-	for (const [key, defaultValue] of Object.entries(DEFAULTS)) {
+	for (const key of Object.keys(ENV_OVERRIDES)) {
 		const envVar = ENV_OVERRIDES[key];
-		const value = (envVar && process.env[envVar]) || defaultValue;
+		const value = (envVar && process.env[envVar]) || getDefaultValue(key);
 
 		await db
 			.insert(appSettings)

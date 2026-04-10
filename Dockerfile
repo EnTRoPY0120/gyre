@@ -101,10 +101,10 @@ ENV NODE_ENV=production \
   KUBECONFIG=/app/.kube/config
 
 # Health check
-# /metrics is a lightweight public endpoint that responds regardless of K8s connectivity.
-# Avoids false-negative unhealthy status when no kubeconfig is mounted yet.
+# /api/v1/health is an app-process readiness endpoint with no K8s dependency.
+# Avoids false-negative unhealthy status when cluster connectivity is unavailable.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/metrics', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+  CMD node -e "require('http').get('http://localhost:3000/api/v1/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 # Start the application
 # Node.js 18+ handles signals properly, no init system needed
