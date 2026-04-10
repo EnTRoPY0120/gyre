@@ -44,7 +44,17 @@ async function callMetrics(options: {
 		checkRateLimit: () => {}
 	}));
 	mock.module('$lib/server/rbac.js', () => ({
-		checkPermission: async (user: User) => user.role === 'admin'
+		checkPermission: async (
+			user: User,
+			permission: string,
+			_resourceType: string | undefined,
+			_namespace: string | undefined,
+			cluster: string | undefined
+		) => {
+			expect(permission).toBe('admin');
+			expect(cluster).toBe(options.cluster);
+			return user.role === 'admin';
+		}
 	}));
 	mock.module('$lib/server/metrics', () => ({
 		register: {
@@ -97,7 +107,7 @@ describe('hooks public auth route detection', () => {
 		expect(isPublicRoute('/logo.svg/extra')).toBe(false);
 	});
 
-	test('keeps /metrics public', () => {
+	test('treats /metrics as hook-public', () => {
 		expect(isPublicRoute('/metrics')).toBe(true);
 	});
 });
@@ -107,6 +117,15 @@ describe('metrics handler auth behavior', () => {
 		const response = await callMetrics({
 			isProd: true,
 			metricsToken: 'secret-token'
+		});
+
+		expect(response.status).toBe(401);
+		expect(await response.json()).toEqual({ error: 'Unauthorized' });
+	});
+
+	test('returns 401 in production when metrics token is unset and request is unauthenticated', async () => {
+		const response = await callMetrics({
+			isProd: true
 		});
 
 		expect(response.status).toBe(401);
