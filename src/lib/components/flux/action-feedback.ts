@@ -13,7 +13,10 @@ export function isOptimisticAction(action: ResourceAction): boolean {
 	return action === 'suspend' || action === 'resume';
 }
 
-export function buildOptimisticResource(resource: FluxResource, action: ResourceAction): FluxResource {
+export function buildOptimisticResource(
+	resource: FluxResource,
+	action: ResourceAction
+): FluxResource {
 	const optimisticResource = JSON.parse(JSON.stringify(resource)) as FluxResource;
 
 	if (action === 'suspend' || action === 'resume') {

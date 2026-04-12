@@ -14,65 +14,57 @@
 	import { Pause, Play, RefreshCw, Trash2, X } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import { getCsrfToken } from '$lib/utils/csrf';
+	import {
+		partitionBatchOperationResult,
+		toBatchResourceItem,
+		type BatchAction,
+		type BatchOperationResponse,
+		type FailedBatchResource
+	} from './bulk-actions';
 
 	interface Props {
 		selectedResources: FluxResource[];
 		onClearSelection: () => void;
+		onSetSelection: (resources: FluxResource[]) => void;
 		onOperationComplete?: () => void;
 	}
 
-	let { selectedResources, onClearSelection, onOperationComplete }: Props = $props();
+	let { selectedResources, onClearSelection, onSetSelection, onOperationComplete }: Props = $props();
 
 	let isProcessing = $state(false);
 	let showDeleteDialog = $state(false);
-	let currentOperation = $state<string | null>(null);
-
-	interface BatchResourceItem {
-		type: string;
-		namespace: string;
-		name: string;
-	}
-
-	interface BatchOperationResult {
-		resource: BatchResourceItem;
-		success: boolean;
-		message: string;
-	}
-
-	interface BatchOperationResponse {
-		results: BatchOperationResult[];
-		summary: {
-			total: number;
-			successful: number;
-			failed: number;
-		};
-	}
-
-	function getResourceType(resource: FluxResource): string {
-		return resource.kind || '';
-	}
+	let currentOperation = $state<BatchAction | null>(null);
+	let lastBatchResult = $state<{
+		action: BatchAction;
+		failedResources: FailedBatchResource[];
+	} | null>(null);
 
 	// Past tense verb map to avoid invalid words like "resumeed"
-	const pastTenseMap: Record<string, string> = {
+	const pastTenseMap: Record<BatchAction, string> = {
 		suspend: 'suspended',
 		resume: 'resumed',
 		reconcile: 'reconciled',
 		delete: 'deleted'
 	};
 
-	async function performBatchOperation(action: 'suspend' | 'resume' | 'reconcile' | 'delete') {
-		if (selectedResources.length === 0) return;
+	$effect(() => {
+		if (selectedResources.length === 0) {
+			lastBatchResult = null;
+		}
+	});
+
+	async function performBatchOperation(
+		action: BatchAction,
+		resourcesToOperateOn: FluxResource[] = selectedResources
+	) {
+		if (resourcesToOperateOn.length === 0) return;
 
 		isProcessing = true;
 		currentOperation = action;
 
-		const resources = selectedResources.map((r) => ({
-			type: getResourceType(r),
-			namespace: r.metadata.namespace || '',
-			name: r.metadata.name || ''
-		}));
+		const resources = resourcesToOperateOn.map((resource) => toBatchResourceItem(resource));
 
-		const pastTense = pastTenseMap[action] || `${action}ed`;
+		const pastTense = pastTenseMap[action];
 
 		try {
 			const response = await fetch(`/api/v1/flux/batch/${action}`, {
@@ -86,24 +78,34 @@
 			}
 
 			const data: BatchOperationResponse = await response.json();
+			const result = partitionBatchOperationResult(resourcesToOperateOn, data);
 
-			// Show results
-			if (data.summary.failed === 0) {
+			if (result.allSucceeded) {
 				toast.success(`Successfully ${pastTense} ${data.summary.successful} resource(s)`, {
-					description: `All operations completed successfully`
+					description: 'All operations completed successfully'
 				});
-			} else if (data.summary.successful === 0) {
+				lastBatchResult = null;
+				onClearSelection();
+			} else if (result.allFailed) {
 				toast.error(`Failed to ${action} resources`, {
 					description: `All ${data.summary.failed} operations failed`
 				});
+				lastBatchResult = {
+					action,
+					failedResources: result.failedResources
+				};
+				onSetSelection(result.nextSelectedResources);
 			} else {
 				toast.warning(`Partially completed ${action} operation`, {
 					description: `${data.summary.successful} succeeded, ${data.summary.failed} failed`
 				});
+				lastBatchResult = {
+					action,
+					failedResources: result.failedResources
+				};
+				onSetSelection(result.nextSelectedResources);
 			}
 
-			// Clear selection and notify parent
-			onClearSelection();
 			if (onOperationComplete) {
 				onOperationComplete();
 			}
@@ -129,6 +131,15 @@
 		await performBatchOperation('reconcile');
 	}
 
+	async function handleRetryFailed() {
+		if (!lastBatchResult || lastBatchResult.failedResources.length === 0) {
+			return;
+		}
+
+		const resourcesToRetry = lastBatchResult.failedResources.map((failure) => failure.originalResource);
+		await performBatchOperation(lastBatchResult.action, resourcesToRetry);
+	}
+
 	function handleDeleteClick() {
 		showDeleteDialog = true;
 	}
@@ -138,74 +149,118 @@
 		await performBatchOperation('delete');
 	}
 
-	const selectedCount = $derived(selectedResources.length);
+const selectedCount = $derived(selectedResources.length);
 </script>
 
 <div
-	class="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 transform rounded-xl border border-border bg-card/95 px-6 py-4 shadow-2xl backdrop-blur-lg transition-all duration-300"
+	class="fixed bottom-6 left-1/2 z-50 w-[min(92vw,56rem)] -translate-x-1/2 transform rounded-xl border border-border bg-card/95 px-6 py-4 shadow-2xl backdrop-blur-lg transition-all duration-300"
 >
-	<div class="flex items-center gap-4">
-		<div class="flex items-center gap-2 border-r border-border pr-4">
-			<span class="font-mono text-sm font-medium">
-				{selectedCount}
-				{selectedCount === 1 ? 'resource' : 'resources'} selected
-			</span>
-			<Button
-				variant="ghost"
-				size="sm"
-				onclick={onClearSelection}
-				disabled={isProcessing}
-				aria-label="Clear selection"
-			>
-				<X size={16} />
-			</Button>
+	<div class="space-y-4">
+		<div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+			<div class="flex items-center gap-2 lg:border-r lg:border-border lg:pr-4">
+				<span class="font-mono text-sm font-medium">
+					{selectedCount}
+					{selectedCount === 1 ? 'resource' : 'resources'} selected
+				</span>
+				<Button
+					variant="ghost"
+					size="sm"
+					onclick={onClearSelection}
+					disabled={isProcessing}
+					aria-label="Clear selection"
+				>
+					<X size={16} />
+				</Button>
+			</div>
+
+			<div class="flex flex-wrap items-center gap-2">
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={handleSuspend}
+					disabled={isProcessing}
+					aria-label="Suspend selected resources"
+				>
+					<Pause size={16} />
+					<span class="ml-2">Suspend</span>
+				</Button>
+
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={handleResume}
+					disabled={isProcessing}
+					aria-label="Resume selected resources"
+				>
+					<Play size={16} />
+					<span class="ml-2">Resume</span>
+				</Button>
+
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={handleReconcile}
+					disabled={isProcessing}
+					aria-label="Reconcile selected resources"
+				>
+					<RefreshCw size={16} class={currentOperation === 'reconcile' ? 'animate-spin' : ''} />
+					<span class="ml-2">Reconcile</span>
+				</Button>
+
+				<Button
+					variant="destructive"
+					size="sm"
+					onclick={handleDeleteClick}
+					disabled={isProcessing}
+					aria-label="Delete selected resources"
+				>
+					<Trash2 size={16} />
+					<span class="ml-2">Delete</span>
+				</Button>
+			</div>
 		</div>
 
-		<div class="flex items-center gap-2">
-			<Button
-				variant="outline"
-				size="sm"
-				onclick={handleSuspend}
-				disabled={isProcessing}
-				aria-label="Suspend selected resources"
-			>
-				<Pause size={16} />
-				<span class="ml-2">Suspend</span>
-			</Button>
+		{#if lastBatchResult && lastBatchResult.failedResources.length > 0}
+			<div class="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4">
+				<div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+					<div>
+						<p class="text-sm font-semibold text-foreground">
+							Retry {lastBatchResult.failedResources.length} failed
+							{lastBatchResult.failedResources.length === 1 ? ' resource' : ' resources'}
+						</p>
+						<p class="mt-1 text-sm text-muted-foreground">
+							Only the failed resources remain selected so you can retry the same action
+							without rebuilding the selection.
+						</p>
+					</div>
+					<Button
+						variant="outline"
+						size="sm"
+						onclick={handleRetryFailed}
+						disabled={isProcessing}
+					>
+						<RefreshCw size={16} class={currentOperation ? 'animate-spin' : ''} />
+						<span class="ml-2">Retry Failed</span>
+					</Button>
+				</div>
 
-			<Button
-				variant="outline"
-				size="sm"
-				onclick={handleResume}
-				disabled={isProcessing}
-				aria-label="Resume selected resources"
-			>
-				<Play size={16} />
-				<span class="ml-2">Resume</span>
-			</Button>
-
-			<Button
-				variant="outline"
-				size="sm"
-				onclick={handleReconcile}
-				disabled={isProcessing}
-				aria-label="Reconcile selected resources"
-			>
-				<RefreshCw size={16} class={currentOperation === 'reconcile' ? 'animate-spin' : ''} />
-				<span class="ml-2">Reconcile</span>
-			</Button>
-
-			<Button
-				variant="destructive"
-				size="sm"
-				onclick={handleDeleteClick}
-				disabled={isProcessing}
-				aria-label="Delete selected resources"
-			>
-				<Trash2 size={16} />
-				<span class="ml-2">Delete</span>
-			</Button>
-		</div>
+				<div class="mt-4 space-y-2">
+					{#each lastBatchResult.failedResources as failure (`${failure.resource.type}:${failure.resource.namespace}:${failure.resource.name}`)}
+						<div class="rounded-lg border border-border/60 bg-background/70 px-3 py-2">
+							<div class="flex flex-col gap-1 md:flex-row md:items-center md:justify-between">
+								<div>
+									<p class="font-mono text-sm text-foreground">{failure.resource.name}</p>
+									<p class="text-xs text-muted-foreground">
+										Namespace: {failure.resource.namespace || 'cluster-scoped'}
+									</p>
+								</div>
+								<p class="text-xs text-destructive">{failure.message}</p>
+							</div>
+						</div>
+					{/each}
+				</div>
+			</div>
+		{/if}
 	</div>
 </div>
 

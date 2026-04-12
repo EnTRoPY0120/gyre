@@ -44,14 +44,16 @@ export const ADMIN_ONBOARDING_CHECKLIST_ITEMS: AdminOnboardingChecklistItem[] = 
 ];
 
 export function normalizeAdminChecklistCompletedItems(
-	items: UserPreferences['onboarding'] extends { adminChecklistCompletedItems?: infer T } ? T : string[] | undefined
+	items: string[] | undefined
 ): AdminOnboardingChecklistId[] {
 	if (!Array.isArray(items)) {
 		return [];
 	}
 
 	const validIds = new Set<string>(ADMIN_ONBOARDING_CHECKLIST_IDS);
-	return [...new Set(items.filter((item): item is AdminOnboardingChecklistId => validIds.has(item)))];
+	return [
+		...new Set(items.filter((item): item is AdminOnboardingChecklistId => validIds.has(item)))
+	];
 }
 
 export function getAdminChecklistState(preferences?: UserPreferences | null) {

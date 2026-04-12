@@ -72,7 +72,8 @@ export const ADMIN_HOME_FEATURES: AdminNavigationLink[] = [
 		label: 'Application Settings',
 		href: '/admin/settings',
 		icon: 'settings',
-		description: 'Review deployment defaults, runtime settings, and recovery-critical configuration.',
+		description:
+			'Review deployment defaults, runtime settings, and recovery-critical configuration.',
 		color: 'text-primary',
 		bg: 'bg-primary/10'
 	},
