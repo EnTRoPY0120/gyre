@@ -47,8 +47,28 @@
 		delete: 'deleted'
 	};
 
+	function getResourceKey(resource: FluxResource): string {
+		return `${resource.kind || ''}:${resource.metadata.namespace || ''}:${resource.metadata.name || ''}`;
+	}
+
+	function selectionMatchesFailedResources(
+		selection: FluxResource[],
+		failedResources: FailedBatchResource[]
+	): boolean {
+		if (selection.length !== failedResources.length) {
+			return false;
+		}
+
+		const selectedKeys = new Set(selection.map((resource) => getResourceKey(resource)));
+		return failedResources.every((failure) => selectedKeys.has(getResourceKey(failure.originalResource)));
+	}
+
 	$effect(() => {
-		if (selectedResources.length === 0) {
+		if (!lastBatchResult) {
+			return;
+		}
+
+		if (!selectionMatchesFailedResources(selectedResources, lastBatchResult.failedResources)) {
 			lastBatchResult = null;
 		}
 	});
@@ -149,7 +169,7 @@
 		await performBatchOperation('delete');
 	}
 
-const selectedCount = $derived(selectedResources.length);
+	const selectedCount = $derived(selectedResources.length);
 </script>
 
 <div

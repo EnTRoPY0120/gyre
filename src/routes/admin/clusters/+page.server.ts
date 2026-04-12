@@ -189,6 +189,7 @@ export const actions: Actions = {
 					connected: result.connected,
 					clusterName: result.clusterName,
 					kubernetesVersion: result.kubernetesVersion,
+					error: result.error,
 					timestamp: result.timestamp,
 					checks: result.checks.map((c) => ({
 						name: c.name,

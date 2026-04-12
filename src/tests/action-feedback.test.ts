@@ -23,4 +23,15 @@ describe('resolveResourceActionFeedback', () => {
 		expect(result.tone).toBe('warning');
 		expect(result.message).toBe('Action applied, but refresh failed');
 	});
+
+	test('non-optimistic mutation failure does not roll back optimistic state', () => {
+		const result = resolveResourceActionFeedback({
+			action: 'reconcile',
+			mutationError: new Error('Mutation failed')
+		});
+
+		expect(result.rollbackOptimistic).toBe(false);
+		expect(result.tone).toBe('error');
+		expect(result.message).toBe('Mutation failed');
+	});
 });

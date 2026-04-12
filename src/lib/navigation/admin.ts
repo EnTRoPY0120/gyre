@@ -1,4 +1,15 @@
+export type AdminNavigationLinkId =
+	| 'settings'
+	| 'clusters'
+	| 'auth-providers'
+	| 'policies'
+	| 'audit-logs'
+	| 'backups'
+	| 'users'
+	| 'application-settings';
+
 export interface AdminNavigationLink {
+	id: AdminNavigationLinkId;
 	label: string;
 	href: string;
 	icon: string;
@@ -7,8 +18,9 @@ export interface AdminNavigationLink {
 	bg: string;
 }
 
-export const ADMIN_SIDEBAR_LINKS: AdminNavigationLink[] = [
+export const ADMIN_SIDEBAR_LINKS: ReadonlyArray<AdminNavigationLink> = [
 	{
+		id: 'settings',
 		label: 'Settings',
 		href: '/admin/settings',
 		icon: 'settings',
@@ -17,6 +29,7 @@ export const ADMIN_SIDEBAR_LINKS: AdminNavigationLink[] = [
 		bg: 'bg-primary/10'
 	},
 	{
+		id: 'clusters',
 		label: 'Clusters',
 		href: '/admin/clusters',
 		icon: 'server',
@@ -25,6 +38,7 @@ export const ADMIN_SIDEBAR_LINKS: AdminNavigationLink[] = [
 		bg: 'bg-amber-500/10'
 	},
 	{
+		id: 'auth-providers',
 		label: 'Auth Providers',
 		href: '/admin/auth-providers',
 		icon: 'key',
@@ -33,6 +47,7 @@ export const ADMIN_SIDEBAR_LINKS: AdminNavigationLink[] = [
 		bg: 'bg-primary/10'
 	},
 	{
+		id: 'policies',
 		label: 'Policies',
 		href: '/admin/policies',
 		icon: 'shield-check',
@@ -41,6 +56,7 @@ export const ADMIN_SIDEBAR_LINKS: AdminNavigationLink[] = [
 		bg: 'bg-primary/10'
 	},
 	{
+		id: 'audit-logs',
 		label: 'Audit Logs',
 		href: '/admin/audit-logs',
 		icon: 'history',
@@ -49,6 +65,7 @@ export const ADMIN_SIDEBAR_LINKS: AdminNavigationLink[] = [
 		bg: 'bg-primary/10'
 	},
 	{
+		id: 'backups',
 		label: 'Backups',
 		href: '/admin/backups',
 		icon: 'hard-drive',
@@ -57,6 +74,7 @@ export const ADMIN_SIDEBAR_LINKS: AdminNavigationLink[] = [
 		bg: 'bg-primary/10'
 	},
 	{
+		id: 'users',
 		label: 'Users',
 		href: '/admin/users',
 		icon: 'users',
@@ -66,9 +84,19 @@ export const ADMIN_SIDEBAR_LINKS: AdminNavigationLink[] = [
 	}
 ];
 
-export const ADMIN_HOME_FEATURES: AdminNavigationLink[] = [
-	ADMIN_SIDEBAR_LINKS[1],
+function getAdminSidebarLinkById(id: AdminNavigationLinkId): AdminNavigationLink {
+	const link = ADMIN_SIDEBAR_LINKS.find((item) => item.id === id);
+	if (!link) {
+		throw new Error(`Missing admin sidebar link for id: ${id}`);
+	}
+
+	return link;
+}
+
+export const ADMIN_HOME_FEATURES: ReadonlyArray<AdminNavigationLink> = [
+	getAdminSidebarLinkById('clusters'),
 	{
+		id: 'application-settings',
 		label: 'Application Settings',
 		href: '/admin/settings',
 		icon: 'settings',
@@ -77,17 +105,18 @@ export const ADMIN_HOME_FEATURES: AdminNavigationLink[] = [
 		color: 'text-primary',
 		bg: 'bg-primary/10'
 	},
-	ADMIN_SIDEBAR_LINKS[2],
-	ADMIN_SIDEBAR_LINKS[5],
-	ADMIN_SIDEBAR_LINKS[6],
-	ADMIN_SIDEBAR_LINKS[3],
-	ADMIN_SIDEBAR_LINKS[4]
+	getAdminSidebarLinkById('auth-providers'),
+	getAdminSidebarLinkById('backups'),
+	getAdminSidebarLinkById('users'),
+	getAdminSidebarLinkById('policies'),
+	getAdminSidebarLinkById('audit-logs')
 ];
 
+// Keep this aligned with server-side `isAdmin(user)` in `src/lib/server/rbac.ts`.
 export function isAdminRole(role?: string | null): boolean {
 	return role === 'admin';
 }
 
 export function getAdminSidebarLinks(role?: string | null): AdminNavigationLink[] {
-	return isAdminRole(role) ? ADMIN_SIDEBAR_LINKS : [];
+	return isAdminRole(role) ? [...ADMIN_SIDEBAR_LINKS] : [];
 }

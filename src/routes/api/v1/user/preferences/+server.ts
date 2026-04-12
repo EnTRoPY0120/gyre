@@ -8,12 +8,7 @@ import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { logAudit } from '$lib/server/audit';
-import {
-	mergeUserPreferences,
-	notificationPreferencesSchema,
-	onboardingPreferencesSchema,
-	preferencesSchema
-} from '$lib/server/user-preferences';
+import { mergeUserPreferences, preferencesSchema } from '$lib/server/user-preferences';
 
 export const _metadata = {
 	POST: {
@@ -36,11 +31,7 @@ export const _metadata = {
 					'application/json': {
 						schema: z.object({
 							success: z.boolean(),
-							preferences: z.object({
-								theme: z.enum(['light', 'dark', 'system']).optional(),
-								notifications: notificationPreferencesSchema,
-								onboarding: onboardingPreferencesSchema
-							})
+							preferences: preferencesSchema
 						})
 					}
 				}

@@ -12,6 +12,16 @@ describe('preferencesSchema', () => {
 
 		expect(parsed.success).toBe(true);
 	});
+
+	test('rejects invalid onboarding checklist item IDs', () => {
+		const parsed = preferencesSchema.safeParse({
+			onboarding: {
+				adminChecklistCompletedItems: ['invalid-checklist']
+			}
+		});
+
+		expect(parsed.success).toBe(false);
+	});
 });
 
 describe('mergeUserPreferences', () => {

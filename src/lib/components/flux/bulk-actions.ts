@@ -68,12 +68,16 @@ export function partitionBatchOperationResult(
 				}
 			];
 		});
+	const allSucceeded =
+		response.results.length > 0 && response.results.every((result) => result.success);
+	const allFailed =
+		response.results.length > 0 && response.results.every((result) => !result.success);
 
 	return {
 		failedResources,
 		nextSelectedResources: failedResources.map((failure) => failure.originalResource),
-		allSucceeded: response.summary.failed === 0,
-		allFailed: response.summary.successful === 0
+		allSucceeded,
+		allFailed
 	};
 }
 

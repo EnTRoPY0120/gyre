@@ -35,6 +35,7 @@
 
 	let isLoading = $state(false);
 	let feedback = $state<{ tone: ActionFeedbackTone; message: string } | null>(null);
+	let feedbackTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
 	let showSuspendDialog = $state(false);
 	let showEditModal = $state(false);
 	let showDeleteModal = $state(false);
@@ -54,12 +55,27 @@
 	const canWrite = $derived(userRole === 'admin' || userRole === 'editor');
 	const isSuspended = $derived(resource.spec?.suspend === true);
 
+	$effect(() => {
+		return () => {
+			if (feedbackTimeout) {
+				clearTimeout(feedbackTimeout);
+			}
+		};
+	});
+
 	function showTimedFeedback(tone: ActionFeedbackTone, message: string) {
-		feedback = { tone, message };
-		setTimeout(() => {
-			if (feedback?.message === message) {
+		const nextFeedback = { tone, message };
+		feedback = nextFeedback;
+
+		if (feedbackTimeout) {
+			clearTimeout(feedbackTimeout);
+		}
+
+		feedbackTimeout = setTimeout(() => {
+			if (feedback === nextFeedback) {
 				feedback = null;
 			}
+			feedbackTimeout = null;
 		}, 5000);
 	}
 

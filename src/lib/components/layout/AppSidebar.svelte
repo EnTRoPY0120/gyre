@@ -440,7 +440,7 @@
 				</span>
 			</a>
 			{#if isOpen && adminLinks.length > 0}
-				<div class="mt-2 space-y-2">
+				<div class="mt-2 max-h-[45vh] space-y-2 overflow-y-auto pr-1">
 					<button
 						type="button"
 						onclick={() => toggleGroup('Admin')}
@@ -459,7 +459,10 @@
 						/>
 					</button>
 					{#if expandedGroups.Admin}
-						<div id="panel-admin" class="relative ml-2 space-y-1 border-l border-sidebar-border/30 pl-3">
+						<div
+							id="panel-admin"
+							class="relative ml-2 max-h-[min(36vh,18rem)] space-y-1 overflow-y-auto border-l border-sidebar-border/30 pl-3 pr-1"
+						>
 							{#each adminLinks as link (link.href)}
 								<a
 									href={link.href}
@@ -467,7 +470,7 @@
 									data-sveltekit-preload-data="hover"
 									class={cn(
 										'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
-										currentPath === link.href
+										currentPath.startsWith(link.href)
 											? 'border border-primary/20 bg-primary/10 text-primary shadow-sm'
 											: 'text-muted-foreground/80 hover:bg-primary/5 hover:text-primary'
 									)}
@@ -477,7 +480,7 @@
 										size={16}
 										class={cn(
 											'shrink-0 transition-transform duration-300 group-hover/item:scale-110',
-											currentPath === link.href && 'text-primary'
+											currentPath.startsWith(link.href) && 'text-primary'
 										)}
 									/>
 									<span class="relative z-10 whitespace-nowrap transition-opacity duration-300">
