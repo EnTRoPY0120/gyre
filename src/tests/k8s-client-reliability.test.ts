@@ -11,7 +11,10 @@ import {
 	gracefulShutdown,
 	auditLogSecretAccess
 } from '../lib/server/kubernetes/client.js';
-import { assertSupportedKubeConfigOptions } from '../lib/server/kubernetes/config.js';
+import {
+	assertSupportedKubeConfigOptions,
+	loadKubeConfig
+} from '../lib/server/kubernetes/config.js';
 import { ConfigurationError } from '../lib/server/kubernetes/errors.js';
 
 // ---------------------------------------------------------------------------
@@ -231,6 +234,17 @@ describe('Kubeconfig Configuration Options', () => {
 				noProxy: 'localhost,.example.com'
 			})
 		).toThrow(ConfigurationError);
+	});
+
+	test('runtime loadKubeConfig rejects transport overrides', async () => {
+		try {
+			await loadKubeConfig({
+				httpProxy: 'http://proxy:8080'
+			});
+			throw new Error('Expected ConfigurationError');
+		} catch (error) {
+			expect(error).toBeInstanceOf(ConfigurationError);
+		}
 	});
 
 	test('rejects multiple overrides and lists all rejected keys', () => {
