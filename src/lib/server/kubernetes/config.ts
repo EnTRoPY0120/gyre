@@ -3,21 +3,37 @@ import * as k8s from '@kubernetes/client-node';
 import { ConfigurationError } from './errors.js';
 
 /**
- * Configuration options kept for internal compatibility.
+ * @deprecated Compatibility shim only. Gyre does not support transport-layer
+ * overrides through this interface.
  *
- * Gyre currently supports only kubeconfig-provided / in-cluster connectivity
- * settings and rejects transport-layer overrides.
+ * Any non-empty override (or `insecureSkipVerify: true`) will throw
+ * `ConfigurationError`.
  */
 export interface KubeConfigOptions {
-	/** Custom CA certificate data (PEM format). Overrides the CA from kubeconfig. */
+	/**
+	 * @deprecated Compatibility shim only. Any non-empty value will throw
+	 * `ConfigurationError`.
+	 */
 	caData?: string;
-	/** Skip TLS certificate verification (insecure, use for testing/dev only). */
+	/**
+	 * @deprecated Compatibility shim only. Setting this to `true` will throw
+	 * `ConfigurationError`.
+	 */
 	insecureSkipVerify?: boolean;
-	/** HTTP proxy URL (e.g., http://proxy.example.com:8080). */
+	/**
+	 * @deprecated Compatibility shim only. Any non-empty value will throw
+	 * `ConfigurationError`.
+	 */
 	httpProxy?: string;
-	/** HTTPS proxy URL. Falls back to httpProxy if not specified. */
+	/**
+	 * @deprecated Compatibility shim only. Any non-empty value will throw
+	 * `ConfigurationError`.
+	 */
 	httpsProxy?: string;
-	/** Comma-separated list of hosts to exclude from proxy (e.g., localhost,.example.com). */
+	/**
+	 * @deprecated Compatibility shim only. Any non-empty value will throw
+	 * `ConfigurationError`.
+	 */
 	noProxy?: string;
 }
 
@@ -61,7 +77,11 @@ export function assertSupportedKubeConfigOptions(options?: KubeConfigOptions): v
  * 2. Local development: Falls back to KUBECONFIG env var or ~/.kube/config
  *
  * This allows the same code to work in both production and local development.
- * @param options - Optional TLS and proxy configuration
+ * Transport-layer overrides are not supported: any non-empty override (or
+ * `insecureSkipVerify: true`) is rejected with `ConfigurationError`.
+ *
+ * @param options - Compatibility shim for legacy callers; populated transport
+ * overrides will throw.
  */
 export function loadKubeConfig(options?: KubeConfigOptions): k8s.KubeConfig {
 	const config = new k8s.KubeConfig();
