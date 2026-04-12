@@ -129,6 +129,14 @@
 		selectedResourceIds = new Set();
 	}
 
+	function setSelection(nextResources: FluxResource[]) {
+		selectedResourceIds = new Set(
+			nextResources
+				.map((resource) => resource.metadata.uid)
+				.filter((uid): uid is string => Boolean(uid))
+		);
+	}
+
 	function getReadyMessage(resource: FluxResource): string {
 		const ready = resource.status?.conditions?.find((c) => c.type === 'Ready');
 		return ready?.message || '-';
@@ -395,6 +403,7 @@
 		<BulkActionsToolbar
 			{selectedResources}
 			onClearSelection={clearSelection}
+			onSetSelection={setSelection}
 			{onOperationComplete}
 		/>
 	{/if}

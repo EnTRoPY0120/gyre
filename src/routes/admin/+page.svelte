@@ -1,60 +1,10 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { GYRE_VERSION } from '$lib/config/version';
+	import { ADMIN_HOME_FEATURES } from '$lib/navigation/admin';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
-
-	const adminFeatures = [
-		{
-			title: 'User Management',
-			description: 'Manage user accounts, roles, and permissions.',
-			href: '/admin/users',
-			icon: 'users',
-			color: 'text-primary',
-			bg: 'bg-primary/10'
-		},
-		{
-			title: 'Cluster Management',
-			description: 'Configure and manage Kubernetes cluster contexts.',
-			href: '/admin/clusters',
-			icon: 'server',
-			color: 'text-amber-500',
-			bg: 'bg-amber-500/10'
-		},
-		{
-			title: 'Auth Providers',
-			description: 'Configure SSO and OAuth2 authentication providers.',
-			href: '/admin/auth-providers',
-			icon: 'key',
-			color: 'text-primary',
-			bg: 'bg-primary/10'
-		},
-		{
-			title: 'Policies & RBAC',
-			description: 'Define access control policies and permissions.',
-			href: '/admin/policies',
-			icon: 'shield-check',
-			color: 'text-primary',
-			bg: 'bg-primary/10'
-		},
-		{
-			title: 'Audit Logs',
-			description: 'Track system activities, security events, and changes.',
-			href: '/admin/audit-logs',
-			icon: 'history',
-			color: 'text-primary',
-			bg: 'bg-primary/10'
-		},
-		{
-			title: 'Database Backups',
-			description: 'Create, download, and restore database backups.',
-			href: '/admin/backups',
-			icon: 'hard-drive',
-			color: 'text-primary',
-			bg: 'bg-primary/10'
-		}
-	];
 
 	const systemInfoItems = $derived.by(() =>
 		[
@@ -75,7 +25,7 @@
 	</div>
 
 	<div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-		{#each adminFeatures as feature (feature.title)}
+		{#each ADMIN_HOME_FEATURES as feature (feature.label)}
 			<a
 				href={feature.href}
 				class="group relative flex flex-col rounded-2xl border border-border bg-card/40 p-6 transition-all duration-300 hover:border-primary/30 hover:bg-card/60 hover:shadow-2xl hover:shadow-primary/5"
@@ -85,9 +35,7 @@
 				>
 					<Icon name={feature.icon} size={24} />
 				</div>
-				<h3 class="mb-2 text-lg font-bold text-foreground group-hover:text-primary">
-					{feature.title}
-				</h3>
+				<h3 class="mb-2 text-lg font-bold text-foreground group-hover:text-primary">{feature.label}</h3>
 				<p class="text-sm leading-relaxed text-muted-foreground group-hover:text-foreground">
 					{feature.description}
 				</p>
@@ -95,7 +43,7 @@
 				<div
 					class="mt-6 flex items-center text-xs font-bold tracking-wider text-primary uppercase opacity-0 transition-opacity duration-300 group-hover:opacity-100"
 				>
-					Open {feature.title}
+					Open {feature.label}
 					<Icon name="arrow-right" size={14} class="ml-2" />
 				</div>
 			</a>

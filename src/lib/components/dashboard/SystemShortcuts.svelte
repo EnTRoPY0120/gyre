@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { resourceGroups } from '$lib/config/resources';
@@ -15,6 +16,7 @@
 	const sourcesShortcut = getShortcut('Sources', '/resources/gitrepositories', 'git-branch');
 	const kustomizeShortcut = getShortcut('Kustomize', '/resources/kustomizations', 'file-cog');
 	const helmShortcut = getShortcut('Helm', '/resources/helmreleases', 'ship');
+	const isAdmin = $derived($page.data.user?.role === 'admin');
 </script>
 
 <!-- System Shortcuts -->
@@ -33,10 +35,27 @@
 				System Core
 			</h2>
 			<p class="mt-2 max-w-md text-sm font-medium text-muted-foreground">
-				Immediate administrative access to cluster source controllers and orchestration engines.
+				Immediate access to controller inventory, plus direct recovery routes for cluster and
+				application configuration.
 			</p>
 		</div>
 		<div class="flex flex-wrap gap-3 md:gap-4">
+			{#if isAdmin}
+				<a
+					href="/admin/clusters"
+					class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-black tracking-widest text-primary-foreground uppercase shadow-2xl shadow-primary/20 transition-all hover:translate-y-[-4px] hover:shadow-primary/40 active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
+				>
+					<Icon name="server" size={18} />
+					Clusters
+				</a>
+				<a
+					href="/admin/settings"
+					class="inline-flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar px-4 py-3 text-xs font-black tracking-widest text-foreground uppercase transition-all hover:translate-y-[-4px] hover:bg-muted active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"
+				>
+					<Icon name="settings" size={18} />
+					Settings
+				</a>
+			{/if}
 			<a
 				href={sourcesShortcut.route}
 				class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-xs font-black tracking-widest text-primary-foreground uppercase shadow-2xl shadow-primary/20 transition-all hover:translate-y-[-4px] hover:shadow-primary/40 active:scale-95 md:gap-3 md:rounded-2xl md:px-8 md:py-4 md:text-sm"

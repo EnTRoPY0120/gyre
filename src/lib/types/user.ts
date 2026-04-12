@@ -5,5 +5,9 @@ export interface UserPreferences {
 		namespaces?: string[];
 		events?: ('success' | 'failure' | 'warning' | 'info' | 'error')[];
 	};
+	onboarding?: {
+		adminChecklistDismissed?: boolean;
+		adminChecklistCompletedItems?: string[];
+	};
 	theme?: 'light' | 'dark' | 'system';
 }
