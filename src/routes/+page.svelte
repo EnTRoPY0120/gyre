@@ -7,7 +7,7 @@
 	import ResourceGroupTotals from '$lib/components/dashboard/ResourceGroupTotals.svelte';
 	import InventoryArchitecture from '$lib/components/dashboard/InventoryArchitecture.svelte';
 	import SystemShortcuts from '$lib/components/dashboard/SystemShortcuts.svelte';
-	import { TriangleAlert } from 'lucide-svelte';
+	import { ArrowRight, TriangleAlert } from 'lucide-svelte';
 
 	interface Props {
 		data: {
@@ -94,11 +94,11 @@
 							<a
 								href="/admin/clusters"
 								data-sveltekit-preload-data="hover"
-								class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
-							>
-								Open cluster diagnostics
-								<TriangleAlert size="16" aria-hidden="true" />
-							</a>
+							class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+						>
+							Open cluster diagnostics
+							<ArrowRight size="16" aria-hidden="true" />
+						</a>
 							<a
 								href="/admin/settings"
 								data-sveltekit-preload-data="hover"

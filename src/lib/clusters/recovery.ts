@@ -1,10 +1,16 @@
 import type { HealthCheckResult } from '$lib/server/clusters';
 
-export interface ClusterRecoverySummaryAction {
-	label: string;
-	href?: string;
-	action?: 'openCreateModal' | 'retest';
-}
+export type ClusterRecoverySummaryAction =
+	| {
+			label: string;
+			href: string;
+			action?: never;
+	  }
+	| {
+			label: string;
+			action: 'openCreateModal' | 'retest';
+			href?: never;
+	  };
 
 export interface ClusterRecoverySummary {
 	title: string;
@@ -28,6 +34,22 @@ export function deriveClusterRecoverySummary(
 	}
 
 	switch (failingCheck.name) {
+		case 'Kubeconfig Access':
+			return {
+				title: 'Restore kubeconfig access for Gyre',
+				description:
+					'Gyre could not read the stored kubeconfig. Ensure the kubeconfig source is readable and that any mounted credentials or secrets are available to the Gyre runtime.',
+				guidance: [
+					'Verify file permissions and ownership allow Gyre to read the kubeconfig.',
+					'Confirm the expected context and user entries are present in the kubeconfig.',
+					'If credentials come from a secret or mount, verify it exists and is readable by Gyre.'
+				],
+				actions: [
+					{ label: 'Upload corrected kubeconfig', action: 'openCreateModal' },
+					{ label: 'Review Settings', href: '/admin/settings' },
+					{ label: 'Retest connection', action: 'retest' }
+				]
+			};
 		case 'Kubeconfig Parse':
 			return {
 				title: 'Fix the uploaded kubeconfig first',

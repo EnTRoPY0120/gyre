@@ -23,6 +23,10 @@
 	const hiddenReason = $derived(dismissed ? 'dismissed' : allCompleted ? 'completed' : null);
 
 	$effect(() => {
+		if (isSaving) {
+			return;
+		}
+
 		completedItems = [...checklistState.completedItems];
 		dismissed = checklistState.dismissed;
 	});

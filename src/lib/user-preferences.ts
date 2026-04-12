@@ -10,13 +10,13 @@ export const ADMIN_ONBOARDING_CHECKLIST_IDS = [
 export type AdminOnboardingChecklistId = (typeof ADMIN_ONBOARDING_CHECKLIST_IDS)[number];
 
 export interface AdminOnboardingChecklistItem {
-	id: AdminOnboardingChecklistId;
-	title: string;
-	description: string;
-	href: string;
+	readonly id: AdminOnboardingChecklistId;
+	readonly title: string;
+	readonly description: string;
+	readonly href: string;
 }
 
-export const ADMIN_ONBOARDING_CHECKLIST_ITEMS: AdminOnboardingChecklistItem[] = [
+export const ADMIN_ONBOARDING_CHECKLIST_ITEMS: ReadonlyArray<AdminOnboardingChecklistItem> = [
 	{
 		id: 'clusters',
 		title: 'Review cluster connectivity',

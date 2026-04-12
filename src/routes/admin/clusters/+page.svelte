@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll, goto } from '$app/navigation';
+	import { invalidate, invalidateAll, goto } from '$app/navigation';
 	import { deriveClusterRecoverySummary } from '$lib/clusters/recovery';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
-	import type { ClusterHealthCheck } from '$lib/server/clusters';
+	import type { ClusterHealthCheck, HealthCheckResult } from '$lib/server/clusters';
 
 	interface Cluster {
 		id: string;
@@ -49,6 +49,17 @@
 			? deriveClusterRecoverySummary(form.healthCheck.checks)
 			: null
 	);
+	const healthCheckErrorSummary = $derived.by(() => {
+		if (!form?.healthCheck) {
+			return null;
+		}
+
+		return (
+			form.healthCheck.error ??
+			form.healthCheck.checks.find((check: HealthCheckResult) => !check.passed)?.message ??
+			null
+		);
+	});
 
 	// Sync searchValue with data.search changes (e.g., back/forward navigation)
 	$effect.pre(() => {
@@ -347,9 +358,6 @@
 								variant="ghost"
 								size="sm"
 								title="Test Connection"
-								onclick={() => {
-									activeHealthCheckClusterId = cluster.id;
-								}}
 							>
 								<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path
@@ -706,9 +714,9 @@
 							<div>
 								<p class="text-sm font-semibold text-red-300">{recoverySummary.title}</p>
 								<p class="mt-1 text-sm text-slate-200">{recoverySummary.description}</p>
-								{#if form.healthCheck.error}
+								{#if healthCheckErrorSummary}
 									<p class="mt-3 rounded-lg bg-slate-900/50 p-3 text-xs text-slate-300">
-										{form.healthCheck.error}
+										{healthCheckErrorSummary}
 									</p>
 								{/if}
 							</div>
@@ -719,18 +727,18 @@
 							</div>
 							<div class="flex flex-wrap gap-2">
 								{#each recoverySummary.actions as action (action.label)}
-									{#if action.href}
+									{#if 'href' in action}
 										<a
 											href={action.href}
 											class="inline-flex items-center rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700"
 										>
 											{action.label}
 										</a>
-									{:else if action.action}
+									{:else if 'action' in action}
 										<Button
 											type="button"
 											variant={action.action === 'retest' ? 'default' : 'outline'}
-											onclick={() => handleRecoveryAction(action.action!)}
+											onclick={() => handleRecoveryAction(action.action)}
 										>
 											{action.label}
 										</Button>
@@ -819,6 +827,7 @@
 							return async ({ result, update }) => {
 								await update();
 								if (result.type === 'success' || result.type === 'failure') {
+									await invalidate((url) => url.pathname === '/admin/clusters');
 									showHealthCheckModal = true;
 								}
 							};
