@@ -244,6 +244,7 @@ describe('Kubeconfig Configuration Options', () => {
 			throw new Error('Expected ConfigurationError');
 		} catch (error) {
 			expect(error).toBeInstanceOf(ConfigurationError);
+			expect((error as Error).message).toContain('httpProxy');
 		}
 	});
 
