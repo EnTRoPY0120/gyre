@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/stores';
 	import Icon from '$lib/components/ui/Icon.svelte';
 
 	interface Props {
@@ -6,10 +7,12 @@
 		health: {
 			connected: boolean;
 			clusterName?: string;
+			error?: string;
 		};
 	}
 
 	let { isLoading, health }: Props = $props();
+	const isAdmin = $derived($page.data.user?.role === 'admin');
 </script>
 
 <!-- Connection Card -->
@@ -54,11 +57,33 @@
 				>
 					<Icon name="x" size={28} />
 				</div>
-				<div>
+				<div class="min-w-0 flex-1">
 					<p class="font-display text-xl leading-none font-extrabold text-foreground">Down</p>
 					<p class="mt-1.5 font-mono text-[11px] font-bold text-destructive uppercase">
 						Offline
 					</p>
+					<p class="mt-2 text-sm text-muted-foreground">
+						{health.error || 'Gyre could not communicate with the Kubernetes API.'}
+					</p>
+					{#if isAdmin}
+						<div class="mt-3 flex flex-wrap gap-2">
+							<a
+								href="/admin/clusters"
+								data-sveltekit-preload-data="hover"
+								class="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5"
+							>
+								Open Clusters
+								<Icon name="arrow-right" size={14} />
+							</a>
+							<a
+								href="/admin/settings"
+								data-sveltekit-preload-data="hover"
+								class="inline-flex items-center gap-2 rounded-lg border border-border bg-background/70 px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
+							>
+								Review Settings
+							</a>
+						</div>
+					{/if}
 				</div>
 			{/if}
 		</div>

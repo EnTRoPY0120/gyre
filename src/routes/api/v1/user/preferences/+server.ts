@@ -8,18 +8,12 @@ import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { logAudit } from '$lib/server/audit';
-
-const preferencesSchema = z.object({
-	theme: z.enum(['light', 'dark', 'system']).optional(),
-	notifications: z
-		.object({
-			enabled: z.boolean().optional(),
-			resourceTypes: z.array(z.string()).optional(),
-			namespaces: z.array(z.string()).optional(),
-			events: z.array(z.enum(['success', 'failure', 'warning', 'info', 'error'])).optional()
-		})
-		.optional()
-});
+import {
+	mergeUserPreferences,
+	notificationPreferencesSchema,
+	onboardingPreferencesSchema,
+	preferencesSchema
+} from '$lib/server/user-preferences';
 
 export const _metadata = {
 	POST: {
@@ -44,16 +38,8 @@ export const _metadata = {
 							success: z.boolean(),
 							preferences: z.object({
 								theme: z.enum(['light', 'dark', 'system']).optional(),
-								notifications: z
-									.object({
-										enabled: z.boolean().optional(),
-										resourceTypes: z.array(z.string()).optional(),
-										namespaces: z.array(z.string()).optional(),
-										events: z
-											.array(z.enum(['success', 'failure', 'warning', 'info', 'error']))
-											.optional()
-									})
-									.optional()
+								notifications: notificationPreferencesSchema,
+								onboarding: onboardingPreferencesSchema
 							})
 						})
 					}
@@ -115,19 +101,10 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 
 		const existingPreferences = (user?.preferences as UserPreferences) || {};
 
-		// Merge preferences (shallow merge for now, but preserving notifications specifically)
-
-		const mergedPreferences: UserPreferences = {
-			...existingPreferences,
-
-			...newPreferences,
-
-			notifications: {
-				...existingPreferences.notifications,
-
-				...newPreferences.notifications
-			}
-		};
+		const mergedPreferences: UserPreferences = mergeUserPreferences(
+			existingPreferences,
+			newPreferences
+		);
 
 		await db
 			.update(users)
