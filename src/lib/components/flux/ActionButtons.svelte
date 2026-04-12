@@ -6,6 +6,13 @@
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
 	import EditResourceModal from '$lib/components/flux/EditResourceModal.svelte';
 	import DeleteResourceModal from '$lib/components/flux/DeleteResourceModal.svelte';
+	import {
+		buildOptimisticResource,
+		isOptimisticAction,
+		resolveResourceActionFeedback,
+		type ActionFeedbackTone,
+		type ResourceAction
+	} from './action-feedback';
 	import type { FluxResource } from '$lib/types/flux';
 	import { RefreshCw, Play, Pause, Loader2, Pencil, Trash2 } from 'lucide-svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
@@ -27,7 +34,7 @@
 	} = $props();
 
 	let isLoading = $state(false);
-	let error = $state<string | null>(null);
+	let feedback = $state<{ tone: ActionFeedbackTone; message: string } | null>(null);
 	let showSuspendDialog = $state(false);
 	let showEditModal = $state(false);
 	let showDeleteModal = $state(false);
@@ -47,22 +54,31 @@
 	const canWrite = $derived(userRole === 'admin' || userRole === 'editor');
 	const isSuspended = $derived(resource.spec?.suspend === true);
 
-	async function handleAction(action: 'suspend' | 'resume' | 'reconcile') {
+	function showTimedFeedback(tone: ActionFeedbackTone, message: string) {
+		feedback = { tone, message };
+		setTimeout(() => {
+			if (feedback?.message === message) {
+				feedback = null;
+			}
+		}, 5000);
+	}
+
+	async function handleAction(action: ResourceAction) {
 		if (!canWrite) return;
 
 		isLoading = true;
-		error = null;
+		feedback = null;
 
 		// Store original for rollback
 		const originalResource = JSON.parse(JSON.stringify(resource));
 
 		// Optimistic update for suspend/resume
-		if (action === 'suspend' || action === 'resume') {
-			const optimisticResource = JSON.parse(JSON.stringify(resource));
-			optimisticResource.spec = optimisticResource.spec || {};
-			optimisticResource.spec.suspend = action === 'suspend';
-			resourceCache.setResource(type, namespace, name, optimisticResource);
+		if (isOptimisticAction(action)) {
+			resourceCache.setResource(type, namespace, name, buildOptimisticResource(resource, action));
 		}
+
+		let mutationError: Error | null = null;
+		let invalidateError: Error | null = null;
 
 		try {
 			const response = await fetch(`/api/v1/flux/${encodeURIComponent(type)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/${encodeURIComponent(action)}`, {
@@ -74,19 +90,36 @@
 				const data = await response.json().catch(() => ({}));
 				throw new Error(data.message || `Failed to ${action} resource`);
 			}
-
-			// Success! Invalidate to refresh data from server
-			await invalidate(`flux:resource:${type}:${namespace}:${name}`);
 		} catch (err) {
-			// Rollback on error
-			if (action === 'suspend' || action === 'resume') {
-				resourceCache.setResource(type, namespace, name, originalResource);
-			}
-			error = (err as Error).message;
-			setTimeout(() => (error = null), 5000);
-		} finally {
-			isLoading = false;
+			mutationError = err as Error;
 		}
+
+		if (!mutationError) {
+			try {
+				await invalidate(`flux:resource:${type}:${namespace}:${name}`);
+			} catch (err) {
+				invalidateError = err as Error;
+				setTimeout(() => {
+					invalidate(`flux:resource:${type}:${namespace}:${name}`).catch(() => {});
+				}, 1500);
+			}
+		}
+
+		const actionFeedback = resolveResourceActionFeedback({
+			action,
+			mutationError,
+			invalidateError
+		});
+
+		if (actionFeedback.rollbackOptimistic && isOptimisticAction(action)) {
+			resourceCache.setResource(type, namespace, name, originalResource);
+		}
+
+		if (actionFeedback.tone && actionFeedback.message) {
+			showTimedFeedback(actionFeedback.tone, actionFeedback.message);
+		}
+
+		isLoading = false;
 	}
 </script>
 
@@ -188,13 +221,15 @@
 {/snippet}
 
 <div class="flex items-center gap-2">
-	{#if error}
+	{#if feedback}
 		<span
 			role="alert"
 			aria-live="assertive"
-			class="animate-in fade-in slide-in-from-right-2 text-sm text-red-600"
+			class="animate-in fade-in slide-in-from-right-2 text-sm {feedback.tone === 'warning'
+				? 'text-amber-600'
+				: 'text-red-600'}"
 		>
-			{error}
+			{feedback.message}
 		</span>
 	{/if}
 

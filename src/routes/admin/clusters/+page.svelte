@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
+	import { deriveClusterRecoverySummary } from '$lib/clusters/recovery';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
-	import type { HealthCheckResult, ClusterHealthCheck } from '$lib/server/clusters';
+	import type { ClusterHealthCheck } from '$lib/server/clusters';
 
 	interface Cluster {
 		id: string;
@@ -39,9 +40,15 @@
 	let showCreateModal = $state(false);
 	let deletingCluster = $state<Cluster | null>(null);
 	let showHealthCheckModal = $state(false);
+	let activeHealthCheckClusterId = $state<string | null>(null);
 	let kubeconfigInput = $state('');
 	let isDragging = $state(false);
 	let searchValue = $state('');
+	const recoverySummary = $derived.by(() =>
+		form?.healthCheck?.connected === false
+			? deriveClusterRecoverySummary(form.healthCheck.checks)
+			: null
+	);
 
 	// Sync searchValue with data.search changes (e.g., back/forward navigation)
 	$effect.pre(() => {
@@ -70,7 +77,10 @@
 		goto(url.toString());
 	}
 
-	function openHealthCheckModal() {
+	function openHealthCheckModal(clusterId?: string) {
+		if (clusterId) {
+			activeHealthCheckClusterId = clusterId;
+		}
 		if (form?.healthCheck) {
 			showHealthCheckModal = true;
 		}
@@ -135,6 +145,19 @@
 	function handleDragLeave() {
 		isDragging = false;
 	}
+
+	function handleRecoveryAction(action: 'openCreateModal' | 'retest') {
+		if (action === 'openCreateModal') {
+			closeHealthCheckModal();
+			openCreateModal();
+			return;
+		}
+
+		if (action === 'retest' && activeHealthCheckClusterId) {
+			const form = document.getElementById('health-check-retest-form') as HTMLFormElement | null;
+			form?.requestSubmit();
+		}
+	}
 </script>
 
 <div class="space-y-6">
@@ -191,7 +214,7 @@
 					<Button
 						variant="ghost"
 						size="sm"
-						onclick={openHealthCheckModal}
+						onclick={() => openHealthCheckModal()}
 						class="text-emerald-300 hover:text-emerald-200"
 					>
 						View Details
@@ -219,7 +242,7 @@
 				<Button
 					variant="ghost"
 					size="sm"
-					onclick={openHealthCheckModal}
+					onclick={() => openHealthCheckModal()}
 					class="text-red-300 hover:text-red-200"
 				>
 					View Diagnostics
@@ -305,12 +328,12 @@
 										invalidateAll();
 										// Open the health check modal automatically
 										setTimeout(() => {
-											openHealthCheckModal();
+											openHealthCheckModal(cluster.id);
 										}, 100);
 									} else if (result.type === 'failure') {
 										// Still open modal for failure to show diagnostics
 										setTimeout(() => {
-											openHealthCheckModal();
+											openHealthCheckModal(cluster.id);
 										}, 100);
 									}
 								};
@@ -319,7 +342,15 @@
 						>
 							<input type="hidden" name="_csrf" value={getCsrfToken()} />
 							<input type="hidden" name="clusterId" value={cluster.id} />
-							<Button type="submit" variant="ghost" size="sm" title="Test Connection">
+							<Button
+								type="submit"
+								variant="ghost"
+								size="sm"
+								title="Test Connection"
+								onclick={() => {
+									activeHealthCheckClusterId = cluster.id;
+								}}
+							>
 								<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
 									<path
 										stroke-linecap="round"
@@ -669,6 +700,46 @@
 						</svg>
 					</button>
 				</div>
+				{#if recoverySummary}
+					<div class="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 p-4">
+						<div class="flex flex-col gap-4">
+							<div>
+								<p class="text-sm font-semibold text-red-300">{recoverySummary.title}</p>
+								<p class="mt-1 text-sm text-slate-200">{recoverySummary.description}</p>
+								{#if form.healthCheck.error}
+									<p class="mt-3 rounded-lg bg-slate-900/50 p-3 text-xs text-slate-300">
+										{form.healthCheck.error}
+									</p>
+								{/if}
+							</div>
+							<div class="space-y-2">
+								{#each recoverySummary.guidance as item (item)}
+									<p class="text-sm text-slate-300">• {item}</p>
+								{/each}
+							</div>
+							<div class="flex flex-wrap gap-2">
+								{#each recoverySummary.actions as action (action.label)}
+									{#if action.href}
+										<a
+											href={action.href}
+											class="inline-flex items-center rounded-lg border border-slate-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-700"
+										>
+											{action.label}
+										</a>
+									{:else if action.action}
+										<Button
+											type="button"
+											variant={action.action === 'retest' ? 'default' : 'outline'}
+											onclick={() => handleRecoveryAction(action.action!)}
+										>
+											{action.label}
+										</Button>
+									{/if}
+								{/each}
+							</div>
+						</div>
+					</div>
+				{/if}
 
 				<div class="space-y-3">
 					{#each form.healthCheck.checks as check (check.name)}
@@ -739,8 +810,28 @@
 					</div>
 				{/if}
 
-				<div class="mt-6 flex justify-end">
-					<Button type="button" variant="ghost" onclick={closeHealthCheckModal}>Close</Button>
+				<div class="mt-6 flex flex-col gap-3 border-t border-slate-700/50 pt-4 sm:flex-row sm:items-center sm:justify-between">
+					<form
+						id="health-check-retest-form"
+						method="POST"
+						action="?/test"
+						use:enhance={() => {
+							return async ({ result, update }) => {
+								await update();
+								if (result.type === 'success' || result.type === 'failure') {
+									showHealthCheckModal = true;
+								}
+							};
+						}}
+						class="flex"
+					>
+						<input type="hidden" name="_csrf" value={getCsrfToken()} />
+						<input type="hidden" name="clusterId" value={activeHealthCheckClusterId ?? ''} />
+						<Button type="submit" disabled={!activeHealthCheckClusterId}>Retest connection</Button>
+					</form>
+					<Button type="button" variant="ghost" onclick={closeHealthCheckModal}>
+						Back to Clusters
+					</Button>
 				</div>
 			</div>
 		</div>

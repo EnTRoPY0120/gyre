@@ -51,7 +51,7 @@
 
 	// Tracking which groups are expanded (all collapsed by default)
 	let expandedGroups = $state<Record<string, boolean>>({
-		Admin: currentPath.startsWith('/admin'),
+		Admin: false,
 		...Object.fromEntries(resourceGroups.map((g) => [g.name, false]))
 	});
 
