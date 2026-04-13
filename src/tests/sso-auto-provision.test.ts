@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
+mock.restore();
+
 function flattenSqlParts(value: unknown): string[] {
 	if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
 		return [String(value)];
@@ -140,7 +142,7 @@ mock.module('$lib/server/logger.js', () => ({
 	}
 }));
 
-import { createOrUpdateSSOUser } from '../lib/server/auth/sso.js';
+import { createOrUpdateSSOUser } from '../lib/server/auth/sso.js?sut';
 
 function createProviderConfig(emailClaim = 'email') {
 	return {

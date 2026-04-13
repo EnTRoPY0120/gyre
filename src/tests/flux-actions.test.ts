@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
 
+mock.restore();
+
 spyOn(console, 'log').mockImplementation(() => {});
 
 // Capture API calls
@@ -33,7 +35,7 @@ import {
 	toggleSuspendResource,
 	reconcileResource,
 	deleteResource
-} from '../lib/server/kubernetes/flux/actions.js';
+} from '../lib/server/kubernetes/flux/actions.ts?sut';
 
 describe('toggleSuspendResource', () => {
 	beforeEach(() => {

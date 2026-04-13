@@ -1,7 +1,9 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
+
+mock.restore();
 
 function createCallbackState() {
 	return {
@@ -23,7 +25,14 @@ mock.module('$lib/server/auth/oauth', () => ({
 		})
 	}),
 	OAuthError: class OAuthError extends Error {
-		code = 'GENERIC';
+		constructor(
+			message: string,
+			public code: string,
+			public details?: unknown
+		) {
+			super(message);
+			this.name = 'OAuthError';
+		}
 	}
 }));
 
@@ -152,6 +161,10 @@ function buildEvent(
 
 beforeEach(() => {
 	Object.assign(callbackState, createCallbackState());
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 describe('oauth callback route', () => {

@@ -1,4 +1,6 @@
-import { describe, test, expect, beforeEach, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
+
+mock.restore();
 
 // Suppress console noise from handleK8sError's server-side logging and DB init.
 spyOn(console, 'log').mockImplementation(() => {});
@@ -10,7 +12,7 @@ import {
 	handleK8sError,
 	clearClientPool,
 	_createTimeoutMiddleware
-} from '../lib/server/kubernetes/client.js';
+} from '../lib/server/kubernetes/client.js?sut';
 import {
 	KubernetesTimeoutError,
 	ClusterUnavailableError,

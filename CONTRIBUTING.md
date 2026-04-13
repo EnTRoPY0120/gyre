@@ -27,7 +27,8 @@ The easiest way to start developing is using the provided devcontainer:
 - `bun install` - Install dependencies
 - `bun run dev` - Start development server
 - `bun run verify` - Local pre-commit/pre-push verification (auto-format + lint + typecheck + build)
-- `bun run verify:ci` - Strict CI-equivalent verification (no auto-format)
+- `bun run verify:ci` - Release gate parity for CI (format:check + lint + typecheck + tests + build)
+- `bun test` - Full Bun test suite (requires Helm on PATH for chart render regression tests)
 
 ## Questions?
 

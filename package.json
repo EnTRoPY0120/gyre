@@ -15,7 +15,7 @@
 		"format": "oxfmt . --write --ignore-path .oxfmtignore",
 		"format:check": "oxfmt . --check --ignore-path .oxfmtignore",
 		"verify": "bun run format && bun run lint && bun run check && bun run build",
-		"verify:ci": "bun run format:check && bun run lint && bun run check && bun run build",
+		"verify:ci": "bun run format:check && bun run lint && bun run check && bun test && bun run build",
 		"test": "bun test",
 		"test:watch": "bun test --watch"
 	},

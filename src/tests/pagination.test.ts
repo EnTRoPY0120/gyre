@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
 
+mock.restore();
+
 spyOn(console, 'log').mockImplementation(() => {});
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
@@ -26,7 +28,7 @@ mock.module('bcryptjs', () => ({
 	compare: async () => true
 }));
 
-import { listUsersPaginated, createUser } from '../lib/server/auth.js';
+import { listUsersPaginated } from '../lib/server/auth.js?sut';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -43,6 +45,7 @@ const CREATE_USERS_TABLE = `
 		role TEXT NOT NULL DEFAULT 'viewer',
 		active INTEGER NOT NULL DEFAULT 1,
 		is_local INTEGER NOT NULL DEFAULT 1,
+		requires_password_change INTEGER NOT NULL DEFAULT 0,
 		created_at INTEGER NOT NULL DEFAULT (unixepoch()),
 		updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
 		preferences TEXT
@@ -86,19 +89,25 @@ describe('Pagination Logic', () => {
 	beforeEach(async () => {
 		state.db = setupInMemoryDb();
 
-		// Create some test users
 		prefix = `pagetest_${Date.now()}`;
-		// We insert directly using helper or createUser function?
-		// createUser uses getDb(), which is mocked to return state.db.
-		// So we can use createUser.
-
 		for (let i = 0; i < 15; i++) {
-			try {
-				await createUser(`${prefix}_${i}`, 'password123', 'viewer', `${prefix}_${i}@example.com`);
-			} catch (e) {
-				// eslint-disable-next-line no-console
-				console.error('Failed to create test user', e);
-			}
+			const now = new Date();
+			state
+				.db!.insert(schema.users)
+				.values({
+					id: `user_${prefix}_${i}`,
+					username: `${prefix}_${i}`,
+					name: `${prefix}_${i}`,
+					email: `${prefix}_${i}@example.com`,
+					role: 'viewer',
+					active: true,
+					isLocal: true,
+					requiresPasswordChange: false,
+					emailVerified: false,
+					createdAt: now,
+					updatedAt: now
+				})
+				.run();
 		}
 	});
 

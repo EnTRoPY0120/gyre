@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
 
+mock.restore();
+
 spyOn(console, 'log').mockImplementation(() => {});
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
@@ -19,7 +21,7 @@ import {
 	deleteUserSessions,
 	generateSessionId,
 	generateUserId
-} from '../lib/server/auth.js';
+} from '../lib/server/auth.js?sut';
 
 const CREATE_USERS_TABLE = `
 	CREATE TABLE IF NOT EXISTS users (
@@ -32,6 +34,7 @@ const CREATE_USERS_TABLE = `
 		role TEXT NOT NULL DEFAULT 'viewer',
 		active INTEGER NOT NULL DEFAULT 1,
 		is_local INTEGER NOT NULL DEFAULT 1,
+		requires_password_change INTEGER NOT NULL DEFAULT 0,
 		created_at INTEGER NOT NULL DEFAULT (unixepoch()),
 		updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
 		preferences TEXT
