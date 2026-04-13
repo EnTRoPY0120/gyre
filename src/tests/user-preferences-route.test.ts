@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { eq } from 'drizzle-orm';
@@ -6,7 +6,10 @@ import type { UserPreferences } from '../lib/types/user.js';
 import * as schema from '../lib/server/db/schema.js';
 import { users, type User } from '../lib/server/db/schema.js';
 
-const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+const state: {
+	db: ReturnType<typeof drizzle<typeof schema>> | null;
+	sqlite: Database | null;
+} = { db: null, sqlite: null };
 
 const dbModuleMock = {
 	getDb: async () => state.db,
@@ -56,7 +59,10 @@ const CREATE_USERS_TABLE = `
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
 	sqlite.exec(CREATE_USERS_TABLE);
-	return drizzle(sqlite, { schema });
+	return {
+		db: drizzle(sqlite, { schema }),
+		sqlite
+	};
 }
 
 function createUser(overrides: Partial<User> = {}): User {
@@ -99,7 +105,15 @@ function buildEvent(user: User, body: unknown): PreferencesEvent {
 
 describe('user preferences route', () => {
 	beforeEach(() => {
-		state.db = setupInMemoryDb();
+		const inMemory = setupInMemoryDb();
+		state.db = inMemory.db;
+		state.sqlite = inMemory.sqlite;
+	});
+
+	afterEach(() => {
+		state.sqlite?.close();
+		state.sqlite = null;
+		state.db = null;
 	});
 
 	test('updating one nested notifications field preserves sibling and onboarding fields', async () => {
