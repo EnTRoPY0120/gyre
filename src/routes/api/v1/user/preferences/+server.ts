@@ -1,14 +1,14 @@
 import { logger } from '$lib/server/logger.js';
-import { json, error } from '@sveltejs/kit';
+import { json, error, isHttpError } from '@sveltejs/kit';
 import { z, errorSchema } from '$lib/server/openapi';
 import { getDb } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { logAudit } from '$lib/server/audit';
-import { mergeUserPreferences, preferencesSchema } from '$lib/server/user-preferences';
+import { preferencesSchema } from '$lib/server/user-preferences';
 
 export const _metadata = {
 	POST: {
@@ -79,28 +79,21 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 
 	try {
 		const db = await getDb();
-
-		// Fetch existing preferences
-
-		const user = await db.query.users.findFirst({
-			where: eq(users.id, locals.user.id),
-
-			columns: {
-				preferences: true
-			}
-		});
-
-		const existingPreferences = (user?.preferences as UserPreferences) || {};
-
-		const mergedPreferences: UserPreferences = mergeUserPreferences(
-			existingPreferences,
-			newPreferences
-		);
-
-		await db
+		const preferencesPatch = JSON.stringify(newPreferences);
+		const [updatedUser] = await db
 			.update(users)
-			.set({ preferences: mergedPreferences })
-			.where(eq(users.id, locals.user.id));
+			.set({
+				preferences: sql<UserPreferences>`json_patch(coalesce(${users.preferences}, '{}'), json(${preferencesPatch}))`,
+				updatedAt: new Date()
+			})
+			.where(eq(users.id, locals.user.id))
+			.returning({ preferences: users.preferences });
+
+		if (!updatedUser) {
+			throw new Error('User not found while updating preferences');
+		}
+
+		const mergedPreferences = (updatedUser.preferences as UserPreferences) || {};
 
 		await logAudit(locals.user, 'preferences:update', {
 			resourceType: 'UserPreferences',
@@ -110,6 +103,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 
 		return json({ success: true, preferences: mergedPreferences });
 	} catch (err) {
+		if (isHttpError(err)) throw err;
 		logger.error(err, 'Failed to update preferences:');
 
 		throw error(500, { message: 'Failed to update preferences', code: 'InternalServerError' });

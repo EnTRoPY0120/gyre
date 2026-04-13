@@ -36,6 +36,7 @@
 	let isLoading = $state(false);
 	let feedback = $state<{ tone: ActionFeedbackTone; message: string } | null>(null);
 	let feedbackTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
+	let retryTimeout = $state<ReturnType<typeof setTimeout> | null>(null);
 	let showSuspendDialog = $state(false);
 	let showEditModal = $state(false);
 	let showDeleteModal = $state(false);
@@ -59,6 +60,11 @@
 		return () => {
 			if (feedbackTimeout) {
 				clearTimeout(feedbackTimeout);
+				feedbackTimeout = null;
+			}
+			if (retryTimeout) {
+				clearTimeout(retryTimeout);
+				retryTimeout = null;
 			}
 		};
 	});
@@ -115,8 +121,15 @@
 				await invalidate(`flux:resource:${type}:${namespace}:${name}`);
 			} catch (err) {
 				invalidateError = err as Error;
-				setTimeout(() => {
-					invalidate(`flux:resource:${type}:${namespace}:${name}`).catch(() => {});
+				if (retryTimeout) {
+					clearTimeout(retryTimeout);
+				}
+				retryTimeout = setTimeout(() => {
+					invalidate(`flux:resource:${type}:${namespace}:${name}`)
+						.catch(() => {})
+						.finally(() => {
+							retryTimeout = null;
+						});
 				}, 1500);
 			}
 		}

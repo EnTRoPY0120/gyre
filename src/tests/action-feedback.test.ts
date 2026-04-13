@@ -34,4 +34,14 @@ describe('resolveResourceActionFeedback', () => {
 		expect(result.tone).toBe('error');
 		expect(result.message).toBe('Mutation failed');
 	});
+
+	test('no error returns default success contract', () => {
+		const result = resolveResourceActionFeedback({
+			action: 'resume'
+		});
+
+		expect(result.rollbackOptimistic).toBe(false);
+		expect(result.tone).toBeNull();
+		expect(result.message).toBeNull();
+	});
 });

@@ -1,4 +1,5 @@
 import type { FluxResource } from '$lib/types/flux';
+import { logger } from '$lib/utils/logger.js';
 
 export type BatchAction = 'suspend' | 'resume' | 'reconcile' | 'delete';
 
@@ -55,8 +56,16 @@ export function partitionBatchOperationResult(
 	const failedResources = response.results
 		.filter((result) => !result.success)
 		.flatMap((result) => {
-			const originalResource = resourceMap.get(getBatchKey(result.resource));
+			const batchKey = getBatchKey(result.resource);
+			const originalResource = resourceMap.get(batchKey);
 			if (!originalResource) {
+				logger.warn(
+					{
+						batchKey,
+						resource: result.resource
+					},
+					'Failed to map batch failure result back to original resource'
+				);
 				return [];
 			}
 

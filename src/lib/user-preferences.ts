@@ -6,6 +6,7 @@ export const ADMIN_ONBOARDING_CHECKLIST_IDS = [
 	'auth-providers',
 	'backups'
 ] as const;
+const VALID_ADMIN_ONBOARDING_CHECKLIST_IDS = new Set<string>(ADMIN_ONBOARDING_CHECKLIST_IDS);
 
 export type AdminOnboardingChecklistId = (typeof ADMIN_ONBOARDING_CHECKLIST_IDS)[number];
 
@@ -50,9 +51,12 @@ export function normalizeAdminChecklistCompletedItems(
 		return [];
 	}
 
-	const validIds = new Set<string>(ADMIN_ONBOARDING_CHECKLIST_IDS);
 	return [
-		...new Set(items.filter((item): item is AdminOnboardingChecklistId => validIds.has(item)))
+		...new Set(
+			items.filter((item): item is AdminOnboardingChecklistId =>
+				VALID_ADMIN_ONBOARDING_CHECKLIST_IDS.has(item)
+			)
+		)
 	];
 }
 

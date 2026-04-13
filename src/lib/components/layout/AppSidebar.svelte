@@ -440,7 +440,7 @@
 				</span>
 			</a>
 			{#if isOpen && adminLinks.length > 0}
-				<div class="mt-2 max-h-[45vh] space-y-2 overflow-y-auto pr-1">
+				<div class="mt-2 space-y-2 pr-1">
 					<button
 						type="button"
 						onclick={() => toggleGroup('Admin')}
@@ -488,8 +488,8 @@
 									</span>
 								</a>
 							{/each}
-						</div>
-					{/if}
+				</div>
+			{/if}
 				</div>
 			{/if}
 		</div>

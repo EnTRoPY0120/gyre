@@ -1,10 +1,13 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, mock, test } from 'bun:test';
 import type { FluxResource } from '../lib/types/flux.js';
-import {
-	buildRetryPayload,
-	partitionBatchOperationResult,
-	type BatchOperationResponse
-} from '../lib/components/flux/bulk-actions.js';
+import type { BatchOperationResponse } from '../lib/components/flux/bulk-actions.js';
+
+mock.module('$app/environment', () => ({ dev: false }));
+mock.module('$env/dynamic/public', () => ({ env: {} }));
+
+const { buildRetryPayload, partitionBatchOperationResult } = await import(
+	'../lib/components/flux/bulk-actions.js'
+);
 
 function createResource(name: string, namespace: string): FluxResource {
 	return {

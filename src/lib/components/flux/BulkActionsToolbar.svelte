@@ -259,7 +259,10 @@
 						onclick={handleRetryFailed}
 						disabled={isProcessing}
 					>
-						<RefreshCw size={16} class={currentOperation ? 'animate-spin' : ''} />
+						<RefreshCw
+							size={16}
+							class={currentOperation === lastBatchResult.action ? 'animate-spin' : ''}
+						/>
 						<span class="ml-2">Retry Failed</span>
 					</Button>
 				</div>
