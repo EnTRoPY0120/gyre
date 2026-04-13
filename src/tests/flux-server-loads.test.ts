@@ -1,0 +1,233 @@
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import * as actualDashboardCache from '../lib/server/dashboard-cache.js';
+import * as actualServices from '../lib/server/flux/services.js';
+import * as actualGuards from '../lib/server/http/guards.js';
+import * as actualMetrics from '../lib/server/metrics.js';
+
+let healthResult: unknown = {
+	status: 'healthy',
+	kubernetes: {
+		connected: true,
+		currentContext: 'cluster-a',
+		availableContexts: ['cluster-a']
+	}
+};
+let healthShouldThrow = false;
+let versionResult = { version: 'v2.3.0' };
+let overviewResult = {
+	partialFailure: true,
+	results: [{ type: 'GitRepository', total: 3, healthy: 2, failed: 1, suspended: 0 }]
+};
+let listResult = {
+	resourceType: 'GitRepository',
+	result: {
+		items: [{ metadata: { name: 'demo' } }],
+		total: 1,
+		hasMore: false,
+		offset: 0,
+		limit: 50,
+		metadata: { resourceVersion: 'rv-list' }
+	}
+};
+let detailResult = {
+	resourceType: 'GitRepository',
+	resource: { metadata: { name: 'demo', namespace: 'flux-system' } }
+};
+let clusterReadShouldThrow = false;
+let dashboardCacheValue: unknown = null;
+const setDashboardCacheCalls: Array<{ key: string; value: unknown }> = [];
+
+beforeEach(() => {
+	healthResult = {
+		status: 'healthy',
+		kubernetes: {
+			connected: true,
+			currentContext: 'cluster-a',
+			availableContexts: ['cluster-a']
+		}
+	};
+	healthShouldThrow = false;
+	versionResult = { version: 'v2.3.0' };
+	overviewResult = {
+		partialFailure: true,
+		results: [{ type: 'GitRepository', total: 3, healthy: 2, failed: 1, suspended: 0 }]
+	};
+	listResult = {
+		resourceType: 'GitRepository',
+		result: {
+			items: [{ metadata: { name: 'demo' } }],
+			total: 1,
+			hasMore: false,
+			offset: 0,
+			limit: 50,
+			metadata: { resourceVersion: 'rv-list' }
+		}
+	};
+	detailResult = {
+		resourceType: 'GitRepository',
+		resource: { metadata: { name: 'demo', namespace: 'flux-system' } }
+	};
+	clusterReadShouldThrow = false;
+	dashboardCacheValue = null;
+	setDashboardCacheCalls.length = 0;
+
+	mock.module('$lib/server/flux/services.js', () => ({
+		DEFAULT_FLUX_VERSION: 'v2.x.x',
+		getFluxHealthSummary: async () => {
+			if (healthShouldThrow) {
+				throw { status: 503, body: { message: 'Unable to connect to Kubernetes cluster' } };
+			}
+			return healthResult;
+		},
+		getFluxInstalledVersion: async () => versionResult,
+		getFluxOverviewSummary: async () => overviewResult,
+		getFluxResourceDetail: async () => detailResult,
+		listFluxResourcesForType: async () => listResult
+	}));
+
+	mock.module('$lib/server/http/guards.js', () => ({
+		requireClusterContext: () => 'cluster-a',
+		requireClusterWideRead: async () => {
+			if (clusterReadShouldThrow) {
+				throw { status: 403, body: { message: 'Permission denied' } };
+			}
+		},
+		requireScopedPermission: async () => {}
+	}));
+
+	mock.module('$lib/server/dashboard-cache', () => ({
+		getDashboardCache: () => dashboardCacheValue,
+		setDashboardCache: (key: string, value: unknown) => setDashboardCacheCalls.push({ key, value })
+	}));
+
+	mock.module('$lib/server/metrics.js', () => ({
+		...actualMetrics,
+		loginAttemptsTotal: { labels: () => ({ inc: () => {} }) },
+		sessionsCleanedUpTotal: { inc: () => {} }
+	}));
+});
+
+afterEach(() => {
+	mock.restore();
+	mock.module('$lib/server/flux/services.js', () => actualServices);
+	mock.module('$lib/server/http/guards.js', () => actualGuards);
+	mock.module('$lib/server/dashboard-cache', () => actualDashboardCache);
+	mock.module('$lib/server/metrics.js', () => actualMetrics);
+});
+
+describe('migrated server loads', () => {
+	test('layout load uses shared services and preserves health/version fallbacks', async () => {
+		const { load } = await import(
+			`../routes/+layout.server.js?case=${Date.now()}-${Math.random()}`
+		);
+
+		const success = await load({
+			depends: () => {},
+			locals: {
+				cluster: 'cluster-a',
+				requestId: 'req-1',
+				session: null,
+				user: { id: 'user-1' }
+			}
+		} as Parameters<typeof load>[0]);
+
+		expect(success).toMatchObject({
+			health: {
+				connected: true,
+				clusterName: 'cluster-a',
+				availableClusters: ['cluster-a'],
+				error: undefined
+			},
+			fluxVersion: 'v2.3.0'
+		});
+
+		healthShouldThrow = true;
+		clusterReadShouldThrow = true;
+
+		const fallback = await load({
+			depends: () => {},
+			locals: {
+				cluster: 'cluster-a',
+				requestId: 'req-1',
+				session: null,
+				user: { id: 'user-1' }
+			}
+		} as Parameters<typeof load>[0]);
+
+		expect(fallback).toMatchObject({
+			health: {
+				connected: false,
+				clusterName: undefined,
+				availableClusters: [],
+				error: 'Failed to retrieve cluster health status'
+			},
+			fluxVersion: 'v2.x.x'
+		});
+	});
+
+	test('dashboard load uses overview service and preserves grouped counts plus cache writes', async () => {
+		const { load } = await import(`../routes/+page.server.js?case=${Date.now()}-${Math.random()}`);
+
+		const result = await load({
+			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: { id: 'user-1' } },
+			parent: async () => ({ health: { clusterName: 'cluster-a' } }),
+			setHeaders: () => {}
+		} as Parameters<typeof load>[0]);
+
+		const groupCounts = await result.streamed.groupCounts;
+		expect(groupCounts.Sources).toEqual({
+			total: 3,
+			healthy: 2,
+			failed: 1,
+			suspended: 0,
+			error: true
+		});
+		expect(setDashboardCacheCalls).toEqual([
+			{
+				key: 'dashboard-cluster-a',
+				value: groupCounts
+			}
+		]);
+	});
+
+	test('resource list load calls the shared service and keeps the UI-facing shape', async () => {
+		const { load } = await import(
+			`../routes/resources/[type]/+page.server.js?case=${Date.now()}-${Math.random()}`
+		);
+
+		const result = await load({
+			depends: () => {},
+			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: { id: 'user-1' } },
+			params: { type: 'gitrepositories' },
+			url: new URL('http://localhost/resources/gitrepositories?sortBy=name&sortOrder=desc')
+		} as Parameters<typeof load>[0]);
+
+		expect(result).toMatchObject({
+			resourceType: 'gitrepositories',
+			resources: [{ metadata: { name: 'demo' } }],
+			total: 1,
+			sortBy: 'name',
+			sortOrder: 'desc',
+			error: null
+		});
+	});
+
+	test('resource detail load calls the shared service and preserves 404/error semantics', async () => {
+		const { load } = await import(
+			`../routes/resources/[type]/[namespace]/[name]/+page.server.js?case=${Date.now()}-${Math.random()}`
+		);
+
+		const result = await load({
+			depends: () => {},
+			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: { id: 'user-1' } },
+			params: { type: 'gitrepositories', namespace: 'flux-system', name: 'demo' }
+		} as Parameters<typeof load>[0]);
+
+		expect(result).toMatchObject({
+			resourceType: 'gitrepositories',
+			namespace: 'flux-system',
+			name: 'demo',
+			resource: { metadata: { name: 'demo', namespace: 'flux-system' } }
+		});
+	});
+});

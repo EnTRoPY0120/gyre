@@ -2,12 +2,7 @@ import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import {
-	getFluxResource,
-	getFluxResourceStatus,
-	updateFluxResource,
-	type ReqCache
-} from '$lib/server/kubernetes/client.js';
+import { updateFluxResource, type ReqCache } from '$lib/server/kubernetes/client.js';
 import {
 	getAllResourcePlurals,
 	getResourceDef,
@@ -15,7 +10,6 @@ import {
 	type FluxResourceType
 } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
-import { checkPermission } from '$lib/server/rbac.js';
 import { logAudit } from '$lib/server/audit.js';
 import { deleteResource } from '$lib/server/kubernetes/flux/actions.js';
 import type { K8sResource } from '$lib/types/kubernetes';
@@ -25,6 +19,18 @@ import {
 	validateK8sName,
 	validateFluxResourceSpec
 } from '$lib/server/validation';
+import {
+	requireAdminPermission,
+	requireAuthenticatedUser,
+	requireClusterContext,
+	requireScopedPermission
+} from '$lib/server/http/guards.js';
+import {
+	computeWeakEtag,
+	respondNotModified,
+	setPrivateCacheHeaders
+} from '$lib/server/http/transport.js';
+import { getFluxResourceDetail } from '$lib/server/flux/services.js';
 
 export const _metadata = {
 	GET: {
@@ -124,15 +130,8 @@ export const _metadata = {
  * - status=true: Get resource status instead of full object
  */
 export const GET: RequestHandler = async ({ params, url, locals, request, setHeaders }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
-	// Check cluster context
-	if (!locals.cluster) {
-		throw error(400, { message: 'Cluster context required' });
-	}
+	requireAuthenticatedUser(locals);
+	requireClusterContext(locals);
 
 	const { resourceType, namespace, name } = params;
 	const getStatus = url.searchParams.get('status') === 'true';
@@ -149,47 +148,28 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 		});
 	}
 
-	// Check permission for specific namespace
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		resolvedType,
+	await requireScopedPermission(locals, 'read', resolvedType, namespace);
+
+	const { resource } = await getFluxResourceDetail({
+		locals,
+		name,
 		namespace,
-		locals.cluster
-	);
+		resourceType,
+		statusOnly: getStatus
+	});
 
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
+	const etag = computeWeakEtag(resource.metadata?.resourceVersion);
+	const notModified = respondNotModified(request, etag);
+	if (notModified) {
+		return notModified;
 	}
 
-	const reqCache: ReqCache = new Map();
-
-	try {
-		const resource = getStatus
-			? await getFluxResourceStatus(resolvedType, namespace, name, locals.cluster, reqCache)
-			: await getFluxResource(resolvedType, namespace, name, locals.cluster, reqCache);
-
-		// Generate ETag from resourceVersion if available
-		const resourceVersion = resource.metadata?.resourceVersion;
-		if (resourceVersion) {
-			const etag = `W/"${resourceVersion}"`;
-
-			// Check If-None-Match header
-			const ifNoneMatch = request.headers.get('if-none-match');
-			if (ifNoneMatch === etag) {
-				return new Response(null, { status: 304 });
-			}
-
-			setHeaders({
-				ETag: etag,
-				'Cache-Control': 'private, max-age=10, stale-while-revalidate=30'
-			});
-		}
-
-		return json(resource);
-	} catch (err) {
-		throw handleApiError(err, `Error fetching ${resolvedType} ${namespace}/${name}`);
+	if (etag) {
+		setHeaders({ ETag: etag });
+		setPrivateCacheHeaders(setHeaders, 'private, max-age=10, stale-while-revalidate=30');
 	}
+
+	return json(resource);
 };
 
 /**
@@ -199,15 +179,8 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
  * Body: { yaml: string } - The updated resource YAML
  */
 export const PUT: RequestHandler = async ({ params, request, locals }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
-	// Check cluster context
-	if (!locals.cluster) {
-		throw error(400, { message: 'Cluster context required' });
-	}
+	requireAuthenticatedUser(locals);
+	requireClusterContext(locals);
 
 	const { resourceType, namespace, name } = params;
 
@@ -223,18 +196,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 		});
 	}
 
-	// Check permission for specific namespace
-	const hasPermission = await checkPermission(
-		locals.user,
-		'write',
-		resolvedType,
-		namespace,
-		locals.cluster
-	);
-
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
-	}
+	await requireScopedPermission(locals, 'write', resolvedType, namespace);
 
 	// Parse request body
 	let body: { yaml?: unknown };
@@ -327,15 +289,8 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
  * Delete a specific resource
  */
 export const DELETE: RequestHandler = async ({ params, locals, getClientAddress }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
-	// Check cluster context
-	if (!locals.cluster) {
-		throw error(400, { message: 'Cluster context required' });
-	}
+	const user = requireAuthenticatedUser(locals);
+	const clusterId = requireClusterContext(locals);
 
 	const { resourceType, namespace, name } = params;
 
@@ -351,38 +306,32 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 		});
 	}
 
-	// Check permission for admin action (delete requires admin, not just write)
-	const hasPermission = await checkPermission(
-		locals.user,
-		'admin',
-		resolvedType,
-		namespace,
-		locals.cluster
-	);
-
-	if (!hasPermission) {
-		logAudit(locals.user, 'admin:delete', {
+	try {
+		await requireAdminPermission(locals, resolvedType, namespace);
+	} catch (err) {
+		logAudit(user, 'admin:delete', {
 			resourceType: resolvedType,
 			resourceName: name,
 			namespace,
-			clusterId: locals.cluster,
+			clusterId,
 			ipAddress: getClientAddress(),
 			success: false,
 			details: { error: 'Permission denied' }
 		}).catch((auditErr) => {
 			logger.error(auditErr, 'Failed to log audit event for denied delete:');
 		});
-		throw error(403, { message: 'Permission denied' });
+
+		throw err;
 	}
 
 	try {
-		await deleteResource(resolvedType, namespace, name, locals.cluster);
+		await deleteResource(resolvedType, namespace, name, clusterId);
 
-		logAudit(locals.user, 'admin:delete', {
+		logAudit(user, 'admin:delete', {
 			resourceType: resolvedType,
 			resourceName: name,
 			namespace,
-			clusterId: locals.cluster,
+			clusterId,
 			ipAddress: getClientAddress(),
 			success: true
 		}).catch((auditErr) => {
@@ -392,11 +341,11 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 		return new Response(null, { status: 204 });
 	} catch (err) {
 		try {
-			await logAudit(locals.user, 'admin:delete', {
+			await logAudit(user, 'admin:delete', {
 				resourceType: resolvedType,
 				resourceName: name,
 				namespace,
-				clusterId: locals.cluster,
+				clusterId,
 				ipAddress: getClientAddress(),
 				success: false,
 				details: {

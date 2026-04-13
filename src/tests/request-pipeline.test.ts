@@ -1,0 +1,387 @@
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import type { User } from '../lib/server/db/schema.js';
+import * as actualBetterAuth from '../lib/server/auth/better-auth.js';
+import * as actualClusters from '../lib/server/clusters.js';
+import * as actualCsrf from '../lib/server/csrf.js';
+import * as actualInitialize from '../lib/server/initialize.js';
+import * as actualK8sErrors from '../lib/server/kubernetes/errors.js';
+import * as actualLogger from '../lib/server/logger.js';
+import * as actualMetrics from '../lib/server/metrics.js';
+import * as actualRateLimiter from '../lib/server/rate-limiter.js';
+
+let sessionData: {
+	session: { id: string };
+	user: User;
+} | null = null;
+let csrfValid = true;
+let clusterRecord: { id: string; isActive: boolean } | null = { id: 'cluster-a', isActive: true };
+let errorResponse = {
+	status: 500,
+	body: { error: 'An unexpected error occurred', code: 'InternalServerError' }
+};
+
+const observeCalls: Array<{ labels: string[]; value: number }> = [];
+
+function createUser(role: User['role'] = 'admin'): User {
+	const now = new Date();
+	return {
+		id: 'user-1',
+		username: role,
+		email: null,
+		name: role,
+		emailVerified: false,
+		image: null,
+		role,
+		active: true,
+		isLocal: true,
+		requiresPasswordChange: false,
+		createdAt: now,
+		updatedAt: now,
+		preferences: null
+	};
+}
+
+function createCookies(initial: Record<string, string> = {}) {
+	const values = new Map(Object.entries(initial));
+	const deleted: Array<{ name: string; options: Record<string, unknown> }> = [];
+	const setCalls: Array<{
+		name: string;
+		options: Record<string, unknown>;
+		value: string;
+	}> = [];
+
+	return {
+		delete(name: string, options: Record<string, unknown>) {
+			values.delete(name);
+			deleted.push({ name, options });
+		},
+		deleted,
+		get(name: string) {
+			return values.get(name);
+		},
+		set(name: string, value: string, options: Record<string, unknown>) {
+			values.set(name, value);
+			setCalls.push({ name, options, value });
+		},
+		setCalls,
+		values
+	};
+}
+
+async function importHooks() {
+	return import(`../hooks.server.js?case=${Date.now()}-${Math.random()}`);
+}
+
+beforeEach(() => {
+	sessionData = null;
+	csrfValid = true;
+	clusterRecord = { id: 'cluster-a', isActive: true };
+	errorResponse = {
+		status: 500,
+		body: { error: 'An unexpected error occurred', code: 'InternalServerError' }
+	};
+	observeCalls.length = 0;
+
+	mock.module('$lib/server/logger.js', () => ({
+		logger: {
+			debug: () => {},
+			error: () => {},
+			info: () => {},
+			warn: () => {}
+		},
+		withRequestContext: async (_requestId: string, fn: () => Promise<Response>) => fn()
+	}));
+
+	mock.module('$lib/server/metrics.js', () => ({
+		httpRequestDurationMicroseconds: {
+			labels: (...labels: string[]) => ({
+				observe: (value: number) => observeCalls.push({ labels, value })
+			})
+		},
+		loginAttemptsTotal: { labels: () => ({ inc: () => {} }) },
+		sessionsCleanedUpTotal: { inc: () => {} }
+	}));
+
+	mock.module('$lib/server/initialize.js', () => ({
+		initializeGyre: async () => {}
+	}));
+
+	mock.module('$lib/server/rate-limiter.js', () => ({
+		tryCheckRateLimit: () => ({ limited: false, retryAfter: 0 })
+	}));
+
+	mock.module('$lib/server/auth/better-auth.js', () => ({
+		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
+		getBetterAuthSession: async () => sessionData
+	}));
+
+	mock.module('$lib/server/csrf.js', () => ({
+		generateCsrfToken: (sessionId: string) => `csrf:${sessionId}`,
+		validateCsrfToken: () => csrfValid
+	}));
+
+	mock.module('$lib/server/clusters.js', () => ({
+		getClusterById: async () => clusterRecord
+	}));
+
+	mock.module('$lib/server/kubernetes/errors.js', () => ({
+		errorToHttpResponse: () => errorResponse
+	}));
+});
+
+afterEach(() => {
+	mock.restore();
+	mock.module('$lib/server/logger.js', () => actualLogger);
+	mock.module('$lib/server/metrics.js', () => actualMetrics);
+	mock.module('$lib/server/initialize.js', () => actualInitialize);
+	mock.module('$lib/server/rate-limiter.js', () => actualRateLimiter);
+	mock.module('$lib/server/auth/better-auth.js', () => actualBetterAuth);
+	mock.module('$lib/server/csrf.js', () => actualCsrf);
+	mock.module('$lib/server/clusters.js', () => actualClusters);
+	mock.module('$lib/server/kubernetes/errors.js', () => actualK8sErrors);
+});
+
+describe('request pipeline', () => {
+	test('propagates request ids and applies security headers', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
+		const cookies = createCookies({ gyre_session: 'session-cookie' });
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event: {
+				cookies,
+				getClientAddress: () => '127.0.0.1',
+				locals: {} as App.Locals,
+				request: new Request('http://localhost/dashboard', {
+					headers: {
+						'x-request-id': '123e4567-e89b-12d3-a456-426614174000'
+					}
+				}),
+				route: { id: '/dashboard' },
+				url: new URL('http://localhost/dashboard')
+			},
+			resolve: async () => new Response('ok', { status: 200 })
+		});
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get('x-request-id')).toBe('123e4567-e89b-12d3-a456-426614174000');
+		expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+		expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+		expect(response.headers.get('X-Permitted-Cross-Domain-Policies')).toBe('none');
+		expect(response.headers.get('Referrer-Policy')).toBe('strict-origin-when-cross-origin');
+		expect(cookies.setCalls).toEqual([
+			{
+				name: 'gyre_csrf',
+				options: expect.objectContaining({ httpOnly: false, path: '/' }),
+				value: 'csrf:session-1'
+			}
+		]);
+		expect(observeCalls).toHaveLength(1);
+	});
+
+	test('returns JSON 413 for oversized API requests', async () => {
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event: {
+				cookies: createCookies(),
+				getClientAddress: () => '127.0.0.1',
+				locals: {} as App.Locals,
+				request: new Request('http://localhost/api/v1/flux/version', {
+					headers: { 'content-length': String(1024 * 1024 + 1) },
+					method: 'POST'
+				}),
+				url: new URL('http://localhost/api/v1/flux/version')
+			},
+			resolve: async () => new Response('unreachable')
+		});
+
+		expect(response.status).toBe(413);
+		expect(await response.json()).toEqual({
+			error: 'Payload Too Large',
+			message: 'Request payload exceeds maximum size of 1MB'
+		});
+	});
+
+	test('redirects page/form payload-too-large responses back with _error', async () => {
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event: {
+				cookies: createCookies(),
+				getClientAddress: () => '127.0.0.1',
+				locals: {} as App.Locals,
+				request: new Request('http://localhost/settings?tab=profile', {
+					headers: { 'content-length': String(1024 * 1024 + 1) },
+					method: 'POST'
+				}),
+				url: new URL('http://localhost/settings?tab=profile')
+			},
+			resolve: async () => new Response('unreachable')
+		});
+
+		expect(response.status).toBe(303);
+		expect(response.headers.get('location')).toBe('/settings?tab=profile&_error=payload_too_large');
+	});
+
+	test('rejects authenticated state-changing requests with invalid csrf tokens', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
+		csrfValid = false;
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event: {
+				cookies: createCookies({ gyre_session: 'session-cookie' }),
+				getClientAddress: () => '127.0.0.1',
+				locals: {} as App.Locals,
+				request: new Request('http://localhost/api/v1/flux/version', { method: 'POST' }),
+				url: new URL('http://localhost/api/v1/flux/version')
+			},
+			resolve: async () => new Response('unreachable')
+		});
+
+		expect(response.status).toBe(403);
+		expect(await response.json()).toEqual({
+			error: 'Forbidden',
+			message: 'Invalid or missing CSRF token'
+		});
+	});
+
+	test('returns 401 for unauthenticated API access', async () => {
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event: {
+				cookies: createCookies(),
+				getClientAddress: () => '127.0.0.1',
+				locals: {} as App.Locals,
+				request: new Request('http://localhost/api/v1/flux/version'),
+				url: new URL('http://localhost/api/v1/flux/version')
+			},
+			resolve: async () => new Response('unreachable')
+		});
+
+		expect(response.status).toBe(401);
+		expect(await response.json()).toEqual({
+			error: 'Unauthorized',
+			message: 'Authentication required'
+		});
+	});
+
+	test('redirects unauthenticated page access to login with a safe returnTo', async () => {
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event: {
+				cookies: createCookies(),
+				getClientAddress: () => '127.0.0.1',
+				locals: {} as App.Locals,
+				request: new Request('http://localhost/dashboard?tab=2'),
+				url: new URL('http://localhost/dashboard?tab=2')
+			},
+			resolve: async () => new Response('unreachable')
+		});
+
+		expect(response.status).toBe(302);
+		expect(response.headers.get('location')).toBe('/login?returnTo=%2Fdashboard%3Ftab%3D2');
+	});
+
+	test('falls back to in-cluster when the cluster cookie is stale', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
+		clusterRecord = null;
+		const cookies = createCookies({
+			gyre_cluster: 'stale-cluster',
+			gyre_session: 'session-cookie'
+		});
+		const event = {
+			cookies,
+			getClientAddress: () => '127.0.0.1',
+			locals: {} as App.Locals,
+			request: new Request('http://localhost/dashboard'),
+			url: new URL('http://localhost/dashboard')
+		};
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event,
+			resolve: async () => new Response('ok', { status: 200 })
+		});
+
+		expect(response.status).toBe(200);
+		expect(event.locals.cluster).toBe('in-cluster');
+		expect(cookies.deleted).toContainEqual({
+			name: 'gyre_cluster',
+			options: { path: '/' }
+		});
+	});
+
+	test('keeps admin routes forbidden for non-admin users', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser('editor')
+		};
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event: {
+				cookies: createCookies({ gyre_session: 'session-cookie' }),
+				getClientAddress: () => '127.0.0.1',
+				locals: {} as App.Locals,
+				request: new Request('http://localhost/api/v1/admin/settings'),
+				url: new URL('http://localhost/api/v1/admin/settings')
+			},
+			resolve: async () => new Response('unreachable')
+		});
+
+		expect(response.status).toBe(403);
+		expect(await response.json()).toEqual({
+			error: 'Forbidden',
+			message: 'Admin access required'
+		});
+	});
+
+	test('maps unhandled API errors through the shared HTTP response formatter', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
+		errorResponse = {
+			status: 418,
+			body: {
+				error: 'Mapped Error',
+				message: 'Mapped Error',
+				code: 'MappedCode'
+			}
+		};
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event: {
+				cookies: createCookies({ gyre_session: 'session-cookie' }),
+				getClientAddress: () => '127.0.0.1',
+				locals: {} as App.Locals,
+				request: new Request('http://localhost/api/v1/boom'),
+				url: new URL('http://localhost/api/v1/boom')
+			},
+			resolve: async () => {
+				throw new Error('boom');
+			}
+		});
+
+		expect(response.status).toBe(418);
+		expect(await response.json()).toEqual({
+			error: 'Mapped Error',
+			message: 'Mapped Error',
+			code: 'MappedCode'
+		});
+	});
+});

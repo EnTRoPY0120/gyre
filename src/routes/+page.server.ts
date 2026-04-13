@@ -1,11 +1,11 @@
 import type { PageServerLoad } from './$types';
 import { resourceGroups } from '$lib/config/resources';
-import { logger } from '$lib/server/logger.js';
-import { fetchWithRetry } from '$lib/utils/fetch';
 import { DASHBOARD_CACHE_TTL_MS } from '$lib/server/config/constants';
 import { getDashboardCache, setDashboardCache } from '$lib/server/dashboard-cache';
+import { getFluxOverviewSummary } from '$lib/server/flux/services.js';
+import { requireClusterWideRead } from '$lib/server/http/guards.js';
 
-export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHeaders }) => {
+export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 	// Get health data from parent layout
 	const parentData = await parent();
 
@@ -23,19 +23,25 @@ export const load: PageServerLoad = async ({ fetch: svelteFetch, parent, setHead
 			>;
 		}
 
-		// Fetch batched overview results
-		const response = await fetchWithRetry('/api/v1/flux/overview', undefined, {
-			fetchFn: svelteFetch,
-			logger
-		});
-		if (!response.ok) {
+		try {
+			await requireClusterWideRead(locals);
+		} catch {
 			return {} as Record<
 				string,
 				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
 			>;
 		}
 
-		const overviewData = await response.json();
+		let overviewData;
+		try {
+			overviewData = await getFluxOverviewSummary({ locals });
+		} catch {
+			return {} as Record<
+				string,
+				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
+			>;
+		}
+
 		const results = overviewData.results || [];
 
 		// Build set of resource types that succeeded (absent types errored)
