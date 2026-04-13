@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 
+mock.restore();
+
 let consoleLogSpy: ReturnType<typeof spyOn>;
 let consoleErrorSpy: ReturnType<typeof spyOn>;
 let consoleWarnSpy: ReturnType<typeof spyOn>;
@@ -37,8 +39,8 @@ mock.module('jose', () => ({
 	})
 }));
 
-import { OIDCProvider } from '../lib/server/auth/oauth/providers/oidc.js';
-import { validateProviderConfig } from '../lib/server/auth/oauth/index.js';
+import { OIDCProvider } from '../lib/server/auth/oauth/providers/oidc.js?sut';
+import { validateProviderConfig } from '../lib/server/auth/oauth/index.js?sut';
 import { OAuthError } from '../lib/server/auth/oauth/types.js';
 
 const MOCK_DISCOVERY = {
@@ -83,6 +85,16 @@ function makeProvider(configOverrides: Partial<typeof mockConfig> = {}) {
 	});
 }
 
+async function expectOAuthErrorCode(promise: Promise<unknown>, code: string) {
+	try {
+		await promise;
+		throw new Error(`Expected rejection with OAuthError code ${code}`);
+	} catch (error) {
+		expect((error as { name?: string }).name).toBe('OAuthError');
+		expect((error as { code?: string }).code).toBe(code);
+	}
+}
+
 function mockDiscovery(discovery = MOCK_DISCOVERY) {
 	return spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 		const urlStr = url.toString();
@@ -123,7 +135,7 @@ describe('OIDCProvider — constructor', () => {
 				redirectUri: 'https://app.example.com/cb'
 			});
 		} catch (e) {
-			expect(e).toMatchObject({ code: 'INVALID_CONFIG' });
+			expect((e as { code?: string }).code).toBe('INVALID_CONFIG');
 		}
 	});
 
@@ -268,10 +280,10 @@ describe('OIDCProvider — discover()', () => {
 			);
 		});
 		try {
-			await expect(provider.getAuthorizationUrl('state', 'verifier')).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'DISCOVERY_FAILED'
-			});
+			await expectOAuthErrorCode(
+				provider.getAuthorizationUrl('state', 'verifier'),
+				'DISCOVERY_FAILED'
+			);
 		} finally {
 			spy.mockRestore();
 		}
@@ -293,10 +305,10 @@ describe('OIDCProvider — discover()', () => {
 			);
 		});
 		try {
-			await expect(provider.getAuthorizationUrl('state', 'verifier')).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'DISCOVERY_FAILED'
-			});
+			await expectOAuthErrorCode(
+				provider.getAuthorizationUrl('state', 'verifier'),
+				'DISCOVERY_FAILED'
+			);
 		} finally {
 			spy.mockRestore();
 		}
@@ -318,10 +330,10 @@ describe('OIDCProvider — discover()', () => {
 			);
 		});
 		try {
-			await expect(provider.getAuthorizationUrl('state', 'verifier')).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'DISCOVERY_FAILED'
-			});
+			await expectOAuthErrorCode(
+				provider.getAuthorizationUrl('state', 'verifier'),
+				'DISCOVERY_FAILED'
+			);
 		} finally {
 			spy.mockRestore();
 		}
@@ -466,10 +478,10 @@ describe('OIDCProvider.validateCallback()', () => {
 			return new Response('not found', { status: 404 });
 		});
 		try {
-			await expect(provider.validateCallback('bad-code', 'verifier')).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'TOKEN_EXCHANGE_FAILED'
-			});
+			await expectOAuthErrorCode(
+				provider.validateCallback('bad-code', 'verifier'),
+				'TOKEN_EXCHANGE_FAILED'
+			);
 		} finally {
 			spy.mockRestore();
 		}
@@ -579,12 +591,10 @@ describe('OIDCProvider.getUserInfo()', () => {
 			return new Response('not found', { status: 404 });
 		});
 		try {
-			await expect(
-				provider.getUserInfo({ accessToken: 'access-token', tokenType: 'Bearer' })
-			).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'NO_USER_INFO'
-			});
+			await expectOAuthErrorCode(
+				provider.getUserInfo({ accessToken: 'access-token', tokenType: 'Bearer' }),
+				'NO_USER_INFO'
+			);
 		} finally {
 			spy.mockRestore();
 		}

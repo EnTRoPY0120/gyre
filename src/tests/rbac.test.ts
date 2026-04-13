@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
 
+mock.restore();
+
 spyOn(console, 'log').mockImplementation(() => {});
 
 import { Database } from 'bun:sqlite';
@@ -22,7 +24,7 @@ import {
 	isAdmin,
 	requirePermission,
 	RbacError
-} from '../lib/server/rbac.js';
+} from '../lib/server/rbac.js?sut';
 import type { User } from '../lib/server/db/schema.js';
 
 // ---------------------------------------------------------------------------

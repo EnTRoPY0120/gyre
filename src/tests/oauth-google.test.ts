@@ -1,5 +1,7 @@
 import { describe, test, expect, mock, spyOn } from 'bun:test';
 
+mock.restore();
+
 spyOn(console, 'log').mockImplementation(() => {});
 spyOn(console, 'error').mockImplementation(() => {});
 spyOn(console, 'warn').mockImplementation(() => {});
@@ -43,7 +45,7 @@ mock.module('jose', () => ({
 	decodeJwt: () => mockJwtClaims
 }));
 
-import { GoogleProvider } from '../lib/server/auth/oauth/providers/google.js';
+import { GoogleProvider } from '../lib/server/auth/oauth/providers/google.js?sut';
 
 const mockConfig = {
 	id: 'google-1',
@@ -74,6 +76,16 @@ function makeProvider(overrides: Record<string, unknown> = {}) {
 		config: { ...mockConfig, ...overrides } as typeof mockConfig,
 		redirectUri: 'https://app.example.com/callback'
 	});
+}
+
+async function expectOAuthErrorCode(promise: Promise<unknown>, code: string) {
+	try {
+		await promise;
+		throw new Error(`Expected rejection with OAuthError code ${code}`);
+	} catch (error) {
+		expect((error as { name?: string }).name).toBe('OAuthError');
+		expect((error as { code?: string }).code).toBe(code);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -143,10 +155,7 @@ describe('GoogleProvider.validateCallback()', () => {
 		try {
 			// Create a fresh provider so the Arctic client is initialized fresh
 			const provider = makeProvider();
-			await expect(provider.validateCallback('bad-code')).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'TOKEN_EXCHANGE_FAILED'
-			});
+			await expectOAuthErrorCode(provider.validateCallback('bad-code'), 'TOKEN_EXCHANGE_FAILED');
 		} finally {
 			arcticShouldThrow = false;
 		}
@@ -222,12 +231,10 @@ describe('GoogleProvider.getUserInfo()', () => {
 			throw new Error('Network error');
 		});
 		try {
-			await expect(
-				provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' })
-			).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'USERINFO_FAILED'
-			});
+			await expectOAuthErrorCode(
+				provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' }),
+				'USERINFO_FAILED'
+			);
 		} finally {
 			spy.mockRestore();
 		}

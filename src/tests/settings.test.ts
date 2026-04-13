@@ -1,5 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 
+mock.restore();
+
 spyOn(console, 'log').mockImplementation(() => {});
 
 import { Database } from 'bun:sqlite';
@@ -30,7 +32,7 @@ import {
 	isSettingOverriddenByEnv,
 	seedAuthSettings,
 	SETTINGS_KEYS
-} from '../lib/server/settings.js';
+} from '../lib/server/settings.js?sut';
 
 // ---------------------------------------------------------------------------
 // Helpers

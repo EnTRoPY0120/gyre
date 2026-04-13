@@ -1,12 +1,53 @@
-import { describe, test, expect, beforeEach, afterEach, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { Database } from 'bun:sqlite';
+import { drizzle } from 'drizzle-orm/bun-sqlite';
+import * as schema from '../lib/server/db/schema.js';
+
+const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+
+const CREATE_RATE_LIMITS = `
+	CREATE TABLE IF NOT EXISTS rate_limits (
+		key TEXT PRIMARY KEY,
+		current_window_count INTEGER NOT NULL DEFAULT 0,
+		previous_window_count INTEGER NOT NULL DEFAULT 0,
+		last_window_start INTEGER NOT NULL DEFAULT 0,
+		expire_at INTEGER NOT NULL,
+		updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+	)
+`;
+
+const CREATE_LOGIN_LOCKOUTS = `
+	CREATE TABLE IF NOT EXISTS login_lockouts (
+		username TEXT PRIMARY KEY,
+		failed_attempts INTEGER NOT NULL DEFAULT 0,
+		locked_until INTEGER,
+		updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+	)
+`;
+
+function setupInMemoryDb() {
+	const sqlite = new Database(':memory:');
+	sqlite.exec(CREATE_RATE_LIMITS);
+	sqlite.exec(CREATE_LOGIN_LOCKOUTS);
+	return drizzle(sqlite, { schema });
+}
+
+mock.module('../lib/server/db/index.js', () => ({
+	getDbSync: () => state.db,
+	getDb: async () => state.db,
+	schema
+}));
 
 spyOn(console, 'log').mockImplementation(() => {});
-import { RateLimiter, SSEConnectionLimiter } from '../lib/server/rate-limiter';
+import { RateLimiter, SSEConnectionLimiter } from '../lib/server/rate-limiter?sut';
+
+mock.restore();
 
 describe('RateLimiter', () => {
 	let limiter: RateLimiter;
 
 	beforeEach(() => {
+		state.db = setupInMemoryDb();
 		// Each test gets a fresh instance with empty storage; prevents state leaking
 		// across tests (since RateLimiter storage is instance-level, not module-level).
 		limiter = new RateLimiter();
@@ -16,6 +57,7 @@ describe('RateLimiter', () => {
 		// Explicitly stop the interval to avoid lingering timers.
 		// The stop() method clears the internal setInterval created in the constructor.
 		limiter.stop();
+		state.db = null;
 	});
 
 	describe('basic rate limiting', () => {
@@ -113,16 +155,18 @@ describe('RateLimiter', () => {
 			expect(result.limited).toBe(false);
 		});
 
-		test('fresh instance starts with clean state for any key', () => {
+		test('new instances share persisted counters for the same key', () => {
 			// Exhaust a key in one instance
 			const old = new RateLimiter();
 			old.check('shared-key', 1, 60_000);
 			old.check('shared-key', 1, 60_000); // now blocked in old
 
-			// New instance has no memory of old traffic
+			// Rate limiter state is persisted in DB and therefore shared.
 			const fresh = new RateLimiter();
 			const result = fresh.check('shared-key', 1, 60_000);
-			expect(result.limited).toBe(false);
+			expect(result.limited).toBe(true);
+			old.stop();
+			fresh.stop();
 		});
 
 		test('multiple requests from the same key within one window accumulate correctly', () => {

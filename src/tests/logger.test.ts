@@ -1,5 +1,7 @@
-import { expect, test, describe, spyOn } from 'bun:test';
-import { logger } from '../lib/server/logger.js';
+import { expect, test, describe, mock, spyOn } from 'bun:test';
+import { logger } from '../lib/server/logger.js?sut';
+
+mock.restore();
 
 describe('Logger Redaction', () => {
 	test('redacts sensitive fields like password', () => {

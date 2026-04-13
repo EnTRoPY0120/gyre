@@ -1,5 +1,7 @@
 import { describe, test, expect, afterAll, mock, spyOn } from 'bun:test';
 
+mock.restore();
+
 const consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
 const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
 const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
@@ -45,7 +47,7 @@ mock.module('$lib/server/logger.js', () => ({
 	logger: { error: () => {}, warn: () => {}, info: () => {}, debug: () => {} }
 }));
 
-import { GitLabProvider } from '../lib/server/auth/oauth/providers/gitlab.js';
+import { GitLabProvider } from '../lib/server/auth/oauth/providers/gitlab.js?sut';
 
 const mockConfig = {
 	id: 'gitlab-1',
@@ -76,6 +78,16 @@ function makeProvider(overrides: Record<string, unknown> = {}) {
 		config: { ...mockConfig, ...overrides } as typeof mockConfig,
 		redirectUri: 'https://app.example.com/callback'
 	});
+}
+
+async function expectOAuthErrorCode(promise: Promise<unknown>, code: string) {
+	try {
+		await promise;
+		throw new Error(`Expected rejection with OAuthError code ${code}`);
+	} catch (error) {
+		expect((error as { name?: string }).name).toBe('OAuthError');
+		expect((error as { code?: string }).code).toBe(code);
+	}
 }
 
 interface FetchMockContext {
@@ -223,9 +235,10 @@ describe('GitLabProvider.validateCallback() — PKCE path', () => {
 		});
 		try {
 			const provider = makeProvider();
-			await expect(provider.validateCallback('auth-code', 'my-verifier')).rejects.toMatchObject({
-				code: 'TOKEN_EXCHANGE_FAILED'
-			});
+			await expectOAuthErrorCode(
+				provider.validateCallback('auth-code', 'my-verifier'),
+				'TOKEN_EXCHANGE_FAILED'
+			);
 		} finally {
 			spy.mockRestore();
 		}
@@ -255,10 +268,10 @@ describe('GitLabProvider.validateCallback() — error handling', () => {
 		});
 		try {
 			const provider = makeProvider();
-			await expect(provider.validateCallback('bad-code', 'verifier')).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'TOKEN_EXCHANGE_FAILED'
-			});
+			await expectOAuthErrorCode(
+				provider.validateCallback('bad-code', 'verifier'),
+				'TOKEN_EXCHANGE_FAILED'
+			);
 		} finally {
 			spy.mockRestore();
 		}
@@ -296,10 +309,7 @@ describe('GitLabProvider.refreshAccessToken()', () => {
 		});
 		try {
 			const provider = makeProvider();
-			await expect(provider.refreshAccessToken!('bad-token')).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'TOKEN_REFRESH_FAILED'
-			});
+			await expectOAuthErrorCode(provider.refreshAccessToken!('bad-token'), 'TOKEN_REFRESH_FAILED');
 		} finally {
 			spy.mockRestore();
 		}
@@ -407,12 +417,10 @@ describe('GitLabProvider.getUserInfo()', () => {
 		});
 		try {
 			const provider = makeProvider();
-			await expect(
-				provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' })
-			).rejects.toMatchObject({
-				name: 'OAuthError',
-				code: 'USERINFO_FAILED'
-			});
+			await expectOAuthErrorCode(
+				provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' }),
+				'USERINFO_FAILED'
+			);
 		} finally {
 			spy.mockRestore();
 		}

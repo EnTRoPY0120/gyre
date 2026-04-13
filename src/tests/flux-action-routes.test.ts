@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
 
 const capturedPermissionChecks: unknown[][] = [];
@@ -91,6 +91,10 @@ beforeEach(() => {
 	capturedReconcileCalls.length = 0;
 	capturedToggleSuspendCalls.length = 0;
 	capturedLogWrites.length = 0;
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 describe('Flux action routes normalize plural resource types', () => {

@@ -10,6 +10,8 @@ import {
 	spyOn
 } from 'bun:test';
 
+mock.restore();
+
 let consoleLogSpy: ReturnType<typeof spyOn>;
 let consoleErrorSpy: ReturnType<typeof spyOn>;
 let consoleWarnSpy: ReturnType<typeof spyOn>;
@@ -52,7 +54,7 @@ mock.module('arctic', () => ({
 	}
 }));
 
-import { GitHubProvider } from '../lib/server/auth/oauth/providers/github.js';
+import { GitHubProvider } from '../lib/server/auth/oauth/providers/github.js?sut';
 
 const mockConfig = {
 	id: 'github-1',
@@ -84,6 +86,16 @@ function makeProvider(configOverrides: Partial<typeof mockConfig> = {}) {
 		config: { ...mockConfig, ...configOverrides } as never,
 		redirectUri: 'https://example.com/callback'
 	});
+}
+
+async function expectOAuthErrorCode(promise: Promise<unknown>, code: string) {
+	try {
+		await promise;
+		throw new Error(`Expected rejection with OAuthError code ${code}`);
+	} catch (error) {
+		expect((error as { name?: string }).name).toBe('OAuthError');
+		expect((error as { code?: string }).code).toBe(code);
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -177,9 +189,10 @@ describe('GitHubProvider.validateCallback() — PKCE path', () => {
 		});
 		try {
 			const provider = makeProvider();
-			await expect(provider.validateCallback('code', 'verifier')).rejects.toMatchObject({
-				code: 'TOKEN_EXCHANGE_FAILED'
-			});
+			await expectOAuthErrorCode(
+				provider.validateCallback('code', 'verifier'),
+				'TOKEN_EXCHANGE_FAILED'
+			);
 		} finally {
 			spy.mockRestore();
 		}
@@ -219,10 +232,10 @@ describe('GitHubProvider.validateCallback() — error handling', () => {
 
 	test('throws OAuthError with TOKEN_EXCHANGE_FAILED when token endpoint returns non-OK', async () => {
 		const provider = makeProvider();
-		await expect(provider.validateCallback('bad-code', 'verifier')).rejects.toMatchObject({
-			name: 'OAuthError',
-			code: 'TOKEN_EXCHANGE_FAILED'
-		});
+		await expectOAuthErrorCode(
+			provider.validateCallback('bad-code', 'verifier'),
+			'TOKEN_EXCHANGE_FAILED'
+		);
 	});
 });
 
@@ -405,11 +418,9 @@ describe('GitHubProvider.getUserInfo() — API failure', () => {
 
 	test('throws OAuthError with USERINFO_FAILED code on GitHub API failure', async () => {
 		const provider = makeProvider();
-		await expect(
-			provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' })
-		).rejects.toMatchObject({
-			name: 'OAuthError',
-			code: 'USERINFO_FAILED'
-		});
+		await expectOAuthErrorCode(
+			provider.getUserInfo({ accessToken: 'bad-token', tokenType: 'Bearer' }),
+			'USERINFO_FAILED'
+		);
 	});
 });
