@@ -36,25 +36,25 @@ export const _metadata = {
 					}
 				}
 			},
-				400: {
-					description: 'Bad request (invalid JSON or validation failure)',
-					content: { 'application/json': { schema: errorSchema } }
-				},
-				401: {
-					description: 'Unauthorized',
-					content: { 'application/json': { schema: errorSchema } }
-				},
-				404: {
-					description: "User not found (code: 'NotFound')",
-					content: { 'application/json': { schema: errorSchema } }
-				},
-				500: {
-					description: 'Failed to update preferences',
-					content: { 'application/json': { schema: errorSchema } }
-				}
+			400: {
+				description: 'Bad request (invalid JSON or validation failure)',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			401: {
+				description: 'Unauthorized',
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			404: {
+				description: "User not found (code: 'NotFound')",
+				content: { 'application/json': { schema: errorSchema } }
+			},
+			500: {
+				description: 'Failed to update preferences',
+				content: { 'application/json': { schema: errorSchema } }
 			}
 		}
-	};
+	}
+};
 
 export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 	if (!locals.user) {

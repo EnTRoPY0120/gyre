@@ -5,9 +5,8 @@ import type { BatchOperationResponse } from '../lib/components/flux/bulk-actions
 mock.module('$app/environment', () => ({ dev: false }));
 mock.module('$env/dynamic/public', () => ({ env: {} }));
 
-const { buildRetryPayload, partitionBatchOperationResult } = await import(
-	'../lib/components/flux/bulk-actions.js'
-);
+const { buildRetryPayload, partitionBatchOperationResult } =
+	await import('../lib/components/flux/bulk-actions.js');
 
 function createResource(name: string, namespace: string): FluxResource {
 	return {

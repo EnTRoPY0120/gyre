@@ -1,6 +1,8 @@
 import type { UserPreferences } from '$lib/types/user';
 
-function extractChecklistIds<const TItems extends ReadonlyArray<{ readonly id: string }>>(items: TItems) {
+function extractChecklistIds<const TItems extends ReadonlyArray<{ readonly id: string }>>(
+	items: TItems
+) {
 	return items.map((item) => item.id) as {
 		readonly [K in keyof TItems]: TItems[K] extends { readonly id: infer TId extends string }
 			? TId
@@ -35,9 +37,7 @@ export const ADMIN_ONBOARDING_CHECKLIST_ITEMS = [
 	}
 ] as const;
 
-export const ADMIN_ONBOARDING_CHECKLIST_IDS = extractChecklistIds(
-	ADMIN_ONBOARDING_CHECKLIST_ITEMS
-);
+export const ADMIN_ONBOARDING_CHECKLIST_IDS = extractChecklistIds(ADMIN_ONBOARDING_CHECKLIST_ITEMS);
 const VALID_ADMIN_ONBOARDING_CHECKLIST_IDS = new Set<string>(ADMIN_ONBOARDING_CHECKLIST_IDS);
 
 export type AdminOnboardingChecklistId = (typeof ADMIN_ONBOARDING_CHECKLIST_IDS)[number];
