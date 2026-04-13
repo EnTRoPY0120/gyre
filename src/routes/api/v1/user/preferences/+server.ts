@@ -90,7 +90,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 			.returning({ preferences: users.preferences });
 
 		if (!updatedUser) {
-			throw new Error('User not found while updating preferences');
+			throw error(404, { message: 'User not found', code: 'NotFound' });
 		}
 
 		const mergedPreferences = (updatedUser.preferences as UserPreferences) || {};
