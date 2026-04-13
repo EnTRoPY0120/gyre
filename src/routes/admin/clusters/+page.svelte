@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidate, invalidateAll, goto } from '$app/navigation';
+	import { invalidateAll, goto } from '$app/navigation';
 	import { deriveClusterRecoverySummary } from '$lib/clusters/recovery';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
@@ -721,7 +721,7 @@
 								{/if}
 							</div>
 							<div class="space-y-2">
-								{#each recoverySummary.guidance as item (item)}
+								{#each recoverySummary.guidance as item, idx (idx)}
 									<p class="text-sm text-slate-300">• {item}</p>
 								{/each}
 							</div>
@@ -827,7 +827,7 @@
 							return async ({ result, update }) => {
 								await update();
 								if (result.type === 'success' || result.type === 'failure') {
-									await invalidate((url) => url.pathname === '/admin/clusters');
+									await invalidateAll();
 									showHealthCheckModal = true;
 								}
 							};
