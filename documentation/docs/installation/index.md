@@ -154,13 +154,15 @@ Enable SSO/OAuth:
 
 ```yaml
 auth:
-  enabled: true
   providers:
-    - name: github
-      type: github
+    - name: GitHub
+      type: oauth2-github
       clientId: 'your-client-id'
-      clientSecret: 'your-client-secret'
+  providersExistingSecret: gyre-auth-provider-secrets
 ```
+
+Provider objects are metadata-only. Store provider secrets in the referenced secret
+using keys like `PROVIDER_GITHUB_CLIENT_SECRET`.
 
 ### Resources
 

@@ -26,8 +26,14 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- if and (not .Values.encryption.existingSecret) (not (and .Values.encryption.allowInline (and .Values.encryption.gyreKey .Values.encryption.authKey))) }}
-      {{- fail "Encryption keys are required. Set encryption.existingSecret (recommended) or set encryption.allowInline=true with non-empty gyreKey and authKey." }}
+      {{- if and (not .Values.encryption.existingSecret) (not (and .Values.encryption.allowInline (and .Values.encryption.gyreKey .Values.encryption.authKey .Values.encryption.backupKey))) }}
+      {{- fail "Encryption keys are required. Set encryption.existingSecret (recommended) or set encryption.allowInline=true with non-empty gyreKey, authKey, and backupKey." }}
+      {{- end }}
+      {{- if not .Values.metrics.existingSecret }}
+      {{- fail "metrics.existingSecret is required for Helm deployments and must contain GYRE_METRICS_TOKEN." }}
+      {{- end }}
+      {{- if and (gt (len .Values.auth.providers) 0) (not .Values.auth.providersExistingSecret) }}
+      {{- fail "auth.providersExistingSecret is required when auth.providers is non-empty." }}
       {{- end }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -121,20 +127,30 @@ spec:
         - name: BETTER_AUTH_URL
           value: {{ get $originState "value" | quote }}
         {{- $encSecretName := .Values.encryption.existingSecret | default (printf "%s-encryption" (include "gyre.fullname" .)) }}
-        {{- if or .Values.encryption.existingSecret (and .Values.encryption.allowInline .Values.encryption.gyreKey) }}
         - name: GYRE_ENCRYPTION_KEY
           valueFrom:
             secretKeyRef:
               name: {{ $encSecretName }}
               key: GYRE_ENCRYPTION_KEY
-        {{- end }}
-        {{- if or .Values.encryption.existingSecret (and .Values.encryption.allowInline .Values.encryption.authKey) }}
+              optional: false
         - name: AUTH_ENCRYPTION_KEY
           valueFrom:
             secretKeyRef:
               name: {{ $encSecretName }}
               key: AUTH_ENCRYPTION_KEY
-        {{- end }}
+              optional: false
+        - name: BACKUP_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ $encSecretName }}
+              key: BACKUP_ENCRYPTION_KEY
+              optional: false
+        - name: GYRE_METRICS_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.metrics.existingSecret }}
+              key: GYRE_METRICS_TOKEN
+              optional: false
         # Authentication settings
         {{- if .Values.auth }}
         - name: GYRE_AUTH_LOCAL_LOGIN_ENABLED
@@ -146,8 +162,15 @@ spec:
           value: {{ .Values.auth.domainAllowlist | toJson | quote }}
         {{- end }}
         {{- if .Values.auth.providers }}
+        {{- $providersWithoutSecrets := list }}
+        {{- range $provider := .Values.auth.providers }}
+        {{- if hasKey $provider "clientSecret" }}
+        {{- fail (printf "auth.providers[%q] contains forbidden field clientSecret. Provide secrets via auth.providersExistingSecret using key PROVIDER_%s_CLIENT_SECRET." $provider.name (regexReplaceAll "[^A-Z0-9]" ($provider.name | upper) "_")) }}
+        {{- end }}
+        {{- $providersWithoutSecrets = append $providersWithoutSecrets (omit $provider "clientSecret") }}
+        {{- end }}
         - name: GYRE_AUTH_PROVIDERS
-          value: {{ .Values.auth.providers | toJson | quote }}
+          value: {{ $providersWithoutSecrets | toJson | quote }}
         {{- end }}
         # Provider client secrets from existing secret
         {{- if .Values.auth.providersExistingSecret }}
@@ -163,7 +186,7 @@ spec:
             secretKeyRef:
               name: {{ $.Values.auth.providersExistingSecret }}
               key: PROVIDER_{{ $providerKey }}_CLIENT_SECRET
-              optional: true
+              optional: false
         {{- end }}
         {{- end }}
         {{- end }}

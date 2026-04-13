@@ -118,13 +118,14 @@ This guide provides a detailed reference for all configuration options available
 
 ## Metrics & Monitoring
 
-| Parameter                                 | Description                          | Default    |
-| ----------------------------------------- | ------------------------------------ | ---------- |
-| `metrics.enabled`                         | Enable application metrics           | `true`     |
-| `metrics.serviceMonitor.enabled`          | Create a Prometheus ServiceMonitor   | `false`    |
-| `metrics.serviceMonitor.interval`         | Scraping interval                    | `30s`      |
-| `metrics.serviceMonitor.path`             | Metrics path                         | `/metrics` |
-| `metrics.serviceMonitor.additionalLabels` | Additional labels for ServiceMonitor | `{}`       |
+| Parameter                                 | Description                            | Default    |
+| ----------------------------------------- | -------------------------------------- | ---------- |
+| `metrics.enabled`                         | Enable application metrics             | `true`     |
+| `metrics.existingSecret`                  | Secret containing `GYRE_METRICS_TOKEN` | `""`       |
+| `metrics.serviceMonitor.enabled`          | Create a Prometheus ServiceMonitor     | `false`    |
+| `metrics.serviceMonitor.interval`         | Scraping interval                      | `30s`      |
+| `metrics.serviceMonitor.path`             | Metrics path                           | `/metrics` |
+| `metrics.serviceMonitor.additionalLabels` | Additional labels for ServiceMonitor   | `{}`       |
 
 ## Network Policy
 
@@ -179,11 +180,20 @@ Helm config keys map to these runtime env vars:
 | --------------------------- | --------------------------------------- | ------- |
 | `encryption.gyreKey`        | Key for encrypting cluster kubeconfigs  | `""`    |
 | `encryption.authKey`        | Key for encrypting OAuth client secrets | `""`    |
+| `encryption.backupKey`      | Key for encrypting backup files         | `""`    |
 | `encryption.existingSecret` | Existing secret with encryption keys    | `""`    |
+
+`encryption.existingSecret` must include all of:
+
+- `GYRE_ENCRYPTION_KEY`
+- `AUTH_ENCRYPTION_KEY`
+- `BACKUP_ENCRYPTION_KEY`
 
 ## Auth Provider Secret Convention
 
-When `auth.providersExistingSecret` is set, each provider secret must use the provider-name convention shared by Helm and the runtime:
+`auth.providers` entries are metadata-only and must not include `clientSecret`.
+When `auth.providers` is non-empty, `auth.providersExistingSecret` is required.
+Each provider secret must use the provider-name convention shared by Helm and the runtime:
 
 - Secret key format: `PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET`
 - Env var format: `GYRE_AUTH_PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET`

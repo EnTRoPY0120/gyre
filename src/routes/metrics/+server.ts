@@ -9,9 +9,17 @@ export const GET: RequestHandler = async ({ request, setHeaders, getClientAddres
 	checkRateLimit({ setHeaders }, `metrics:${getClientAddress()}`, 120, 60 * 1000);
 
 	const authHeader = request.headers.get('authorization') ?? '';
-	const hasValidBearerToken = !!GYRE_METRICS_TOKEN && authHeader === `Bearer ${GYRE_METRICS_TOKEN}`;
+	const metricsToken = GYRE_METRICS_TOKEN?.trim();
+	const hasValidBearerToken = !!metricsToken && authHeader === `Bearer ${metricsToken}`;
 
 	if (IS_PROD) {
+		if (!metricsToken) {
+			return new Response(JSON.stringify({ error: 'Metrics token is not configured' }), {
+				status: 503,
+				headers: { 'Content-Type': 'application/json' }
+			});
+		}
+
 		if (!hasValidBearerToken) {
 			if (!locals.user) {
 				return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -34,8 +42,8 @@ export const GET: RequestHandler = async ({ request, setHeaders, getClientAddres
 				});
 			}
 		}
-	} else if (GYRE_METRICS_TOKEN) {
-		if (authHeader !== `Bearer ${GYRE_METRICS_TOKEN}`) {
+	} else if (metricsToken) {
+		if (authHeader !== `Bearer ${metricsToken}`) {
 			return new Response(JSON.stringify({ error: 'Unauthorized' }), {
 				status: 401,
 				headers: { 'Content-Type': 'application/json' }
