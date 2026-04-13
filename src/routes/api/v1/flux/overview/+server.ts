@@ -1,11 +1,9 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { listFluxResources, type ReqCache } from '$lib/server/kubernetes/client';
-import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
-import { getResourceStatus } from '$lib/utils/relationships';
-import { checkClusterWideReadPermission } from '$lib/server/rbac.js';
-import { logger } from '$lib/server/logger.js';
+import { getFluxOverviewSummary } from '$lib/server/flux/services.js';
+import { requireClusterWideRead } from '$lib/server/http/guards.js';
+import { setPrivateCacheHeaders } from '$lib/server/http/transport.js';
 
 export const _metadata = {
 	GET: {
@@ -41,58 +39,7 @@ export const _metadata = {
 };
 
 export const GET: RequestHandler = async ({ locals, setHeaders }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
-	// Check permission
-	const hasPermission = await checkClusterWideReadPermission(locals.user, locals.cluster);
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
-	}
-
-	setHeaders({
-		'Cache-Control': 'private, max-age=15, stale-while-revalidate=45'
-	});
-	const context = locals.cluster;
-	const resourceTypes = getAllResourceTypes();
-	const reqCache: ReqCache = new Map();
-
-	const results = await Promise.all(
-		resourceTypes.map(async (type) => {
-			try {
-				const data = await listFluxResources(type, context, reqCache);
-				const items = data.items || [];
-
-				let healthy = 0;
-				let failed = 0;
-				let suspended = 0;
-
-				for (const item of items) {
-					const status = getResourceStatus(item);
-					if (status === 'ready') healthy++;
-					else if (status === 'failed') failed++;
-					else if (status === 'suspended') suspended++;
-				}
-
-				return {
-					type,
-					total: items.length,
-					healthy,
-					failed,
-					suspended
-				};
-			} catch (err) {
-				logger.warn({ type, err }, 'Failed to list Flux resources for overview');
-				return { type, total: 0, healthy: 0, failed: 0, suspended: 0, error: true };
-			}
-		})
-	);
-
-	return json({
-		timestamp: new Date().toISOString(),
-		partialFailure: results.some((r) => r.error),
-		results: results.filter((r) => !r.error)
-	});
+	await requireClusterWideRead(locals);
+	setPrivateCacheHeaders(setHeaders, 'private, max-age=15, stale-while-revalidate=45');
+	return json(await getFluxOverviewSummary({ locals }));
 };

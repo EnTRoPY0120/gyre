@@ -1,53 +1,71 @@
 import type { LayoutServerLoad } from './$types';
 import pkg from '../../package.json';
 import { serializeUser } from '$lib/server/auth';
-import { logger } from '$lib/server/logger.js';
-import { fetchWithRetry } from '$lib/utils/fetch';
+import {
+	DEFAULT_FLUX_VERSION,
+	getFluxHealthSummary,
+	getFluxInstalledVersion
+} from '$lib/server/flux/services.js';
+import { requireClusterWideRead } from '$lib/server/http/guards.js';
 
-const DEFAULT_FLUX_VERSION = 'v2.x.x';
+function isHttpErrorLike(error: unknown): error is { status: number } {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'status' in error &&
+		typeof (error as { status: unknown }).status === 'number'
+	);
+}
 
-export const load: LayoutServerLoad = async ({ fetch: svelteFetch, locals, depends }) => {
+export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	depends('gyre:layout');
+
+	let health = {
+		connected: false,
+		clusterName: undefined as string | undefined,
+		availableClusters: [] as string[],
+		error: undefined as string | undefined
+	};
+
 	try {
-		const [healthRes, versionRes] = await Promise.all([
-			fetchWithRetry('/api/v1/flux/health', undefined, {
-				fetchFn: svelteFetch,
-				maxRetries: 0,
-				logger
-			}),
-			fetchWithRetry('/api/v1/flux/version', undefined, {
-				fetchFn: svelteFetch,
-				maxRetries: 0,
-				logger
-			})
-		]);
+		const healthData = await getFluxHealthSummary({
+			locals,
+			includeDetails: Boolean(locals.user)
+		});
 
-		const healthData = healthRes.ok ? await healthRes.json() : null;
-		const versionData = versionRes.ok ? await versionRes.json() : { version: DEFAULT_FLUX_VERSION };
-
-		return {
-			health: {
-				connected: healthData?.kubernetes?.connected ?? false,
-				clusterName: healthData?.kubernetes?.currentContext ?? undefined,
-				availableClusters: healthData?.kubernetes?.availableContexts ?? [],
-				error: healthRes.ok ? undefined : 'Failed to retrieve cluster health status'
-			},
-			fluxVersion: versionData.version,
-			gyreVersion: pkg.version,
-			user: serializeUser(locals.user)
+		health = {
+			connected: healthData.kubernetes?.connected ?? false,
+			clusterName: healthData.kubernetes?.currentContext ?? undefined,
+			availableClusters: healthData.kubernetes?.availableContexts ?? [],
+			error: undefined
 		};
 	} catch (error) {
-		// Surface cluster connection error in health.error side-channel
-		return {
-			health: {
-				connected: false,
-				clusterName: undefined,
-				availableClusters: [],
-				error: error instanceof Error ? error.message : 'Failed to connect to cluster API'
-			},
-			fluxVersion: DEFAULT_FLUX_VERSION,
-			gyreVersion: pkg.version,
-			user: serializeUser(locals.user)
+		health = {
+			connected: false,
+			clusterName: undefined,
+			availableClusters: [],
+			error: isHttpErrorLike(error)
+				? 'Failed to retrieve cluster health status'
+				: error instanceof Error
+					? error.message
+					: 'Failed to connect to cluster API'
 		};
 	}
+
+	let fluxVersion = DEFAULT_FLUX_VERSION;
+	if (locals.user) {
+		try {
+			await requireClusterWideRead(locals);
+			fluxVersion = (await getFluxInstalledVersion({ locals })).version;
+		} catch {
+			fluxVersion = DEFAULT_FLUX_VERSION;
+		}
+	}
+
+	return {
+		health,
+		fluxVersion,
+		gyreVersion: pkg.version,
+		user: serializeUser(locals.user)
+	};
 };

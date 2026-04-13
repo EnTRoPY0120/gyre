@@ -1,11 +1,22 @@
-import { logger } from '$lib/server/logger.js';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
-import type { FluxResource } from '$lib/types/flux';
-import { fetchWithRetry } from '$lib/utils/fetch';
+import { getFluxResourceDetail } from '$lib/server/flux/services.js';
+import { requireClusterContext, requireScopedPermission } from '$lib/server/http/guards.js';
 
-export const load: PageServerLoad = async ({ params, fetch: svelteFetch, depends }) => {
+function isHttpErrorLike(error: unknown): error is {
+	body?: { error?: string; message?: string };
+	status: number;
+} {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'status' in error &&
+		typeof (error as { status: unknown }).status === 'number'
+	);
+}
+
+export const load: PageServerLoad = async ({ params, locals, depends }) => {
 	const { type, namespace, name } = params;
 	depends(`flux:resource:${type}:${namespace}:${name}`);
 
@@ -25,26 +36,15 @@ export const load: PageServerLoad = async ({ params, fetch: svelteFetch, depends
 	}
 
 	try {
-		const response = await fetchWithRetry(`/api/v1/flux/${type}/${namespace}/${name}`, undefined, {
-			fetchFn: svelteFetch,
-			maxRetries: 0,
-			logger
+		requireClusterContext(locals);
+		await requireScopedPermission(locals, 'read', resourceInfo.kind, namespace);
+		const { resource } = await getFluxResourceDetail({
+			locals,
+			name,
+			namespace,
+			resourceType: type,
+			statusOnly: false
 		});
-
-		if (!response.ok) {
-			if (response.status === 404) {
-				error(404, {
-					message: `Resource not found: ${namespace}/${name}`
-				});
-			}
-			const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-			error(response.status, {
-				message:
-					errorData.message || errorData.error || `Failed to fetch resource: ${response.status}`
-			});
-		}
-
-		const resource: FluxResource = await response.json();
 
 		return {
 			resourceType: type,
@@ -54,11 +54,18 @@ export const load: PageServerLoad = async ({ params, fetch: svelteFetch, depends
 			resource
 		};
 	} catch (err) {
-		// Re-throw SvelteKit errors
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err;
+		if (isHttpErrorLike(err)) {
+			if (err.status === 404) {
+				error(404, {
+					message: `Resource not found: ${namespace}/${name}`
+				});
+			}
+
+			error(err.status, {
+				message: err.body?.message || err.body?.error || `Failed to fetch resource: ${err.status}`
+			});
 		}
-		logger.error(err, `Error fetching ${type}/${namespace}/${name}:`);
+
 		error(500, {
 			message: 'Failed to connect to the API'
 		});

@@ -3,10 +3,22 @@ import type { PageServerLoad } from './$types';
 import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
 import { VALID_SORT_BY, VALID_SORT_ORDER, type SortBy, type SortOrder } from '$lib/config/sorting';
 import type { FluxResource } from '$lib/types/flux';
-import { fetchWithRetry } from '$lib/utils/fetch';
-import { logger } from '$lib/server/logger.js';
+import { listFluxResourcesForType } from '$lib/server/flux/services.js';
+import { requireClusterWideRead } from '$lib/server/http/guards.js';
 
-export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, depends }) => {
+function isHttpErrorLike(error: unknown): error is {
+	body?: { error?: string; message?: string };
+	status: number;
+} {
+	return (
+		typeof error === 'object' &&
+		error !== null &&
+		'status' in error &&
+		typeof (error as { status: unknown }).status === 'number'
+	);
+}
+
+export const load: PageServerLoad = async ({ params, url, locals, depends }) => {
 	const { type } = params;
 	depends(`flux:${type}`); // e.g. flux:gitrepositories
 
@@ -50,23 +62,32 @@ export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, de
 			? offsetNum
 			: undefined;
 
-	// Build API URL with sort and pagination params
-	const apiUrl = new URL(`/api/v1/flux/${type}`, url.origin);
-	if (sortBy) {
-		apiUrl.searchParams.set('sortBy', sortBy);
-		apiUrl.searchParams.set('sortOrder', sortOrder);
-	}
-	if (limit !== undefined) apiUrl.searchParams.set('limit', String(limit));
-	if (offset !== undefined) apiUrl.searchParams.set('offset', String(offset));
-
 	try {
-		const response = await fetchWithRetry(apiUrl.toString(), undefined, {
-			fetchFn: svelteFetch,
-			logger
+		await requireClusterWideRead(locals);
+		const { result } = await listFluxResourcesForType({
+			locals,
+			query: {
+				limit,
+				offset,
+				sortBy,
+				sortOrder
+			},
+			resourceType: type
 		});
+		const resources: FluxResource[] = result.items || [];
 
-		if (!response.ok) {
-			if (response.status === 404) {
+		return {
+			resourceType: type,
+			resourceInfo,
+			resources,
+			total: result.total,
+			sortBy,
+			sortOrder,
+			error: null
+		};
+	} catch (err) {
+		if (isHttpErrorLike(err)) {
+			if (err.status === 404) {
 				return {
 					resourceType: type,
 					resourceInfo,
@@ -77,7 +98,7 @@ export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, de
 					error: null
 				};
 			}
-			const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+
 			return {
 				resourceType: type,
 				resourceInfo,
@@ -85,24 +106,10 @@ export const load: PageServerLoad = async ({ params, url, fetch: svelteFetch, de
 				total: 0,
 				sortBy,
 				sortOrder,
-				error: errorData.error || `Failed to fetch resources: ${response.status}`
+				error: err.body?.message || err.body?.error || `Failed to fetch resources: ${err.status}`
 			};
 		}
 
-		const data = await response.json();
-		const resources: FluxResource[] = data.items || [];
-
-		return {
-			resourceType: type,
-			resourceInfo,
-			resources,
-			total: data.total,
-			sortBy,
-			sortOrder,
-			error: null
-		};
-	} catch (err) {
-		logger.error(err, `Error fetching ${type}:`);
 		return {
 			resourceType: type,
 			resourceInfo,

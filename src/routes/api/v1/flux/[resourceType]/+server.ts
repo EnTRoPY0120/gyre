@@ -3,7 +3,6 @@ import { z } from '$lib/server/openapi';
 import { k8sFluxResourceSchema } from '$lib/server/kubernetes/schemas';
 import type { RequestHandler } from './$types';
 import {
-	listFluxResources,
 	createFluxResource,
 	type ReqCache,
 	type ListOptions
@@ -11,13 +10,22 @@ import {
 import {
 	getAllResourcePlurals,
 	getResourceDef,
-	getResourceTypeByPlural,
-	type FluxResourceType
+	getResourceTypeByPlural
 } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { checkClusterWideReadPermission, checkPermission } from '$lib/server/rbac.js';
+import {
+	requireAuthenticatedUser,
+	requireClusterWideRead,
+	requireScopedPermission
+} from '$lib/server/http/guards.js';
 import { validateK8sNamespace, validateFluxResourceSpec } from '$lib/server/validation';
 import { VALID_SORT_BY, VALID_SORT_ORDER } from '$lib/config/sorting';
+import {
+	computeWeakEtag,
+	respondNotModified,
+	setPrivateCacheHeaders
+} from '$lib/server/http/transport.js';
+import { listFluxResourcesForType } from '$lib/server/flux/services.js';
 
 /** Zod schema for POST create FluxCD resource request body – used for OpenAPI and runtime validation */
 const createFluxResourceBodySchema = z.looseObject({
@@ -128,23 +136,9 @@ const listQuerySchema = _metadata.GET.request.query;
  */
 
 export const GET: RequestHandler = async ({ params, locals, setHeaders, request, url }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
+	requireAuthenticatedUser(locals);
 
 	const { resourceType } = params;
-
-	// Try to resolve resource type from plural name first (e.g., 'gitrepositories' -> 'GitRepository')
-	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
-
-	// If not found by plural, check if it's already a valid PascalCase type
-	if (!resolvedType) {
-		const validPlurals = getAllResourcePlurals();
-		throw error(400, {
-			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
-		});
-	}
 
 	// Parse and validate query parameters
 	const queryResult = listQuerySchema.safeParse({
@@ -162,39 +156,26 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request,
 	}
 
 	const listOptions: ListOptions = queryResult.data;
+	await requireClusterWideRead(locals);
 
-	// Check permission (all namespaces requires explicit cluster-wide policy)
-	const hasPermission = await checkClusterWideReadPermission(locals.user, locals.cluster);
+	const { result } = await listFluxResourcesForType({
+		locals,
+		query: listOptions,
+		resourceType
+	});
 
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
+	const etag = computeWeakEtag(result.metadata?.resourceVersion);
+	const notModified = respondNotModified(request, etag);
+	if (notModified) {
+		return notModified;
 	}
 
-	const reqCache: ReqCache = new Map();
-
-	try {
-		const result = await listFluxResources(resolvedType, locals.cluster, reqCache, listOptions);
-
-		// Generate ETag from resourceVersion
-		const resourceVersion = result.metadata?.resourceVersion;
-		const etag = resourceVersion ? `W/"${resourceVersion}"` : null;
-
-		if (etag) {
-			const ifNoneMatch = request.headers.get('if-none-match');
-			if (ifNoneMatch === etag) {
-				return new Response(null, { status: 304 });
-			}
-			setHeaders({ ETag: etag });
-		}
-
-		setHeaders({
-			'Cache-Control': 'private, max-age=15, stale-while-revalidate=45'
-		});
-
-		return json(result);
-	} catch (err) {
-		handleApiError(err, `Error listing ${resolvedType} resources`);
+	if (etag) {
+		setHeaders({ ETag: etag });
 	}
+
+	setPrivateCacheHeaders(setHeaders, 'private, max-age=15, stale-while-revalidate=45');
+	return json(result);
 };
 
 /**
@@ -202,10 +183,7 @@ export const GET: RequestHandler = async ({ params, locals, setHeaders, request,
  * Create a new resource
  */
 export const POST: RequestHandler = async ({ params, locals, request }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
+	requireAuthenticatedUser(locals);
 
 	const { resourceType } = params;
 
@@ -241,18 +219,7 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		});
 	}
 
-	// Check permission
-	const hasPermission = await checkPermission(
-		locals.user,
-		'write',
-		resolvedType,
-		namespace,
-		locals.cluster
-	);
-
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
-	}
+	await requireScopedPermission(locals, 'write', resolvedType, namespace);
 
 	if (body.kind !== resolvedType) {
 		throw error(400, {
