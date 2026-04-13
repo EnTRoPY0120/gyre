@@ -22,6 +22,7 @@ import { scheduleCleanup, stopCleanup } from './kubernetes/flux/reconciliation-c
 import { scheduleSessionCleanup, stopSessionCleanup } from './auth/session-cleanup.js';
 import { scheduleAuditLogCleanup, stopAuditLogCleanup } from './audit.js';
 import { closeAllEventStreams, setEventBusShuttingDown } from './events.js';
+import { validateProductionSecurityConfig } from './security-config.js';
 
 const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 
@@ -224,6 +225,15 @@ export async function initializeGyre(): Promise<void> {
 		logger.info('   ✓ Encryption validation passed');
 	} catch (error) {
 		logger.error(error, '   ✗ Encryption validation failed');
+		throw error;
+	}
+
+	logger.info('\n🛡️  Validating production security configuration...');
+	try {
+		validateProductionSecurityConfig();
+		logger.info('   ✓ Production security configuration validated');
+	} catch (error) {
+		logger.error(error, '   ✗ Production security configuration invalid');
 		throw error;
 	}
 

@@ -68,7 +68,8 @@ let hasWarnedUnencrypted = false;
 
 /**
  * Get the backup encryption key from BACKUP_ENCRYPTION_KEY env var.
- * Returns null if not set (encryption disabled).
+ * Returns null in non-production when not set (encryption disabled for local development).
+ * Throws in production when not set.
  * Throws if the key format is invalid.
  *
  * NOTE: Changing BACKUP_ENCRYPTION_KEY will render all existing encrypted
@@ -79,6 +80,11 @@ function getBackupEncryptionKey(): Buffer | null {
 	if (cachedEncryptionKey !== undefined) return cachedEncryptionKey;
 	const keyHex = process.env.BACKUP_ENCRYPTION_KEY;
 	if (!keyHex) {
+		if (process.env.NODE_ENV === 'production') {
+			throw new BackupError(
+				'BACKUP_ENCRYPTION_KEY must be set in production! Generate with: openssl rand -hex 32'
+			);
+		}
 		cachedEncryptionKey = null;
 		return cachedEncryptionKey;
 	}

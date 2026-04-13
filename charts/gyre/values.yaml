@@ -161,10 +161,13 @@ encryption:
   # Key for encrypting OAuth client secrets
   # DEPRECATED: Use existingSecret instead. If set, a Secret will be auto-created from this value.
   authKey: ""
+  # Key for encrypting database backups at rest
+  # DEPRECATED: Use existingSecret instead. If set, a Secret will be auto-created from this value.
+  backupKey: ""
   # Existing secret name containing encryption keys (recommended for production)
-  # Keys in secret should be named GYRE_ENCRYPTION_KEY and AUTH_ENCRYPTION_KEY
+  # Keys in secret should be named GYRE_ENCRYPTION_KEY, AUTH_ENCRYPTION_KEY, and BACKUP_ENCRYPTION_KEY
   existingSecret: ""
-  # Explicitly opt in to auto-creating a Secret from inline gyreKey/authKey values.
+  # Explicitly opt in to auto-creating a Secret from inline gyreKey/authKey/backupKey values.
   # Disabled by default. Set to true only for development/testing — inline values
   # are visible in `helm get values` and Helm release history.
   allowInline: false
@@ -178,28 +181,26 @@ auth:
   # Restrict OAuth signup to specific email domains (empty = allow all)
   domainAllowlist: []
   # OAuth/OIDC providers to seed on startup
-  # These are created if they don't exist, but won't overwrite admin UI changes
+  # These are created if they don't exist, but won't overwrite admin UI changes.
+  # Provider entries include metadata only (no secrets).
   providers: []
   # Example providers:
   # providers:
   #   - name: "GitHub"
   #     type: "oauth2-github"
   #     clientId: "your-client-id"
-  #     clientSecret: "your-client-secret"  # Will be encrypted at rest
   #     enabled: true
   #     autoProvision: true
   #     defaultRole: "viewer"
   #   - name: "Google"
   #     type: "oauth2-google"
   #     clientId: "your-client-id"
-  #     clientSecret: "your-client-secret"
   #     enabled: true
   #     autoProvision: true
   #     defaultRole: "viewer"
   #   - name: "Corporate SSO"
   #     type: "oidc"
   #     clientId: "your-client-id"
-  #     clientSecret: "your-client-secret"
   #     issuerUrl: "https://idp.company.com"
   #     enabled: true
   #     autoProvision: true
@@ -207,14 +208,15 @@ auth:
   #     scopes: "openid profile email groups"
   #     roleClaim: "groups"
   #     roleMapping: '{"admin":["DevOps"],"editor":["Developers"]}'
-  # Provider secrets from existing Kubernetes Secret (recommended for production)
-  # If set, clientSecret values in providers[] are ignored
-  # Secret should have keys like: PROVIDER_GITHUB_CLIENT_SECRET or
-  # PROVIDER_CORPORATE_SSO_CLIENT_SECRET.
+  # Provider secrets from existing Kubernetes Secret (required when providers[] is non-empty)
+  # Secret key format: PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET
+  # Examples: PROVIDER_GITHUB_CLIENT_SECRET, PROVIDER_CORPORATE_SSO_CLIENT_SECRET
   providersExistingSecret: ""
 # Metrics and Monitoring
 metrics:
   enabled: true
+  # Existing secret containing GYRE_METRICS_TOKEN (required for chart-managed deployments)
+  existingSecret: ""
   serviceMonitor:
     enabled: false
     interval: 30s

@@ -141,13 +141,24 @@ describe('metrics handler auth behavior', () => {
 		expect(await response.json()).toEqual({ error: 'Unauthorized' });
 	});
 
-	test('returns 401 in production when metrics token is unset and request is unauthenticated', async () => {
+	test('returns 503 in production when metrics token is unset and request is unauthenticated', async () => {
 		const response = await callMetrics({
 			isProd: true
 		});
 
-		expect(response.status).toBe(401);
-		expect(await response.json()).toEqual({ error: 'Unauthorized' });
+		expect(response.status).toBe(503);
+		expect(await response.json()).toEqual({ error: 'Metrics token is not configured' });
+	});
+
+	test('returns 503 in production when metrics token is unset even for admin session', async () => {
+		const response = await callMetrics({
+			isProd: true,
+			user: createUser('admin'),
+			cluster: 'cluster-a'
+		});
+
+		expect(response.status).toBe(503);
+		expect(await response.json()).toEqual({ error: 'Metrics token is not configured' });
 	});
 
 	test('returns 200 in production with authenticated admin session', async () => {

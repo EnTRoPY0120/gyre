@@ -19,12 +19,18 @@ function makeKey(): Buffer {
 
 describe('Backup Encryption Module', () => {
 	const originalEnv = process.env.BACKUP_ENCRYPTION_KEY;
+	const originalNodeEnv = process.env.NODE_ENV;
 
 	afterEach(() => {
 		if (originalEnv !== undefined) {
 			process.env.BACKUP_ENCRYPTION_KEY = originalEnv;
 		} else {
 			delete process.env.BACKUP_ENCRYPTION_KEY;
+		}
+		if (originalNodeEnv !== undefined) {
+			process.env.NODE_ENV = originalNodeEnv;
+		} else {
+			delete process.env.NODE_ENV;
 		}
 		_resetBackupEncryptionKeyCache();
 	});
@@ -120,9 +126,17 @@ describe('Backup Encryption Module', () => {
 	});
 
 	describe('_getBackupEncryptionKey', () => {
-		test('returns null when BACKUP_ENCRYPTION_KEY is not set', () => {
+		test('returns null in development when BACKUP_ENCRYPTION_KEY is not set', () => {
+			process.env.NODE_ENV = 'development';
 			delete process.env.BACKUP_ENCRYPTION_KEY;
 			expect(_getBackupEncryptionKey()).toBeNull();
+		});
+
+		test('throws in production when BACKUP_ENCRYPTION_KEY is not set', () => {
+			process.env.NODE_ENV = 'production';
+			delete process.env.BACKUP_ENCRYPTION_KEY;
+			expect(() => _getBackupEncryptionKey()).toThrow(BackupError);
+			expect(() => _getBackupEncryptionKey()).toThrow('BACKUP_ENCRYPTION_KEY must be set');
 		});
 
 		test('returns a 32-byte Buffer for a valid 64-char hex key', () => {

@@ -44,12 +44,20 @@ describe('helm chart regressions', () => {
 
 		expect(source).toContain('.Values.origin');
 		expect(source).toContain('.Values.gatewayApi.tls');
+		expect(source).toContain(
+			'auth.providersExistingSecret is required when auth.providers is non-empty'
+		);
+		expect(source).toContain('contains forbidden field clientSecret');
 		expect(source).toContain('{{- $seen := dict }}');
 		expect(source).toContain('regexReplaceAll "[^A-Z0-9]" ($provider.name | upper) "_"');
 		expect(source).toContain('hasKey $seen $providerKey');
 		expect(source).toContain('index $seen $providerKey');
 		expect(source).toContain('GYRE_AUTH_PROVIDER_{{ $providerKey }}_CLIENT_SECRET');
 		expect(source).toContain('PROVIDER_{{ $providerKey }}_CLIENT_SECRET');
+		expect(source).toContain('optional: false');
+		expect(source).toContain('BACKUP_ENCRYPTION_KEY');
+		expect(source).toContain('GYRE_METRICS_TOKEN');
+		expect(source).toContain('metrics.existingSecret is required for Helm deployments');
 	});
 
 	test('values and templates include deployability defaults for service account and body size limit', () => {
@@ -85,5 +93,21 @@ describe('helm chart regressions', () => {
 		expect(schema.properties.config.properties.bodySizeLimit.pattern).toBe(
 			'^(?:[0-9]+(?:[KMG])?|Infinity)$'
 		);
+		expect(schema.properties.encryption.properties.backupKey.type).toBe('string');
+		expect(schema.properties.encryption.then.properties.backupKey.pattern).toBe(
+			'^[0-9a-fA-F]{64}$'
+		);
+		expect(schema.properties.auth.properties.providers.items.additionalProperties).toBe(false);
+		expect(schema.properties.auth.then.required).toContain('providersExistingSecret');
+		expect(schema.properties.metrics.properties.existingSecret.minLength).toBe(1);
+		expect(
+			schema.properties.auth.properties.providers.items.properties.clientSecret
+		).toBeUndefined();
+	});
+
+	test('inline encryption secret template includes BACKUP_ENCRYPTION_KEY', () => {
+		const source = readRepoFile('../charts/gyre/templates/secret-encryption.yaml');
+		expect(source).toContain('BACKUP_ENCRYPTION_KEY');
+		expect(source).toContain('.Values.encryption.backupKey');
 	});
 });

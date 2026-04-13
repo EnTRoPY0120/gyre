@@ -55,8 +55,10 @@ auth:
 ```
 
 `auth.providers` entries support OAuth/OIDC providers (for example GitHub, Google, generic OIDC).
+Provider objects are metadata-only and must not include `clientSecret`.
 
-If `auth.providersExistingSecret` is set, provider client secrets are read from secret keys named:
+When `auth.providers` is non-empty, `auth.providersExistingSecret` is required.
+Provider client secrets are read from secret keys named:
 
 - `PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET`
 
@@ -86,47 +88,48 @@ The referenced secret must provide:
 
 - `GYRE_ENCRYPTION_KEY`
 - `AUTH_ENCRYPTION_KEY`
+- `BACKUP_ENCRYPTION_KEY`
 
 ## Environment Variables
 
 ### Core Runtime Variables
 
-| Variable                | Description                                   | Default / Notes                                             |
-| ----------------------- | --------------------------------------------- | ----------------------------------------------------------- |
-| `DATABASE_URL`          | SQLite database path                          | `/data/gyre.db` in-cluster, `./data/gyre.db` local fallback |
-| `GYRE_ENCRYPTION_KEY`   | Encryption key for stored kubeconfigs         | 64-char hex (32 bytes), required in production              |
-| `AUTH_ENCRYPTION_KEY`   | Encryption key for auth/OAuth secrets         | 64-char hex (32 bytes), required in production              |
-| `BETTER_AUTH_URL`       | Public app origin used for auth callback URLs | `http://localhost:5173` in `.env.example`                   |
-| `BETTER_AUTH_SECRET`    | Optional explicit Better Auth secret          | Falls back to `AUTH_ENCRYPTION_KEY` when unset              |
-| `ADMIN_PASSWORD`        | Optional initial admin password               | If unset, Gyre auto-generates on first startup              |
-| `BACKUP_ENCRYPTION_KEY` | Optional backup-file encryption key           | 64-char hex; when unset backups are plain `.db`             |
-| `NODE_ENV`              | Runtime mode                                  | `development` / `production`                                |
-| `BODY_SIZE_LIMIT`       | Adapter-level max request body size           | Set to `>= 500M` for kubeconfig/backup uploads              |
+| Variable                | Description                                   | Default / Notes                                              |
+| ----------------------- | --------------------------------------------- | ------------------------------------------------------------ |
+| `DATABASE_URL`          | SQLite database path                          | `/data/gyre.db` in-cluster, `./data/gyre.db` local fallback  |
+| `GYRE_ENCRYPTION_KEY`   | Encryption key for stored kubeconfigs         | 64-char hex (32 bytes), required in production               |
+| `AUTH_ENCRYPTION_KEY`   | Encryption key for auth/OAuth secrets         | 64-char hex (32 bytes), required in production               |
+| `BETTER_AUTH_URL`       | Public app origin used for auth callback URLs | `http://localhost:5173` in `.env.example`                    |
+| `BETTER_AUTH_SECRET`    | Optional explicit Better Auth secret          | Falls back to `AUTH_ENCRYPTION_KEY` when unset               |
+| `ADMIN_PASSWORD`        | Optional initial admin password               | If unset, Gyre auto-generates on first startup               |
+| `BACKUP_ENCRYPTION_KEY` | Backup-file encryption key                    | 64-char hex; required in production, optional in development |
+| `NODE_ENV`              | Runtime mode                                  | `development` / `production`                                 |
+| `BODY_SIZE_LIMIT`       | Adapter-level max request body size           | Set to `>= 500M` for kubeconfig/backup uploads               |
 
 ### Tunable Constants
 
-| Variable                               | Description                                    | Default                         |
-| -------------------------------------- | ---------------------------------------------- | ------------------------------- |
-| `GYRE_POLL_INTERVAL_MS`                | Kubernetes polling interval                    | `5000`                          |
-| `GYRE_HEARTBEAT_INTERVAL_MS`           | SSE heartbeat interval                         | `30000`                         |
-| `GYRE_DASHBOARD_CACHE_TTL_MS`          | Dashboard cache TTL                            | `30000`                         |
-| `GYRE_SETTLING_PERIOD_MS`              | Settling period for ADDED events               | `30000`                         |
-| `GYRE_SETTINGS_CACHE_TTL_MS`           | Settings cache TTL                             | `30000`                         |
-| `GYRE_MAX_LOCAL_BACKUPS`               | Max local backups retained                     | `10`                            |
-| `GYRE_METRICS_TOKEN`                   | Optional bearer token for `/metrics`           | Unset (public metrics endpoint) |
-| `GYRE_SSE_MAX_CONNECTIONS_PER_SESSION` | Max SSE connections per session                | `3`                             |
-| `GYRE_SSE_MAX_CONNECTIONS_PER_USER`    | Max SSE connections per user                   | `5`                             |
-| `GYRE_SSE_CONNECTION_TIMEOUT_MS`       | SSE connection lifetime (`0` disables timeout) | `0`                             |
+| Variable                               | Description                                    | Default                                         |
+| -------------------------------------- | ---------------------------------------------- | ----------------------------------------------- |
+| `GYRE_POLL_INTERVAL_MS`                | Kubernetes polling interval                    | `5000`                                          |
+| `GYRE_HEARTBEAT_INTERVAL_MS`           | SSE heartbeat interval                         | `30000`                                         |
+| `GYRE_DASHBOARD_CACHE_TTL_MS`          | Dashboard cache TTL                            | `30000`                                         |
+| `GYRE_SETTLING_PERIOD_MS`              | Settling period for ADDED events               | `30000`                                         |
+| `GYRE_SETTINGS_CACHE_TTL_MS`           | Settings cache TTL                             | `30000`                                         |
+| `GYRE_MAX_LOCAL_BACKUPS`               | Max local backups retained                     | `10`                                            |
+| `GYRE_METRICS_TOKEN`                   | Bearer token for `/metrics`                    | Required in production; optional in development |
+| `GYRE_SSE_MAX_CONNECTIONS_PER_SESSION` | Max SSE connections per session                | `3`                                             |
+| `GYRE_SSE_MAX_CONNECTIONS_PER_USER`    | Max SSE connections per user                   | `5`                                             |
+| `GYRE_SSE_CONNECTION_TIMEOUT_MS`       | SSE connection lifetime (`0` disables timeout) | `0`                                             |
 
 ### Auth Settings Overrides
 
-| Variable                                                     | Description                                  |
-| ------------------------------------------------------------ | -------------------------------------------- |
-| `GYRE_AUTH_LOCAL_LOGIN_ENABLED`                              | Enable/disable local username/password login |
-| `GYRE_AUTH_ALLOW_SIGNUP`                                     | Allow OAuth auto-signup                      |
-| `GYRE_AUTH_DOMAIN_ALLOWLIST`                                 | JSON array of allowed signup domains         |
-| `GYRE_AUTH_PROVIDERS`                                        | JSON array used to seed auth providers       |
-| `GYRE_AUTH_PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET` | Per-provider secret override                 |
+| Variable                                                     | Description                                                      |
+| ------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `GYRE_AUTH_LOCAL_LOGIN_ENABLED`                              | Enable/disable local username/password login                     |
+| `GYRE_AUTH_ALLOW_SIGNUP`                                     | Allow OAuth auto-signup                                          |
+| `GYRE_AUTH_DOMAIN_ALLOWLIST`                                 | JSON array of allowed signup domains                             |
+| `GYRE_AUTH_PROVIDERS`                                        | JSON array used to seed auth providers (no `clientSecret` field) |
+| `GYRE_AUTH_PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET` | Per-provider secret input for seeded providers                   |
 
 ## Helm-to-Env Mapping
 

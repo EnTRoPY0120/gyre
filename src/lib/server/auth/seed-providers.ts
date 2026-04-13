@@ -18,33 +18,34 @@ const SUPPORTED_PROVIDER_TYPES = [
 	'oauth2-generic'
 ] as const;
 
-const ProviderSeedConfigSchema = z.object({
-	name: z.string().min(1),
-	type: z.enum(SUPPORTED_PROVIDER_TYPES),
-	enabled: z.boolean().optional(),
-	clientId: z.string().min(1),
-	clientSecret: z.string(),
-	issuerUrl: z.string().url().optional().or(z.literal('')).optional(),
-	authorizationUrl: z.string().url().optional().or(z.literal('')).optional(),
-	tokenUrl: z.string().url().optional().or(z.literal('')).optional(),
-	userInfoUrl: z.string().url().optional().or(z.literal('')).optional(),
-	jwksUrl: z.string().url().optional().or(z.literal('')).optional(),
-	autoProvision: z.boolean().optional(),
-	defaultRole: z.enum(['admin', 'editor', 'viewer']).optional(),
-	roleMapping: z.union([z.string(), z.record(z.string(), z.array(z.string()))]).optional(),
-	roleClaim: z.string().optional(),
-	usernameClaim: z.string().optional(),
-	emailClaim: z.string().optional(),
-	usePkce: z.boolean().optional(),
-	scopes: z.string().optional()
-});
+const ProviderSeedConfigSchema = z
+	.object({
+		name: z.string().min(1),
+		type: z.enum(SUPPORTED_PROVIDER_TYPES),
+		enabled: z.boolean().optional(),
+		clientId: z.string().min(1),
+		issuerUrl: z.string().url().optional().or(z.literal('')).optional(),
+		authorizationUrl: z.string().url().optional().or(z.literal('')).optional(),
+		tokenUrl: z.string().url().optional().or(z.literal('')).optional(),
+		userInfoUrl: z.string().url().optional().or(z.literal('')).optional(),
+		jwksUrl: z.string().url().optional().or(z.literal('')).optional(),
+		autoProvision: z.boolean().optional(),
+		defaultRole: z.enum(['admin', 'editor', 'viewer']).optional(),
+		roleMapping: z.union([z.string(), z.record(z.string(), z.array(z.string()))]).optional(),
+		roleClaim: z.string().optional(),
+		usernameClaim: z.string().optional(),
+		emailClaim: z.string().optional(),
+		usePkce: z.boolean().optional(),
+		scopes: z.string().optional()
+	})
+	.strict();
 
 type ProviderSeedConfig = z.infer<typeof ProviderSeedConfigSchema>;
 
 /**
  * Seed OAuth providers from environment variables.
  * Providers are read from GYRE_AUTH_PROVIDERS env var (JSON array).
- * Client secrets can be overridden from
+ * Client secrets are read only from
  * GYRE_AUTH_PROVIDER_{SANITIZED_PROVIDER_NAME}_CLIENT_SECRET env vars.
  *
  * @returns Object with created and skipped counts
@@ -56,7 +57,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 		return { created: 0, skipped: 0 };
 	}
 
-	let providersConfig: ProviderSeedConfig[];
+	let providersConfig: unknown[];
 	try {
 		providersConfig = JSON.parse(providersJson);
 		if (!Array.isArray(providersConfig)) {
@@ -74,6 +75,22 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 
 	for (let i = 0; i < providersConfig.length; i++) {
 		const config = providersConfig[i];
+		if (
+			typeof config === 'object' &&
+			config !== null &&
+			Object.prototype.hasOwnProperty.call(config, 'clientSecret')
+		) {
+			logger.warn(
+				{
+					issues: [
+						'clientSecret: inline clientSecret is not allowed; use GYRE_AUTH_PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET env var'
+					]
+				},
+				`Skipping provider at index ${i}: validation failed`
+			);
+			skipped++;
+			continue;
+		}
 
 		const parseResult = ProviderSeedConfigSchema.safeParse(config);
 		if (!parseResult.success) {
@@ -86,13 +103,15 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 		}
 		const validatedConfig: ProviderSeedConfig = parseResult.data;
 
-		// Get client secret (from env var override or config)
+		// Get client secret from required per-provider env var.
 		const sanitizedName = validatedConfig.name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
 		const envSecretKey = `GYRE_AUTH_PROVIDER_${sanitizedName}_CLIENT_SECRET`;
-		const clientSecret = process.env[envSecretKey] || validatedConfig.clientSecret;
+		const clientSecret = process.env[envSecretKey];
 
-		if (!clientSecret) {
-			logger.warn(`Skipping provider "${validatedConfig.name}": no client secret provided`);
+		if (!clientSecret || clientSecret.trim() === '') {
+			logger.error(
+				`Skipping provider "${validatedConfig.name}": missing required env var ${envSecretKey}`
+			);
 			skipped++;
 			continue;
 		}
