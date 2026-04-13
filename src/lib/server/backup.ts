@@ -78,7 +78,7 @@ let hasWarnedUnencrypted = false;
  */
 function getBackupEncryptionKey(): Buffer | null {
 	if (cachedEncryptionKey !== undefined) return cachedEncryptionKey;
-	const keyHex = process.env.BACKUP_ENCRYPTION_KEY;
+	const keyHex = process.env.BACKUP_ENCRYPTION_KEY?.trim();
 	if (!keyHex) {
 		if (process.env.NODE_ENV === 'production') {
 			throw new BackupError(

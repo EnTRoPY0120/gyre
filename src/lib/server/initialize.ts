@@ -228,13 +228,15 @@ export async function initializeGyre(): Promise<void> {
 		throw error;
 	}
 
-	logger.info('\n🛡️  Validating production security configuration...');
-	try {
-		validateProductionSecurityConfig();
-		logger.info('   ✓ Production security configuration validated');
-	} catch (error) {
-		logger.error(error, '   ✗ Production security configuration invalid');
-		throw error;
+	if (isProd) {
+		logger.info('\n🛡️  Validating production security configuration...');
+		try {
+			validateProductionSecurityConfig();
+			logger.info('   ✓ Production security configuration validated');
+		} catch (error) {
+			logger.error(error, '   ✗ Production security configuration invalid');
+			throw error;
+		}
 	}
 
 	// Initialize database connection and tables

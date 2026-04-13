@@ -72,6 +72,7 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 	// Pre-validate all providers and prepare DB records before touching the database
 	let skipped = 0;
 	const validProviders: NewAuthProvider[] = [];
+	const secretEnvKeyToProviderName = new Map<string, string>();
 
 	for (let i = 0; i < providersConfig.length; i++) {
 		const config = providersConfig[i];
@@ -106,6 +107,20 @@ export async function seedAuthProviders(): Promise<{ created: number; skipped: n
 		// Get client secret from required per-provider env var.
 		const sanitizedName = validatedConfig.name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
 		const envSecretKey = `GYRE_AUTH_PROVIDER_${sanitizedName}_CLIENT_SECRET`;
+		const collidingProviderName = secretEnvKeyToProviderName.get(envSecretKey);
+		if (collidingProviderName) {
+			logger.warn(
+				{
+					providerName: validatedConfig.name,
+					collidingProviderName,
+					envSecretKey
+				},
+				`Skipping provider "${validatedConfig.name}": env secret key collision with provider "${collidingProviderName}"`
+			);
+			skipped++;
+			continue;
+		}
+		secretEnvKeyToProviderName.set(envSecretKey, validatedConfig.name);
 		const clientSecret = process.env[envSecretKey];
 
 		if (!clientSecret || clientSecret.trim() === '') {
