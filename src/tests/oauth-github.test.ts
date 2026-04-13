@@ -9,6 +9,7 @@ import {
 	mock,
 	spyOn
 } from 'bun:test';
+import { expectOAuthErrorCode } from './helpers/oauth.js';
 
 mock.restore();
 
@@ -86,16 +87,6 @@ function makeProvider(configOverrides: Partial<typeof mockConfig> = {}) {
 		config: { ...mockConfig, ...configOverrides } as never,
 		redirectUri: 'https://example.com/callback'
 	});
-}
-
-async function expectOAuthErrorCode(promise: Promise<unknown>, code: string) {
-	try {
-		await promise;
-		throw new Error(`Expected rejection with OAuthError code ${code}`);
-	} catch (error) {
-		expect((error as { name?: string }).name).toBe('OAuthError');
-		expect((error as { code?: string }).code).toBe(code);
-	}
 }
 
 // ---------------------------------------------------------------------------
