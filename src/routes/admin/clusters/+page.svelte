@@ -165,8 +165,8 @@
 		}
 
 		if (action === 'retest' && activeHealthCheckClusterId) {
-			const form = document.getElementById('health-check-retest-form') as HTMLFormElement | null;
-			form?.requestSubmit();
+			const retestFormEl = document.getElementById('health-check-retest-form') as HTMLFormElement | null;
+			retestFormEl?.requestSubmit();
 		}
 	}
 </script>

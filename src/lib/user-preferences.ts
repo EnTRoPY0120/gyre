@@ -1,23 +1,14 @@
 import type { UserPreferences } from '$lib/types/user';
 
-export const ADMIN_ONBOARDING_CHECKLIST_IDS = [
-	'clusters',
-	'settings',
-	'auth-providers',
-	'backups'
-] as const;
-const VALID_ADMIN_ONBOARDING_CHECKLIST_IDS = new Set<string>(ADMIN_ONBOARDING_CHECKLIST_IDS);
-
-export type AdminOnboardingChecklistId = (typeof ADMIN_ONBOARDING_CHECKLIST_IDS)[number];
-
-export interface AdminOnboardingChecklistItem {
-	readonly id: AdminOnboardingChecklistId;
-	readonly title: string;
-	readonly description: string;
-	readonly href: string;
+function extractChecklistIds<const TItems extends ReadonlyArray<{ readonly id: string }>>(items: TItems) {
+	return items.map((item) => item.id) as {
+		readonly [K in keyof TItems]: TItems[K] extends { readonly id: infer TId extends string }
+			? TId
+			: never;
+	};
 }
 
-export const ADMIN_ONBOARDING_CHECKLIST_ITEMS: ReadonlyArray<AdminOnboardingChecklistItem> = [
+export const ADMIN_ONBOARDING_CHECKLIST_ITEMS = [
 	{
 		id: 'clusters',
 		title: 'Review cluster connectivity',
@@ -42,7 +33,15 @@ export const ADMIN_ONBOARDING_CHECKLIST_ITEMS: ReadonlyArray<AdminOnboardingChec
 		description: 'Make sure backup and restore paths are understood before you need them.',
 		href: '/admin/backups'
 	}
-];
+] as const;
+
+export const ADMIN_ONBOARDING_CHECKLIST_IDS = extractChecklistIds(
+	ADMIN_ONBOARDING_CHECKLIST_ITEMS
+);
+const VALID_ADMIN_ONBOARDING_CHECKLIST_IDS = new Set<string>(ADMIN_ONBOARDING_CHECKLIST_IDS);
+
+export type AdminOnboardingChecklistId = (typeof ADMIN_ONBOARDING_CHECKLIST_IDS)[number];
+export type AdminOnboardingChecklistItem = (typeof ADMIN_ONBOARDING_CHECKLIST_ITEMS)[number];
 
 export function normalizeAdminChecklistCompletedItems(
 	items: string[] | undefined

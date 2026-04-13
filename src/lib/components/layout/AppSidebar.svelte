@@ -51,7 +51,7 @@
 
 	// Tracking which groups are expanded (all collapsed by default)
 	let expandedGroups = $state<Record<string, boolean>>({
-		Admin: false,
+		Admin: $page.url.pathname.startsWith('/admin'),
 		...Object.fromEntries(resourceGroups.map((g) => [g.name, false]))
 	});
 
@@ -88,9 +88,7 @@
 	}
 
 	$effect(() => {
-		if (currentPath.startsWith('/admin')) {
-			expandedGroups.Admin = true;
-		}
+		expandedGroups.Admin = currentPath.startsWith('/admin');
 	});
 </script>
 
