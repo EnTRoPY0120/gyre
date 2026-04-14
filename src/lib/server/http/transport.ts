@@ -21,7 +21,7 @@ export function respondNotModified(request: Request, etag: string | null): Respo
 	}
 
 	if (ifNoneMatch.trim() === '*') {
-		return new Response(null, { status: 304 });
+		return new Response(null, { status: 304, headers: { ETag: etag } });
 	}
 
 	const normalizedEtag = normalizeEtagValue(etag);
@@ -32,5 +32,5 @@ export function respondNotModified(request: Request, etag: string | null): Respo
 		return null;
 	}
 
-	return new Response(null, { status: 304 });
+	return new Response(null, { status: 304, headers: { ETag: etag } });
 }

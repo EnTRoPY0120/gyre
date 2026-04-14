@@ -131,6 +131,7 @@ describe('flux route adapters', () => {
 		} as Parameters<typeof GET>[0]);
 
 		expect(response.status).toBe(304);
+		expect(response.headers.get('ETag')).toBe('W/"rv-detail"');
 		expect(guardCalls).toEqual([
 			'requireAuthenticatedUser',
 			'requireClusterContext',

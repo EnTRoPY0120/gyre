@@ -23,6 +23,7 @@ export const DEFAULT_FLUX_VERSION = 'v2.x.x';
 
 const MAX_CONNECTION_CACHE_SIZE = 20;
 const CONNECTION_CACHE_TTL = 30 * 1000;
+const NO_CLUSTER_SELECTED_CACHE_KEY = '__NO_CLUSTER_SELECTED__';
 
 const connectionCache = new Map<string, { connected: boolean; timestamp: number }>();
 
@@ -103,7 +104,7 @@ export async function getFluxHealthSummary({
 		const config = await getKubeConfig(selectedCluster);
 		const currentContext = config.getCurrentContext();
 
-		const cacheKey = selectedCluster || 'default';
+		const cacheKey = selectedCluster ?? NO_CLUSTER_SELECTED_CACHE_KEY;
 		const cached = connectionCache.get(cacheKey) || { connected: false, timestamp: 0 };
 
 		let isValid = false;

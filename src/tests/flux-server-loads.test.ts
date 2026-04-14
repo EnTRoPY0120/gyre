@@ -177,7 +177,7 @@ describe('migrated server loads', () => {
 
 		const result = await load({
 			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: { id: 'user-1' } },
-			parent: async () => ({ health: { clusterName: 'cluster-a' } }),
+			parent: async () => ({ health: { clusterName: 'cluster-b' } }),
 			setHeaders: () => {}
 		} as Parameters<typeof load>[0]);
 
