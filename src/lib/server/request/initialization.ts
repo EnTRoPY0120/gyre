@@ -16,7 +16,7 @@ export async function ensureGyreInitialized(): Promise<void> {
 			})
 			.catch((error) => {
 				logger.error(error, 'Failed to initialize Gyre:');
-				// Continue anyway - let the request fail naturally if DB is truly broken
+				throw error;
 			})
 			.finally(() => {
 				initializingPromise = undefined;

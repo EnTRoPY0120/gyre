@@ -33,6 +33,7 @@ let detailResult = {
 	resourceType: 'GitRepository',
 	resource: { metadata: { name: 'demo', namespace: 'flux-system' } }
 };
+let detailServiceError: unknown = null;
 let clusterReadShouldThrow = false;
 let dashboardCacheValue: unknown = null;
 const setDashboardCacheCalls: Array<{ key: string; value: unknown }> = [];
@@ -67,6 +68,7 @@ beforeEach(() => {
 		resourceType: 'GitRepository',
 		resource: { metadata: { name: 'demo', namespace: 'flux-system' } }
 	};
+	detailServiceError = null;
 	clusterReadShouldThrow = false;
 	dashboardCacheValue = null;
 	setDashboardCacheCalls.length = 0;
@@ -81,7 +83,12 @@ beforeEach(() => {
 		},
 		getFluxInstalledVersion: async () => versionResult,
 		getFluxOverviewSummary: async () => overviewResult,
-		getFluxResourceDetail: async () => detailResult,
+		getFluxResourceDetail: async () => {
+			if (detailServiceError) {
+				throw detailServiceError;
+			}
+			return detailResult;
+		},
 		listFluxResourcesForType: async () => listResult
 	}));
 
@@ -228,6 +235,46 @@ describe('migrated server loads', () => {
 			namespace: 'flux-system',
 			name: 'demo',
 			resource: { metadata: { name: 'demo', namespace: 'flux-system' } }
+		});
+
+		detailServiceError = { status: 404, body: { message: 'upstream missing' } };
+		const { load: load404 } = await import(
+			`../routes/resources/[type]/[namespace]/[name]/+page.server.js?case=${Date.now()}-${Math.random()}`
+		);
+		await expect(
+			load404({
+				depends: () => {},
+				locals: {
+					cluster: 'cluster-a',
+					requestId: 'req-1',
+					session: null,
+					user: { id: 'user-1' }
+				},
+				params: { type: 'gitrepositories', namespace: 'flux-system', name: 'demo' }
+			} as Parameters<typeof load404>[0])
+		).rejects.toMatchObject({
+			status: 404,
+			body: { message: 'Resource not found: flux-system/demo' }
+		});
+
+		detailServiceError = { status: 500, body: { message: 'service exploded' } };
+		const { load: load500 } = await import(
+			`../routes/resources/[type]/[namespace]/[name]/+page.server.js?case=${Date.now()}-${Math.random()}`
+		);
+		await expect(
+			load500({
+				depends: () => {},
+				locals: {
+					cluster: 'cluster-a',
+					requestId: 'req-1',
+					session: null,
+					user: { id: 'user-1' }
+				},
+				params: { type: 'gitrepositories', namespace: 'flux-system', name: 'demo' }
+			} as Parameters<typeof load500>[0])
+		).rejects.toMatchObject({
+			status: 500,
+			body: { message: 'service exploded' }
 		});
 	});
 });
