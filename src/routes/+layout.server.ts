@@ -20,11 +20,11 @@ function isHttpErrorLike(error: unknown): error is { status: number } {
 export const load: LayoutServerLoad = async ({ locals, depends }) => {
 	depends('gyre:layout');
 
-	let health = {
-		connected: false,
-		clusterName: undefined as string | undefined,
-		availableClusters: [] as string[],
-		error: undefined as string | undefined
+	let health: {
+		connected: boolean;
+		clusterName?: string;
+		availableClusters: string[];
+		error?: string;
 	};
 
 	try {

@@ -72,52 +72,33 @@ export async function enforceRequestSizeLimits(event: RequestEvent): Promise<Res
 	}
 
 	// Streaming size guard: catches chunked/transfer-encoded requests that omit
-	// Content-Length. The full body is piped through the transform before the
-	// handler runs so size violations are rejected immediately. Using
-	// ByteLengthQueuingStrategy lets the readable buffer up to sizeLimit bytes
-	// so pipeTo can resolve without a concurrent reader; event.request is only
-	// constructed after the guard resolves successfully.
-	// Skip pre-read when Content-Length is present — the header-based check
-	// above already enforces the limit without consuming the stream.
+	// Content-Length by wrapping the body in a transform that errors once the
+	// configured limit is exceeded. This keeps enforcement non-blocking and
+	// avoids pre-draining the request body in memory.
 	if (
 		request.body &&
 		STATE_CHANGING_METHODS.includes(request.method) &&
 		!request.headers.has('content-length')
 	) {
 		let bytesRead = 0;
-		const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>(
-			{
-				transform(chunk, controller) {
-					bytesRead += chunk.byteLength;
-					if (bytesRead > sizeLimit) {
-						controller.error(
-							Object.assign(new Error('Payload Too Large'), {
-								isPayloadTooLarge: true,
-								limit: sizeLimit,
-								size: bytesRead
-							})
-						);
-						return;
-					}
-					controller.enqueue(chunk);
+		const transformStream = new TransformStream<Uint8Array, Uint8Array>({
+			transform(chunk, controller) {
+				bytesRead += chunk.byteLength;
+				if (bytesRead > sizeLimit) {
+					controller.error(
+						Object.assign(new Error('Payload Too Large'), {
+							isPayloadTooLarge: true,
+							limit: sizeLimit,
+							size: bytesRead
+						})
+					);
+					return;
 				}
-			},
-			undefined,
-			new ByteLengthQueuingStrategy({ highWaterMark: sizeLimit })
-		);
-
-		try {
-			await request.body.pipeTo(writable);
-		} catch (err) {
-			if (isPayloadTooLargeError(err)) {
-				return createPayloadTooLargeResponse(event, err);
+				controller.enqueue(chunk);
 			}
+		});
 
-			// Any other pipe failure (client disconnect, stream abort, upstream error)
-			// leaves `readable` in an errored state. Do not hand a broken stream to
-			// downstream handlers — return a stream-failure response instead.
-			return new Response('Stream error', { status: 499 });
-		}
+		const readable = request.body.pipeThrough(transformStream);
 
 		event.request = new Request(request, {
 			body: readable,

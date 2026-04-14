@@ -86,7 +86,7 @@ beforeEach(() => {
 			getContexts: () => [{ name: 'cluster-a' }, { name: 'cluster-b' }],
 			getCurrentContext: () => 'cluster-a',
 			makeApiClient: (clientType: { name?: string }) => {
-				if (clientType.name === 'AppsV1Api') {
+				if (clientType.name?.includes('AppsV1Api')) {
 					return {
 						listNamespacedDeployment: (...args: unknown[]) => listDeploymentsImpl(...args)
 					};
@@ -180,9 +180,9 @@ describe('flux shared services', () => {
 		});
 	});
 
-	test('falls back to the default Flux version when deployment inspection fails', async () => {
+	test('falls back to the default Flux version when Flux namespace/deployments are missing', async () => {
 		listDeploymentsImpl = async () => {
-			throw new Error('boom');
+			throw Object.assign(new Error('not found'), { code: 404 });
 		};
 		const { getFluxInstalledVersion, DEFAULT_FLUX_VERSION } = await import(
 			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
@@ -193,6 +193,21 @@ describe('flux shared services', () => {
 				locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: null }
 			})
 		).resolves.toEqual({ version: DEFAULT_FLUX_VERSION });
+	});
+
+	test('surfaces non-benign Flux version lookup failures', async () => {
+		listDeploymentsImpl = async () => {
+			throw new Error('boom');
+		};
+		const { getFluxInstalledVersion } = await import(
+			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
+		);
+
+		await expect(
+			getFluxInstalledVersion({
+				locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: null }
+			})
+		).rejects.toThrow('boom');
 	});
 
 	test('reports partial overview failures while keeping successful summaries', async () => {

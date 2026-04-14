@@ -10,7 +10,11 @@ import { enforceCsrfProtection } from '$lib/server/request/csrf.js';
 import { normalizeHandleError, resolveRouteAndMapErrors } from '$lib/server/request/errors.js';
 import { ensureGyreInitialized, isGyreInitialized } from '$lib/server/request/initialization.js';
 import { enforceGlobalRateLimit } from '$lib/server/request/rate-limit.js';
-import { enforceRequestSizeLimits } from '$lib/server/request/request-size.js';
+import {
+	createPayloadTooLargeResponse,
+	enforceRequestSizeLimits,
+	isPayloadTooLargeError
+} from '$lib/server/request/request-size.js';
 import { hydrateSessionLocals } from '$lib/server/request/session.js';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -22,7 +26,23 @@ export const handle: Handle = async ({ event, resolve }) => {
 			return finalizeResponse(event, requestSizeResponse, context);
 		}
 
-		await ensureGyreInitialized();
+		try {
+			await ensureGyreInitialized();
+		} catch {
+			const serviceUnavailableResponse = event.url.pathname.startsWith('/api/')
+				? new Response(
+						JSON.stringify({
+							error: 'Service Unavailable',
+							message: 'Gyre is still initializing'
+						}),
+						{
+							status: 503,
+							headers: { 'Content-Type': 'application/json' }
+						}
+					)
+				: new Response('Service Unavailable', { status: 503 });
+			return finalizeResponse(event, serviceUnavailableResponse, context);
+		}
 
 		const rateLimitResponse = enforceGlobalRateLimit(event, isGyreInitialized());
 		if (rateLimitResponse) {
@@ -32,7 +52,15 @@ export const handle: Handle = async ({ event, resolve }) => {
 		// Session cookies are managed in the session helper via BETTER_AUTH_SESSION_COOKIE_NAME.
 		await hydrateSessionLocals(event);
 
-		const csrfResponse = await enforceCsrfProtection(event);
+		let csrfResponse: Response | null = null;
+		try {
+			csrfResponse = await enforceCsrfProtection(event);
+		} catch (err) {
+			if (isPayloadTooLargeError(err)) {
+				return finalizeResponse(event, createPayloadTooLargeResponse(event, err), context);
+			}
+			throw err;
+		}
 		if (csrfResponse) {
 			return finalizeResponse(event, csrfResponse, context);
 		}

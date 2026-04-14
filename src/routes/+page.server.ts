@@ -11,6 +11,15 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 
 	// Function to fetch data (can be returned as a promise to be streamed)
 	const fetchGroupCounts = async () => {
+		try {
+			await requireClusterWideRead(locals);
+		} catch {
+			return {} as Record<
+				string,
+				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
+			>;
+		}
+
 		// Create cache key based on cluster
 		const cacheKey = `dashboard-${parentData.health?.clusterName || 'default'}`;
 		const cached = getDashboardCache(cacheKey);
@@ -18,15 +27,6 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 		// Return cached data if still valid
 		if (cached !== null) {
 			return cached as Record<
-				string,
-				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
-			>;
-		}
-
-		try {
-			await requireClusterWideRead(locals);
-		} catch {
-			return {} as Record<
 				string,
 				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
 			>;
