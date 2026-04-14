@@ -8,6 +8,7 @@ import { requireClusterWideRead } from '$lib/server/http/guards.js';
 export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 	// Get health data from parent layout
 	const parentData = await parent();
+	const requestedCluster = locals.cluster ?? '__NO_CLUSTER_SELECTED__';
 
 	// Function to fetch data (can be returned as a promise to be streamed)
 	const fetchGroupCounts = async () => {
@@ -20,8 +21,8 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 			>;
 		}
 
-		// Create cache key based on cluster
-		const cacheKey = `dashboard-${parentData.health?.clusterName || 'default'}`;
+		// Create cache key based on the requested cluster identifier, not health metadata.
+		const cacheKey = `dashboard-${requestedCluster}`;
 		const cached = getDashboardCache(cacheKey);
 
 		// Return cached data if still valid

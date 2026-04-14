@@ -1,4 +1,4 @@
-import { withRequestContext } from '$lib/server/logger.js';
+import { logger, withRequestContext } from '$lib/server/logger.js';
 import type { Handle } from '@sveltejs/kit';
 import {
 	enforceAdminRouteGate,
@@ -28,7 +28,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 		try {
 			await ensureGyreInitialized();
-		} catch {
+		} catch (err) {
+			logger.error(err, 'Failed to ensure Gyre is initialized during request handling');
 			const serviceUnavailableResponse = event.url.pathname.startsWith('/api/')
 				? new Response(
 						JSON.stringify({
