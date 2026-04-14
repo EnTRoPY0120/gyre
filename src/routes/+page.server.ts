@@ -5,6 +5,12 @@ import { getDashboardCache, setDashboardCache } from '$lib/server/dashboard-cach
 import { getFluxOverviewSummary } from '$lib/server/flux/services.js';
 import { requireClusterWideRead } from '$lib/server/http/guards.js';
 
+type GroupCounts = Record<
+	string,
+	{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
+>;
+const EMPTY_GROUP_COUNTS: GroupCounts = {};
+
 export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 	// Get health data from parent layout
 	const parentData = await parent();
@@ -15,10 +21,7 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 		try {
 			await requireClusterWideRead(locals);
 		} catch {
-			return {} as Record<
-				string,
-				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
-			>;
+			return EMPTY_GROUP_COUNTS;
 		}
 
 		// Create cache key based on the requested cluster identifier, not health metadata.
@@ -27,20 +30,14 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 
 		// Return cached data if still valid
 		if (cached !== null) {
-			return cached as Record<
-				string,
-				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
-			>;
+			return cached as GroupCounts;
 		}
 
 		let overviewData;
 		try {
 			overviewData = await getFluxOverviewSummary({ locals });
 		} catch {
-			return {} as Record<
-				string,
-				{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
-			>;
+			return EMPTY_GROUP_COUNTS;
 		}
 
 		const results = overviewData.results || [];
@@ -49,10 +46,7 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 		const successfulTypes = new Set(results.map((r: { type: string }) => r.type));
 
 		// Map overview results back to resourceGroups structure
-		const groupCounts: Record<
-			string,
-			{ total: number; healthy: number; failed: number; suspended: number; error: boolean }
-		> = {};
+		const groupCounts: GroupCounts = {};
 
 		for (const group of resourceGroups) {
 			let groupTotal = 0;
