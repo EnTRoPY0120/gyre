@@ -257,7 +257,7 @@ async function poll(context: ClusterContext) {
 				// Pass clusterId to listFluxResources to get resources from the correct cluster
 				const resourceList = await listFluxResources(
 					resourceType,
-					context.clusterId === 'in-cluster' ? undefined : context.clusterId
+					context.clusterId === IN_CLUSTER_ID ? undefined : context.clusterId
 				);
 
 				if (!context.isActive) return;

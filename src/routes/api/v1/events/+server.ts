@@ -37,8 +37,10 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 		return error(401, { message: 'Authentication required' });
 	}
 
+	const clusterId = locals.cluster ?? IN_CLUSTER_ID;
+
 	// Check permission
-	const hasPermission = await checkClusterWideReadPermission(locals.user, locals.cluster);
+	const hasPermission = await checkClusterWideReadPermission(locals.user, clusterId);
 	if (!hasPermission) {
 		return error(403, { message: 'Permission denied' });
 	}
@@ -68,9 +70,6 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 	}
 
 	const { release } = connectionResult;
-
-	const clusterId = locals.cluster ?? IN_CLUSTER_ID;
-
 	// Shared cleanup ref so both start() and cancel() can invoke the same teardown.
 	// start() is called synchronously during ReadableStream construction, so
 	// cleanupRef is always populated before cancel() can fire.

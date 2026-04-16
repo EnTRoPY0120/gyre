@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import * as k8s from '@kubernetes/client-node';
-import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
+import { normalizeClusterId } from '$lib/clusters/identity.js';
 import {
 	getFluxResource,
 	getFluxResourceStatus,
@@ -104,7 +104,7 @@ export async function getFluxHealthSummary({
 		const config = await getKubeConfig(selectedCluster);
 		const currentContext = config.getCurrentContext();
 
-		const cacheKey = selectedCluster ?? IN_CLUSTER_ID;
+		const cacheKey = selectedCluster;
 		const cached = connectionCache.get(cacheKey) || { connected: false, timestamp: 0 };
 
 		let isValid = false;

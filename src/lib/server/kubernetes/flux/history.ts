@@ -1,3 +1,4 @@
+import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { logger } from '../../logger.js';
 import { getCustomObjectsApi } from '../client.js';
 import type { FluxResourceType } from './resources.js';
@@ -22,7 +23,7 @@ export async function getResourceHistory(
 	context?: string
 ): Promise<ResourceRevision[]> {
 	// Use the new reconciliation history system for all resources
-	const clusterId = context || 'in-cluster';
+	const clusterId = context || IN_CLUSTER_ID;
 	const history = await getReconciliationHistory(type, namespace, name, clusterId);
 
 	// Transform to the expected format for backward compatibility
@@ -53,7 +54,7 @@ export async function rollbackResource(
 	context?: string,
 	dryRun?: boolean
 ): Promise<{ patch: object; historyEntry: { id: string; revision: string | null } } | void> {
-	const clusterId = context || 'in-cluster';
+	const clusterId = context || IN_CLUSTER_ID;
 
 	// 1. Fetch history entry to get spec snapshot
 	const history = await getReconciliationHistory(type, namespace, name, clusterId);

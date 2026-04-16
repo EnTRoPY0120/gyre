@@ -39,11 +39,11 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 			includeDetails: Boolean(locals.user)
 		});
 		currentContext = healthData.kubernetes?.currentContext ?? null;
-		availableClusters = await getSelectableClusters(selectedClusterId, currentContext);
+		availableClusters = await getSelectableClusters(currentContext);
 		const connected = healthData.kubernetes?.connected ?? healthData.status === 'healthy';
 		availableClusters = availableClusters.map((cluster) => ({
 			...cluster,
-			connected: cluster.id === selectedClusterId ? connected : cluster.connected
+			connected: cluster.id === selectedClusterId ? connected : false
 		}));
 		const selectedCluster = availableClusters.find((cluster) => cluster.id === selectedClusterId);
 
@@ -56,7 +56,11 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 		};
 	} catch (error) {
 		try {
-			availableClusters = await getSelectableClusters(selectedClusterId, currentContext);
+			availableClusters = await getSelectableClusters(currentContext);
+			availableClusters = availableClusters.map((cluster) => ({
+				...cluster,
+				connected: false
+			}));
 		} catch {
 			availableClusters = [];
 		}

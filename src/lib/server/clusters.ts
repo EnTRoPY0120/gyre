@@ -230,7 +230,6 @@ export async function getAllClusters(): Promise<(typeof clusters.$inferSelect)[]
  * selected by their stable clusters.id values.
  */
 export async function getSelectableClusters(
-	_selectedClusterId: string,
 	currentContext?: string | null
 ): Promise<ClusterOption[]> {
 	const uploadedClusters = (await getAllClusters()).filter((cluster) => cluster.isActive);

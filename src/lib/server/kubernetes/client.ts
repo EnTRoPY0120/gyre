@@ -526,7 +526,7 @@ export async function getCustomObjectsApi(
 ): Promise<k8s.CustomObjectsApi> {
 	const key = normalizeClusterId(context);
 	return getOrCreate(customObjectsPool, `${key}:${timeoutMs}`, async () => {
-		const config = await getKubeConfig(context, reqCache);
+		const config = await getKubeConfig(key, reqCache);
 		return makeApiClientWithTimeout(config, k8s.CustomObjectsApi, timeoutMs);
 	});
 }
@@ -543,7 +543,7 @@ export async function getCoreV1Api(
 ): Promise<k8s.CoreV1Api> {
 	const key = normalizeClusterId(context);
 	return getOrCreate(coreV1Pool, `${key}:${timeoutMs}`, async () => {
-		const config = await getKubeConfig(context, reqCache);
+		const config = await getKubeConfig(key, reqCache);
 		return makeApiClientWithTimeout(config, k8s.CoreV1Api, timeoutMs);
 	});
 }
@@ -560,7 +560,7 @@ export async function getAppsV1Api(
 ): Promise<k8s.AppsV1Api> {
 	const key = normalizeClusterId(context);
 	return getOrCreate(appsV1Pool, `${key}:${timeoutMs}`, async () => {
-		const config = await getKubeConfig(context, reqCache);
+		const config = await getKubeConfig(key, reqCache);
 		return makeApiClientWithTimeout(config, k8s.AppsV1Api, timeoutMs);
 	});
 }
