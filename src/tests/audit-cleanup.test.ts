@@ -1,45 +1,23 @@
-import { afterAll, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { importFresh } from './helpers/import-fresh';
 
 spyOn(console, 'log').mockImplementation(() => {});
 
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from '../lib/server/db/schema.js';
-import { auditLogs } from '../lib/server/db/schema.js';
+import { appSettings, auditLogs } from '../lib/server/db/schema.js';
 
 // Mutable reference shared with the mock closure so each test gets a fresh DB
 const state: {
 	db: ReturnType<typeof drizzle<typeof schema>> | null;
-	retentionDays: number;
 } = {
-	db: null,
-	retentionDays: 90
+	db: null
 };
-
-// Mock the database module
-mock.module('../lib/server/db/index.js', () => ({
-	getDb: async () => state.db,
-	getDbSync: () => state.db,
-	schema
-}));
-
-// Mock the settings module — mirrors the parse/normalization logic in the real helper
-mock.module('../lib/server/settings.js', () => ({
-	getAuditLogRetentionDays: async () => {
-		const parsed = parseInt(String(state.retentionDays), 10);
-		return isNaN(parsed) || parsed <= 0 ? 90 : parsed;
-	},
-	getSetting: async (_key: string) => String(state.retentionDays),
-	SETTINGS_KEYS: {
-		AUDIT_LOG_RETENTION_DAYS: 'audit.retentionDays'
-	}
-}));
-
-import {
-	cleanupOldAuditLogs,
-	scheduleAuditLogCleanup,
-	stopAuditLogCleanup
-} from '../lib/server/audit.js';
+type AuditModule = typeof import('../lib/server/audit.js');
+let cleanupOldAuditLogs: AuditModule['cleanupOldAuditLogs'];
+let scheduleAuditLogCleanup: AuditModule['scheduleAuditLogCleanup'];
+let stopAuditLogCleanup: AuditModule['stopAuditLogCleanup'];
 import { getCutoffDate, getRandomJitterMs, MS_PER_DAY } from '../lib/server/utils/time.js';
 
 // ---------------------------------------------------------------------------
@@ -79,10 +57,19 @@ const CREATE_AUDIT_LOGS_TABLE = `
 	)
 `;
 
+const CREATE_APP_SETTINGS_TABLE = `
+	CREATE TABLE IF NOT EXISTS app_settings (
+		key TEXT PRIMARY KEY,
+		value TEXT NOT NULL,
+		updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+	)
+`;
+
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
 	sqlite.exec(CREATE_USERS_TABLE);
 	sqlite.exec(CREATE_AUDIT_LOGS_TABLE);
+	sqlite.exec(CREATE_APP_SETTINGS_TABLE);
 	return drizzle(sqlite, { schema });
 }
 
@@ -103,6 +90,38 @@ function daysAgo(days: number) {
 	return new Date(Date.now() - days * 24 * 60 * 60 * 1000);
 }
 
+function setRetentionDays(db: TestDb, value: string) {
+	db.insert(appSettings)
+		.values({
+			key: 'audit.retentionDays',
+			value,
+			updatedAt: new Date()
+		})
+		.onConflictDoUpdate({
+			target: appSettings.key,
+			set: { value, updatedAt: new Date() }
+		})
+		.run();
+}
+
+beforeEach(async () => {
+	mock.module('../lib/server/db/index.js', () => ({
+		getDb: async () => state.db,
+		getDbSync: () => state.db,
+		schema
+	}));
+	const auditModule = await importFresh<AuditModule>('../lib/server/audit.js');
+	cleanupOldAuditLogs = auditModule.cleanupOldAuditLogs;
+	scheduleAuditLogCleanup = auditModule.scheduleAuditLogCleanup;
+	stopAuditLogCleanup = auditModule.stopAuditLogCleanup;
+});
+
+afterEach(() => {
+	stopAuditLogCleanup();
+	state.db = null;
+	mock.restore();
+});
+
 // ---------------------------------------------------------------------------
 // cleanupOldAuditLogs
 // ---------------------------------------------------------------------------
@@ -110,7 +129,7 @@ function daysAgo(days: number) {
 describe('cleanupOldAuditLogs', () => {
 	beforeEach(() => {
 		state.db = setupInMemoryDb();
-		state.retentionDays = 90;
+		setRetentionDays(state.db!, '90');
 	});
 
 	test('resolves without error when audit_logs table is empty', async () => {
@@ -145,7 +164,7 @@ describe('cleanupOldAuditLogs', () => {
 
 	test('respects custom retention period', async () => {
 		const db = state.db!;
-		state.retentionDays = 30;
+		setRetentionDays(db, '30');
 
 		const log31 = insertAuditLog(db, 'log-31', daysAgo(31));
 		const log29 = insertAuditLog(db, 'log-29', daysAgo(29));
@@ -175,8 +194,7 @@ describe('cleanupOldAuditLogs', () => {
 
 	test('normalizes invalid retention values to default (90 days)', async () => {
 		const db = state.db!;
-		// NaN is normalized to 90 by the mock (and production helper), so a 91-day-old log should be deleted
-		state.retentionDays = NaN;
+		setRetentionDays(db, 'NaN');
 		insertAuditLog(db, 'old-log', daysAgo(91));
 
 		const deletedCount = await cleanupOldAuditLogs();
@@ -185,10 +203,6 @@ describe('cleanupOldAuditLogs', () => {
 		const remaining = db.select().from(auditLogs).all();
 		expect(remaining).toHaveLength(0);
 	});
-});
-
-afterAll(() => {
-	mock.restore();
 });
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,5 @@
-import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
-
-mock.restore();
+import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { importFresh } from './helpers/import-fresh';
 
 spyOn(console, 'log').mockImplementation(() => {});
 import { Database } from 'bun:sqlite';
@@ -8,20 +7,13 @@ import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from '../lib/server/db/schema.js';
 import { sessions, users } from '../lib/server/db/schema.js';
 
+type AuthModule = typeof import('../lib/server/auth.js');
+
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
-
-mock.module('../lib/server/db/index.js', () => ({
-	getDb: async () => state.db,
-	getDbSync: () => state.db,
-	schema
-}));
-
-import {
-	cleanupExpiredSessions,
-	deleteUserSessions,
-	generateSessionId,
-	generateUserId
-} from '../lib/server/auth.js?sut';
+let cleanupExpiredSessions: AuthModule['cleanupExpiredSessions'];
+let deleteUserSessions: AuthModule['deleteUserSessions'];
+let generateSessionId: AuthModule['generateSessionId'];
+let generateUserId: AuthModule['generateUserId'];
 
 const CREATE_USERS_TABLE = `
 	CREATE TABLE IF NOT EXISTS users (
@@ -94,11 +86,34 @@ function daysFromNow(days: number) {
 	return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
-describe('cleanupExpiredSessions', () => {
-	beforeEach(() => {
-		state.db = setupInMemoryDb();
-	});
+beforeEach(async () => {
+	state.db = setupInMemoryDb();
+	mock.module('../lib/server/db/index.js', () => ({
+		getDb: async () => state.db,
+		getDbSync: () => state.db,
+		schema
+	}));
+	mock.module('bcryptjs', () => ({
+		default: {
+			hash: async () => 'hashed_password',
+			compare: async () => true
+		},
+		hash: async () => 'hashed_password',
+		compare: async () => true
+	}));
+	const authModule = await importFresh<AuthModule>('../lib/server/auth.js?sut');
+	cleanupExpiredSessions = authModule.cleanupExpiredSessions;
+	deleteUserSessions = authModule.deleteUserSessions;
+	generateSessionId = authModule.generateSessionId;
+	generateUserId = authModule.generateUserId;
+});
 
+afterEach(() => {
+	state.db = null;
+	mock.restore();
+});
+
+describe('cleanupExpiredSessions', () => {
 	test('resolves without error when sessions table is empty', async () => {
 		await expect(cleanupExpiredSessions()).resolves.toBe(0);
 	});
@@ -137,10 +152,6 @@ describe('cleanupExpiredSessions', () => {
 });
 
 describe('deleteUserSessions', () => {
-	beforeEach(() => {
-		state.db = setupInMemoryDb();
-	});
-
 	test('removes all sessions belonging to the specified user', async () => {
 		const db = state.db!;
 		const targetUserId = await insertUser(db);

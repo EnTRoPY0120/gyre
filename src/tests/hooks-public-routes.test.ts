@@ -3,6 +3,7 @@ import type { User } from '../lib/server/db/schema.js';
 import { isPublicRoute } from '../lib/isPublicRoute.js';
 import * as actualConfig from '../lib/server/config.js';
 import * as actualConstants from '../lib/server/config/constants.js';
+import * as actualMetrics from '../lib/server/metrics.js';
 import { createRateLimiterModuleStub, createRbacModuleStub } from './helpers/module-stubs';
 
 let checkPermissionSpy: ReturnType<typeof spyOn> | undefined;
@@ -75,6 +76,7 @@ async function callMetrics(options: {
 	);
 	mock.module('$lib/server/rbac.js', () => rbacModule);
 	mock.module('$lib/server/metrics', () => ({
+		...actualMetrics,
 		register: {
 			metrics: async () => '# mock metrics\n',
 			contentType: 'text/plain; version=0.0.4'

@@ -130,6 +130,9 @@ beforeEach(async () => {
 
 						return null;
 					}
+				},
+				appSettings: {
+					findFirst: async () => null
 				}
 			},
 			update: () => ({
@@ -155,14 +158,6 @@ beforeEach(async () => {
 	}));
 
 	mock.module('../lib/server/auth/crypto.js', () => createAuthCryptoModuleStub());
-
-	mock.module('../lib/server/settings.js', () => ({
-		getAuthSettings: async () => ({
-			allowSignup: true,
-			localLoginEnabled: true,
-			domainAllowlist: []
-		})
-	}));
 
 	mock.module('../lib/server/logger.js', () => createLoggerModuleStub());
 

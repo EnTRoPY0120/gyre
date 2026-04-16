@@ -159,3 +159,205 @@ export function createRbacModuleStub(
 
 	return { ...stub, ...overrides };
 }
+
+export function createSettingsModuleStub(
+	overrides: Partial<{
+		SETTINGS_KEYS: {
+			AUTH_LOCAL_LOGIN_ENABLED: string;
+			AUTH_ALLOW_SIGNUP: string;
+			AUTH_DOMAIN_ALLOWLIST: string;
+			AUDIT_LOG_RETENTION_DAYS: string;
+		};
+		getSetting: (key: string) => string | Promise<string>;
+		setSetting: (key: string, value: string) => void | Promise<void>;
+		getAuthSettings: () =>
+			| {
+					localLoginEnabled: boolean;
+					allowSignup: boolean;
+					domainAllowlist: string[];
+			  }
+			| Promise<{
+					localLoginEnabled: boolean;
+					allowSignup: boolean;
+					domainAllowlist: string[];
+			  }>;
+		getAuditLogRetentionDays: () => number | Promise<number>;
+		isSettingOverriddenByEnv: (key: string) => boolean;
+		seedAuthSettings: () => void | Promise<void>;
+		isLocalLoginEnabled: () => boolean | Promise<boolean>;
+		isSignupAllowed: () => boolean | Promise<boolean>;
+		getDomainAllowlist: () => string[] | Promise<string[]>;
+	}> = {}
+) {
+	const SETTINGS_KEYS = {
+		AUTH_LOCAL_LOGIN_ENABLED: 'auth.localLoginEnabled',
+		AUTH_ALLOW_SIGNUP: 'auth.allowSignup',
+		AUTH_DOMAIN_ALLOWLIST: 'auth.domainAllowlist',
+		AUDIT_LOG_RETENTION_DAYS: 'audit.retentionDays'
+	};
+
+	const stub = {
+		SETTINGS_KEYS,
+		getSetting: async (key: string) => {
+			if (key === SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED) return 'true';
+			if (key === SETTINGS_KEYS.AUTH_ALLOW_SIGNUP) return 'true';
+			if (key === SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST) return '[]';
+			if (key === SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS) return '90';
+			return '';
+		},
+		setSetting: async () => {},
+		getAuthSettings: async () => ({
+			localLoginEnabled: true,
+			allowSignup: true,
+			domainAllowlist: []
+		}),
+		getAuditLogRetentionDays: async () => 90,
+		isSettingOverriddenByEnv: () => false,
+		seedAuthSettings: async () => {},
+		isLocalLoginEnabled: async () => true,
+		isSignupAllowed: async () => true,
+		getDomainAllowlist: async () => []
+	};
+
+	return { ...stub, ...overrides };
+}
+
+export function createKubernetesErrorsModuleStub(
+	overrides: Partial<{
+		KubernetesError: typeof Error;
+		ResourceNotFoundError: typeof Error;
+		AuthenticationError: typeof Error;
+		AuthorizationError: typeof Error;
+		ClusterUnavailableError: typeof Error;
+		KubernetesTimeoutError: typeof Error;
+		ConfigurationError: typeof Error;
+		sanitizeK8sErrorMessage: (message: string) => string;
+		handleApiError: (err: unknown, contextMessage?: string) => never;
+		errorToHttpResponse: (error: unknown) => {
+			status: number;
+			body: { error: string; message?: string; code?: string };
+		};
+	}> = {}
+) {
+	class StubKubernetesError extends Error {
+		constructor(
+			message: string,
+			public readonly code: number,
+			public readonly reason?: string
+		) {
+			super(message);
+			this.name = 'KubernetesError';
+		}
+	}
+
+	class StubResourceNotFoundError extends StubKubernetesError {
+		constructor(resourceType: string, namespace?: string, name?: string) {
+			const identifier =
+				namespace && name ? `${namespace}/${name}` : namespace || name || 'resources';
+			super(`${resourceType} not found: ${identifier}`, 404, 'NotFound');
+			this.name = 'ResourceNotFoundError';
+		}
+	}
+
+	class StubAuthenticationError extends StubKubernetesError {
+		constructor(message = 'Failed to authenticate with Kubernetes API') {
+			super(message, 401, 'Unauthorized');
+			this.name = 'AuthenticationError';
+		}
+	}
+
+	class StubAuthorizationError extends StubKubernetesError {
+		constructor(message = 'Insufficient permissions to access resource') {
+			super(message, 403, 'Forbidden');
+			this.name = 'AuthorizationError';
+		}
+	}
+
+	class StubClusterUnavailableError extends StubKubernetesError {
+		constructor(message = 'Kubernetes cluster is currently unavailable') {
+			super(message, 503, 'ServiceUnavailable');
+			this.name = 'ClusterUnavailableError';
+		}
+	}
+
+	class StubKubernetesTimeoutError extends StubKubernetesError {
+		constructor(operation: string, timeoutMs: number) {
+			super(
+				`Kubernetes API request timed out after ${timeoutMs}ms: ${operation}`,
+				504,
+				'GatewayTimeout'
+			);
+			this.name = 'KubernetesTimeoutError';
+		}
+	}
+
+	class StubConfigurationError extends Error {
+		constructor(message: string) {
+			super(message);
+			this.name = 'ConfigurationError';
+		}
+	}
+
+	const stub = {
+		KubernetesError: StubKubernetesError,
+		ResourceNotFoundError: StubResourceNotFoundError,
+		AuthenticationError: StubAuthenticationError,
+		AuthorizationError: StubAuthorizationError,
+		ClusterUnavailableError: StubClusterUnavailableError,
+		KubernetesTimeoutError: StubKubernetesTimeoutError,
+		ConfigurationError: StubConfigurationError,
+		sanitizeK8sErrorMessage: (message: string) => message || 'An unknown error occurred',
+		handleApiError: (err: unknown) => {
+			throw err;
+		},
+		errorToHttpResponse: (error: unknown) => {
+			if (
+				typeof error === 'object' &&
+				error !== null &&
+				'status' in error &&
+				'body' in error &&
+				typeof (error as { status: unknown }).status === 'number'
+			) {
+				const httpError = error as { status: number; body: { message?: string; code?: string } };
+				return {
+					status: httpError.status,
+					body: {
+						error: httpError.body?.message ?? 'An unexpected error occurred',
+						message: httpError.body?.message,
+						code: httpError.body?.code
+					}
+				};
+			}
+
+			if (error instanceof StubConfigurationError) {
+				return {
+					status: 500,
+					body: {
+						error: 'Configuration error',
+						code: 'ConfigurationError'
+					}
+				};
+			}
+
+			if (error instanceof StubKubernetesError) {
+				return {
+					status: error.code,
+					body: {
+						error: error.message,
+						code: error.reason
+					}
+				};
+			}
+
+			return {
+				status: 500,
+				body: {
+					error: 'An unexpected error occurred',
+					code: 'InternalServerError'
+				}
+			};
+		}
+	};
+
+	return { ...stub, ...overrides };
+}

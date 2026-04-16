@@ -32,6 +32,7 @@ function setupInMemoryDb() {
 	return drizzle(sqlite, { schema });
 }
 
+mock.restore();
 mock.module('../lib/server/db/index.js', () => ({
 	getDbSync: () => state.db,
 	getDb: async () => state.db,
@@ -41,7 +42,9 @@ mock.module('../lib/server/db/index.js', () => ({
 spyOn(console, 'log').mockImplementation(() => {});
 import { RateLimiter, SSEConnectionLimiter } from '../lib/server/rate-limiter?sut';
 
-mock.restore();
+afterEach(() => {
+	state.db = null;
+});
 
 describe('RateLimiter', () => {
 	let limiter: RateLimiter;
@@ -57,7 +60,6 @@ describe('RateLimiter', () => {
 		// Explicitly stop the interval to avoid lingering timers.
 		// The stop() method clears the internal setInterval created in the constructor.
 		limiter.stop();
-		state.db = null;
 	});
 
 	describe('basic rate limiting', () => {

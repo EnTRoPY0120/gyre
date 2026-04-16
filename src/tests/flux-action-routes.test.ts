@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
+import * as actualValidation from '../lib/server/validation.js';
 import { importFresh } from './helpers/import-fresh';
-import { createRbacModuleStub } from './helpers/module-stubs';
+import { createKubernetesErrorsModuleStub, createRbacModuleStub } from './helpers/module-stubs';
 
 type ReconcileRouteModule =
 	typeof import('../routes/api/v1/flux/[type]/[namespace]/[name]/reconcile/+server.js');
@@ -103,14 +104,10 @@ beforeEach(async () => {
 		logAudit: async () => {}
 	}));
 
-	mock.module('$lib/server/kubernetes/errors.js', () => ({
-		handleApiError: (err: unknown) => {
-			throw err;
-		},
-		sanitizeK8sErrorMessage: (message: string) => message
-	}));
+	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
 	mock.module('$lib/server/validation', () => ({
+		...actualValidation,
 		validateK8sNamespace: () => {},
 		validateK8sName: () => {}
 	}));

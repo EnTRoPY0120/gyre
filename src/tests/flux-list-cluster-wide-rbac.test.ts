@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
+import * as actualClient from '../lib/server/kubernetes/client.js';
+import * as actualValidation from '../lib/server/validation.js';
 import { importFresh } from './helpers/import-fresh';
+import { createKubernetesErrorsModuleStub } from './helpers/module-stubs';
 
 type FluxListRouteModule = typeof import('../routes/api/v1/flux/[resourceType]/+server.js');
 
@@ -60,17 +63,15 @@ beforeEach(async () => {
 	}));
 
 	mock.module('$lib/server/kubernetes/client.js', () => ({
+		...actualClient,
 		listFluxResources: async () => ({ items: [], total: 0, hasMore: false, offset: 0, limit: 50 }),
 		createFluxResource: async () => ({ ok: true })
 	}));
 
-	mock.module('$lib/server/kubernetes/errors.js', () => ({
-		handleApiError: (err: unknown) => {
-			throw err;
-		}
-	}));
+	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
 	mock.module('$lib/server/validation', () => ({
+		...actualValidation,
 		validateK8sNamespace: () => {},
 		validateFluxResourceSpec: () => null
 	}));

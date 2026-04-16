@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
-
-mock.restore();
+import { importFresh } from './helpers/import-fresh';
 
 spyOn(console, 'log').mockImplementation(() => {});
 
@@ -11,23 +10,14 @@ import { eq } from 'drizzle-orm';
 
 // Mutable reference shared with the mock closure so each test gets a fresh DB
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
-
-// Mock the database module
-mock.module('../lib/server/db/index.js', () => ({
-	getDb: async () => state.db,
-	getDbSync: () => state.db,
-	schema
-}));
-
-import {
-	getSetting,
-	setSetting,
-	getAuthSettings,
-	getAuditLogRetentionDays,
-	isSettingOverriddenByEnv,
-	seedAuthSettings,
-	SETTINGS_KEYS
-} from '../lib/server/settings.js?sut';
+type SettingsModule = typeof import('../lib/server/settings.js');
+let getSetting: SettingsModule['getSetting'];
+let setSetting: SettingsModule['setSetting'];
+let getAuthSettings: SettingsModule['getAuthSettings'];
+let getAuditLogRetentionDays: SettingsModule['getAuditLogRetentionDays'];
+let isSettingOverriddenByEnv: SettingsModule['isSettingOverriddenByEnv'];
+let seedAuthSettings: SettingsModule['seedAuthSettings'];
+let SETTINGS_KEYS: SettingsModule['SETTINGS_KEYS'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -60,9 +50,22 @@ function unsetEnv(key: string) {
 	delete process.env[key];
 }
 
-beforeEach(() => {
+beforeEach(async () => {
 	state.db = setupInMemoryDb();
 	savedEnv = {};
+	mock.module('../lib/server/db/index.js', () => ({
+		getDb: async () => state.db,
+		getDbSync: () => state.db,
+		schema
+	}));
+	const settingsModule = await importFresh<SettingsModule>('../lib/server/settings.js?sut');
+	getSetting = settingsModule.getSetting;
+	setSetting = settingsModule.setSetting;
+	getAuthSettings = settingsModule.getAuthSettings;
+	getAuditLogRetentionDays = settingsModule.getAuditLogRetentionDays;
+	isSettingOverriddenByEnv = settingsModule.isSettingOverriddenByEnv;
+	seedAuthSettings = settingsModule.seedAuthSettings;
+	SETTINGS_KEYS = settingsModule.SETTINGS_KEYS;
 	// Ensure env overrides are cleared before each test
 	unsetEnv('GYRE_AUTH_LOCAL_LOGIN_ENABLED');
 	unsetEnv('GYRE_AUTH_ALLOW_SIGNUP');
@@ -76,6 +79,8 @@ afterEach(() => {
 		if (val === undefined) delete process.env[key];
 		else process.env[key] = val;
 	}
+	state.db = null;
+	mock.restore();
 });
 
 // ---------------------------------------------------------------------------

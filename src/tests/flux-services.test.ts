@@ -4,6 +4,7 @@ import * as actualK8sConfig from '../lib/server/kubernetes/config.js';
 import * as actualK8sErrors from '../lib/server/kubernetes/errors.js';
 import * as actualResources from '../lib/server/kubernetes/flux/resources.js';
 import * as actualLogger from '../lib/server/logger.js';
+import { createKubernetesErrorsModuleStub } from './helpers/module-stubs';
 
 let validateKubeConfigResult = true;
 let listDeploymentsImpl = async () => ({
@@ -106,11 +107,7 @@ beforeEach(() => {
 		listFluxResources: (...args: unknown[]) => listFluxResourcesImpl(...args)
 	}));
 
-	mock.module('$lib/server/kubernetes/errors.js', () => ({
-		handleApiError: (err: unknown) => {
-			throw err;
-		}
-	}));
+	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
 	mock.module('$lib/server/kubernetes/flux/resources.js', () => ({
 		getAllResourcePlurals: () => ['gitrepositories'],

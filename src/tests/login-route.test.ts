@@ -121,6 +121,7 @@ beforeEach(async () => {
 	}));
 
 	mock.module('$lib/server/audit', () => ({
+		logAudit: async () => {},
 		logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
 			routeState.loginLogCalls.push({ user, success, ipAddress, reason });
 		}

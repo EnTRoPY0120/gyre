@@ -2,7 +2,11 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { IN_CLUSTER_ID } from '../lib/clusters/identity.js';
 import type { User } from '../lib/server/db/schema.js';
 import { importFresh } from './helpers/import-fresh';
-import { createLoggerModuleStub, createRateLimiterModuleStub } from './helpers/module-stubs';
+import {
+	createKubernetesErrorsModuleStub,
+	createLoggerModuleStub,
+	createRateLimiterModuleStub
+} from './helpers/module-stubs';
 
 let sessionData: {
 	session: { id: string };
@@ -130,9 +134,11 @@ beforeEach(() => {
 		}
 	}));
 
-	mock.module('$lib/server/kubernetes/errors.js', () => ({
-		errorToHttpResponse: () => errorResponse
-	}));
+	mock.module('$lib/server/kubernetes/errors.js', () =>
+		createKubernetesErrorsModuleStub({
+			errorToHttpResponse: () => errorResponse
+		})
+	);
 });
 
 afterEach(() => {

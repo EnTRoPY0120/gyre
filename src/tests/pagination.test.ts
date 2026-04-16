@@ -1,34 +1,16 @@
-import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
-
-mock.restore();
+import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { importFresh } from './helpers/import-fresh';
 
 spyOn(console, 'log').mockImplementation(() => {});
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import * as schema from '../lib/server/db/schema.js';
 
+type AuthModule = typeof import('../lib/server/auth.js');
+
 // Mutable reference shared with the mock closure so each test gets a fresh DB
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
-
-// Bun hoists mock.module calls above static imports, so auth.ts will receive
-// this mock when it imports getDb / getDbSync.
-mock.module('../lib/server/db/index.js', () => ({
-	getDb: async () => state.db,
-	getDbSync: () => state.db,
-	schema
-}));
-
-mock.module('../lib/server/rbac-defaults.js', () => ({
-	bindUserToDefaultPolicies: async () => {},
-	syncUserPolicyBindings: async () => {}
-}));
-
-mock.module('bcryptjs', () => ({
-	hash: async () => 'hashed_password',
-	compare: async () => true
-}));
-
-import { listUsersPaginated } from '../lib/server/auth.js?sut';
+let listUsersPaginated: AuthModule['listUsersPaginated'];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -88,6 +70,25 @@ describe('Pagination Logic', () => {
 
 	beforeEach(async () => {
 		state.db = setupInMemoryDb();
+		mock.module('../lib/server/db/index.js', () => ({
+			getDb: async () => state.db,
+			getDbSync: () => state.db,
+			schema
+		}));
+		mock.module('../lib/server/rbac-defaults.js', () => ({
+			bindUserToDefaultPolicies: async () => {},
+			syncUserPolicyBindings: async () => {}
+		}));
+		mock.module('bcryptjs', () => ({
+			default: {
+				hash: async () => 'hashed_password',
+				compare: async () => true
+			},
+			hash: async () => 'hashed_password',
+			compare: async () => true
+		}));
+		listUsersPaginated = (await importFresh<AuthModule>('../lib/server/auth.js?sut'))
+			.listUsersPaginated;
 
 		prefix = `pagetest_${Date.now()}`;
 		for (let i = 0; i < 15; i++) {
@@ -109,6 +110,11 @@ describe('Pagination Logic', () => {
 				})
 				.run();
 		}
+	});
+
+	afterEach(() => {
+		state.db = null;
+		mock.restore();
 	});
 
 	test('listUsersPaginated returns correct page size', async () => {

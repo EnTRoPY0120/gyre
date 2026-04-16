@@ -1,6 +1,4 @@
-import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
-
-mock.restore();
+import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 
@@ -10,8 +8,9 @@ import * as schema from '../lib/server/db/schema.js';
 
 // Mutable reference shared with the mock closure so each test gets a fresh DB
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+import type { User } from '../lib/server/db/schema.js';
 
-// Bun hoists mock.module calls above static imports
+mock.restore();
 mock.module('../lib/server/db/index.js', () => ({
 	getDb: async () => state.db,
 	getDbSync: () => state.db,
@@ -25,7 +24,6 @@ import {
 	requirePermission,
 	RbacError
 } from '../lib/server/rbac.js?sut';
-import type { User } from '../lib/server/db/schema.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -98,6 +96,10 @@ function makeUser(id: string, role: 'admin' | 'editor' | 'viewer' = 'viewer'): U
 		preferences: null
 	};
 }
+
+afterEach(() => {
+	state.db = null;
+});
 
 // ---------------------------------------------------------------------------
 // Tests

@@ -1,4 +1,7 @@
-import { afterAll, describe, expect, mock, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import * as actualClient from '../lib/server/kubernetes/client.js';
+import * as actualMetrics from '../lib/server/metrics.js';
+import { importFresh } from './helpers/import-fresh';
 
 // Suppress console noise - must be before imports
 spyOn(console, 'log').mockImplementation(() => {});
@@ -7,44 +10,44 @@ spyOn(console, 'error').mockImplementation(() => {});
 
 // Mock listFluxResources to control what resources are returned
 let mockResources: any[] = [];
-
-mock.module('../lib/server/kubernetes/client.js', () => ({
-	listFluxResources: async () => ({ items: mockResources })
-}));
-
-// Mock metrics to no-ops
-mock.module('../lib/server/metrics.js', () => ({
-	resourcePollsTotal: { labels: () => ({ inc: () => {} }) },
-	resourceUpdatesTotal: { labels: () => ({ inc: () => {} }) },
-	sseSubscribersGauge: { labels: () => ({ set: () => {} }), reset: () => {} },
-	activeWorkersGauge: { set: () => {} },
-	fluxResourceStatusGauge: { labels: () => ({ set: () => {} }), remove: () => {} }
-}));
-
-// Mock reconciliation tracker
-mock.module('../lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
-	captureReconciliation: async () => {}
-}));
-
-// Mock constants with short intervals for fast tests.
-// SETTLING_PERIOD_MS is set to -1 so that `now - firstSeen > SETTLING_PERIOD_MS` is always
-// true (even 0 > -1), meaning every newly-seen resource is treated as immediately settled
-// and triggers ADDED events on the very first poll.
-mock.module('../lib/server/config/constants.js', () => ({
-	SETTLING_PERIOD_MS: -1,
-	POLL_INTERVAL_MS: 50, // Fast polling for tests
-	HEARTBEAT_INTERVAL_MS: 10000 // Long heartbeat (avoid heartbeats in tests)
-}));
-
-// Mock logger
-mock.module('../lib/server/logger.js', () => ({
-	logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} }
-}));
-
-import { subscribe, closeAllEventStreams, setEventBusShuttingDown } from '../lib/server/events.js';
+type EventsModule = typeof import('../lib/server/events.js');
 import type { SSEEvent } from '../lib/server/events.js';
+let subscribe: EventsModule['subscribe'];
+let closeAllEventStreams: EventsModule['closeAllEventStreams'];
+let setEventBusShuttingDown: EventsModule['setEventBusShuttingDown'];
 
-afterAll(() => {
+beforeEach(async () => {
+	mockResources = [];
+	mock.module('../lib/server/kubernetes/client.js', () => ({
+		...actualClient,
+		listFluxResources: async () => ({ items: mockResources })
+	}));
+	mock.module('../lib/server/metrics.js', () => ({
+		...actualMetrics,
+		resourcePollsTotal: { labels: () => ({ inc: () => {} }) },
+		resourceUpdatesTotal: { labels: () => ({ inc: () => {} }) },
+		sseSubscribersGauge: { labels: () => ({ set: () => {} }), reset: () => {} },
+		activeWorkersGauge: { set: () => {} },
+		fluxResourceStatusGauge: { labels: () => ({ set: () => {} }), remove: () => {} }
+	}));
+	mock.module('../lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
+		captureReconciliation: async () => {}
+	}));
+	mock.module('../lib/server/config/constants.js', () => ({
+		SETTLING_PERIOD_MS: -1,
+		POLL_INTERVAL_MS: 50,
+		HEARTBEAT_INTERVAL_MS: 10000
+	}));
+	mock.module('../lib/server/logger.js', () => ({
+		logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} }
+	}));
+	const eventsModule = await importFresh<EventsModule>('../lib/server/events.js');
+	subscribe = eventsModule.subscribe;
+	closeAllEventStreams = eventsModule.closeAllEventStreams;
+	setEventBusShuttingDown = eventsModule.setEventBusShuttingDown;
+});
+
+afterEach(() => {
 	mock.restore();
 });
 

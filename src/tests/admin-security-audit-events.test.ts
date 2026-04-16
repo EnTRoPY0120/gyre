@@ -1,10 +1,12 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
+import * as actualKubernetesClient from '../lib/server/kubernetes/client.js';
 import { importFresh } from './helpers/import-fresh';
 import {
 	createAuthCryptoModuleStub,
 	createRateLimiterModuleStub,
-	createRbacModuleStub
+	createRbacModuleStub,
+	createSettingsModuleStub
 } from './helpers/module-stubs';
 
 type AuthProvidersRouteModule = typeof import('../routes/api/v1/admin/auth-providers/+server.js');
@@ -163,26 +165,22 @@ beforeEach(async () => {
 
 	mock.module('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
-	mock.module('$lib/server/settings', () => ({
-		SETTINGS_KEYS: {
-			AUTH_LOCAL_LOGIN_ENABLED: 'auth.localLoginEnabled',
-			AUTH_ALLOW_SIGNUP: 'auth.allowSignup',
-			AUTH_DOMAIN_ALLOWLIST: 'auth.domainAllowlist',
-			AUDIT_LOG_RETENTION_DAYS: 'audit.retentionDays'
-		},
-		setSetting: async (key: string, value: string) => {
-			settingWrites.push([key, value]);
-		},
-		isSettingOverriddenByEnv: () => false,
-		getAuthSettings: async () => ({
-			localLoginEnabled: true,
-			allowSignup: false,
-			domainAllowlist: ['example.com']
-		}),
-		getAuditLogRetentionDays: async () => 90
-	}));
+	mock.module('$lib/server/settings', () =>
+		createSettingsModuleStub({
+			setSetting: async (key: string, value: string) => {
+				settingWrites.push([key, value]);
+			},
+			getAuthSettings: async () => ({
+				localLoginEnabled: true,
+				allowSignup: false,
+				domainAllowlist: ['example.com']
+			}),
+			getAuditLogRetentionDays: async () => 90
+		})
+	);
 
 	mock.module('$lib/server/kubernetes/client.js', () => ({
+		...actualKubernetesClient,
 		clearClientPool: () => {
 			clearPoolCalls += 1;
 		}
