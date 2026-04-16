@@ -9,7 +9,8 @@ declare global {
 		}
 		interface Locals {
 			requestId: string;
-			cluster: string | undefined;
+			/** Canonical cluster ID: "in-cluster" or an uploaded clusters.id value. */
+			cluster: import('$lib/clusters/identity').ClusterId | undefined;
 			user: import('$lib/server/db/schema').User | null;
 			session: import('$lib/server/db/schema').Session | null;
 		}

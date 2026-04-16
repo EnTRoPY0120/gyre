@@ -1,4 +1,6 @@
+import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
 import { eventsStore } from './events.svelte';
+import { clusterStore } from './cluster.svelte';
 import { resolveResourceRouteType } from '$lib/config/resources';
 import type { FluxResource } from '$lib/types/flux';
 import { fetchWithRetry } from '$lib/utils/fetch';
@@ -18,6 +20,10 @@ class ResourceCacheStore {
 	private listCache = $state<Record<string, CacheEntry<FluxResource[]>>>({});
 	private ttl = 30000;
 
+	private getCurrentClusterId(): string {
+		return normalizeClusterId(clusterStore.current ?? IN_CLUSTER_ID);
+	}
+
 	private normalizeType(type: string): string {
 		return resolveResourceRouteType(type) ?? type;
 	}
@@ -34,25 +40,37 @@ class ResourceCacheStore {
 
 			const { name, namespace } = event.resource.metadata;
 			const type = event.resourceType;
+			const clusterId = normalizeClusterId(event.clusterId ?? IN_CLUSTER_ID);
 
 			// Invalidate specific resource
-			this.invalidateResource(type, namespace, name);
+			this.invalidateResource(type, namespace, name, clusterId);
 
 			// Invalidate global list and namespace-specific list
-			this.invalidateList(type);
+			this.invalidateList(type, undefined, clusterId);
 			if (namespace) {
-				this.invalidateList(type, namespace);
+				this.invalidateList(type, namespace, clusterId);
 			}
 		});
 	}
 
-	private getResourceKey(type: string, namespace: string, name: string): string {
-		return `${this.normalizeType(type)}:${namespace}:${name}`;
+	private getResourceKey(
+		type: string,
+		namespace: string,
+		name: string,
+		clusterId = this.getCurrentClusterId()
+	): string {
+		return `${clusterId}:${this.normalizeType(type)}:${namespace}:${name}`;
 	}
 
-	private getListKey(type: string, namespace?: string): string {
+	private getListKey(
+		type: string,
+		namespace?: string,
+		clusterId = this.getCurrentClusterId()
+	): string {
 		const normalizedType = this.normalizeType(type);
-		return namespace ? `${normalizedType}:${namespace}` : normalizedType;
+		return namespace
+			? `${clusterId}:${normalizedType}:${namespace}`
+			: `${clusterId}:${normalizedType}`;
 	}
 
 	private getCachedResourceEntry(type: string, namespace: string, name: string) {
@@ -134,13 +152,13 @@ class ResourceCacheStore {
 		});
 	}
 
-	invalidateResource(type: string, namespace: string, name: string) {
-		const key = this.getResourceKey(type, namespace, name);
+	invalidateResource(type: string, namespace: string, name: string, clusterId?: string) {
+		const key = this.getResourceKey(type, namespace, name, clusterId);
 		delete this.resourceCache[key];
 	}
 
-	invalidateList(type: string, namespace?: string) {
-		const key = this.getListKey(type, namespace);
+	invalidateList(type: string, namespace?: string, clusterId?: string) {
+		const key = this.getListKey(type, namespace, clusterId);
 		delete this.listCache[key];
 	}
 

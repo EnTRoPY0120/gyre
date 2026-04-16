@@ -1,4 +1,4 @@
-import { describe, test, expect, mock } from 'bun:test';
+import { afterAll, describe, expect, mock, test } from 'bun:test';
 
 // Mock SvelteKit virtual modules before importing anything that depends on them
 mock.module('$app/environment', () => ({ dev: false }));
@@ -129,6 +129,10 @@ describe('advancedSearch', () => {
 		// Both should return the same logical result
 		expect(r1[0].metadata.name).toBe(r2[0].metadata.name);
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { IN_CLUSTER_ID } from '../lib/clusters/identity.js';
 import * as actualDashboardCache from '../lib/server/dashboard-cache.js';
+import * as actualClusters from '../lib/server/clusters.js';
 import * as actualServices from '../lib/server/flux/services.js';
 import * as actualGuards from '../lib/server/http/guards.js';
 import * as actualMetrics from '../lib/server/metrics.js';
@@ -8,8 +10,8 @@ let healthResult: unknown = {
 	status: 'healthy',
 	kubernetes: {
 		connected: true,
-		currentContext: 'cluster-a',
-		availableContexts: ['cluster-a']
+		currentContext: 'dev-context',
+		availableContexts: ['dev-context']
 	}
 };
 let healthShouldThrow = false;
@@ -36,15 +38,47 @@ let detailResult = {
 let detailServiceError: unknown = null;
 let clusterReadShouldThrow = false;
 let dashboardCacheValue: unknown = null;
+const getDashboardCacheCalls: string[] = [];
+const getDashboardCacheKeyCalls: Array<{ clusterId: string; role: string; userId: string }> = [];
+let selectableClusters = [
+	{
+		id: IN_CLUSTER_ID,
+		name: 'In-cluster',
+		description: 'Runtime Kubernetes configuration',
+		source: 'in-cluster' as const,
+		isActive: true,
+		currentContext: 'dev-context'
+	},
+	{
+		id: 'cluster-a',
+		name: 'Uploaded Cluster A',
+		description: 'Uploaded kubeconfig',
+		source: 'uploaded' as const,
+		isActive: true,
+		currentContext: null
+	}
+];
 const setDashboardCacheCalls: Array<{ key: string; value: unknown }> = [];
+const requireClusterWideReadCalls: string[] = [];
+
+function createUser() {
+	return {
+		id: 'user-1',
+		username: 'alice',
+		role: 'admin',
+		email: null,
+		isLocal: true,
+		preferences: null
+	};
+}
 
 beforeEach(() => {
 	healthResult = {
 		status: 'healthy',
 		kubernetes: {
 			connected: true,
-			currentContext: 'cluster-a',
-			availableContexts: ['cluster-a']
+			currentContext: 'dev-context',
+			availableContexts: ['dev-context']
 		}
 	};
 	healthShouldThrow = false;
@@ -71,7 +105,28 @@ beforeEach(() => {
 	detailServiceError = null;
 	clusterReadShouldThrow = false;
 	dashboardCacheValue = null;
+	getDashboardCacheCalls.length = 0;
+	getDashboardCacheKeyCalls.length = 0;
+	requireClusterWideReadCalls.length = 0;
 	setDashboardCacheCalls.length = 0;
+	selectableClusters = [
+		{
+			id: IN_CLUSTER_ID,
+			name: 'In-cluster',
+			description: 'Runtime Kubernetes configuration',
+			source: 'in-cluster',
+			isActive: true,
+			currentContext: 'dev-context'
+		},
+		{
+			id: 'cluster-a',
+			name: 'Uploaded Cluster A',
+			description: 'Uploaded kubeconfig',
+			source: 'uploaded',
+			isActive: true,
+			currentContext: null
+		}
+	];
 
 	mock.module('$lib/server/flux/services.js', () => ({
 		DEFAULT_FLUX_VERSION: 'v2.x.x',
@@ -95,6 +150,7 @@ beforeEach(() => {
 	mock.module('$lib/server/http/guards.js', () => ({
 		requireClusterContext: () => 'cluster-a',
 		requireClusterWideRead: async () => {
+			requireClusterWideReadCalls.push('cluster-a');
 			if (clusterReadShouldThrow) {
 				throw { status: 403, body: { message: 'Permission denied' } };
 			}
@@ -102,8 +158,19 @@ beforeEach(() => {
 		requireScopedPermission: async () => {}
 	}));
 
+	mock.module('$lib/server/clusters.js', () => ({
+		getSelectableClusters: async () => selectableClusters
+	}));
+
 	mock.module('$lib/server/dashboard-cache', () => ({
-		getDashboardCache: () => dashboardCacheValue,
+		getDashboardCache: (key: string) => {
+			getDashboardCacheCalls.push(key);
+			return dashboardCacheValue;
+		},
+		getDashboardCacheKey: (parts: { clusterId: string; role: string; userId: string }) => {
+			getDashboardCacheKeyCalls.push(parts);
+			return `dashboard:user:${parts.userId}:role:${parts.role}:cluster:${parts.clusterId}`;
+		},
 		setDashboardCache: (key: string, value: unknown) => setDashboardCacheCalls.push({ key, value })
 	}));
 
@@ -117,6 +184,7 @@ beforeEach(() => {
 afterEach(() => {
 	mock.restore();
 	mock.module('$lib/server/flux/services.js', () => actualServices);
+	mock.module('$lib/server/clusters.js', () => actualClusters);
 	mock.module('$lib/server/http/guards.js', () => actualGuards);
 	mock.module('$lib/server/dashboard-cache', () => actualDashboardCache);
 	mock.module('$lib/server/metrics.js', () => actualMetrics);
@@ -134,15 +202,26 @@ describe('migrated server loads', () => {
 				cluster: 'cluster-a',
 				requestId: 'req-1',
 				session: null,
-				user: { id: 'user-1' }
+				user: createUser()
 			}
 		} as Parameters<typeof load>[0]);
 
 		expect(success).toMatchObject({
 			health: {
 				connected: true,
-				clusterName: 'cluster-a',
-				availableClusters: ['cluster-a'],
+				currentClusterId: 'cluster-a',
+				currentClusterName: 'Uploaded Cluster A',
+				availableClusters: [
+					{
+						id: IN_CLUSTER_ID,
+						name: 'In-cluster'
+					},
+					{
+						id: 'cluster-a',
+						name: 'Uploaded Cluster A',
+						connected: true
+					}
+				],
 				error: undefined
 			},
 			fluxVersion: 'v2.3.0'
@@ -157,15 +236,25 @@ describe('migrated server loads', () => {
 				cluster: 'cluster-a',
 				requestId: 'req-1',
 				session: null,
-				user: { id: 'user-1' }
+				user: createUser()
 			}
 		} as Parameters<typeof load>[0]);
 
 		expect(fallback).toMatchObject({
 			health: {
 				connected: false,
-				clusterName: undefined,
-				availableClusters: [],
+				currentClusterId: 'cluster-a',
+				currentClusterName: 'Uploaded Cluster A',
+				availableClusters: [
+					{
+						id: IN_CLUSTER_ID,
+						name: 'In-cluster'
+					},
+					{
+						id: 'cluster-a',
+						name: 'Uploaded Cluster A'
+					}
+				],
 				error: 'Failed to retrieve cluster health status'
 			},
 			fluxVersion: 'v2.x.x'
@@ -176,8 +265,20 @@ describe('migrated server loads', () => {
 		const { load } = await import(`../routes/+page.server.js?case=${Date.now()}-${Math.random()}`);
 
 		const result = await load({
-			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: { id: 'user-1' } },
-			parent: async () => ({ health: { clusterName: 'cluster-b' } }),
+			locals: {
+				cluster: 'cluster-a',
+				requestId: 'req-1',
+				session: null,
+				user: createUser()
+			},
+			parent: async () => ({
+				health: {
+					connected: true,
+					currentClusterId: 'cluster-b',
+					currentClusterName: 'Uploaded Cluster B',
+					availableClusters: []
+				}
+			}),
 			setHeaders: () => {}
 		} as Parameters<typeof load>[0]);
 
@@ -191,10 +292,44 @@ describe('migrated server loads', () => {
 		});
 		expect(setDashboardCacheCalls).toEqual([
 			{
-				key: 'dashboard-cluster-a',
+				key: 'dashboard:user:user-1:role:admin:cluster:cluster-a',
 				value: groupCounts
 			}
 		]);
+		expect(getDashboardCacheKeyCalls).toEqual([
+			{ userId: 'user-1', role: 'admin', clusterId: 'cluster-a' }
+		]);
+		expect(getDashboardCacheCalls).toEqual(['dashboard:user:user-1:role:admin:cluster:cluster-a']);
+		expect(requireClusterWideReadCalls).toEqual(['cluster-a']);
+	});
+
+	test('dashboard load does not access cache before permission checks fail', async () => {
+		clusterReadShouldThrow = true;
+		const { load } = await import(`../routes/+page.server.js?case=${Date.now()}-${Math.random()}`);
+
+		const result = await load({
+			locals: {
+				cluster: 'cluster-a',
+				requestId: 'req-1',
+				session: null,
+				user: createUser()
+			},
+			parent: async () => ({
+				health: {
+					connected: true,
+					currentClusterId: 'cluster-a',
+					currentClusterName: 'Uploaded Cluster A',
+					availableClusters: []
+				}
+			}),
+			setHeaders: () => {}
+		} as Parameters<typeof load>[0]);
+
+		expect(await result.streamed.groupCounts).toEqual({});
+		expect(getDashboardCacheKeyCalls).toEqual([]);
+		expect(getDashboardCacheCalls).toEqual([]);
+		expect(setDashboardCacheCalls).toEqual([]);
+		expect(requireClusterWideReadCalls).toEqual(['cluster-a']);
 	});
 
 	test('resource list load calls the shared service and keeps the UI-facing shape', async () => {
@@ -204,7 +339,7 @@ describe('migrated server loads', () => {
 
 		const result = await load({
 			depends: () => {},
-			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: { id: 'user-1' } },
+			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: createUser() },
 			params: { type: 'gitrepositories' },
 			url: new URL('http://localhost/resources/gitrepositories?sortBy=name&sortOrder=desc')
 		} as Parameters<typeof load>[0]);
@@ -226,7 +361,7 @@ describe('migrated server loads', () => {
 
 		const result = await load({
 			depends: () => {},
-			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: { id: 'user-1' } },
+			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: createUser() },
 			params: { type: 'gitrepositories', namespace: 'flux-system', name: 'demo' }
 		} as Parameters<typeof load>[0]);
 
@@ -248,7 +383,7 @@ describe('migrated server loads', () => {
 					cluster: 'cluster-a',
 					requestId: 'req-1',
 					session: null,
-					user: { id: 'user-1' }
+					user: createUser()
 				},
 				params: { type: 'gitrepositories', namespace: 'flux-system', name: 'demo' }
 			} as Parameters<typeof load404>[0])
@@ -268,7 +403,7 @@ describe('migrated server loads', () => {
 					cluster: 'cluster-a',
 					requestId: 'req-1',
 					session: null,
-					user: { id: 'user-1' }
+					user: createUser()
 				},
 				params: { type: 'gitrepositories', namespace: 'flux-system', name: 'demo' }
 			} as Parameters<typeof load500>[0])

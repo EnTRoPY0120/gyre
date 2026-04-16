@@ -1,4 +1,5 @@
 import { logger } from '../logger.js';
+import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
 import * as k8s from '@kubernetes/client-node';
 import * as http from 'http';
 import * as https from 'https';
@@ -233,7 +234,7 @@ let baseConfig: k8s.KubeConfig | null = null;
 export type ReqCache = Map<string, Promise<k8s.KubeConfig>>;
 
 // ---------------------------------------------------------------------------
-// Connection pool — singleton API clients per cluster context
+// Connection pool — singleton API clients per canonical cluster ID
 // ---------------------------------------------------------------------------
 
 const POOL_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -307,14 +308,31 @@ export function getPoolMetrics() {
 	};
 }
 
-/** Evicts all pooled clients. Exposed via POST /api/v1/admin/k8s/clear-client-pool. */
-export function clearClientPool() {
-	customObjectsPool.clear();
-	coreV1Pool.clear();
-	appsV1Pool.clear();
-	poolMetricsState.hits = 0;
-	poolMetricsState.misses = 0;
-	poolMetricsState.evictions = 0;
+function clearPoolByPrefix<T>(pool: Map<string, PoolEntry<T>>, prefix: string) {
+	for (const key of pool.keys()) {
+		if (key.startsWith(prefix)) {
+			pool.delete(key);
+			poolMetricsState.evictions++;
+		}
+	}
+}
+
+/** Evicts pooled clients. Exposed via POST /api/v1/admin/k8s/clear-client-pool. */
+export function clearClientPool(clusterId?: string) {
+	if (clusterId === undefined) {
+		customObjectsPool.clear();
+		coreV1Pool.clear();
+		appsV1Pool.clear();
+		poolMetricsState.hits = 0;
+		poolMetricsState.misses = 0;
+		poolMetricsState.evictions = 0;
+		return;
+	}
+
+	const prefix = `${normalizeClusterId(clusterId)}:`;
+	clearPoolByPrefix(customObjectsPool, prefix);
+	clearPoolByPrefix(coreV1Pool, prefix);
+	clearPoolByPrefix(appsV1Pool, prefix);
 }
 
 /**
@@ -365,7 +383,7 @@ export function auditLogSecretAccess(
 ): void {
 	const timestamp = new Date().toISOString();
 	const resourceId = name ? `${namespace}/${name}` : namespace;
-	const msg = `[AUDIT] ${operation.toUpperCase()} ${resourceType} ${resourceId} (context: ${context || 'in-cluster'}) at ${timestamp}`;
+	const msg = `[AUDIT] ${operation.toUpperCase()} ${resourceType} ${resourceId} (context: ${normalizeClusterId(context)}) at ${timestamp}`;
 
 	// Use warn level for sensitive resource access to ensure it's logged to files
 	logger.warn(msg);
@@ -432,15 +450,15 @@ async function getOrCreate<T>(
 }
 
 /**
- * Get or create KubeConfig for a specific cluster or context.
+ * Get or create KubeConfig for a specific canonical cluster ID.
  * Only caches successful configs; failed promises are not cached to allow retries.
- * @param clusterIdOrContext - Optional cluster ID (UUID) or context name
+ * @param clusterId - Optional cluster ID. undefined/default/in-cluster select the runtime config.
  */
 export async function getKubeConfig(
-	clusterIdOrContext?: string,
+	clusterId?: string,
 	reqCache?: ReqCache
 ): Promise<k8s.KubeConfig> {
-	const key = clusterIdOrContext || 'in-cluster';
+	const key = normalizeClusterId(clusterId);
 
 	// Check cache for successful configs only
 	if (reqCache && reqCache.has(key)) {
@@ -451,20 +469,15 @@ export async function getKubeConfig(
 	}
 
 	const loadConfig = async () => {
-		// 1. Load the base configuration if not already loaded
-		if (!baseConfig) {
-			baseConfig = loadKubeConfig();
-		}
-
 		let config: k8s.KubeConfig;
 
-		// 2. Determine if it's a cluster ID (UUID), a context name, or default
-		// Improved UUID validation per RFC 4122 (version in 3rd group, variant in 4th group)
-		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[3-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-		const isUuid = uuidRegex.test(key);
-
-		if (isUuid) {
-			// Load from database
+		if (key === IN_CLUSTER_ID) {
+			if (!baseConfig) {
+				baseConfig = loadKubeConfig();
+			}
+			config = new k8s.KubeConfig();
+			config.loadFromString(baseConfig.exportConfig());
+		} else {
 			const kubeconfigYaml = await getClusterKubeconfig(key);
 			if (!kubeconfigYaml) {
 				throw new Error(`Cluster with ID "${key}" not found or has no valid configuration`);
@@ -472,27 +485,8 @@ export async function getKubeConfig(
 			config = new k8s.KubeConfig();
 			config.loadFromString(kubeconfigYaml);
 			logger.debug(`✓ Loaded Kubernetes configuration from database for cluster: ${key}`);
-		} else if (key !== 'in-cluster' && key !== 'default') {
-			// It's a context name - check if it exists in the base config
-			const availableContexts = baseConfig.getContexts().map((c) => c.name);
-			if (availableContexts.includes(key)) {
-				// Create a clone of the base config and switch context
-				config = new k8s.KubeConfig();
-				config.loadFromString(baseConfig.exportConfig());
-				config.setCurrentContext(key);
-				logger.debug(`✓ Switched to Kubernetes context: ${key}`);
-			} else {
-				throw new Error(
-					`Context "${key}" not found in kubeconfig. Available: ${availableContexts.join(', ')}`
-				);
-			}
-		} else {
-			// Default context
-			config = new k8s.KubeConfig();
-			config.loadFromString(baseConfig.exportConfig());
 		}
 
-		// 3. Return configuration
 		return config;
 	};
 
@@ -523,14 +517,15 @@ export async function getKubeConfig(
 /**
  * Create CustomObjectsApi client, reusing a pooled instance when possible.
  * getKubeConfig is invoked inside the factory so it is only called on cache misses.
- * @param context - Optional cluster ID or context name
+ * @param context - Optional canonical cluster ID
  */
 export async function getCustomObjectsApi(
 	context?: string,
 	reqCache?: ReqCache,
 	timeoutMs = OPERATION_TIMEOUTS.list
 ): Promise<k8s.CustomObjectsApi> {
-	return getOrCreate(customObjectsPool, `${context || 'in-cluster'}:${timeoutMs}`, async () => {
+	const key = normalizeClusterId(context);
+	return getOrCreate(customObjectsPool, `${key}:${timeoutMs}`, async () => {
 		const config = await getKubeConfig(context, reqCache);
 		return makeApiClientWithTimeout(config, k8s.CustomObjectsApi, timeoutMs);
 	});
@@ -539,14 +534,15 @@ export async function getCustomObjectsApi(
 /**
  * Create CoreV1Api client, reusing a pooled instance when possible.
  * getKubeConfig is invoked inside the factory so it is only called on cache misses.
- * @param context - Optional cluster ID or context name
+ * @param context - Optional canonical cluster ID
  */
 export async function getCoreV1Api(
 	context?: string,
 	reqCache?: ReqCache,
 	timeoutMs = OPERATION_TIMEOUTS.get
 ): Promise<k8s.CoreV1Api> {
-	return getOrCreate(coreV1Pool, `${context || 'in-cluster'}:${timeoutMs}`, async () => {
+	const key = normalizeClusterId(context);
+	return getOrCreate(coreV1Pool, `${key}:${timeoutMs}`, async () => {
 		const config = await getKubeConfig(context, reqCache);
 		return makeApiClientWithTimeout(config, k8s.CoreV1Api, timeoutMs);
 	});
@@ -555,14 +551,15 @@ export async function getCoreV1Api(
 /**
  * Create AppsV1Api client, reusing a pooled instance when possible.
  * getKubeConfig is invoked inside the factory so it is only called on cache misses.
- * @param context - Optional cluster ID or context name
+ * @param context - Optional canonical cluster ID
  */
 export async function getAppsV1Api(
 	context?: string,
 	reqCache?: ReqCache,
 	timeoutMs = OPERATION_TIMEOUTS.get
 ): Promise<k8s.AppsV1Api> {
-	return getOrCreate(appsV1Pool, `${context || 'in-cluster'}:${timeoutMs}`, async () => {
+	const key = normalizeClusterId(context);
+	return getOrCreate(appsV1Pool, `${key}:${timeoutMs}`, async () => {
 		const config = await getKubeConfig(context, reqCache);
 		return makeApiClientWithTimeout(config, k8s.AppsV1Api, timeoutMs);
 	});

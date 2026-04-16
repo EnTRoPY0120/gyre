@@ -83,8 +83,8 @@ beforeEach(() => {
 		getFluxResource: (...args: unknown[]) => getFluxResourceImpl(...args),
 		getFluxResourceStatus: (...args: unknown[]) => getFluxResourceStatusImpl(...args),
 		getKubeConfig: async () => ({
-			getContexts: () => [{ name: 'cluster-a' }, { name: 'cluster-b' }],
-			getCurrentContext: () => 'cluster-a',
+			getContexts: () => [{ name: 'dev-context' }, { name: 'staging-context' }],
+			getCurrentContext: () => 'dev-context',
 			makeApiClient: (clientType: { name?: string }) => {
 				if (clientType.name?.includes('AppsV1Api')) {
 					return {
@@ -168,8 +168,8 @@ describe('flux shared services', () => {
 				connected: true,
 				configStrategy: 'local-kubeconfig',
 				configSource: 'kubeconfig',
-				currentContext: 'cluster-a',
-				availableContexts: ['cluster-a', 'cluster-b'],
+				currentContext: 'dev-context',
+				availableContexts: ['dev-context', 'staging-context'],
 				connectionPool: {
 					evictions: 1,
 					hits: 2,

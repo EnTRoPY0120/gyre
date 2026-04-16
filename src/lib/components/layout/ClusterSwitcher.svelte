@@ -1,37 +1,39 @@
 <script lang="ts">
 	/* eslint-disable @typescript-eslint/no-unused-vars */
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import { eventsStore } from '$lib/stores/events.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { cn } from '$lib/utils';
 
 	interface Props {
-		current?: string;
-		available?: string[];
+		currentId?: string;
+		available?: ClusterOption[];
 		connected?: boolean;
 	}
 
-	let { current, available, connected = true }: Props = $props();
+	let { currentId, available, connected = true }: Props = $props();
 
-	const currentCluster = $derived(current || clusterStore.current || 'in-cluster');
+	const currentCluster = $derived(currentId || clusterStore.current || IN_CLUSTER_ID);
 	// Merge prop data with store data, preferring store if it has data
 	const availableClusters = $derived(
 		clusterStore.available.length > 0 ? clusterStore.available : (available ?? [])
 	);
+	const selectedCluster = $derived(
+		availableClusters.find((cluster) => cluster.id === currentCluster) ?? null
+	);
 
-	function selectCluster(name: string) {
-		if (name === currentCluster) return;
-		clusterStore.setCluster(name);
+	function selectCluster(clusterId: string) {
+		if (clusterId === currentCluster) return;
+		clusterStore.setCluster(clusterId);
 	}
 </script>
 
 <DropdownMenu.Root>
 	<DropdownMenu.Trigger
 		class="group flex items-center gap-1.5 rounded-md border border-transparent bg-secondary/50 px-2 py-1 text-xs font-medium transition-all hover:border-border hover:bg-secondary/80 sm:gap-2 sm:px-3 sm:py-1.5"
-		aria-label={`Current cluster: ${
-			currentCluster === 'in-cluster' ? 'In-cluster' : currentCluster
-		}. Click to switch cluster`}
+		aria-label={`Current cluster: ${selectedCluster?.name ?? currentCluster}. Click to switch cluster`}
 	>
 		<div
 			aria-hidden="true"
@@ -42,7 +44,7 @@
 		></div>
 		<span
 			class="xs:max-w-[100px] max-w-[60px] truncate font-mono text-[9px] tracking-tight sm:max-w-[150px] sm:text-[10px]"
-			>{currentCluster === 'in-cluster' ? 'In-cluster' : currentCluster}</span
+			>{selectedCluster?.name ?? currentCluster}</span
 		>
 		{#if eventsStore.clusterUnreadCounts[currentCluster] > 0}
 			<span
@@ -83,22 +85,24 @@
 				{/each}
 			</div>
 			<p class="mt-2 text-center text-[8px] text-muted-foreground/40">
-				Fetching cluster contexts...
+				Fetching clusters...
 			</p>
 		{:else}
-			{#each availableClusters as cluster (cluster)}
+			{#each availableClusters as cluster (cluster.id)}
 				<DropdownMenu.Item
-					onSelect={() => selectCluster(cluster)}
+					onSelect={() => selectCluster(cluster.id)}
 					class={cn(
 						'mb-0.5 cursor-pointer gap-3 rounded-xl px-3 py-3 transition-colors last:mb-0',
-						cluster === currentCluster ? 'bg-primary/5 hover:bg-primary/10' : 'hover:bg-accent/50'
+						cluster.id === currentCluster
+							? 'bg-primary/5 hover:bg-primary/10'
+							: 'hover:bg-accent/50'
 					)}
 				>
 					<div
 						aria-hidden="true"
 						class={cn(
 							'h-1.5 w-1.5 rounded-full transition-all duration-300',
-							cluster === currentCluster
+							cluster.id === currentCluster
 								? 'scale-150 bg-green-500 ring-4 ring-green-500/20'
 								: 'bg-muted-foreground/20'
 						)}
@@ -107,23 +111,29 @@
 						<span
 							class={cn(
 								'truncate font-mono text-[11px]',
-								cluster === currentCluster ? 'font-bold text-foreground' : 'text-muted-foreground'
-							)}>{cluster === 'in-cluster' ? 'In-cluster' : cluster}</span
+								cluster.id === currentCluster
+									? 'font-bold text-foreground'
+									: 'text-muted-foreground'
+							)}>{cluster.name}</span
 						>
-						{#if cluster === currentCluster}
+						{#if cluster.id === currentCluster}
 							<span class="text-[8px] font-black tracking-widest text-green-500/60 uppercase"
 								>Active Context</span
 							>
+						{:else if cluster.description}
+							<span class="truncate text-[9px] text-muted-foreground/60">
+								{cluster.description}
+							</span>
 						{/if}
 					</div>
-					{#if eventsStore.clusterUnreadCounts[cluster] > 0}
+					{#if eventsStore.clusterUnreadCounts[cluster.id] > 0}
 						<span
 							class="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-sm"
 						>
-							{eventsStore.clusterUnreadCounts[cluster]}
+							{eventsStore.clusterUnreadCounts[cluster.id]}
 						</span>
 					{/if}
-					{#if cluster === currentCluster}
+					{#if cluster.id === currentCluster}
 						<Icon name="check" size={12} class="text-green-500" />
 					{/if}
 				</DropdownMenu.Item>

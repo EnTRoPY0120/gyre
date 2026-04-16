@@ -786,6 +786,7 @@ import type { UserPreferences } from '$lib/types/user';
  * Shape user object for public consumption (e.g., in layout data)
  */
 export function serializeUser(user: User | null): {
+	id: string;
 	username: string;
 	role: string;
 	email: string | null;
@@ -794,6 +795,7 @@ export function serializeUser(user: User | null): {
 } | null {
 	if (!user) return null;
 	return {
+		id: user.id,
 		username: user.username,
 		role: user.role,
 		email: user.email,

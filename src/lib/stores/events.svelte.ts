@@ -3,6 +3,7 @@
  * Falls back to polling if SSE is not available
  */
 
+import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
 import { preferences } from './preferences.svelte';
 import { clusterStore } from './cluster.svelte';
 import { logger } from '$lib/utils/logger.js';
@@ -64,14 +65,6 @@ export interface NotificationMessage {
 type EventCallback = (event: ResourceEvent) => void;
 type StatusCallback = (status: ConnectionStatus) => void;
 
-function getStorageKeys() {
-	const cluster = clusterStore.current ?? 'default';
-	return {
-		notifications: `gyre_notifications_${cluster}`,
-		state: `gyre_notification_state_${cluster}`
-	};
-}
-
 class RealtimeStore {
 	private eventSource: EventSource | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -88,6 +81,8 @@ class RealtimeStore {
 
 	// Tracks the server process session; used to detect server restarts and clear stale state
 	private lastServerSessionId: string | null = null;
+	private storageClusterId = $state<string>(normalizeClusterId(clusterStore.current));
+	private storageUserIdentity = $state<string | null>(null);
 
 	// Reactive state using Svelte 5 runes
 	status = $state<ConnectionStatus>('disconnected');
@@ -115,8 +110,38 @@ class RealtimeStore {
 		}
 	}
 
+	private getStorageKeys() {
+		const clusterId = normalizeClusterId(this.storageClusterId);
+		const userScope = this.storageUserIdentity ?? 'anonymous';
+		return {
+			notifications: `gyre_notifications_${clusterId}_${userScope}`,
+			state: `gyre_notification_state_${clusterId}_${userScope}`
+		};
+	}
+
+	setStorageScope({
+		clusterId,
+		userIdentity
+	}: {
+		clusterId?: string | null;
+		userIdentity?: string | null;
+	}) {
+		const nextClusterId = normalizeClusterId(clusterId ?? this.storageClusterId);
+		const nextUserIdentity = userIdentity ?? null;
+		if (nextClusterId === this.storageClusterId && nextUserIdentity === this.storageUserIdentity) {
+			return;
+		}
+
+		this.storageClusterId = nextClusterId;
+		this.storageUserIdentity = nextUserIdentity;
+		this.notifications = [];
+		this.lastNotificationState.clear();
+		this.lastServerSessionId = null;
+		this.loadFromStorage();
+	}
+
 	private loadFromStorage() {
-		const keys = getStorageKeys();
+		const keys = this.getStorageKeys();
 		try {
 			// Load notifications for the current cluster
 			const storedNotifications = localStorage.getItem(keys.notifications);
@@ -125,7 +150,7 @@ class RealtimeStore {
 				// Convert timestamp strings back to Date objects and ensure clusterId exists
 				this.notifications = parsed.map((n: NotificationMessage) => ({
 					...n,
-					clusterId: n.clusterId || 'in-cluster',
+					clusterId: n.clusterId || IN_CLUSTER_ID,
 					timestamp: new Date(n.timestamp)
 				}));
 			}
@@ -189,7 +214,7 @@ class RealtimeStore {
 	private saveToStorage() {
 		if (typeof window === 'undefined') return;
 
-		const keys = getStorageKeys();
+		const keys = this.getStorageKeys();
 		try {
 			// Save only the most recent notifications to avoid localStorage quota issues.
 			const toSave = this.notifications.slice(0, MAX_NOTIFICATIONS);
@@ -406,7 +431,7 @@ class RealtimeStore {
 			return;
 		}
 
-		const clusterId = event.clusterId || 'in-cluster';
+		const clusterId = event.clusterId || IN_CLUSTER_ID;
 		const resourceKey = `${clusterId}/${event.resourceType}/${event.resource.metadata.namespace}/${event.resource.metadata.name}`;
 		const readyCondition = event.resource.status?.conditions?.find((c) => c.type === 'Ready');
 

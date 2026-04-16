@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { afterAll, describe, expect, mock, test } from 'bun:test';
 import type { FluxResource } from '../lib/types/flux.js';
 import type { BatchOperationResponse } from '../lib/components/flux/bulk-actions.js';
 
@@ -175,4 +175,8 @@ describe('partitionBatchOperationResult', () => {
 			{ type: 'Kustomization', namespace: 'default', name: 'app-b' }
 		]);
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });

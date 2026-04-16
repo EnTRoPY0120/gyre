@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { eq } from 'drizzle-orm';
@@ -169,4 +169,8 @@ describe('user preferences route', () => {
 			}
 		});
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });

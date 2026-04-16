@@ -1,12 +1,13 @@
 import { browser } from '$app/environment';
+import { IN_CLUSTER_ID, normalizeClusterId, type ClusterOption } from '$lib/clusters/identity.js';
 import Cookies from 'js-cookie';
 
 /**
  * Cluster Store using Svelte 5's $state
  */
 class ClusterStore {
-	current = $state<string | undefined>(undefined);
-	available = $state<string[]>([]);
+	current = $state<string>(IN_CLUSTER_ID);
+	available = $state<ClusterOption[]>([]);
 	loaded = $state<boolean>(false);
 	error = $state<string | null>(null);
 
@@ -14,16 +15,15 @@ class ClusterStore {
 		// Initialize from cookie if in browser
 		if (browser) {
 			const value = Cookies.get('gyre_cluster');
-			if (value) {
-				this.current = value;
-			}
+			this.current = normalizeClusterId(value);
 		}
 	}
 
-	setCluster(name: string) {
-		this.current = name;
+	setCluster(id: string) {
+		const normalizedId = normalizeClusterId(id);
+		this.current = normalizedId;
 		if (browser) {
-			Cookies.set('gyre_cluster', name, {
+			Cookies.set('gyre_cluster', normalizedId, {
 				expires: 30,
 				path: '/',
 				secure: true,
@@ -34,16 +34,17 @@ class ClusterStore {
 		}
 	}
 
-	setAvailable(clusters: string[]) {
-		this.available = clusters;
-		this.loaded = true;
-		this.error = null;
+	setCurrent(id: string) {
+		this.current = normalizeClusterId(id);
 	}
 
-	setError(message: string) {
-		this.error = message;
+	setAvailable(clusters: ClusterOption[]) {
+		this.available = clusters;
 		this.loaded = true;
-		this.available = [];
+	}
+
+	setError(message: string | null) {
+		this.error = message;
 	}
 }
 

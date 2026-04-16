@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
 
 const clusterWideChecks: unknown[][] = [];
@@ -63,6 +63,10 @@ beforeEach(() => {
 	scopedChecks.length = 0;
 	allowClusterWide = true;
 	allowScoped = true;
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 describe('flux [resourceType] RBAC boundaries', () => {

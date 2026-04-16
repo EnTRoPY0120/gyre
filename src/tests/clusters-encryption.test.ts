@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach, beforeEach, mock } from 'bun:test';
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
@@ -117,6 +117,10 @@ describe('Cluster Kubeconfig Encryption', () => {
 			expect(() => _decryptKubeconfig('not-v2')).toThrow('v2');
 		});
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 // ---------------------------------------------------------------------------

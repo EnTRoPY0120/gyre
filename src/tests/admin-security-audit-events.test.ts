@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
 
 const auditCalls: Array<[User | null, string, Record<string, unknown> | undefined]> = [];
@@ -180,6 +180,10 @@ beforeEach(() => {
 	dbState.findFirstQueue.length = 0;
 	dbState.updates.length = 0;
 	dbState.deleteRuns = 0;
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 describe('admin mutation audit events', () => {

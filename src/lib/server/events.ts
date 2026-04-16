@@ -1,4 +1,5 @@
 import { logger } from './logger.js';
+import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { listFluxResources } from './kubernetes/client.js';
 import type { FluxResourceType } from './kubernetes/flux/resources.js';
 import type { FluxResource, K8sCondition } from './kubernetes/flux/types.js';
@@ -123,7 +124,7 @@ export async function closeAllEventStreams() {
  * @param clusterId - The cluster to watch
  * @param subscriber - Callback for events
  */
-export function subscribe(subscriber: Subscriber, clusterId: string = 'in-cluster'): () => void {
+export function subscribe(subscriber: Subscriber, clusterId: string = IN_CLUSTER_ID): () => void {
 	// Prevent new subscriptions during shutdown
 	if (isShuttingDown) {
 		logger.warn({ clusterId }, '[EventBus] Rejecting new subscription: shutting down');

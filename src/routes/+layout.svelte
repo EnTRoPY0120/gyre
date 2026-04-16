@@ -1,5 +1,6 @@
 <script lang="ts">
 	import './layout.css';
+	import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
 	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
 	import AppHeader from '$lib/components/layout/AppHeader.svelte';
 	import CommandPalette from '$lib/components/CommandPalette.svelte';
@@ -15,13 +16,15 @@
 		data: {
 			health: {
 				connected: boolean;
-				clusterName?: string;
-				availableClusters: string[];
+				currentClusterId: string;
+				currentClusterName: string;
+				availableClusters: ClusterOption[];
 				error?: string;
 			};
 			fluxVersion: string;
 			gyreVersion: string;
 			user: {
+				id: string;
 				username: string;
 				role: string;
 				email?: string | null;
@@ -39,22 +42,28 @@
 
 	// Sync cluster store and preferences with layout data
 	$effect(() => {
-		if (data.health.error) {
-			clusterStore.setError(data.health.error);
-		} else if (data.health.availableClusters && data.health.availableClusters.length > 0) {
+		if (data.health.availableClusters) {
 			clusterStore.setAvailable(data.health.availableClusters);
-		} else {
-			clusterStore.setError('No available clusters found');
 		}
+		clusterStore.setCurrent(data.health.currentClusterId || IN_CLUSTER_ID);
+		clusterStore.setError(data.health.error ?? null);
 
-		if (data.health.clusterName) {
-			clusterStore.current = data.health.clusterName;
-		}
 		if (data.user?.preferences?.notifications) {
 			preferences.setNotifications(data.user.preferences.notifications);
 		} else {
 			preferences.setNotifications(undefined);
 		}
+
+		eventsStore.setStorageScope({
+			clusterId: data.health.currentClusterId || IN_CLUSTER_ID,
+			userIdentity: data.user
+				? JSON.stringify({
+						id: data.user.id,
+						role: data.user.role,
+						username: data.user.username
+					})
+				: null
+		});
 	});
 
 	// Connect to SSE when cluster is connected

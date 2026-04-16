@@ -1,4 +1,5 @@
 import { ADMIN_ROUTE_PREFIXES } from '$lib/server/config.js';
+import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { getClusterById } from '$lib/server/clusters.js';
 import { isPublicRoute } from '$lib/isPublicRoute.js';
 import type { RequestEvent } from '@sveltejs/kit';
@@ -42,11 +43,11 @@ export async function resolveClusterContext(
 ): Promise<void> {
 	const cluster = event.cookies.get('gyre_cluster');
 	if (!cluster) {
-		event.locals.cluster = 'in-cluster';
+		event.locals.cluster = IN_CLUSTER_ID;
 		return;
 	}
 
-	if (cluster === 'in-cluster') {
+	if (cluster === IN_CLUSTER_ID) {
 		event.locals.cluster = cluster;
 		return;
 	}
@@ -54,7 +55,7 @@ export async function resolveClusterContext(
 	const clusterRecord = await getClusterById(cluster);
 	if (!clusterRecord || !clusterRecord.isActive) {
 		event.cookies.delete('gyre_cluster', { path: '/' });
-		event.locals.cluster = 'in-cluster';
+		event.locals.cluster = IN_CLUSTER_ID;
 		return;
 	}
 

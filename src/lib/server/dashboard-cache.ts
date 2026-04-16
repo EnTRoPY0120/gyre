@@ -3,8 +3,17 @@ import { DASHBOARD_CACHE_TTL_MS } from '$lib/server/config/constants';
 const MAX_DASHBOARD_CACHE_SIZE = 50;
 
 type DashboardEntry = { data: unknown; timestamp: number };
+export interface DashboardCacheKeyParts {
+	userId: string;
+	role: string;
+	clusterId: string;
+}
 
 const cache = new Map<string, DashboardEntry>();
+
+export function getDashboardCacheKey({ userId, role, clusterId }: DashboardCacheKeyParts): string {
+	return `dashboard:user:${userId}:role:${role}:cluster:${clusterId}`;
+}
 
 function prune(upcomingKey: string) {
 	const now = Date.now();
@@ -36,10 +45,16 @@ export function setDashboardCache(key: string, data: unknown) {
 	cache.set(key, { data, timestamp: Date.now() });
 }
 
-export function invalidateDashboardCache(clusterName?: string) {
-	if (clusterName !== undefined) {
-		cache.delete(`dashboard-${clusterName}`);
-	} else {
+export function invalidateDashboardCache(clusterId?: string) {
+	if (clusterId === undefined) {
 		cache.clear();
+		return;
+	}
+
+	const suffix = `:cluster:${clusterId}`;
+	for (const key of cache.keys()) {
+		if (key.endsWith(suffix)) {
+			cache.delete(key);
+		}
 	}
 }

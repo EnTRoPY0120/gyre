@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, beforeEach } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
@@ -118,6 +118,10 @@ function buildEvent(): ChangePasswordEvent {
 
 	return event;
 }
+
+afterAll(() => {
+	mock.restore();
+});
 
 beforeEach(() => {
 	Object.assign(authState, createAuthState());

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
 
 const permissionChecks: unknown[][] = [];
@@ -36,6 +36,10 @@ function createUser(role: User['role'] = 'editor'): User {
 
 beforeEach(() => {
 	permissionChecks.length = 0;
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 describe('admin auth providers explicit in-handler guard', () => {

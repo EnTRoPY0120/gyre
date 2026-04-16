@@ -1,4 +1,5 @@
 import { logger } from './logger.js';
+import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
 import { eq, desc, or, sql } from 'drizzle-orm';
 import { getDbSync } from './db/index.js';
 import { getPaginatedItems, sanitizeSearchInput } from './db/utils.js';
@@ -221,6 +222,37 @@ export async function getAllClusters(): Promise<(typeof clusters.$inferSelect)[]
 	return db.query.clusters.findMany({
 		orderBy: [desc(clusters.createdAt)]
 	});
+}
+
+/**
+ * Get selectable cluster identities for UI/API selection.
+ * Kubeconfig context names are diagnostic metadata only; uploaded clusters are
+ * selected by their stable clusters.id values.
+ */
+export async function getSelectableClusters(
+	_selectedClusterId: string,
+	currentContext?: string | null
+): Promise<ClusterOption[]> {
+	const uploadedClusters = (await getAllClusters()).filter((cluster) => cluster.isActive);
+
+	return [
+		{
+			id: IN_CLUSTER_ID,
+			name: 'In-cluster',
+			description: 'Runtime Kubernetes configuration',
+			source: 'in-cluster',
+			isActive: true,
+			currentContext
+		},
+		...uploadedClusters.map((cluster) => ({
+			id: cluster.id,
+			name: cluster.name,
+			description: cluster.description,
+			source: 'uploaded' as const,
+			isActive: cluster.isActive,
+			currentContext: null
+		}))
+	];
 }
 
 /**

@@ -1,8 +1,13 @@
 import type { PageServerLoad } from './$types';
 import { isHttpError } from '@sveltejs/kit';
+import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { resourceGroups } from '$lib/config/resources';
 import { DASHBOARD_CACHE_TTL_MS } from '$lib/server/config/constants';
-import { getDashboardCache, setDashboardCache } from '$lib/server/dashboard-cache';
+import {
+	getDashboardCache,
+	getDashboardCacheKey,
+	setDashboardCache
+} from '$lib/server/dashboard-cache';
 import { getFluxOverviewSummary } from '$lib/server/flux/services.js';
 import { requireClusterWideRead } from '$lib/server/http/guards.js';
 import { AuthorizationError } from '$lib/server/kubernetes/errors.js';
@@ -63,7 +68,7 @@ function isPermissionErrorLike(error: unknown): boolean {
 export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 	// Get health data from parent layout
 	const parentData = await parent();
-	const requestedCluster = locals.cluster ?? '__NO_CLUSTER_SELECTED__';
+	const requestedCluster = locals.cluster ?? IN_CLUSTER_ID;
 
 	// Function to fetch data (can be returned as a promise to be streamed)
 	const fetchGroupCounts = async () => {
@@ -76,8 +81,17 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 			return EMPTY_GROUP_COUNTS;
 		}
 
-		// Create cache key based on the requested cluster identifier, not health metadata.
-		const cacheKey = `dashboard-${requestedCluster}`;
+		const user = locals.user;
+		if (!user) {
+			return EMPTY_GROUP_COUNTS;
+		}
+
+		// Scope cache by user, role, and canonical cluster ID.
+		const cacheKey = getDashboardCacheKey({
+			userId: user.id,
+			role: user.role,
+			clusterId: requestedCluster
+		});
 		const cached = getDashboardCache(cacheKey);
 
 		// Return cached data if still valid

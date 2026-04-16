@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { IN_CLUSTER_ID } from '../lib/clusters/identity.js';
 import type { User } from '../lib/server/db/schema.js';
 import * as actualBetterAuth from '../lib/server/auth/better-auth.js';
 import * as actualClusters from '../lib/server/clusters.js';
@@ -15,6 +16,7 @@ let sessionData: {
 } | null = null;
 let csrfValid = true;
 let clusterRecord: { id: string; isActive: boolean } | null = { id: 'cluster-a', isActive: true };
+const getClusterByIdCalls: string[] = [];
 let errorResponse = {
 	status: 500,
 	body: { error: 'An unexpected error occurred', code: 'InternalServerError' }
@@ -76,6 +78,7 @@ beforeEach(() => {
 	sessionData = null;
 	csrfValid = true;
 	clusterRecord = { id: 'cluster-a', isActive: true };
+	getClusterByIdCalls.length = 0;
 	errorResponse = {
 		status: 500,
 		body: { error: 'An unexpected error occurred', code: 'InternalServerError' }
@@ -121,7 +124,10 @@ beforeEach(() => {
 	}));
 
 	mock.module('$lib/server/clusters.js', () => ({
-		getClusterById: async () => clusterRecord
+		getClusterById: async (id: string) => {
+			getClusterByIdCalls.push(id);
+			return clusterRecord;
+		}
 	}));
 
 	mock.module('$lib/server/kubernetes/errors.js', () => ({
@@ -317,7 +323,93 @@ describe('request pipeline', () => {
 		});
 
 		expect(response.status).toBe(200);
-		expect(event.locals.cluster).toBe('in-cluster');
+		expect(event.locals.cluster).toBe(IN_CLUSTER_ID);
+		expect(cookies.deleted).toContainEqual({
+			name: 'gyre_cluster',
+			options: { path: '/' }
+		});
+	});
+
+	test('defaults to in-cluster when the cluster cookie is missing', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
+		const event = {
+			cookies: createCookies({ gyre_session: 'session-cookie' }),
+			getClientAddress: () => '127.0.0.1',
+			locals: {} as App.Locals,
+			request: new Request('http://localhost/dashboard'),
+			url: new URL('http://localhost/dashboard')
+		};
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event,
+			resolve: async () => new Response('ok', { status: 200 })
+		});
+
+		expect(response.status).toBe(200);
+		expect(event.locals.cluster).toBe(IN_CLUSTER_ID);
+		expect(getClusterByIdCalls).toEqual([]);
+	});
+
+	test('keeps a valid uploaded cluster id selected', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
+		clusterRecord = { id: 'cluster-a', isActive: true };
+		const event = {
+			cookies: createCookies({
+				gyre_cluster: 'cluster-a',
+				gyre_session: 'session-cookie'
+			}),
+			getClientAddress: () => '127.0.0.1',
+			locals: {} as App.Locals,
+			request: new Request('http://localhost/dashboard'),
+			url: new URL('http://localhost/dashboard')
+		};
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event,
+			resolve: async () => new Response('ok', { status: 200 })
+		});
+
+		expect(response.status).toBe(200);
+		expect(event.locals.cluster).toBe('cluster-a');
+		expect(getClusterByIdCalls).toEqual(['cluster-a']);
+		expect(event.cookies.deleted).toEqual([]);
+	});
+
+	test('treats context-name-like cookies as stale unless they match an active cluster id', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
+		clusterRecord = null;
+		const cookies = createCookies({
+			gyre_cluster: 'kind-kind',
+			gyre_session: 'session-cookie'
+		});
+		const event = {
+			cookies,
+			getClientAddress: () => '127.0.0.1',
+			locals: {} as App.Locals,
+			request: new Request('http://localhost/dashboard'),
+			url: new URL('http://localhost/dashboard')
+		};
+		const { handle } = await importHooks();
+
+		const response = await handle({
+			event,
+			resolve: async () => new Response('ok', { status: 200 })
+		});
+
+		expect(response.status).toBe(200);
+		expect(getClusterByIdCalls).toEqual(['kind-kind']);
+		expect(event.locals.cluster).toBe(IN_CLUSTER_ID);
 		expect(cookies.deleted).toContainEqual({
 			name: 'gyre_cluster',
 			options: { path: '/' }

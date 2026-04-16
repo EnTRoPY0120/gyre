@@ -1,4 +1,4 @@
-import { describe, test, expect, mock } from 'bun:test';
+import { afterAll, describe, expect, mock, test } from 'bun:test';
 
 // Mock SvelteKit virtual modules before importing anything that depends on them
 mock.module('$app/environment', () => ({ dev: false }));
@@ -120,6 +120,10 @@ describe('getResourceHealth', () => {
 		const conditions = [makeCondition('SomeOtherCondition', 'True')];
 		expect(getResourceHealth(conditions)).toBe('unknown');
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 // ---------------------------------------------------------------------------
