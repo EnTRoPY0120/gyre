@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import type { ClusterOption } from '$lib/clusters/identity.js';
+	import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
 	import { getResourceInfo } from '$lib/config/resources';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import NotificationBell from './NotificationBell.svelte';
@@ -28,7 +28,7 @@
 	}
 
 	let {
-		health = { connected: false, currentClusterId: 'in-cluster', currentClusterName: 'In-cluster' },
+		health = { connected: false, currentClusterId: IN_CLUSTER_ID, currentClusterName: 'In-cluster' },
 		fluxVersion = 'v2.x.x',
 		user = null
 	}: Props = $props();

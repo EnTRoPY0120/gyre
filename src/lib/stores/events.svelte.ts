@@ -65,6 +65,15 @@ export interface NotificationMessage {
 type EventCallback = (event: ResourceEvent) => void;
 type StatusCallback = (status: ConnectionStatus) => void;
 
+function hashStorageUserIdentity(value: string): string {
+	let hash = 0xcbf29ce484222325n;
+	for (const byte of new TextEncoder().encode(value)) {
+		hash ^= BigInt(byte);
+		hash = BigInt.asUintN(64, hash * 0x100000001b3n);
+	}
+	return hash.toString(16).padStart(16, '0');
+}
+
 class RealtimeStore {
 	private eventSource: EventSource | null = null;
 	private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -112,7 +121,9 @@ class RealtimeStore {
 
 	private getStorageKeys() {
 		const clusterId = normalizeClusterId(this.storageClusterId);
-		const userScope = this.storageUserIdentity ?? 'anonymous';
+		const userScope = this.storageUserIdentity
+			? hashStorageUserIdentity(this.storageUserIdentity)
+			: 'anonymous';
 		return {
 			notifications: `gyre_notifications_${clusterId}_${userScope}`,
 			state: `gyre_notification_state_${clusterId}_${userScope}`

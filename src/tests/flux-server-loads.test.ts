@@ -57,7 +57,7 @@ let selectableClusters = [
 		isActive: true,
 		currentContext: null
 	}
-];
+] as const;
 const setDashboardCacheCalls: Array<{ key: string; value: unknown }> = [];
 const requireClusterWideReadCalls: string[] = [];
 
@@ -114,7 +114,7 @@ beforeEach(() => {
 			id: IN_CLUSTER_ID,
 			name: 'In-cluster',
 			description: 'Runtime Kubernetes configuration',
-			source: 'in-cluster',
+			source: 'in-cluster' as const,
 			isActive: true,
 			currentContext: 'dev-context'
 		},
@@ -122,11 +122,11 @@ beforeEach(() => {
 			id: 'cluster-a',
 			name: 'Uploaded Cluster A',
 			description: 'Uploaded kubeconfig',
-			source: 'uploaded',
+			source: 'uploaded' as const,
 			isActive: true,
 			currentContext: null
 		}
-	];
+	] as const;
 
 	mock.module('$lib/server/flux/services.js', () => ({
 		DEFAULT_FLUX_VERSION: 'v2.x.x',
@@ -148,9 +148,9 @@ beforeEach(() => {
 	}));
 
 	mock.module('$lib/server/http/guards.js', () => ({
-		requireClusterContext: () => 'cluster-a',
-		requireClusterWideRead: async () => {
-			requireClusterWideReadCalls.push('cluster-a');
+		requireClusterContext: (locals: { cluster: string }) => locals.cluster,
+		requireClusterWideRead: async (locals: { cluster: string }) => {
+			requireClusterWideReadCalls.push(locals.cluster);
 			if (clusterReadShouldThrow) {
 				throw { status: 403, body: { message: 'Permission denied' } };
 			}
