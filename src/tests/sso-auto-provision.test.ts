@@ -1,6 +1,8 @@
-import { beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { importFresh } from './helpers/import-fresh';
+import { createAuthCryptoModuleStub, createLoggerModuleStub } from './helpers/module-stubs';
 
-mock.restore();
+type SSOModule = typeof import('../lib/server/auth/sso.js');
 
 function flattenSqlParts(value: unknown): string[] {
 	if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
@@ -50,99 +52,7 @@ function createDbState() {
 }
 
 const dbState = createDbState();
-
-mock.module('$lib/server/db', () => ({
-	getDb: async () => ({
-		query: {
-			accounts: {
-				findFirst: async (args: unknown) => {
-					dbState.accountFindFirstArgs.push(args);
-					return dbState.existingLink;
-				}
-			},
-			users: {
-				findFirst: async (args: { where?: unknown } | undefined) => {
-					dbState.userFindFirstArgs.push(args);
-
-					const nextLookup = dbState.userLookups.shift();
-					if (nextLookup !== undefined) {
-						return nextLookup;
-					}
-
-					const parts = whereParts(args);
-
-					if (
-						dbState.disabledUserByUsername &&
-						parts.includes('column:username') &&
-						parts.includes('disabled-user') &&
-						parts.includes('column:active') &&
-						parts.includes('false')
-					) {
-						const match = dbState.disabledUserByUsername;
-						dbState.disabledUserByUsername = null;
-						return match;
-					}
-
-					if (
-						dbState.disabledUserByEmail &&
-						parts.includes('column:email') &&
-						parts.includes('lower(') &&
-						parts.includes('disabled@example.com') &&
-						parts.includes('column:active') &&
-						parts.includes('false')
-					) {
-						const match = dbState.disabledUserByEmail;
-						dbState.disabledUserByEmail = null;
-						return match;
-					}
-
-					return null;
-				}
-			}
-		},
-		update: () => ({
-			set: (values: Record<string, unknown>) => {
-				dbState.updatedUserSets.push(values);
-				return {
-					where: async () => {}
-				};
-			}
-		})
-	})
-}));
-
-mock.module('$lib/server/auth', () => ({
-	generateUserId: () => 'generated-user-id',
-	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	updateUser: async () => null,
-	deleteUserSessions: async () => {}
-}));
-
-mock.module('$lib/server/rbac-defaults.js', () => ({
-	bindUserToDefaultPolicies: async () => {}
-}));
-
-mock.module('$lib/server/auth/crypto.js', () => ({
-	encryptSecret: (value: string) => `encrypted:${value}`
-}));
-
-mock.module('$lib/server/settings.js', () => ({
-	getAuthSettings: async () => ({
-		allowSignup: true,
-		localLoginEnabled: true,
-		domainAllowlist: []
-	})
-}));
-
-mock.module('$lib/server/logger.js', () => ({
-	logger: {
-		warn: () => {},
-		info: () => {},
-		error: () => {}
-	}
-}));
-
-import { createOrUpdateSSOUser } from '../lib/server/auth/sso.js?sut';
+let createOrUpdateSSOUser: SSOModule['createOrUpdateSSOUser'];
 
 function createProviderConfig(emailClaim = 'email') {
 	return {
@@ -170,8 +80,98 @@ function createProviderConfig(emailClaim = 'email') {
 	};
 }
 
-beforeEach(() => {
+beforeEach(async () => {
 	Object.assign(dbState, createDbState());
+
+	mock.module('$lib/server/db', () => ({
+		getDb: async () => ({
+			query: {
+				accounts: {
+					findFirst: async (args: unknown) => {
+						dbState.accountFindFirstArgs.push(args);
+						return dbState.existingLink;
+					}
+				},
+				users: {
+					findFirst: async (args: { where?: unknown } | undefined) => {
+						dbState.userFindFirstArgs.push(args);
+
+						const nextLookup = dbState.userLookups.shift();
+						if (nextLookup !== undefined) {
+							return nextLookup;
+						}
+
+						const parts = whereParts(args);
+
+						if (
+							dbState.disabledUserByUsername &&
+							parts.includes('column:username') &&
+							parts.includes('disabled-user') &&
+							parts.includes('column:active') &&
+							parts.includes('false')
+						) {
+							const match = dbState.disabledUserByUsername;
+							dbState.disabledUserByUsername = null;
+							return match;
+						}
+
+						if (
+							dbState.disabledUserByEmail &&
+							parts.includes('column:email') &&
+							parts.includes('lower(') &&
+							parts.includes('disabled@example.com') &&
+							parts.includes('column:active') &&
+							parts.includes('false')
+						) {
+							const match = dbState.disabledUserByEmail;
+							dbState.disabledUserByEmail = null;
+							return match;
+						}
+
+						return null;
+					}
+				}
+			},
+			update: () => ({
+				set: (values: Record<string, unknown>) => {
+					dbState.updatedUserSets.push(values);
+					return {
+						where: async () => {}
+					};
+				}
+			})
+		})
+	}));
+
+	mock.module('$lib/server/auth', () => ({
+		generateUserId: () => 'generated-user-id',
+		normalizeUsername: (username: string) => username.toLowerCase().trim(),
+		updateUser: async () => null,
+		deleteUserSessions: async () => {}
+	}));
+
+	mock.module('../lib/server/rbac-defaults.js', () => ({
+		bindUserToDefaultPolicies: async () => {}
+	}));
+
+	mock.module('../lib/server/auth/crypto.js', () => createAuthCryptoModuleStub());
+
+	mock.module('../lib/server/settings.js', () => ({
+		getAuthSettings: async () => ({
+			allowSignup: true,
+			localLoginEnabled: true,
+			domainAllowlist: []
+		})
+	}));
+
+	mock.module('../lib/server/logger.js', () => createLoggerModuleStub());
+
+	createOrUpdateSSOUser = (await importFresh<SSOModule>('../lib/server/auth/sso.js'))
+		.createOrUpdateSSOUser;
+});
+
+afterEach(() => {
+	mock.restore();
 });
 
 describe('SSO auto provisioning', () => {

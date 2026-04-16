@@ -1,42 +1,22 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { eq } from 'drizzle-orm';
 import type { UserPreferences } from '../lib/types/user.js';
 import * as schema from '../lib/server/db/schema.js';
 import { users, type User } from '../lib/server/db/schema.js';
+import { importFresh } from './helpers/import-fresh';
+import { createLoggerModuleStub, createRateLimiterModuleStub } from './helpers/module-stubs';
+
+type PreferencesRouteModule = typeof import('../routes/api/v1/user/preferences/+server.js');
+type PreferencesEvent = Parameters<PreferencesRouteModule['POST']>[0];
 
 const state: {
 	db: ReturnType<typeof drizzle<typeof schema>> | null;
 	sqlite: Database | null;
 } = { db: null, sqlite: null };
 
-const dbModuleMock = {
-	getDb: async () => state.db,
-	getDbSync: () => state.db,
-	schema
-};
-
-mock.module('$lib/server/db', () => dbModuleMock);
-mock.module('$lib/server/db/index.js', () => dbModuleMock);
-
-mock.module('$lib/server/rate-limiter', () => ({
-	checkRateLimit: () => {}
-}));
-
-mock.module('$lib/server/audit', () => ({
-	logAudit: async () => {}
-}));
-
-mock.module('$lib/server/logger.js', () => ({
-	logger: {
-		error: () => {}
-	}
-}));
-
-import { POST } from '../routes/api/v1/user/preferences/+server.js';
-
-type PreferencesEvent = Parameters<typeof POST>[0];
+let POST: PreferencesRouteModule['POST'];
 
 const CREATE_USERS_TABLE = `
 	CREATE TABLE IF NOT EXISTS users (
@@ -103,19 +83,39 @@ function buildEvent(user: User, body: unknown): PreferencesEvent {
 	} as PreferencesEvent;
 }
 
+beforeEach(async () => {
+	const dbModuleMock = {
+		getDb: async () => state.db,
+		getDbSync: () => state.db,
+		schema
+	};
+
+	mock.module('$lib/server/db', () => dbModuleMock);
+	mock.module('$lib/server/db/index.js', () => dbModuleMock);
+	const rateLimiterModuleStub = createRateLimiterModuleStub();
+	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	mock.module('$lib/server/audit', () => ({
+		logAudit: async () => {}
+	}));
+	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
+
+	const inMemory = setupInMemoryDb();
+	state.db = inMemory.db;
+	state.sqlite = inMemory.sqlite;
+
+	POST = (await importFresh<PreferencesRouteModule>('../routes/api/v1/user/preferences/+server.js'))
+		.POST;
+});
+
+afterEach(() => {
+	state.sqlite?.close();
+	state.sqlite = null;
+	state.db = null;
+	mock.restore();
+});
+
 describe('user preferences route', () => {
-	beforeEach(() => {
-		const inMemory = setupInMemoryDb();
-		state.db = inMemory.db;
-		state.sqlite = inMemory.sqlite;
-	});
-
-	afterEach(() => {
-		state.sqlite?.close();
-		state.sqlite = null;
-		state.db = null;
-	});
-
 	test('updating one nested notifications field preserves sibling and onboarding fields', async () => {
 		const db = state.db!;
 		const initialPreferences: UserPreferences = {
@@ -169,8 +169,4 @@ describe('user preferences route', () => {
 			}
 		});
 	});
-});
-
-afterAll(() => {
-	mock.restore();
 });

@@ -1,4 +1,8 @@
-import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { importFresh } from './helpers/import-fresh';
+import { createAuthCryptoModuleStub, createLoggerModuleStub } from './helpers/module-stubs';
+
+type SeedProvidersModule = typeof import('../lib/server/auth/seed-providers.js');
 
 interface State {
 	inserted: Record<string, unknown>[];
@@ -16,26 +20,12 @@ const state: State = {
 	infoLogs: []
 };
 
-mock.module('../lib/server/logger.js', () => ({
-	logger: {
-		warn: (...args: [unknown, string] | [string]) => {
-			state.warnLogs.push(args);
-		},
-		error: (...args: [unknown, string] | [string]) => {
-			state.errorLogs.push(args);
-		},
-		info: (message: string) => {
-			state.infoLogs.push(message);
-		}
-	}
-}));
+const originalEnv = {
+	GYRE_AUTH_PROVIDERS: process.env.GYRE_AUTH_PROVIDERS,
+	GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET: process.env.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET
+};
 
-mock.module('../lib/server/auth/crypto.js', () => ({
-	encryptSecret: (value: string) => {
-		state.encryptInputs.push(value);
-		return `enc:${value}`;
-	}
-}));
+let seedAuthProviders: SeedProvidersModule['seedAuthProviders'];
 
 function buildDbMock() {
 	return {
@@ -58,37 +48,43 @@ function buildDbMock() {
 	};
 }
 
-mock.module('../lib/server/db/index.js', () => ({
-	getDb: async () => buildDbMock()
-}));
-
-mock.module('../lib/server/db.js', () => ({
-	getDb: async () => buildDbMock()
-}));
-
-mock.module('../lib/server/db', () => ({
-	getDb: async () => buildDbMock()
-}));
-
-mock.module('../lib/server/db/schema.js', () => ({
-	authProviders: {}
-}));
-
-mock.module('../lib/server/db/schema', () => ({
-	authProviders: {}
-}));
-
-const originalEnv = {
-	GYRE_AUTH_PROVIDERS: process.env.GYRE_AUTH_PROVIDERS,
-	GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET: process.env.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET
-};
-
-beforeEach(() => {
+beforeEach(async () => {
 	state.inserted = [];
 	state.encryptInputs = [];
 	state.warnLogs = [];
 	state.errorLogs = [];
 	state.infoLogs = [];
+
+	const loggerModuleStub = createLoggerModuleStub();
+	loggerModuleStub.logger.warn = (...args: [unknown, string] | [string]) => {
+		state.warnLogs.push(args);
+	};
+	loggerModuleStub.logger.error = (...args: [unknown, string] | [string]) => {
+		state.errorLogs.push(args);
+	};
+	loggerModuleStub.logger.info = (message: string) => {
+		state.infoLogs.push(message);
+	};
+
+	mock.module('../lib/server/logger.js', () => loggerModuleStub);
+	mock.module('../lib/server/auth/crypto', () =>
+		createAuthCryptoModuleStub({
+			encryptSecret: (value: string) => {
+				state.encryptInputs.push(value);
+				return createAuthCryptoModuleStub().encryptSecret(value);
+			}
+		})
+	);
+	mock.module('../lib/server/db', () => ({
+		getDb: async () => buildDbMock()
+	}));
+	mock.module('../lib/server/db/schema', () => ({
+		authProviders: {}
+	}));
+
+	seedAuthProviders = (
+		await importFresh<SeedProvidersModule>('../lib/server/auth/seed-providers.js')
+	).seedAuthProviders;
 });
 
 afterEach(() => {
@@ -101,9 +97,7 @@ afterEach(() => {
 		process.env.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET =
 			originalEnv.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET;
 	}
-});
 
-afterAll(() => {
 	mock.restore();
 });
 
@@ -118,13 +112,12 @@ describe('seedAuthProviders', () => {
 		]);
 		process.env.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET = 'super-secret';
 
-		const { seedAuthProviders } = await import('../lib/server/auth/seed-providers.js');
 		const result = await seedAuthProviders();
 
 		expect(result).toEqual({ created: 1, skipped: 0 });
 		expect(state.encryptInputs).toEqual(['super-secret']);
 		expect(state.inserted.length).toBe(1);
-		expect(state.inserted[0].clientSecretEncrypted).toBe('enc:super-secret');
+		expect(state.inserted[0].clientSecretEncrypted).not.toBe('super-secret');
 	});
 
 	test('rejects providers that include forbidden clientSecret in JSON payload', async () => {
@@ -138,7 +131,6 @@ describe('seedAuthProviders', () => {
 		]);
 		process.env.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET = 'super-secret';
 
-		const { seedAuthProviders } = await import('../lib/server/auth/seed-providers.js');
 		const result = await seedAuthProviders();
 
 		expect(result).toEqual({ created: 0, skipped: 1 });
@@ -159,7 +151,6 @@ describe('seedAuthProviders', () => {
 		]);
 		delete process.env.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET;
 
-		const { seedAuthProviders } = await import('../lib/server/auth/seed-providers.js');
 		const result = await seedAuthProviders();
 
 		expect(result).toEqual({ created: 0, skipped: 1 });

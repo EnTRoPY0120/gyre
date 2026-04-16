@@ -17,7 +17,7 @@ FROM node:25-alpine3.23 AS builder
 WORKDIR /build
 
 # Copy bun binary from official image for fast, lock-respecting installs
-COPY --from=oven/bun:1.3.10-alpine /usr/local/bin/bun /usr/local/bin/bun
+COPY --from=oven/bun:1.3.11-alpine /usr/local/bin/bun /usr/local/bin/bun
 
 # Install native module build tools (better-sqlite3 has no prebuilt musl binaries)
 RUN apk add --no-cache python3 make g++

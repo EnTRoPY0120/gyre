@@ -1,7 +1,12 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
+import { importFresh } from './helpers/import-fresh';
+import { createLoggerModuleStub, createRateLimiterModuleStub } from './helpers/module-stubs';
+
+type LoginRouteModule = typeof import('../routes/api/v1/auth/login/+server.js');
+type LoginEvent = Parameters<LoginRouteModule['POST']>[0];
 
 function createRouteState() {
 	const activeUser = createUser({ active: true });
@@ -22,56 +27,7 @@ function createRouteState() {
 
 const routeState = createRouteState();
 
-mock.module('$lib/server/auth', () => ({
-	authenticateUser: async () => routeState.authenticatedUser,
-	getUserByUsername: async () => routeState.existingUser,
-	hasManagedPassword: async () => routeState.canChangePassword,
-	normalizeUsername: (username: string) => username.toLowerCase().trim(),
-	hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
-	verifyPassword: async (password: string, hash: string) => {
-		routeState.verifyPasswordCalls.push({ password, hash });
-		return false;
-	}
-}));
-
-mock.module('$lib/server/settings', () => ({
-	getAuthSettings: async () => ({
-		localLoginEnabled: routeState.localLoginEnabled,
-		allowSignup: true,
-		domainAllowlist: []
-	})
-}));
-
-mock.module('$lib/server/audit', () => ({
-	logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
-		routeState.loginLogCalls.push({ user, success, ipAddress, reason });
-	}
-}));
-
-mock.module('$lib/server/auth/better-auth', () => ({
-	createBetterAuthSessionForUser: async () => {},
-	revokeBetterAuthSessionByCookieValue: async () => {}
-}));
-
-mock.module('$lib/server/logger.js', () => ({
-	logger: {
-		error: () => {},
-		warn: () => {}
-	}
-}));
-
-mock.module('$lib/server/rate-limiter', () => ({
-	checkRateLimit: () => {},
-	accountLockout: {
-		check: () => ({ locked: false, retryAfter: 0 }),
-		recordFailure: () => {},
-		recordSuccess: () => {}
-	}
-}));
-
-import { POST } from '../routes/api/v1/auth/login/+server.js';
-
-type LoginEvent = Parameters<typeof POST>[0];
+let POST: LoginRouteModule['POST'];
 
 function createUser(overrides: Partial<User> = {}): User {
 	const now = new Date();
@@ -141,12 +97,54 @@ function buildEvent(): LoginEvent {
 	} satisfies LoginEvent;
 }
 
-afterAll(() => {
-	mock.restore();
+beforeEach(async () => {
+	Object.assign(routeState, createRouteState());
+
+	mock.module('$lib/server/auth', () => ({
+		authenticateUser: async () => routeState.authenticatedUser,
+		getUserByUsername: async () => routeState.existingUser,
+		hasManagedPassword: async () => routeState.canChangePassword,
+		normalizeUsername: (username: string) => username.toLowerCase().trim(),
+		hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
+		verifyPassword: async (password: string, hash: string) => {
+			routeState.verifyPasswordCalls.push({ password, hash });
+			return false;
+		}
+	}));
+
+	mock.module('$lib/server/settings', () => ({
+		getAuthSettings: async () => ({
+			localLoginEnabled: routeState.localLoginEnabled,
+			allowSignup: true,
+			domainAllowlist: []
+		})
+	}));
+
+	mock.module('$lib/server/audit', () => ({
+		logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
+			routeState.loginLogCalls.push({ user, success, ipAddress, reason });
+		}
+	}));
+
+	const betterAuthModuleStub = {
+		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
+		createBetterAuthSessionForUser: async () => {},
+		revokeBetterAuthSessionByCookieValue: async () => {}
+	};
+
+	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	mock.module('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+
+	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
+	const rateLimiterModuleStub = createRateLimiterModuleStub();
+	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+
+	POST = (await importFresh<LoginRouteModule>('../routes/api/v1/auth/login/+server.js')).POST;
 });
 
-beforeEach(() => {
-	Object.assign(routeState, createRouteState());
+afterEach(() => {
+	mock.restore();
 });
 
 describe('login route', () => {

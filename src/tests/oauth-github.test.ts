@@ -10,8 +10,10 @@ import {
 	spyOn
 } from 'bun:test';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
+import { importFresh } from './helpers/import-fresh';
+import { createAuthCryptoModuleStub } from './helpers/module-stubs';
 
-mock.restore();
+type GitHubProviderModule = typeof import('../lib/server/auth/oauth/providers/github.js');
 
 let consoleLogSpy: ReturnType<typeof spyOn>;
 let consoleErrorSpy: ReturnType<typeof spyOn>;
@@ -29,33 +31,75 @@ afterAll(() => {
 	consoleWarnSpy.mockRestore();
 });
 
-mock.module('../lib/server/auth/crypto.js', () => ({
-	decryptSecret: (s: string) => `decrypted_${s}`
-}));
+let GitHubProvider: GitHubProviderModule['GitHubProvider'];
 
-mock.module('../lib/server/auth/pkce.js', () => ({
-	generateCodeChallenge: (v: string) => `challenge_${v}`
-}));
+beforeEach(async () => {
+	mock.module('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
-mock.module('arctic', () => ({
-	GitHub: class MockGitHub {
-		createAuthorizationURL(state: string, scopes: string[]) {
-			return new URL(
-				`https://github.com/login/oauth/authorize?state=${state}&scope=${scopes.join(',')}`
-			);
+	mock.module('$lib/server/auth/pkce', () => ({
+		generateCodeChallenge: (v: string) => `challenge_${v}`
+	}));
+
+	mock.module('arctic', () => ({
+		Google: class MockGoogle {
+			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
+				return new URL(
+					`https://accounts.google.com/o/oauth2/auth?state=${state}&verifier=${encodeURIComponent(verifier)}&scope=${scopes.join(',')}`
+				);
+			}
+			async validateAuthorizationCode() {
+				return {
+					accessToken: () => 'google-access-token',
+					refreshToken: () => 'google-refresh-token',
+					idToken: () => 'google-id-token',
+					accessTokenExpiresAt: () => null
+				};
+			}
+		},
+		GitHub: class MockGitHub {
+			createAuthorizationURL(state: string, scopes: string[]) {
+				return new URL(
+					`https://github.com/login/oauth/authorize?state=${state}&scope=${scopes.join(',')}`
+				);
+			}
+			async validateAuthorizationCode(_code: string) {
+				return {
+					accessToken: () => 'arctic-access-token',
+					hasScopes: () => true,
+					scopes: () => ['read:user', 'user:email'],
+					accessTokenExpiresAt: () => null
+				};
+			}
+		},
+		GitLab: class MockGitLab {
+			constructor(
+				public baseURL: string,
+				public clientId: string,
+				_clientSecret: string,
+				_redirectUri: string
+			) {}
+			async createAuthorizationURL(state: string, scopes: string[]) {
+				return new URL(`${this.baseURL}/oauth/authorize?state=${state}&scope=${scopes.join(',')}`);
+			}
+			async validateAuthorizationCode() {
+				return {
+					accessToken: () => 'arctic-access-token',
+					hasRefreshToken: () => false,
+					refreshToken: () => undefined,
+					accessTokenExpiresAt: () => null
+				};
+			}
 		}
-		async validateAuthorizationCode(_code: string) {
-			return {
-				accessToken: () => 'arctic-access-token',
-				hasScopes: () => true,
-				scopes: () => ['read:user', 'user:email'],
-				accessTokenExpiresAt: () => null
-			};
-		}
-	}
-}));
+	}));
 
-import { GitHubProvider } from '../lib/server/auth/oauth/providers/github.js?sut';
+	GitHubProvider = (
+		await importFresh<GitHubProviderModule>('../lib/server/auth/oauth/providers/github.js')
+	).GitHubProvider;
+});
+
+afterEach(() => {
+	mock.restore();
+});
 
 const mockConfig = {
 	id: 'github-1',

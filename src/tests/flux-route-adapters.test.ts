@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import * as actualServices from '../lib/server/flux/services.js';
-import * as actualGuards from '../lib/server/http/guards.js';
+import { importFresh } from './helpers/import-fresh';
 
 let listServiceResult = {
 	resourceType: 'GitRepository',
@@ -22,9 +21,6 @@ let detailServiceResult = {
 
 const guardCalls: string[] = [];
 const serviceCalls: Array<{ name: string; payload: unknown }> = [];
-const dynamicImportCacheBusted = (modulePath: string) =>
-	import(`${modulePath}?case=${Date.now()}-${Math.random()}`);
-
 beforeEach(() => {
 	guardCalls.length = 0;
 	serviceCalls.length = 0;
@@ -66,6 +62,13 @@ beforeEach(() => {
 	}));
 
 	mock.module('$lib/server/flux/services.js', () => ({
+		DEFAULT_FLUX_VERSION: 'v2.x.x',
+		getFluxHealthSummary: async () => ({
+			status: 'healthy',
+			kubernetes: { connected: true, currentContext: 'dev-context', availableContexts: [] }
+		}),
+		getFluxInstalledVersion: async () => ({ version: 'v2.x.x' }),
+		getFluxOverviewSummary: async () => ({ partialFailure: false, results: [] }),
 		getFluxResourceDetail: async (payload: unknown) => {
 			serviceCalls.push({ name: 'getFluxResourceDetail', payload });
 			return detailServiceResult;
@@ -79,15 +82,13 @@ beforeEach(() => {
 
 afterEach(() => {
 	mock.restore();
-	mock.module('$lib/server/http/guards.js', () => actualGuards);
-	mock.module('$lib/server/flux/services.js', () => actualServices);
 });
 
 describe('flux route adapters', () => {
 	test('list route delegates to guards and shared services while keeping etag/cache behavior', async () => {
-		const { GET } = await dynamicImportCacheBusted(
-			'../routes/api/v1/flux/[resourceType]/+server.js'
-		);
+		const { GET } = await importFresh<
+			typeof import('../routes/api/v1/flux/[resourceType]/+server.js')
+		>('../routes/api/v1/flux/[resourceType]/+server.js');
 		const headers: Record<string, string> = {};
 
 		const response = await GET({
@@ -126,9 +127,9 @@ describe('flux route adapters', () => {
 	});
 
 	test('detail route returns 304 when If-None-Match matches the shared-service resourceVersion', async () => {
-		const { GET } = await dynamicImportCacheBusted(
-			'../routes/api/v1/flux/[resourceType]/[namespace]/[name]/+server.js'
-		);
+		const { GET } = await importFresh<
+			typeof import('../routes/api/v1/flux/[resourceType]/[namespace]/[name]/+server.js')
+		>('../routes/api/v1/flux/[resourceType]/[namespace]/[name]/+server.js');
 
 		const response = await GET({
 			params: { resourceType: 'gitrepositories', namespace: 'flux-system', name: 'demo' },

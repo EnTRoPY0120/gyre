@@ -1,14 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { IN_CLUSTER_ID } from '../lib/clusters/identity.js';
 import type { User } from '../lib/server/db/schema.js';
-import * as actualBetterAuth from '../lib/server/auth/better-auth.js';
-import * as actualClusters from '../lib/server/clusters.js';
-import * as actualCsrf from '../lib/server/csrf.js';
-import * as actualInitialize from '../lib/server/initialize.js';
-import * as actualK8sErrors from '../lib/server/kubernetes/errors.js';
-import * as actualLogger from '../lib/server/logger.js';
-import * as actualMetrics from '../lib/server/metrics.js';
-import * as actualRateLimiter from '../lib/server/rate-limiter.js';
+import { importFresh } from './helpers/import-fresh';
+import { createLoggerModuleStub, createRateLimiterModuleStub } from './helpers/module-stubs';
 
 let sessionData: {
 	session: { id: string };
@@ -71,7 +65,7 @@ function createCookies(initial: Record<string, string> = {}) {
 }
 
 async function importHooks() {
-	return import(`../hooks.server.js?case=${Date.now()}-${Math.random()}`);
+	return importFresh<typeof import('../hooks.server.js')>('../hooks.server.js');
 }
 
 beforeEach(() => {
@@ -85,15 +79,7 @@ beforeEach(() => {
 	};
 	observeCalls.length = 0;
 
-	mock.module('$lib/server/logger.js', () => ({
-		logger: {
-			debug: () => {},
-			error: () => {},
-			info: () => {},
-			warn: () => {}
-		},
-		withRequestContext: async (_requestId: string, fn: () => Promise<Response>) => fn()
-	}));
+	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
 
 	mock.module('$lib/server/metrics.js', () => ({
 		httpRequestDurationMicroseconds: {
@@ -109,14 +95,28 @@ beforeEach(() => {
 		initializeGyre: async () => {}
 	}));
 
-	mock.module('$lib/server/rate-limiter.js', () => ({
-		tryCheckRateLimit: () => ({ limited: false, retryAfter: 0 })
-	}));
+	const rateLimiterModuleStub = createRateLimiterModuleStub();
+	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
 
-	mock.module('$lib/server/auth/better-auth.js', () => ({
+	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
-		getBetterAuthSession: async () => sessionData
-	}));
+		getBetterAuthSession: async () => sessionData,
+		createBetterAuthSessionForUser: async () => {},
+		revokeBetterAuthSessionByCookieValue: async () => {},
+		ensureBetterAuthOAuthAccount: async () => {},
+		applyBetterAuthCookies: () => {},
+		getBetterAuth: () => ({
+			api: {
+				changePassword: async () => ({
+					headers: new Headers()
+				})
+			}
+		})
+	};
+
+	mock.module('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);
 
 	mock.module('$lib/server/csrf.js', () => ({
 		generateCsrfToken: (sessionId: string) => `csrf:${sessionId}`,
@@ -137,14 +137,6 @@ beforeEach(() => {
 
 afterEach(() => {
 	mock.restore();
-	mock.module('$lib/server/logger.js', () => actualLogger);
-	mock.module('$lib/server/metrics.js', () => actualMetrics);
-	mock.module('$lib/server/initialize.js', () => actualInitialize);
-	mock.module('$lib/server/rate-limiter.js', () => actualRateLimiter);
-	mock.module('$lib/server/auth/better-auth.js', () => actualBetterAuth);
-	mock.module('$lib/server/csrf.js', () => actualCsrf);
-	mock.module('$lib/server/clusters.js', () => actualClusters);
-	mock.module('$lib/server/kubernetes/errors.js', () => actualK8sErrors);
 });
 
 describe('request pipeline', () => {

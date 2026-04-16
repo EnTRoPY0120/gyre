@@ -3,6 +3,7 @@ import type { User } from '../lib/server/db/schema.js';
 import { isPublicRoute } from '../lib/isPublicRoute.js';
 import * as actualConfig from '../lib/server/config.js';
 import * as actualConstants from '../lib/server/config/constants.js';
+import { createRateLimiterModuleStub, createRbacModuleStub } from './helpers/module-stubs';
 
 let checkPermissionSpy: ReturnType<typeof spyOn> | undefined;
 
@@ -42,11 +43,11 @@ async function callMetrics(options: {
 		...actualConstants,
 		GYRE_METRICS_TOKEN: options.metricsToken ?? ''
 	}));
-	mock.module('$lib/server/rate-limiter', () => ({
-		checkRateLimit: () => {}
-	}));
+	const rateLimiterModuleStub = createRateLimiterModuleStub();
+	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
-	const rbacModule = {
+	const rbacModule = createRbacModuleStub({
 		checkPermission: async (
 			user: User,
 			permission: string,
@@ -58,7 +59,7 @@ async function callMetrics(options: {
 			expect(cluster).toBe(options.cluster);
 			return user.role === 'admin';
 		}
-	};
+	});
 	checkPermissionSpy = spyOn(rbacModule, 'checkPermission').mockImplementation(
 		async (
 			user: User,

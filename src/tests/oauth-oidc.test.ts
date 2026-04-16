@@ -1,11 +1,18 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
+import { importFresh } from './helpers/import-fresh';
+import { createAuthCryptoModuleStub } from './helpers/module-stubs';
 
-mock.restore();
+type OIDCProviderModule = typeof import('../lib/server/auth/oauth/providers/oidc.js');
+type OAuthIndexModule = typeof import('../lib/server/auth/oauth/index.js');
+type OAuthTypesModule = typeof import('../lib/server/auth/oauth/types.js');
 
 let consoleLogSpy: ReturnType<typeof spyOn>;
 let consoleErrorSpy: ReturnType<typeof spyOn>;
 let consoleWarnSpy: ReturnType<typeof spyOn>;
+let OIDCProvider: OIDCProviderModule['OIDCProvider'];
+let validateProviderConfig: OAuthIndexModule['validateProviderConfig'];
+let OAuthError: OAuthTypesModule['OAuthError'];
 
 beforeEach(() => {
 	consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
@@ -17,32 +24,90 @@ afterEach(() => {
 	consoleLogSpy.mockRestore();
 	consoleErrorSpy.mockRestore();
 	consoleWarnSpy.mockRestore();
+	mock.restore();
 });
 
-mock.module('../lib/server/auth/crypto.js', () => ({
-	decryptSecret: (s: string) => `decrypted_${s}`
-}));
+beforeEach(async () => {
+	mock.module('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
-mock.module('../lib/server/auth/pkce.js', () => ({
-	generateCodeChallenge: (v: string) => `challenge_${v}`
-}));
+	mock.module('$lib/server/auth/pkce', () => ({
+		generateCodeChallenge: (v: string) => `challenge_${v}`
+	}));
 
-mock.module('jose', () => ({
-	createRemoteJWKSet: () => 'mock-jwks',
-	jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
-	decodeJwt: () => ({
-		sub: 'user-123',
-		email: 'user@example.com',
-		email_verified: true,
-		name: 'Test User',
-		preferred_username: 'testuser',
-		groups: ['admin', 'developers']
-	})
-}));
+	mock.module('arctic', () => ({
+		Google: class MockGoogle {
+			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
+				return new URL(
+					`https://accounts.google.com/o/oauth2/auth?state=${state}&verifier=${encodeURIComponent(verifier)}&scope=${scopes.join(',')}`
+				);
+			}
+			async validateAuthorizationCode() {
+				return {
+					accessToken: () => 'google-access-token',
+					refreshToken: () => 'google-refresh-token',
+					idToken: () => 'google-id-token',
+					accessTokenExpiresAt: () => null
+				};
+			}
+		},
+		GitHub: class MockGitHub {
+			createAuthorizationURL(state: string, scopes: string[]) {
+				return new URL(
+					`https://github.com/login/oauth/authorize?state=${state}&scope=${scopes.join(',')}`
+				);
+			}
+			async validateAuthorizationCode() {
+				return {
+					accessToken: () => 'arctic-access-token',
+					hasScopes: () => true,
+					scopes: () => ['read:user', 'user:email'],
+					accessTokenExpiresAt: () => null
+				};
+			}
+		},
+		GitLab: class MockGitLab {
+			constructor(
+				public baseURL: string,
+				public clientId: string,
+				_clientSecret: string,
+				_redirectUri: string
+			) {}
+			async createAuthorizationURL(state: string, scopes: string[]) {
+				return new URL(`${this.baseURL}/oauth/authorize?state=${state}&scope=${scopes.join(',')}`);
+			}
+			async validateAuthorizationCode() {
+				return {
+					accessToken: () => 'arctic-access-token',
+					hasRefreshToken: () => false,
+					refreshToken: () => undefined,
+					accessTokenExpiresAt: () => null
+				};
+			}
+		}
+	}));
 
-import { OIDCProvider } from '../lib/server/auth/oauth/providers/oidc.js?sut';
-import { validateProviderConfig } from '../lib/server/auth/oauth/index.js?sut';
-import { OAuthError } from '../lib/server/auth/oauth/types.js';
+	mock.module('jose', () => ({
+		createRemoteJWKSet: () => 'mock-jwks',
+		jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
+		decodeJwt: () => ({
+			sub: 'user-123',
+			email: 'user@example.com',
+			email_verified: true,
+			name: 'Test User',
+			preferred_username: 'testuser',
+			groups: ['admin', 'developers']
+		})
+	}));
+
+	OIDCProvider = (
+		await importFresh<OIDCProviderModule>('../lib/server/auth/oauth/providers/oidc.js')
+	).OIDCProvider;
+	validateProviderConfig = (
+		await importFresh<OAuthIndexModule>('../lib/server/auth/oauth/index.js')
+	).validateProviderConfig;
+	OAuthError = (await importFresh<OAuthTypesModule>('../lib/server/auth/oauth/types.js'))
+		.OAuthError;
+});
 
 const MOCK_DISCOVERY = {
 	issuer: 'https://provider.example.com',

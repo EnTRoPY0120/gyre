@@ -1,19 +1,14 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import type { User } from '../lib/server/db/schema.js';
+import { importFresh } from './helpers/import-fresh';
+import { createRbacModuleStub } from './helpers/module-stubs';
+
+type AuthProvidersRouteModule = typeof import('../routes/api/v1/admin/auth-providers/+server.js');
 
 const permissionChecks: unknown[][] = [];
 
-mock.module('$lib/server/rbac.js', () => ({
-	checkPermission: async (...args: unknown[]) => {
-		permissionChecks.push(args);
-		return false;
-	}
-}));
-
-import {
-	GET as providersGET,
-	POST as providersPOST
-} from '../routes/api/v1/admin/auth-providers/+server.js';
+let providersGET: AuthProvidersRouteModule['GET'];
+let providersPOST: AuthProvidersRouteModule['POST'];
 
 function createUser(role: User['role'] = 'editor'): User {
 	const now = new Date();
@@ -34,11 +29,26 @@ function createUser(role: User['role'] = 'editor'): User {
 	};
 }
 
-beforeEach(() => {
+beforeEach(async () => {
 	permissionChecks.length = 0;
+
+	mock.module('$lib/server/rbac.js', () =>
+		createRbacModuleStub({
+			checkPermission: async (...args: unknown[]) => {
+				permissionChecks.push(args);
+				return false;
+			}
+		})
+	);
+
+	const routeModule = await importFresh<AuthProvidersRouteModule>(
+		'../routes/api/v1/admin/auth-providers/+server.js'
+	);
+	providersGET = routeModule.GET;
+	providersPOST = routeModule.POST;
 });
 
-afterAll(() => {
+afterEach(() => {
 	mock.restore();
 });
 
@@ -48,7 +58,7 @@ describe('admin auth providers explicit in-handler guard', () => {
 		await expect(
 			providersGET({
 				locals
-			} as Parameters<typeof providersGET>[0])
+			} as Parameters<AuthProvidersRouteModule['GET']>[0])
 		).rejects.toMatchObject({
 			status: 403,
 			body: { message: 'Admin access required' }
@@ -71,7 +81,7 @@ describe('admin auth providers explicit in-handler guard', () => {
 					headers: { 'content-type': 'application/json' },
 					body: JSON.stringify({})
 				})
-			} as Parameters<typeof providersPOST>[0])
+			} as Parameters<AuthProvidersRouteModule['POST']>[0])
 		).rejects.toMatchObject({
 			status: 403,
 			body: { message: 'Admin access required' }

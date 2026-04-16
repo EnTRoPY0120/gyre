@@ -1,7 +1,12 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
+import { importFresh } from './helpers/import-fresh';
+import { createLoggerModuleStub, createRateLimiterModuleStub } from './helpers/module-stubs';
+
+type ChangePasswordRouteModule = typeof import('../routes/api/v1/auth/change-password/+server.js');
+type ChangePasswordEvent = Parameters<ChangePasswordRouteModule['POST']>[0];
 
 function createAuthState() {
 	return {
@@ -13,43 +18,7 @@ function createAuthState() {
 
 const authState = createAuthState();
 
-mock.module('$lib/server/auth', () => ({
-	addPasswordHistory: async () => {},
-	getCredentialAccount: async () => authState.credentialAccount,
-	getCredentialPasswordHash: async () => authState.credentialHash,
-	isInClusterAdmin: () => authState.isInClusterAdmin,
-	isPasswordInHistory: async () => false,
-	verifyPassword: async () => true
-}));
-
-mock.module('$lib/server/auth/better-auth', () => ({
-	applyBetterAuthCookies: () => {},
-	getBetterAuth: () => ({
-		api: {
-			changePassword: async () => ({
-				headers: new Headers()
-			})
-		}
-	})
-}));
-
-mock.module('$lib/server/logger.js', () => ({
-	logger: {
-		error: () => {}
-	}
-}));
-
-mock.module('$lib/server/audit', () => ({
-	logAudit: async () => {}
-}));
-
-mock.module('$lib/server/rate-limiter', () => ({
-	checkRateLimit: () => {}
-}));
-
-import { POST } from '../routes/api/v1/auth/change-password/+server.js';
-
-type ChangePasswordEvent = Parameters<typeof POST>[0];
+let POST: ChangePasswordRouteModule['POST'];
 
 function createCookies(): Cookies {
 	return {
@@ -73,6 +42,7 @@ function createUser(): User {
 		role: 'admin',
 		active: true,
 		isLocal: true,
+		requiresPasswordChange: false,
 		createdAt: now,
 		updatedAt: now,
 		preferences: null
@@ -88,7 +58,8 @@ function buildEvent(): ChangePasswordEvent {
 			newPassword: 'NewPassword123!'
 		})
 	});
-	const event = {
+
+	return {
 		request,
 		cookies: createCookies(),
 		fetch,
@@ -115,16 +86,50 @@ function buildEvent(): ChangePasswordEvent {
 		},
 		isRemoteRequest: false
 	} satisfies ChangePasswordEvent;
-
-	return event;
 }
 
-afterAll(() => {
-	mock.restore();
+beforeEach(async () => {
+	Object.assign(authState, createAuthState());
+
+	mock.module('$lib/server/auth', () => ({
+		addPasswordHistory: async () => {},
+		clearRequiresPasswordChange: async () => {},
+		getCredentialAccount: async () => authState.credentialAccount,
+		getCredentialPasswordHash: async () => authState.credentialHash,
+		isInClusterAdmin: () => authState.isInClusterAdmin,
+		isPasswordInHistory: async () => false,
+		verifyPassword: async () => true
+	}));
+
+	const betterAuthModuleStub = {
+		applyBetterAuthCookies: () => {},
+		getBetterAuth: () => ({
+			api: {
+				changePassword: async () => ({
+					headers: new Headers()
+				})
+			}
+		})
+	};
+
+	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	mock.module('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+
+	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
+	mock.module('$lib/server/audit', () => ({
+		logAudit: async () => {}
+	}));
+	const rateLimiterModuleStub = createRateLimiterModuleStub();
+	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+
+	POST = (
+		await importFresh<ChangePasswordRouteModule>('../routes/api/v1/auth/change-password/+server.js')
+	).POST;
 });
 
-beforeEach(() => {
-	Object.assign(authState, createAuthState());
+afterEach(() => {
+	mock.restore();
 });
 
 describe('change-password route credential handling', () => {

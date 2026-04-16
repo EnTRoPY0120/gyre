@@ -1,9 +1,12 @@
-import { afterAll, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
+import { importFresh } from './helpers/import-fresh';
+import { createLoggerModuleStub, createRateLimiterModuleStub } from './helpers/module-stubs';
 
-mock.restore();
+type CallbackRouteModule = typeof import('../routes/api/v1/auth/[providerId]/callback/+server.js');
+type CallbackEvent = Parameters<CallbackRouteModule['GET']>[0];
 
 function createCallbackState() {
 	return {
@@ -14,65 +17,7 @@ function createCallbackState() {
 
 const callbackState = createCallbackState();
 
-mock.module('$lib/server/auth/oauth', () => ({
-	getOAuthProvider: async () => ({
-		config: { id: 'custom-provider' },
-		validateCallback: async () => ({ accessToken: 'access-token', tokenType: 'Bearer' }),
-		getUserInfo: async () => ({
-			sub: 'provider-user-1',
-			preferred_username: 'jane',
-			name: 'Jane Doe'
-		})
-	}),
-	OAuthError: class OAuthError extends Error {
-		constructor(
-			message: string,
-			public code: string,
-			public details?: unknown
-		) {
-			super(message);
-			this.name = 'OAuthError';
-		}
-	}
-}));
-
-mock.module('$lib/server/auth/sso', () => ({
-	createOrUpdateSSOUser: async () => ({
-		user: createUser(),
-		accountLinked: true
-	})
-}));
-
-mock.module('$lib/server/auth', () => ({
-	cleanupSetupTokenFile: () => {}
-}));
-
-mock.module('$lib/server/auth/better-auth', () => ({
-	createBetterAuthSessionForUser: async (
-		_cookies: Cookies,
-		userId: string,
-		details?: { ipAddress?: string; userAgent?: string }
-	) => {
-		callbackState.sessionCreations.push({ userId, ...details });
-	},
-	ensureBetterAuthOAuthAccount: async () => {}
-}));
-
-mock.module('$lib/server/rate-limiter', () => ({
-	tryCheckRateLimit: () => ({ limited: false, retryAfter: 0 })
-}));
-
-mock.module('$lib/server/logger.js', () => ({
-	logger: {
-		info: () => {},
-		error: () => {},
-		warn: () => {}
-	}
-}));
-
-import { GET } from '../routes/api/v1/auth/[providerId]/callback/+server.js';
-
-type CallbackEvent = Parameters<typeof GET>[0];
+let GET: CallbackRouteModule['GET'];
 
 function createUser(): User {
 	const now = new Date();
@@ -159,11 +104,67 @@ function buildEvent(
 	} satisfies CallbackEvent;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
 	Object.assign(callbackState, createCallbackState());
+
+	mock.module('$lib/server/auth/oauth', () => ({
+		getOAuthProvider: async () => ({
+			config: { id: 'custom-provider' },
+			validateCallback: async () => ({ accessToken: 'access-token', tokenType: 'Bearer' }),
+			getUserInfo: async () => ({
+				sub: 'provider-user-1',
+				preferred_username: 'jane',
+				name: 'Jane Doe'
+			})
+		}),
+		OAuthError: class OAuthError extends Error {
+			constructor(
+				message: string,
+				public code: string,
+				public details?: unknown
+			) {
+				super(message);
+				this.name = 'OAuthError';
+			}
+		}
+	}));
+
+	mock.module('$lib/server/auth/sso', () => ({
+		createOrUpdateSSOUser: async () => ({
+			user: createUser(),
+			accountLinked: true
+		})
+	}));
+
+	mock.module('$lib/server/auth', () => ({
+		cleanupSetupTokenFile: () => {}
+	}));
+
+	const betterAuthModuleStub = {
+		createBetterAuthSessionForUser: async (
+			_cookies: Cookies,
+			userId: string,
+			details?: { ipAddress?: string; userAgent?: string }
+		) => {
+			callbackState.sessionCreations.push({ userId, ...details });
+		},
+		ensureBetterAuthOAuthAccount: async () => {}
+	};
+
+	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	mock.module('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+
+	const rateLimiterModuleStub = createRateLimiterModuleStub();
+	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
+
+	GET = (
+		await importFresh<CallbackRouteModule>('../routes/api/v1/auth/[providerId]/callback/+server.js')
+	).GET;
 });
 
-afterAll(() => {
+afterEach(() => {
 	mock.restore();
 });
 

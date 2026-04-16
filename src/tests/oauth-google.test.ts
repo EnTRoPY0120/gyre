@@ -1,36 +1,15 @@
-import { describe, test, expect, mock, spyOn } from 'bun:test';
+import { afterEach, beforeEach, describe, test, expect, mock, spyOn } from 'bun:test';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
+import { importFresh } from './helpers/import-fresh';
+import { createAuthCryptoModuleStub } from './helpers/module-stubs';
 
-mock.restore();
+type GoogleProviderModule = typeof import('../lib/server/auth/oauth/providers/google.js');
 
 spyOn(console, 'log').mockImplementation(() => {});
 spyOn(console, 'error').mockImplementation(() => {});
 spyOn(console, 'warn').mockImplementation(() => {});
 
-mock.module('../lib/server/auth/crypto.js', () => ({
-	decryptSecret: (s: string) => `decrypted_${s}`
-}));
-
 let arcticShouldThrow = false;
-
-mock.module('arctic', () => ({
-	Google: class MockGoogle {
-		createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
-			return new URL(
-				`https://accounts.google.com/o/oauth2/auth?state=${state}&verifier=${encodeURIComponent(verifier)}&scope=${scopes.join(',')}`
-			);
-		}
-		async validateAuthorizationCode(_code: string, _verifier: string) {
-			if (arcticShouldThrow) throw new Error('invalid_grant');
-			return {
-				accessToken: () => 'google-access-token',
-				refreshToken: () => 'google-refresh-token',
-				idToken: () => 'google-id-token',
-				accessTokenExpiresAt: () => null
-			};
-		}
-	}
-}));
 
 let mockJwtClaims: Record<string, unknown> = {
 	sub: '123',
@@ -40,13 +19,87 @@ let mockJwtClaims: Record<string, unknown> = {
 	preferred_username: 'user@google.com'
 };
 
-mock.module('jose', () => ({
-	createRemoteJWKSet: () => 'mock-jwks',
-	jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
-	decodeJwt: () => mockJwtClaims
-}));
+let GoogleProvider: GoogleProviderModule['GoogleProvider'];
 
-import { GoogleProvider } from '../lib/server/auth/oauth/providers/google.js?sut';
+beforeEach(async () => {
+	arcticShouldThrow = false;
+	mockJwtClaims = {
+		sub: '123',
+		email: 'user@google.com',
+		email_verified: true,
+		name: 'Test User',
+		preferred_username: 'user@google.com'
+	};
+
+	mock.module('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
+
+	mock.module('arctic', () => ({
+		Google: class MockGoogle {
+			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
+				return new URL(
+					`https://accounts.google.com/o/oauth2/auth?state=${state}&verifier=${encodeURIComponent(verifier)}&scope=${scopes.join(',')}`
+				);
+			}
+			async validateAuthorizationCode(_code: string, _verifier: string) {
+				if (arcticShouldThrow) throw new Error('invalid_grant');
+				return {
+					accessToken: () => 'google-access-token',
+					refreshToken: () => 'google-refresh-token',
+					idToken: () => 'google-id-token',
+					accessTokenExpiresAt: () => null
+				};
+			}
+		},
+		GitHub: class MockGitHub {
+			createAuthorizationURL(state: string, scopes: string[]) {
+				return new URL(
+					`https://github.com/login/oauth/authorize?state=${state}&scope=${scopes.join(',')}`
+				);
+			}
+			async validateAuthorizationCode() {
+				return {
+					accessToken: () => 'arctic-access-token',
+					hasScopes: () => true,
+					scopes: () => ['read:user', 'user:email'],
+					accessTokenExpiresAt: () => null
+				};
+			}
+		},
+		GitLab: class MockGitLab {
+			constructor(
+				public baseURL: string,
+				public clientId: string,
+				_clientSecret: string,
+				_redirectUri: string
+			) {}
+			async createAuthorizationURL(state: string, scopes: string[]) {
+				return new URL(`${this.baseURL}/oauth/authorize?state=${state}&scope=${scopes.join(',')}`);
+			}
+			async validateAuthorizationCode() {
+				return {
+					accessToken: () => 'arctic-access-token',
+					hasRefreshToken: () => false,
+					refreshToken: () => undefined,
+					accessTokenExpiresAt: () => null
+				};
+			}
+		}
+	}));
+
+	mock.module('jose', () => ({
+		createRemoteJWKSet: () => 'mock-jwks',
+		jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
+		decodeJwt: () => mockJwtClaims
+	}));
+
+	GoogleProvider = (
+		await importFresh<GoogleProviderModule>('../lib/server/auth/oauth/providers/google.js')
+	).GoogleProvider;
+});
+
+afterEach(() => {
+	mock.restore();
+});
 
 const mockConfig = {
 	id: 'google-1',
