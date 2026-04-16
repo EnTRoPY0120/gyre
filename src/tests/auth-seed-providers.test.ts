@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterAll, afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
 interface State {
 	inserted: Record<string, unknown>[];
@@ -101,6 +101,10 @@ afterEach(() => {
 		process.env.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET =
 			originalEnv.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET;
 	}
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 describe('seedAuthProviders', () => {

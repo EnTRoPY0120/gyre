@@ -6,7 +6,7 @@
 		isLoading: boolean;
 		health: {
 			connected: boolean;
-			clusterName?: string;
+			currentClusterName: string;
 			error?: string;
 		};
 	}
@@ -48,7 +48,7 @@
 				<div class="min-w-0">
 					<p class="font-display text-xl leading-none font-extrabold text-foreground">Active</p>
 					<p class="mt-1.5 font-mono text-[11px] font-bold break-all text-muted-foreground">
-						{health.clusterName || 'Local-Cluster'}
+						{health.currentClusterName}
 					</p>
 				</div>
 			{:else}

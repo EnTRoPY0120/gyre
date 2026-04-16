@@ -1,5 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
+import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { subscribe, type SSEEvent } from '$lib/server/events.js';
 import { checkClusterWideReadPermission } from '$lib/server/rbac.js';
 import { sseConnectionLimiter } from '$lib/server/rate-limiter.js';
@@ -68,7 +69,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 
 	const { release } = connectionResult;
 
-	const clusterId = locals.cluster ?? 'in-cluster';
+	const clusterId = locals.cluster ?? IN_CLUSTER_ID;
 
 	// Shared cleanup ref so both start() and cancel() can invoke the same teardown.
 	// start() is called synchronously during ReadableStream construction, so

@@ -6,7 +6,6 @@
 import { getDb } from './db';
 import { appSettings } from './db/schema';
 import { eq } from 'drizzle-orm';
-import { SETTINGS_CACHE_TTL_MS } from './config/constants.js';
 
 // Settings keys
 export const SETTINGS_KEYS = {
@@ -43,16 +42,8 @@ const ENV_OVERRIDES: Record<string, string> = {
 	[SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS]: 'GYRE_AUDIT_LOG_RETENTION_DAYS'
 };
 
-// In-memory cache with TTL
-interface CacheEntry {
-	value: string;
-	timestamp: number;
-}
-
-const cache = new Map<string, CacheEntry>();
-
 /**
- * Get a setting value with env var override and caching support.
+ * Get a setting value with env var override.
  * @param key - Setting key
  * @returns Setting value (env var > DB > default)
  */
@@ -63,24 +54,13 @@ export async function getSetting(key: string): Promise<string> {
 		return process.env[envVar]!;
 	}
 
-	// Check cache
-	const cached = cache.get(key);
-	if (cached && Date.now() - cached.timestamp < SETTINGS_CACHE_TTL_MS) {
-		return cached.value;
-	}
-
 	// Query database
 	const db = await getDb();
 	const setting = await db.query.appSettings.findFirst({
 		where: eq(appSettings.key, key)
 	});
 
-	const value = setting?.value ?? getDefaultValue(key);
-
-	// Update cache
-	cache.set(key, { value, timestamp: Date.now() });
-
-	return value;
+	return setting?.value ?? getDefaultValue(key);
 }
 
 /**
@@ -104,9 +84,6 @@ export async function setSetting(key: string, value: string): Promise<void> {
 			target: appSettings.key,
 			set: { value, updatedAt: new Date() }
 		});
-
-	// Invalidate cache
-	cache.delete(key);
 }
 
 /**

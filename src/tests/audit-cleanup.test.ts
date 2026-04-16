@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
+import { afterAll, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 
 spyOn(console, 'log').mockImplementation(() => {});
 
@@ -185,6 +185,10 @@ describe('cleanupOldAuditLogs', () => {
 		const remaining = db.select().from(auditLogs).all();
 		expect(remaining).toHaveLength(0);
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 // ---------------------------------------------------------------------------

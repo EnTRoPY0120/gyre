@@ -13,7 +13,8 @@
 		data: {
 			health: {
 				connected: boolean;
-				clusterName?: string;
+				currentClusterId: string;
+				currentClusterName: string;
 				error?: string;
 			};
 			streamed: {

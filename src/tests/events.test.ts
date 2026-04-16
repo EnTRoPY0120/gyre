@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, spyOn } from 'bun:test';
+import { afterAll, describe, expect, mock, spyOn, test } from 'bun:test';
 
 // Suppress console noise - must be before imports
 spyOn(console, 'log').mockImplementation(() => {});
@@ -43,6 +43,10 @@ mock.module('../lib/server/logger.js', () => ({
 
 import { subscribe, closeAllEventStreams, setEventBusShuttingDown } from '../lib/server/events.js';
 import type { SSEEvent } from '../lib/server/events.js';
+
+afterAll(() => {
+	mock.restore();
+});
 
 // ---------------------------------------------------------------------------
 // Helpers

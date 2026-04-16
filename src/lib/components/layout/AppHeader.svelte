@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import type { ClusterOption } from '$lib/clusters/identity.js';
 	import { getResourceInfo } from '$lib/config/resources';
 	import ThemeToggle from './ThemeToggle.svelte';
 	import NotificationBell from './NotificationBell.svelte';
@@ -13,8 +14,9 @@
 	interface Props {
 		health?: {
 			connected: boolean;
-			clusterName?: string;
-			availableClusters?: string[];
+			currentClusterId: string;
+			currentClusterName: string;
+			availableClusters?: ClusterOption[];
 		};
 		fluxVersion?: string;
 		user?: {
@@ -25,7 +27,11 @@
 		} | null;
 	}
 
-	let { health = { connected: false }, fluxVersion = 'v2.x.x', user = null }: Props = $props();
+	let {
+		health = { connected: false, currentClusterId: 'in-cluster', currentClusterName: 'In-cluster' },
+		fluxVersion = 'v2.x.x',
+		user = null
+	}: Props = $props();
 
 	// Build breadcrumbs from current path
 	const breadcrumbs = $derived.by(() => {
@@ -155,7 +161,7 @@
 
 		<!-- Cluster Selector -->
 		<ClusterSwitcher
-			current={health?.clusterName}
+			currentId={health?.currentClusterId}
 			available={health?.availableClusters}
 			connected={health?.connected}
 		/>

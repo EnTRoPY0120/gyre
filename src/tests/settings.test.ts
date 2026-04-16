@@ -19,11 +19,6 @@ mock.module('../lib/server/db/index.js', () => ({
 	schema
 }));
 
-// Use a real-ish TTL (100ms) so we can test both cache hit and TTL expiry
-mock.module('../lib/server/config/constants.js', () => ({
-	SETTINGS_CACHE_TTL_MS: 100
-}));
-
 import {
 	getSetting,
 	setSetting,
@@ -65,14 +60,7 @@ function unsetEnv(key: string) {
 	delete process.env[key];
 }
 
-// Track a global time offset so we can expire the cache between tests
-let timeOffset = 0;
-const realDateNow = Date.now.bind(Date);
-Date.now = () => realDateNow() + timeOffset;
-
 beforeEach(() => {
-	// Advance time past the 100ms TTL to expire all module-level cache entries
-	timeOffset += 200;
 	state.db = setupInMemoryDb();
 	savedEnv = {};
 	// Ensure env overrides are cleared before each test
@@ -105,10 +93,9 @@ describe('getSetting', () => {
 		expect(value).toBe('true'); // env var wins
 	});
 
-	test('cache hit within TTL avoids DB call', async () => {
+	test('direct DB updates are visible on the next read in the same process', async () => {
 		const key = SETTINGS_KEYS.AUTH_ALLOW_SIGNUP;
 
-		// Insert a value and prime the cache via getSetting
 		await state
 			.db!.insert(schema.appSettings)
 			.values({ key, value: 'cached-value', updatedAt: new Date() })
@@ -117,46 +104,13 @@ describe('getSetting', () => {
 		const val1 = await getSetting(key);
 		expect(val1).toBe('cached-value');
 
-		// Update DB directly (bypassing setSetting which would clear cache)
 		await state
 			.db!.update(schema.appSettings)
 			.set({ value: 'new-db-value', updatedAt: new Date() })
 			.where(eq(schema.appSettings.key, key));
 
-		// Second call should still return the cached value (TTL is 100ms, not expired yet)
 		const val2 = await getSetting(key);
-		expect(val2).toBe('cached-value');
-	});
-
-	test('cache miss after TTL re-reads from DB', async () => {
-		const key = SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST;
-
-		await state
-			.db!.insert(schema.appSettings)
-			.values({ key, value: '["initial.com"]', updatedAt: new Date() })
-			.onConflictDoNothing();
-
-		const val1 = await getSetting(key);
-		expect(val1).toBe('["initial.com"]');
-
-		// Update DB directly (without invalidating cache)
-		await state
-			.db!.update(schema.appSettings)
-			.set({ value: '["updated.com"]', updatedAt: new Date() })
-			.where(eq(schema.appSettings.key, key));
-
-		// Advance Date.now past the 100ms TTL
-		// Note: originalNow captures the already-patched global test Date.now.
-		// This is intentional nesting on top of the global Date.now test patch
-		// so future readers understand the capture/restore behavior when calling getSetting.
-		const originalNow = Date.now;
-		Date.now = () => originalNow() + 200;
-		try {
-			const val2 = await getSetting(key);
-			expect(val2).toBe('["updated.com"]'); // Cache expired, re-reads from DB
-		} finally {
-			Date.now = originalNow;
-		}
+		expect(val2).toBe('new-db-value');
 	});
 
 	test('DB miss falls back to DEFAULTS map', async () => {
@@ -190,18 +144,15 @@ describe('setSetting', () => {
 		expect(row?.value).toBe('60');
 	});
 
-	test('invalidates cache so subsequent getSetting reads fresh from DB', async () => {
+	test('subsequent getSetting reads updated values after setSetting', async () => {
 		const key = SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED;
 
-		// Prime the cache
 		await setSetting(key, 'true');
 		const val1 = await getSetting(key);
 		expect(val1).toBe('true');
 
-		// setSetting again with new value — must invalidate cache
 		await setSetting(key, 'false');
 
-		// getSetting must return the updated DB value, not the cached one
 		const val2 = await getSetting(key);
 		expect(val2).toBe('false');
 	});
@@ -285,7 +236,6 @@ describe('getAuthSettings', () => {
 
 		try {
 			unsetEnv('GYRE_AUTH_ALLOW_SIGNUP');
-			timeOffset += 200; // ensure cached values from prior reads are expired
 			const settings = await getAuthSettings();
 			expect(settings.allowSignup).toBe(false);
 		} finally {

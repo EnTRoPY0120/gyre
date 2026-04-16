@@ -1,4 +1,4 @@
-import { describe, test, expect, mock } from 'bun:test';
+import { afterAll, describe, expect, mock, test } from 'bun:test';
 
 mock.module('$app/environment', () => ({ dev: false }));
 mock.module('$env/dynamic/public', () => ({ env: {} }));
@@ -66,6 +66,10 @@ describe('searchParamsToFilters', () => {
 		const result = searchParamsToFilters(new URLSearchParams());
 		expect(result.useRegex).toBe(defaultFilterState.useRegex);
 	});
+});
+
+afterAll(() => {
+	mock.restore();
 });
 
 // ---------------------------------------------------------------------------

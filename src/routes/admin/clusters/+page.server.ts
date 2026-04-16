@@ -12,6 +12,8 @@ import {
 } from '$lib/server/clusters';
 import { isAdmin } from '$lib/server/rbac';
 import { logClusterChange } from '$lib/server/audit';
+import { invalidateDashboardCache } from '$lib/server/dashboard-cache';
+import { clearClientPool } from '$lib/server/kubernetes/client.js';
 import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
 
 /**
@@ -225,6 +227,8 @@ export const actions: Actions = {
 			const updated = await updateCluster(clusterId, { isActive });
 
 			if (updated) {
+				clearClientPool(clusterId);
+				invalidateDashboardCache(clusterId);
 				await logClusterChange(locals.user, 'update', updated.name, { clusterId, isActive });
 			}
 
@@ -257,6 +261,8 @@ export const actions: Actions = {
 			}
 
 			await deleteCluster(clusterId);
+			clearClientPool(clusterId);
+			invalidateDashboardCache(clusterId);
 
 			await logClusterChange(locals.user, 'delete', existing.name, { clusterId });
 
