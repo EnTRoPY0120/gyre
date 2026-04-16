@@ -61,6 +61,24 @@ let selectableClusters = [
 const setDashboardCacheCalls: Array<{ key: string; value: unknown }> = [];
 const requireClusterWideReadCalls: string[] = [];
 
+function getExpectedSelectableClustersContext() {
+	if (healthShouldThrow) {
+		return null;
+	}
+
+	const kubernetes = (healthResult as { kubernetes?: { currentContext?: string | null } })
+		.kubernetes;
+	return kubernetes?.currentContext ?? null;
+}
+
+function requireClusterContextMock(locals: App.Locals) {
+	if (!locals.cluster) {
+		throw { status: 400, body: { message: 'Cluster context required' } };
+	}
+
+	return locals.cluster;
+}
+
 function createUser() {
 	return {
 		id: 'user-1',
@@ -148,18 +166,36 @@ beforeEach(() => {
 	}));
 
 	mock.module('$lib/server/http/guards.js', () => ({
-		requireClusterContext: (locals: { cluster: string }) => locals.cluster,
-		requireClusterWideRead: async (locals: { cluster: string }) => {
-			requireClusterWideReadCalls.push(locals.cluster);
+		requireClusterContext: (locals: App.Locals) => requireClusterContextMock(locals),
+		requireClusterWideRead: async (locals: App.Locals) => {
+			const clusterId = requireClusterContextMock(locals);
+			if (!locals.user) {
+				throw { status: 403, body: { message: 'Permission denied' } };
+			}
+			requireClusterWideReadCalls.push(clusterId);
 			if (clusterReadShouldThrow) {
 				throw { status: 403, body: { message: 'Permission denied' } };
 			}
 		},
-		requireScopedPermission: async () => {}
+		requireScopedPermission: async (locals: App.Locals) => {
+			requireClusterContextMock(locals);
+			if (!locals.user) {
+				throw { status: 403, body: { message: 'Permission denied' } };
+			}
+		}
 	}));
 
 	mock.module('$lib/server/clusters.js', () => ({
-		getSelectableClusters: async () => selectableClusters
+		getSelectableClusters: async (currentContext?: string | null) => {
+			const expectedContext = getExpectedSelectableClustersContext();
+			if (currentContext !== expectedContext) {
+				throw new Error(
+					`Expected getSelectableClusters currentContext ${String(expectedContext)}, received ${String(currentContext)}`
+				);
+			}
+
+			return selectableClusters;
+		}
 	}));
 
 	mock.module('$lib/server/dashboard-cache', () => ({
