@@ -78,7 +78,14 @@ COPY --from=builder --chown=gyre:gyre /build/node_modules ./node_modules
 # @esbuild/* (e.g. @esbuild/linux-x64) are platform-specific binaries for the
 # esbuild bundler, which is only needed at build time; the bundled Go binary
 # triggers CVE-2025-68121 (Go crypto/tls, stdlib v1.23.x).
-RUN rm -rf /app/node_modules/@esbuild-kit /app/node_modules/@esbuild
+RUN rm -rf \
+  /app/node_modules/@esbuild-kit \
+  /app/node_modules/@esbuild \
+  /usr/local/lib/node_modules/npm \
+  /usr/local/lib/node_modules/corepack \
+  /usr/local/bin/npm \
+  /usr/local/bin/npx \
+  /usr/local/bin/corepack
 
 # Create data directory for SQLite database (PVC mount point)
 RUN mkdir -p /data && chown -R gyre:gyre /data
