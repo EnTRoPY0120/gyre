@@ -30,10 +30,12 @@
 
 	function summaryText(summary: AdminReadinessSummary): string {
 		if (summary.actionRequiredCount > 0) {
-			return `${summary.actionRequiredCount} step${summary.actionRequiredCount === 1 ? '' : 's'} require action now.`;
+			const verb = summary.actionRequiredCount === 1 ? 'requires' : 'require';
+			return `${summary.actionRequiredCount} step${summary.actionRequiredCount === 1 ? '' : 's'} ${verb} action now.`;
 		}
 		if (summary.attentionCount > 0) {
-			return `${summary.attentionCount} step${summary.attentionCount === 1 ? '' : 's'} need attention.`;
+			const verb = summary.attentionCount === 1 ? 'needs' : 'need';
+			return `${summary.attentionCount} step${summary.attentionCount === 1 ? '' : 's'} ${verb} attention.`;
 		}
 		return 'All readiness checks are healthy.';
 	}

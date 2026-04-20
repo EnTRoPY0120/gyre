@@ -66,8 +66,10 @@ export function buildAdminReadinessSummary(state: AdminReadinessState): AdminRea
 
 		if (!state.localLoginEnabled && state.enabledProviderCount === 0) {
 			authStatus = 'action-required';
-			authDescription =
-				'Enable local login or at least one SSO provider before user access breaks.';
+			authDescription = 'Enable local login or at least one SSO provider before user access breaks.';
+		} else if (!state.localLoginEnabled && state.enabledProviderCount > 0) {
+			authStatus = 'ready';
+			authDescription = 'SSO providers are configured; local login is disabled.';
 		} else if (state.localLoginEnabled && state.enabledProviderCount === 0) {
 			authStatus = 'attention';
 			authDescription = 'Only local login is enabled; add an SSO provider before broader rollout.';

@@ -95,7 +95,7 @@ docker run \
 ```
 
 :::tip
-Change `ADMIN_PASSWORD` to a strong password before use. The `AUTH_ENCRYPTION_KEY` and `GYRE_ENCRYPTION_KEY` values are used to encrypt session data and secrets — regenerate them with `openssl rand -hex 32` each time you deploy.
+Change `ADMIN_PASSWORD` to a strong password before use. Regenerate `AUTH_ENCRYPTION_KEY`, `GYRE_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY` with `openssl rand -hex 32` on each deploy.
 :::
 
 ### Option 4: Local Demo Script
