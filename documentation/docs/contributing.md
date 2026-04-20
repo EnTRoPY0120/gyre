@@ -84,7 +84,7 @@ gyre/
    </script>
    ```
 
-3. **In-Cluster Only**: Gyre is designed to run inside Kubernetes clusters only for production. However, local development is supported by using a local `~/.kube/config` as detailed in the [Development Guide](./development.md).
+3. **Deployment Model**: Production is Helm/GitOps-first and in-cluster. Local out-of-cluster mode is supported for development/testing via `~/.kube/config` as detailed in the [Development Guide](./development.md).
 
 ## Code Standards
 
@@ -102,8 +102,17 @@ Use these before commit/push:
 # Default local gate (auto-formats first)
 bun run verify
 
-# Strict CI-equivalent gate (non-mutating)
+# Strict app-only gate (non-mutating)
 bun run verify:ci
+
+# Docs gate (requires npm ci --prefix documentation)
+bun run docs:check
+
+# Repo-wide checks
+bun run helm:check
+bun run scripts:check
+bun run verify:repo
+bun run verify:repo:ci
 ```
 
 ### Styling
@@ -217,14 +226,14 @@ Use the same type prefixes as commit messages:
 
 1. **Create a branch** from `main` following the naming convention above.
 2. **Make your changes** following the code standards.
-3. **Test your changes** manually in a cluster.
-4. **Run quality checks** (`bun run verify` locally, `bun run verify:ci` for strict CI parity).
+3. **Test your changes** in a cluster when behavior depends on Kubernetes integration.
+4. **Run quality checks** (`bun run verify` for app-only local checks, `bun run verify:repo:ci` for full repo parity).
 5. **Commit** using conventional commit format.
 6. **Push** your branch and open a Pull Request.
 
 ## Testing
 
-**Important**: This project currently does not have automated tests. All testing is manual.
+Automated tests are required and part of normal verification (`bun test`, `bun run verify:ci`, `bun run verify:repo:ci`).
 
 ### Before Submitting a PR
 
@@ -248,9 +257,20 @@ docker build -t gyre:test .
 kind load docker-image gyre:test --name gyre-test
 
 # Install via Helm
+kubectl create namespace flux-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-encryption -n flux-system \
+  --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-metrics -n flux-system \
+  --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
 helm install gyre charts/gyre -n flux-system \
   --set image.tag=test \
-  --set image.pullPolicy=Never
+  --set image.pullPolicy=Never \
+  --set encryption.existingSecret=gyre-encryption \
+  --set metrics.existingSecret=gyre-metrics
 
 # Port forward to test
 kubectl port-forward -n flux-system svc/gyre 9999:80
@@ -277,7 +297,7 @@ When reporting bugs, please include:
 4. **Add UI components** in `src/lib/components/flux/resources/`.
 5. **Update navigation** in `src/routes/+layout.svelte`.
 6. **Add resource template** in `src/lib/templates/index.ts`.
-7. **Update RBAC permissions** in `charts/gyre/templates/rbac.yaml`.
+7. **Update RBAC permissions** in `charts/gyre/templates/role.yaml` and `charts/gyre/templates/clusterrole.yaml`.
 
 ## License
 

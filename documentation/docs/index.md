@@ -11,11 +11,13 @@ Welcome to **Gyre** - A modern, full-featured WebUI for FluxCD.
 
 Gyre provides real-time monitoring, multi-cluster management, built-in RBAC, and comprehensive FluxCD resource management through an intuitive web interface.
 
+Production usage is Helm/GitOps-first and in-cluster. Out-of-cluster mode is supported for local development/testing.
+
 ### Key Features
 
 🚀 **Real-time Updates** - Live resource monitoring via SSE
 🎨 **Modern UI** - Built with SvelteKit and TailwindCSS
-🔐 **Built-in Authentication** - Local and SSO/OAuth support
+🔐 **Built-in Authentication** - Local login plus GitHub, Google, GitLab, and generic OIDC/OAuth2
 👥 **RBAC** - Fine-grained access control
 🌐 **Multi-cluster** - Manage multiple Kubernetes clusters
 📊 **Dashboard** - Built-in overview cards for cluster health and Flux resource status
@@ -25,10 +27,22 @@ Gyre provides real-time monitoring, multi-cluster management, built-in RBAC, and
 Get started with Gyre in minutes:
 
 ```bash
+kubectl create namespace flux-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-encryption -n flux-system \
+  --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-metrics -n flux-system \
+  --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 # Install via Helm
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
   --namespace flux-system \
-  --create-namespace
+  --create-namespace \
+  --set encryption.existingSecret=gyre-encryption \
+  --set metrics.existingSecret=gyre-metrics
 
 # Get admin password
 kubectl get secret gyre-initial-admin-secret \

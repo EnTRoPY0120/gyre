@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { isHttpError } from '@sveltejs/kit';
 import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { resourceGroups } from '$lib/config/resources';
+import { getAdminReadinessSummary } from '$lib/server/admin-readiness.js';
 import { DASHBOARD_CACHE_TTL_MS } from '$lib/server/config/constants';
 import {
 	getDashboardCache,
@@ -12,6 +13,7 @@ import { getFluxOverviewSummary } from '$lib/server/flux/services.js';
 import { requireClusterWideRead } from '$lib/server/http/guards.js';
 import { AuthorizationError } from '$lib/server/kubernetes/errors.js';
 import { RbacError } from '$lib/server/rbac.js';
+import type { AdminReadinessSummary } from '$lib/types/admin-readiness';
 
 type GroupCounts = Record<
 	string,
@@ -69,6 +71,7 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 	// Get health data from parent layout
 	const parentData = await parent();
 	const requestedCluster = locals.cluster ?? IN_CLUSTER_ID;
+	const isAdmin = locals.user?.role === 'admin';
 
 	// Function to fetch data (can be returned as a promise to be streamed)
 	const fetchGroupCounts = async () => {
@@ -171,8 +174,16 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 		'Cache-Control': `private, max-age=${Math.floor(DASHBOARD_CACHE_TTL_MS / 1000)}`
 	});
 
+	let adminReadiness: AdminReadinessSummary | undefined;
+	if (isAdmin) {
+		adminReadiness = await getAdminReadinessSummary({
+			clusterConnected: parentData.health.connected
+		});
+	}
+
 	return {
 		health: parentData.health,
+		adminReadiness,
 		streamed: {
 			groupCounts: fetchGroupCounts()
 		}

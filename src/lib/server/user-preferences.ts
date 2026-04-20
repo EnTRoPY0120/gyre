@@ -13,6 +13,7 @@ export const notificationPreferencesSchema = z
 
 export const onboardingPreferencesSchema = z
 	.object({
+		// Legacy compatibility fields retained for existing stored preferences.
 		adminChecklistDismissed: z.boolean().optional(),
 		adminChecklistCompletedItems: z.array(z.enum(ADMIN_ONBOARDING_CHECKLIST_IDS)).optional()
 	})

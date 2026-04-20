@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { IN_CLUSTER_ID } from '../lib/clusters/identity.js';
+import * as actualAdminReadiness from '../lib/server/admin-readiness.js';
 import * as actualDashboardCache from '../lib/server/dashboard-cache.js';
 import * as actualClusters from '../lib/server/clusters.js';
 import * as actualServices from '../lib/server/flux/services.js';
@@ -60,6 +61,14 @@ let selectableClusters = [
 ] as const;
 const setDashboardCacheCalls: Array<{ key: string; value: unknown }> = [];
 const requireClusterWideReadCalls: string[] = [];
+const adminReadinessCalls: boolean[] = [];
+let adminReadinessResult = {
+	status: 'ready' as const,
+	readyCount: 4,
+	attentionCount: 0,
+	actionRequiredCount: 0,
+	steps: []
+};
 
 function getExpectedSelectableClustersContext() {
 	if (healthShouldThrow) {
@@ -127,6 +136,14 @@ beforeEach(() => {
 	getDashboardCacheKeyCalls.length = 0;
 	requireClusterWideReadCalls.length = 0;
 	setDashboardCacheCalls.length = 0;
+	adminReadinessCalls.length = 0;
+	adminReadinessResult = {
+		status: 'ready',
+		readyCount: 4,
+		attentionCount: 0,
+		actionRequiredCount: 0,
+		steps: []
+	};
 	selectableClusters = [
 		{
 			id: IN_CLUSTER_ID,
@@ -215,6 +232,13 @@ beforeEach(() => {
 		loginAttemptsTotal: { labels: () => ({ inc: () => {} }) },
 		sessionsCleanedUpTotal: { inc: () => {} }
 	}));
+
+	mock.module('$lib/server/admin-readiness.js', () => ({
+		getAdminReadinessSummary: async () => {
+			adminReadinessCalls.push(true);
+			return adminReadinessResult;
+		}
+	}));
 });
 
 afterEach(() => {
@@ -224,6 +248,7 @@ afterEach(() => {
 	mock.module('$lib/server/http/guards.js', () => actualGuards);
 	mock.module('$lib/server/dashboard-cache', () => actualDashboardCache);
 	mock.module('$lib/server/metrics.js', () => actualMetrics);
+	mock.module('$lib/server/admin-readiness.js', () => actualAdminReadiness);
 });
 
 describe('migrated server loads', () => {
@@ -319,6 +344,7 @@ describe('migrated server loads', () => {
 		} as Parameters<typeof load>[0]);
 
 		const groupCounts = await result.streamed.groupCounts;
+		expect(result.adminReadiness).toEqual(adminReadinessResult);
 		expect(groupCounts.Sources).toEqual({
 			total: 3,
 			healthy: 2,
@@ -337,6 +363,7 @@ describe('migrated server loads', () => {
 		]);
 		expect(getDashboardCacheCalls).toEqual(['dashboard:user:user-1:role:admin:cluster:cluster-a']);
 		expect(requireClusterWideReadCalls).toEqual(['cluster-a']);
+		expect(adminReadinessCalls).toEqual([true]);
 	});
 
 	test('dashboard load does not access cache before permission checks fail', async () => {
@@ -366,6 +393,32 @@ describe('migrated server loads', () => {
 		expect(getDashboardCacheCalls).toEqual([]);
 		expect(setDashboardCacheCalls).toEqual([]);
 		expect(requireClusterWideReadCalls).toEqual(['cluster-a']);
+		expect(adminReadinessCalls).toEqual([true]);
+	});
+
+	test('dashboard load does not include admin readiness for non-admin users', async () => {
+		const { load } = await import(`../routes/+page.server.js?case=${Date.now()}-${Math.random()}`);
+
+		const result = await load({
+			locals: {
+				cluster: 'cluster-a',
+				requestId: 'req-1',
+				session: null,
+				user: { ...createUser(), role: 'editor' }
+			},
+			parent: async () => ({
+				health: {
+					connected: true,
+					currentClusterId: 'cluster-a',
+					currentClusterName: 'Uploaded Cluster A',
+					availableClusters: []
+				}
+			}),
+			setHeaders: () => {}
+		} as Parameters<typeof load>[0]);
+
+		expect(result.adminReadiness).toBeUndefined();
+		expect(adminReadinessCalls).toEqual([]);
 	});
 
 	test('resource list load calls the shared service and keeps the UI-facing shape', async () => {

@@ -16,7 +16,7 @@
 
 - 🎨 **Modern UI** - Built with Svelte 5 and TailwindCSS
 - 🌐 **Multi-Cluster** - Manage multiple Kubernetes clusters
-- 🔐 **Built-in Security** - RBAC and SSO/OAuth support
+- 🔐 **Built-in Security** - RBAC plus local login, GitHub, Google, GitLab, and generic OIDC/OAuth2 auth support
 - ⚡ **Real-time Updates** - Live resource monitoring via SSE
 - 📊 **Complete FluxCD Support** - All resource types supported
 
@@ -26,7 +26,8 @@
 
 ## 🚀 Quick Start
 
-Gyre can be installed in several ways depending on your workflow:
+Production deployments are Helm/GitOps-first and run in-cluster.
+Local out-of-cluster usage is intended for development/testing.
 
 ### Option 1: GitOps (Using FluxCD)
 
@@ -61,10 +62,22 @@ spec:
 ### Option 2: Helm
 
 ```bash
+kubectl create namespace flux-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-encryption -n flux-system \
+  --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-metrics -n flux-system \
+  --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
   --version 0.5.0 \
   --namespace flux-system \
-  --create-namespace
+  --create-namespace \
+  --set encryption.existingSecret=gyre-encryption \
+  --set metrics.existingSecret=gyre-metrics
 ```
 
 _Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) for the current version._
@@ -77,6 +90,7 @@ Want to try the UI without installing it in your cluster? Run it locally connect
 docker run \
     -e AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
+    -e BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e ADMIN_PASSWORD=admin123 \
     -v gyre-data:/data \
     -v ~/.kube/config:/app/.kube/config:ro \
@@ -88,10 +102,16 @@ _Note: Make sure your current context points to a valid cluster with Flux instal
 
 ### Option 4: Local Demo Script
 
-Don't have a cluster? Spin up a `kind` cluster with Flux and Gyre pre-installed in one command:
+Don't have a cluster? Spin up a `kind` cluster with Flux and Gyre pre-installed in one command (required Helm secrets are generated automatically):
 
 ```bash
 curl -sL https://raw.githubusercontent.com/entropy0120/gyre/main/scripts/demo.sh | bash
+```
+
+From a local checkout, run:
+
+```bash
+./scripts/demo.sh
 ```
 
 ### Get Admin Credentials (for in-cluster installs)
@@ -108,6 +128,22 @@ kubectl port-forward -n flux-system svc/gyre 3000:80
 ```
 
 and login with `admin` and the password from above.
+
+---
+
+## ✅ Verification
+
+```bash
+bun run verify
+bun run verify:ci
+bun run docs:check
+bun run helm:check
+bun run scripts:check
+bun run verify:repo
+bun run verify:repo:ci
+```
+
+`verify` and `verify:ci` are app-only gates. `verify:repo` and `verify:repo:ci` are repo-wide gates.
 
 ---
 

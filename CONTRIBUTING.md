@@ -26,8 +26,13 @@ The easiest way to start developing is using the provided devcontainer:
 
 - `bun install` - Install dependencies
 - `bun run dev` - Start development server
-- `bun run verify` - Local pre-commit/pre-push verification (auto-format + lint + typecheck + build)
-- `bun run verify:ci` - Release gate parity for CI (format:check + lint + typecheck + tests + build)
+- `bun run verify` - App-only local gate (auto-format + lint + typecheck + build)
+- `bun run verify:ci` - App-only strict gate (format:check + lint + typecheck + tests + build)
+- `bun run docs:check` - Documentation typecheck + build (requires `npm ci --prefix documentation`)
+- `bun run helm:check` - Helm chart lint check
+- `bun run scripts:check` - Shell script syntax check (`bash -n`)
+- `bun run verify:repo` - Repo gate for app + Helm + shell scripts
+- `bun run verify:repo:ci` - Full CI repo gate for app + docs + Helm + shell scripts
 - `bun test` - Full Bun test suite (requires Helm on PATH for chart render regression tests)
 
 ## Questions?

@@ -8,6 +8,9 @@ Configure Gyre through Helm values and environment variables.
 
 ## Overview
 
+Production deployments are expected to run in-cluster via Helm/GitOps.
+Out-of-cluster configuration is mainly for local development/testing.
+
 Recommended order of precedence:
 
 1. Helm values (`charts/gyre/values.yaml`)
@@ -54,7 +57,7 @@ auth:
   providersExistingSecret: ''
 ```
 
-`auth.providers` entries support OAuth/OIDC providers (for example GitHub, Google, generic OIDC).
+`auth.providers` entries support OAuth/OIDC providers (for example GitHub, Google, GitLab, and generic OIDC/OAuth2).
 Provider objects are metadata-only and must not include `clientSecret`.
 
 When `auth.providers` is non-empty, `auth.providersExistingSecret` is required.

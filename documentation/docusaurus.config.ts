@@ -7,11 +7,6 @@ const config: Config = {
 	tagline: 'Modern WebUI for FluxCD',
 	favicon: 'img/favicon.svg',
 
-	// Future flags
-	future: {
-		v4: true
-	},
-
 	// GitHub Pages Configuration
 	url: 'https://entropy0120.github.io',
 	baseUrl: '/gyre/',

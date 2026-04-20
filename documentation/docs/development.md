@@ -10,7 +10,7 @@ This guide provides technical information for developers working on the Gyre cod
 
 Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit and Bun. It provides real-time monitoring, multi-cluster management, built-in RBAC, and comprehensive FluxCD resource management.
 
-**Deployment**: In-cluster-only deployment via Helm chart. Built and run with Bun in production for improved performance and native TypeScript support. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
+**Deployment**: Production is Helm/GitOps-first and in-cluster. Local out-of-cluster mode is supported for development/testing. Built and run with Bun in production for improved performance and native TypeScript support. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
 
 **Current Status**: Core functionality complete with dashboard, all FluxCD resources, real-time updates, multi-cluster support, authentication/RBAC, Monaco Editor integration, and comprehensive resource templates with complete FluxCD CRD field coverage.
 
@@ -48,7 +48,12 @@ bun run dev --open      # Start dev server and open in browser
 
 ```sh
 bun run verify          # Local gate: format + lint + typecheck + build
-bun run verify:ci       # Strict CI gate: format:check + lint + typecheck + build
+bun run verify:ci       # Strict app-only gate: format:check + lint + typecheck + tests + build
+bun run docs:check      # Docs gate: Docusaurus typecheck + build
+bun run helm:check      # Helm chart lint
+bun run scripts:check   # Shell syntax checks (bash -n)
+bun run verify:repo     # Repo gate: app + Helm + shell scripts
+bun run verify:repo:ci  # Full CI gate: app + docs + Helm + shell scripts
 bun run check:watch     # Type-check in watch mode
 bun run lint:fix        # Auto-fix lint issues where possible
 bun run format          # Format code
@@ -65,14 +70,39 @@ docker build -t gyre:local .
 docker run -p 3000:3000 -v $(pwd)/data:/data gyre:local
 ```
 
+### Kind Helper Scripts
+
+```sh
+# One-time local demo bootstrap (creates kind cluster, Flux, and Helm install)
+./scripts/demo.sh
+
+# Rebuild image and redeploy to an existing kind cluster
+# You can override IMAGE_NAME, IMAGE_TAG, KIND_CLUSTER, HELM_RELEASE, NAMESPACE, PORT,
+# ENCRYPTION_SECRET_NAME, and METRICS_SECRET_NAME via env vars.
+./scripts/redeploy-kind.sh
+```
+
 ### Production Deployment (Helm Chart)
 
 ```sh
 # Build Docker image
 docker build -t gyre:latest .
 
+# Create required chart secrets
+kubectl create namespace flux-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-encryption -n flux-system \
+  --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-metrics -n flux-system \
+  --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 # Install with Helm
-helm install gyre charts/gyre --namespace flux-system --create-namespace
+helm install gyre charts/gyre --namespace flux-system --create-namespace \
+  --set encryption.existingSecret=gyre-encryption \
+  --set metrics.existingSecret=gyre-metrics
 
 # Get admin password
 kubectl get secret gyre-initial-admin-secret -n flux-system -o jsonpath='{.data.password}' | base64 -d
@@ -81,7 +111,7 @@ kubectl get secret gyre-initial-admin-secret -n flux-system -o jsonpath='{.data.
 kubectl port-forward -n flux-system svc/gyre 3000:80
 ```
 
-**Architecture**: In-cluster-only deployment with ServiceAccount authentication. All Kubernetes API access uses the pod's ServiceAccount credentials.
+**Architecture**: Production uses in-cluster deployment with ServiceAccount authentication. Local out-of-cluster mode is for development/testing.
 
 ### Database Management
 
@@ -102,7 +132,7 @@ The project includes a Docusaurus documentation site at `entropy0120.github.io/g
 cd documentation
 
 # Install dependencies (uses npm, not bun)
-npm install
+npm ci
 
 # Start documentation dev server
 npm run start
@@ -165,7 +195,7 @@ Multi-cluster support is implemented via `locals.cluster`.
 
 - **Commits**: Follow [Conventional Commits](https://www.conventionalcommits.org/).
 - **Branches**: Use `type/description` naming (e.g., `feat/add-oidc-support`, `fix/rbac-bypass`).
-- **Tests**: Automated testing is currently in the process of being established; testing is primarily manual in a real K8s environment for now.
+- **Tests**: Automated tests are part of the normal verification flow (`bun test`, `bun run verify:ci`, `bun run verify:repo:ci`).
 
 ## Important Implementation Notes
 
@@ -222,7 +252,7 @@ The project uses Monaco Editor (VS Code's editor) for YAML/JSON editing througho
 
 The project includes full SSO support via Arctic and OIDC:
 
-- **Providers supported**: GitHub, Google, Generic OIDC
+- **Providers supported**: GitHub, Google, GitLab, Generic OIDC/OAuth2
 - **Configuration**: Admin UI for provider setup (no restart required)
 - **User flow**: Login → OAuth redirect → Callback → Auto-provision user
 
@@ -242,6 +272,6 @@ The real-time notification system uses Server-Sent Events (SSE) located in `src/
 1. **Server vs Client Code**: `$lib/server/` code ONLY runs server-side.
 2. **Svelte 5 Runes**: Use `$state()`, `$derived()`, `$effect()`, `$props()`.
 3. **Database Migrations**: Use `drizzle-kit generate` for schema changes.
-4. **ServiceAccount Permissions**: Update `charts/gyre/templates/rbac.yaml` for new resources.
+4. **ServiceAccount Permissions**: Update `charts/gyre/templates/role.yaml` and `charts/gyre/templates/clusterrole.yaml` for new resources.
 5. **Documentation Folder**: Uses npm (not Bun).
 6. **Monaco Editor Lazy Loading**: Loaded via dynamic import. Always check `browser` environment.
