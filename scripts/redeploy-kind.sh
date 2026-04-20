@@ -135,6 +135,7 @@ kubectl create secret generic "${METRICS_SECRET_NAME}" \
 	--dry-run=client -o yaml | kubectl apply -f -
 
 echo "Upgrading/installing Helm release..."
+REDEPLOY_MARKER="${REDEPLOY_MARKER:-$(date -u +%Y%m%d%H%M%S)}"
 helm upgrade --install "${HELM_RELEASE}" ./charts/gyre \
 	--namespace "${NAMESPACE}" \
 	--create-namespace \
@@ -143,7 +144,9 @@ helm upgrade --install "${HELM_RELEASE}" ./charts/gyre \
 	--set image.tag="${IMAGE_TAG}" \
 	--set image.pullPolicy=IfNotPresent \
 	--set encryption.existingSecret="${ENCRYPTION_SECRET_NAME}" \
-	--set metrics.existingSecret="${METRICS_SECRET_NAME}"
+	--set metrics.existingSecret="${METRICS_SECRET_NAME}" \
+	--set admin.secretName="${ADMIN_SECRET_NAME}" \
+	--set-string podAnnotations.gyre\\.redeployTimestamp="${REDEPLOY_MARKER}"
 
 echo ""
 echo "Deployment complete."

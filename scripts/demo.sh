@@ -146,6 +146,7 @@ helm_args=(
 	--timeout "${HELM_TIMEOUT}"
 	--set "encryption.existingSecret=${ENCRYPTION_SECRET_NAME}"
 	--set "metrics.existingSecret=${METRICS_SECRET_NAME}"
+	--set "admin.secretName=${ADMIN_SECRET_NAME}"
 )
 if [ -n "${CHART_VERSION}" ]; then
 	helm_args+=(--version "${CHART_VERSION}")
