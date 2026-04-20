@@ -16,10 +16,23 @@ interface AdminReadinessInput {
 }
 
 type AuthSettingsSnapshot = Awaited<ReturnType<typeof getAuthSettings>>;
+type AdminReadinessCacheSlot = 'authSettings' | 'enabledProviderCount' | 'backupCount';
+type AdminReadinessCacheValueBySlot = {
+	authSettings: AuthSettingsSnapshot;
+	enabledProviderCount: number;
+	backupCount: number;
+};
+
+interface AdminReadinessFailureMarker {
+	__adminReadinessFailure: true;
+	slot: AdminReadinessCacheSlot;
+	causeMessage: string;
+}
 
 interface TimedCacheEntry<T> {
 	value: T;
 	timestamp: number;
+	ttlMs: number;
 }
 
 /**
@@ -30,12 +43,13 @@ interface TimedCacheEntry<T> {
  * - enabledProviderCount: getDb().query.authProviders.findMany(...) length
  * - backupCount: listBackups().length
  *
- * TTL for each key is ADMIN_READINESS_CACHE_TTL_MS.
+ * Success TTL is ADMIN_READINESS_CACHE_TTL_MS.
+ * Failures are cached briefly to avoid repeatedly hammering broken dependencies.
  */
 const adminReadinessCache: {
-	authSettings: TimedCacheEntry<AuthSettingsSnapshot> | null;
-	enabledProviderCount: TimedCacheEntry<number> | null;
-	backupCount: TimedCacheEntry<number> | null;
+	[K in AdminReadinessCacheSlot]: TimedCacheEntry<
+		AdminReadinessCacheValueBySlot[K] | AdminReadinessFailureMarker
+	> | null;
 } = {
 	authSettings: null,
 	enabledProviderCount: null,
@@ -43,99 +57,117 @@ const adminReadinessCache: {
 };
 
 const adminReadinessInflight: {
-	authSettings: Promise<AuthSettingsSnapshot> | null;
-	enabledProviderCount: Promise<number> | null;
-	backupCount: Promise<number> | null;
+	[K in AdminReadinessCacheSlot]: Promise<AdminReadinessCacheValueBySlot[K]> | null;
 } = {
 	authSettings: null,
 	enabledProviderCount: null,
 	backupCount: null
 };
+type AdminReadinessCacheStore = typeof adminReadinessCache;
+type AdminReadinessInflightStore = typeof adminReadinessInflight;
+
+const ADMIN_READINESS_FAILURE_CACHE_TTL_MS = Math.max(
+	1_000,
+	Math.floor(ADMIN_READINESS_CACHE_TTL_MS / 4)
+);
 
 function readIfFresh<T>(entry: TimedCacheEntry<T> | null): T | null {
 	if (entry === null) {
 		return null;
 	}
-	if (Date.now() - entry.timestamp >= ADMIN_READINESS_CACHE_TTL_MS) {
+	if (Date.now() - entry.timestamp >= entry.ttlMs) {
 		return null;
 	}
 	return entry.value;
 }
 
-function writeCache<T>(value: T): TimedCacheEntry<T> {
+function writeCache<T>(value: T, ttlMs = ADMIN_READINESS_CACHE_TTL_MS): TimedCacheEntry<T> {
 	return {
 		value,
-		timestamp: Date.now()
+		timestamp: Date.now(),
+		ttlMs
 	};
 }
 
-async function getCachedAuthSettings(): Promise<AuthSettingsSnapshot> {
-	const cached = readIfFresh(adminReadinessCache.authSettings);
+function isFailureMarker(value: unknown): value is AdminReadinessFailureMarker {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'__adminReadinessFailure' in value &&
+		value.__adminReadinessFailure === true
+	);
+}
+
+function toErrorMessage(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	return String(error);
+}
+
+async function getCached<K extends AdminReadinessCacheSlot>(
+	slot: K,
+	fetcher: () => Promise<AdminReadinessCacheValueBySlot[K]>
+): Promise<AdminReadinessCacheValueBySlot[K]> {
+	const cached = readIfFresh(
+		adminReadinessCache[slot] as TimedCacheEntry<
+			AdminReadinessCacheValueBySlot[K] | AdminReadinessFailureMarker
+		> | null
+	);
 	if (cached !== null) {
+		if (isFailureMarker(cached)) {
+			throw new Error(`[Admin Readiness] Cached ${slot} fetch failure: ${cached.causeMessage}`);
+		}
 		return cached;
 	}
-	if (adminReadinessInflight.authSettings !== null) {
-		return adminReadinessInflight.authSettings;
+	const existingInflight = adminReadinessInflight[slot] as Promise<
+		AdminReadinessCacheValueBySlot[K]
+	> | null;
+	if (existingInflight !== null) {
+		return existingInflight;
 	}
 
-	adminReadinessInflight.authSettings = getAuthSettings()
-		.then((authSettings) => {
-			adminReadinessCache.authSettings = writeCache(authSettings);
-			return authSettings;
+	const nextInflight: Promise<AdminReadinessCacheValueBySlot[K]> = fetcher()
+		.then((value) => {
+			adminReadinessCache[slot] = writeCache(value) as AdminReadinessCacheStore[K];
+			return value;
+		})
+		.catch((error: unknown) => {
+			adminReadinessCache[slot] = writeCache(
+				{
+					__adminReadinessFailure: true,
+					slot,
+					causeMessage: toErrorMessage(error)
+				},
+				ADMIN_READINESS_FAILURE_CACHE_TTL_MS
+			) as AdminReadinessCacheStore[K];
+			throw error;
 		})
 		.finally(() => {
-			adminReadinessInflight.authSettings = null;
+			adminReadinessInflight[slot] = null;
 		});
 
-	return adminReadinessInflight.authSettings;
+	adminReadinessInflight[slot] = nextInflight as AdminReadinessInflightStore[K];
+	return nextInflight;
+}
+
+async function getCachedAuthSettings(): Promise<AuthSettingsSnapshot> {
+	return getCached('authSettings', getAuthSettings);
 }
 
 async function getCachedEnabledProviderCount(): Promise<number> {
-	const cached = readIfFresh(adminReadinessCache.enabledProviderCount);
-	if (cached !== null) {
-		return cached;
-	}
-	if (adminReadinessInflight.enabledProviderCount !== null) {
-		return adminReadinessInflight.enabledProviderCount;
-	}
-
-	adminReadinessInflight.enabledProviderCount = getDb()
-		.then(async (db) => {
-			const enabledProviders = await db.query.authProviders.findMany({
-				columns: { id: true },
-				where: eq(authProviders.enabled, true)
-			});
-			const enabledProviderCount = enabledProviders.length;
-			adminReadinessCache.enabledProviderCount = writeCache(enabledProviderCount);
-			return enabledProviderCount;
-		})
-		.finally(() => {
-			adminReadinessInflight.enabledProviderCount = null;
+	return getCached('enabledProviderCount', async () => {
+		const db = await getDb();
+		const enabledProviders = await db.query.authProviders.findMany({
+			columns: { id: true },
+			where: eq(authProviders.enabled, true)
 		});
-
-	return adminReadinessInflight.enabledProviderCount;
+		return enabledProviders.length;
+	});
 }
 
 async function getCachedBackupCount(): Promise<number> {
-	const cached = readIfFresh(adminReadinessCache.backupCount);
-	if (cached !== null) {
-		return cached;
-	}
-	if (adminReadinessInflight.backupCount !== null) {
-		return adminReadinessInflight.backupCount;
-	}
-
-	adminReadinessInflight.backupCount = Promise.resolve()
-		.then(() => {
-			const backupCount = listBackups().length;
-			adminReadinessCache.backupCount = writeCache(backupCount);
-			return backupCount;
-		})
-		.finally(() => {
-			adminReadinessInflight.backupCount = null;
-		});
-
-	return adminReadinessInflight.backupCount;
+	return getCached('backupCount', async () => listBackups().length);
 }
 
 export function clearAdminReadinessCacheForTests(): void {
