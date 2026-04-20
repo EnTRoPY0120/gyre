@@ -102,7 +102,7 @@ if kubectl get secret "${ENCRYPTION_SECRET_NAME}" -n "${NAMESPACE}" >/dev/null 2
 			exit 1
 		fi
 		printf -v "${key}" '%s' "${value}"
-		export "${key}"
+		export "${key?}"
 	done
 else
 	echo "Encryption secret '${ENCRYPTION_SECRET_NAME}' not found; creating it."

@@ -1,4 +1,5 @@
 import { listBackups } from '$lib/server/backup.js';
+import { ADMIN_READINESS_CACHE_TTL_MS } from '$lib/server/config/constants';
 import { getDb } from '$lib/server/db';
 import { authProviders } from '$lib/server/db/schema';
 import { logger } from '$lib/server/logger.js';
@@ -12,6 +13,138 @@ import { eq } from 'drizzle-orm';
 
 interface AdminReadinessInput {
 	clusterConnected: boolean;
+}
+
+type AuthSettingsSnapshot = Awaited<ReturnType<typeof getAuthSettings>>;
+
+interface TimedCacheEntry<T> {
+	value: T;
+	timestamp: number;
+}
+
+/**
+ * Cached dependency reads used by getAdminReadinessSummary.
+ *
+ * Cache keys:
+ * - authSettings: getAuthSettings()
+ * - enabledProviderCount: getDb().query.authProviders.findMany(...) length
+ * - backupCount: listBackups().length
+ *
+ * TTL for each key is ADMIN_READINESS_CACHE_TTL_MS.
+ */
+const adminReadinessCache: {
+	authSettings: TimedCacheEntry<AuthSettingsSnapshot> | null;
+	enabledProviderCount: TimedCacheEntry<number> | null;
+	backupCount: TimedCacheEntry<number> | null;
+} = {
+	authSettings: null,
+	enabledProviderCount: null,
+	backupCount: null
+};
+
+const adminReadinessInflight: {
+	authSettings: Promise<AuthSettingsSnapshot> | null;
+	enabledProviderCount: Promise<number> | null;
+	backupCount: Promise<number> | null;
+} = {
+	authSettings: null,
+	enabledProviderCount: null,
+	backupCount: null
+};
+
+function readIfFresh<T>(entry: TimedCacheEntry<T> | null): T | null {
+	if (entry === null) {
+		return null;
+	}
+	if (Date.now() - entry.timestamp >= ADMIN_READINESS_CACHE_TTL_MS) {
+		return null;
+	}
+	return entry.value;
+}
+
+function writeCache<T>(value: T): TimedCacheEntry<T> {
+	return {
+		value,
+		timestamp: Date.now()
+	};
+}
+
+async function getCachedAuthSettings(): Promise<AuthSettingsSnapshot> {
+	const cached = readIfFresh(adminReadinessCache.authSettings);
+	if (cached !== null) {
+		return cached;
+	}
+	if (adminReadinessInflight.authSettings !== null) {
+		return adminReadinessInflight.authSettings;
+	}
+
+	adminReadinessInflight.authSettings = getAuthSettings()
+		.then((authSettings) => {
+			adminReadinessCache.authSettings = writeCache(authSettings);
+			return authSettings;
+		})
+		.finally(() => {
+			adminReadinessInflight.authSettings = null;
+		});
+
+	return adminReadinessInflight.authSettings;
+}
+
+async function getCachedEnabledProviderCount(): Promise<number> {
+	const cached = readIfFresh(adminReadinessCache.enabledProviderCount);
+	if (cached !== null) {
+		return cached;
+	}
+	if (adminReadinessInflight.enabledProviderCount !== null) {
+		return adminReadinessInflight.enabledProviderCount;
+	}
+
+	adminReadinessInflight.enabledProviderCount = getDb()
+		.then(async (db) => {
+			const enabledProviders = await db.query.authProviders.findMany({
+				columns: { id: true },
+				where: eq(authProviders.enabled, true)
+			});
+			const enabledProviderCount = enabledProviders.length;
+			adminReadinessCache.enabledProviderCount = writeCache(enabledProviderCount);
+			return enabledProviderCount;
+		})
+		.finally(() => {
+			adminReadinessInflight.enabledProviderCount = null;
+		});
+
+	return adminReadinessInflight.enabledProviderCount;
+}
+
+async function getCachedBackupCount(): Promise<number> {
+	const cached = readIfFresh(adminReadinessCache.backupCount);
+	if (cached !== null) {
+		return cached;
+	}
+	if (adminReadinessInflight.backupCount !== null) {
+		return adminReadinessInflight.backupCount;
+	}
+
+	adminReadinessInflight.backupCount = Promise.resolve()
+		.then(() => {
+			const backupCount = listBackups().length;
+			adminReadinessCache.backupCount = writeCache(backupCount);
+			return backupCount;
+		})
+		.finally(() => {
+			adminReadinessInflight.backupCount = null;
+		});
+
+	return adminReadinessInflight.backupCount;
+}
+
+export function clearAdminReadinessCacheForTests(): void {
+	adminReadinessCache.authSettings = null;
+	adminReadinessCache.enabledProviderCount = null;
+	adminReadinessCache.backupCount = null;
+	adminReadinessInflight.authSettings = null;
+	adminReadinessInflight.enabledProviderCount = null;
+	adminReadinessInflight.backupCount = null;
 }
 
 export interface AdminReadinessState {
@@ -153,26 +286,21 @@ export async function getAdminReadinessSummary({
 	let enabledProviderCount: number | null = null;
 
 	try {
-		const authSettings = await getAuthSettings();
+		const authSettings = await getCachedAuthSettings();
 		localLoginEnabled = authSettings.localLoginEnabled;
 	} catch (error) {
 		logger.error(error, '[Admin Readiness] Failed to read auth settings');
 	}
 
 	try {
-		const db = await getDb();
-		const enabledProviders = await db.query.authProviders.findMany({
-			columns: { id: true },
-			where: eq(authProviders.enabled, true)
-		});
-		enabledProviderCount = enabledProviders.length;
+		enabledProviderCount = await getCachedEnabledProviderCount();
 	} catch (error) {
 		logger.error(error, '[Admin Readiness] Failed to count enabled auth providers');
 	}
 
 	let backupCount: number | null = null;
 	try {
-		backupCount = listBackups().length;
+		backupCount = await getCachedBackupCount();
 	} catch (error) {
 		logger.error(error, '[Admin Readiness] Failed to evaluate backup verification readiness');
 	}
