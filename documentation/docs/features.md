@@ -17,6 +17,7 @@ The main dashboard provides a high-level view of cluster health and Flux resourc
 - **Cluster Connectivity** - Current API connectivity status for the active cluster
 - **Resource Group Totals** - Aggregated totals/health per Flux resource group
 - **Inventory Architecture** - Group-level breakdown of managed resources
+- **Admin Readiness** - State-driven setup status for cluster access, auth, and backups
 - **System Shortcuts** - Quick navigation to common operational pages
 
 ## Resource Management
@@ -116,7 +117,8 @@ The main dashboard provides a high-level view of cluster health and Flux resourc
 
 - GitHub OAuth
 - Google OAuth
-- Generic OIDC provider
+- GitLab OAuth
+- Generic OIDC/OAuth2 provider
 - Auto-provision users
 
 ### Session Management

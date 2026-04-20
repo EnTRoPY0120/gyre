@@ -6,6 +6,8 @@ sidebar_position: 2
 
 This guide will help you get Gyre up and running in your Kubernetes cluster.
 
+Production installs are Helm/GitOps-first and in-cluster. Local out-of-cluster usage is for development/testing.
+
 ## Prerequisites
 
 Before you begin, ensure you have:
@@ -54,10 +56,22 @@ spec:
 The standard way to install Gyre directly via Helm:
 
 ```bash
+kubectl create namespace flux-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-encryption -n flux-system \
+  --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl create secret generic gyre-metrics -n flux-system \
+  --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
   --version 0.5.0 \
   --namespace flux-system \
-  --create-namespace
+  --create-namespace \
+  --set encryption.existingSecret=gyre-encryption \
+  --set metrics.existingSecret=gyre-metrics
 ```
 
 :::note
@@ -72,6 +86,7 @@ If you want to try the UI without installing it inside your cluster, you can run
 docker run \
     -e AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
+    -e BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e ADMIN_PASSWORD=admin123 \
     -v gyre-data:/data \
     -v ~/.kube/config:/app/.kube/config:ro \
@@ -85,10 +100,16 @@ Change `ADMIN_PASSWORD` to a strong password before use. The `AUTH_ENCRYPTION_KE
 
 ### Option 4: Local Demo Script
 
-Don't have a cluster yet? Spin up a local `kind` cluster with Flux and Gyre pre-installed using our demo script:
+Don't have a cluster yet? Spin up a local `kind` cluster with Flux and Gyre pre-installed using our demo script (it creates required Helm secrets automatically):
 
 ```bash
 curl -sL https://raw.githubusercontent.com/entropy0120/gyre/main/scripts/demo.sh | bash
+```
+
+If you are developing from a local checkout, prefer:
+
+```bash
+./scripts/demo.sh
 ```
 
 ## Accessing Gyre

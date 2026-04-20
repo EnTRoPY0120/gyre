@@ -6,7 +6,7 @@ This directory contains the Docusaurus-based documentation site for Gyre.
 
 ```bash
 cd documentation
-npm install
+npm ci
 npm run start
 ```
 
@@ -15,9 +15,12 @@ Open http://localhost:3000/gyre/ to view the documentation.
 ## Available Scripts
 
 - `npm run start` - Start development server
+- `npm run typecheck` - Validate docs TypeScript configuration
 - `npm run build` - Build for production
 - `npm run serve` - Serve built site locally
 - `npm run deploy` - Deploy to GitHub Pages
+
+From repo root, run `bun run docs:check` to typecheck and build docs in one step.
 
 ## Project Structure
 

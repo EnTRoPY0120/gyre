@@ -1,5 +1,7 @@
 import type { UserPreferences } from '$lib/types/user';
 
+// Legacy onboarding checklist model retained for persisted preference compatibility.
+// Dashboard readiness now uses live server-derived state instead.
 function extractChecklistIds<const TItems extends ReadonlyArray<{ readonly id: string }>>(
 	items: TItems
 ) {

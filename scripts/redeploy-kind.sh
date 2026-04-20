@@ -1,98 +1,107 @@
-#!/bin/bash
-set -e # Exit on error
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Configuration
-IMAGE_NAME="gyre"
-IMAGE_TAG="v0.1.0-test"
-KIND_CLUSTER="gyre-test"
-HELM_RELEASE="gyre"
-NAMESPACE="flux-system"
+IMAGE_NAME="${IMAGE_NAME:-gyre}"
+IMAGE_TAG="${IMAGE_TAG:-dev}"
+KIND_CLUSTER="${KIND_CLUSTER:-gyre-test}"
+HELM_RELEASE="${HELM_RELEASE:-gyre}"
+NAMESPACE="${NAMESPACE:-flux-system}"
+PORT="${PORT:-9999}"
+ENCRYPTION_SECRET_NAME="${ENCRYPTION_SECRET_NAME:-gyre-encryption}"
+METRICS_SECRET_NAME="${METRICS_SECRET_NAME:-gyre-metrics}"
+ADMIN_SECRET_NAME="${ADMIN_SECRET_NAME:-gyre-initial-admin-secret}"
 
-echo "=================================================="
-echo "  Gyre - Kind Redeploy Script"
-echo "=================================================="
-echo ""
+on_error() {
+	local line="$1"
+	echo ""
+	echo "ERROR: redeploy-kind.sh failed at line ${line}: ${BASH_COMMAND}"
+	echo "Next steps:"
+	echo "  - Check pods: kubectl get pods -n ${NAMESPACE}"
+	echo "  - Check events: kubectl get events -n ${NAMESPACE} --sort-by=.lastTimestamp | tail -n 20"
+	echo "  - Check Helm release: helm status ${HELM_RELEASE} -n ${NAMESPACE}"
+}
+trap 'on_error $LINENO' ERR
 
-# Step 1: Build Docker image
-echo "📦 Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
-docker build -t ${IMAGE_NAME}:${IMAGE_TAG} .
-echo "✓ Image built successfully"
-echo ""
+require_cmd() {
+	local cmd="$1"
+	if ! command -v "${cmd}" >/dev/null 2>&1; then
+		echo "ERROR: required command not found: ${cmd}"
+		exit 1
+	fi
+}
 
-# Step 2: Load image into kind cluster
-echo "📥 Loading image into kind cluster: ${KIND_CLUSTER}"
-kind load docker-image ${IMAGE_NAME}:${IMAGE_TAG} --name ${KIND_CLUSTER}
-echo "✓ Image loaded into kind cluster"
-echo ""
+for cmd in docker kind kubectl helm openssl; do
+	require_cmd "${cmd}"
+done
 
-# Step 3: Uninstall Helm chart
-echo "🗑️  Uninstalling Helm release: ${HELM_RELEASE}"
-if helm uninstall ${HELM_RELEASE} -n ${NAMESPACE} 2>/dev/null; then
-  echo "✓ Helm release uninstalled"
-else
-  echo "⚠️  Helm release not found or already uninstalled"
-fi
-echo ""
-
-# Step 4: Wait for cleanup
-echo "⏳ Waiting 5 seconds for cleanup..."
-sleep 5
-echo "✓ Cleanup complete"
-echo ""
-
-# Step 5: Install Helm chart
-echo "📦 Installing Helm chart: ${HELM_RELEASE}"
-helm install ${HELM_RELEASE} ./charts/gyre \
-  --namespace ${NAMESPACE} \
-  --set image.repository=${IMAGE_NAME} \
-  --set image.tag=${IMAGE_TAG} \
-  --set image.pullPolicy=IfNotPresent
-echo "✓ Helm chart installed"
-echo ""
-
-# Step 6: Wait for pod to be ready
-echo "⏳ Waiting for pod to be ready..."
-kubectl wait --for=condition=ready pod \
-  -l app.kubernetes.io/name=gyre \
-  -n ${NAMESPACE} \
-  --timeout=120s
-echo "✓ Pod is ready"
-echo ""
-
-# Step 7: Get admin password
-echo "=================================================="
-echo "  Deployment Complete!"
-echo "=================================================="
-echo ""
-echo "🔑 Retrieving admin password..."
-ADMIN_PASSWORD=$(kubectl get secret gyre-initial-admin-secret -n ${NAMESPACE} -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)
-if [ -n "$ADMIN_PASSWORD" ]; then
-  echo ""
-  echo "   Username: admin"
-  echo "   Password: ${ADMIN_PASSWORD}"
-  echo ""
-else
-  echo "   ⚠️  Could not retrieve password. Check manually with:"
-  echo "   kubectl get secret gyre-initial-admin-secret -n ${NAMESPACE} -o jsonpath='{.data.password}' | base64 -d"
-  echo ""
+if ! kind get clusters | grep -Fxq "${KIND_CLUSTER}"; then
+	echo "ERROR: kind cluster '${KIND_CLUSTER}' does not exist."
+	echo "Create it first with: kind create cluster --name ${KIND_CLUSTER}"
+	exit 1
 fi
 
-kubectl port-forward -n flux-system svc/gyre 9999:80 --address 0.0.0.0
+GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN:-$(openssl rand -hex 32)}"
 
-# Step 8: Show access information
 echo "=================================================="
-echo "  Access Information"
+echo "Gyre Kind Redeploy"
 echo "=================================================="
-echo ""
-echo "  http://localhost:9999"
-echo ""
-echo "=================================================="
+echo "Image:       ${IMAGE_NAME}:${IMAGE_TAG}"
+echo "Cluster:     ${KIND_CLUSTER}"
+echo "Release:     ${HELM_RELEASE}"
+echo "Namespace:   ${NAMESPACE}"
+echo "Port:        ${PORT}"
+echo "Enc secret:  ${ENCRYPTION_SECRET_NAME}"
+echo "Metrics sec: ${METRICS_SECRET_NAME}"
 echo ""
 
-# Step 9: Show pod logs (last 20 lines)
-echo "📋 Recent pod logs:"
-echo "=================================================="
-kubectl logs -n ${NAMESPACE} -l app.kubernetes.io/name=gyre --tail=20 --prefix=false
-echo "=================================================="
+echo "Building image..."
+docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" .
+
+echo "Loading image into kind cluster..."
+kind load docker-image "${IMAGE_NAME}:${IMAGE_TAG}" --name "${KIND_CLUSTER}"
+
+echo "Ensuring namespace exists..."
+kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
+
+echo "Creating/updating required secrets..."
+kubectl create secret generic "${ENCRYPTION_SECRET_NAME}" \
+	-n "${NAMESPACE}" \
+	--from-literal=GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY}" \
+	--from-literal=AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY}" \
+	--from-literal=BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY}" \
+	--dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic "${METRICS_SECRET_NAME}" \
+	-n "${NAMESPACE}" \
+	--from-literal=GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN}" \
+	--dry-run=client -o yaml | kubectl apply -f -
+
+echo "Upgrading/installing Helm release..."
+helm upgrade --install "${HELM_RELEASE}" ./charts/gyre \
+	--namespace "${NAMESPACE}" \
+	--create-namespace \
+	--wait \
+	--set image.repository="${IMAGE_NAME}" \
+	--set image.tag="${IMAGE_TAG}" \
+	--set image.pullPolicy=IfNotPresent \
+	--set encryption.existingSecret="${ENCRYPTION_SECRET_NAME}" \
+	--set metrics.existingSecret="${METRICS_SECRET_NAME}"
+
 echo ""
-echo "✅ Redeploy complete!"
+echo "Deployment complete."
+echo ""
+if ADMIN_PASSWORD="$(kubectl get secret "${ADMIN_SECRET_NAME}" -n "${NAMESPACE}" -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)"; then
+	if [ -n "${ADMIN_PASSWORD}" ]; then
+		echo "Admin credentials:"
+		echo "  Username: admin"
+		echo "  Password: ${ADMIN_PASSWORD}"
+		echo ""
+	fi
+fi
+
+echo "Access Gyre:"
+echo "  1) kubectl port-forward -n ${NAMESPACE} svc/${HELM_RELEASE} ${PORT}:80 --address 0.0.0.0"
+echo "  2) open http://localhost:${PORT}"

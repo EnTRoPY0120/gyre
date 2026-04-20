@@ -1,48 +1,87 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
-echo "🚀 Starting Gyre Local Demo Environment..."
+KIND_CLUSTER="${KIND_CLUSTER:-gyre-demo}"
+HELM_RELEASE="${HELM_RELEASE:-gyre}"
+NAMESPACE="${NAMESPACE:-flux-system}"
+PORT="${PORT:-3000}"
+CHART_VERSION="${CHART_VERSION:-}"
+ENCRYPTION_SECRET_NAME="${ENCRYPTION_SECRET_NAME:-gyre-encryption}"
+METRICS_SECRET_NAME="${METRICS_SECRET_NAME:-gyre-metrics}"
+ADMIN_SECRET_NAME="${ADMIN_SECRET_NAME:-gyre-initial-admin-secret}"
 
-# Check dependencies
-for cmd in kind kubectl flux helm; do
-  if ! command -v $cmd &> /dev/null; then
-    echo "❌ $cmd is required but not installed. Please install it first."
-    exit 1
-  fi
+require_cmd() {
+	local cmd="$1"
+	if ! command -v "${cmd}" >/dev/null 2>&1; then
+		echo "ERROR: required command not found: ${cmd}"
+		exit 1
+	fi
+}
+
+for cmd in kind kubectl flux helm openssl; do
+	require_cmd "${cmd}"
 done
 
-echo "📦 Creating kind cluster 'gyre-demo'..."
-if kind get clusters | grep -q "gyre-demo"; then
-  echo "Cluster 'gyre-demo' already exists."
+echo "Starting Gyre local demo environment..."
+echo "Cluster: ${KIND_CLUSTER}"
+echo "Release: ${HELM_RELEASE}"
+echo "Namespace: ${NAMESPACE}"
+echo ""
+
+if kind get clusters | grep -Fxq "${KIND_CLUSTER}"; then
+	echo "Kind cluster '${KIND_CLUSTER}' already exists."
 else
-  kind create cluster --name gyre-demo
+	echo "Creating kind cluster '${KIND_CLUSTER}'..."
+	kind create cluster --name "${KIND_CLUSTER}"
 fi
 
-echo "🔧 Installing FluxCD..."
+echo "Installing FluxCD (idempotent)..."
 flux install
 
-echo "⛵ Installing Gyre via Helm..."
-GYRE_VERSION=$(curl -s https://api.github.com/repos/entropy0120/gyre/releases/latest | grep '"tag_name"' | sed 's/.*"v\([^"]*\)".*/\1/')
-helm upgrade --install gyre oci://ghcr.io/entropy0120/gyre \
-  --version "$GYRE_VERSION" \
-  --namespace flux-system \
-  --create-namespace \
-  --wait
+echo "Ensuring namespace exists..."
+kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 
-echo "⏳ Waiting for Gyre to be ready..."
-kubectl wait --for=condition=available deployment/gyre -n flux-system --timeout=120s
+GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN:-$(openssl rand -hex 32)}"
 
-echo "🔐 Fetching Admin Password..."
-PASSWORD=$(kubectl get secret gyre-initial-admin-secret -n flux-system -o jsonpath='{.data.password}' | base64 -d)
+echo "Creating/updating required chart secrets..."
+kubectl create secret generic "${ENCRYPTION_SECRET_NAME}" \
+	-n "${NAMESPACE}" \
+	--from-literal=GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY}" \
+	--from-literal=AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY}" \
+	--from-literal=BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY}" \
+	--dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic "${METRICS_SECRET_NAME}" \
+	-n "${NAMESPACE}" \
+	--from-literal=GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN}" \
+	--dry-run=client -o yaml | kubectl apply -f -
+
+echo "Installing Gyre via Helm..."
+helm_args=(
+	upgrade --install "${HELM_RELEASE}" "oci://ghcr.io/entropy0120/charts/gyre"
+	--namespace "${NAMESPACE}"
+	--create-namespace
+	--wait
+	--set "encryption.existingSecret=${ENCRYPTION_SECRET_NAME}"
+	--set "metrics.existingSecret=${METRICS_SECRET_NAME}"
+)
+if [ -n "${CHART_VERSION}" ]; then
+	helm_args+=(--version "${CHART_VERSION}")
+fi
+helm "${helm_args[@]}"
 
 echo ""
-echo "✅ Gyre is installed and ready!"
-echo "-----------------------------------"
-echo "👤 Username: admin"
-echo "🔑 Password: $PASSWORD"
-echo "-----------------------------------"
+echo "Gyre is installed and ready."
+if PASSWORD="$(kubectl get secret "${ADMIN_SECRET_NAME}" -n "${NAMESPACE}" -o jsonpath='{.data.password}' 2>/dev/null | base64 -d)"; then
+	if [ -n "${PASSWORD}" ]; then
+		echo "Username: admin"
+		echo "Password: ${PASSWORD}"
+	fi
+fi
 echo ""
-echo "🌐 To access the UI, run this command in a new terminal:"
-echo "kubectl port-forward -n flux-system svc/gyre 3000:80"
-echo ""
-echo "Then visit: http://localhost:3000"
+echo "Access the UI:"
+echo "  kubectl port-forward -n ${NAMESPACE} svc/${HELM_RELEASE} ${PORT}:80"
+echo "  http://localhost:${PORT}"

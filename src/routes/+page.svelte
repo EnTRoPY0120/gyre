@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import AdminOnboardingChecklist from '$lib/components/dashboard/AdminOnboardingChecklist.svelte';
+	import type { AdminReadinessSummary } from '$lib/types/admin-readiness';
 	import DashboardHeader from '$lib/components/dashboard/DashboardHeader.svelte';
 	import ClusterConnectivityStatus from '$lib/components/dashboard/ClusterConnectivityStatus.svelte';
 	import ResourceGroupTotals from '$lib/components/dashboard/ResourceGroupTotals.svelte';
@@ -25,6 +26,7 @@
 					>
 				>;
 			};
+			adminReadiness?: AdminReadinessSummary;
 		};
 	}
 
@@ -123,7 +125,7 @@
 		<InventoryArchitecture isLoading={false} groupCounts={{}} />
 	{/await}
 
-	<AdminOnboardingChecklist />
+	<AdminOnboardingChecklist adminReadiness={data.adminReadiness} />
 
 	<!-- System Shortcuts -->
 	<SystemShortcuts />

@@ -113,14 +113,16 @@ src/lib/server/
 
 ## Deployment Model
 
-### In-Cluster Only
+### Helm/GitOps First
 
-Gyre is designed to run **inside** the Kubernetes cluster:
+Production deployments are designed to run **inside** the Kubernetes cluster via Helm/GitOps:
 
 - Uses pod ServiceAccount for authentication
 - No kubeconfig file needed
 - Accesses K8s API via in-cluster config
 - Runs in `flux-system` namespace by default
+
+Local out-of-cluster operation is supported for development/testing by mounting a kubeconfig file.
 
 ### Resource Requirements
 
@@ -141,7 +143,7 @@ Gyre is designed to run **inside** the Kubernetes cluster:
 ### Authentication
 
 - **Local**: Username/password with bcrypt hashing
-- **SSO**: OAuth 2.0 / OIDC (GitHub, Google, Generic)
+- **SSO**: OAuth 2.0 / OIDC (GitHub, Google, GitLab, Generic)
 - **Sessions**: Secure HTTP-only cookies
 
 ### Authorization (RBAC)

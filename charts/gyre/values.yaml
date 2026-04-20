@@ -166,7 +166,7 @@ encryption:
   backupKey: ""
   # Existing secret name containing encryption keys (recommended for production)
   # Keys in secret should be named GYRE_ENCRYPTION_KEY, AUTH_ENCRYPTION_KEY, and BACKUP_ENCRYPTION_KEY
-  existingSecret: ""
+  existingSecret: "gyre-encryption"
   # Explicitly opt in to auto-creating a Secret from inline gyreKey/authKey/backupKey values.
   # Disabled by default. Set to true only for development/testing — inline values
   # are visible in `helm get values` and Helm release history.
@@ -216,7 +216,7 @@ auth:
 metrics:
   enabled: true
   # Existing secret containing GYRE_METRICS_TOKEN (required for chart-managed deployments)
-  existingSecret: ""
+  existingSecret: "gyre-metrics"
   serviceMonitor:
     enabled: false
     interval: 30s
