@@ -4,6 +4,7 @@ set -euo pipefail
 IMAGE_NAME="${IMAGE_NAME:-gyre}"
 IMAGE_TAG="${IMAGE_TAG:-dev}"
 KIND_CLUSTER="${KIND_CLUSTER:-gyre-test}"
+KIND_CONTEXT="kind-${KIND_CLUSTER}"
 HELM_RELEASE="${HELM_RELEASE:-gyre}"
 NAMESPACE="${NAMESPACE:-flux-system}"
 PORT="${PORT:-9999}"
@@ -11,6 +12,7 @@ BIND_ADDR="${BIND_ADDR:-127.0.0.1}"
 ENCRYPTION_SECRET_NAME="${ENCRYPTION_SECRET_NAME:-gyre-encryption}"
 METRICS_SECRET_NAME="${METRICS_SECRET_NAME:-gyre-metrics}"
 ADMIN_SECRET_NAME="${ADMIN_SECRET_NAME:-gyre-initial-admin-secret}"
+FORCE_ROTATE_METRICS_TOKEN="${FORCE_ROTATE_METRICS_TOKEN:-false}"
 
 on_error() {
 	local line="$1"
@@ -52,6 +54,17 @@ done
 if ! kind get clusters | grep -Fxq "${KIND_CLUSTER}"; then
 	echo "ERROR: kind cluster '${KIND_CLUSTER}' does not exist."
 	echo "Create it first with: kind create cluster --name ${KIND_CLUSTER}"
+	exit 1
+fi
+
+if ! kubectl config get-contexts "${KIND_CONTEXT}" >/dev/null 2>&1; then
+	echo "ERROR: kube context '${KIND_CONTEXT}' not found."
+	echo "Ensure kind cluster '${KIND_CLUSTER}' is configured in kubeconfig."
+	exit 1
+fi
+kubectl config use-context "${KIND_CONTEXT}" >/dev/null
+if [ "$(kubectl config current-context 2>/dev/null || true)" != "${KIND_CONTEXT}" ]; then
+	echo "ERROR: failed to switch kubectl context to '${KIND_CONTEXT}'."
 	exit 1
 fi
 
@@ -105,7 +118,17 @@ else
 		--dry-run=client -o yaml | kubectl apply -f -
 fi
 
-GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN:-$(openssl rand -hex 32)}"
+if [ "${FORCE_ROTATE_METRICS_TOKEN}" = "true" ]; then
+	echo "FORCE_ROTATE_METRICS_TOKEN=true; generating new metrics token."
+	GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN:-$(openssl rand -hex 32)}"
+elif value="$(read_secret_value "${METRICS_SECRET_NAME}" "GYRE_METRICS_TOKEN")"; then
+	GYRE_METRICS_TOKEN="${value}"
+	echo "Using existing metrics token from '${METRICS_SECRET_NAME}'."
+else
+	GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN:-$(openssl rand -hex 32)}"
+	echo "Metrics token not found in '${METRICS_SECRET_NAME}'; generating a new token."
+fi
+
 kubectl create secret generic "${METRICS_SECRET_NAME}" \
 	-n "${NAMESPACE}" \
 	--from-literal=GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN}" \
@@ -129,7 +152,11 @@ if ADMIN_PASSWORD="$(kubectl get secret "${ADMIN_SECRET_NAME}" -n "${NAMESPACE}"
 	if [ -n "${ADMIN_PASSWORD}" ]; then
 		echo "Admin credentials:"
 		echo "  Username: admin"
-		echo "  Password: ${ADMIN_PASSWORD}"
+		if [ -t 1 ]; then
+			echo "  Password: ${ADMIN_PASSWORD}"
+		else
+			echo "  Password: hidden (shown only for interactive local runs)."
+		fi
 		echo ""
 	fi
 fi

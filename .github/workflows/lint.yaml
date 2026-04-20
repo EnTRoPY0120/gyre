@@ -56,8 +56,5 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install documentation dependencies
-        run: npm ci --prefix documentation
-
       - name: Run verification gate (CI parity)
         run: bun run verify:repo:ci

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 KIND_CLUSTER="${KIND_CLUSTER:-gyre-demo}"
+KIND_CONTEXT="kind-${KIND_CLUSTER}"
 HELM_RELEASE="${HELM_RELEASE:-gyre}"
 NAMESPACE="${NAMESPACE:-flux-system}"
 PORT="${PORT:-3000}"
@@ -49,6 +50,18 @@ else
 	echo "Creating kind cluster '${KIND_CLUSTER}'..."
 	kind create cluster --name "${KIND_CLUSTER}"
 fi
+
+if ! kubectl config get-contexts "${KIND_CONTEXT}" >/dev/null 2>&1; then
+	echo "ERROR: kube context '${KIND_CONTEXT}' not found."
+	echo "Ensure kind created cluster '${KIND_CLUSTER}' and kubeconfig is available."
+	exit 1
+fi
+kubectl config use-context "${KIND_CONTEXT}" >/dev/null
+if [ "$(kubectl config current-context 2>/dev/null || true)" != "${KIND_CONTEXT}" ]; then
+	echo "ERROR: failed to switch kubectl context to '${KIND_CONTEXT}'."
+	exit 1
+fi
+echo "Using kube context '${KIND_CONTEXT}'."
 
 echo "Installing FluxCD (idempotent)..."
 flux install
