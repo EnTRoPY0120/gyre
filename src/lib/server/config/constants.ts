@@ -72,6 +72,13 @@ export const DASHBOARD_CACHE_TTL_MS = parseEnvInt('GYRE_DASHBOARD_CACHE_TTL_MS',
 	min: 1_000
 });
 
+/** TTL for cached admin-readiness dependency reads (ms). env: GYRE_ADMIN_READINESS_CACHE_TTL_MS */
+export const ADMIN_READINESS_CACHE_TTL_MS = parseEnvInt(
+	'GYRE_ADMIN_READINESS_CACHE_TTL_MS',
+	10_000,
+	{ min: 1_000 }
+);
+
 // ---------------------------------------------------------------------------
 // Kubernetes / SSE polling
 // ---------------------------------------------------------------------------
