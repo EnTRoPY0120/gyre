@@ -151,16 +151,23 @@ export async function getAdminReadinessSummary({
 }: AdminReadinessInput): Promise<AdminReadinessSummary> {
 	let localLoginEnabled: boolean | null = null;
 	let enabledProviderCount: number | null = null;
+
 	try {
-		const [authSettings, db] = await Promise.all([getAuthSettings(), getDb()]);
+		const authSettings = await getAuthSettings();
+		localLoginEnabled = authSettings.localLoginEnabled;
+	} catch (error) {
+		logger.error(error, '[Admin Readiness] Failed to read auth settings');
+	}
+
+	try {
+		const db = await getDb();
 		const enabledProviders = await db.query.authProviders.findMany({
 			columns: { id: true },
 			where: eq(authProviders.enabled, true)
 		});
-		localLoginEnabled = authSettings.localLoginEnabled;
 		enabledProviderCount = enabledProviders.length;
 	} catch (error) {
-		logger.error(error, '[Admin Readiness] Failed to evaluate auth access readiness');
+		logger.error(error, '[Admin Readiness] Failed to count enabled auth providers');
 	}
 
 	let backupCount: number | null = null;
