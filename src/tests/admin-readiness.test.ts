@@ -109,4 +109,22 @@ describe('admin readiness summary', () => {
 	test('backup verification is ready when backups exist', () => {
 		expect(statusOf(makeState({ backupCount: 2 }), 'backup-verification')).toBe('ready');
 	});
+
+	test('summary aggregates mixed step statuses correctly', () => {
+		const summary = buildAdminReadinessSummary(
+			makeState({
+				clusterConnected: true,
+				localLoginEnabled: true,
+				enabledProviderCount: 0,
+				backupEncryptionKey: '',
+				nodeEnv: 'production',
+				backupCount: 1
+			})
+		);
+
+		expect(summary.status).toBe('action-required');
+		expect(summary.readyCount).toBe(2);
+		expect(summary.attentionCount).toBe(1);
+		expect(summary.actionRequiredCount).toBe(1);
+	});
 });

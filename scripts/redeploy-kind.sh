@@ -7,6 +7,7 @@ KIND_CLUSTER="${KIND_CLUSTER:-gyre-test}"
 HELM_RELEASE="${HELM_RELEASE:-gyre}"
 NAMESPACE="${NAMESPACE:-flux-system}"
 PORT="${PORT:-9999}"
+BIND_ADDR="${BIND_ADDR:-127.0.0.1}"
 ENCRYPTION_SECRET_NAME="${ENCRYPTION_SECRET_NAME:-gyre-encryption}"
 METRICS_SECRET_NAME="${METRICS_SECRET_NAME:-gyre-metrics}"
 ADMIN_SECRET_NAME="${ADMIN_SECRET_NAME:-gyre-initial-admin-secret}"
@@ -30,6 +31,20 @@ require_cmd() {
 	fi
 }
 
+read_secret_value() {
+	local secret_name="$1"
+	local key="$2"
+	local encoded_value
+
+	if ! encoded_value="$(kubectl get secret "${secret_name}" -n "${NAMESPACE}" -o "jsonpath={.data.${key}}" 2>/dev/null)"; then
+		return 1
+	fi
+	if [ -z "${encoded_value}" ]; then
+		return 1
+	fi
+	printf '%s' "${encoded_value}" | base64 -d 2>/dev/null
+}
+
 for cmd in docker kind kubectl helm openssl; do
 	require_cmd "${cmd}"
 done
@@ -40,11 +55,6 @@ if ! kind get clusters | grep -Fxq "${KIND_CLUSTER}"; then
 	exit 1
 fi
 
-GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
-AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
-BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
-GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN:-$(openssl rand -hex 32)}"
-
 echo "=================================================="
 echo "Gyre Kind Redeploy"
 echo "=================================================="
@@ -53,8 +63,11 @@ echo "Cluster:     ${KIND_CLUSTER}"
 echo "Release:     ${HELM_RELEASE}"
 echo "Namespace:   ${NAMESPACE}"
 echo "Port:        ${PORT}"
+echo "Bind addr:   ${BIND_ADDR}"
 echo "Enc secret:  ${ENCRYPTION_SECRET_NAME}"
 echo "Metrics sec: ${METRICS_SECRET_NAME}"
+echo "Note: If '${ENCRYPTION_SECRET_NAME}' is missing and keys are not pre-exported,"
+echo "      new encryption keys are generated and existing encrypted data cannot be recovered."
 echo ""
 
 echo "Building image..."
@@ -66,14 +79,33 @@ kind load docker-image "${IMAGE_NAME}:${IMAGE_TAG}" --name "${KIND_CLUSTER}"
 echo "Ensuring namespace exists..."
 kubectl get namespace "${NAMESPACE}" >/dev/null 2>&1 || kubectl create namespace "${NAMESPACE}"
 
-echo "Creating/updating required secrets..."
-kubectl create secret generic "${ENCRYPTION_SECRET_NAME}" \
-	-n "${NAMESPACE}" \
-	--from-literal=GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY}" \
-	--from-literal=AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY}" \
-	--from-literal=BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY}" \
-	--dry-run=client -o yaml | kubectl apply -f -
+echo "Ensuring required secrets..."
+if kubectl get secret "${ENCRYPTION_SECRET_NAME}" -n "${NAMESPACE}" >/dev/null 2>&1; then
+	echo "Using existing encryption keys from '${ENCRYPTION_SECRET_NAME}'."
+	for key in GYRE_ENCRYPTION_KEY AUTH_ENCRYPTION_KEY BACKUP_ENCRYPTION_KEY; do
+		if ! value="$(read_secret_value "${ENCRYPTION_SECRET_NAME}" "${key}")"; then
+			echo "ERROR: missing '${key}' in secret '${ENCRYPTION_SECRET_NAME}'."
+			echo "Refusing to generate replacement keys automatically to avoid data loss."
+			exit 1
+		fi
+		printf -v "${key}" '%s' "${value}"
+		export "${key}"
+	done
+else
+	echo "Encryption secret '${ENCRYPTION_SECRET_NAME}' not found; creating it."
+	GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+	AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+	BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+	export GYRE_ENCRYPTION_KEY AUTH_ENCRYPTION_KEY BACKUP_ENCRYPTION_KEY
+	kubectl create secret generic "${ENCRYPTION_SECRET_NAME}" \
+		-n "${NAMESPACE}" \
+		--from-literal=GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY}" \
+		--from-literal=AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY}" \
+		--from-literal=BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY}" \
+		--dry-run=client -o yaml | kubectl apply -f -
+fi
 
+GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN:-$(openssl rand -hex 32)}"
 kubectl create secret generic "${METRICS_SECRET_NAME}" \
 	-n "${NAMESPACE}" \
 	--from-literal=GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN}" \
@@ -103,5 +135,5 @@ if ADMIN_PASSWORD="$(kubectl get secret "${ADMIN_SECRET_NAME}" -n "${NAMESPACE}"
 fi
 
 echo "Access Gyre:"
-echo "  1) kubectl port-forward -n ${NAMESPACE} svc/${HELM_RELEASE} ${PORT}:80 --address 0.0.0.0"
+echo "  1) kubectl port-forward -n ${NAMESPACE} svc/${HELM_RELEASE} ${PORT}:80 --address ${BIND_ADDR}"
 echo "  2) open http://localhost:${PORT}"
