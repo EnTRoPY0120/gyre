@@ -9,7 +9,7 @@ import type {
 	AdminReadinessStep,
 	AdminReadinessSummary
 } from '$lib/types/admin-readiness';
-import { eq } from 'drizzle-orm';
+import { count, eq } from 'drizzle-orm';
 
 interface AdminReadinessInput {
 	clusterConnected: boolean;
@@ -40,7 +40,7 @@ interface TimedCacheEntry<T> {
  *
  * Cache keys:
  * - authSettings: getAuthSettings()
- * - enabledProviderCount: getDb().query.authProviders.findMany(...) length
+ * - enabledProviderCount: getDb().select({ count: count() }).from(authProviders)...
  * - backupCount: listBackups().length
  *
  * Success TTL is ADMIN_READINESS_CACHE_TTL_MS.
@@ -168,11 +168,14 @@ async function getCachedAuthSettings(): Promise<AuthSettingsSnapshot> {
 async function getCachedEnabledProviderCount(): Promise<number> {
 	return getCached('enabledProviderCount', async () => {
 		const db = await getDb();
-		const enabledProviders = await db.query.authProviders.findMany({
-			columns: { id: true },
-			where: eq(authProviders.enabled, true)
-		});
-		return enabledProviders.length;
+		const [row] = await db
+			.select({ count: count() })
+			.from(authProviders)
+			.where(eq(authProviders.enabled, true));
+		const enabledProviderCount = row?.count ?? 0;
+		return typeof enabledProviderCount === 'bigint'
+			? Number(enabledProviderCount)
+			: enabledProviderCount;
 	});
 }
 
