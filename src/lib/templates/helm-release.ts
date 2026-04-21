@@ -203,7 +203,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to reconcile the release',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -243,7 +243,9 @@ spec:
 			section: 'release',
 			placeholder: 'replicaCount: 3\nimage:\n  tag: v1.0.0',
 			description:
-				"Helm values to override (YAML format). Values are passed directly to the chart — ensure they match the chart's values schema."
+				"Helm values to override (YAML format). Values are passed directly to the chart — ensure they match the chart's values schema.",
+			helpText:
+				'Do not include a top-level resources key here when using the structured resource fields below.'
 		},
 		{
 			name: 'valuesFiles',
@@ -338,7 +340,7 @@ spec:
 			description:
 				'Maximum CPU for deployed pods (e.g. 500m, 1). Sets spec.values.resources.limits.cpu.',
 			helpText:
-				'Most Helm charts expose resources.limits.cpu in their values. If your chart uses a different key, edit spec.values directly.'
+				'Most Helm charts expose resources.limits.cpu in their values. Remove resources from the Values field before using this structured field.'
 		},
 		{
 			name: 'resourceLimitsMemory',
@@ -348,7 +350,8 @@ spec:
 			section: 'resourceLimits',
 			placeholder: '128Mi',
 			description:
-				'Maximum memory for deployed pods (e.g. 128Mi, 1Gi). Sets spec.values.resources.limits.memory.'
+				'Maximum memory for deployed pods (e.g. 128Mi, 1Gi). Sets spec.values.resources.limits.memory.',
+			helpText: 'Remove resources from the Values field before using this structured field.'
 		},
 		{
 			name: 'resourceRequestsCpu',
@@ -358,7 +361,8 @@ spec:
 			section: 'resourceLimits',
 			placeholder: '100m',
 			description:
-				'Requested CPU for scheduling (e.g. 100m). Sets spec.values.resources.requests.cpu.'
+				'Requested CPU for scheduling (e.g. 100m). Sets spec.values.resources.requests.cpu.',
+			helpText: 'Remove resources from the Values field before using this structured field.'
 		},
 		{
 			name: 'resourceRequestsMemory',
@@ -368,7 +372,8 @@ spec:
 			section: 'resourceLimits',
 			placeholder: '64Mi',
 			description:
-				'Requested memory for scheduling (e.g. 64Mi). Sets spec.values.resources.requests.memory.'
+				'Requested memory for scheduling (e.g. 64Mi). Sets spec.values.resources.requests.memory.',
+			helpText: 'Remove resources from the Values field before using this structured field.'
 		},
 
 		// Upgrade & Rollback
@@ -420,7 +425,7 @@ spec:
 			placeholder: '5m',
 			description: 'Timeout for Helm operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},

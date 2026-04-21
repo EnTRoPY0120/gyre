@@ -6,10 +6,10 @@ export const OCI_REPOSITORY_TEMPLATE: ResourceTemplate = {
 	description: 'Sources from an OCI registry',
 	kind: 'OCIRepository',
 	group: 'source.toolkit.fluxcd.io',
-	version: 'v1beta2',
+	version: 'v1',
 	category: 'sources',
 	plural: 'ocirepositories',
-	yaml: `apiVersion: source.toolkit.fluxcd.io/v1beta2
+	yaml: `apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
   name: example
@@ -117,6 +117,7 @@ spec:
 			type: 'select',
 			section: 'source',
 			default: 'tag',
+			virtual: true,
 			options: [
 				{ label: 'Tag', value: 'tag' },
 				{ label: 'Semver', value: 'semver' },
@@ -151,7 +152,8 @@ spec:
 				value: 'semver'
 			},
 			validation: {
-				pattern: '^[><=~^*]?[0-9]+\\.[0-9]+(\\.[0-9]+)?',
+				pattern:
+					'^(?:[<>]=?|=|~|\\^|\\*)?\\s*[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$',
 				message: 'Must be a valid semver constraint (e.g., >=1.0.0, ~1.2.0, ^2.0.0)'
 			}
 		},
@@ -200,7 +202,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for changes',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -255,7 +257,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for OCI operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},

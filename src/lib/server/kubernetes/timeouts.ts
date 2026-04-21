@@ -48,6 +48,20 @@ export function _createTimeoutMiddleware(timeoutMs: number): k8s.Middleware {
 				}
 				controller.abort();
 			}, timeoutMs);
+			if (typeof timer === 'object' && 'unref' in timer) {
+				timer.unref();
+			}
+
+			controller.signal.addEventListener(
+				'abort',
+				() => {
+					clearTimeout(timer);
+					if (existingSignal) {
+						existingSignal.removeEventListener('abort', onUpstreamAbort);
+					}
+				},
+				{ once: true }
+			);
 
 			ctx.setSignal(controller.signal);
 			return ctx;

@@ -4,7 +4,7 @@ import { createDefaultAdminIfNeeded, setSetupTokenFile } from '../auth.js';
 import { initDatabase } from '../db/migrate.js';
 import { initializeDefaultPolicies, repairUserPolicyBindings } from '../rbac-defaults.js';
 import { quarantineInvalidNamespacePatterns } from '../rbac.js';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { migrateKubeconfigs } from '../clusters/migration.js';
@@ -14,19 +14,7 @@ import { scheduleCleanup } from '../kubernetes/flux/reconciliation-cleanup.js';
 import { scheduleSessionCleanup } from '../auth/session-cleanup.js';
 import { scheduleAuditLogCleanup } from '../audit.js';
 import { validateStartupSecurity } from './security-validation.js';
-
-const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
-
-/**
- * Get current namespace from in-cluster ServiceAccount
- */
-function getCurrentNamespace(): string {
-	try {
-		return readFileSync(IN_CLUSTER_NAMESPACE_PATH, 'utf-8').trim();
-	} catch {
-		return 'default';
-	}
-}
+import { getCurrentNamespace } from '../kubernetes/namespace.js';
 
 /**
  * Initialize Gyre on startup

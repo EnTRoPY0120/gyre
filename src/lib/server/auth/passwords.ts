@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { randomBytes, randomInt } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { logger } from '../logger.js';
 import { passwordSchema } from '$lib/utils/validation.js';
 import { SALT_ROUNDS } from './constants.js';
@@ -24,51 +24,31 @@ export function normalizeUsername(username: string): string {
 /**
  * Generate a strong random password
 ...
- * Format: 3 random words + 3 random digits + 1 special char
- * Easy to read but secure (e.g., "BlueTiger7Sky#42")
+ * Format: 32 CSPRNG-selected chars with at least one char from each class.
  */
 export function generateStrongPassword(): string {
-	const words = [
-		'Alpha',
-		'Beta',
-		'Gamma',
-		'Delta',
-		'Echo',
-		'Fox',
-		'Hawk',
-		'Lion',
-		'Bear',
-		'Wolf',
-		'Blue',
-		'Red',
-		'Green',
-		'Gold',
-		'Iron',
-		'Steel',
-		'Fire',
-		'Ice',
-		'Storm',
-		'Thunder',
-		'Cloud',
-		'Sky',
-		'Star',
-		'Moon',
-		'Sun',
-		'Wave',
-		'Ocean',
-		'Mountain',
-		'Forest',
-		'River'
-	];
+	const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+	const lower = 'abcdefghijklmnopqrstuvwxyz';
+	const digits = '0123456789';
 	const specials = '!@#$%^&*';
+	const alphabet = `${upper}${lower}${digits}${specials}`;
 
-	const word1 = words[randomInt(0, words.length)];
-	const word2 = words[randomInt(0, words.length)];
-	const word3 = words[randomInt(0, words.length)];
-	const digits = randomInt(10, 100).toString();
-	const special = specials[randomInt(0, specials.length)];
+	const pick = (chars: string) => chars[randomBytes(1)[0] % chars.length];
+	const passwordChars = [
+		pick(upper),
+		pick(lower),
+		pick(digits),
+		pick(specials),
+		...Array.from({ length: 28 }, () => pick(alphabet))
+	];
 
-	return `${word1}${word2}${digits}${word3}${special}`;
+	const random = randomBytes(passwordChars.length);
+	for (let i = passwordChars.length - 1; i > 0; i--) {
+		const j = random[i] % (i + 1);
+		[passwordChars[i], passwordChars[j]] = [passwordChars[j], passwordChars[i]];
+	}
+
+	return passwordChars.join('');
 }
 
 /**

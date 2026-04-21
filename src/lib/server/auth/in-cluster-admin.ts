@@ -1,16 +1,15 @@
 import { logger } from '../logger.js';
 import * as k8s from '@kubernetes/client-node';
-import { readFileSync } from 'node:fs';
 import type { User } from '../db/index.js';
 import {
 	generateStrongPassword,
 	hashPassword,
 	normalizeUsername,
+	verifyPassword,
 	warnIfWeakAdminPassword
 } from './passwords.js';
-import bcrypt from 'bcryptjs';
+import { getCurrentNamespace } from '../kubernetes/namespace.js';
 
-const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/namespace';
 const ADMIN_SECRET_NAME = 'gyre-initial-admin-secret';
 
 let inClusterAdminPasswordHash: string | null = null;
@@ -22,15 +21,6 @@ export function isInClusterMode(): boolean {
 
 export function isInClusterAdmin(user: User): boolean {
 	return normalizeUsername(user.username) === 'admin' && isInClusterMode();
-}
-
-// Get current namespace from in-cluster ServiceAccount
-function getCurrentNamespace(): string {
-	try {
-		return readFileSync(IN_CLUSTER_NAMESPACE_PATH, 'utf-8').trim();
-	} catch {
-		return 'default';
-	}
 }
 
 // Create Kubernetes Core API client (works both in-cluster and locally)
@@ -111,8 +101,8 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 			}
 		} catch (error: unknown) {
 			// Secret doesn't exist, will create it below
-			const k8sError = error as { response?: { statusCode: number } };
-			if (k8sError.response?.statusCode !== 404) {
+			const k8sError = error as Error & { code?: number };
+			if (k8sError.code !== 404) {
 				throw error;
 			}
 		}
@@ -170,7 +160,7 @@ export async function validateInClusterAdmin(password: string): Promise<boolean>
 		return false;
 	}
 
-	const isValid = await bcrypt.compare(password, inClusterAdminPasswordHash);
+	const isValid = await verifyPassword(password, inClusterAdminPasswordHash);
 
 	if (isValid && !inClusterFirstLoginDone) {
 		// Mark as consumed

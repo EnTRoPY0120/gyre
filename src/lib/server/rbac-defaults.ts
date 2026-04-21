@@ -8,6 +8,8 @@ import { getDbSync } from './db/index.js';
 import { rbacPolicies, rbacBindings, type User } from './db/schema.js';
 import { eq, and } from 'drizzle-orm';
 
+type Tx = Parameters<Parameters<ReturnType<typeof getDbSync>['transaction']>[0]>[0];
+
 /**
  * Default policy IDs (deterministic UUIDs for idempotency)
  */
@@ -80,12 +82,18 @@ export async function initializeDefaultPolicies(): Promise<void> {
  * Called when a new user is created
  */
 export async function bindUserToDefaultPolicies(user: User): Promise<void> {
+	const db = getDbSync();
+	db.transaction((tx) => {
+		bindUserToDefaultPoliciesInTx(tx, user);
+	});
+}
+
+export function bindUserToDefaultPoliciesInTx(tx: Tx, user: User): void {
 	// Admin role doesn't need policy bindings (has full access by role)
 	if (user.role === 'admin') {
 		return;
 	}
 
-	const db = getDbSync();
 	const policiesToBind: string[] = [];
 
 	// Determine which policies to bind based on role
@@ -98,15 +106,14 @@ export async function bindUserToDefaultPolicies(user: User): Promise<void> {
 
 	// Bind policies to user (skip if already bound)
 	for (const policyId of policiesToBind) {
-		const existing = await db.query.rbacBindings.findFirst({
-			where: and(eq(rbacBindings.userId, user.id), eq(rbacBindings.policyId, policyId))
-		});
+		const existing = tx
+			.select({ userId: rbacBindings.userId })
+			.from(rbacBindings)
+			.where(and(eq(rbacBindings.userId, user.id), eq(rbacBindings.policyId, policyId)))
+			.get();
 
 		if (!existing) {
-			await db.insert(rbacBindings).values({
-				userId: user.id,
-				policyId
-			});
+			tx.insert(rbacBindings).values({ userId: user.id, policyId }).run();
 		}
 	}
 }
@@ -147,21 +154,25 @@ export async function repairUserPolicyBindings(): Promise<number> {
  * Called when a user's role is changed
  */
 export async function syncUserPolicyBindings(user: User): Promise<void> {
+	const db = getDbSync();
+	db.transaction((tx) => {
+		syncUserPolicyBindingsInTx(tx, user);
+	});
+
+	logger.info(`   ✓ Synced RBAC bindings for role: ${user.role}`);
+}
+
+export function syncUserPolicyBindingsInTx(tx: Tx, user: User): void {
 	// Admin doesn't need policy bindings
 	if (user.role === 'admin') {
 		// Remove all bindings for admin users
-		const db = getDbSync();
-		await db.delete(rbacBindings).where(eq(rbacBindings.userId, user.id));
+		tx.delete(rbacBindings).where(eq(rbacBindings.userId, user.id)).run();
 		return;
 	}
 
-	const db = getDbSync();
-
 	// Remove all existing bindings first
-	await db.delete(rbacBindings).where(eq(rbacBindings.userId, user.id));
+	tx.delete(rbacBindings).where(eq(rbacBindings.userId, user.id)).run();
 
 	// Add correct bindings for current role
-	await bindUserToDefaultPolicies(user);
-
-	logger.info(`   ✓ Synced RBAC bindings for role: ${user.role}`);
+	bindUserToDefaultPoliciesInTx(tx, user);
 }

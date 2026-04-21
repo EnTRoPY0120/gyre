@@ -1,5 +1,7 @@
 import * as k8s from '@kubernetes/client-node';
 import { sanitizeK8sErrorMessage } from '../kubernetes/errors.js';
+import { makeApiClientWithTimeout } from '../kubernetes/client-factory.js';
+import { OPERATION_TIMEOUTS } from '../kubernetes/timeouts.js';
 import { getClusterById, getClusterKubeconfig, updateCluster } from './repository.js';
 
 /**
@@ -59,7 +61,7 @@ function checkKubeconfigParse(kubeconfig: string): {
 async function checkApiReachability(kc: k8s.KubeConfig): Promise<HealthCheckResult> {
 	const start = Date.now();
 	try {
-		const coreApi = kc.makeApiClient(k8s.CoreV1Api);
+		const coreApi = makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.get);
 		await coreApi.getAPIResources();
 		return {
 			name: 'API Server Reachability',
@@ -108,7 +110,7 @@ async function checkAuthAndVersion(
 	const checks: HealthCheckResult[] = [];
 
 	try {
-		const coreApi = kc.makeApiClient(k8s.CoreV1Api);
+		const coreApi = makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.list);
 		await coreApi.listNamespace({ limit: 1 });
 
 		const currentUser = kc.getCurrentUser();
@@ -132,7 +134,7 @@ async function checkAuthAndVersion(
 		// Version check is optional
 		const versionStart = Date.now();
 		try {
-			const versionApi = kc.makeApiClient(k8s.VersionApi);
+			const versionApi = makeApiClientWithTimeout(kc, k8s.VersionApi, OPERATION_TIMEOUTS.get);
 			const versionResponse = await versionApi.getCode();
 			const version = versionResponse.gitVersion;
 			checks.push({

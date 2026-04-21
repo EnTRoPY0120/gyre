@@ -164,10 +164,10 @@ spec:
 			type: 'duration',
 			section: 'provider',
 			default: '10m',
-			placeholder: '30s',
+			placeholder: '10m',
 			description: 'Timeout for sending notifications',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},

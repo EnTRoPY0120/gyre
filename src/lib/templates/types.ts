@@ -53,7 +53,6 @@ export interface TemplateSection {
 }
 
 export const CEL_VALIDATION = {
-	pattern: '^[a-zA-Z0-9_.()\\[\\]"\' !&|=<>+\\-*/%:, ]{1,500}$',
-	message:
-		'CEL expression must use only alphanumeric characters, operators, and field accessors. Max 500 characters.'
+	pattern: '^[\\s\\S]{1,500}$',
+	message: 'CEL expression must be 500 characters or fewer.'
 };

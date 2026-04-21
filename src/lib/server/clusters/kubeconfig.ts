@@ -16,8 +16,9 @@ export function parseKubeconfig(kubeconfig: string): {
 		const currentContext = kc.getCurrentContext();
 
 		return { contexts, currentContext };
-	} catch {
-		logger.error('Failed to parse kubeconfig: parse error (sanitized)');
+	} catch (err) {
+		const message = err instanceof Error ? `${err.name}: ${err.message}` : 'unknown error';
+		logger.error(`Failed to parse kubeconfig: ${message}`);
 		return { contexts: [], currentContext: null };
 	}
 }

@@ -28,7 +28,6 @@
 	async function selectCluster(clusterId: string) {
 		if (clusterId === currentCluster || selectingClusterId) return;
 		selectingClusterId = clusterId;
-		eventsStore.disconnect();
 		try {
 			await clusterStore.setCluster(clusterId);
 		} finally {
