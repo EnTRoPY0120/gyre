@@ -23,10 +23,17 @@
 	const selectedCluster = $derived(
 		availableClusters.find((cluster) => cluster.id === currentCluster) ?? null
 	);
+	let selectingClusterId = $state<string | null>(null);
 
-	function selectCluster(clusterId: string) {
-		if (clusterId === currentCluster) return;
-		clusterStore.setCluster(clusterId);
+	async function selectCluster(clusterId: string) {
+		if (clusterId === currentCluster || selectingClusterId) return;
+		selectingClusterId = clusterId;
+		eventsStore.disconnect();
+		try {
+			await clusterStore.setCluster(clusterId);
+		} finally {
+			selectingClusterId = null;
+		}
 	}
 </script>
 
@@ -93,6 +100,7 @@
 					onSelect={() => selectCluster(cluster.id)}
 					class={cn(
 						'mb-0.5 cursor-pointer gap-3 rounded-xl px-3 py-3 transition-colors last:mb-0',
+						selectingClusterId ? 'pointer-events-none opacity-60' : '',
 						cluster.id === currentCluster
 							? 'bg-primary/5 hover:bg-primary/10'
 							: 'hover:bg-accent/50'
@@ -133,7 +141,9 @@
 							{eventsStore.clusterUnreadCounts[cluster.id]}
 						</span>
 					{/if}
-					{#if cluster.id === currentCluster}
+					{#if selectingClusterId === cluster.id}
+						<Icon name="loader-2" size={12} class="animate-spin text-muted-foreground" />
+					{:else if cluster.id === currentCluster}
 						<Icon name="check" size={12} class="text-green-500" />
 					{/if}
 				</DropdownMenu.Item>

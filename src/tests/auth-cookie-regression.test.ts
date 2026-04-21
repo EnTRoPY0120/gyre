@@ -42,7 +42,7 @@ describe('auth source regressions', () => {
 	});
 
 	test('does not seed in-cluster admin into an impossible password-change flow', () => {
-		const source = readRepoFile('lib/server/auth.ts');
+		const source = readRepoFile('lib/server/auth/bootstrap-admin.ts');
 
 		expect(source).toMatch(
 			/if \(isInClusterMode\(\)\) \{[\s\S]*?requiresPasswordChange: false[\s\S]*?return \{ password, mode: 'in-cluster' \};/s

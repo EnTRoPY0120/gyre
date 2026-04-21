@@ -68,15 +68,17 @@
 
 	// Connect to SSE when cluster is connected
 	let prevConnected = false;
+	let prevClusterId = IN_CLUSTER_ID;
 	$effect(() => {
 		const isConnected = data.health.connected;
-		if (isConnected !== prevConnected) {
+		const clusterId = data.health.currentClusterId || IN_CLUSTER_ID;
+		if (isConnected !== prevConnected || clusterId !== prevClusterId) {
+			eventsStore.disconnect();
 			if (isConnected) {
 				eventsStore.connect();
-			} else {
-				eventsStore.disconnect();
 			}
 			prevConnected = isConnected;
+			prevClusterId = clusterId;
 		}
 	});
 

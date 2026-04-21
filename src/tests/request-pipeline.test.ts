@@ -127,11 +127,12 @@ beforeEach(() => {
 		validateCsrfToken: () => csrfValid
 	}));
 
-	mock.module('$lib/server/clusters.js', () => ({
+	mock.module('$lib/server/clusters/repository.js', () => ({
 		getClusterById: async (id: string) => {
 			getClusterByIdCalls.push(id);
 			return clusterRecord;
-		}
+		},
+		getSelectableClusters: async () => []
 	}));
 
 	mock.module('$lib/server/kubernetes/errors.js', () =>
