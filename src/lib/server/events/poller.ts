@@ -202,38 +202,28 @@ export async function poll(context: ClusterContext) {
 										timestamp: new Date().toISOString()
 									});
 								}
-								context.lastNotificationStates.set(key, notificationState);
+								if (!isTransientState) {
+									context.lastNotificationStates.set(key, notificationState);
+								}
 							}
 
 							context.lastStates.set(key, currentState);
 						}
 					}
 
-					for (const key of context.lastStates.keys()) {
+					for (const key of Array.from(context.lastStates.keys())) {
 						if (key.startsWith(`${resourceType}/`) && !currentMessageKeys.has(key)) {
-							const [type, namespace, name] = key.split('/');
+							broadcastDeletedResource(context, key);
+						}
+					}
 
-							// Clear status gauge
-							fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
-
-							resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
-							broadcast(context, {
-								type: 'DELETED',
-								clusterId: context.clusterId,
-								resourceType: type,
-								resource: {
-									metadata: {
-										name: name,
-										namespace: namespace,
-										uid: 'unknown'
-									}
-								},
-								timestamp: new Date().toISOString()
-							});
-
-							context.lastStates.delete(key);
-							context.lastNotificationStates.delete(key);
-							context.resourceFirstSeen.delete(key);
+					for (const key of Array.from(context.resourceFirstSeen.keys())) {
+						if (
+							key.startsWith(`${resourceType}/`) &&
+							!currentMessageKeys.has(key) &&
+							!context.lastStates.has(key)
+						) {
+							broadcastDeletedResource(context, key);
 						}
 					}
 				}
@@ -258,6 +248,32 @@ export async function poll(context: ClusterContext) {
 	if (context.isActive) {
 		context.pollTimeout = setTimeout(() => poll(context), POLL_INTERVAL_MS);
 	}
+}
+
+function broadcastDeletedResource(context: ClusterContext, key: string) {
+	const [type, namespace, name] = key.split('/');
+
+	// Clear status gauge
+	fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
+
+	resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
+	broadcast(context, {
+		type: 'DELETED',
+		clusterId: context.clusterId,
+		resourceType: type,
+		resource: {
+			metadata: {
+				name: name,
+				namespace: namespace,
+				uid: 'unknown'
+			}
+		},
+		timestamp: new Date().toISOString()
+	});
+
+	context.lastStates.delete(key);
+	context.lastNotificationStates.delete(key);
+	context.resourceFirstSeen.delete(key);
 }
 
 function getResourceRevision(resource: FluxResource): string {

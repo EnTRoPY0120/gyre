@@ -4,7 +4,8 @@ export const IN_CLUSTER_NAMESPACE_PATH = '/var/run/secrets/kubernetes.io/service
 
 export function getCurrentNamespace(): string {
 	try {
-		return readFileSync(IN_CLUSTER_NAMESPACE_PATH, 'utf-8').trim();
+		const namespace = readFileSync(IN_CLUSTER_NAMESPACE_PATH, 'utf-8').trim();
+		return namespace || 'default';
 	} catch {
 		return 'default';
 	}

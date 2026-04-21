@@ -69,7 +69,20 @@ export async function initializeGyre(): Promise<void> {
 	// Create default admin if needed
 	logger.info('\n👤 Setting up authentication...');
 	try {
-		const { password: setupToken, mode } = await createDefaultAdminIfNeeded();
+		let tokenFile: string | null = null;
+		const { password: setupToken, mode } = await createDefaultAdminIfNeeded({
+			persistSetupToken: isInCluster
+				? undefined
+				: (token) => {
+						tokenFile = join(tmpdir(), `gyre-setup-token-${Date.now()}.txt`);
+						try {
+							writeFileSync(tokenFile, token, { mode: 0o600, flag: 'wx' });
+						} catch (writeErr) {
+							logger.error(writeErr, '   ✗ Failed to write setup token file');
+							throw writeErr;
+						}
+					}
+		});
 
 		if (setupToken) {
 			logger.info('   ⚠️  FIRST TIME SETUP - INITIAL ADMIN PASSWORD:');
@@ -88,14 +101,8 @@ export async function initializeGyre(): Promise<void> {
 				logger.info('\n   ⚠️  Please change this password after first login!');
 				logger.info('   After first login, the secret will be marked as consumed.');
 			} else {
-				// Local development mode: write token to a restricted temp file to avoid
-				// plaintext credentials appearing in container or terminal logs.
-				const tokenFile = join(tmpdir(), `gyre-setup-token-${Date.now()}.txt`);
-				try {
-					writeFileSync(tokenFile, setupToken, { mode: 0o600, flag: 'wx' });
-				} catch (writeErr) {
-					logger.error(writeErr, '   ✗ Failed to write setup token file');
-					throw writeErr;
+				if (!tokenFile) {
+					throw new Error('Setup token file was not created before admin persistence');
 				}
 				// Register the file path so auth.ts can remove it after first login.
 				setSetupTokenFile(tokenFile);

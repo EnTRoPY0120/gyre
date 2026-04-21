@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomInt } from 'node:crypto';
 import { logger } from '../logger.js';
 import { passwordSchema } from '$lib/utils/validation.js';
 import { SALT_ROUNDS } from './constants.js';
@@ -33,7 +33,7 @@ export function generateStrongPassword(): string {
 	const specials = '!@#$%^&*';
 	const alphabet = `${upper}${lower}${digits}${specials}`;
 
-	const pick = (chars: string) => chars[randomBytes(1)[0] % chars.length];
+	const pick = (chars: string) => chars[randomInt(0, chars.length)];
 	const passwordChars = [
 		pick(upper),
 		pick(lower),
@@ -42,9 +42,8 @@ export function generateStrongPassword(): string {
 		...Array.from({ length: 28 }, () => pick(alphabet))
 	];
 
-	const random = randomBytes(passwordChars.length);
 	for (let i = passwordChars.length - 1; i > 0; i--) {
-		const j = random[i] % (i + 1);
+		const j = randomInt(0, i + 1);
 		[passwordChars[i], passwordChars[j]] = [passwordChars[j], passwordChars[i]];
 	}
 
