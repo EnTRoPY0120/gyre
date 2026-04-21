@@ -6,10 +6,10 @@ export const IMAGE_POLICY_TEMPLATE: ResourceTemplate = {
 	description: 'Defines policies for selecting image versions',
 	kind: 'ImagePolicy',
 	group: 'image.toolkit.fluxcd.io',
-	version: 'v1beta2',
+	version: 'v1',
 	category: 'image-automation',
 	plural: 'imagepolicies',
-	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
+	yaml: `apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
   name: example
@@ -82,6 +82,7 @@ spec:
 			type: 'select',
 			section: 'policy',
 			default: 'semver',
+			virtual: true,
 			options: [
 				{ label: 'SemVer', value: 'semver' },
 				{ label: 'Numerical', value: 'numerical' },
@@ -96,6 +97,32 @@ spec:
 			section: 'policy',
 			default: '>=1.0.0',
 			showIf: { field: 'policyType', value: 'semver' }
+		},
+		{
+			name: 'numericalOrder',
+			label: 'Order',
+			path: 'spec.policy.numerical.order',
+			type: 'select',
+			section: 'policy',
+			default: 'asc',
+			options: [
+				{ label: 'Ascending', value: 'asc' },
+				{ label: 'Descending', value: 'desc' }
+			],
+			showIf: { field: 'policyType', value: 'numerical' }
+		},
+		{
+			name: 'alphabeticalOrder',
+			label: 'Order',
+			path: 'spec.policy.alphabetical.order',
+			type: 'select',
+			section: 'policy',
+			default: 'asc',
+			options: [
+				{ label: 'Ascending', value: 'asc' },
+				{ label: 'Descending', value: 'desc' }
+			],
+			showIf: { field: 'policyType', value: 'alphabetical' }
 		}
 	]
 };

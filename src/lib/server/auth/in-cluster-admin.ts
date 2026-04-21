@@ -51,23 +51,19 @@ async function isSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promise<
  * Mark the initial admin secret as consumed after first login
  */
 async function markSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promise<void> {
-	try {
-		// Patch the secret to add the consumed label using JSON Patch format
-		const patch = [
-			{
-				op: 'add',
-				path: '/metadata/labels/gyre.io~1initial-password-consumed',
-				value: 'true'
-			}
-		];
-		await api.patchNamespacedSecret({
-			name: ADMIN_SECRET_NAME,
-			namespace,
-			body: patch
-		});
-	} catch (error) {
-		logger.error(error, 'Failed to mark secret as consumed:');
-	}
+	// Patch the secret to add the consumed label using JSON Patch format
+	const patch = [
+		{
+			op: 'add',
+			path: '/metadata/labels/gyre.io~1initial-password-consumed',
+			value: 'true'
+		}
+	];
+	await api.patchNamespacedSecret({
+		name: ADMIN_SECRET_NAME,
+		namespace,
+		body: patch
+	});
 }
 
 /**
@@ -141,7 +137,7 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 		return password;
 	} catch (error) {
 		logger.error(error, 'Failed to setup in-cluster admin:');
-		return null;
+		throw error;
 	}
 }
 

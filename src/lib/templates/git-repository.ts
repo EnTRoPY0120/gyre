@@ -1,4 +1,4 @@
-import type { ResourceTemplate } from './types.js';
+import { DURATION_VALIDATION, type ResourceTemplate } from './types.js';
 
 export const GIT_REPOSITORY_TEMPLATE: ResourceTemplate = {
 	id: 'git-repository-base',
@@ -210,11 +210,7 @@ spec:
 			helpText:
 				'The interval at which to check the upstream repository for changes. Flux supports: 1h30m, 5m, 30s, etc.',
 			docsUrl: 'https://fluxcd.io/flux/components/source/gitrepositories/#interval',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message:
-					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
-			}
+			validation: DURATION_VALIDATION
 		},
 
 		// Authentication
@@ -254,6 +250,7 @@ spec:
 			type: 'select',
 			section: 'verification',
 			default: '',
+			virtual: true,
 			options: [
 				{ label: 'Disabled', value: '' },
 				{ label: 'Head (branch)', value: 'HEAD' },
@@ -296,10 +293,7 @@ spec:
 			default: '10m',
 			placeholder: '60s',
 			description: 'Timeout for Git operations',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
+			validation: DURATION_VALIDATION
 		},
 		{
 			name: 'recurseSubmodules',

@@ -1,4 +1,4 @@
-import { CEL_VALIDATION, type ResourceTemplate } from './types.js';
+import { CEL_VALIDATION, DURATION_VALIDATION, type ResourceTemplate } from './types.js';
 
 export const KUSTOMIZATION_TEMPLATE: ResourceTemplate = {
 	id: 'kustomization-base',
@@ -16,7 +16,7 @@ metadata:
   namespace: flux-system
 spec:
   interval: 5m
-  path: ./deploy
+  path: ./
   prune: false
   sourceRef:
     kind: GitRepository
@@ -146,7 +146,7 @@ spec:
 			type: 'string',
 			section: 'source',
 			default: './',
-			placeholder: './deploy',
+			placeholder: './',
 			description: 'Path to the directory containing Kustomize files'
 		},
 
@@ -161,11 +161,7 @@ spec:
 			default: '5m',
 			placeholder: '5m',
 			description: 'How often to reconcile the Kustomization',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message:
-					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
-			}
+			validation: DURATION_VALIDATION
 		},
 		{
 			name: 'prune',
@@ -305,12 +301,9 @@ spec:
 			type: 'duration',
 			section: 'health',
 			default: '10m',
-			placeholder: '5m',
+			placeholder: '10m',
 			description: 'Timeout for health checks and operations',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
+			validation: DURATION_VALIDATION
 		},
 
 		// Advanced Options
@@ -349,10 +342,72 @@ spec:
 			section: 'advanced',
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
-			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
-				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
-			}
+			validation: DURATION_VALIDATION
+		},
+		{
+			name: 'images',
+			label: 'Images',
+			path: 'spec.images',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'name',
+					label: 'Original Name',
+					path: 'name',
+					type: 'string',
+					required: true,
+					placeholder: 'ghcr.io/stefanprodan/podinfo'
+				},
+				{
+					name: 'newName',
+					label: 'New Name',
+					path: 'newName',
+					type: 'string',
+					placeholder: 'registry.example.com/podinfo'
+				},
+				{
+					name: 'newTag',
+					label: 'New Tag',
+					path: 'newTag',
+					type: 'string',
+					placeholder: 'v1.0.0'
+				},
+				{
+					name: 'digest',
+					label: 'Digest',
+					path: 'digest',
+					type: 'string',
+					placeholder: 'sha256:...'
+				}
+			],
+			description: 'Override container images'
+		},
+		{
+			name: 'patches',
+			label: 'Strategic Merge Patches',
+			path: 'spec.patches',
+			type: 'array',
+			section: 'advanced',
+			arrayItemType: 'object',
+			arrayItemFields: [
+				{
+					name: 'target',
+					label: 'Target',
+					path: 'target',
+					type: 'textarea',
+					placeholder: 'group: apps\nversion: v1\nkind: Deployment\nname: my-app'
+				},
+				{
+					name: 'patch',
+					label: 'Patch',
+					path: 'patch',
+					type: 'textarea',
+					placeholder: 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: my-app'
+				}
+			],
+			description: 'Strategic merge patches to apply'
 		},
 		{
 			name: 'components',
@@ -453,71 +508,6 @@ spec:
 				field: 'decryptionProvider',
 				value: 'sops'
 			}
-		},
-		{
-			name: 'images',
-			label: 'Images',
-			path: 'spec.images',
-			type: 'array',
-			section: 'advanced',
-			arrayItemType: 'object',
-			arrayItemFields: [
-				{
-					name: 'name',
-					label: 'Original Name',
-					path: 'name',
-					type: 'string',
-					required: true,
-					placeholder: 'ghcr.io/stefanprodan/podinfo'
-				},
-				{
-					name: 'newName',
-					label: 'New Name',
-					path: 'newName',
-					type: 'string',
-					placeholder: 'registry.example.com/podinfo'
-				},
-				{
-					name: 'newTag',
-					label: 'New Tag',
-					path: 'newTag',
-					type: 'string',
-					placeholder: 'v1.0.0'
-				},
-				{
-					name: 'digest',
-					label: 'Digest',
-					path: 'digest',
-					type: 'string',
-					placeholder: 'sha256:...'
-				}
-			],
-			description: 'Override container images'
-		},
-		{
-			name: 'patches',
-			label: 'Strategic Merge Patches',
-			path: 'spec.patches',
-			type: 'array',
-			section: 'advanced',
-			arrayItemType: 'object',
-			arrayItemFields: [
-				{
-					name: 'target',
-					label: 'Target',
-					path: 'target',
-					type: 'textarea',
-					placeholder: 'group: apps\nversion: v1\nkind: Deployment\nname: my-app'
-				},
-				{
-					name: 'patch',
-					label: 'Patch',
-					path: 'patch',
-					type: 'textarea',
-					placeholder: 'apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: my-app'
-				}
-			],
-			description: 'Strategic merge patches to apply'
 		}
 	]
 };

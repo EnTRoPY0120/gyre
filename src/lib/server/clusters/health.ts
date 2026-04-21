@@ -235,7 +235,17 @@ export async function testClusterConnection(id: string): Promise<ClusterHealthCh
 			// checkAuthAndVersion produce the proper diagnostic instead of a network failure
 			const authResult = await checkAuthAndVersion(kc);
 			checks.push(...authResult.checks);
-			return await fail(authResult.error);
+			if (authResult.error) {
+				return await fail(authResult.error);
+			}
+			if (cluster) await updateCluster(id, { lastConnectedAt: new Date(), lastError: null });
+			return {
+				connected: true,
+				clusterName,
+				kubernetesVersion: authResult.version,
+				checks,
+				timestamp: new Date()
+			};
 		}
 		checks.push(reachabilityCheck);
 		if (!reachabilityCheck.passed) {

@@ -24,9 +24,12 @@ export async function createCluster(params: {
 	const db = await getDb();
 
 	const id = crypto.randomUUID();
-	const encryptedKubeconfig = encryptKubeconfig(params.kubeconfig);
 	const { contexts, currentContext } = parseKubeconfig(params.kubeconfig);
 	const uniqueContexts = [...new Set(contexts)];
+	if (uniqueContexts.length === 0) {
+		throw new Error('Invalid kubeconfig: no contexts found');
+	}
+	const encryptedKubeconfig = encryptKubeconfig(params.kubeconfig);
 
 	// Create cluster
 	const newCluster: NewCluster = {
@@ -85,7 +88,9 @@ export async function getAllClusters(): Promise<(typeof clusters.$inferSelect)[]
 export async function getSelectableClusters(
 	currentContext?: string | null
 ): Promise<ClusterOption[]> {
-	const uploadedClusters = (await getAllClusters()).filter((cluster) => cluster.isActive);
+	const uploadedClusters = (await getAllClusters()).filter(
+		(cluster) => cluster.isActive && cluster.isLocal
+	);
 
 	return [
 		{

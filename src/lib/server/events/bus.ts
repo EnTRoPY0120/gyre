@@ -1,5 +1,5 @@
 import { logger } from '../logger.js';
-import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
 import { HEARTBEAT_INTERVAL_MS } from '../config/constants.js';
 import { activeWorkers, isEventBusShuttingDown, SERVER_SESSION_ID } from './state.js';
 import { activeWorkersGauge, fluxResourceStatusGauge, sseSubscribersGauge } from '../metrics.js';
@@ -12,17 +12,22 @@ import { normalizeError, type ClusterContext, type SSEEvent, type Subscriber } f
  * @param subscriber - Callback for events
  */
 export function subscribe(subscriber: Subscriber, clusterId: string = IN_CLUSTER_ID): () => void {
+	const canonicalClusterId = normalizeClusterId(clusterId);
+
 	// Prevent new subscriptions during shutdown
 	if (isEventBusShuttingDown()) {
-		logger.warn({ clusterId }, '[EventBus] Rejecting new subscription: shutting down');
+		logger.warn(
+			{ clusterId: canonicalClusterId },
+			'[EventBus] Rejecting new subscription: shutting down'
+		);
 		return () => {};
 	}
 
-	let context = activeWorkers.get(clusterId);
+	let context = activeWorkers.get(canonicalClusterId);
 
 	if (!context) {
 		context = {
-			clusterId,
+			clusterId: canonicalClusterId,
 			subscribers: new Set(),
 			isActive: false,
 			pollTimeout: null,
@@ -32,29 +37,29 @@ export function subscribe(subscriber: Subscriber, clusterId: string = IN_CLUSTER
 			lastNotificationStates: new Map(),
 			resourceFirstSeen: new Map()
 		};
-		activeWorkers.set(clusterId, context);
+		activeWorkers.set(canonicalClusterId, context);
 	}
 
 	context.subscribers.add(subscriber);
-	sseSubscribersGauge.labels(clusterId).set(context.subscribers.size);
+	sseSubscribersGauge.labels(canonicalClusterId).set(context.subscribers.size);
 
 	// Initial connection message
 	try {
 		subscriber({
 			type: 'CONNECTED',
-			clusterId,
+			clusterId: canonicalClusterId,
 			serverSessionId: SERVER_SESSION_ID,
-			message: `Connected to event stream for cluster: ${clusterId}`,
+			message: `Connected to event stream for cluster: ${canonicalClusterId}`,
 			timestamp: new Date().toISOString()
 		});
 	} catch (err) {
 		context.subscribers.delete(subscriber);
-		sseSubscribersGauge.labels(clusterId).set(context.subscribers.size);
+		sseSubscribersGauge.labels(canonicalClusterId).set(context.subscribers.size);
 		if (context.subscribers.size === 0 && !context.isActive) {
-			activeWorkers.delete(clusterId);
+			activeWorkers.delete(canonicalClusterId);
 		}
 		logger.error(
-			{ clusterId, err: normalizeError(err) },
+			{ clusterId: canonicalClusterId, err: normalizeError(err) },
 			'[EventBus] Error sending initial CONNECTED event'
 		);
 		return () => {};
@@ -65,15 +70,15 @@ export function subscribe(subscriber: Subscriber, clusterId: string = IN_CLUSTER
 	}
 
 	return () => {
-		const ctx = activeWorkers.get(clusterId);
+		const ctx = activeWorkers.get(canonicalClusterId);
 		if (!ctx) return;
 
 		ctx.subscribers.delete(subscriber);
-		sseSubscribersGauge.labels(clusterId).set(ctx.subscribers.size);
+		sseSubscribersGauge.labels(canonicalClusterId).set(ctx.subscribers.size);
 
 		if (ctx.subscribers.size === 0) {
 			stopWorker(ctx, 'no active subscribers');
-			activeWorkers.delete(clusterId);
+			activeWorkers.delete(canonicalClusterId);
 		}
 	};
 }

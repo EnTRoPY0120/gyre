@@ -102,6 +102,10 @@
 				if (field.name === 'namespace' && defaultNamespace) {
 					values[field.name] = defaultNamespace;
 				}
+
+				if (field.virtual && values[field.name] === undefined && field.default !== undefined) {
+					values[field.name] = field.default;
+				}
 			});
 			formValues = values;
 			hasInitializedFormValues = true;
@@ -167,7 +171,12 @@
 			const values: Record<string, unknown> = { ...formValues };
 
 			template.fields.forEach((field) => {
-				if (field.virtual) return;
+				if (field.virtual) {
+					if (values[field.name] === undefined && field.default !== undefined) {
+						values[field.name] = field.default;
+					}
+					return;
+				}
 
 				const path = field.path.split('.');
 				let current = parsed;
@@ -492,7 +501,8 @@
 			) {
 				return 'Remove resources from Values before using structured resource fields.';
 			}
-		} catch {
+		} catch (err) {
+			logger.warn(err, 'Failed to parse HelmRelease values while checking resource conflicts');
 			return null;
 		}
 

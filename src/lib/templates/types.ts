@@ -56,3 +56,8 @@ export const CEL_VALIDATION = {
 	pattern: '^[\\s\\S]{1,500}$',
 	message: 'CEL expression must be 500 characters or fewer.'
 };
+
+export const DURATION_VALIDATION = {
+	pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
+	message: 'Duration must use Flux time units like 30s, 5m, 1h, or combined values like 1h30m.'
+};

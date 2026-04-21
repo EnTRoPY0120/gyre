@@ -64,7 +64,9 @@ export async function hasUsers(): Promise<boolean> {
  * - In-cluster mode: Uses K8s secret for password
  * - Local development: Uses ADMIN_PASSWORD env var or generates a password
  */
-export async function createDefaultAdminIfNeeded(): Promise<{
+export async function createDefaultAdminIfNeeded(options?: {
+	persistSetupToken?: (password: string) => void;
+}): Promise<{
 	password: string | null;
 	mode: string;
 }> {
@@ -110,6 +112,8 @@ export async function createDefaultAdminIfNeeded(): Promise<{
 	// Local development mode: Use env var or generate password
 	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
 	if (process.env.ADMIN_PASSWORD) warnIfWeakAdminPassword(process.env.ADMIN_PASSWORD);
+
+	options?.persistSetupToken?.(password);
 	pendingSetupCleanup = true;
 
 	const db = getDbSync();
