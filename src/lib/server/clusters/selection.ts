@@ -6,7 +6,7 @@ export const CLUSTER_SELECTION_COOKIE = 'gyre_cluster';
 
 const COOKIE_OPTIONS = {
 	path: '/',
-	httpOnly: false,
+	httpOnly: true,
 	sameSite: 'lax' as const,
 	secure: process.env.NODE_ENV === 'production',
 	maxAge: 60 * 60 * 24 * 30

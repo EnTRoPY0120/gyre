@@ -168,11 +168,13 @@ export async function updateCluster(
 export async function deleteCluster(id: string): Promise<void> {
 	const db = await getDb();
 
-	// Delete contexts first (cascade should handle this but being explicit)
-	await db.delete(clusterContexts).where(eq(clusterContexts.clusterId, id));
+	await db.transaction((tx) => {
+		// Delete contexts first (cascade should handle this but being explicit)
+		tx.delete(clusterContexts).where(eq(clusterContexts.clusterId, id)).run();
 
-	// Delete cluster
-	await db.delete(clusters).where(eq(clusters.id, id));
+		// Delete cluster
+		tx.delete(clusters).where(eq(clusters.id, id)).run();
+	});
 }
 
 /**

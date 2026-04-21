@@ -110,7 +110,7 @@ spec:
 			default: '5m',
 			description: 'How often to scan for new images',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}

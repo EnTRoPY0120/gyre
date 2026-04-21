@@ -141,6 +141,12 @@ export async function updateUserPassword(id: string, newPassword: string): Promi
 	const now = Date.now();
 
 	await db.transaction((tx) => {
+		const existingUser = tx.select({ id: users.id }).from(users).where(eq(users.id, id)).get();
+
+		if (!existingUser) {
+			throw new Error('User not found');
+		}
+
 		const currentCredential = tx
 			.select({ password: accounts.password })
 			.from(accounts)

@@ -2,7 +2,7 @@ import { eq, or, sql } from 'drizzle-orm';
 import { getDb, type NewUser, type User } from '../db/index.js';
 import { accounts, users } from '../db/schema.js';
 import { getPaginatedItems, sanitizeSearchInput } from '../db/utils.js';
-import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
+import { bindUserToDefaultPoliciesInTx, syncUserPolicyBindingsInTx } from '../rbac-defaults.js';
 import { generateUserId, hashPassword, normalizeUsername } from './passwords.js';
 import type { UserPreferences } from '$lib/types/user';
 
@@ -26,7 +26,7 @@ export async function createUser(
 		active: true
 	};
 
-	await db.transaction((tx) => {
+	const user = await db.transaction((tx) => {
 		tx.insert(users).values(newUser).run();
 		tx.insert(accounts)
 			.values({
@@ -37,17 +37,17 @@ export async function createUser(
 				password: passwordHash
 			})
 			.run();
-	});
-	const user = await db.query.users.findFirst({
-		where: eq(users.id, newUser.id)
-	});
 
-	if (!user) {
-		throw new Error('Failed to create user');
-	}
+		const createdUser = tx.select().from(users).where(eq(users.id, newUser.id)).get();
 
-	// Auto-bind user to default RBAC policies based on role
-	await bindUserToDefaultPolicies(user);
+		if (!createdUser) {
+			throw new Error('Failed to create user');
+		}
+
+		// Auto-bind user to default RBAC policies based on role
+		bindUserToDefaultPoliciesInTx(tx, createdUser);
+		return createdUser;
+	});
 
 	return user;
 }
@@ -75,24 +75,27 @@ export async function updateUser(
 ): Promise<User | null> {
 	const db = await getDb();
 
-	// Get current user to check if role is changing
-	const currentUser = await getUserById(id);
-	const roleChanged = updates.role && currentUser && updates.role !== currentUser.role;
+	return await db.transaction((tx) => {
+		const currentUser = tx.select().from(users).where(eq(users.id, id)).get();
+		if (!currentUser) return null;
 
-	await db
-		.update(users)
-		.set({ ...updates, updatedAt: new Date() })
-		.where(eq(users.id, id));
+		const roleChanged = updates.role !== undefined && updates.role !== currentUser.role;
 
-	const updatedUser = await getUserById(id);
+		tx.update(users)
+			.set({ ...updates, updatedAt: new Date() })
+			.where(eq(users.id, id))
+			.run();
 
-	// If role changed, sync RBAC policy bindings
-	if (roleChanged && updatedUser) {
-		const { syncUserPolicyBindings } = await import('../rbac-defaults.js');
-		await syncUserPolicyBindings(updatedUser);
-	}
+		const updatedUser = tx.select().from(users).where(eq(users.id, id)).get();
+		if (!updatedUser) return null;
 
-	return updatedUser;
+		// If role changed, sync RBAC policy bindings in the same transaction
+		if (roleChanged) {
+			syncUserPolicyBindingsInTx(tx, updatedUser);
+		}
+
+		return updatedUser;
+	});
 }
 
 export async function deleteUser(id: string): Promise<void> {

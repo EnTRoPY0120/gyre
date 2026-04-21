@@ -162,7 +162,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to reconcile the Kustomization',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -308,7 +308,7 @@ spec:
 			placeholder: '5m',
 			description: 'Timeout for health checks and operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -350,7 +350,7 @@ spec:
 			placeholder: '1m',
 			description: 'How often to retry after a failure',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},

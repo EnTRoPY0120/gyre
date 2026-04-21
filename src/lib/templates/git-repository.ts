@@ -126,6 +126,7 @@ spec:
 			type: 'select',
 			section: 'source',
 			default: 'branch',
+			virtual: true,
 			options: [
 				{ label: 'Branch', value: 'branch' },
 				{ label: 'Tag', value: 'tag' },
@@ -177,7 +178,8 @@ spec:
 				value: 'semver'
 			},
 			validation: {
-				pattern: '^[><=~^*]?[0-9]+\\.[0-9]+(\\.[0-9]+)?',
+				pattern:
+					'^(?:[<>]=?|=|~|\\^|\\*)?\\s*[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$',
 				message: 'Must be a valid semver constraint (e.g., >=1.0.0, ~1.2.0, ^2.0.0)'
 			}
 		},
@@ -209,7 +211,7 @@ spec:
 				'The interval at which to check the upstream repository for changes. Flux supports: 1h30m, 5m, 30s, etc.',
 			docsUrl: 'https://fluxcd.io/flux/components/source/gitrepositories/#interval',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -295,7 +297,7 @@ spec:
 			placeholder: '60s',
 			description: 'Timeout for Git operations',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message: 'Duration must be in Flux format (e.g., 60s, 1m30s, 5m)'
 			}
 		},
@@ -311,7 +313,7 @@ spec:
 		{
 			name: 'sparseCheckout',
 			label: 'Sparse Checkout',
-			path: 'spec.sparseCheckout.paths',
+			path: 'spec.sparseCheckout',
 			type: 'array',
 			section: 'advanced',
 			arrayItemType: 'string',
@@ -338,7 +340,7 @@ spec:
 				{
 					name: 'repository',
 					label: 'Repository',
-					path: 'repository',
+					path: 'repository.name',
 					type: 'string',
 					required: true,
 					placeholder: 'other-repo',

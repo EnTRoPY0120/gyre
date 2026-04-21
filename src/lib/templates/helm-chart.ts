@@ -146,7 +146,7 @@ spec:
 			placeholder: '5m',
 			description: 'How often to check for new chart versions',
 			validation: {
-				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))*$',
+				pattern: '^([0-9]+(\\.[0-9]+)?(s|m|h))+$',
 				message:
 					'Duration must use time units like: 1m (minutes), 30s (seconds), 1h (hours), or combined like 1h30m'
 			}
@@ -166,10 +166,11 @@ spec:
 			name: 'valuesFiles',
 			label: 'Values Files',
 			path: 'spec.valuesFiles',
-			type: 'textarea',
+			type: 'array',
 			section: 'advanced',
-			placeholder: '- values.yaml\n- values-prod.yaml',
-			description: 'List of values files to merge (YAML array format)'
+			arrayItemType: 'string',
+			placeholder: 'values.yaml',
+			description: 'List of values files to merge'
 		},
 		{
 			name: 'ignoreMissingValuesFiles',

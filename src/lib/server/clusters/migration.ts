@@ -1,5 +1,5 @@
 import { logger } from '../logger.js';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import yaml from 'js-yaml';
 import { getDbSync } from '../db/index.js';
 import { clusters } from '../db/schema.js';
@@ -51,13 +51,27 @@ export async function migrateKubeconfigs(): Promise<{ migrated: number; failed: 
 				// Re-encrypt using new v2 format
 				const reEncrypted = encryptKubeconfig(plaintext);
 
-				await db
+				const updatedRows = await db
 					.update(clusters)
 					.set({
 						kubeconfigEncrypted: reEncrypted,
 						updatedAt: new Date()
 					})
-					.where(eq(clusters.id, cluster.id));
+					.where(
+						and(
+							eq(clusters.id, cluster.id),
+							eq(clusters.kubeconfigEncrypted, cluster.kubeconfigEncrypted)
+						)
+					)
+					.returning({ id: clusters.id });
+
+				if (updatedRows.length === 0) {
+					logger.warn(
+						`Skipping migration for cluster ${cluster.name}: kubeconfig changed during migration`
+					);
+					failed++;
+					continue;
+				}
 
 				migratedCount++;
 			} catch (error) {

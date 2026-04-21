@@ -77,9 +77,8 @@ export async function getControllerLogs(
 			return line.includes(`"${name}"`) && line.includes(`"${namespace}"`);
 		});
 
-		// If filtering yields too little, return more context or all logs
-		if (filteredLines.length < 10) {
-			return logs;
+		if (filteredLines.length === 0) {
+			return `No controller log lines matched ${resourceType} ${namespace}/${name}.`;
 		}
 
 		return filteredLines.join('\n');

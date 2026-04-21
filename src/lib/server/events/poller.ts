@@ -136,8 +136,11 @@ export async function poll(context: ClusterContext) {
 									},
 									timestamp: new Date().toISOString()
 								});
+
+								context.lastStates.set(key, currentState);
+								context.lastNotificationStates.set(key, notificationState);
+								context.resourceFirstSeen.delete(key);
 							}
-							context.lastNotificationStates.set(key, notificationState);
 						} else if (previousState && previousState !== currentState) {
 							const previousNotificationState = context.lastNotificationStates.get(key);
 
@@ -201,12 +204,8 @@ export async function poll(context: ClusterContext) {
 								}
 								context.lastNotificationStates.set(key, notificationState);
 							}
-						}
 
-						context.lastStates.set(key, currentState);
-						// Once settled and tracked in lastStates, firstSeen is no longer needed
-						if (isSettled) {
-							context.resourceFirstSeen.delete(key);
+							context.lastStates.set(key, currentState);
 						}
 					}
 

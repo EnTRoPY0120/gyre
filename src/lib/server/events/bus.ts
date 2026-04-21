@@ -1,7 +1,7 @@
 import { logger } from '../logger.js';
 import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { HEARTBEAT_INTERVAL_MS } from '../config/constants.js';
-import { activeWorkers, isShuttingDown, SERVER_SESSION_ID } from './state.js';
+import { activeWorkers, isEventBusShuttingDown, SERVER_SESSION_ID } from './state.js';
 import { activeWorkersGauge, fluxResourceStatusGauge, sseSubscribersGauge } from '../metrics.js';
 import { poll } from './poller.js';
 import { normalizeError, type ClusterContext, type SSEEvent, type Subscriber } from './types.js';
@@ -13,7 +13,7 @@ import { normalizeError, type ClusterContext, type SSEEvent, type Subscriber } f
  */
 export function subscribe(subscriber: Subscriber, clusterId: string = IN_CLUSTER_ID): () => void {
 	// Prevent new subscriptions during shutdown
-	if (isShuttingDown) {
+	if (isEventBusShuttingDown()) {
 		logger.warn({ clusterId }, '[EventBus] Rejecting new subscription: shutting down');
 		return () => {};
 	}
@@ -39,13 +39,26 @@ export function subscribe(subscriber: Subscriber, clusterId: string = IN_CLUSTER
 	sseSubscribersGauge.labels(clusterId).set(context.subscribers.size);
 
 	// Initial connection message
-	subscriber({
-		type: 'CONNECTED',
-		clusterId,
-		serverSessionId: SERVER_SESSION_ID,
-		message: `Connected to event stream for cluster: ${clusterId}`,
-		timestamp: new Date().toISOString()
-	});
+	try {
+		subscriber({
+			type: 'CONNECTED',
+			clusterId,
+			serverSessionId: SERVER_SESSION_ID,
+			message: `Connected to event stream for cluster: ${clusterId}`,
+			timestamp: new Date().toISOString()
+		});
+	} catch (err) {
+		context.subscribers.delete(subscriber);
+		sseSubscribersGauge.labels(clusterId).set(context.subscribers.size);
+		if (context.subscribers.size === 0 && !context.isActive) {
+			activeWorkers.delete(clusterId);
+		}
+		logger.error(
+			{ clusterId, err: normalizeError(err) },
+			'[EventBus] Error sending initial CONNECTED event'
+		);
+		return () => {};
+	}
 
 	if (!context.isActive) {
 		startWorker(context);

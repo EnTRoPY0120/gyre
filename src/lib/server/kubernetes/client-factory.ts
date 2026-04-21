@@ -50,14 +50,20 @@ export function makeApiClientWithTimeout<T extends k8s.ApiType>(
 	const cluster = kubeConfig.getCurrentCluster();
 	if (!cluster) throw new Error('No active cluster!');
 	const baseServerConfig = new k8s.ServerConfiguration(cluster.server, {});
+	const agent = cluster.server.startsWith('https:') ? httpsAgent : httpAgent;
 
-	// Note: HTTP agents are configured globally above (httpAgent/httpsAgent singletons)
-	// for maximum connection reuse. The kubernetes client-node library respects
-	// global agent configuration at the Node.js level.
 	const config = k8s.createConfiguration({
 		baseServer: baseServerConfig,
 		authMethods: { default: kubeConfig },
-		promiseMiddleware: [_createTimeoutMiddleware(timeoutMs)]
+		promiseMiddleware: [
+			{
+				pre: async (ctx: k8s.RequestContext) => {
+					ctx.setAgent(agent);
+					return _createTimeoutMiddleware(timeoutMs).pre(ctx);
+				},
+				post: async (ctx: k8s.ResponseContext) => ctx
+			}
+		]
 	});
 	return new apiClientType(config);
 }

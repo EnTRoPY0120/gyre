@@ -13,7 +13,10 @@ export const GET: RequestHandler = async ({ locals }) => {
 		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	}
 
-	return json(await getClusterSelectionPayload(locals.cluster ?? IN_CLUSTER_ID));
+	const currentClusterId = locals.cluster
+		? await validateSelectableClusterId(locals.cluster).catch(() => IN_CLUSTER_ID)
+		: IN_CLUSTER_ID;
+	return json(await getClusterSelectionPayload(currentClusterId));
 };
 
 export const PUT: RequestHandler = async ({ request, cookies, locals }) => {
@@ -36,15 +39,17 @@ export const PUT: RequestHandler = async ({ request, cookies, locals }) => {
 		throw error(400, { message: 'clusterId is required', code: 'BadRequest' });
 	}
 
+	let currentClusterId: string;
 	try {
-		const currentClusterId = await validateSelectableClusterId(
+		currentClusterId = await validateSelectableClusterId(
 			(rawBody as { clusterId: string }).clusterId
 		);
-		setClusterSelectionCookie(cookies, currentClusterId);
-		return json(await getClusterSelectionPayload(currentClusterId));
 	} catch {
 		throw error(404, { message: 'Cluster is not selectable', code: 'NotFound' });
 	}
+
+	setClusterSelectionCookie(cookies, currentClusterId);
+	return json(await getClusterSelectionPayload(currentClusterId));
 };
 
 export const DELETE: RequestHandler = async ({ cookies, locals }) => {

@@ -128,6 +128,20 @@
 			template.fields.forEach((field) => {
 				if (field.virtual) return;
 
+				if (!shouldShowField(field)) {
+					const visibleFieldWithSamePath = template.fields.some(
+						(candidate) =>
+							candidate !== field &&
+							!candidate.virtual &&
+							candidate.path === field.path &&
+							shouldShowField(candidate)
+					);
+					if (!visibleFieldWithSamePath) {
+						doc.deleteIn(field.path.split('.'));
+					}
+					return;
+				}
+
 				const value = coerceFieldValue(field, formValues[field.name]);
 				const path = field.path.split('.');
 
@@ -431,8 +445,58 @@
 			}
 		});
 
+		const resourceConflict = validateHelmReleaseResourceValues();
+		if (resourceConflict) {
+			for (const fieldName of [
+				'resourceLimitsCpu',
+				'resourceLimitsMemory',
+				'resourceRequestsCpu',
+				'resourceRequestsMemory'
+			]) {
+				if (formValues[fieldName]) {
+					errors[fieldName] = resourceConflict;
+				}
+			}
+		}
+
 		validationErrors = errors;
 		return Object.keys(errors).length === 0;
+	}
+
+	function validateHelmReleaseResourceValues(): string | null {
+		if (template.kind !== 'HelmRelease') return null;
+
+		const structuredResourceFields = [
+			'resourceLimitsCpu',
+			'resourceLimitsMemory',
+			'resourceRequestsCpu',
+			'resourceRequestsMemory'
+		];
+		if (!structuredResourceFields.some((fieldName) => Boolean(formValues[fieldName]))) {
+			return null;
+		}
+
+		const values = formValues.values;
+		if (!values) return null;
+
+		try {
+			const parsedValues =
+				typeof values === 'string'
+					? (parse(values) as Record<string, unknown> | null)
+					: (values as Record<string, unknown>);
+			if (
+				parsedValues &&
+				typeof parsedValues === 'object' &&
+				!Array.isArray(parsedValues) &&
+				'resources' in parsedValues
+			) {
+				return 'Remove resources from Values before using structured resource fields.';
+			}
+		} catch {
+			return null;
+		}
+
+		return null;
 	}
 
 	// Check if form is valid (derived)

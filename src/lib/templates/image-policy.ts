@@ -43,7 +43,12 @@ spec:
 			required: true,
 			section: 'basic',
 			placeholder: 'my-policy',
-			description: 'Unique name for this ImagePolicy resource'
+			description: 'Unique name for this ImagePolicy resource',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message:
+					'Name must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'namespace',
@@ -52,7 +57,12 @@ spec:
 			type: 'string',
 			required: true,
 			section: 'basic',
-			default: 'flux-system'
+			default: 'flux-system',
+			validation: {
+				pattern: '^[a-z0-9]([-a-z0-9]*[a-z0-9])?$',
+				message:
+					'Namespace must contain only lowercase letters, numbers, and hyphens (cannot start or end with a hyphen)'
+			}
 		},
 		{
 			name: 'imageRepoName',

@@ -101,7 +101,7 @@ spec:
 			path: 'spec.interval',
 			type: 'duration',
 			required: true,
-			section: 'basic',
+			section: 'update',
 			default: '1h'
 		}
 	]

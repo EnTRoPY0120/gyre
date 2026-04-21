@@ -16,8 +16,13 @@ import {
 	MAX_NOTIFICATIONS,
 	MESSAGE_PREVIEW_LENGTH
 } from '$lib/config/constants';
-
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+import type {
+	ConnectionStatus,
+	EventCallback,
+	NotificationMessage,
+	ResourceEvent,
+	StatusCallback
+} from './events/types.js';
 
 interface NotificationState {
 	revision: string | undefined;
@@ -25,47 +30,6 @@ interface NotificationState {
 	readyReason: string | undefined;
 	messagePreview: string;
 }
-
-export interface ResourceEvent {
-	type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'CONNECTED' | 'HEARTBEAT' | 'ERROR' | 'SHUTDOWN';
-	clusterId?: string;
-	resourceType?: string;
-	serverSessionId?: string;
-	reason?: string;
-	resource?: {
-		metadata: {
-			name: string;
-			namespace: string;
-			uid: string;
-		};
-		status?: {
-			conditions?: Array<{
-				type: string;
-				status: string;
-				reason?: string;
-				message?: string;
-			}>;
-		};
-	};
-	message?: string;
-	timestamp: string;
-}
-
-export interface NotificationMessage {
-	id: string;
-	clusterId: string;
-	type: 'info' | 'success' | 'warning' | 'error';
-	title: string;
-	message: string;
-	resourceType?: string;
-	resourceName?: string;
-	resourceNamespace?: string;
-	timestamp: Date;
-	read: boolean;
-}
-
-type EventCallback = (event: ResourceEvent) => void;
-type StatusCallback = (status: ConnectionStatus) => void;
 
 function hashStorageUserIdentity(value: string): string {
 	let hash = 0xcbf29ce484222325n;
