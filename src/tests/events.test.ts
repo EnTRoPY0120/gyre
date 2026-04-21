@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
 import * as actualClient from '../lib/server/kubernetes/client.js';
+import * as actualConstants from '../lib/server/config/constants.js';
 import * as actualMetrics from '../lib/server/metrics.js';
 import { importFresh } from './helpers/import-fresh';
 
@@ -34,6 +35,7 @@ beforeEach(async () => {
 		captureReconciliation: async () => {}
 	}));
 	mock.module('../lib/server/config/constants.js', () => ({
+		...actualConstants,
 		SETTLING_PERIOD_MS: -1,
 		POLL_INTERVAL_MS: 50,
 		HEARTBEAT_INTERVAL_MS: 10000

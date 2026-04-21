@@ -1,0 +1,91 @@
+import type { ResourceTemplate } from './types.js';
+
+export const IMAGE_POLICY_TEMPLATE: ResourceTemplate = {
+	id: 'image-policy-base',
+	name: 'Image Policy',
+	description: 'Defines policies for selecting image versions',
+	kind: 'ImagePolicy',
+	group: 'image.toolkit.fluxcd.io',
+	version: 'v1beta2',
+	category: 'image-automation',
+	plural: 'imagepolicies',
+	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: example
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: example
+  policy:
+    semver:
+      range: ">=1.0.0"`,
+	sections: [
+		{
+			id: 'basic',
+			title: 'Basic Information',
+			description: 'Resource identification',
+			defaultExpanded: true
+		},
+		{
+			id: 'policy',
+			title: 'Policy Configuration',
+			description: 'Rules for selecting images',
+			defaultExpanded: true
+		}
+	],
+	fields: [
+		{
+			name: 'name',
+			label: 'Name',
+			path: 'metadata.name',
+			type: 'string',
+			required: true,
+			section: 'basic',
+			placeholder: 'my-policy',
+			description: 'Unique name for this ImagePolicy resource'
+		},
+		{
+			name: 'namespace',
+			label: 'Namespace',
+			path: 'metadata.namespace',
+			type: 'string',
+			required: true,
+			section: 'basic',
+			default: 'flux-system'
+		},
+		{
+			name: 'imageRepoName',
+			label: 'Image Repository',
+			path: 'spec.imageRepositoryRef.name',
+			type: 'string',
+			required: true,
+			section: 'policy',
+			placeholder: 'my-app',
+			referenceType: 'ImageRepository',
+			description: 'ImageRepository to monitor'
+		},
+		{
+			name: 'policyType',
+			label: 'Policy Type',
+			path: 'spec.policy.type',
+			type: 'select',
+			section: 'policy',
+			default: 'semver',
+			options: [
+				{ label: 'SemVer', value: 'semver' },
+				{ label: 'Numerical', value: 'numerical' },
+				{ label: 'Alphabetical', value: 'alphabetical' }
+			]
+		},
+		{
+			name: 'semverRange',
+			label: 'Semver Range',
+			path: 'spec.policy.semver.range',
+			type: 'string',
+			section: 'policy',
+			default: '>=1.0.0',
+			showIf: { field: 'policyType', value: 'semver' }
+		}
+	]
+};

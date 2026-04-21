@@ -3,6 +3,8 @@
  * Falls back to polling if SSE is not available
  */
 
+export * from './events/types.js';
+
 import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
 import { preferences } from './preferences.svelte';
 import { clusterStore } from './cluster.svelte';

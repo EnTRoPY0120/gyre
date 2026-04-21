@@ -1,6 +1,5 @@
 import { ADMIN_ROUTE_PREFIXES } from '$lib/server/config.js';
-import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
-import { getClusterById } from '$lib/server/clusters.js';
+import { resolveClusterSelectionFromCookie } from '$lib/server/clusters/selection.js';
 import { isPublicRoute } from '$lib/isPublicRoute.js';
 import type { RequestEvent } from '@sveltejs/kit';
 
@@ -41,25 +40,7 @@ export function enforceAuthenticationGate(
 export async function resolveClusterContext(
 	event: Pick<RequestEvent, 'cookies' | 'locals'>
 ): Promise<void> {
-	const cluster = event.cookies.get('gyre_cluster');
-	if (!cluster) {
-		event.locals.cluster = IN_CLUSTER_ID;
-		return;
-	}
-
-	if (cluster === IN_CLUSTER_ID) {
-		event.locals.cluster = cluster;
-		return;
-	}
-
-	const clusterRecord = await getClusterById(cluster);
-	if (!clusterRecord || !clusterRecord.isActive) {
-		event.cookies.delete('gyre_cluster', { path: '/' });
-		event.locals.cluster = IN_CLUSTER_ID;
-		return;
-	}
-
-	event.locals.cluster = cluster;
+	event.locals.cluster = await resolveClusterSelectionFromCookie(event.cookies);
 }
 
 export function enforceAdminRouteGate(
