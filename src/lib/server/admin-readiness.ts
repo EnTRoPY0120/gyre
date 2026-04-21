@@ -63,6 +63,7 @@ const adminReadinessInflight: {
 	enabledProviderCount: null,
 	backupCount: null
 };
+let adminReadinessGeneration = 0;
 type AdminReadinessCacheStore = typeof adminReadinessCache;
 type AdminReadinessInflightStore = typeof adminReadinessInflight;
 
@@ -92,6 +93,8 @@ function writeCache<T>(value: T, ttlMs = ADMIN_READINESS_CACHE_TTL_MS): TimedCac
 function isFailureMarker(value: unknown): value is AdminReadinessFailureMarker {
 	return (
 		typeof value === 'object' &&
+		// isFailureMarker must guard null because typeof null === 'object'; this keeps 'in'
+		// safe for AdminReadinessFailureMarker detection and silences CodeQL false positives.
 		value !== null &&
 		'__adminReadinessFailure' in value &&
 		value.__adminReadinessFailure === true
@@ -126,25 +129,32 @@ async function getCached<K extends AdminReadinessCacheSlot>(
 	if (existingInflight !== null) {
 		return existingInflight;
 	}
+	const generation = adminReadinessGeneration;
 
 	const nextInflight: Promise<AdminReadinessCacheValueBySlot[K]> = fetcher()
 		.then((value) => {
-			adminReadinessCache[slot] = writeCache(value) as AdminReadinessCacheStore[K];
+			if (generation === adminReadinessGeneration) {
+				adminReadinessCache[slot] = writeCache(value) as AdminReadinessCacheStore[K];
+			}
 			return value;
 		})
 		.catch((error: unknown) => {
-			adminReadinessCache[slot] = writeCache(
-				{
-					__adminReadinessFailure: true,
-					slot,
-					causeMessage: toErrorMessage(error)
-				},
-				ADMIN_READINESS_FAILURE_CACHE_TTL_MS
-			) as AdminReadinessCacheStore[K];
+			if (generation === adminReadinessGeneration) {
+				adminReadinessCache[slot] = writeCache(
+					{
+						__adminReadinessFailure: true,
+						slot,
+						causeMessage: toErrorMessage(error)
+					},
+					ADMIN_READINESS_FAILURE_CACHE_TTL_MS
+				) as AdminReadinessCacheStore[K];
+			}
 			throw error;
 		})
 		.finally(() => {
-			adminReadinessInflight[slot] = null;
+			if (generation === adminReadinessGeneration) {
+				adminReadinessInflight[slot] = null;
+			}
 		});
 
 	adminReadinessInflight[slot] = nextInflight as AdminReadinessInflightStore[K];
@@ -171,6 +181,7 @@ async function getCachedBackupCount(): Promise<number> {
 }
 
 export function clearAdminReadinessCacheForTests(): void {
+	adminReadinessGeneration += 1;
 	adminReadinessCache.authSettings = null;
 	adminReadinessCache.enabledProviderCount = null;
 	adminReadinessCache.backupCount = null;
@@ -316,25 +327,35 @@ export async function getAdminReadinessSummary({
 }: AdminReadinessInput): Promise<AdminReadinessSummary> {
 	let localLoginEnabled: boolean | null = null;
 	let enabledProviderCount: number | null = null;
-
-	try {
-		const authSettings = await getCachedAuthSettings();
-		localLoginEnabled = authSettings.localLoginEnabled;
-	} catch (error) {
-		logger.error(error, '[Admin Readiness] Failed to read auth settings');
-	}
-
-	try {
-		enabledProviderCount = await getCachedEnabledProviderCount();
-	} catch (error) {
-		logger.error(error, '[Admin Readiness] Failed to count enabled auth providers');
-	}
-
 	let backupCount: number | null = null;
-	try {
-		backupCount = await getCachedBackupCount();
-	} catch (error) {
-		logger.error(error, '[Admin Readiness] Failed to evaluate backup verification readiness');
+
+	const [authSettingsResult, enabledProviderCountResult, backupCountResult] =
+		await Promise.allSettled([
+			getCachedAuthSettings(),
+			getCachedEnabledProviderCount(),
+			getCachedBackupCount()
+		]);
+
+	if (authSettingsResult.status === 'fulfilled') {
+		localLoginEnabled = authSettingsResult.value.localLoginEnabled;
+	} else {
+		logger.error(authSettingsResult.reason, '[Admin Readiness] Failed to read auth settings');
+	}
+	if (enabledProviderCountResult.status === 'fulfilled') {
+		enabledProviderCount = enabledProviderCountResult.value;
+	} else {
+		logger.error(
+			enabledProviderCountResult.reason,
+			'[Admin Readiness] Failed to count enabled auth providers'
+		);
+	}
+	if (backupCountResult.status === 'fulfilled') {
+		backupCount = backupCountResult.value;
+	} else {
+		logger.error(
+			backupCountResult.reason,
+			'[Admin Readiness] Failed to evaluate backup verification readiness'
+		);
 	}
 
 	return buildAdminReadinessSummary({

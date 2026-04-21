@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { resourceGroups } from '$lib/config/resources';
-	import { getAdminSidebarLinks } from '$lib/navigation/admin';
 	import { sidebarOpen } from '$lib/stores/sidebar';
 	import { cn } from '$lib/utils';
 	import { FluxResourceType } from '$lib/types/flux';
@@ -18,7 +17,6 @@
 	const userRole = $derived($page.data.user?.role || 'viewer');
 	const canCreate = $derived(userRole === 'admin' || userRole === 'editor');
 	const isAdmin = $derived(userRole === 'admin');
-	const adminLinks = $derived(getAdminSidebarLinks(userRole));
 
 	// Responsiveness
 	let isMobile = $state(false);
@@ -50,10 +48,9 @@
 	});
 
 	// Tracking which groups are expanded (all collapsed by default)
-	let expandedGroups = $state<Record<string, boolean>>({
-		Admin: $page.url.pathname.startsWith('/admin'),
-		...Object.fromEntries(resourceGroups.map((g) => [g.name, false]))
-	});
+	let expandedGroups = $state<Record<string, boolean>>(
+		Object.fromEntries(resourceGroups.map((g) => [g.name, false])) as Record<string, boolean>
+	);
 
 	function toggleGroup(name: string) {
 		if (!isOpen) {
@@ -87,9 +84,6 @@
 		}
 	}
 
-	$effect(() => {
-		expandedGroups.Admin = currentPath.startsWith('/admin');
-	});
 </script>
 
 <!-- Mobile Backdrop -->
@@ -437,59 +431,6 @@
 					Admin
 				</span>
 			</a>
-			{#if isOpen && adminLinks.length > 0}
-				<div class="mt-2 space-y-2 pr-1">
-					<button
-						type="button"
-						onclick={() => toggleGroup('Admin')}
-						aria-expanded={expandedGroups.Admin}
-						aria-controls="panel-admin"
-						class="flex w-full items-center justify-between px-3 py-2 text-left font-display text-[10px] font-black tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-primary"
-					>
-						<span>Admin Paths</span>
-						<Icon
-							name="chevron-right"
-							size={12}
-							class={cn(
-								'transition-transform duration-300',
-								expandedGroups.Admin ? 'rotate-90' : 'rotate-0'
-							)}
-						/>
-					</button>
-					{#if expandedGroups.Admin}
-						<div
-							id="panel-admin"
-							class="relative ml-2 max-h-[min(36vh,18rem)] space-y-1 overflow-y-auto border-l border-sidebar-border/30 pl-3 pr-1"
-						>
-							{#each adminLinks as link (link.href)}
-								<a
-									href={link.href}
-									onclick={closeMobile}
-									data-sveltekit-preload-data="hover"
-									class={cn(
-										'group/item relative flex items-center gap-3 overflow-hidden rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200',
-										currentPath.startsWith(link.href)
-											? 'border border-primary/20 bg-primary/10 text-primary shadow-sm'
-											: 'text-muted-foreground/80 hover:bg-primary/5 hover:text-primary'
-									)}
-								>
-									<Icon
-										name={link.icon}
-										size={16}
-										class={cn(
-											'shrink-0 transition-transform duration-300 group-hover/item:scale-110',
-											currentPath.startsWith(link.href) && 'text-primary'
-										)}
-									/>
-									<span class="relative z-10 whitespace-nowrap transition-opacity duration-300">
-										{link.label}
-									</span>
-								</a>
-							{/each}
-				</div>
-			{/if}
-				</div>
-			{/if}
 		</div>
 	{/if}
 </aside>

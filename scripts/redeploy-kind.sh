@@ -47,6 +47,15 @@ read_secret_value() {
 	printf '%s' "${encoded_value}" | base64 -d 2>/dev/null
 }
 
+validate_hex_256_key() {
+	local var_name="$1"
+	local value="$2"
+	if ! [[ "${value}" =~ ^[0-9a-fA-F]{64}$ ]]; then
+		echo "ERROR: ${var_name} must be 64 hexadecimal characters (^[0-9a-fA-F]{64}$)."
+		exit 1
+	fi
+}
+
 for cmd in docker kind kubectl helm openssl; do
 	require_cmd "${cmd}"
 done
@@ -101,6 +110,7 @@ if kubectl get secret "${ENCRYPTION_SECRET_NAME}" -n "${NAMESPACE}" >/dev/null 2
 			echo "Refusing to generate replacement keys automatically to avoid data loss."
 			exit 1
 		fi
+		validate_hex_256_key "${key}" "${value}"
 		printf -v "${key}" '%s' "${value}"
 		export "${key?}"
 	done
@@ -109,6 +119,9 @@ else
 	GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
 	AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
 	BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY:-$(openssl rand -hex 32)}"
+	for key in GYRE_ENCRYPTION_KEY AUTH_ENCRYPTION_KEY BACKUP_ENCRYPTION_KEY; do
+		validate_hex_256_key "${key}" "${!key}"
+	done
 	export GYRE_ENCRYPTION_KEY AUTH_ENCRYPTION_KEY BACKUP_ENCRYPTION_KEY
 	kubectl create secret generic "${ENCRYPTION_SECRET_NAME}" \
 		-n "${NAMESPACE}" \
@@ -120,7 +133,7 @@ fi
 
 if [ "${FORCE_ROTATE_METRICS_TOKEN}" = "true" ]; then
 	echo "FORCE_ROTATE_METRICS_TOKEN=true; generating new metrics token."
-	GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN:-$(openssl rand -hex 32)}"
+	GYRE_METRICS_TOKEN="$(openssl rand -hex 32)"
 elif value="$(read_secret_value "${METRICS_SECRET_NAME}" "GYRE_METRICS_TOKEN")"; then
 	GYRE_METRICS_TOKEN="${value}"
 	echo "Using existing metrics token from '${METRICS_SECRET_NAME}'."
@@ -128,6 +141,7 @@ else
 	GYRE_METRICS_TOKEN="${GYRE_METRICS_TOKEN:-$(openssl rand -hex 32)}"
 	echo "Metrics token not found in '${METRICS_SECRET_NAME}'; generating a new token."
 fi
+export GYRE_METRICS_TOKEN
 
 kubectl create secret generic "${METRICS_SECRET_NAME}" \
 	-n "${NAMESPACE}" \
