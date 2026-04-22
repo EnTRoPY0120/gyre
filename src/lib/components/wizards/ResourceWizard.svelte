@@ -103,8 +103,13 @@
 					values[field.name] = defaultNamespace;
 				}
 
-				if (field.virtual && values[field.name] === undefined && field.default !== undefined) {
-					values[field.name] = field.default;
+				if (field.virtual) {
+					const manifestValue = inferVirtualFieldValue(field, parsed);
+					if (manifestValue !== undefined) {
+						values[field.name] = manifestValue;
+					} else if (values[field.name] === undefined && field.default !== undefined) {
+						values[field.name] = field.default;
+					}
 				}
 			});
 			formValues = values;
@@ -150,7 +155,7 @@
 				const path = field.path.split('.');
 
 				if (field.name === 'verifyMode' && value === '') {
-					doc.deleteIn(path);
+					doc.deleteIn(path.slice(0, -1));
 					return;
 				}
 
@@ -177,7 +182,10 @@
 
 			template.fields.forEach((field) => {
 				if (field.virtual) {
-					if (values[field.name] === undefined && field.default !== undefined) {
+					const manifestValue = inferVirtualFieldValue(field, parsed);
+					if (manifestValue !== undefined) {
+						values[field.name] = manifestValue;
+					} else if (values[field.name] === undefined && field.default !== undefined) {
 						values[field.name] = field.default;
 					}
 					return;
@@ -202,6 +210,35 @@
 				yamlError = 'Invalid YAML syntax';
 			}
 		}
+	}
+
+	function getValueAtPath(source: Record<string, unknown>, path: string): unknown {
+		const segments = path.split('.');
+		let current: unknown = source;
+
+		for (const segment of segments) {
+			if (!current || typeof current !== 'object') {
+				return undefined;
+			}
+			current = (current as Record<string, unknown>)[segment];
+		}
+
+		return current;
+	}
+
+	function inferVirtualFieldValue(
+		field: TemplateField,
+		source: Record<string, unknown>
+	): string | undefined {
+		for (const candidate of template.fields) {
+			if (candidate.virtual || candidate.showIf?.field !== field.name) continue;
+			if (getValueAtPath(source, candidate.path) === undefined) continue;
+
+			const showIfValue = candidate.showIf.value;
+			return Array.isArray(showIfValue) ? showIfValue[0] : showIfValue;
+		}
+
+		return undefined;
 	}
 
 	function coerceFieldValue(field: TemplateField, value: unknown): unknown {
