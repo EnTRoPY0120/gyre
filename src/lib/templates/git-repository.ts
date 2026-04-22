@@ -177,11 +177,8 @@ spec:
 				field: 'refType',
 				value: 'semver'
 			},
-			validation: {
-				pattern:
-					'^(?:[<>]=?|=|~|\\^|\\*)?\\s*[0-9]+\\.[0-9]+(?:\\.[0-9]+)?(?:[-+][0-9A-Za-z.-]+)?$',
-				message: 'Must be a valid semver constraint (e.g., >=1.0.0, ~1.2.0, ^2.0.0)'
-			}
+			helpText:
+				'Flux supports Masterminds semver constraints, including combined ranges, OR ranges, hyphen ranges, and wildcards.'
 		},
 		{
 			name: 'commit',
