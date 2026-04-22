@@ -87,16 +87,7 @@
 			const values: Record<string, unknown> = {};
 
 			template.fields.forEach((field) => {
-				const path = field.path.split('.');
-				let current = parsed;
-				for (let i = 0; i < path.length; i++) {
-					if (!current) break;
-					if (i === path.length - 1) {
-						values[field.name] = coerceFieldValue(field, current[path[i]]);
-					} else {
-						current = current[path[i]] as Record<string, unknown>;
-					}
-				}
+				values[field.name] = coerceFieldValue(field, getValueAtPath(parsed, field.path));
 
 				// Apply default namespace
 				if (field.name === 'namespace' && defaultNamespace) {
@@ -191,16 +182,7 @@
 					return;
 				}
 
-				const path = field.path.split('.');
-				let current = parsed;
-				for (let i = 0; i < path.length; i++) {
-					if (!current) break;
-					if (i === path.length - 1) {
-						values[field.name] = coerceFieldValue(field, current[path[i]]);
-					} else {
-						current = current[path[i]] as Record<string, unknown>;
-					}
-				}
+				values[field.name] = coerceFieldValue(field, getValueAtPath(parsed, field.path));
 			});
 			formValues = values;
 		} catch (err) {
@@ -226,13 +208,22 @@
 		return current;
 	}
 
+	function hasPopulatedValue(value: unknown): boolean {
+		return (
+			value !== undefined &&
+			value !== null &&
+			value !== '' &&
+			(!Array.isArray(value) || value.length > 0)
+		);
+	}
+
 	function inferVirtualFieldValue(
 		field: TemplateField,
 		source: Record<string, unknown>
 	): string | undefined {
 		for (const candidate of template.fields) {
 			if (candidate.virtual || candidate.showIf?.field !== field.name) continue;
-			if (getValueAtPath(source, candidate.path) === undefined) continue;
+			if (!hasPopulatedValue(getValueAtPath(source, candidate.path))) continue;
 
 			const showIfValue = candidate.showIf.value;
 			return Array.isArray(showIfValue) ? showIfValue[0] : showIfValue;
