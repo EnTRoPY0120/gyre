@@ -250,7 +250,6 @@ spec:
 			type: 'select',
 			section: 'verification',
 			default: '',
-			virtual: true,
 			options: [
 				{ label: 'Disabled', value: '' },
 				{ label: 'Head (branch)', value: 'HEAD' },
