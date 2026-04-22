@@ -149,6 +149,11 @@
 				const value = coerceFieldValue(field, formValues[field.name]);
 				const path = field.path.split('.');
 
+				if (field.name === 'verifyMode' && value === '') {
+					doc.deleteIn(path);
+					return;
+				}
+
 				if (field.type === 'number' && value === undefined) {
 					doc.deleteIn(path);
 					return;
