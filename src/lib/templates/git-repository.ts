@@ -226,8 +226,13 @@ spec:
 			path: 'spec.serviceAccountName',
 			type: 'string',
 			section: 'auth',
+			showIf: {
+				field: 'provider',
+				value: 'azure'
+			},
 			placeholder: 'git-controller',
-			description: 'ServiceAccount for impersonation'
+			description:
+				'Azure-only: set spec.serviceAccountName when using Azure DevOps with Workload Identity'
 		},
 		{
 			name: 'proxySecretRef',
