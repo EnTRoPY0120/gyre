@@ -134,12 +134,9 @@ beforeEach(() => {
 		logLogin: async () => {},
 		logLogout: async () => {}
 	};
-	const auditModulePath = new URL('../lib/server/audit.ts', import.meta.url).pathname;
-	const auditModuleUrl = new URL('../lib/server/audit.ts', import.meta.url).href;
 	mock.module('$lib/server/audit', () => auditModuleStub);
+	mock.module('$lib/server/audit.js', () => auditModuleStub);
 	mock.module('$lib/server/audit.ts', () => auditModuleStub);
-	mock.module(auditModulePath, () => auditModuleStub);
-	mock.module(auditModuleUrl, () => auditModuleStub);
 	mock.module('$lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkClusterWideReadPermission: async () => true
@@ -159,6 +156,11 @@ beforeEach(() => {
 	}));
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
+		clearBetterAuthSessionCookie: (cookies: {
+			delete: (name: string, options: { path: string }) => void;
+		}) => cookies.delete('gyre_session', { path: '/' }),
+		getBetterAuthSessionCookieValue: (cookies: { get: (name: string) => string | undefined }) =>
+			cookies.get('gyre_session'),
 		applyBetterAuthCookies: () => {},
 		createBetterAuthSessionForUser: async (
 			cookies: { set: (name: string, value: string, options: Record<string, unknown>) => void },

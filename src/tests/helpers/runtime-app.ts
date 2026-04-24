@@ -1,14 +1,17 @@
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join } from 'node:path';
 
 const HEALTH_PATH = '/api/v1/health';
+const ADMIN_PASSWORD = 'runtime-admin-password';
 const METRICS_TOKEN = 'runtime-metrics-token';
 const PROD_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 const REPO_ROOT = process.cwd();
 const DATA_ROOT = join(REPO_ROOT, 'data');
+const BACKUP_ROOT = join(DATA_ROOT, 'backups');
 
 interface RuntimeAppHandle {
+	backupDir: string;
 	baseUrl: string;
 	cleanup: () => Promise<void>;
 	fetch: (path: string, init?: RequestInit) => Promise<Response>;
@@ -20,9 +23,13 @@ let runtimeAppPromise: Promise<RuntimeAppHandle> | null = null;
 async function runBuildOnce(): Promise<void> {
 	if (!buildPromise) {
 		buildPromise = (async () => {
+			const buildEnv = {
+				...process.env,
+				NODE_ENV: 'production'
+			};
 			const build = Bun.spawn(['bun', 'run', 'build'], {
 				cwd: REPO_ROOT,
-				env: process.env,
+				env: buildEnv,
 				stderr: 'pipe',
 				stdout: 'pipe'
 			});
@@ -72,19 +79,20 @@ async function allocatePort(): Promise<number> {
 async function waitForReadiness(
 	baseUrl: string,
 	server: ReturnType<typeof Bun.spawn>,
-	stderrPromise: Promise<string>,
+	captureStderr: () => Promise<string>,
 	timeoutMs = 30_000
 ): Promise<void> {
 	const deadline = Date.now() + timeoutMs;
+	const exitedResultPromise = server.exited.then((code) => ({ code, exited: true as const }));
 
 	while (Date.now() < deadline) {
 		const exitCode = await Promise.race([
-			server.exited.then((code) => ({ code, exited: true as const })),
+			exitedResultPromise,
 			Bun.sleep(250).then(() => ({ code: 0, exited: false as const }))
 		]);
 
 		if (exitCode.exited) {
-			const stderr = await stderrPromise;
+			const stderr = await captureStderr();
 			throw new Error(
 				`Built runtime exited before becoming ready (exit ${exitCode.code})\n${stderr}`.trim()
 			);
@@ -102,7 +110,7 @@ async function waitForReadiness(
 
 	server.kill('SIGTERM');
 	await server.exited;
-	const stderr = await stderrPromise;
+	const stderr = await captureStderr();
 	throw new Error(`Timed out waiting for ${HEALTH_PATH}\n${stderr}`.trim());
 }
 
@@ -111,20 +119,20 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 		runtimeAppPromise = (async () => {
 			await runBuildOnce();
 			mkdirSync(DATA_ROOT, { recursive: true });
+			mkdirSync(BACKUP_ROOT, { recursive: true });
 
 			const port = await allocatePort();
-			const tempDataDir = join(
-				DATA_ROOT,
-				`runtime-app-${Date.now()}-${Math.random().toString(16).slice(2)}`
-			);
+			const tempDataDir = mkdtempSync(join(DATA_ROOT, 'runtime-app-'));
+			const backupDir = mkdtempSync(join(BACKUP_ROOT, 'runtime-app-'));
 			const databasePath = join(tempDataDir, 'gyre.db');
-			mkdirSync(tempDataDir, { recursive: true });
 
 			const server = Bun.spawn(['node', 'build/index.js'], {
 				cwd: REPO_ROOT,
 				env: {
 					...process.env,
+					ADMIN_PASSWORD,
 					AUTH_ENCRYPTION_KEY: PROD_SECRET,
+					BACKUP_DIR: backupDir,
 					BACKUP_ENCRYPTION_KEY: PROD_SECRET,
 					DATABASE_URL: databasePath,
 					GYRE_ENCRYPTION_KEY: PROD_SECRET,
@@ -135,18 +143,26 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 				stderr: 'pipe',
 				stdout: 'ignore'
 			});
-			const stderrPromise = new Response(server.stderr).text();
+			let stderrPromise: Promise<string> | null = null;
+			const captureStderr = () => {
+				if (!stderrPromise) {
+					stderrPromise = server.stderr ? new Response(server.stderr).text() : Promise.resolve('');
+				}
+				return stderrPromise;
+			};
 			const baseUrl = `http://127.0.0.1:${port}`;
 
 			try {
-				await waitForReadiness(baseUrl, server, stderrPromise);
+				await waitForReadiness(baseUrl, server, captureStderr);
 			} catch (error) {
 				rmSync(tempDataDir, { force: true, recursive: true });
+				rmSync(backupDir, { force: true, recursive: true });
 				throw error;
 			}
 
 			let cleanedUp = false;
 			return {
+				backupDir,
 				baseUrl,
 				fetch: (path: string, init?: RequestInit) => fetch(new URL(path, baseUrl), init),
 				cleanup: async () => {
@@ -158,6 +174,7 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 					server.kill('SIGTERM');
 					await server.exited;
 					rmSync(tempDataDir, { force: true, recursive: true });
+					rmSync(backupDir, { force: true, recursive: true });
 					runtimeAppPromise = null;
 				}
 			};
@@ -172,4 +189,8 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 
 export function getRuntimeMetricsToken(): string {
 	return METRICS_TOKEN;
+}
+
+export function getRuntimeAdminPassword(): string {
+	return ADMIN_PASSWORD;
 }
