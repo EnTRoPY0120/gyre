@@ -139,6 +139,11 @@ beforeEach(() => {
 
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
+		clearBetterAuthSessionCookie: (cookies: {
+			delete: (name: string, options: { path: string }) => void;
+		}) => cookies.delete('gyre_session', { path: '/' }),
+		getBetterAuthSessionCookieValue: (cookies: { get: (name: string) => string | undefined }) =>
+			cookies.get('gyre_session'),
 		getBetterAuthSession: async () => sessionData,
 		createBetterAuthSessionForUser: async () => {},
 		revokeBetterAuthSessionByCookieValue: async () => {},
@@ -179,10 +184,14 @@ beforeEach(() => {
 	mock.module('$lib/server/flux/services.js', () => ({
 		getFluxInstalledVersion: async () => ({ version: 'v2.3.0' })
 	}));
-	mock.module('$lib/server/settings', () => createSettingsModuleStub());
-	mock.module('$lib/server/audit', () => ({
+	const settingsModuleStub = createSettingsModuleStub();
+	mock.module('$lib/server/settings', () => settingsModuleStub);
+	mock.module('$lib/server/settings.js', () => settingsModuleStub);
+	const auditModuleStub = {
 		logAudit: async () => {}
-	}));
+	};
+	mock.module('$lib/server/audit', () => auditModuleStub);
+	mock.module('$lib/server/audit.js', () => auditModuleStub);
 });
 
 afterEach(() => {

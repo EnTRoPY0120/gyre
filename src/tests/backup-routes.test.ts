@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import * as actualFs from 'node:fs';
+import { Readable } from 'node:stream';
 import * as actualRequestLimits from '../lib/server/request-limits.js';
 import { importFresh } from './helpers/import-fresh';
 import { createLoggerModuleStub, createRbacModuleStub } from './helpers/module-stubs';
@@ -20,7 +22,6 @@ class StubBackupError extends Error {
 
 let decryptedDownloadBuffer: Buffer | null = null;
 let decryptedUploadBuffer: Buffer | null = null;
-let backupPath: string | null = null;
 let restoreResult = {
 	filename: 'gyre-backup-2026-04-24T10-30-00-000Z.db',
 	sizeBytes: 42,
@@ -40,6 +41,29 @@ const auditCalls: Array<{ action: string; resourceName?: string }> = [];
 
 let downloadGET: DownloadRouteModule['GET'];
 let restorePOST: RestoreRouteModule['POST'];
+
+function createRequestLimitsModuleStub() {
+	const requestLimits = {
+		...actualRequestLimits.REQUEST_LIMITS
+	};
+	Object.defineProperty(requestLimits, 'BACKUP_RESTORE', {
+		configurable: true,
+		enumerable: true,
+		get: () => backupRestoreLimit
+	});
+
+	return {
+		...actualRequestLimits,
+		REQUEST_LIMITS: requestLimits,
+		formatSize: (size: number) => `${size}B`,
+		getRequestSizeLimit: (path: string, method: string) => {
+			if (path === '/api/v1/admin/backups/restore' && method === 'POST') {
+				return backupRestoreLimit;
+			}
+			return actualRequestLimits.getRequestSizeLimit(path, method);
+		}
+	};
+}
 
 function createDownloadEvent(filename: string | null) {
 	const url = new URL('http://localhost/api/v1/admin/backups/download');
@@ -77,7 +101,6 @@ function createRestoreEvent(file: File | null) {
 beforeEach(async () => {
 	decryptedDownloadBuffer = null;
 	decryptedUploadBuffer = null;
-	backupPath = null;
 	restoreResult = {
 		filename: 'gyre-backup-2026-04-24T10-30-00-000Z.db',
 		sizeBytes: 42,
@@ -104,20 +127,7 @@ beforeEach(async () => {
 	};
 	mock.module('$lib/server/audit', () => auditModuleStub);
 	mock.module('$lib/server/audit.js', () => auditModuleStub);
-	const requestLimitsModuleStub = {
-		...actualRequestLimits,
-		REQUEST_LIMITS: {
-			...actualRequestLimits.REQUEST_LIMITS,
-			BACKUP_RESTORE: backupRestoreLimit
-		},
-		formatSize: (size: number) => `${size}B`,
-		getRequestSizeLimit: (path: string, method: string) => {
-			if (path === '/api/v1/admin/backups/restore' && method === 'POST') {
-				return backupRestoreLimit;
-			}
-			return actualRequestLimits.getRequestSizeLimit(path, method);
-		}
-	};
+	const requestLimitsModuleStub = createRequestLimitsModuleStub();
 	mock.module('$lib/server/request-limits', () => requestLimitsModuleStub);
 	mock.module('$lib/server/request-limits.js', () => requestLimitsModuleStub);
 	mock.module('$lib/server/backup', () => ({
@@ -128,7 +138,7 @@ beforeEach(async () => {
 			if (downloadError) {
 				throw downloadError;
 			}
-			return backupPath ?? `/tmp/${filename}`;
+			return `/tmp/${filename}`;
 		},
 		getDecryptedBackupBuffer: (filename: string) => {
 			getDecryptedBackupBufferCalls.push(filename);
@@ -153,13 +163,8 @@ beforeEach(async () => {
 		}
 	}));
 	mock.module('node:fs', () => ({
-		createReadStream: () =>
-			new ReadableStream({
-				start(controller) {
-					controller.enqueue(plainDownloadBody);
-					controller.close();
-				}
-			}),
+		...actualFs,
+		createReadStream: () => Readable.from([plainDownloadBody]),
 		statSync: () => ({ size: plainDownloadBody.byteLength })
 	}));
 
@@ -306,25 +311,6 @@ describe('backup route behavior', () => {
 
 	test('rejects uploads that exceed the configured restore limit', async () => {
 		backupRestoreLimit = 5;
-		const requestLimitsModuleStub = {
-			...actualRequestLimits,
-			REQUEST_LIMITS: {
-				...actualRequestLimits.REQUEST_LIMITS,
-				BACKUP_RESTORE: backupRestoreLimit
-			},
-			formatSize: (size: number) => `${size}B`,
-			getRequestSizeLimit: (path: string, method: string) => {
-				if (path === '/api/v1/admin/backups/restore' && method === 'POST') {
-					return backupRestoreLimit;
-				}
-				return actualRequestLimits.getRequestSizeLimit(path, method);
-			}
-		};
-		mock.module('$lib/server/request-limits', () => requestLimitsModuleStub);
-		mock.module('$lib/server/request-limits.js', () => requestLimitsModuleStub);
-		restorePOST = (
-			await importFresh<RestoreRouteModule>('../routes/api/v1/admin/backups/restore/+server.js')
-		).POST;
 		const oversizedFile = new File([Buffer.from('123456')], 'backup.db', {
 			type: 'application/octet-stream'
 		});

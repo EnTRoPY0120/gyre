@@ -1,5 +1,6 @@
 import {
-	BETTER_AUTH_SESSION_COOKIE_NAME,
+	getBetterAuthSessionCookieValue,
+	clearBetterAuthSessionCookie,
 	getBetterAuthSession
 } from '$lib/server/auth/better-auth.js';
 import { CSRF_COOKIE_OPTIONS } from '$lib/server/config.js';
@@ -13,13 +14,13 @@ export async function hydrateSessionLocals(
 	event.locals.session = null;
 	event.locals.cluster = undefined;
 
-	if (!event.cookies.get(BETTER_AUTH_SESSION_COOKIE_NAME)) {
+	if (!getBetterAuthSessionCookieValue(event.cookies)) {
 		return;
 	}
 
 	const sessionData = await getBetterAuthSession(event.request, event.cookies);
 	if (!sessionData) {
-		event.cookies.delete(BETTER_AUTH_SESSION_COOKIE_NAME, { path: '/' });
+		clearBetterAuthSessionCookie(event.cookies);
 		return;
 	}
 
