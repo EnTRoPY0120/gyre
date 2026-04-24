@@ -15,6 +15,7 @@ const capturedPermissionChecks: unknown[][] = [];
 const capturedReconcileCalls: unknown[][] = [];
 const capturedToggleSuspendCalls: unknown[][] = [];
 const capturedLogWrites: unknown[][] = [];
+const capturedAuditCalls: unknown[][] = [];
 
 let permissionAllowed = true;
 let reconcilePOST: ReconcileRouteModule['POST'];
@@ -71,6 +72,7 @@ beforeEach(async () => {
 	capturedReconcileCalls.length = 0;
 	capturedToggleSuspendCalls.length = 0;
 	capturedLogWrites.length = 0;
+	capturedAuditCalls.length = 0;
 
 	mock.module('$lib/server/rbac.js', () =>
 		createRbacModuleStub({
@@ -82,6 +84,14 @@ beforeEach(async () => {
 	);
 
 	mock.module('$lib/server/kubernetes/flux/actions', () => ({
+		reconcileResource: async (...args: unknown[]) => {
+			capturedReconcileCalls.push(args);
+		},
+		toggleSuspendResource: async (...args: unknown[]) => {
+			capturedToggleSuspendCalls.push(args);
+		}
+	}));
+	mock.module('$lib/server/kubernetes/flux/actions.js', () => ({
 		reconcileResource: async (...args: unknown[]) => {
 			capturedReconcileCalls.push(args);
 		},
@@ -101,7 +111,11 @@ beforeEach(async () => {
 		logResourceWrite: async (...args: unknown[]) => {
 			capturedLogWrites.push(args);
 		},
-		logAudit: async () => {}
+		logAudit: async (...args: unknown[]) => {
+			capturedAuditCalls.push(args);
+		},
+		logLogin: async () => {},
+		logLogout: async () => {}
 	}));
 
 	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
@@ -111,8 +125,16 @@ beforeEach(async () => {
 		validateK8sNamespace: () => {},
 		validateK8sName: () => {}
 	}));
+	mock.module('$lib/server/validation.js', () => ({
+		...actualValidation,
+		validateK8sNamespace: () => {},
+		validateK8sName: () => {}
+	}));
 
 	mock.module('$lib/server/kubernetes/flux/reconciliation-tracker', () => ({
+		captureReconciliation: async () => {}
+	}));
+	mock.module('$lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
 		captureReconciliation: async () => {}
 	}));
 
@@ -203,6 +225,48 @@ describe('Flux action routes normalize plural resource types', () => {
 		]);
 		expect(capturedLogWrites[0][1]).toBe('HelmRelease');
 		expect(capturedLogWrites[0][2]).toBe('resume');
+	});
+
+	test('reconcile denies RBAC failures before action or audit side effects', async () => {
+		permissionAllowed = false;
+
+		await expect(reconcilePOST(buildEvent('kustomizations'))).rejects.toMatchObject({
+			status: 403,
+			body: { message: 'Permission denied' }
+		});
+
+		expect(capturedPermissionChecks).toHaveLength(1);
+		expect(capturedReconcileCalls).toHaveLength(0);
+		expect(capturedLogWrites).toHaveLength(0);
+		expect(capturedAuditCalls).toHaveLength(0);
+	});
+
+	test('suspend denies RBAC failures before action or audit side effects', async () => {
+		permissionAllowed = false;
+
+		await expect(suspendPOST(buildEvent('gitrepositories'))).rejects.toMatchObject({
+			status: 403,
+			body: { message: 'Permission denied' }
+		});
+
+		expect(capturedPermissionChecks).toHaveLength(1);
+		expect(capturedToggleSuspendCalls).toHaveLength(0);
+		expect(capturedLogWrites).toHaveLength(0);
+		expect(capturedAuditCalls).toHaveLength(0);
+	});
+
+	test('resume denies RBAC failures before action or audit side effects', async () => {
+		permissionAllowed = false;
+
+		await expect(resumePOST(buildEvent('helmreleases'))).rejects.toMatchObject({
+			status: 403,
+			body: { message: 'Permission denied' }
+		});
+
+		expect(capturedPermissionChecks).toHaveLength(1);
+		expect(capturedToggleSuspendCalls).toHaveLength(0);
+		expect(capturedLogWrites).toHaveLength(0);
+		expect(capturedAuditCalls).toHaveLength(0);
 	});
 
 	test('invalid resource types are rejected before RBAC checks run', async () => {

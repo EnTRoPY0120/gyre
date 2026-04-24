@@ -101,9 +101,18 @@ beforeEach(async () => {
 	Object.assign(routeState, createRouteState());
 
 	mock.module('$lib/server/auth', () => ({
+		SESSION_DURATION_DAYS: 30,
+		addPasswordHistory: async () => {},
 		authenticateUser: async () => routeState.authenticatedUser,
+		clearRequiresPasswordChange: async () => {},
+		cleanupSetupTokenFile: () => {},
+		deleteUserSessions: async () => {},
+		getCredentialAccount: async () => null,
+		getCredentialPasswordHash: async () => null,
 		getUserByUsername: async () => routeState.existingUser,
 		hasManagedPassword: async () => routeState.canChangePassword,
+		isInClusterAdmin: () => false,
+		isPasswordInHistory: async () => false,
 		normalizeUsername: (username: string) => username.toLowerCase().trim(),
 		hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
 		verifyPassword: async (password: string, hash: string) => {
@@ -124,12 +133,29 @@ beforeEach(async () => {
 		logAudit: async () => {},
 		logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
 			routeState.loginLogCalls.push({ user, success, ipAddress, reason });
-		}
+		},
+		logLogout: async () => {}
+	}));
+	mock.module('$lib/server/audit.js', () => ({
+		logAudit: async () => {},
+		logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
+			routeState.loginLogCalls.push({ user, success, ipAddress, reason });
+		},
+		logLogout: async () => {}
 	}));
 
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
+		applyBetterAuthCookies: () => {},
 		createBetterAuthSessionForUser: async () => {},
+		ensureBetterAuthOAuthAccount: async () => {},
+		getBetterAuth: () => ({
+			api: {
+				changePassword: async () => ({ headers: new Headers() }),
+				signOut: async () => ({ headers: new Headers() })
+			}
+		}),
+		getBetterAuthSession: async () => null,
 		revokeBetterAuthSessionByCookieValue: async () => {}
 	};
 
