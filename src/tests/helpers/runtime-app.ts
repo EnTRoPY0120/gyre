@@ -1,0 +1,175 @@
+import { mkdirSync, rmSync } from 'node:fs';
+import { createServer } from 'node:net';
+import { join } from 'node:path';
+
+const HEALTH_PATH = '/api/v1/health';
+const METRICS_TOKEN = 'runtime-metrics-token';
+const PROD_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+const REPO_ROOT = process.cwd();
+const DATA_ROOT = join(REPO_ROOT, 'data');
+
+interface RuntimeAppHandle {
+	baseUrl: string;
+	cleanup: () => Promise<void>;
+	fetch: (path: string, init?: RequestInit) => Promise<Response>;
+}
+
+let buildPromise: Promise<void> | null = null;
+let runtimeAppPromise: Promise<RuntimeAppHandle> | null = null;
+
+async function runBuildOnce(): Promise<void> {
+	if (!buildPromise) {
+		buildPromise = (async () => {
+			const build = Bun.spawn(['bun', 'run', 'build'], {
+				cwd: REPO_ROOT,
+				env: process.env,
+				stderr: 'pipe',
+				stdout: 'pipe'
+			});
+			const stdoutPromise = new Response(build.stdout).text();
+			const stderrPromise = new Response(build.stderr).text();
+			const exitCode = await build.exited;
+
+			if (exitCode !== 0) {
+				const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+				throw new Error(
+					`bun run build failed with exit code ${exitCode}\n${stdout}${stderr}`.trim()
+				);
+			}
+		})().catch((error) => {
+			buildPromise = null;
+			throw error;
+		});
+	}
+
+	await buildPromise;
+}
+
+async function allocatePort(): Promise<number> {
+	const server = createServer();
+
+	return await new Promise((resolve, reject) => {
+		server.once('error', reject);
+		server.listen(0, '127.0.0.1', () => {
+			const address = server.address();
+			if (!address || typeof address === 'string') {
+				server.close(() => reject(new Error('Failed to allocate a localhost port')));
+				return;
+			}
+
+			server.close((closeError) => {
+				if (closeError) {
+					reject(closeError);
+					return;
+				}
+
+				resolve(address.port);
+			});
+		});
+	});
+}
+
+async function waitForReadiness(
+	baseUrl: string,
+	server: ReturnType<typeof Bun.spawn>,
+	stderrPromise: Promise<string>,
+	timeoutMs = 30_000
+): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+
+	while (Date.now() < deadline) {
+		const exitCode = await Promise.race([
+			server.exited.then((code) => ({ code, exited: true as const })),
+			Bun.sleep(250).then(() => ({ code: 0, exited: false as const }))
+		]);
+
+		if (exitCode.exited) {
+			const stderr = await stderrPromise;
+			throw new Error(
+				`Built runtime exited before becoming ready (exit ${exitCode.code})\n${stderr}`.trim()
+			);
+		}
+
+		try {
+			const response = await fetch(new URL(HEALTH_PATH, baseUrl));
+			if (response.status === 200) {
+				return;
+			}
+		} catch {
+			// Poll until ready or timeout.
+		}
+	}
+
+	server.kill('SIGTERM');
+	await server.exited;
+	const stderr = await stderrPromise;
+	throw new Error(`Timed out waiting for ${HEALTH_PATH}\n${stderr}`.trim());
+}
+
+export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
+	if (!runtimeAppPromise) {
+		runtimeAppPromise = (async () => {
+			await runBuildOnce();
+			mkdirSync(DATA_ROOT, { recursive: true });
+
+			const port = await allocatePort();
+			const tempDataDir = join(
+				DATA_ROOT,
+				`runtime-app-${Date.now()}-${Math.random().toString(16).slice(2)}`
+			);
+			const databasePath = join(tempDataDir, 'gyre.db');
+			mkdirSync(tempDataDir, { recursive: true });
+
+			const server = Bun.spawn(['node', 'build/index.js'], {
+				cwd: REPO_ROOT,
+				env: {
+					...process.env,
+					AUTH_ENCRYPTION_KEY: PROD_SECRET,
+					BACKUP_ENCRYPTION_KEY: PROD_SECRET,
+					DATABASE_URL: databasePath,
+					GYRE_ENCRYPTION_KEY: PROD_SECRET,
+					GYRE_METRICS_TOKEN: METRICS_TOKEN,
+					NODE_ENV: 'production',
+					PORT: String(port)
+				},
+				stderr: 'pipe',
+				stdout: 'ignore'
+			});
+			const stderrPromise = new Response(server.stderr).text();
+			const baseUrl = `http://127.0.0.1:${port}`;
+
+			try {
+				await waitForReadiness(baseUrl, server, stderrPromise);
+			} catch (error) {
+				rmSync(tempDataDir, { force: true, recursive: true });
+				throw error;
+			}
+
+			let cleanedUp = false;
+			return {
+				baseUrl,
+				fetch: (path: string, init?: RequestInit) => fetch(new URL(path, baseUrl), init),
+				cleanup: async () => {
+					if (cleanedUp) {
+						return;
+					}
+
+					cleanedUp = true;
+					server.kill('SIGTERM');
+					await server.exited;
+					rmSync(tempDataDir, { force: true, recursive: true });
+					runtimeAppPromise = null;
+				}
+			};
+		})().catch((error) => {
+			runtimeAppPromise = null;
+			throw error;
+		});
+	}
+
+	return await runtimeAppPromise;
+}
+
+export function getRuntimeMetricsToken(): string {
+	return METRICS_TOKEN;
+}

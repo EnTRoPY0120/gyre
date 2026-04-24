@@ -8,7 +8,7 @@ import {
 	BETTER_AUTH_SESSION_COOKIE_NAME,
 	getBetterAuth
 } from '$lib/server/auth/better-auth';
-import { logLogout } from '$lib/server/audit';
+import { logLogout } from '$lib/server/audit.js';
 
 export const _metadata = {
 	POST: {

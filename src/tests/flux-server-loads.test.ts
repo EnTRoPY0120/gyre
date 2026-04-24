@@ -38,9 +38,9 @@ let detailResult = {
 };
 let detailServiceError: unknown = null;
 let clusterReadShouldThrow = false;
-let dashboardCacheValue: unknown = null;
 const getDashboardCacheCalls: string[] = [];
 const getDashboardCacheKeyCalls: Array<{ clusterId: string; role: string; userId: string }> = [];
+const dashboardCacheEntries = new Map<string, unknown>();
 let selectableClusters = [
 	{
 		id: IN_CLUSTER_ID,
@@ -62,6 +62,7 @@ let selectableClusters = [
 const setDashboardCacheCalls: Array<{ key: string; value: unknown }> = [];
 const requireClusterWideReadCalls: string[] = [];
 const adminReadinessCalls: boolean[] = [];
+const overviewCalls: Array<{ clusterId: string; role?: string; userId?: string }> = [];
 let adminReadinessResult = {
 	status: 'ready' as const,
 	readyCount: 4,
@@ -131,12 +132,13 @@ beforeEach(() => {
 	};
 	detailServiceError = null;
 	clusterReadShouldThrow = false;
-	dashboardCacheValue = null;
 	getDashboardCacheCalls.length = 0;
 	getDashboardCacheKeyCalls.length = 0;
 	requireClusterWideReadCalls.length = 0;
 	setDashboardCacheCalls.length = 0;
 	adminReadinessCalls.length = 0;
+	overviewCalls.length = 0;
+	dashboardCacheEntries.clear();
 	adminReadinessResult = {
 		status: 'ready',
 		readyCount: 4,
@@ -172,7 +174,14 @@ beforeEach(() => {
 			return healthResult;
 		},
 		getFluxInstalledVersion: async () => versionResult,
-		getFluxOverviewSummary: async () => overviewResult,
+		getFluxOverviewSummary: async ({ locals }: { locals: App.Locals }) => {
+			overviewCalls.push({
+				clusterId: locals.cluster ?? IN_CLUSTER_ID,
+				role: locals.user?.role,
+				userId: locals.user?.id
+			});
+			return overviewResult;
+		},
 		getFluxResourceDetail: async () => {
 			if (detailServiceError) {
 				throw detailServiceError;
@@ -218,13 +227,16 @@ beforeEach(() => {
 	mock.module('$lib/server/dashboard-cache', () => ({
 		getDashboardCache: (key: string) => {
 			getDashboardCacheCalls.push(key);
-			return dashboardCacheValue;
+			return dashboardCacheEntries.get(key) ?? null;
 		},
 		getDashboardCacheKey: (parts: { clusterId: string; role: string; userId: string }) => {
 			getDashboardCacheKeyCalls.push(parts);
 			return `dashboard:user:${parts.userId}:role:${parts.role}:cluster:${parts.clusterId}`;
 		},
-		setDashboardCache: (key: string, value: unknown) => setDashboardCacheCalls.push({ key, value })
+		setDashboardCache: (key: string, value: unknown) => {
+			dashboardCacheEntries.set(key, value);
+			setDashboardCacheCalls.push({ key, value });
+		}
 	}));
 
 	mock.module('$lib/server/metrics.js', () => ({
@@ -252,6 +264,23 @@ afterEach(() => {
 });
 
 describe('migrated server loads', () => {
+	async function loadDashboardPage(locals: App.Locals, parentClusterId = 'cluster-b') {
+		const { load } = await import(`../routes/+page.server.js?case=${Date.now()}-${Math.random()}`);
+
+		return await load({
+			locals,
+			parent: async () => ({
+				health: {
+					connected: true,
+					currentClusterId: parentClusterId,
+					currentClusterName: parentClusterId,
+					availableClusters: []
+				}
+			}),
+			setHeaders: () => {}
+		} as Parameters<typeof load>[0]);
+	}
+
 	test('layout load uses shared services and preserves health/version fallbacks', async () => {
 		const { load } = await import(
 			`../routes/+layout.server.js?case=${Date.now()}-${Math.random()}`
@@ -323,25 +352,12 @@ describe('migrated server loads', () => {
 	});
 
 	test('dashboard load uses overview service and preserves grouped counts plus cache writes', async () => {
-		const { load } = await import(`../routes/+page.server.js?case=${Date.now()}-${Math.random()}`);
-
-		const result = await load({
-			locals: {
-				cluster: 'cluster-a',
-				requestId: 'req-1',
-				session: null,
-				user: createUser()
-			},
-			parent: async () => ({
-				health: {
-					connected: true,
-					currentClusterId: 'cluster-b',
-					currentClusterName: 'Uploaded Cluster B',
-					availableClusters: []
-				}
-			}),
-			setHeaders: () => {}
-		} as Parameters<typeof load>[0]);
+		const result = await loadDashboardPage({
+			cluster: 'cluster-a',
+			requestId: 'req-1',
+			session: null,
+			user: createUser()
+		} as App.Locals);
 
 		const groupCounts = await result.streamed.groupCounts;
 		expect(result.adminReadiness).toEqual(adminReadinessResult);
@@ -364,29 +380,20 @@ describe('migrated server loads', () => {
 		expect(getDashboardCacheCalls).toEqual(['dashboard:user:user-1:role:admin:cluster:cluster-a']);
 		expect(requireClusterWideReadCalls).toEqual(['cluster-a']);
 		expect(adminReadinessCalls).toEqual([true]);
+		expect(overviewCalls).toEqual([{ clusterId: 'cluster-a', role: 'admin', userId: 'user-1' }]);
 	});
 
 	test('dashboard load does not access cache before permission checks fail', async () => {
 		clusterReadShouldThrow = true;
-		const { load } = await import(`../routes/+page.server.js?case=${Date.now()}-${Math.random()}`);
-
-		const result = await load({
-			locals: {
+		const result = await loadDashboardPage(
+			{
 				cluster: 'cluster-a',
 				requestId: 'req-1',
 				session: null,
 				user: createUser()
-			},
-			parent: async () => ({
-				health: {
-					connected: true,
-					currentClusterId: 'cluster-a',
-					currentClusterName: 'Uploaded Cluster A',
-					availableClusters: []
-				}
-			}),
-			setHeaders: () => {}
-		} as Parameters<typeof load>[0]);
+			} as App.Locals,
+			'cluster-a'
+		);
 
 		expect(await result.streamed.groupCounts).toEqual({});
 		expect(getDashboardCacheKeyCalls).toEqual([]);
@@ -394,31 +401,125 @@ describe('migrated server loads', () => {
 		expect(setDashboardCacheCalls).toEqual([]);
 		expect(requireClusterWideReadCalls).toEqual(['cluster-a']);
 		expect(adminReadinessCalls).toEqual([true]);
+		expect(overviewCalls).toEqual([]);
 	});
 
 	test('dashboard load does not include admin readiness for non-admin users', async () => {
-		const { load } = await import(`../routes/+page.server.js?case=${Date.now()}-${Math.random()}`);
-
-		const result = await load({
-			locals: {
+		const result = await loadDashboardPage(
+			{
 				cluster: 'cluster-a',
 				requestId: 'req-1',
 				session: null,
 				user: { ...createUser(), role: 'editor' }
-			},
-			parent: async () => ({
-				health: {
-					connected: true,
-					currentClusterId: 'cluster-a',
-					currentClusterName: 'Uploaded Cluster A',
-					availableClusters: []
-				}
-			}),
-			setHeaders: () => {}
-		} as Parameters<typeof load>[0]);
+			} as App.Locals,
+			'cluster-a'
+		);
 
 		expect(result.adminReadiness).toBeUndefined();
 		expect(adminReadinessCalls).toEqual([]);
+	});
+
+	test('dashboard cache isolates entries by user id', async () => {
+		const cachedGroupCounts = {
+			Sources: { total: 99, healthy: 99, failed: 0, suspended: 0, error: false }
+		};
+		dashboardCacheEntries.set(
+			'dashboard:user:user-1:role:admin:cluster:cluster-a',
+			cachedGroupCounts
+		);
+
+		const cachedResult = await loadDashboardPage(
+			{
+				cluster: 'cluster-a',
+				requestId: 'req-1',
+				session: null,
+				user: createUser()
+			} as App.Locals,
+			'cluster-a'
+		);
+		expect(await cachedResult.streamed.groupCounts).toBe(cachedGroupCounts);
+
+		const freshResult = await loadDashboardPage(
+			{
+				cluster: 'cluster-a',
+				requestId: 'req-2',
+				session: null,
+				user: { ...createUser(), id: 'user-2', username: 'bob' }
+			} as App.Locals,
+			'cluster-a'
+		);
+		expect(await freshResult.streamed.groupCounts).not.toBe(cachedGroupCounts);
+
+		expect(getDashboardCacheCalls).toEqual([
+			'dashboard:user:user-1:role:admin:cluster:cluster-a',
+			'dashboard:user:user-2:role:admin:cluster:cluster-a'
+		]);
+		expect(overviewCalls).toEqual([{ clusterId: 'cluster-a', role: 'admin', userId: 'user-2' }]);
+	});
+
+	test('dashboard cache isolates entries by role', async () => {
+		const cachedGroupCounts = {
+			Sources: { total: 7, healthy: 7, failed: 0, suspended: 0, error: false }
+		};
+		dashboardCacheEntries.set(
+			'dashboard:user:user-1:role:admin:cluster:cluster-a',
+			cachedGroupCounts
+		);
+
+		const adminResult = await loadDashboardPage(
+			{
+				cluster: 'cluster-a',
+				requestId: 'req-1',
+				session: null,
+				user: createUser()
+			} as App.Locals,
+			'cluster-a'
+		);
+		expect(await adminResult.streamed.groupCounts).toBe(cachedGroupCounts);
+
+		const editorResult = await loadDashboardPage(
+			{
+				cluster: 'cluster-a',
+				requestId: 'req-2',
+				session: null,
+				user: { ...createUser(), role: 'editor' }
+			} as App.Locals,
+			'cluster-a'
+		);
+		expect(await editorResult.streamed.groupCounts).not.toBe(cachedGroupCounts);
+
+		expect(getDashboardCacheCalls).toEqual([
+			'dashboard:user:user-1:role:admin:cluster:cluster-a',
+			'dashboard:user:user-1:role:editor:cluster:cluster-a'
+		]);
+		expect(overviewCalls).toEqual([{ clusterId: 'cluster-a', role: 'editor', userId: 'user-1' }]);
+	});
+
+	test('dashboard cache isolates entries by locals.cluster instead of parent health cluster', async () => {
+		const cachedGroupCounts = {
+			Sources: { total: 5, healthy: 5, failed: 0, suspended: 0, error: false }
+		};
+		dashboardCacheEntries.set(
+			'dashboard:user:user-1:role:admin:cluster:cluster-a',
+			cachedGroupCounts
+		);
+
+		const result = await loadDashboardPage(
+			{
+				cluster: 'cluster-b',
+				requestId: 'req-1',
+				session: null,
+				user: createUser()
+			} as App.Locals,
+			'cluster-a'
+		);
+		expect(await result.streamed.groupCounts).not.toBe(cachedGroupCounts);
+
+		expect(getDashboardCacheKeyCalls).toEqual([
+			{ userId: 'user-1', role: 'admin', clusterId: 'cluster-b' }
+		]);
+		expect(getDashboardCacheCalls).toEqual(['dashboard:user:user-1:role:admin:cluster:cluster-b']);
+		expect(overviewCalls).toEqual([{ clusterId: 'cluster-b', role: 'admin', userId: 'user-1' }]);
 	});
 
 	test('resource list load calls the shared service and keeps the UI-facing shape', async () => {

@@ -10,7 +10,7 @@ import {
 	hashPassword,
 	verifyPassword
 } from '$lib/server/auth';
-import { logLogin } from '$lib/server/audit';
+import { logLogin } from '$lib/server/audit.js';
 import { getAuthSettings } from '$lib/server/settings';
 import {
 	BETTER_AUTH_SESSION_COOKIE_NAME,
