@@ -23,8 +23,8 @@ import { and, eq } from 'drizzle-orm';
 export const BETTER_AUTH_BASE_PATH = '/api/v1/auth';
 export const BETTER_AUTH_SESSION_COOKIE_NAME = 'gyre_session';
 export const BETTER_AUTH_SESSION_COOKIE_NAMES = [
-	BETTER_AUTH_SESSION_COOKIE_NAME,
-	`__Secure-${BETTER_AUTH_SESSION_COOKIE_NAME}`
+	`__Secure-${BETTER_AUTH_SESSION_COOKIE_NAME}`,
+	BETTER_AUTH_SESSION_COOKIE_NAME
 ] as const;
 
 function createBetterAuth() {
@@ -216,6 +216,7 @@ export function applyBetterAuthCookies(cookies: Cookies, headers: Headers): void
 	}
 }
 
+// RFC 6265bis gives "__Secure-" cookies stricter guarantees, so prefer them when both names exist.
 export function getBetterAuthSessionCookieValue(cookies: Pick<Cookies, 'get'>): string | undefined {
 	for (const cookieName of BETTER_AUTH_SESSION_COOKIE_NAMES) {
 		const cookieValue = cookies.get(cookieName);
