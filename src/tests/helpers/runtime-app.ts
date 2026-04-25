@@ -151,6 +151,27 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 				return stderrPromise;
 			};
 			const baseUrl = `http://127.0.0.1:${port}`;
+			const serverExited = server.exited.then(
+				() => undefined,
+				() => undefined
+			);
+			const waitForServerExit = async (timeoutMs: number): Promise<boolean> => {
+				let timeout: ReturnType<typeof setTimeout> | undefined;
+				const timeoutPromise = new Promise<'timeout'>((resolve) => {
+					timeout = setTimeout(resolve, timeoutMs, 'timeout');
+				});
+
+				try {
+					return (
+						(await Promise.race([serverExited.then(() => 'exited' as const), timeoutPromise])) ===
+						'exited'
+					);
+				} finally {
+					if (timeout) {
+						clearTimeout(timeout);
+					}
+				}
+			};
 
 			try {
 				await waitForReadiness(baseUrl, server, captureStderr);
@@ -172,7 +193,10 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 
 					cleanedUp = true;
 					server.kill('SIGTERM');
-					await server.exited;
+					if (!(await waitForServerExit(5_000))) {
+						server.kill('SIGKILL');
+						await serverExited;
+					}
 					rmSync(tempDataDir, { force: true, recursive: true });
 					rmSync(backupDir, { force: true, recursive: true });
 					runtimeAppPromise = null;

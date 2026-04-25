@@ -3,6 +3,7 @@ import type { RequestEvent } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
 import { importFresh } from './helpers/import-fresh';
 import { createCookies } from './helpers/cookies';
+import { buildLoginEvent } from './helpers/login-route-event';
 import {
 	createKubernetesErrorsModuleStub,
 	createLoggerModuleStub,
@@ -136,7 +137,6 @@ beforeEach(() => {
 	};
 	mock.module('$lib/server/audit', () => auditModuleStub);
 	mock.module('$lib/server/audit.js', () => auditModuleStub);
-	mock.module('$lib/server/audit.ts', () => auditModuleStub);
 	mock.module('$lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkClusterWideReadPermission: async () => true
@@ -210,16 +210,12 @@ describe('session cookie round trip behavior', () => {
 		);
 		const loginCookies = createCookies({ gyre_session: 'old-session-cookie' });
 
-		const loginResponse = await loginModule.POST({
-			cookies: loginCookies,
-			getClientAddress: () => '127.0.0.1',
-			request: new Request('http://localhost/api/v1/auth/login', {
-				body: JSON.stringify({ username: ' Alice ', password: 'password123' }),
-				headers: { 'content-type': 'application/json' },
-				method: 'POST'
-			}),
-			setHeaders: () => {}
-		} as Parameters<LoginRouteModule['POST']>[0]);
+		const loginResponse = await loginModule.POST(
+			buildLoginEvent({
+				body: { username: ' Alice ', password: 'password123' },
+				cookies: loginCookies
+			})
+		);
 
 		expect(loginResponse.status).toBe(200);
 		expect(await loginResponse.json()).toEqual({

@@ -282,6 +282,39 @@ describe('request pipeline runtime coverage', () => {
 		expect(resolvedRoutes).toEqual([]);
 	});
 
+	test('authenticated state-changing requests with a rejected CSRF token return 403', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
+		csrfValid = false;
+		const { handle } = await importHooks();
+		const { event } = createEvent(
+			'/api/v1/admin/settings',
+			{
+				body: JSON.stringify({ localLoginEnabled: true }),
+				headers: {
+					'content-type': 'application/json',
+					'x-csrf-token': 'csrf:wrong'
+				},
+				method: 'PATCH'
+			},
+			{ gyre_session: 'session-cookie' }
+		);
+
+		const response = await handle({
+			event,
+			resolve: resolveTestRoute
+		});
+
+		expect(response.status).toBe(403);
+		expect(await response.json()).toEqual({
+			error: 'Forbidden',
+			message: 'Invalid or missing CSRF token'
+		});
+		expect(resolvedRoutes).toEqual([]);
+	});
+
 	test('authenticated non-admin users are blocked from admin routes before handler execution', async () => {
 		sessionData = {
 			session: { id: 'session-1' },
