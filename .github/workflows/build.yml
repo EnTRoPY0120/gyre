@@ -95,7 +95,7 @@ jobs:
           cache-to: type=gha,mode=min
 
       - name: Run Trivy scan (blocking)
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: gyre:scan
           format: table
@@ -121,7 +121,7 @@ jobs:
           cache-to: type=gha,scope=arm64,mode=min
 
       - name: Run Trivy scan arm64 (blocking)
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: gyre:scan-arm64
           format: table
@@ -154,7 +154,7 @@ jobs:
         id: trivy-sarif
         if: github.event_name != 'pull_request'
         continue-on-error: true
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}
           format: sarif
