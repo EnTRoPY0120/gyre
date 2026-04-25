@@ -1,12 +1,10 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
-import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
 import { importFresh } from './helpers/import-fresh';
+import { buildLoginEvent, type LoginEvent } from './helpers/login-route-event';
 import { createLoggerModuleStub, createRateLimiterModuleStub } from './helpers/module-stubs';
 
 type LoginRouteModule = typeof import('../routes/api/v1/auth/login/+server.js');
-type LoginEvent = Parameters<LoginRouteModule['POST']>[0];
 
 function createRouteState() {
 	const activeUser = createUser({ active: true });
@@ -48,62 +46,26 @@ function createUser(overrides: Partial<User> = {}): User {
 	};
 }
 
-function createCookies(): Cookies {
-	return {
-		get: () => undefined,
-		getAll: () => [],
-		set: () => {},
-		delete: () => {},
-		serialize: () => ''
-	};
-}
-
 function buildEvent(): LoginEvent {
-	const request = new Request('http://localhost/api/v1/auth/login', {
-		method: 'POST',
-		headers: { 'content-type': 'application/json' },
-		body: JSON.stringify({
-			username: 'admin',
-			password: 'Password123!'
-		})
-	});
-
-	return {
-		request,
-		cookies: createCookies(),
-		fetch,
-		getClientAddress: () => '127.0.0.1',
-		locals: {
-			requestId: 'req-1',
-			cluster: undefined,
-			user: null,
-			session: null
-		},
-		params: {},
-		platform: undefined,
-		route: {
-			id: '/api/v1/auth/login'
-		},
-		setHeaders: () => {},
-		url: new URL(request.url),
-		isDataRequest: false,
-		isSubRequest: false,
-		tracing: {
-			enabled: false,
-			root: trace.wrapSpanContext(INVALID_SPAN_CONTEXT),
-			current: trace.wrapSpanContext(INVALID_SPAN_CONTEXT)
-		},
-		isRemoteRequest: false
-	} satisfies LoginEvent;
+	return buildLoginEvent();
 }
 
 beforeEach(async () => {
 	Object.assign(routeState, createRouteState());
 
 	mock.module('$lib/server/auth', () => ({
+		SESSION_DURATION_DAYS: 30,
+		addPasswordHistory: async () => {},
 		authenticateUser: async () => routeState.authenticatedUser,
+		clearRequiresPasswordChange: async () => {},
+		cleanupSetupTokenFile: () => {},
+		deleteUserSessions: async () => {},
+		getCredentialAccount: async () => null,
+		getCredentialPasswordHash: async () => null,
 		getUserByUsername: async () => routeState.existingUser,
 		hasManagedPassword: async () => routeState.canChangePassword,
+		isInClusterAdmin: () => false,
+		isPasswordInHistory: async () => false,
 		normalizeUsername: (username: string) => username.toLowerCase().trim(),
 		hashPassword: async () => '$2b$12$0123456789abcdefghijklmu4rjCjM1rUuK2mQsjm9nO0LQ4pQeW2',
 		verifyPassword: async (password: string, hash: string) => {
@@ -120,16 +82,33 @@ beforeEach(async () => {
 		})
 	}));
 
-	mock.module('$lib/server/audit', () => ({
+	const auditModuleStub = {
 		logAudit: async () => {},
 		logLogin: async (user: User | null, success: boolean, ipAddress?: string, reason?: string) => {
 			routeState.loginLogCalls.push({ user, success, ipAddress, reason });
-		}
-	}));
+		},
+		logLogout: async () => {}
+	};
+	mock.module('$lib/server/audit', () => auditModuleStub);
+	mock.module('$lib/server/audit.js', () => auditModuleStub);
 
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
+		clearBetterAuthSessionCookie: (cookies: {
+			delete: (name: string, options: { path: string }) => void;
+		}) => cookies.delete('gyre_session', { path: '/' }),
+		getBetterAuthSessionCookieValue: (cookies: { get: (name: string) => string | undefined }) =>
+			cookies.get('gyre_session'),
+		applyBetterAuthCookies: () => {},
 		createBetterAuthSessionForUser: async () => {},
+		ensureBetterAuthOAuthAccount: async () => {},
+		getBetterAuth: () => ({
+			api: {
+				changePassword: async () => ({ headers: new Headers() }),
+				signOut: async () => ({ headers: new Headers() })
+			}
+		}),
+		getBetterAuthSession: async () => null,
 		revokeBetterAuthSessionByCookieValue: async () => {}
 	};
 

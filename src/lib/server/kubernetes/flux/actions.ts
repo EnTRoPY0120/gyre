@@ -1,5 +1,5 @@
-import { getCustomObjectsApi, handleK8sError } from '../client';
-import { getResourceDef, resolveFluxResourceType } from './resources';
+import { getCustomObjectsApi, handleK8sError } from '../client.js';
+import { getResourceDef, resolveFluxResourceType } from './resources.js';
 
 function requireResourceDef(resourceType: string) {
 	const resolvedType = resolveFluxResourceType(resourceType);

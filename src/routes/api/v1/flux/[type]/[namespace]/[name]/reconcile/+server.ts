@@ -1,13 +1,13 @@
 import { error, json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { reconcileResource } from '$lib/server/kubernetes/flux/actions';
-import { resolveFluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import { reconcileResource } from '$lib/server/kubernetes/flux/actions.js';
+import { resolveFluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
 import { checkPermission } from '$lib/server/rbac.js';
 import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
-import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
-import { captureReconciliation } from '$lib/server/kubernetes/flux/reconciliation-tracker';
+import { validateK8sNamespace, validateK8sName } from '$lib/server/validation.js';
+import { captureReconciliation } from '$lib/server/kubernetes/flux/reconciliation-tracker.js';
 
 export const _metadata = {
 	POST: {

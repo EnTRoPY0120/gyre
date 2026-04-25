@@ -5,10 +5,10 @@ import type { RequestHandler } from './$types';
 import { deleteUserSessions } from '$lib/server/auth';
 import {
 	applyBetterAuthCookies,
-	BETTER_AUTH_SESSION_COOKIE_NAME,
+	clearBetterAuthSessionCookie,
 	getBetterAuth
 } from '$lib/server/auth/better-auth';
-import { logLogout } from '$lib/server/audit';
+import { logLogout } from '$lib/server/audit.js';
 
 export const _metadata = {
 	POST: {
@@ -74,7 +74,7 @@ export const POST: RequestHandler = async ({ request, cookies, locals, getClient
 			await logLogout(locals.user, ipAddress);
 		}
 
-		cookies.delete(BETTER_AUTH_SESSION_COOKIE_NAME, { path: '/' });
+		clearBetterAuthSessionCookie(cookies);
 
 		return json({ success: true });
 	} catch (err) {

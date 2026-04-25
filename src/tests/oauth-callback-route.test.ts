@@ -137,10 +137,30 @@ beforeEach(async () => {
 	}));
 
 	mock.module('$lib/server/auth', () => ({
-		cleanupSetupTokenFile: () => {}
+		SESSION_DURATION_DAYS: 30,
+		addPasswordHistory: async () => {},
+		authenticateUser: async () => null,
+		clearRequiresPasswordChange: async () => {},
+		cleanupSetupTokenFile: () => {},
+		deleteUserSessions: async () => {},
+		getCredentialAccount: async () => null,
+		getCredentialPasswordHash: async () => null,
+		getUserByUsername: async () => null,
+		hasManagedPassword: async () => true,
+		isInClusterAdmin: () => false,
+		isPasswordInHistory: async () => false,
+		normalizeUsername: (username: string) => username,
+		verifyPassword: async () => true
 	}));
 
 	const betterAuthModuleStub = {
+		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
+		clearBetterAuthSessionCookie: (cookies: {
+			delete: (name: string, options: { path: string }) => void;
+		}) => cookies.delete('gyre_session', { path: '/' }),
+		getBetterAuthSessionCookieValue: (cookies: { get: (name: string) => string | undefined }) =>
+			cookies.get('gyre_session'),
+		applyBetterAuthCookies: () => {},
 		createBetterAuthSessionForUser: async (
 			_cookies: Cookies,
 			userId: string,
@@ -148,7 +168,15 @@ beforeEach(async () => {
 		) => {
 			callbackState.sessionCreations.push({ userId, ...details });
 		},
-		ensureBetterAuthOAuthAccount: async () => {}
+		ensureBetterAuthOAuthAccount: async () => {},
+		getBetterAuth: () => ({
+			api: {
+				changePassword: async () => ({ headers: new Headers() }),
+				signOut: async () => ({ headers: new Headers() })
+			}
+		}),
+		getBetterAuthSession: async () => null,
+		revokeBetterAuthSessionByCookieValue: async () => {}
 	};
 
 	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);

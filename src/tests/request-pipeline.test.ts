@@ -105,6 +105,11 @@ beforeEach(() => {
 
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
+		clearBetterAuthSessionCookie: (cookies: {
+			delete: (name: string, options: { path: string }) => void;
+		}) => cookies.delete('gyre_session', { path: '/' }),
+		getBetterAuthSessionCookieValue: (cookies: { get: (name: string) => string | undefined }) =>
+			cookies.get('gyre_session'),
 		getBetterAuthSession: async () => sessionData,
 		createBetterAuthSessionForUser: async () => {},
 		revokeBetterAuthSessionByCookieValue: async () => {},

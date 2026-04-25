@@ -10,11 +10,11 @@ import {
 	hashPassword,
 	verifyPassword
 } from '$lib/server/auth';
-import { logLogin } from '$lib/server/audit';
+import { logLogin } from '$lib/server/audit.js';
 import { getAuthSettings } from '$lib/server/settings';
 import {
-	BETTER_AUTH_SESSION_COOKIE_NAME,
 	createBetterAuthSessionForUser,
+	getBetterAuthSessionCookieValue,
 	revokeBetterAuthSessionByCookieValue
 } from '$lib/server/auth/better-auth';
 
@@ -174,7 +174,7 @@ export const POST: RequestHandler = async (event) => {
 		// Reset lockout on successful login
 		accountLockout.recordSuccess(canonicalUsername);
 
-		const existingSessionCookie = cookies.get(BETTER_AUTH_SESSION_COOKIE_NAME);
+		const existingSessionCookie = getBetterAuthSessionCookieValue(cookies);
 		if (existingSessionCookie) {
 			try {
 				await revokeBetterAuthSessionByCookieValue(existingSessionCookie);
