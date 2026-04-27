@@ -174,13 +174,10 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 				stderr: 'pipe',
 				stdout: 'ignore'
 			});
-			let stderrPromise: Promise<string> | null = null;
-			const captureStderr = () => {
-				if (!stderrPromise) {
-					stderrPromise = server.stderr ? new Response(server.stderr).text() : Promise.resolve('');
-				}
-				return stderrPromise;
-			};
+			const stderrPromise = server.stderr
+				? new Response(server.stderr).text()
+				: Promise.resolve('');
+			const captureStderr = () => stderrPromise;
 			const baseUrl = `http://127.0.0.1:${port}`;
 			const serverExited = server.exited.then(
 				() => undefined,
@@ -207,6 +204,7 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 
 					cleanedUp = true;
 					await terminateServer(server, serverExited);
+					await stderrPromise;
 					rmSync(tempDataDir, { force: true, recursive: true });
 					rmSync(backupDir, { force: true, recursive: true });
 					runtimeAppPromise = null;
