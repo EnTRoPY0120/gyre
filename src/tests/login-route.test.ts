@@ -47,6 +47,7 @@ function createUser(overrides: Partial<User> = {}): User {
 }
 
 function buildEvent(): LoginEvent {
+	// Keep this wrapper as the route test's stable event factory indirection.
 	return buildLoginEvent();
 }
 

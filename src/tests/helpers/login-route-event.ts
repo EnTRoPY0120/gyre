@@ -19,10 +19,14 @@ export function buildLoginEvent({
 		username: 'admin',
 		password: 'Password123!'
 	},
-	cookies = createCookies()
+	cookies = createCookies(),
+	getClientAddress = () => '127.0.0.1',
+	setHeaders = () => {}
 }: {
 	body?: unknown;
 	cookies?: Cookies;
+	getClientAddress?: LoginEvent['getClientAddress'];
+	setHeaders?: LoginEvent['setHeaders'];
 } = {}): LoginEvent {
 	const request = new Request('http://localhost/api/v1/auth/login', {
 		method: 'POST',
@@ -34,7 +38,7 @@ export function buildLoginEvent({
 		request,
 		cookies,
 		fetch,
-		getClientAddress: () => '127.0.0.1',
+		getClientAddress,
 		locals: {
 			requestId: 'req-1',
 			cluster: undefined,
@@ -46,7 +50,7 @@ export function buildLoginEvent({
 		route: {
 			id: '/api/v1/auth/login'
 		},
-		setHeaders: () => {},
+		setHeaders,
 		url: new URL(request.url),
 		isDataRequest: false,
 		isSubRequest: false,

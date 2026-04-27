@@ -9,6 +9,8 @@ const PROD_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789a
 const REPO_ROOT = process.cwd();
 const DATA_ROOT = join(REPO_ROOT, 'data');
 const BACKUP_ROOT = join(DATA_ROOT, 'backups');
+const TERMINATION_GRACE_MS = 5_000;
+const KILL_EXIT_GRACE_MS = 1_000;
 
 interface RuntimeAppHandle {
 	backupDir: string;
@@ -76,6 +78,32 @@ async function allocatePort(): Promise<number> {
 	});
 }
 
+async function waitForServerExit(serverExited: Promise<void>, timeoutMs: number): Promise<boolean> {
+	let timeout: ReturnType<typeof setTimeout> | undefined;
+	const timeoutPromise = new Promise<'timeout'>((resolve) => {
+		timeout = setTimeout(resolve, timeoutMs, 'timeout');
+	});
+
+	try {
+		return (
+			(await Promise.race([serverExited.then(() => 'exited' as const), timeoutPromise])) ===
+			'exited'
+		);
+	} finally {
+		if (timeout) {
+			clearTimeout(timeout);
+		}
+	}
+}
+
+async function terminateServer(server: ReturnType<typeof Bun.spawn>, serverExited: Promise<void>) {
+	server.kill('SIGTERM');
+	if (!(await waitForServerExit(serverExited, TERMINATION_GRACE_MS))) {
+		server.kill('SIGKILL');
+		await waitForServerExit(serverExited, KILL_EXIT_GRACE_MS);
+	}
+}
+
 async function waitForReadiness(
 	baseUrl: string,
 	server: ReturnType<typeof Bun.spawn>,
@@ -84,17 +112,21 @@ async function waitForReadiness(
 ): Promise<void> {
 	const deadline = Date.now() + timeoutMs;
 	const exitedResultPromise = server.exited.then((code) => ({ code, exited: true as const }));
+	const serverExited = server.exited.then(
+		() => undefined,
+		() => undefined
+	);
 
 	while (Date.now() < deadline) {
-		const exitCode = await Promise.race([
+		const exitResult = await Promise.race([
 			exitedResultPromise,
 			Bun.sleep(250).then(() => ({ code: 0, exited: false as const }))
 		]);
 
-		if (exitCode.exited) {
+		if (exitResult.exited) {
 			const stderr = await captureStderr();
 			throw new Error(
-				`Built runtime exited before becoming ready (exit ${exitCode.code})\n${stderr}`.trim()
+				`Built runtime exited before becoming ready (exit ${exitResult.code})\n${stderr}`.trim()
 			);
 		}
 
@@ -108,8 +140,7 @@ async function waitForReadiness(
 		}
 	}
 
-	server.kill('SIGTERM');
-	await server.exited;
+	await terminateServer(server, serverExited);
 	const stderr = await captureStderr();
 	throw new Error(`Timed out waiting for ${HEALTH_PATH}\n${stderr}`.trim());
 }
@@ -155,23 +186,6 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 				() => undefined,
 				() => undefined
 			);
-			const waitForServerExit = async (timeoutMs: number): Promise<boolean> => {
-				let timeout: ReturnType<typeof setTimeout> | undefined;
-				const timeoutPromise = new Promise<'timeout'>((resolve) => {
-					timeout = setTimeout(resolve, timeoutMs, 'timeout');
-				});
-
-				try {
-					return (
-						(await Promise.race([serverExited.then(() => 'exited' as const), timeoutPromise])) ===
-						'exited'
-					);
-				} finally {
-					if (timeout) {
-						clearTimeout(timeout);
-					}
-				}
-			};
 
 			try {
 				await waitForReadiness(baseUrl, server, captureStderr);
@@ -192,11 +206,7 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 					}
 
 					cleanedUp = true;
-					server.kill('SIGTERM');
-					if (!(await waitForServerExit(5_000))) {
-						server.kill('SIGKILL');
-						await serverExited;
-					}
+					await terminateServer(server, serverExited);
 					rmSync(tempDataDir, { force: true, recursive: true });
 					rmSync(backupDir, { force: true, recursive: true });
 					runtimeAppPromise = null;
