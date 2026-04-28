@@ -5,8 +5,7 @@ export type TabId =
 	| 'events'
 	| 'logs'
 	| 'history'
-	| 'diff'
-	| 'yaml';
+	| 'diff';
 
 export interface TabConfig {
 	id: TabId;
@@ -15,12 +14,11 @@ export interface TabConfig {
 
 export const BASE_TABS: TabConfig[] = [
 	{ id: 'overview', label: 'Overview' },
-	{ id: 'spec', label: 'Spec' },
+	{ id: 'spec', label: 'YAML' },
 	{ id: 'status', label: 'Status' },
 	{ id: 'events', label: 'Events' },
 	{ id: 'logs', label: 'Logs' },
 	{ id: 'history', label: 'History' }
 ];
 
-export const YAML_TAB: TabConfig = { id: 'yaml', label: 'YAML' };
 export const DIFF_TAB: TabConfig = { id: 'diff', label: 'Drift (Diff)' };

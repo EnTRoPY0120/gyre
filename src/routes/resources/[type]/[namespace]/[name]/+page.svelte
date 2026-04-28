@@ -25,7 +25,7 @@
 	} from '$lib/types/resource';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
-	import { BASE_TABS, YAML_TAB, DIFF_TAB, type TabId } from '$lib/config/tabs';
+	import { BASE_TABS, DIFF_TAB, type TabId } from '$lib/config/tabs';
 	import type { DiffError } from '$lib/components/resources/tabs/DiffTab.svelte';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
 	import ErrorDisplay from '$lib/components/ui/ErrorDisplay.svelte';
@@ -88,8 +88,7 @@
 	function getAvailableTabIds(resourceType = data.resourceType): TabId[] {
 		return [
 			...BASE_TABS.map((t) => t.id),
-			...(resourceType === 'kustomizations' ? [DIFF_TAB.id] : []),
-			YAML_TAB.id
+			...(resourceType === 'kustomizations' ? [DIFF_TAB.id] : [])
 		];
 	}
 
@@ -169,7 +168,6 @@
 	const tabs = $derived.by(() => {
 		const base = [...BASE_TABS];
 		if (isKustomization) base.push(DIFF_TAB);
-		base.push(YAML_TAB);
 		return base;
 	});
 
@@ -494,9 +492,8 @@
 			{:else if activeTab === 'spec'}
 				<div id="spec-panel" role="tabpanel" aria-labelledby="spec-tab">
 					<CodeViewer
-						data={resource.spec as Record<string, unknown>}
-						title="Resource Spec"
-						showDownload={false}
+						data={sanitizeResource(resource) as unknown as Record<string, unknown>}
+						title="Full Resource Manifest"
 					/>
 				</div>
 			{:else if activeTab === 'status'}
@@ -562,13 +559,6 @@
 							diffsFetched = false;
 							fetchDiff(true);
 						}}
-					/>
-				</div>
-			{:else if activeTab === 'yaml'}
-				<div id="yaml-panel" role="tabpanel" aria-labelledby="yaml-tab">
-					<CodeViewer
-						data={sanitizeResource(resource) as unknown as Record<string, unknown>}
-						title="Full Resource Manifest"
 					/>
 				</div>
 			{/if}
