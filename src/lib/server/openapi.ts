@@ -39,7 +39,7 @@ export function generateOpenApiSpec(registry: OpenAPIRegistry) {
 		openapi: '3.0.0',
 		info: {
 			title: 'Gyre API',
-			version: '0.5.0',
+			version: '0.6.0',
 			description: 'Internal APIs for Gyre - FluxCD Web UI'
 		},
 		servers: [{ url: '/' }],

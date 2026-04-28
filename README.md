@@ -44,7 +44,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
-    semver: '>=0.5.0'
+    semver: '>=0.6.0'
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -73,7 +73,7 @@ kubectl create secret generic gyre-metrics -n flux-system \
   --dry-run=client -o yaml | kubectl apply -f -
 
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.5.0 \
+  --version 0.6.0 \
   --namespace flux-system \
   --create-namespace \
   --set encryption.existingSecret=gyre-encryption \
