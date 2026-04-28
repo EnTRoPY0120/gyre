@@ -106,7 +106,6 @@ class ResourceCacheStore {
 		const entry = this.getCachedResourceEntry(type, namespace, name);
 
 		if (entry && Date.now() - entry.timestamp < this.ttl) {
-			entry.lastAccess = Date.now();
 			return entry.data;
 		}
 
@@ -127,7 +126,6 @@ class ResourceCacheStore {
 		const entry = this.getCachedListEntry(type, namespace);
 
 		if (entry && Date.now() - entry.timestamp < this.ttl) {
-			entry.lastAccess = Date.now();
 			return entry.data;
 		}
 

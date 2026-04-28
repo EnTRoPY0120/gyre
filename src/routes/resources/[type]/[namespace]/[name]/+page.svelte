@@ -1,6 +1,5 @@
 <script lang="ts">
-	import { invalidate, replaceState } from '$app/navigation';
-	import { browser } from '$app/environment';
+	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
 	import { resolveResourceRouteType } from '$lib/config/resources';
@@ -102,15 +101,12 @@
 	let activeTab = $state<TabId>(
 		untrack(() => getValidTab($page.url.searchParams.get('tab')))
 	);
-	let activeTabRouteKey = $state(
-		untrack(() => `${data.resourceType}:${data.namespace}:${data.name}`)
-	);
 
 	function setActiveTab(tab: TabId) {
 		activeTab = tab;
-		const url = new URL(window.location.href);
+		const url = new URL($page.url);
 		url.searchParams.set('tab', tab);
-		replaceState(url, $page.state);
+		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
 	}
 
 	// Fetching states
@@ -177,15 +173,12 @@
 		return base;
 	});
 
-	// Sync tab state only when this route instance is reused for a different resource.
+	// Keep activeTab in sync with the URL (handles direct links, browser back/forward, and resource navigation).
 	$effect(() => {
-		const nextRouteKey = `${data.resourceType}:${data.namespace}:${data.name}`;
-		if (activeTabRouteKey !== nextRouteKey) {
-			activeTabRouteKey = nextRouteKey;
-			const tab = browser
-				? new URL(window.location.href).searchParams.get('tab')
-				: $page.url.searchParams.get('tab');
-			activeTab = getValidTab(tab);
+		const param = $page.url.searchParams.get('tab');
+		const validTab = getValidTab(param);
+		if (activeTab !== validTab) {
+			activeTab = validTab;
 		}
 	});
 
