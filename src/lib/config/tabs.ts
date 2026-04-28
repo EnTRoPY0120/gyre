@@ -1,11 +1,4 @@
-export type TabId =
-	| 'overview'
-	| 'spec'
-	| 'status'
-	| 'events'
-	| 'logs'
-	| 'history'
-	| 'diff';
+export type TabId = 'overview' | 'spec' | 'status' | 'events' | 'logs' | 'history' | 'diff';
 
 export interface TabConfig {
 	id: TabId;
