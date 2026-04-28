@@ -8,6 +8,8 @@ let clusterRecord: {
 	description: string | null;
 	isActive: boolean;
 } | null;
+let localContextNames: string[] = [];
+let defaultLocalContext: string | null = null;
 
 function createCookies() {
 	const values = new Map<string, string>();
@@ -41,17 +43,30 @@ beforeEach(() => {
 		description: null,
 		isActive: true
 	};
+	localContextNames = [];
+	defaultLocalContext = null;
 	mock.module('$lib/server/clusters/repository.js', () => ({
 		getClusterById: async () => clusterRecord,
 		getSelectableClusters: async () => [
-			{
-				id: IN_CLUSTER_ID,
-				name: 'In-cluster',
-				description: 'Runtime Kubernetes configuration',
-				source: 'in-cluster',
-				isActive: true,
-				currentContext: null
-			},
+			...(localContextNames.length > 0
+				? localContextNames.map((name) => ({
+						id: name,
+						name,
+						description: 'Local kubeconfig context',
+						source: 'local-kubeconfig' as const,
+						isActive: true,
+						currentContext: name === defaultLocalContext ? name : null
+					}))
+				: [
+						{
+							id: IN_CLUSTER_ID,
+							name: 'In-cluster',
+							description: 'Runtime Kubernetes configuration',
+							source: 'in-cluster' as const,
+							isActive: true,
+							currentContext: null
+						}
+					]),
 			...(clusterRecord
 				? [
 						{
@@ -65,6 +80,11 @@ beforeEach(() => {
 					]
 				: [])
 		]
+	}));
+	mock.module('$lib/server/clusters/local-kubeconfig.js', () => ({
+		getDefaultLocalKubeconfigContext: () => defaultLocalContext,
+		hasLocalKubeconfigContext: (contextName: string) => localContextNames.includes(contextName),
+		shouldUseLocalKubeconfigContexts: () => localContextNames.length > 0
 	}));
 });
 
@@ -107,6 +127,46 @@ describe('cluster selection route', () => {
 		expect(response.status).toBe(200);
 		expect(cookies.setCalls[0]).toMatchObject({ name: 'gyre_cluster', value: 'cluster-a' });
 		expect(await response.json()).toMatchObject({ currentClusterId: 'cluster-a' });
+	});
+
+	test('PUT accepts local kubeconfig context names', async () => {
+		localContextNames = ['kind-kind', 'prod'];
+		defaultLocalContext = 'kind-kind';
+		const cookies = createCookies();
+		const { PUT } = await importRoute();
+
+		const response = await PUT({
+			cookies,
+			locals: { user: { id: 'user-1' } },
+			request: new Request('http://localhost/api/v1/user/cluster', {
+				method: 'PUT',
+				body: JSON.stringify({ clusterId: 'prod' })
+			})
+		} as never);
+
+		expect(response.status).toBe(200);
+		expect(cookies.setCalls[0]).toMatchObject({ name: 'gyre_cluster', value: 'prod' });
+		expect(await response.json()).toMatchObject({ currentClusterId: 'prod' });
+	});
+
+	test('PUT maps in-cluster to the default local kubeconfig context in local mode', async () => {
+		localContextNames = ['kind-kind', 'prod'];
+		defaultLocalContext = 'kind-kind';
+		const cookies = createCookies();
+		const { PUT } = await importRoute();
+
+		const response = await PUT({
+			cookies,
+			locals: { user: { id: 'user-1' } },
+			request: new Request('http://localhost/api/v1/user/cluster', {
+				method: 'PUT',
+				body: JSON.stringify({ clusterId: IN_CLUSTER_ID })
+			})
+		} as never);
+
+		expect(response.status).toBe(200);
+		expect(cookies.setCalls[0]).toMatchObject({ name: 'gyre_cluster', value: 'kind-kind' });
+		expect(await response.json()).toMatchObject({ currentClusterId: 'kind-kind' });
 	});
 
 	test('PUT rejects inactive or missing cluster', async () => {

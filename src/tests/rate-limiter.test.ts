@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { eq } from 'drizzle-orm';
 import * as schema from '../lib/server/db/schema.js';
 
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
@@ -139,6 +140,29 @@ describe('RateLimiter', () => {
 	});
 
 	describe('edge cases', () => {
+		test('cleanup removes expired rows without binding raw Date values', () => {
+			const db = state.db!;
+			db.insert(schema.rateLimits)
+				.values({
+					key: 'expired-key',
+					currentWindowCount: 1,
+					previousWindowCount: 0,
+					lastWindowStart: Date.now() - 120_000,
+					expireAt: new Date(Date.now() - 1_000),
+					updatedAt: new Date()
+				})
+				.run();
+
+			(limiter as unknown as { cleanup: () => void }).cleanup();
+
+			const row = db
+				.select()
+				.from(schema.rateLimits)
+				.where(eq(schema.rateLimits.key, 'expired-key'))
+				.get();
+			expect(row).toBeUndefined();
+		});
+
 		test('handles limit of 1', () => {
 			const r1 = limiter.check('one-key', 1, 60_000);
 			expect(r1.limited).toBe(false);

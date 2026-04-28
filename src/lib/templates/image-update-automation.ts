@@ -6,10 +6,10 @@ export const IMAGE_UPDATE_AUTOMATION_TEMPLATE: ResourceTemplate = {
 	description: 'Automates image updates to Git',
 	kind: 'ImageUpdateAutomation',
 	group: 'image.toolkit.fluxcd.io',
-	version: 'v1beta2',
+	version: 'v1',
 	category: 'image-automation',
 	plural: 'imageupdateautomations',
-	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
+	yaml: `apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageUpdateAutomation
 metadata:
   name: example

@@ -117,28 +117,28 @@ export const FLUX_RESOURCES = {
 	// Image Automation Controller (image.toolkit.fluxcd.io/v1)
 	ImageRepository: {
 		group: 'image.toolkit.fluxcd.io',
-		version: 'v1beta2',
+		version: 'v1',
 		plural: 'imagerepositories',
 		kind: 'ImageRepository',
-		apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
+		apiVersion: 'image.toolkit.fluxcd.io/v1',
 		namespaced: true,
 		controller: 'image-reflector-controller'
 	},
 	ImagePolicy: {
 		group: 'image.toolkit.fluxcd.io',
-		version: 'v1beta2',
+		version: 'v1',
 		plural: 'imagepolicies',
 		kind: 'ImagePolicy',
-		apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
+		apiVersion: 'image.toolkit.fluxcd.io/v1',
 		namespaced: true,
 		controller: 'image-reflector-controller'
 	},
 	ImageUpdateAutomation: {
 		group: 'image.toolkit.fluxcd.io',
-		version: 'v1beta2',
+		version: 'v1',
 		plural: 'imageupdateautomations',
 		kind: 'ImageUpdateAutomation',
-		apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
+		apiVersion: 'image.toolkit.fluxcd.io/v1',
 		namespaced: true,
 		controller: 'image-automation-controller'
 	}

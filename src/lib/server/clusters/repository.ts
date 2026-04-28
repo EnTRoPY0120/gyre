@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { desc, eq, or, sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';
 import { getPaginatedItems, sanitizeSearchInput } from '../db/utils.js';
+import { getLocalKubeconfigOptions, shouldUseLocalKubeconfigContexts } from './local-kubeconfig.js';
 import {
 	clusterContexts,
 	clusters,
@@ -82,7 +83,7 @@ export async function getAllClusters(): Promise<(typeof clusters.$inferSelect)[]
 
 /**
  * Get selectable cluster identities for UI/API selection.
- * Kubeconfig context names are diagnostic metadata only; uploaded clusters are
+ * Local development exposes kubeconfig contexts directly. Uploaded clusters are
  * selected by their stable clusters.id values.
  */
 export async function getSelectableClusters(
@@ -91,16 +92,23 @@ export async function getSelectableClusters(
 	const uploadedClusters = (await getAllClusters()).filter(
 		(cluster) => cluster.isActive && cluster.isLocal
 	);
+	const localContextOptions = getLocalKubeconfigOptions(currentContext);
+	const runtimeOptions: ClusterOption[] =
+		shouldUseLocalKubeconfigContexts() && localContextOptions.length > 0
+			? localContextOptions
+			: [
+					{
+						id: IN_CLUSTER_ID,
+						name: 'In-cluster',
+						description: 'Runtime Kubernetes configuration',
+						source: 'in-cluster',
+						isActive: true,
+						currentContext
+					}
+				];
 
 	return [
-		{
-			id: IN_CLUSTER_ID,
-			name: 'In-cluster',
-			description: 'Runtime Kubernetes configuration',
-			source: 'in-cluster',
-			isActive: true,
-			currentContext
-		},
+		...runtimeOptions,
 		...uploadedClusters.map((cluster) => ({
 			id: cluster.id,
 			name: cluster.name,

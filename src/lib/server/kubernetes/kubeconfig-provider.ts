@@ -3,6 +3,7 @@ import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
 import * as k8s from '@kubernetes/client-node';
 import { loadKubeConfig } from './config.js';
 import { getClusterKubeconfig } from '../clusters/repository.js';
+import { hasLocalKubeconfigContext, loadLocalKubeConfig } from '../clusters/local-kubeconfig.js';
 
 // Store the base default config separately to avoid reloading it constantly.
 // Cache scope: process-local base in-cluster config; cleared during graceful shutdown.
@@ -39,6 +40,16 @@ export async function getKubeConfig(
 			}
 			config = new k8s.KubeConfig();
 			config.loadFromString(baseConfig.exportConfig());
+		} else if (hasLocalKubeconfigContext(key)) {
+			const localConfig = loadLocalKubeConfig();
+			if (!localConfig) {
+				throw new Error(`Local kubeconfig context "${key}" is not available`);
+			}
+			localConfig.setCurrentContext(key);
+			config = new k8s.KubeConfig();
+			config.loadFromString(localConfig.exportConfig());
+			config.setCurrentContext(key);
+			logger.debug(`✓ Loaded local Kubernetes configuration for context: ${key}`);
 		} else {
 			const kubeconfigYaml = await getClusterKubeconfig(key);
 			if (!kubeconfigYaml) {

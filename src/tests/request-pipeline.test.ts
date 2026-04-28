@@ -134,6 +134,11 @@ beforeEach(() => {
 		},
 		getSelectableClusters: async () => []
 	}));
+	mock.module('$lib/server/clusters/local-kubeconfig.js', () => ({
+		getDefaultLocalKubeconfigContext: () => null,
+		hasLocalKubeconfigContext: () => false,
+		shouldUseLocalKubeconfigContexts: () => false
+	}));
 
 	mock.module('$lib/server/kubernetes/errors.js', () =>
 		createKubernetesErrorsModuleStub({

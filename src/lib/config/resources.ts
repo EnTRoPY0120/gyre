@@ -121,7 +121,7 @@ export const resourceGroups: ResourceGroup[] = [
 				type: FluxResourceType.ImageRepository,
 				displayName: 'Image Repositories',
 				singularName: 'Image Repository',
-				apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
+				apiVersion: 'image.toolkit.fluxcd.io/v1',
 				kind: 'ImageRepository',
 				description: 'Container image repositories to scan'
 			},
@@ -129,7 +129,7 @@ export const resourceGroups: ResourceGroup[] = [
 				type: FluxResourceType.ImagePolicy,
 				displayName: 'Image Policies',
 				singularName: 'Image Policy',
-				apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
+				apiVersion: 'image.toolkit.fluxcd.io/v1',
 				kind: 'ImagePolicy',
 				description: 'Policies for selecting image versions'
 			},
@@ -137,7 +137,7 @@ export const resourceGroups: ResourceGroup[] = [
 				type: FluxResourceType.ImageUpdateAutomation,
 				displayName: 'Image Update Automations',
 				singularName: 'Image Update Automation',
-				apiVersion: 'image.toolkit.fluxcd.io/v1beta2',
+				apiVersion: 'image.toolkit.fluxcd.io/v1',
 				kind: 'ImageUpdateAutomation',
 				description: 'Automated image updates to Git'
 			}

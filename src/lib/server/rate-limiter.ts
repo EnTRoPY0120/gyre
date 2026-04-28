@@ -31,9 +31,8 @@ export class RateLimiter {
 	 */
 	private cleanup(): void {
 		const db = getDbSync();
-		const now = new Date();
 		db.delete(rateLimits)
-			.where(sql`${rateLimits.expireAt} < ${now}`)
+			.where(sql`${rateLimits.expireAt} < unixepoch()`)
 			.run();
 	}
 

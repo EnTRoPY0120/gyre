@@ -1,5 +1,10 @@
 import { IN_CLUSTER_ID, normalizeClusterId, type ClusterOption } from '$lib/clusters/identity.js';
 import { getClusterById, getSelectableClusters } from './repository.js';
+import {
+	getDefaultLocalKubeconfigContext,
+	hasLocalKubeconfigContext,
+	shouldUseLocalKubeconfigContexts
+} from './local-kubeconfig.js';
 import type { Cookies } from '@sveltejs/kit';
 
 export const CLUSTER_SELECTION_COOKIE = 'gyre_cluster';
@@ -12,9 +17,19 @@ const COOKIE_OPTIONS = {
 	maxAge: 60 * 60 * 24 * 30
 };
 
+export function getDefaultClusterSelection(): string {
+	return getDefaultLocalKubeconfigContext() ?? IN_CLUSTER_ID;
+}
+
 export async function validateSelectableClusterId(clusterId: string): Promise<string> {
 	const normalizedId = normalizeClusterId(clusterId);
-	if (normalizedId === IN_CLUSTER_ID) return IN_CLUSTER_ID;
+	if (normalizedId === IN_CLUSTER_ID) {
+		return shouldUseLocalKubeconfigContexts() ? getDefaultClusterSelection() : IN_CLUSTER_ID;
+	}
+
+	if (hasLocalKubeconfigContext(normalizedId)) {
+		return normalizedId;
+	}
 
 	const cluster = await getClusterById(normalizedId);
 	if (!cluster || !cluster.isActive) {
@@ -26,13 +41,13 @@ export async function validateSelectableClusterId(clusterId: string): Promise<st
 
 export async function resolveClusterSelectionFromCookie(cookies: Cookies): Promise<string> {
 	const cookieValue = cookies.get(CLUSTER_SELECTION_COOKIE);
-	if (!cookieValue) return IN_CLUSTER_ID;
+	if (!cookieValue) return getDefaultClusterSelection();
 
 	try {
 		return await validateSelectableClusterId(cookieValue);
 	} catch {
 		clearClusterSelectionCookie(cookies);
-		return IN_CLUSTER_ID;
+		return getDefaultClusterSelection();
 	}
 }
 
@@ -50,9 +65,13 @@ export async function getClusterSelectionPayload(currentClusterId: string): Prom
 	currentClusterId: string;
 	selectableClusters: ClusterOption[];
 }> {
-	const selectableClusters = await getSelectableClusters();
+	const normalizedCurrentClusterId = await validateSelectableClusterId(currentClusterId).catch(() =>
+		getDefaultClusterSelection()
+	);
+	const selectableClusters = await getSelectableClusters(normalizedCurrentClusterId);
 	const currentCluster =
-		selectableClusters.find((cluster) => cluster.id === currentClusterId) ?? selectableClusters[0];
+		selectableClusters.find((cluster) => cluster.id === normalizedCurrentClusterId) ??
+		selectableClusters[0];
 
 	return {
 		currentCluster,

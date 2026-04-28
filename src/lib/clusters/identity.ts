@@ -6,7 +6,7 @@ export interface ClusterOption {
 	id: string;
 	name: string;
 	description?: string | null;
-	source: 'in-cluster' | 'uploaded';
+	source: 'in-cluster' | 'local-kubeconfig' | 'uploaded';
 	isActive: boolean;
 	currentContext?: string | null;
 	connected?: boolean;

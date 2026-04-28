@@ -6,10 +6,10 @@ export const IMAGE_REPOSITORY_TEMPLATE: ResourceTemplate = {
 	description: 'Scans container image repositories',
 	kind: 'ImageRepository',
 	group: 'image.toolkit.fluxcd.io',
-	version: 'v1beta2',
+	version: 'v1',
 	category: 'image-automation',
 	plural: 'imagerepositories',
-	yaml: `apiVersion: image.toolkit.fluxcd.io/v1beta2
+	yaml: `apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
   name: example
