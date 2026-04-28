@@ -1,14 +1,63 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark" style="color-scheme: dark; background: #09090b;">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<script>
+			(function () {
+				var storageKey = 'gyre-theme';
+				var theme = 'system';
+
+				try {
+					var stored = localStorage.getItem(storageKey);
+					if (stored === 'light' || stored === 'dark' || stored === 'system') {
+						theme = stored;
+					}
+				} catch {
+					theme = 'system';
+				}
+
+				var resolvedTheme =
+					theme === 'system'
+						? window.matchMedia('(prefers-color-scheme: dark)').matches
+							? 'dark'
+							: 'light'
+						: theme;
+
+				document.documentElement.classList.toggle('dark', resolvedTheme === 'dark');
+				document.documentElement.dataset.theme = theme;
+				document.documentElement.style.colorScheme = resolvedTheme;
+				document.documentElement.style.background =
+					resolvedTheme === 'dark' ? '#09090b' : '#f9f9fb';
+				document.documentElement.style.color = resolvedTheme === 'dark' ? '#fafafa' : '#09090b';
+			})();
+		</script>
+		<style>
+			html,
+			body {
+				background: #f9f9fb;
+				color: #09090b;
+			}
+
+			html.dark,
+			html.dark body {
+				background: #09090b;
+				color: #fafafa;
+			}
+		</style>
 		%sveltekit.head%
 	</head>
-	<body data-sveltekit-preload-data="hover" class="bg-sidebar text-foreground">
+	<body
+		data-sveltekit-preload-data="hover"
+		class="bg-sidebar text-foreground"
+		style="background: #09090b; color: #fafafa;"
+	>
 		<script>
-			// Prevention of flashbang
-			document.documentElement.classList.add('dark');
+			(function () {
+				var isDark = document.documentElement.classList.contains('dark');
+				document.body.style.background = isDark ? '#09090b' : '#f9f9fb';
+				document.body.style.color = isDark ? '#fafafa' : '#09090b';
+			})();
 		</script>
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>

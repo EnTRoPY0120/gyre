@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { goto, invalidate } from '$app/navigation';
+	import { invalidate, replaceState } from '$app/navigation';
+	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
 	import { resolveResourceRouteType } from '$lib/config/resources';
@@ -85,35 +86,31 @@
 		return unsubscribe;
 	});
 
-	// Tab state with persistence
-	const availableTabIds: TabId[] = untrack(() => [
-		...BASE_TABS.map((t) => t.id),
-		...(data.resourceType === 'kustomizations' ? [DIFF_TAB.id] : []),
-		YAML_TAB.id
-	]);
-	const rawTab = $page.url.searchParams.get('tab') as TabId;
-	const initialTab: TabId = availableTabIds.includes(rawTab) ? rawTab : 'overview';
-	let activeTab = $state<TabId>(initialTab);
-
-	// Keep activeTab valid on same-component navigation (e.g. switching resource types)
-	$effect(() => {
-		const currentAvailableTabIds: TabId[] = [
+	function getAvailableTabIds(resourceType = data.resourceType): TabId[] {
+		return [
 			...BASE_TABS.map((t) => t.id),
-			...(data.resourceType === 'kustomizations' ? [DIFF_TAB.id] : []),
+			...(resourceType === 'kustomizations' ? [DIFF_TAB.id] : []),
 			YAML_TAB.id
 		];
-		const param = $page.url.searchParams.get('tab') as TabId;
-		const validTab: TabId = currentAvailableTabIds.includes(param) ? param : 'overview';
-		if (activeTab !== validTab) {
-			activeTab = validTab;
-		}
-	});
+	}
+
+	function getValidTab(tab: string | null, resourceType = data.resourceType): TabId {
+		const candidate = tab as TabId;
+		return getAvailableTabIds(resourceType).includes(candidate) ? candidate : 'overview';
+	}
+
+	let activeTab = $state<TabId>(
+		untrack(() => getValidTab($page.url.searchParams.get('tab')))
+	);
+	let activeTabRouteKey = $state(
+		untrack(() => `${data.resourceType}:${data.namespace}:${data.name}`)
+	);
 
 	function setActiveTab(tab: TabId) {
 		activeTab = tab;
-		const url = new URL($page.url);
+		const url = new URL(window.location.href);
 		url.searchParams.set('tab', tab);
-		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+		replaceState(url, $page.state);
 	}
 
 	// Fetching states
@@ -178,6 +175,18 @@
 		if (isKustomization) base.push(DIFF_TAB);
 		base.push(YAML_TAB);
 		return base;
+	});
+
+	// Sync tab state only when this route instance is reused for a different resource.
+	$effect(() => {
+		const nextRouteKey = `${data.resourceType}:${data.namespace}:${data.name}`;
+		if (activeTabRouteKey !== nextRouteKey) {
+			activeTabRouteKey = nextRouteKey;
+			const tab = browser
+				? new URL(window.location.href).searchParams.get('tab')
+				: $page.url.searchParams.get('tab');
+			activeTab = getValidTab(tab);
+		}
 	});
 
 	// Keyboard navigation for tabs
@@ -343,20 +352,6 @@
 		await copyToClipboard(command);
 	}
 
-	async function handleReconcile() {
-		try {
-			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/reconcile`), {
-				method: 'POST',
-				headers: { 'X-CSRF-Token': getCsrfToken() }
-			});
-			if (!res.ok) throw new Error('Reconciliation failed');
-			toast.success('Reconciliation triggered successfully');
-			await invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
-		} catch (err) {
-			toast.error('Failed to trigger reconciliation');
-		}
-	}
-
 	async function copyToClipboard(text: string) {
 		try {
 			await navigator.clipboard.writeText(text);
@@ -460,17 +455,6 @@
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
 					</svg>
 					Kubectl
-				</button>
-				<button
-					type="button"
-					class="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-300 dark:hover:bg-blue-900/50"
-					onclick={handleReconcile}
-					aria-label="Reconcile now"
-				>
-					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-					</svg>
-					Reconcile Now
 				</button>
 				<ActionButtons
 					resource={resource}

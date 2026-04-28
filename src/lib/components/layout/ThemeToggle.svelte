@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { theme, type Theme } from '$lib/stores/theme.svelte';
+	import { getCsrfToken } from '$lib/utils/csrf';
 	import { Sun, Moon, Monitor, Check } from 'lucide-svelte';
 
 	const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
@@ -18,6 +19,14 @@
 	function selectTheme(newTheme: Theme) {
 		theme.setTheme(newTheme);
 		isOpen = false;
+		void fetch('/api/v1/user/preferences', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-CSRF-Token': getCsrfToken()
+			},
+			body: JSON.stringify({ theme: newTheme })
+		}).catch(() => {});
 	}
 
 	function focusMenuButton(index: number) {

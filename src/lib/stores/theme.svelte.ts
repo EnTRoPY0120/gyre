@@ -41,6 +41,13 @@ function applyTheme(resolvedTheme: 'light' | 'dark') {
 	} else {
 		root.classList.remove('dark');
 	}
+	root.style.colorScheme = resolvedTheme;
+	root.style.background = '';
+	root.style.color = '';
+	if (document.body) {
+		document.body.style.background = '';
+		document.body.style.color = '';
+	}
 }
 
 function createThemeStore() {
@@ -57,6 +64,7 @@ function createThemeStore() {
 
 	// Apply on init
 	if (browser) {
+		document.documentElement.dataset.theme = store.theme;
 		applyTheme(store.resolvedTheme);
 
 		// Listen for system theme changes
@@ -83,6 +91,9 @@ function createThemeStore() {
 		setTheme(newTheme: Theme) {
 			store.theme = newTheme;
 			store.resolvedTheme = resolveTheme(newTheme);
+			if (browser) {
+				document.documentElement.dataset.theme = newTheme;
+			}
 			applyTheme(store.resolvedTheme);
 
 			if (browser) {
