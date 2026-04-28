@@ -37,6 +37,8 @@ async function runBuildOnce(): Promise<void> {
 			});
 			const stdoutPromise = new Response(build.stdout).text();
 			const stderrPromise = new Response(build.stderr).text();
+			stdoutPromise.catch(() => {});
+			stderrPromise.catch(() => {});
 			const exitCode = await build.exited;
 
 			if (exitCode !== 0) {
@@ -203,11 +205,11 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 					}
 
 					cleanedUp = true;
+					runtimeAppPromise = null;
 					await terminateServer(server, serverExited);
 					await stderrPromise;
 					rmSync(tempDataDir, { force: true, recursive: true });
 					rmSync(backupDir, { force: true, recursive: true });
-					runtimeAppPromise = null;
 				}
 			};
 		})().catch((error) => {
