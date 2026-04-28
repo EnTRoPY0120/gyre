@@ -1,5 +1,6 @@
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const HEALTH_PATH = '/api/v1/health';
@@ -7,8 +8,8 @@ const ADMIN_PASSWORD = 'runtime-admin-password';
 const METRICS_TOKEN = 'runtime-metrics-token';
 const PROD_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 const REPO_ROOT = process.cwd();
-const DATA_ROOT = join(REPO_ROOT, 'data');
-const BACKUP_ROOT = join(DATA_ROOT, 'backups');
+const RUNTIME_TEMP_PREFIX = join(tmpdir(), 'runtime-app-');
+const READINESS_PROBE_TIMEOUT_MS = 1_500;
 const TERMINATION_GRACE_MS = 5_000;
 const KILL_EXIT_GRACE_MS = 1_000;
 
@@ -132,13 +133,19 @@ async function waitForReadiness(
 			);
 		}
 
+		const controller = new AbortController();
+		const probeTimeout = setTimeout(() => controller.abort(), READINESS_PROBE_TIMEOUT_MS);
 		try {
-			const response = await fetch(new URL(HEALTH_PATH, baseUrl));
+			const response = await fetch(new URL(HEALTH_PATH, baseUrl), {
+				signal: controller.signal
+			});
 			if (response.status === 200) {
 				return;
 			}
 		} catch {
 			// Poll until ready or timeout.
+		} finally {
+			clearTimeout(probeTimeout);
 		}
 	}
 
@@ -151,12 +158,10 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 	if (!runtimeAppPromise) {
 		runtimeAppPromise = (async () => {
 			await runBuildOnce();
-			mkdirSync(DATA_ROOT, { recursive: true });
-			mkdirSync(BACKUP_ROOT, { recursive: true });
 
 			const port = await allocatePort();
-			const tempDataDir = mkdtempSync(join(DATA_ROOT, 'runtime-app-'));
-			const backupDir = mkdtempSync(join(BACKUP_ROOT, 'runtime-app-'));
+			const tempDataDir = mkdtempSync(RUNTIME_TEMP_PREFIX);
+			const backupDir = mkdtempSync(RUNTIME_TEMP_PREFIX);
 			const databasePath = join(tempDataDir, 'gyre.db');
 
 			const server = Bun.spawn(['node', 'build/index.js'], {
@@ -170,6 +175,9 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 					DATABASE_URL: databasePath,
 					GYRE_ENCRYPTION_KEY: PROD_SECRET,
 					GYRE_METRICS_TOKEN: METRICS_TOKEN,
+					GYRE_RUNTIME_BACKUP_ROOT: backupDir,
+					GYRE_RUNTIME_DATABASE_ROOT: tempDataDir,
+					GYRE_RUNTIME_TEST_MODE: '1',
 					NODE_ENV: 'production',
 					PORT: String(port)
 				},

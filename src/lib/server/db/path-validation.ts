@@ -72,7 +72,11 @@ function validatePathUnderRoots(rawPath: string, allowedRoots: string[], label: 
  * @returns the canonicalized path for informational use.
  */
 export function validateDatabaseUrl(databaseUrl: string): string {
-	return validatePathUnderRoots(databaseUrl, ['/data', resolve('./data')], 'DATABASE_URL');
+	return validatePathUnderRoots(
+		databaseUrl,
+		['/data', resolve('./data'), ...getRuntimeTestAllowedRoots('GYRE_RUNTIME_DATABASE_ROOT')],
+		'DATABASE_URL'
+	);
 }
 
 /**
@@ -85,7 +89,20 @@ export function validateDatabaseUrl(databaseUrl: string): string {
 export function validateBackupDir(backupDir: string): string {
 	return validatePathUnderRoots(
 		backupDir,
-		['/data/backups', resolve('./data/backups')],
+		[
+			'/data/backups',
+			resolve('./data/backups'),
+			...getRuntimeTestAllowedRoots('GYRE_RUNTIME_BACKUP_ROOT')
+		],
 		'BACKUP_DIR'
 	);
+}
+
+function getRuntimeTestAllowedRoots(envName: string): string[] {
+	if (process.env.GYRE_RUNTIME_TEST_MODE !== '1') {
+		return [];
+	}
+
+	const root = process.env[envName];
+	return root ? [root] : [];
 }
