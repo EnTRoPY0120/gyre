@@ -7,7 +7,6 @@ import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { checkRateLimit } from '$lib/server/rate-limiter';
 import {
 	getAuthSettings,
 	getAuditLogRetentionDays,
@@ -15,8 +14,11 @@ import {
 	SETTINGS_KEYS,
 	isSettingOverriddenByEnv
 } from '$lib/server/settings';
-import { checkPermission } from '$lib/server/rbac';
-import { logAudit } from '$lib/server/audit';
+import {
+	enforceUserRateLimitPreset,
+	logPrivilegedMutationSuccess,
+	requirePrivilegedAdminPermission
+} from '$lib/server/http/guards.js';
 
 export const _metadata = {
 	GET: {
@@ -85,22 +87,7 @@ export const _metadata = {
  * Returns all application settings (admin only)
  */
 export const GET: RequestHandler = async ({ locals }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized' });
-	}
-
-	// Enforce RBAC (checkPermission short-circuits for admin role)
-	const hasPermission = await checkPermission(
-		locals.user,
-		'admin',
-		undefined,
-		undefined,
-		locals.cluster
-	);
-	if (!hasPermission) {
-		throw error(403, { message: 'Forbidden: admin permission required' });
-	}
+	await requirePrivilegedAdminPermission(locals);
 
 	try {
 		const [authSettings, auditRetentionDays] = await Promise.all([
@@ -140,24 +127,8 @@ export const GET: RequestHandler = async ({ locals }) => {
  * Updates application settings (admin only)
  */
 export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized' });
-	}
-
-	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
-
-	// Enforce RBAC (checkPermission short-circuits for admin role)
-	const hasPermission = await checkPermission(
-		locals.user,
-		'admin',
-		undefined,
-		undefined,
-		locals.cluster
-	);
-	if (!hasPermission) {
-		throw error(403, { message: 'Forbidden: admin permission required' });
-	}
+	const user = await requirePrivilegedAdminPermission(locals);
+	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
 	try {
 		let body;
@@ -225,7 +196,9 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 			getAuthSettings(),
 			getAuditLogRetentionDays()
 		]);
-		await logAudit(locals.user, 'settings:update', {
+		await logPrivilegedMutationSuccess({
+			action: 'settings:update',
+			user,
 			resourceType: 'AppSettings',
 			details: {
 				requestedKeys,

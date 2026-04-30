@@ -188,7 +188,10 @@ beforeEach(() => {
 	mock.module('$lib/server/settings', () => settingsModuleStub);
 	mock.module('$lib/server/settings.js', () => settingsModuleStub);
 	const auditModuleStub = {
-		logAudit: async () => {}
+		logAudit: async () => {},
+		logLogin: async () => {},
+		logLogout: async () => {},
+		logResourceWrite: async () => {}
 	};
 	mock.module('$lib/server/audit', () => auditModuleStub);
 	mock.module('$lib/server/audit.js', () => auditModuleStub);

@@ -3,8 +3,8 @@ import { z } from '$lib/server/openapi';
 import { k8sEventSchema } from '$lib/server/kubernetes/schemas';
 import type { RequestHandler } from './$types';
 import { getAllRecentEvents } from '$lib/server/kubernetes/events';
-import { checkClusterWideReadPermission } from '$lib/server/rbac.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
+import { requireClusterWideRead } from '$lib/server/http/guards.js';
 
 export const _metadata = {
 	GET: {
@@ -42,15 +42,7 @@ export const _metadata = {
 const limitQuerySchema = _metadata.GET.request.query;
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
-	// Check permission
-	const hasPermission = await checkClusterWideReadPermission(locals.user, locals.cluster);
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
-	}
+	await requireClusterWideRead(locals);
 
 	const queryResult = limitQuerySchema.safeParse({
 		limit: url.searchParams.get('limit') ?? undefined

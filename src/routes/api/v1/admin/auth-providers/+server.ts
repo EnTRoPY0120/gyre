@@ -88,9 +88,11 @@ import { authProviders, type NewAuthProvider } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { randomBytes } from 'node:crypto';
-import { checkRateLimit } from '$lib/server/rate-limiter';
-import { checkPermission } from '$lib/server/rbac.js';
-import { logAudit } from '$lib/server/audit';
+import {
+	enforceUserRateLimitPreset,
+	logPrivilegedMutationSuccess,
+	requirePrivilegedAdminPermission
+} from '$lib/server/http/guards.js';
 
 /**
  * Generate a unique provider ID
@@ -104,21 +106,7 @@ function generateProviderId(): string {
  * List all auth providers (admin only)
  */
 export const GET: RequestHandler = async ({ locals }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized' });
-	}
-
-	const hasPermission = await checkPermission(
-		locals.user,
-		'admin',
-		'AuthProvider',
-		undefined,
-		locals.cluster
-	);
-	if (!hasPermission) {
-		throw error(403, { message: 'Admin access required' });
-	}
+	await requirePrivilegedAdminPermission(locals, 'AuthProvider');
 
 	try {
 		const db = await getDb();
@@ -145,23 +133,8 @@ export const GET: RequestHandler = async ({ locals }) => {
  * Create a new auth provider (admin only)
  */
 export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized' });
-	}
-
-	const hasPermission = await checkPermission(
-		locals.user,
-		'admin',
-		'AuthProvider',
-		undefined,
-		locals.cluster
-	);
-	if (!hasPermission) {
-		throw error(403, { message: 'Admin access required' });
-	}
-
-	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
+	const user = await requirePrivilegedAdminPermission(locals, 'AuthProvider');
+	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
 	try {
 		const body = await request.json();
@@ -240,9 +213,11 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 		// Insert into database
 		const db = await getDb();
 		await db.insert(authProviders).values(newProvider);
-		await logAudit(locals.user, 'auth-provider:create', {
+		await logPrivilegedMutationSuccess({
+			action: 'auth-provider:create',
+			user,
 			resourceType: 'AuthProvider',
-			resourceName: newProvider.name,
+			name: newProvider.name,
 			details: {
 				providerId: newProvider.id,
 				providerType: newProvider.type,

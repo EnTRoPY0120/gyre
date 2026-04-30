@@ -1,14 +1,14 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { listFluxResourcesInNamespace, type ReqCache } from '$lib/server/kubernetes/client.js';
-import {
-	getAllResourcePlurals,
-	getResourceTypeByPlural,
-	type FluxResourceType
-} from '$lib/server/kubernetes/flux/resources.js';
+import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { checkPermission } from '$lib/server/rbac.js';
+import {
+	requireAuthenticatedUser,
+	requireScopedPermission,
+	resolveFluxRouteResourceType
+} from '$lib/server/http/guards.js';
 import { validateK8sNamespace } from '$lib/server/validation';
 
 export const _metadata = {
@@ -46,36 +46,14 @@ export const _metadata = {
  * List all resources of a specific type in a namespace
  */
 export const GET: RequestHandler = async ({ params, locals }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
+	requireAuthenticatedUser(locals);
 
 	const { resourceType, namespace } = params;
 
 	validateK8sNamespace(namespace);
 
-	// Resolve resource type from plural name
-	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
-	if (!resolvedType) {
-		const validPlurals = getAllResourcePlurals();
-		throw error(400, {
-			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
-		});
-	}
-
-	// Check permission for specific namespace
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		resolvedType,
-		namespace,
-		locals.cluster
-	);
-
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
-	}
+	const resolvedType: FluxResourceType = resolveFluxRouteResourceType(resourceType);
+	await requireScopedPermission(locals, 'read', resolvedType, namespace);
 
 	const reqCache: ReqCache = new Map();
 

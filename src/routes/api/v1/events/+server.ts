@@ -2,8 +2,6 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { subscribe, type SSEEvent } from '$lib/server/events.js';
-import { checkClusterWideReadPermission } from '$lib/server/rbac.js';
-import { sseConnectionLimiter } from '$lib/server/rate-limiter.js';
 import { logger } from '$lib/server/logger.js';
 import { sseConnectionsRejectedTotal } from '$lib/server/metrics.js';
 import {
@@ -11,6 +9,11 @@ import {
 	SSE_MAX_CONNECTIONS_PER_USER,
 	SSE_CONNECTION_TIMEOUT_MS
 } from '$lib/server/config/constants.js';
+import {
+	acquireSseConnectionSlot,
+	requireAuthenticatedUser,
+	requireClusterWideRead
+} from '$lib/server/http/guards.js';
 
 export const _metadata = {
 	GET: {
@@ -32,18 +35,11 @@ export const _metadata = {
 };
 
 export const GET: RequestHandler = async ({ request, locals, getClientAddress }) => {
-	// Check authentication
-	if (!locals.user) {
-		return error(401, { message: 'Authentication required' });
-	}
+	const user = requireAuthenticatedUser(locals);
 
 	const clusterId = locals.cluster ?? IN_CLUSTER_ID;
 
-	// Check permission
-	const hasPermission = await checkClusterWideReadPermission(locals.user, clusterId);
-	if (!hasPermission) {
-		return error(403, { message: 'Permission denied' });
-	}
+	await requireClusterWideRead(locals);
 
 	// Enforce per-session and per-user concurrent connection limits.
 	// Session ID is preferred over client IP because IP addresses can be shared
@@ -55,14 +51,14 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 		);
 	}
 	const sessionId = rawSessionId ?? getClientAddress();
-	const userId = String(locals.user.id);
+	const userId = String(user.id);
 
-	const connectionResult = sseConnectionLimiter.acquire(
+	const connectionResult = acquireSseConnectionSlot({
 		sessionId,
 		userId,
-		SSE_MAX_CONNECTIONS_PER_SESSION,
-		SSE_MAX_CONNECTIONS_PER_USER
-	);
+		maxPerSession: SSE_MAX_CONNECTIONS_PER_SESSION,
+		maxPerUser: SSE_MAX_CONNECTIONS_PER_USER
+	});
 
 	if (!connectionResult.allowed) {
 		sseConnectionsRejectedTotal.labels(connectionResult.limitType).inc();

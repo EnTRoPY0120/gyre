@@ -132,21 +132,19 @@ export const _metadata = {
 		}
 	}
 };
-import { logAudit } from '$lib/server/audit';
-import { requirePermission } from '$lib/server/rbac';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import {
+	enforceUserRateLimitPreset,
+	logPrivilegedMutationSuccess,
+	requirePrivilegedAdminPermission
+} from '$lib/server/http/guards.js';
 
 /**
  * GET /api/admin/backups
  * Returns a list of all available backups.
  */
 export const GET: RequestHandler = async ({ locals }) => {
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
-	}
-
 	const clusterId = locals.cluster || 'in-cluster';
-	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
+	await requirePrivilegedAdminPermission({ ...locals, cluster: clusterId }, 'DatabaseBackup');
 
 	try {
 		const backups = listBackups();
@@ -163,21 +161,21 @@ export const GET: RequestHandler = async ({ locals }) => {
  * Creates a new database backup.
  */
 export const POST: RequestHandler = async ({ locals, setHeaders }) => {
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
-	}
-
 	const clusterId = locals.cluster || 'in-cluster';
-	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
-
-	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
+	const user = await requirePrivilegedAdminPermission(
+		{ ...locals, cluster: clusterId },
+		'DatabaseBackup'
+	);
+	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
 	try {
 		const backup = await createBackup();
 
-		await logAudit(locals.user, 'backup:create', {
+		await logPrivilegedMutationSuccess({
+			action: 'backup:create',
+			user,
 			resourceType: 'DatabaseBackup',
-			resourceName: backup.filename,
+			name: backup.filename,
 			details: { sizeBytes: backup.sizeBytes }
 		});
 
@@ -194,14 +192,12 @@ export const POST: RequestHandler = async ({ locals, setHeaders }) => {
  * Deletes a specific backup file.
  */
 export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
-	}
-
 	const clusterId = locals.cluster || 'in-cluster';
-	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
-
-	checkRateLimit({ setHeaders }, `admin:${locals.user.id}`, 20, 60 * 1000);
+	const user = await requirePrivilegedAdminPermission(
+		{ ...locals, cluster: clusterId },
+		'DatabaseBackup'
+	);
+	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
 	const filename = url.searchParams.get('filename');
 	if (!filename) {
@@ -218,9 +214,11 @@ export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 			throw error(404, { message: 'Backup not found', code: 'NotFound' });
 		}
 
-		await logAudit(locals.user, 'backup:delete', {
+		await logPrivilegedMutationSuccess({
+			action: 'backup:delete',
+			user,
 			resourceType: 'DatabaseBackup',
-			resourceName: filename
+			name: filename
 		});
 
 		return json({ success: true });

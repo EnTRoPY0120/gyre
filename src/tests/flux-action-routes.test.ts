@@ -5,11 +5,11 @@ import { importFresh } from './helpers/import-fresh';
 import { createKubernetesErrorsModuleStub, createRbacModuleStub } from './helpers/module-stubs';
 
 type ReconcileRouteModule =
-	typeof import('../routes/api/v1/flux/[type]/[namespace]/[name]/reconcile/+server.js');
+	typeof import('../routes/api/v1/flux/[resourceType]/[namespace]/[name]/reconcile/+server.js');
 type ResumeRouteModule =
-	typeof import('../routes/api/v1/flux/[type]/[namespace]/[name]/resume/+server.js');
+	typeof import('../routes/api/v1/flux/[resourceType]/[namespace]/[name]/resume/+server.js');
 type SuspendRouteModule =
-	typeof import('../routes/api/v1/flux/[type]/[namespace]/[name]/suspend/+server.js');
+	typeof import('../routes/api/v1/flux/[resourceType]/[namespace]/[name]/suspend/+server.js');
 
 const capturedPermissionChecks: unknown[][] = [];
 const capturedReconcileCalls: unknown[][] = [];
@@ -51,10 +51,10 @@ function createUser(role: User['role'] = 'editor'): User {
 	};
 }
 
-function buildEvent(type: string) {
+function buildEvent(resourceType: string) {
 	return {
 		params: {
-			type,
+			resourceType,
 			namespace: 'flux-system',
 			name: 'demo'
 		},
@@ -101,13 +101,15 @@ beforeEach(async () => {
 	}));
 
 	mock.module('$lib/server/kubernetes/flux/resources', () => ({
-		resolveFluxResourceType
+		resolveFluxResourceType,
+		getAllResourcePlurals: () => ['kustomizations', 'gitrepositories', 'helmreleases']
 	}));
 	mock.module('$lib/server/kubernetes/flux/resources.js', () => ({
-		resolveFluxResourceType
+		resolveFluxResourceType,
+		getAllResourcePlurals: () => ['kustomizations', 'gitrepositories', 'helmreleases']
 	}));
 
-	mock.module('$lib/server/audit.js', () => ({
+	const auditModuleStub = {
 		logResourceWrite: async (...args: unknown[]) => {
 			capturedLogWrites.push(args);
 		},
@@ -116,7 +118,9 @@ beforeEach(async () => {
 		},
 		logLogin: async () => {},
 		logLogout: async () => {}
-	}));
+	};
+	mock.module('$lib/server/audit', () => auditModuleStub);
+	mock.module('$lib/server/audit.js', () => auditModuleStub);
 
 	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
@@ -140,17 +144,17 @@ beforeEach(async () => {
 
 	reconcilePOST = (
 		await importFresh<ReconcileRouteModule>(
-			'../routes/api/v1/flux/[type]/[namespace]/[name]/reconcile/+server.js'
+			'../routes/api/v1/flux/[resourceType]/[namespace]/[name]/reconcile/+server.js'
 		)
 	).POST;
 	resumePOST = (
 		await importFresh<ResumeRouteModule>(
-			'../routes/api/v1/flux/[type]/[namespace]/[name]/resume/+server.js'
+			'../routes/api/v1/flux/[resourceType]/[namespace]/[name]/resume/+server.js'
 		)
 	).POST;
 	suspendPOST = (
 		await importFresh<SuspendRouteModule>(
-			'../routes/api/v1/flux/[type]/[namespace]/[name]/suspend/+server.js'
+			'../routes/api/v1/flux/[resourceType]/[namespace]/[name]/suspend/+server.js'
 		)
 	).POST;
 });
@@ -172,8 +176,8 @@ describe('Flux action routes normalize plural resource types', () => {
 			'demo',
 			'in-cluster'
 		]);
-		expect(capturedLogWrites[0][1]).toBe('Kustomization');
-		expect(capturedLogWrites[0][2]).toBe('reconcile');
+		expect(capturedAuditCalls[0][1]).toBe('write:reconcile');
+		expect(capturedAuditCalls[0][2]).toMatchObject({ resourceType: 'Kustomization' });
 	});
 
 	test('reconcile route accepts singular PascalCase resource names', async () => {
@@ -193,8 +197,8 @@ describe('Flux action routes normalize plural resource types', () => {
 			'demo',
 			'in-cluster'
 		]);
-		expect(capturedLogWrites[0][1]).toBe('GitRepository');
-		expect(capturedLogWrites[0][2]).toBe('reconcile');
+		expect(capturedAuditCalls[0][1]).toBe('write:reconcile');
+		expect(capturedAuditCalls[0][2]).toMatchObject({ resourceType: 'GitRepository' });
 	});
 
 	test('suspend route resolves plural params before RBAC and action execution', async () => {
@@ -208,8 +212,8 @@ describe('Flux action routes normalize plural resource types', () => {
 			true,
 			'in-cluster'
 		]);
-		expect(capturedLogWrites[0][1]).toBe('GitRepository');
-		expect(capturedLogWrites[0][2]).toBe('suspend');
+		expect(capturedAuditCalls[0][1]).toBe('write:suspend');
+		expect(capturedAuditCalls[0][2]).toMatchObject({ resourceType: 'GitRepository' });
 	});
 
 	test('resume route resolves plural params before RBAC and action execution', async () => {
@@ -223,8 +227,8 @@ describe('Flux action routes normalize plural resource types', () => {
 			false,
 			'in-cluster'
 		]);
-		expect(capturedLogWrites[0][1]).toBe('HelmRelease');
-		expect(capturedLogWrites[0][2]).toBe('resume');
+		expect(capturedAuditCalls[0][1]).toBe('write:resume');
+		expect(capturedAuditCalls[0][2]).toMatchObject({ resourceType: 'HelmRelease' });
 	});
 
 	test('reconcile denies RBAC failures before action or audit side effects', async () => {
@@ -273,7 +277,8 @@ describe('Flux action routes normalize plural resource types', () => {
 		await expect(reconcilePOST(buildEvent('not-a-real-type'))).rejects.toMatchObject({
 			status: 400,
 			body: {
-				message: 'Invalid resource type: not-a-real-type'
+				message:
+					'Invalid resource type: not-a-real-type. Valid types: kustomizations, gitrepositories, helmreleases'
 			}
 		});
 
