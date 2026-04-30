@@ -2,11 +2,13 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { rollbackResource } from '$lib/server/kubernetes/flux/history';
-import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
-import { checkPermission } from '$lib/server/rbac';
 import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
-import { logResourceWrite, logAudit } from '$lib/server/audit.js';
 import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
+import {
+	logPrivilegedMutationFailure,
+	logPrivilegedMutationSuccess,
+	requireFluxResourceWrite
+} from '$lib/server/http/guards.js';
 
 export const _metadata = {
 	POST: {
@@ -68,11 +70,7 @@ export const _metadata = {
 };
 
 export const POST: RequestHandler = async ({ params, locals, request, getClientAddress }) => {
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
-	const { resourceType, namespace, name } = params;
+	const { namespace, name } = params;
 
 	validateK8sNamespace(namespace);
 	validateK8sName(name);
@@ -113,35 +111,18 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 		throw error(400, { message: 'Either revision or historyId is required for rollback' });
 	}
 
-	const resolvedType = getResourceTypeByPlural(resourceType);
-
-	if (!resolvedType) {
-		throw error(400, { message: `Invalid resource type: ${resourceType}` });
-	}
-
-	// Check permission (admin/write access needed for rollback)
-	const hasPermission = await checkPermission(
-		locals.user,
-		'write',
-		resolvedType,
-		namespace,
-		locals.cluster
-	);
-
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
-	}
+	const context = await requireFluxResourceWrite(locals, params);
 
 	// Use historyId if provided, otherwise use revision
 	const target = historyId || revision || '';
 
 	try {
 		const result = await rollbackResource(
-			resolvedType,
-			namespace,
-			name,
+			context.resourceType,
+			context.namespace,
+			context.name,
 			target,
-			locals.cluster,
+			context.clusterId,
 			dryRun
 		);
 
@@ -150,11 +131,18 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 			return json({ dryRun: true, patch: result.patch, historyEntry: result.historyEntry });
 		}
 
-		// Log the audit event
-		await logResourceWrite(locals.user, resolvedType, 'rollback', name, namespace, locals.cluster, {
+		await logPrivilegedMutationSuccess({
+			action: 'rollback',
+			user: context.user,
+			resourceType: context.resourceType,
+			name: context.name,
+			namespace: context.namespace,
+			clusterId: context.clusterId,
 			ipAddress: getClientAddress(),
-			targetRevision: revision,
-			targetHistoryId: historyId
+			details: {
+				targetRevision: revision,
+				targetHistoryId: historyId
+			}
 		});
 
 		return json({
@@ -162,21 +150,21 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 			message: `Successfully initiated rollback to ${target}`
 		});
 	} catch (err: unknown) {
-		// Log failed audit event with flattened details and success: false
-		await logAudit(locals.user, 'write:rollback', {
-			resourceType: resolvedType,
-			resourceName: name,
-			namespace,
-			clusterId: locals.cluster,
+		await logPrivilegedMutationFailure({
+			action: 'rollback',
+			user: context.user,
+			resourceType: context.resourceType,
+			name: context.name,
+			namespace: context.namespace,
+			clusterId: context.clusterId,
 			ipAddress: getClientAddress(),
-			success: false,
 			details: {
 				targetRevision: revision,
-				targetHistoryId: historyId,
-				error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
-			}
+				targetHistoryId: historyId
+			},
+			error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
 		});
 
-		handleApiError(err, `Failed to perform rollback for ${name}`);
+		handleApiError(err, `Failed to perform rollback for ${context.name}`);
 	}
 };

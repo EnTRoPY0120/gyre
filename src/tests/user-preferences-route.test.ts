@@ -95,9 +95,14 @@ beforeEach(async () => {
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
 	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
 	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	mock.module('$lib/server/audit', () => ({
-		logAudit: async () => {}
-	}));
+	const auditModuleStub = {
+		logAudit: async () => {},
+		logLogin: async () => {},
+		logLogout: async () => {},
+		logResourceWrite: async () => {}
+	};
+	mock.module('$lib/server/audit', () => auditModuleStub);
+	mock.module('$lib/server/audit.js', () => auditModuleStub);
 	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
 
 	const inMemory = setupInMemoryDb();

@@ -1,9 +1,11 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { clearClientPool } from '$lib/server/kubernetes/client.js';
-import { checkPermission } from '$lib/server/rbac.js';
-import { logAudit } from '$lib/server/audit';
+import {
+	logPrivilegedMutationSuccess,
+	requirePrivilegedAdminPermission
+} from '$lib/server/http/guards.js';
 
 export const _metadata = {
 	POST: {
@@ -27,28 +29,17 @@ export const _metadata = {
 };
 
 export const POST: RequestHandler = async ({ locals }) => {
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
 	// Enforce RBAC with no cluster context — this is a global system operation,
 	// not scoped to any specific cluster. The admin role short-circuits immediately;
 	// RBAC policy evaluation proceeds without a cluster filter.
-	const hasPermission = await checkPermission(
-		locals.user,
-		'admin',
-		undefined,
-		undefined,
-		undefined
-	);
-	if (!hasPermission) {
-		throw error(403, { message: 'Forbidden: admin permission required' });
-	}
+	const user = await requirePrivilegedAdminPermission({ ...locals, cluster: undefined });
 
 	clearClientPool();
-	await logAudit(locals.user, 'k8s-client-pool:clear', {
+	await logPrivilegedMutationSuccess({
+		action: 'k8s-client-pool:clear',
+		user,
 		resourceType: 'KubernetesClientPool',
-		resourceName: 'global',
+		name: 'global',
 		clusterId: locals.cluster,
 		details: {}
 	});

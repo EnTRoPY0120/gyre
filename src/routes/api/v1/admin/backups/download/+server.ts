@@ -21,8 +21,10 @@ import {
 	BackupError,
 	BACKUP_FILENAME_RE
 } from '$lib/server/backup';
-import { logAudit } from '$lib/server/audit';
-import { requirePermission } from '$lib/server/rbac';
+import {
+	logPrivilegedMutationSuccess,
+	requirePrivilegedAdminPermission
+} from '$lib/server/http/guards.js';
 import { createReadStream, statSync } from 'node:fs';
 import { basename } from 'node:path';
 
@@ -76,11 +78,11 @@ export const _metadata = {
 };
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
-	}
-
 	const clusterId = locals.cluster || 'in-cluster';
+	const user = await requirePrivilegedAdminPermission(
+		{ ...locals, cluster: clusterId },
+		'DatabaseBackup'
+	);
 
 	const rawFilename = url.searchParams.get('filename');
 	if (!rawFilename) {
@@ -93,11 +95,11 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	try {
-		await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
-
-		await logAudit(locals.user, 'backup:download', {
+		await logPrivilegedMutationSuccess({
+			action: 'backup:download',
+			user,
 			resourceType: 'DatabaseBackup',
-			resourceName: filename
+			name: filename
 		});
 
 		if (filename.endsWith('.db.enc')) {

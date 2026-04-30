@@ -1,11 +1,9 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getReconciliationHistory } from '$lib/server/kubernetes/flux/reconciliation-tracker';
-import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
-import { checkPermission } from '$lib/server/rbac';
-import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
+import { requireFluxResourceRead } from '$lib/server/http/guards.js';
 
 export const _metadata = {
 	GET: {
@@ -54,33 +52,10 @@ export const _metadata = {
 };
 
 export const GET: RequestHandler = async ({ params, locals, url }) => {
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
-	const { resourceType, namespace, name } = params;
-
-	validateK8sNamespace(namespace);
-	validateK8sName(name);
-
-	const resolvedType = getResourceTypeByPlural(resourceType);
-
-	if (!resolvedType) {
-		throw error(400, { message: `Invalid resource type: ${resourceType}` });
-	}
-
-	// Check permission
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		resolvedType,
-		namespace,
-		locals.cluster
+	const { resourceType, namespace, name, clusterId } = await requireFluxResourceRead(
+		locals,
+		params
 	);
-
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
-	}
 
 	// Parse and validate query parameters
 	const limitParam = url.searchParams.get('limit');
@@ -102,7 +77,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 	}
 
 	try {
-		const timeline = await getReconciliationHistory(resolvedType, namespace, name, locals.cluster, {
+		const timeline = await getReconciliationHistory(resourceType, namespace, name, clusterId, {
 			limit,
 			status: statusFilter || undefined,
 			since

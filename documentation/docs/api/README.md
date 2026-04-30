@@ -94,9 +94,9 @@ DELETE /api/v1/flux/{resourceType}/{namespace}/{name}
 ### Resource Actions
 
 ```http
-POST /api/v1/flux/{type}/{namespace}/{name}/reconcile
-POST /api/v1/flux/{type}/{namespace}/{name}/suspend
-POST /api/v1/flux/{type}/{namespace}/{name}/resume
+POST /api/v1/flux/{resourceType}/{namespace}/{name}/reconcile
+POST /api/v1/flux/{resourceType}/{namespace}/{name}/suspend
+POST /api/v1/flux/{resourceType}/{namespace}/{name}/resume
 POST /api/v1/flux/{resourceType}/{namespace}/{name}/rollback
 ```
 
@@ -114,7 +114,7 @@ POST /api/v1/flux/batch/delete
 ```http
 GET /api/v1/flux/{resourceType}/{namespace}/{name}/events
 GET /api/v1/flux/{resourceType}/{namespace}/{name}/history
-GET /api/v1/flux/{type}/{namespace}/{name}/logs
+GET /api/v1/flux/{resourceType}/{namespace}/{name}/logs
 GET /api/v1/flux/{resourceType}/{namespace}/{name}/diff
 ```
 

@@ -16,8 +16,10 @@ import { accounts, authProviders } from '$lib/server/db/schema';
 import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
 import { eq } from 'drizzle-orm';
-import { checkPermission } from '$lib/server/rbac.js';
-import { logAudit } from '$lib/server/audit';
+import {
+	logPrivilegedMutationSuccess,
+	requirePrivilegedAdminPermission
+} from '$lib/server/http/guards.js';
 
 export const _metadata = {
 	GET: {
@@ -124,16 +126,7 @@ export const _metadata = {
  * Get a specific auth provider (admin only)
  */
 export const GET: RequestHandler = async ({ params, locals }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized' });
-	}
-
-	// Check permission (admin action needed for auth providers)
-	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
-	if (!hasPermission) {
-		throw error(403, { message: 'Admin access required' });
-	}
+	await requirePrivilegedAdminPermission(locals, 'AuthProvider');
 
 	try {
 		const db = await getDb();
@@ -166,16 +159,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
  * Update an auth provider (admin only)
  */
 export const PATCH: RequestHandler = async ({ params, request, locals }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized' });
-	}
-
-	// Check permission (admin action needed for auth providers)
-	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
-	if (!hasPermission) {
-		throw error(403, { message: 'Admin access required' });
-	}
+	const user = await requirePrivilegedAdminPermission(locals, 'AuthProvider');
 
 	try {
 		const db = await getDb();
@@ -247,9 +231,11 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 		const updatedProvider = await db.query.authProviders.findFirst({
 			where: eq(authProviders.id, params.id)
 		});
-		await logAudit(locals.user, 'auth-provider:update', {
+		await logPrivilegedMutationSuccess({
+			action: 'auth-provider:update',
+			user,
 			resourceType: 'AuthProvider',
-			resourceName: updatedProvider?.name ?? existingProvider.name,
+			name: updatedProvider?.name ?? existingProvider.name,
 			details: {
 				providerId: params.id,
 				changedKeys,
@@ -278,16 +264,7 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
  * Delete an auth provider (admin only)
  */
 export const DELETE: RequestHandler = async ({ params, locals }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized' });
-	}
-
-	// Check permission (admin action needed for auth providers)
-	const hasPermission = await checkPermission(locals.user, 'admin', 'AuthProvider');
-	if (!hasPermission) {
-		throw error(403, { message: 'Admin access required' });
-	}
+	const user = await requirePrivilegedAdminPermission(locals, 'AuthProvider');
 
 	try {
 		const db = await getDb();
@@ -305,9 +282,11 @@ export const DELETE: RequestHandler = async ({ params, locals }) => {
 			tx.delete(accounts).where(eq(accounts.providerId, params.id)).run();
 			tx.delete(authProviders).where(eq(authProviders.id, params.id)).run();
 		});
-		await logAudit(locals.user, 'auth-provider:delete', {
+		await logPrivilegedMutationSuccess({
+			action: 'auth-provider:delete',
+			user,
 			resourceType: 'AuthProvider',
-			resourceName: provider.name,
+			name: provider.name,
 			details: {
 				providerId: params.id,
 				providerType: provider.type

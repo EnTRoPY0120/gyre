@@ -1,16 +1,9 @@
-import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { updateFluxResource, type ReqCache } from '$lib/server/kubernetes/client.js';
-import {
-	getAllResourcePlurals,
-	getResourceDef,
-	getResourceTypeByPlural,
-	type FluxResourceType
-} from '$lib/server/kubernetes/flux/resources.js';
-import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
-import { logAudit } from '$lib/server/audit.js';
+import { getResourceDef, type FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { deleteResource } from '$lib/server/kubernetes/flux/actions.js';
 import type { K8sResource } from '$lib/types/kubernetes';
 import yaml from 'js-yaml';
@@ -20,10 +13,12 @@ import {
 	validateFluxResourceSpec
 } from '$lib/server/validation';
 import {
-	requireAdminPermission,
+	logPrivilegedMutationFailure,
+	logPrivilegedMutationSuccess,
 	requireAuthenticatedUser,
 	requireClusterContext,
-	requireScopedPermission
+	requireScopedPermission,
+	resolveFluxRouteResourceType
 } from '$lib/server/http/guards.js';
 import {
 	computeWeakEtag,
@@ -139,14 +134,7 @@ export const GET: RequestHandler = async ({ params, url, locals, request, setHea
 	validateK8sNamespace(namespace);
 	validateK8sName(name);
 
-	// Resolve resource type from plural name
-	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
-	if (!resolvedType) {
-		const validPlurals = getAllResourcePlurals();
-		throw error(400, {
-			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
-		});
-	}
+	const resolvedType: FluxResourceType = resolveFluxRouteResourceType(resourceType);
 
 	await requireScopedPermission(locals, 'read', resolvedType, namespace);
 
@@ -187,14 +175,7 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 	validateK8sNamespace(namespace);
 	validateK8sName(name);
 
-	// Resolve resource type from plural name
-	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
-	if (!resolvedType) {
-		const validPlurals = getAllResourcePlurals();
-		throw error(400, {
-			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
-		});
-	}
+	const resolvedType: FluxResourceType = resolveFluxRouteResourceType(resourceType);
 
 	await requireScopedPermission(locals, 'write', resolvedType, namespace);
 
@@ -297,28 +278,20 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 	validateK8sNamespace(namespace);
 	validateK8sName(name);
 
-	// Resolve resource type from plural name
-	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
-	if (!resolvedType) {
-		const validPlurals = getAllResourcePlurals();
-		throw error(400, {
-			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
-		});
-	}
+	const resolvedType: FluxResourceType = resolveFluxRouteResourceType(resourceType);
 
 	try {
-		await requireAdminPermission(locals, resolvedType, namespace);
+		await requireScopedPermission(locals, 'admin', resolvedType, namespace);
 	} catch (err) {
-		logAudit(user, 'admin:delete', {
+		await logPrivilegedMutationFailure({
+			action: 'admin:delete',
+			user,
 			resourceType: resolvedType,
-			resourceName: name,
+			name,
 			namespace,
 			clusterId,
 			ipAddress: getClientAddress(),
-			success: false,
-			details: { error: 'Permission denied' }
-		}).catch((auditErr) => {
-			logger.error(auditErr, 'Failed to log audit event for denied delete:');
+			error: 'Permission denied'
 		});
 
 		throw err;
@@ -327,34 +300,28 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 	try {
 		await deleteResource(resolvedType, namespace, name, clusterId);
 
-		logAudit(user, 'admin:delete', {
+		await logPrivilegedMutationSuccess({
+			action: 'admin:delete',
+			user,
 			resourceType: resolvedType,
-			resourceName: name,
+			name,
 			namespace,
 			clusterId,
-			ipAddress: getClientAddress(),
-			success: true
-		}).catch((auditErr) => {
-			logger.error(auditErr, 'Failed to log audit event for delete:');
+			ipAddress: getClientAddress()
 		});
 
 		return new Response(null, { status: 204 });
 	} catch (err) {
-		try {
-			await logAudit(user, 'admin:delete', {
-				resourceType: resolvedType,
-				resourceName: name,
-				namespace,
-				clusterId,
-				ipAddress: getClientAddress(),
-				success: false,
-				details: {
-					error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
-				}
-			});
-		} catch (auditErr) {
-			logger.error(auditErr, 'Failed to log audit event for delete failure:');
-		}
+		await logPrivilegedMutationFailure({
+			action: 'admin:delete',
+			user,
+			resourceType: resolvedType,
+			name,
+			namespace,
+			clusterId,
+			ipAddress: getClientAddress(),
+			error: err
+		});
 
 		throw handleApiError(err, `Error deleting ${resolvedType} ${namespace}/${name}`);
 	}
