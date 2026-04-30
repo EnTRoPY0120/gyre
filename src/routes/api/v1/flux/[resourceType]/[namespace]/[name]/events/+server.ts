@@ -1,12 +1,10 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { getResourceEvents } from '$lib/server/kubernetes/events';
-import { getResourceTypeByPlural, FLUX_RESOURCES } from '$lib/server/kubernetes/flux/resources';
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
-import { checkPermission } from '$lib/server/rbac.js';
+import { FLUX_RESOURCES } from '$lib/server/kubernetes/flux/resources';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
+import { requireFluxResourceRead } from '$lib/server/http/guards.js';
 
 const eventSchema = z.object({
 	type: z.string().openapi({ example: 'Normal' }),
@@ -54,38 +52,10 @@ export const _metadata = {
 };
 
 export const GET: RequestHandler = async ({ params, locals }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
-	const { resourceType, namespace, name } = params;
-
-	validateK8sNamespace(namespace);
-	validateK8sName(name);
-
-	// Resolve the resource type from plural name
-	const resolvedType: FluxResourceType | undefined = getResourceTypeByPlural(resourceType);
-
-	if (!resolvedType) {
-		throw error(400, `Invalid resource type: ${resourceType}`);
-	}
-
-	// Check permission for read action
-	const hasPermission = await checkPermission(
-		locals.user,
-		'read',
-		resolvedType,
-		namespace,
-		locals.cluster
-	);
-
-	if (!hasPermission) {
-		throw error(403, { message: 'Permission denied' });
-	}
+	const { resourceType, namespace, name } = await requireFluxResourceRead(locals, params);
 
 	// Get the resource kind from FLUX_RESOURCES
-	const resourceDef = FLUX_RESOURCES[resolvedType];
+	const resourceDef = FLUX_RESOURCES[resourceType];
 	const resourceKind = resourceDef.kind;
 
 	try {

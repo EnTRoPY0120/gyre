@@ -8,7 +8,7 @@ import {
 	type FluxResourceType,
 	FLUX_RESOURCES
 } from '$lib/server/kubernetes/flux/resources';
-import { requirePermission } from '$lib/server/rbac';
+import { requireAuthenticatedUser, requireScopedPermission } from '$lib/server/http/guards.js';
 import { classifyDiffError } from '$lib/server/kubernetes/flux/diff-errors';
 import * as k8s from '@kubernetes/client-node';
 import yaml from 'js-yaml';
@@ -189,11 +189,8 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		});
 	}
 
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
-	}
-
-	await requirePermission(locals.user, 'read', 'Kustomization', namespace, clusterId);
+	requireAuthenticatedUser(locals);
+	await requireScopedPermission(locals, 'read', 'Kustomization', namespace);
 
 	// Allow overriding the Flux system namespace via environment variable.
 	// Defaults to flux-system but can be changed for non-standard installations.

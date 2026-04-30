@@ -1,14 +1,8 @@
-import { error, json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { deleteResource } from '$lib/server/kubernetes/flux/actions';
 import { MAX_BATCH_SIZE } from '$lib/server/config/limits';
 import { batchResourceSchema, batchResultSchema } from '$lib/server/kubernetes/flux/batch-schemas';
-import type {
-	BatchResourceItem,
-	BatchOperationResult
-} from '$lib/server/kubernetes/flux/batch-schemas';
-import { logger } from '$lib/server/logger';
+import { runBatchFluxOperation } from '$lib/server/flux/use-cases/batch-operation.js';
 
 export const _metadata = {
 	POST: {
@@ -50,195 +44,12 @@ export const _metadata = {
 		}
 	}
 };
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
-import { getAllResourceTypes } from '$lib/server/kubernetes/flux/resources';
-import { checkPermission } from '$lib/server/rbac.js';
-import { logAudit } from '$lib/server/audit.js';
-import { sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
-import { checkRateLimit } from '$lib/server/rate-limiter';
 
-export const POST: RequestHandler = async ({ request, locals, getClientAddress, setHeaders }) => {
-	// Check authentication
-	if (!locals.user) {
-		throw error(401, { message: 'Authentication required' });
-	}
-
-	checkRateLimit({ setHeaders }, `batch:${locals.user.id}`, 60, 60 * 1000);
-
-	// Validate cluster context
-	if (!locals.cluster || typeof locals.cluster !== 'string') {
-		throw error(400, { message: 'Cluster context required' });
-	}
-
-	// Parse request body
-	let body: { resources?: BatchResourceItem[] };
-	try {
-		body = await request.json();
-	} catch {
-		throw error(400, { message: 'Invalid JSON in request body' });
-	}
-
-	if (!body.resources || !Array.isArray(body.resources)) {
-		throw error(400, { message: 'Missing or invalid resources array in request body' });
-	}
-
-	// Check batch size limit
-	if (body.resources.length > MAX_BATCH_SIZE) {
-		throw error(400, {
-			message: `Batch size exceeded: maximum ${MAX_BATCH_SIZE} resources allowed per request`
-		});
-	}
-
-	const results: BatchOperationResult[] = [];
-	const validResourceTypes = getAllResourceTypes();
-
-	// Process each resource
-	for (const resource of body.resources) {
-		// Validate resource has required fields
-		if (
-			!resource ||
-			typeof resource.type !== 'string' ||
-			typeof resource.namespace !== 'string' ||
-			typeof resource.name !== 'string' ||
-			!resource.type ||
-			!resource.namespace ||
-			!resource.name
-		) {
-			const errorMessage = 'Invalid resource: missing required fields (type, namespace, name)';
-			results.push({
-				resource: resource || { type: 'unknown', namespace: 'unknown', name: 'unknown' },
-				success: false,
-				message: errorMessage
-			});
-
-			logAudit(locals.user, 'admin:delete', {
-				resourceType: resource?.type || 'unknown',
-				resourceName: resource?.name || 'unknown',
-				namespace: resource?.namespace || 'unknown',
-				clusterId: locals.cluster,
-				ipAddress: getClientAddress(),
-				success: false,
-				details: { error: errorMessage }
-			}).catch((auditErr) => {
-				logger.error(auditErr, 'Failed to log audit event for invalid resource:');
-			});
-
-			continue;
-		}
-
-		// Validate resource type is valid FluxResourceType
-		if (!validResourceTypes.includes(resource.type as FluxResourceType)) {
-			const errorMessage = `Invalid resource type: ${resource.type}`;
-			results.push({
-				resource,
-				success: false,
-				message: errorMessage
-			});
-
-			logAudit(locals.user, 'admin:delete', {
-				resourceType: resource.type,
-				resourceName: resource.name,
-				namespace: resource.namespace,
-				clusterId: locals.cluster,
-				ipAddress: getClientAddress(),
-				success: false,
-				details: { error: errorMessage }
-			}).catch((auditErr) => {
-				logger.error(auditErr, 'Failed to log audit event for invalid resource type:');
-			});
-
-			continue;
-		}
-		try {
-			// Check permission for each resource (delete requires admin, not just write)
-			const hasPermission = await checkPermission(
-				locals.user,
-				'admin',
-				resource.type as FluxResourceType,
-				resource.namespace,
-				locals.cluster
-			);
-
-			if (!hasPermission) {
-				results.push({
-					resource,
-					success: false,
-					message: 'Permission denied'
-				});
-
-				logAudit(locals.user, 'admin:delete', {
-					resourceType: resource.type,
-					resourceName: resource.name,
-					namespace: resource.namespace,
-					clusterId: locals.cluster,
-					ipAddress: getClientAddress(),
-					success: false,
-					details: { error: 'Permission denied' }
-				}).catch((auditErr) => {
-					logger.error(auditErr, 'Failed to log audit event for denied delete:');
-				});
-
-				continue;
-			}
-
-			// Delete the resource
-			await deleteResource(
-				resource.type as FluxResourceType,
-				resource.namespace,
-				resource.name,
-				locals.cluster
-			);
-
-			results.push({
-				resource,
-				success: true,
-				message: `Deleted ${resource.name}`
-			});
-
-			logAudit(locals.user, 'admin:delete', {
-				resourceType: resource.type,
-				resourceName: resource.name,
-				namespace: resource.namespace,
-				clusterId: locals.cluster,
-				ipAddress: getClientAddress(),
-				success: true
-			}).catch((auditErr) => {
-				logger.error(auditErr, 'Failed to log audit event for delete:');
-			});
-		} catch (err) {
-			const errorMessage = sanitizeK8sErrorMessage(
-				err instanceof Error ? err.message : String(err)
-			);
-
-			results.push({
-				resource,
-				success: false,
-				message: errorMessage
-			});
-
-			logAudit(locals.user, 'admin:delete', {
-				resourceType: resource.type,
-				resourceName: resource.name,
-				namespace: resource.namespace,
-				clusterId: locals.cluster,
-				ipAddress: getClientAddress(),
-				success: false,
-				details: { error: errorMessage }
-			}).catch((auditErr) => {
-				logger.error(auditErr, 'Failed to log audit event for delete failure:');
-			});
-		}
-	}
-
-	const successCount = results.filter((r) => r.success).length;
-	const totalCount = results.length;
-
-	return json({
-		results,
-		summary: {
-			total: totalCount,
-			successful: successCount,
-			failed: totalCount - successCount
-		}
+export const POST: RequestHandler = ({ request, locals, getClientAddress, setHeaders }) =>
+	runBatchFluxOperation({
+		operation: 'delete',
+		request,
+		locals,
+		getClientAddress,
+		setHeaders
 	});
-};

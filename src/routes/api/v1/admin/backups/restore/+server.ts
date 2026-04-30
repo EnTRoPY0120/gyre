@@ -12,8 +12,10 @@ import {
 	getDecryptedBackupBufferFromBuffer,
 	BackupError
 } from '$lib/server/backup';
-import { logAudit } from '$lib/server/audit';
-import { requirePermission } from '$lib/server/rbac';
+import {
+	logPrivilegedMutationSuccess,
+	requirePrivilegedAdminPermission
+} from '$lib/server/http/guards.js';
 import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
 import {
 	sanitizeFilename,
@@ -84,9 +86,11 @@ export const _metadata = {
 };
 
 export const POST: RequestHandler = async ({ locals, request }) => {
-	if (!locals.user) throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
 	const clusterId = locals.cluster || 'in-cluster';
-	await requirePermission(locals.user, 'admin', 'DatabaseBackup', undefined, clusterId);
+	const user = await requirePrivilegedAdminPermission(
+		{ ...locals, cluster: clusterId },
+		'DatabaseBackup'
+	);
 
 	try {
 		const formData = await request.formData();
@@ -127,9 +131,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		const result = await restoreFromBuffer(restoreBuffer);
 
-		await logAudit(locals.user, 'backup:restore', {
+		await logPrivilegedMutationSuccess({
+			action: 'backup:restore',
+			user,
 			resourceType: 'DatabaseBackup',
-			resourceName: sanitizeFilename(file.name),
+			name: sanitizeFilename(file.name),
 			details: {
 				uploadedSize: file.size,
 				restoredSize: result.sizeBytes

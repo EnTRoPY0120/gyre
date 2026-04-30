@@ -6,8 +6,10 @@ import { users } from '$lib/server/db/schema';
 import { eq, sql } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 import type { UserPreferences } from '$lib/types/user';
-import { checkRateLimit } from '$lib/server/rate-limiter';
-import { logAudit } from '$lib/server/audit';
+import {
+	enforceUserRateLimitPreset,
+	logPrivilegedMutationSuccess
+} from '$lib/server/http/guards.js';
 import { preferencesSchema } from '$lib/server/user-preferences';
 
 export const _metadata = {
@@ -57,11 +59,7 @@ export const _metadata = {
 };
 
 export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
-	if (!locals.user) {
-		throw error(401, { message: 'Unauthorized', code: 'Unauthorized' });
-	}
-
-	checkRateLimit({ setHeaders }, `preferences:${locals.user.id}`, 30, 60 * 1000);
+	const user = enforceUserRateLimitPreset({ setHeaders }, locals, 'preferences');
 
 	let rawBody: unknown;
 
@@ -90,7 +88,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 				preferences: sql<UserPreferences>`json_patch(coalesce(${users.preferences}, '{}'), json(${preferencesPatch}))`,
 				updatedAt: new Date()
 			})
-			.where(eq(users.id, locals.user.id))
+			.where(eq(users.id, user.id))
 			.returning({ preferences: users.preferences });
 
 		if (!updatedUser) {
@@ -99,7 +97,9 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 
 		const mergedPreferences = (updatedUser.preferences as UserPreferences) || {};
 
-		await logAudit(locals.user, 'preferences:update', {
+		await logPrivilegedMutationSuccess({
+			action: 'preferences:update',
+			user,
 			resourceType: 'UserPreferences',
 			...(locals.cluster ? { clusterId: locals.cluster } : {}),
 			details: { updatedFields: Object.keys(newPreferences) }

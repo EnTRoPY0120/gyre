@@ -69,11 +69,16 @@ beforeEach(async () => {
 	dbState.updates.length = 0;
 	dbState.deleteRuns = 0;
 
-	mock.module('$lib/server/audit', () => ({
+	const auditModuleStub = {
 		logAudit: async (user: User | null, action: string, options?: Record<string, unknown>) => {
 			auditCalls.push([user, action, options]);
-		}
-	}));
+		},
+		logLogin: async () => {},
+		logLogout: async () => {},
+		logResourceWrite: async () => {}
+	};
+	mock.module('$lib/server/audit', () => auditModuleStub);
+	mock.module('$lib/server/audit.js', () => auditModuleStub);
 
 	const rbacModuleStub = createRbacModuleStub({
 		checkPermission: async () => permissionAllowed
