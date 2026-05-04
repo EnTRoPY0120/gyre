@@ -183,15 +183,19 @@ export async function runBatchFluxOperation({
 				message: successMessages[operation](resource.name)
 			});
 
-			await logPrivilegedMutationSuccess({
-				action,
-				user,
-				resourceType,
-				name: resource.name,
-				namespace: resource.namespace,
-				clusterId,
-				ipAddress
-			});
+			try {
+				await logPrivilegedMutationSuccess({
+					action,
+					user,
+					resourceType,
+					name: resource.name,
+					namespace: resource.namespace,
+					clusterId,
+					ipAddress
+				});
+			} catch {
+				// Audit logging is best-effort and must not change batch results.
+			}
 		} catch (err) {
 			const message =
 				err &&
@@ -207,16 +211,20 @@ export async function runBatchFluxOperation({
 				message
 			});
 
-			await logPrivilegedMutationFailure({
-				action,
-				user,
-				resourceType: displayResource.type,
-				name: displayResource.name,
-				namespace: displayResource.namespace,
-				clusterId,
-				ipAddress,
-				error: message
-			});
+			try {
+				await logPrivilegedMutationFailure({
+					action,
+					user,
+					resourceType: displayResource.type,
+					name: displayResource.name,
+					namespace: displayResource.namespace,
+					clusterId,
+					ipAddress,
+					error: message
+				});
+			} catch {
+				// Audit logging is best-effort and must not abort the batch loop.
+			}
 		}
 	}
 

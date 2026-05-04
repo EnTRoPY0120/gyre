@@ -91,16 +91,24 @@ beforeEach(async () => {
 	);
 
 	mock.module('$lib/server/kubernetes/flux/actions', () => ({
+		deleteResource: async () => {},
 		reconcileResource: async (...args: unknown[]) => {
 			capturedReconcileCalls.push(args);
+			if (args[2] === 'bad') {
+				throw new Error('reconcile failed');
+			}
 		},
 		toggleSuspendResource: async (...args: unknown[]) => {
 			capturedToggleSuspendCalls.push(args);
 		}
 	}));
 	mock.module('$lib/server/kubernetes/flux/actions.js', () => ({
+		deleteResource: async () => {},
 		reconcileResource: async (...args: unknown[]) => {
 			capturedReconcileCalls.push(args);
+			if (args[2] === 'bad') {
+				throw new Error('reconcile failed');
+			}
 		},
 		toggleSuspendResource: async (...args: unknown[]) => {
 			capturedToggleSuspendCalls.push(args);

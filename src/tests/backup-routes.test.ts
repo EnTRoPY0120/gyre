@@ -3,7 +3,11 @@ import * as actualFs from 'node:fs';
 import { Readable } from 'node:stream';
 import * as actualRequestLimits from '../lib/server/request-limits.js';
 import { importFresh } from './helpers/import-fresh';
-import { createLoggerModuleStub, createRbacModuleStub } from './helpers/module-stubs';
+import {
+	createLoggerModuleStub,
+	createRateLimiterModuleStub,
+	createRbacModuleStub
+} from './helpers/module-stubs';
 
 type DownloadRouteModule = typeof import('../routes/api/v1/admin/backups/download/+server.js');
 type RestoreRouteModule = typeof import('../routes/api/v1/admin/backups/restore/+server.js');
@@ -30,6 +34,7 @@ let restoreResult = {
 };
 let downloadError: StubBackupError | null = null;
 let restoreError: StubBackupError | null = null;
+let auditError: Error | null = null;
 let backupRestoreLimit = 1024;
 
 const plainDownloadBody = Buffer.from('plain-backup');
@@ -109,6 +114,7 @@ beforeEach(async () => {
 	};
 	downloadError = null;
 	restoreError = null;
+	auditError = null;
 	backupRestoreLimit = 1024;
 	getBackupPathCalls.length = 0;
 	getDecryptedBackupBufferCalls.length = 0;
@@ -118,8 +124,12 @@ beforeEach(async () => {
 
 	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
 	mock.module('$lib/server/rbac', () => createRbacModuleStub());
+	mock.module('$lib/server/rate-limiter.js', () => createRateLimiterModuleStub());
 	const auditModuleStub = {
 		logAudit: async (_user: unknown, action: string, details: { resourceName?: string } = {}) => {
+			if (auditError) {
+				throw auditError;
+			}
 			auditCalls.push({ action, resourceName: details.resourceName });
 		},
 		logLogin: async () => {},
@@ -267,6 +277,26 @@ describe('backup route behavior', () => {
 			{ action: 'backup:restore', resourceName: plainFile.name },
 			{ action: 'backup:restore', resourceName: encryptedFile.name }
 		]);
+	});
+
+	test('preserves successful restore response when audit logging fails', async () => {
+		auditError = new Error('audit unavailable');
+		const plainFile = new File(
+			[Buffer.from('plain-db')],
+			'gyre-backup-2026-04-24T10-30-00-000Z.db',
+			{
+				type: 'application/octet-stream'
+			}
+		);
+
+		const response = await restorePOST(createRestoreEvent(plainFile));
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toMatchObject({
+			success: true,
+			backup: restoreResult
+		});
+		expect(restoreCalls.map((buffer) => buffer.toString())).toEqual(['plain-db']);
 	});
 
 	test('rejects invalid restore extensions and MIME types', async () => {

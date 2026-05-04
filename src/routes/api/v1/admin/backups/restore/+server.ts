@@ -13,6 +13,7 @@ import {
 	BackupError
 } from '$lib/server/backup';
 import {
+	enforceUserRateLimitPreset,
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
 } from '$lib/server/http/guards.js';
@@ -85,11 +86,12 @@ export const _metadata = {
 	}
 };
 
-export const POST: RequestHandler = async ({ locals, request }) => {
+export const POST: RequestHandler = async ({ locals, request, setHeaders }) => {
 	const user = await requirePrivilegedAdminPermission(
 		{ ...locals, cluster: undefined },
 		'DatabaseBackup'
 	);
+	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
 	try {
 		const formData = await request.formData();
@@ -130,16 +132,20 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		const result = await restoreFromBuffer(restoreBuffer);
 
-		await logPrivilegedMutationSuccess({
-			action: 'backup:restore',
-			user,
-			resourceType: 'DatabaseBackup',
-			name: sanitizeFilename(file.name),
-			details: {
-				uploadedSize: file.size,
-				restoredSize: result.sizeBytes
-			}
-		});
+		try {
+			await logPrivilegedMutationSuccess({
+				action: 'backup:restore',
+				user,
+				resourceType: 'DatabaseBackup',
+				name: sanitizeFilename(file.name),
+				details: {
+					uploadedSize: file.size,
+					restoredSize: result.sizeBytes
+				}
+			});
+		} catch (auditErr) {
+			logger.warn(auditErr, 'Failed to write backup restore audit event');
+		}
 
 		return json({
 			success: true,

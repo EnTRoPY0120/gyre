@@ -247,8 +247,15 @@ export async function logPrivilegedMutationFailure(
 	context: PrivilegedAuditContext & { error: unknown }
 ): Promise<void> {
 	const actionName = context.action;
+	const auditAction =
+		actionName === 'reconcile' ||
+		actionName === 'suspend' ||
+		actionName === 'resume' ||
+		actionName === 'rollback'
+			? `write:${actionName}`
+			: actionName;
 
-	await audit.logAudit(context.user, actionName, {
+	await audit.logAudit(context.user, auditAction, {
 		resourceType: context.resourceType,
 		resourceName: context.name,
 		namespace: context.namespace,
