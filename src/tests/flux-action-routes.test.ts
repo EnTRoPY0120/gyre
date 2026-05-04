@@ -32,6 +32,13 @@ const resolveFluxResourceType = (resourceType: string) => {
 	return undefined;
 };
 
+const getResourceDef = (resourceType: string) =>
+	resolveFluxResourceType(resourceType)
+		? { group: 'source.toolkit.fluxcd.io', version: 'v1', plural: `${resourceType.toLowerCase()}s` }
+		: undefined;
+
+const getResourceTypeByPlural = (plural: string) => resolveFluxResourceType(plural);
+
 function createUser(role: User['role'] = 'editor'): User {
 	const now = new Date();
 	return {
@@ -102,10 +109,14 @@ beforeEach(async () => {
 
 	mock.module('$lib/server/kubernetes/flux/resources', () => ({
 		resolveFluxResourceType,
+		getResourceDef,
+		getResourceTypeByPlural,
 		getAllResourcePlurals: () => ['kustomizations', 'gitrepositories', 'helmreleases']
 	}));
 	mock.module('$lib/server/kubernetes/flux/resources.js', () => ({
 		resolveFluxResourceType,
+		getResourceDef,
+		getResourceTypeByPlural,
 		getAllResourcePlurals: () => ['kustomizations', 'gitrepositories', 'helmreleases']
 	}));
 

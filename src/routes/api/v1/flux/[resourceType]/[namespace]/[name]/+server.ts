@@ -283,6 +283,12 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 	try {
 		await requireScopedPermission(locals, 'admin', resolvedType, namespace);
 	} catch (err) {
+		const isPermissionError =
+			err !== null &&
+			typeof err === 'object' &&
+			'status' in err &&
+			(err as { status: unknown }).status === 403;
+
 		await logPrivilegedMutationFailure({
 			action: 'admin:delete',
 			user,
@@ -291,7 +297,7 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 			namespace,
 			clusterId,
 			ipAddress: getClientAddress(),
-			error: 'Permission denied'
+			error: isPermissionError ? 'Permission denied' : err
 		});
 
 		throw err;

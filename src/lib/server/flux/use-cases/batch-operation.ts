@@ -9,6 +9,7 @@ import {
 	reconcileResource,
 	toggleSuspendResource
 } from '$lib/server/kubernetes/flux/actions.js';
+import { captureReconciliation } from '$lib/server/kubernetes/flux/reconciliation-tracker.js';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
 import { deleteFluxResourcesBatch, type DeleteItem } from '$lib/server/kubernetes/client.js';
 import { sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
@@ -90,10 +91,23 @@ async function runSingleOperation(
 	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,
-	clusterId: string
+	clusterId: string,
+	userId: string | null
 ) {
 	if (operation === 'reconcile') {
 		await reconcileResource(resourceType, namespace, name, clusterId);
+		try {
+			await captureReconciliation({
+				resourceType,
+				namespace,
+				name,
+				clusterId,
+				triggerType: 'manual',
+				triggeredByUserId: userId
+			});
+		} catch {
+			// History capture is best-effort; don't fail the reconcile response.
+		}
 	} else if (operation === 'suspend' || operation === 'resume') {
 		await toggleSuspendResource(resourceType, namespace, name, operation === 'suspend', clusterId);
 	} else {
@@ -159,7 +173,8 @@ export async function runBatchFluxOperation({
 				resourceType,
 				resource.namespace,
 				resource.name,
-				clusterId
+				clusterId,
+				user.id
 			);
 
 			results.push({

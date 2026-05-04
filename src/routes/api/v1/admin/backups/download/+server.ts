@@ -22,6 +22,7 @@ import {
 	BACKUP_FILENAME_RE
 } from '$lib/server/backup';
 import {
+	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
 } from '$lib/server/http/guards.js';
@@ -78,9 +79,8 @@ export const _metadata = {
 };
 
 export const GET: RequestHandler = async ({ locals, url }) => {
-	const clusterId = locals.cluster || 'in-cluster';
 	const user = await requirePrivilegedAdminPermission(
-		{ ...locals, cluster: clusterId },
+		{ ...locals, cluster: undefined },
 		'DatabaseBackup'
 	);
 
@@ -95,13 +95,6 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	try {
-		await logPrivilegedMutationSuccess({
-			action: 'backup:download',
-			user,
-			resourceType: 'DatabaseBackup',
-			name: filename
-		});
-
 		if (filename.endsWith('.db.enc')) {
 			// Encrypted: buffer entirely so GCM auth tag can be verified before returning plaintext
 			const buffer = getDecryptedBackupBuffer(filename);
@@ -111,7 +104,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 			const safeFilename = filename.replace(/\.enc$/, '');
 			const encodedFilename = encodeURIComponent(safeFilename);
-			return new Response(buffer as unknown as BodyInit, {
+			const response = new Response(buffer as unknown as BodyInit, {
 				status: 200,
 				headers: {
 					'Content-Type': 'application/x-sqlite3',
@@ -119,6 +112,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 					'Content-Length': String(buffer.byteLength)
 				}
 			});
+
+			await logPrivilegedMutationSuccess({
+				action: 'backup:download',
+				user,
+				resourceType: 'DatabaseBackup',
+				name: filename
+			});
+
+			return response;
 		} else {
 			// Unencrypted: stream directly for memory efficiency
 			const filePath = getBackupPath(filename);
@@ -130,8 +132,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 			const stream = createReadStream(filePath);
 			const safeFilename = basename(filePath);
 			const encodedFilename = encodeURIComponent(safeFilename);
-
-			return new Response(stream as unknown as ReadableStream, {
+			const response = new Response(stream as unknown as ReadableStream, {
 				status: 200,
 				headers: {
 					'Content-Type': 'application/x-sqlite3',
@@ -139,8 +140,25 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 					'Content-Length': String(stat.size)
 				}
 			});
+
+			await logPrivilegedMutationSuccess({
+				action: 'backup:download',
+				user,
+				resourceType: 'DatabaseBackup',
+				name: filename
+			});
+
+			return response;
 		}
 	} catch (err) {
+		await logPrivilegedMutationFailure({
+			action: 'backup:download',
+			user,
+			resourceType: 'DatabaseBackup',
+			name: filename,
+			error: err
+		});
+
 		if (err instanceof BackupError) {
 			logger.error(err, 'Backup download error:');
 			const code = BACKUP_STATUS_CODES[err.status] ?? 'InternalServerError';
