@@ -87,7 +87,7 @@ export const _metadata = {
  * Returns all application settings (admin only)
  */
 export const GET: RequestHandler = async ({ locals }) => {
-	await requirePrivilegedAdminPermission(locals);
+	await requirePrivilegedAdminPermission({ ...locals, cluster: undefined });
 
 	try {
 		const [authSettings, auditRetentionDays] = await Promise.all([
@@ -127,7 +127,7 @@ export const GET: RequestHandler = async ({ locals }) => {
  * Updates application settings (admin only)
  */
 export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => {
-	const user = await requirePrivilegedAdminPermission(locals);
+	const user = await requirePrivilegedAdminPermission({ ...locals, cluster: undefined });
 	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
 	try {

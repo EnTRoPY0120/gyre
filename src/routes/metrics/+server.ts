@@ -7,6 +7,15 @@ import {
 } from '$lib/server/http/guards.js';
 import type { RequestHandler } from './$types';
 
+function isPermissionError(err: unknown): boolean {
+	return (
+		err !== null &&
+		typeof err === 'object' &&
+		'status' in err &&
+		(err as { status: unknown }).status === 403
+	);
+}
+
 export const GET: RequestHandler = async ({ request, setHeaders, getClientAddress, locals }) => {
 	enforceMetricsRateLimit({ setHeaders }, getClientAddress());
 
@@ -32,7 +41,11 @@ export const GET: RequestHandler = async ({ request, setHeaders, getClientAddres
 
 			try {
 				await requirePrivilegedAdminPermission(locals);
-			} catch {
+			} catch (err) {
+				if (!isPermissionError(err)) {
+					throw err;
+				}
+
 				return new Response(JSON.stringify({ error: 'Forbidden' }), {
 					status: 403,
 					headers: { 'Content-Type': 'application/json' }

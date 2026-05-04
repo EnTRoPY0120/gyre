@@ -134,6 +134,7 @@ export const _metadata = {
 };
 import {
 	enforceUserRateLimitPreset,
+	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
 } from '$lib/server/http/guards.js';
@@ -182,6 +183,13 @@ export const POST: RequestHandler = async ({ locals, setHeaders }) => {
 		return json({ backup }, { status: 201 });
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err) throw err;
+		await logPrivilegedMutationFailure({
+			action: 'backup:create',
+			user,
+			resourceType: 'DatabaseBackup',
+			name: 'new',
+			error: err
+		});
 		logger.error(err, 'Failed to create backup:');
 		throw error(500, { message: 'Failed to create backup', code: 'InternalServerError' });
 	}
@@ -226,6 +234,13 @@ export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;
 		}
+		await logPrivilegedMutationFailure({
+			action: 'backup:delete',
+			user,
+			resourceType: 'DatabaseBackup',
+			name: filename,
+			error: err
+		});
 		logger.error(err, 'Failed to delete backup:');
 		throw error(500, { message: 'Failed to delete backup', code: 'InternalServerError' });
 	}

@@ -9,8 +9,16 @@ import {
 import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { requireAuthenticatedUser } from '$lib/server/http/guards.js';
 
+function requireUserWithUnauthorizedContract(locals: App.Locals) {
+	try {
+		return requireAuthenticatedUser(locals);
+	} catch {
+		throw error(401, { message: 'Authentication required', code: 'Unauthorized' });
+	}
+}
+
 export const GET: RequestHandler = async ({ locals }) => {
-	requireAuthenticatedUser(locals);
+	requireUserWithUnauthorizedContract(locals);
 
 	const currentClusterId = locals.cluster
 		? await validateSelectableClusterId(locals.cluster).catch(() => IN_CLUSTER_ID)
@@ -19,7 +27,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 };
 
 export const PUT: RequestHandler = async ({ request, cookies, locals }) => {
-	requireAuthenticatedUser(locals);
+	requireUserWithUnauthorizedContract(locals);
 
 	let rawBody: unknown;
 	try {
@@ -50,7 +58,7 @@ export const PUT: RequestHandler = async ({ request, cookies, locals }) => {
 };
 
 export const DELETE: RequestHandler = async ({ cookies, locals }) => {
-	requireAuthenticatedUser(locals);
+	requireUserWithUnauthorizedContract(locals);
 
 	clearClusterSelectionCookie(cookies);
 	return json(await getClusterSelectionPayload(IN_CLUSTER_ID));

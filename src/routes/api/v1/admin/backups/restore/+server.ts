@@ -86,9 +86,8 @@ export const _metadata = {
 };
 
 export const POST: RequestHandler = async ({ locals, request }) => {
-	const clusterId = locals.cluster || 'in-cluster';
 	const user = await requirePrivilegedAdminPermission(
-		{ ...locals, cluster: clusterId },
+		{ ...locals, cluster: undefined },
 		'DatabaseBackup'
 	);
 
