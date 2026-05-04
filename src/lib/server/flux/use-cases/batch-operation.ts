@@ -127,11 +127,15 @@ export async function runBatchFluxOperation({
 	const ipAddress = getClientAddress();
 	const action = auditActions[operation];
 
-	let body: { resources?: unknown[] };
+	let body: { resources?: unknown[] } | null;
 	try {
 		body = await request.json();
 	} catch {
 		throw error(400, { message: 'Invalid JSON in request body' });
+	}
+
+	if (body === null || typeof body !== 'object') {
+		throw error(400, { message: 'Missing or invalid resources array in request body' });
 	}
 
 	if (!body.resources || !Array.isArray(body.resources)) {
