@@ -79,41 +79,51 @@ export async function createDefaultAdminIfNeeded(options?: {
 	// In-cluster mode: Use K8s secret
 	if (isInClusterMode()) {
 		const password = await loadOrCreateInClusterAdmin();
-		if (password) {
-			const db = getDbSync();
-			const newUser: NewUser = {
-				id: generateUserId(),
-				username: 'admin',
-				name: 'admin',
-				role: 'admin',
-				email: 'admin@gyre.local',
-				active: true,
-				requiresPasswordChange: false
-			};
-			db.transaction((tx) => {
-				tx.insert(users).values(newUser).run();
-				// Keep a credential account row for symmetry with local mode while
-				// leaving the Kubernetes secret as the sole password source of truth.
-				tx.insert(accounts)
-					.values({
-						id: generateUserId(),
-						providerId: 'credential',
-						accountId: newUser.id,
-						userId: newUser.id,
-						password: null
-					})
-					.run();
-			});
-			return { password, mode: 'in-cluster' };
+		if (!password) {
+			throw new Error(
+				'Initial admin secret could not be loaded or created. Fix the in-cluster secret name, namespace, or RBAC permissions and restart Gyre.'
+			);
 		}
-		return { password: null, mode: 'in-cluster' };
+		const db = getDbSync();
+		const newUser: NewUser = {
+			id: generateUserId(),
+			username: 'admin',
+			name: 'admin',
+			role: 'admin',
+			email: 'admin@gyre.local',
+			active: true,
+			requiresPasswordChange: false
+		};
+		db.transaction((tx) => {
+			tx.insert(users).values(newUser).run();
+			// Keep a credential account row for symmetry with local mode while
+			// leaving the Kubernetes secret as the sole password source of truth.
+			tx.insert(accounts)
+				.values({
+					id: generateUserId(),
+					providerId: 'credential',
+					accountId: newUser.id,
+					userId: newUser.id,
+					password: null
+				})
+				.run();
+		});
+		return { password, mode: 'in-cluster' };
 	}
 
 	// Local development mode: Use env var or generate password
 	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
 	if (process.env.ADMIN_PASSWORD) warnIfWeakAdminPassword(process.env.ADMIN_PASSWORD);
 
-	options?.persistSetupToken?.(password);
+	try {
+		options?.persistSetupToken?.(password);
+	} catch (error) {
+		logger.error(
+			error,
+			'Failed to persist local setup token before admin creation. Fix filesystem permissions for the local setup token path and restart Gyre.'
+		);
+		throw error;
+	}
 	pendingSetupCleanup = true;
 
 	const db = getDbSync();

@@ -8,7 +8,11 @@ import {
 import { assignRequestContext, finalizeResponse } from '$lib/server/request/context.js';
 import { enforceCsrfProtection } from '$lib/server/request/csrf.js';
 import { normalizeHandleError, resolveRouteAndMapErrors } from '$lib/server/request/errors.js';
-import { ensureGyreInitialized, isGyreInitialized } from '$lib/server/request/initialization.js';
+import {
+	ensureGyreInitialized,
+	getGyreInitializationStatus,
+	isGyreInitialized
+} from '$lib/server/request/initialization.js';
 import { enforceGlobalRateLimit } from '$lib/server/request/rate-limit.js';
 import { enforceRequestSizeLimits } from '$lib/server/request/request-size.js';
 import { hydrateSessionLocals } from '$lib/server/request/session.js';
@@ -17,6 +21,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const context = assignRequestContext(event);
 
 	return withRequestContext(context.requestId, async () => {
+		const initializationBypassRoutes = new Set([
+			'/api/health',
+			'/api/v1/health',
+			'/api/ready',
+			'/api/v1/ready'
+		]);
+		const bypassInitialization = initializationBypassRoutes.has(event.url.pathname);
 		const requestSizeResponse = await enforceRequestSizeLimits(event);
 		if (requestSizeResponse) {
 			return finalizeResponse(event, requestSizeResponse, context);
@@ -27,23 +38,30 @@ export const handle: Handle = async ({ event, resolve }) => {
 			return finalizeResponse(event, rateLimitResponse, context);
 		}
 
-		try {
-			await ensureGyreInitialized();
-		} catch (err) {
-			logger.error(err, 'Failed to ensure Gyre is initialized during request handling');
-			const serviceUnavailableResponse = event.url.pathname.startsWith('/api/')
-				? new Response(
-						JSON.stringify({
-							error: 'Service Unavailable',
-							message: 'Gyre is still initializing'
-						}),
-						{
-							status: 503,
-							headers: { 'Content-Type': 'application/json' }
-						}
-					)
-				: new Response('Service Unavailable', { status: 503 });
-			return finalizeResponse(event, serviceUnavailableResponse, context);
+		if (!bypassInitialization) {
+			try {
+				await ensureGyreInitialized();
+			} catch (err) {
+				logger.error(err, 'Failed to ensure Gyre is initialized during request handling');
+				const status = getGyreInitializationStatus();
+				const message =
+					status.state === 'failed'
+						? 'Gyre initialization failed'
+						: 'Gyre initialization has not completed';
+				const serviceUnavailableResponse = event.url.pathname.startsWith('/api/')
+					? new Response(
+							JSON.stringify({
+								error: 'Service Unavailable',
+								message
+							}),
+							{
+								status: 503,
+								headers: { 'Content-Type': 'application/json' }
+							}
+						)
+					: new Response('Service Unavailable', { status: 503 });
+				return finalizeResponse(event, serviceUnavailableResponse, context);
+			}
 		}
 
 		const response = await resolveRouteAndMapErrors(event, async () => {

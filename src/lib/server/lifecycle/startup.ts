@@ -149,14 +149,12 @@ export async function initializeGyre(): Promise<void> {
 			logger.info(`   ✓ Seeded ${seedResult.created} auth provider(s)`);
 		}
 		if (seedResult.skipped > 0) {
-			logger.info(
-				`   ℹ Skipped ${seedResult.skipped} provider(s) (existing or invalid/missing secrets)`
-			);
+			logger.info(`   ℹ Skipped ${seedResult.skipped} existing provider(s)`);
 		}
 		logger.info('   ✓ Authentication settings ready');
 	} catch (error) {
 		logger.error(error, '   ✗ Failed to seed auth settings');
-		// Don't throw - app can still work without seeded providers
+		throw error;
 	}
 
 	// Schedule reconciliation history cleanup

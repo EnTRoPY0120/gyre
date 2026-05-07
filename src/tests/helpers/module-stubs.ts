@@ -170,6 +170,7 @@ export function createSettingsModuleStub(
 		};
 		getSetting: (key: string) => string | Promise<string>;
 		setSetting: (key: string, value: string) => void | Promise<void>;
+		setSettings: (values: Array<{ key: string; value: string }>) => void | Promise<void>;
 		getAuthSettings: () =>
 			| {
 					localLoginEnabled: boolean;
@@ -183,6 +184,7 @@ export function createSettingsModuleStub(
 			  }>;
 		getAuditLogRetentionDays: () => number | Promise<number>;
 		isSettingOverriddenByEnv: (key: string) => boolean;
+		SETTING_ENV_OVERRIDES: Record<string, string>;
 		seedAuthSettings: () => void | Promise<void>;
 		isLocalLoginEnabled: () => boolean | Promise<boolean>;
 		isSignupAllowed: () => boolean | Promise<boolean>;
@@ -206,6 +208,7 @@ export function createSettingsModuleStub(
 			return '';
 		},
 		setSetting: async () => {},
+		setSettings: async () => {},
 		getAuthSettings: async () => ({
 			localLoginEnabled: true,
 			allowSignup: true,
@@ -213,6 +216,12 @@ export function createSettingsModuleStub(
 		}),
 		getAuditLogRetentionDays: async () => 90,
 		isSettingOverriddenByEnv: () => false,
+		SETTING_ENV_OVERRIDES: {
+			[SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED]: 'GYRE_AUTH_LOCAL_LOGIN_ENABLED',
+			[SETTINGS_KEYS.AUTH_ALLOW_SIGNUP]: 'GYRE_AUTH_ALLOW_SIGNUP',
+			[SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST]: 'GYRE_AUTH_DOMAIN_ALLOWLIST',
+			[SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS]: 'GYRE_AUDIT_LOG_RETENTION_DAYS'
+		},
 		seedAuthSettings: async () => {},
 		isLocalLoginEnabled: async () => true,
 		isSignupAllowed: async () => true,

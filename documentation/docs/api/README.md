@@ -16,6 +16,17 @@ Content-Type: `application/json`
 
 Compatibility note: unversioned `/api/*` paths are internally rewritten to `/api/v1/*` for backward compatibility (`src/hooks.ts`). The documented contract is `/api/v1/*`.
 
+## Process Health and Readiness
+
+```http
+GET /api/v1/health
+GET /api/v1/ready
+```
+
+`/api/v1/health` is a lightweight liveness endpoint and returns `200 { "status": "ok" }` when the process can answer HTTP requests.
+
+`/api/v1/ready` reports initialization readiness. It returns `200 { "status": "ready" }` after startup initialization completes, `503 { "status": "initializing", "message": "Gyre initialization has not completed" }` while startup is still in progress, and `503 { "status": "failed", "message": "Gyre initialization failed" }` after a fatal initialization error.
+
 ## Authentication
 
 ### Login
@@ -162,6 +173,8 @@ POST /api/v1/admin/backups/restore
 
 POST /api/v1/admin/k8s/clear-client-pool
 ```
+
+`PATCH /api/v1/admin/settings` is all-or-nothing. Unknown fields, invalid value types, invalid `auditRetentionDays`, and non-string `domainAllowlist` entries return `400` without persisting any setting. Settings locked by environment variables return `409` and name the locked field and owning env var instead of being silently ignored.
 
 ## User Preferences
 

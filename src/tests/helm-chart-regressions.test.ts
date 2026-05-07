@@ -70,7 +70,9 @@ describe('helm chart regressions', () => {
 		expect(configMap).toContain('BODY_SIZE_LIMIT: {{ .Values.config.bodySizeLimit | quote }}');
 		expect(deployment).toContain('- name: BODY_SIZE_LIMIT');
 		expect(deployment).toContain('key: BODY_SIZE_LIMIT');
-		expect(deployment).toContain('config.additionalConfig.BODY_SIZE_LIMIT is reserved');
+		expect(deployment).toContain('$reservedAdditionalConfig');
+		expect(deployment).toContain('config.additionalConfig.%s is reserved');
+		expect(deployment).toContain('^GYRE_AUTH_PROVIDER_.*_CLIENT_SECRET$');
 	});
 
 	test('values schema includes origin, gatewayApi.tls, and networkPolicy.egress.apiServer', () => {
