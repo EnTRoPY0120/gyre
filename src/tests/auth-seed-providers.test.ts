@@ -120,7 +120,7 @@ describe('seedAuthProviders', () => {
 		expect(state.inserted[0].clientSecretEncrypted).not.toBe('super-secret');
 	});
 
-	test('rejects providers that include forbidden clientSecret in JSON payload', async () => {
+	test('throws when providers include forbidden clientSecret in JSON payload', async () => {
 		process.env.GYRE_AUTH_PROVIDERS = JSON.stringify([
 			{
 				name: 'GitHub',
@@ -131,17 +131,11 @@ describe('seedAuthProviders', () => {
 		]);
 		process.env.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET = 'super-secret';
 
-		const result = await seedAuthProviders();
-
-		expect(result).toEqual({ created: 0, skipped: 1 });
+		await expect(seedAuthProviders()).rejects.toThrow('forbidden inline clientSecret');
 		expect(state.inserted.length).toBe(0);
-		expect(state.warnLogs.length).toBeGreaterThan(0);
-		expect(JSON.stringify(state.warnLogs)).toContain(
-			'clientSecret: inline clientSecret is not allowed'
-		);
 	});
 
-	test('skips provider with clear error when provider secret env var is missing', async () => {
+	test('throws when provider secret env var is missing', async () => {
 		process.env.GYRE_AUTH_PROVIDERS = JSON.stringify([
 			{
 				name: 'GitHub',
@@ -151,13 +145,16 @@ describe('seedAuthProviders', () => {
 		]);
 		delete process.env.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET;
 
-		const result = await seedAuthProviders();
-
-		expect(result).toEqual({ created: 0, skipped: 1 });
-		expect(state.inserted.length).toBe(0);
-		expect(state.errorLogs.length).toBeGreaterThan(0);
-		expect(JSON.stringify(state.errorLogs)).toContain(
+		await expect(seedAuthProviders()).rejects.toThrow(
 			'missing required env var GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET'
 		);
+		expect(state.inserted.length).toBe(0);
+	});
+
+	test('throws on malformed providers JSON', async () => {
+		process.env.GYRE_AUTH_PROVIDERS = '{';
+
+		await expect(seedAuthProviders()).rejects.toThrow();
+		expect(state.inserted.length).toBe(0);
 	});
 });

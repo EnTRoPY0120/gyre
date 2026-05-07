@@ -13,6 +13,7 @@ const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: nu
 type SettingsModule = typeof import('../lib/server/settings.js');
 let getSetting: SettingsModule['getSetting'];
 let setSetting: SettingsModule['setSetting'];
+let setSettings: SettingsModule['setSettings'];
 let getAuthSettings: SettingsModule['getAuthSettings'];
 let getAuditLogRetentionDays: SettingsModule['getAuditLogRetentionDays'];
 let isSettingOverriddenByEnv: SettingsModule['isSettingOverriddenByEnv'];
@@ -61,6 +62,7 @@ beforeEach(async () => {
 	const settingsModule = await importFresh<SettingsModule>('../lib/server/settings.js?sut');
 	getSetting = settingsModule.getSetting;
 	setSetting = settingsModule.setSetting;
+	setSettings = settingsModule.setSettings;
 	getAuthSettings = settingsModule.getAuthSettings;
 	getAuditLogRetentionDays = settingsModule.getAuditLogRetentionDays;
 	isSettingOverriddenByEnv = settingsModule.isSettingOverriddenByEnv;
@@ -160,6 +162,18 @@ describe('setSetting', () => {
 
 		const val2 = await getSetting(key);
 		expect(val2).toBe('false');
+	});
+});
+
+describe('setSettings', () => {
+	test('upserts multiple settings in one transaction', async () => {
+		await setSettings([
+			{ key: SETTINGS_KEYS.AUTH_ALLOW_SIGNUP, value: 'false' },
+			{ key: SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST, value: '["example.com"]' }
+		]);
+
+		expect(await getSetting(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP)).toBe('false');
+		expect(await getSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST)).toBe('["example.com"]');
 	});
 });
 

@@ -136,7 +136,10 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 
 		return password;
 	} catch (error) {
-		logger.error(error, 'Failed to setup in-cluster admin:');
+		logger.error(
+			error,
+			'Failed to setup in-cluster admin. Fix the gyre-initial-admin-secret name, namespace, or Kubernetes RBAC permissions and restart Gyre:'
+		);
 		throw error;
 	}
 }

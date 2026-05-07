@@ -42,6 +42,8 @@ const ENV_OVERRIDES: Record<string, string> = {
 	[SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS]: 'GYRE_AUDIT_LOG_RETENTION_DAYS'
 };
 
+export const SETTING_ENV_OVERRIDES = ENV_OVERRIDES;
+
 /**
  * Get a setting value with env var override.
  * @param key - Setting key
@@ -84,6 +86,29 @@ export async function setSetting(key: string, value: string): Promise<void> {
 			target: appSettings.key,
 			set: { value, updatedAt: new Date() }
 		});
+}
+
+export async function setSettings(values: Array<{ key: string; value: string }>): Promise<void> {
+	if (values.length === 0) return;
+
+	const db = await getDb();
+	const updatedAt = new Date();
+
+	db.transaction((tx) => {
+		for (const { key, value } of values) {
+			tx.insert(appSettings)
+				.values({
+					key,
+					value,
+					updatedAt
+				})
+				.onConflictDoUpdate({
+					target: appSettings.key,
+					set: { value, updatedAt }
+				})
+				.run();
+		}
+	});
 }
 
 /**

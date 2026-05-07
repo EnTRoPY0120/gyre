@@ -18,6 +18,7 @@ type ClearClientPoolRouteModule =
 
 const auditCalls: Array<[User | null, string, Record<string, unknown> | undefined]> = [];
 const settingWrites: Array<[string, string]> = [];
+const lockedSettingKeys = new Set<string>();
 
 let permissionAllowed = true;
 let clearPoolCalls = 0;
@@ -62,6 +63,7 @@ function createUser(role: User['role'] = 'admin'): User {
 beforeEach(async () => {
 	auditCalls.length = 0;
 	settingWrites.length = 0;
+	lockedSettingKeys.clear();
 	permissionAllowed = true;
 	clearPoolCalls = 0;
 	dbState.insertedProviders.length = 0;
@@ -175,12 +177,16 @@ beforeEach(async () => {
 			setSetting: async (key: string, value: string) => {
 				settingWrites.push([key, value]);
 			},
+			setSettings: async (values: Array<{ key: string; value: string }>) => {
+				settingWrites.push(...values.map(({ key, value }) => [key, value] as [string, string]));
+			},
 			getAuthSettings: async () => ({
 				localLoginEnabled: true,
 				allowSignup: false,
 				domainAllowlist: ['example.com']
 			}),
-			getAuditLogRetentionDays: async () => 90
+			getAuditLogRetentionDays: async () => 90,
+			isSettingOverriddenByEnv: (key: string) => lockedSettingKeys.has(key)
 		})
 	);
 
@@ -343,6 +349,42 @@ describe('admin mutation audit events', () => {
 			requestedKeys: ['allowSignup', 'domainAllowlist'],
 			changedKeys: ['auth.allowSignup', 'auth.domainAllowlist']
 		});
+	});
+
+	test('rejects invalid settings patch without writing or auditing', async () => {
+		await expect(
+			patchSettings({
+				locals: { user: createUser(), cluster: 'cluster-a' },
+				setHeaders: () => {},
+				request: new Request('http://localhost/api/v1/admin/settings', {
+					method: 'PATCH',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ allowSignup: 'false' })
+				})
+			} as Parameters<SettingsRouteModule['PATCH']>[0])
+		).rejects.toMatchObject({ status: 400 });
+
+		expect(settingWrites).toEqual([]);
+		expect(auditCalls).toEqual([]);
+	});
+
+	test('rejects env-locked settings patch without writing or auditing', async () => {
+		lockedSettingKeys.add('auth.allowSignup');
+
+		await expect(
+			patchSettings({
+				locals: { user: createUser(), cluster: 'cluster-a' },
+				setHeaders: () => {},
+				request: new Request('http://localhost/api/v1/admin/settings', {
+					method: 'PATCH',
+					headers: { 'content-type': 'application/json' },
+					body: JSON.stringify({ allowSignup: false })
+				})
+			} as Parameters<SettingsRouteModule['PATCH']>[0])
+		).rejects.toMatchObject({ status: 409 });
+
+		expect(settingWrites).toEqual([]);
+		expect(auditCalls).toEqual([]);
 	});
 
 	test('logs k8s-client-pool:clear on pool clear mutation', async () => {

@@ -101,6 +101,8 @@ This guide provides a detailed reference for all configuration options available
 | `readinessProbe.initialDelaySeconds` | Initial delay | `10`    |
 | `readinessProbe.periodSeconds`       | Check period  | `10`    |
 
+The default liveness probe uses `/api/v1/health`. The default readiness probe uses `/api/v1/ready`, which stays unavailable until Gyre initialization completes and remains unavailable after fatal startup failures.
+
 ## RBAC
 
 | Parameter                 | Description           | Default |
@@ -172,7 +174,7 @@ Helm config keys map to these runtime env vars:
 | `config.bodySizeLimit`       | `BODY_SIZE_LIMIT`               |
 | `config.additionalConfig`    | Pass-through key/value env vars |
 
-`config.additionalConfig.BODY_SIZE_LIMIT` is reserved and rejected at render time. Use `config.bodySizeLimit` instead.
+`config.additionalConfig` is rejected at render time when it contains chart-owned env vars. Reserved names include `DATABASE_URL`, `NODE_ENV`, `ORIGIN`, `BODY_SIZE_LIMIT`, polling/cache interval vars, encryption key vars, `GYRE_METRICS_TOKEN`, auth settings vars, `GYRE_AUTH_PROVIDERS`, and any `GYRE_AUTH_PROVIDER_*_CLIENT_SECRET` key. Use the matching chart value or secret setting instead.
 
 ## Encryption Configuration
 
