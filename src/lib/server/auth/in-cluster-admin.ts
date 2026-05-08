@@ -5,8 +5,8 @@ import {
 	generateStrongPassword,
 	hashPassword,
 	normalizeUsername,
-	validateAdminPasswordStrength,
-	verifyPassword
+	verifyPassword,
+	warnIfWeakAdminPassword
 } from './passwords.js';
 import { getCurrentNamespace } from '../kubernetes/namespace.js';
 
@@ -106,9 +106,7 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 		// Generate new password
 		// Use ADMIN_PASSWORD from env if provided, otherwise generate a strong one
 		const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
-		if (process.env.ADMIN_PASSWORD) {
-			validateAdminPasswordStrength(process.env.ADMIN_PASSWORD, true);
-		}
+		if (process.env.ADMIN_PASSWORD) warnIfWeakAdminPassword(process.env.ADMIN_PASSWORD);
 
 		// Hash for storage
 		inClusterAdminPasswordHash = await hashPassword(password);

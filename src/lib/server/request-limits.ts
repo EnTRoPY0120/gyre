@@ -63,41 +63,19 @@ export function validateRequestSize(
 	contentLength: string | number | undefined,
 	limit: number,
 	_method: string
-):
-	| { valid: true }
-	| { valid: false; reason: 'malformed'; limit: number; value: string }
-	| { valid: false; reason: 'too_large'; limit: number; size: number } {
+): { valid: true } | { valid: false; limit: number; size: number } {
 	if (contentLength == null || contentLength === '') {
 		return { valid: true };
 	}
 
-	if (typeof contentLength === 'number') {
-		if (
-			!Number.isSafeInteger(contentLength) ||
-			!Number.isFinite(contentLength) ||
-			contentLength < 0
-		) {
-			return { valid: false, reason: 'malformed', limit, value: String(contentLength) };
-		}
+	const size = typeof contentLength === 'string' ? parseInt(contentLength, 10) : contentLength;
 
-		if (contentLength > limit) {
-			return { valid: false, reason: 'too_large', limit, size: contentLength };
-		}
-
+	if (!Number.isFinite(size) || size < 0) {
 		return { valid: true };
 	}
 
-	if (!/^(0|[1-9][0-9]*)$/.test(contentLength)) {
-		return { valid: false, reason: 'malformed', limit, value: contentLength };
-	}
-
-	const size = Number(contentLength);
-	if (!Number.isSafeInteger(size)) {
-		return { valid: false, reason: 'malformed', limit, value: contentLength };
-	}
-
 	if (size > limit) {
-		return { valid: false, reason: 'too_large', limit, size };
+		return { valid: false, limit, size };
 	}
 
 	return { valid: true };

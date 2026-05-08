@@ -152,10 +152,7 @@ beforeEach(() => {
 	);
 });
 
-afterEach(async () => {
-	const { _resetGyreInitializationForTests } =
-		await import('../lib/server/request/initialization.js');
-	_resetGyreInitializationForTests();
+afterEach(() => {
 	mock.restore();
 });
 
@@ -215,68 +212,6 @@ describe('request pipeline', () => {
 				url: new URL('http://localhost/api/v1/flux/version')
 			},
 			resolve: async () => new Response('unreachable')
-		});
-
-		expect(response.status).toBe(413);
-		expect(await response.json()).toEqual({
-			error: 'Payload Too Large',
-			message: 'Request payload exceeds maximum size of 1MB'
-		});
-	});
-
-	test.each(['abc', '10abc', '10, 20', '-1', '1.5', 'Infinity', 'NaN', '9007199254740992'])(
-		'returns JSON 400 for malformed Content-Length %p',
-		async (contentLength) => {
-			const { handle } = await importHooks();
-
-			const response = await handle({
-				event: {
-					cookies: createCookies(),
-					getClientAddress: () => '127.0.0.1',
-					locals: {} as App.Locals,
-					request: new Request('http://localhost/api/v1/flux/version', {
-						headers: { 'content-length': contentLength },
-						method: 'POST'
-					}),
-					url: new URL('http://localhost/api/v1/flux/version')
-				},
-				resolve: async () => new Response('unreachable')
-			});
-
-			expect(response.status).toBe(400);
-			expect(await response.json()).toEqual({
-				error: 'Bad Request',
-				message: 'Malformed Content-Length header'
-			});
-		}
-	);
-
-	test('state-changing streamed request without Content-Length is rejected after exceeding limit', async () => {
-		const stream = new ReadableStream<Uint8Array>({
-			start(controller) {
-				controller.enqueue(new Uint8Array(1024 * 1024));
-				controller.enqueue(new Uint8Array(1));
-				controller.close();
-			}
-		});
-		const { handle } = await importHooks();
-
-		const response = await handle({
-			event: {
-				cookies: createCookies(),
-				getClientAddress: () => '127.0.0.1',
-				locals: {} as App.Locals,
-				request: new Request('http://localhost/api/v1/flux/version', {
-					body: stream,
-					duplex: 'half',
-					method: 'POST'
-				} as RequestInit),
-				url: new URL('http://localhost/api/v1/flux/version')
-			},
-			resolve: async (event) => {
-				await event.request.arrayBuffer();
-				return new Response('unreachable');
-			}
 		});
 
 		expect(response.status).toBe(413);

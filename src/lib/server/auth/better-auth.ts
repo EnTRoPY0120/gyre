@@ -147,17 +147,14 @@ function getEphemeralSecret(): string {
 }
 
 function getBetterAuthSecret(): string {
-	const configuredSecret =
-		process.env.NODE_ENV === 'production'
-			? process.env.BETTER_AUTH_SECRET
-			: (process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_ENCRYPTION_KEY);
+	const configuredSecret = process.env.BETTER_AUTH_SECRET ?? process.env.AUTH_ENCRYPTION_KEY;
 
 	if (configuredSecret) {
 		return configuredSecret;
 	}
 
 	if (process.env.NODE_ENV === 'production') {
-		throw new Error('Better Auth requires BETTER_AUTH_SECRET in production');
+		throw new Error('Better Auth requires BETTER_AUTH_SECRET or AUTH_ENCRYPTION_KEY in production');
 	}
 
 	return getEphemeralSecret();

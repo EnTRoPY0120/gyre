@@ -4,10 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const HEALTH_PATH = '/api/v1/health';
-const ADMIN_PASSWORD = 'RuntimeAdminPassword!1';
+const ADMIN_PASSWORD = 'runtime-admin-password';
 const METRICS_TOKEN = 'runtime-metrics-token';
 const PROD_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-const BETTER_AUTH_SECRET = 'runtime-better-auth-secret-with-enough-entropy';
 const REPO_ROOT = process.cwd();
 const RUNTIME_TEMP_PREFIX = join(tmpdir(), 'runtime-app-');
 const READINESS_PROBE_TIMEOUT_MS = 1_500;
@@ -173,7 +172,6 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 					AUTH_ENCRYPTION_KEY: PROD_SECRET,
 					BACKUP_DIR: backupDir,
 					BACKUP_ENCRYPTION_KEY: PROD_SECRET,
-					BETTER_AUTH_SECRET,
 					DATABASE_URL: databasePath,
 					GYRE_ENCRYPTION_KEY: PROD_SECRET,
 					GYRE_METRICS_TOKEN: METRICS_TOKEN,

@@ -94,7 +94,6 @@ kubectl create secret generic gyre-encryption -n flux-system \
   --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
   --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
   --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic gyre-metrics -n flux-system \
   --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \

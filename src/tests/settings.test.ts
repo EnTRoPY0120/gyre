@@ -52,7 +52,6 @@ function unsetEnv(key: string) {
 }
 
 beforeEach(async () => {
-	mock.restore();
 	state.db = setupInMemoryDb();
 	savedEnv = {};
 	mock.module('../lib/server/db/index.js', () => ({

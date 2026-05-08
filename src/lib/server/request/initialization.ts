@@ -47,10 +47,3 @@ export async function ensureGyreInitialized(): Promise<void> {
 export function isGyreInitialized(): boolean {
 	return initialized;
 }
-
-export function _resetGyreInitializationForTests(): void {
-	initialized = false;
-	initializingPromise = undefined;
-	initializationState = 'not_started';
-	failureMessage = undefined;
-}

@@ -8,7 +8,7 @@ spec:
   replicas: {{ .Values.replicaCount }}
   strategy:
     type: Recreate  # Required for PVC with ReadWriteOnce
-  {{- $reservedAdditionalConfig := list "DATABASE_URL" "NODE_ENV" "ORIGIN" "BETTER_AUTH_URL" "BODY_SIZE_LIMIT" "GYRE_POLL_INTERVAL_MS" "GYRE_HEARTBEAT_INTERVAL_MS" "GYRE_DASHBOARD_CACHE_TTL_MS" "GYRE_SETTLING_PERIOD_MS" "GYRE_ENCRYPTION_KEY" "AUTH_ENCRYPTION_KEY" "BACKUP_ENCRYPTION_KEY" "BETTER_AUTH_SECRET" "GYRE_METRICS_TOKEN" "GYRE_AUTH_LOCAL_LOGIN_ENABLED" "GYRE_AUTH_ALLOW_SIGNUP" "GYRE_AUTH_DOMAIN_ALLOWLIST" "GYRE_AUTH_PROVIDERS" }}
+  {{- $reservedAdditionalConfig := list "DATABASE_URL" "NODE_ENV" "ORIGIN" "BETTER_AUTH_URL" "BODY_SIZE_LIMIT" "GYRE_POLL_INTERVAL_MS" "GYRE_HEARTBEAT_INTERVAL_MS" "GYRE_DASHBOARD_CACHE_TTL_MS" "GYRE_SETTLING_PERIOD_MS" "GYRE_ENCRYPTION_KEY" "AUTH_ENCRYPTION_KEY" "BACKUP_ENCRYPTION_KEY" "GYRE_METRICS_TOKEN" "GYRE_AUTH_LOCAL_LOGIN_ENABLED" "GYRE_AUTH_ALLOW_SIGNUP" "GYRE_AUTH_DOMAIN_ALLOWLIST" "GYRE_AUTH_PROVIDERS" }}
   {{- range $key, $_ := .Values.config.additionalConfig }}
   {{- if or (has $key $reservedAdditionalConfig) (regexMatch "^GYRE_AUTH_PROVIDER_.*_CLIENT_SECRET$" $key) }}
   {{- fail (printf "config.additionalConfig.%s is reserved; use the matching chart value or secret setting to avoid duplicate ownership." $key) }}
@@ -29,8 +29,8 @@ spec:
         {{- toYaml . | nindent 8 }}
         {{- end }}
     spec:
-      {{- if and (not .Values.encryption.existingSecret) (not (and .Values.encryption.allowInline (and .Values.encryption.gyreKey .Values.encryption.authKey .Values.encryption.backupKey .Values.encryption.betterAuthSecret))) }}
-      {{- fail "Encryption keys are required. Set encryption.existingSecret (recommended) or set encryption.allowInline=true with non-empty gyreKey, authKey, backupKey, and betterAuthSecret." }}
+      {{- if and (not .Values.encryption.existingSecret) (not (and .Values.encryption.allowInline (and .Values.encryption.gyreKey .Values.encryption.authKey .Values.encryption.backupKey))) }}
+      {{- fail "Encryption keys are required. Set encryption.existingSecret (recommended) or set encryption.allowInline=true with non-empty gyreKey, authKey, and backupKey." }}
       {{- end }}
       {{- if not .Values.metrics.existingSecret }}
       {{- fail "metrics.existingSecret is required for Helm deployments and must contain GYRE_METRICS_TOKEN." }}
@@ -147,12 +147,6 @@ spec:
             secretKeyRef:
               name: {{ $encSecretName }}
               key: BACKUP_ENCRYPTION_KEY
-              optional: false
-        - name: BETTER_AUTH_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: {{ $encSecretName }}
-              key: BETTER_AUTH_SECRET
               optional: false
         - name: GYRE_METRICS_TOKEN
           valueFrom:

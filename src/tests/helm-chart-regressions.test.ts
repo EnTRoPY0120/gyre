@@ -56,7 +56,6 @@ describe('helm chart regressions', () => {
 		expect(source).toContain('PROVIDER_{{ $providerKey }}_CLIENT_SECRET');
 		expect(source).toContain('optional: false');
 		expect(source).toContain('BACKUP_ENCRYPTION_KEY');
-		expect(source).toContain('BETTER_AUTH_SECRET');
 		expect(source).toContain('GYRE_METRICS_TOKEN');
 		expect(source).toContain('metrics.existingSecret is required for Helm deployments');
 	});
@@ -74,7 +73,6 @@ describe('helm chart regressions', () => {
 		expect(deployment).toContain('$reservedAdditionalConfig');
 		expect(deployment).toContain('config.additionalConfig.%s is reserved');
 		expect(deployment).toContain('^GYRE_AUTH_PROVIDER_.*_CLIENT_SECRET$');
-		expect(deployment).toContain('"BETTER_AUTH_SECRET"');
 	});
 
 	test('values schema includes origin, gatewayApi.tls, and networkPolicy.egress.apiServer', () => {
@@ -98,12 +96,9 @@ describe('helm chart regressions', () => {
 			'^(?:[0-9]+(?:[KMG])?|Infinity)$'
 		);
 		expect(schema.properties.encryption.properties.backupKey.type).toBe('string');
-		expect(schema.properties.encryption.properties.betterAuthSecret.type).toBe('string');
 		expect(schema.properties.encryption.then.properties.backupKey.pattern).toBe(
 			'^[0-9a-fA-F]{64}$'
 		);
-		expect(schema.properties.encryption.then.properties.betterAuthSecret.minLength).toBe(32);
-		expect(schema.properties.encryption.then.required).toContain('betterAuthSecret');
 		expect(schema.properties.auth.properties.providers.items.additionalProperties).toBe(false);
 		expect(schema.properties.auth.then.required).toContain('providersExistingSecret');
 		expect(schema.properties.metrics.properties.existingSecret.minLength).toBe(1);
@@ -112,11 +107,9 @@ describe('helm chart regressions', () => {
 		).toBeUndefined();
 	});
 
-	test('inline encryption secret template includes BACKUP_ENCRYPTION_KEY and BETTER_AUTH_SECRET', () => {
+	test('inline encryption secret template includes BACKUP_ENCRYPTION_KEY', () => {
 		const source = readRepoFile('../charts/gyre/templates/secret-encryption.yaml');
 		expect(source).toContain('BACKUP_ENCRYPTION_KEY');
 		expect(source).toContain('.Values.encryption.backupKey');
-		expect(source).toContain('BETTER_AUTH_SECRET');
-		expect(source).toContain('.Values.encryption.betterAuthSecret');
 	});
 });

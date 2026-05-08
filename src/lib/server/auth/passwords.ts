@@ -14,21 +14,6 @@ export function warnIfWeakAdminPassword(password: string): void {
 	}
 }
 
-export function validateAdminPasswordStrength(password: string, productionLike: boolean): void {
-	const result = passwordSchema.safeParse(password);
-	if (result.success) {
-		return;
-	}
-
-	if (productionLike) {
-		throw new Error(
-			`ADMIN_PASSWORD does not meet strength requirements: ${result.error.issues.map((i) => i.message).join(', ')}`
-		);
-	}
-
-	warnIfWeakAdminPassword(password);
-}
-
 /**
  * Normalize username to a canonical form (lowercase, trimmed)
  */

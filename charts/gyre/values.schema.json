@@ -198,7 +198,6 @@
         "gyreKey": { "type": "string" },
         "authKey": { "type": "string" },
         "backupKey": { "type": "string" },
-        "betterAuthSecret": { "type": "string" },
         "existingSecret": { "type": "string" },
         "allowInline": { "type": "boolean" }
       },
@@ -210,10 +209,9 @@
         "properties": {
           "gyreKey": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
           "authKey": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
-          "backupKey": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" },
-          "betterAuthSecret": { "type": "string", "minLength": 32 }
+          "backupKey": { "type": "string", "pattern": "^[0-9a-fA-F]{64}$" }
         },
-        "required": ["gyreKey", "authKey", "backupKey", "betterAuthSecret"]
+        "required": ["gyreKey", "authKey", "backupKey"]
       }
     },
     "auth": {
