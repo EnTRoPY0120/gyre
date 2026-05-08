@@ -2,12 +2,14 @@
  * Production security configuration validation.
  */
 
-export function validateProductionSecurityConfig(): void {
-	if (process.env.NODE_ENV !== 'production') {
+type SecurityEnvironment = Record<string, string | undefined>;
+
+export function validateProductionSecurityConfig(env: SecurityEnvironment = process.env): void {
+	if (env.NODE_ENV !== 'production') {
 		return;
 	}
 
-	const backupKey = process.env.BACKUP_ENCRYPTION_KEY?.trim();
+	const backupKey = env.BACKUP_ENCRYPTION_KEY?.trim();
 	if (!backupKey) {
 		throw new Error('BACKUP_ENCRYPTION_KEY must be set in production!');
 	}
@@ -17,8 +19,27 @@ export function validateProductionSecurityConfig(): void {
 		);
 	}
 
-	const metricsToken = process.env.GYRE_METRICS_TOKEN?.trim();
+	const metricsToken = env.GYRE_METRICS_TOKEN?.trim();
 	if (!metricsToken) {
 		throw new Error('GYRE_METRICS_TOKEN must be set in production!');
+	}
+
+	const betterAuthSecret = env.BETTER_AUTH_SECRET?.trim();
+	if (!betterAuthSecret) {
+		throw new Error('BETTER_AUTH_SECRET must be set in production!');
+	}
+
+	const authKey = env.AUTH_ENCRYPTION_KEY?.trim();
+	const gyreKey = env.GYRE_ENCRYPTION_KEY?.trim();
+	const distinctSecrets = [
+		['AUTH_ENCRYPTION_KEY', authKey],
+		['GYRE_ENCRYPTION_KEY', gyreKey],
+		['BACKUP_ENCRYPTION_KEY', backupKey]
+	] as const;
+
+	for (const [name, value] of distinctSecrets) {
+		if (value && value === betterAuthSecret) {
+			throw new Error(`BETTER_AUTH_SECRET must be distinct from ${name} in production!`);
+		}
 	}
 }
