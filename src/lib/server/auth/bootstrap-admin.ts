@@ -8,7 +8,7 @@ import {
 	generateStrongPassword,
 	generateUserId,
 	hashPassword,
-	warnIfWeakAdminPassword
+	validateAdminPasswordStrength
 } from './passwords.js';
 import { getUserByUsername } from './users.js';
 import { verifyManagedUserPassword } from './credentials.js';
@@ -113,7 +113,12 @@ export async function createDefaultAdminIfNeeded(options?: {
 
 	// Local development mode: Use env var or generate password
 	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
-	if (process.env.ADMIN_PASSWORD) warnIfWeakAdminPassword(process.env.ADMIN_PASSWORD);
+	if (process.env.ADMIN_PASSWORD) {
+		validateAdminPasswordStrength(
+			process.env.ADMIN_PASSWORD,
+			process.env.NODE_ENV === 'production'
+		);
+	}
 
 	let persistedSetupTokenFile: string | undefined;
 	try {

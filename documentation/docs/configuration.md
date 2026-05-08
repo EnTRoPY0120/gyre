@@ -92,22 +92,23 @@ The referenced secret must provide:
 - `GYRE_ENCRYPTION_KEY`
 - `AUTH_ENCRYPTION_KEY`
 - `BACKUP_ENCRYPTION_KEY`
+- `BETTER_AUTH_SECRET`
 
 ## Environment Variables
 
 ### Core Runtime Variables
 
-| Variable                | Description                                   | Default / Notes                                              |
-| ----------------------- | --------------------------------------------- | ------------------------------------------------------------ |
-| `DATABASE_URL`          | SQLite database path                          | `/data/gyre.db` in-cluster, `./data/gyre.db` local fallback  |
-| `GYRE_ENCRYPTION_KEY`   | Encryption key for stored kubeconfigs         | 64-char hex (32 bytes), required in production               |
-| `AUTH_ENCRYPTION_KEY`   | Encryption key for auth/OAuth secrets         | 64-char hex (32 bytes), required in production               |
-| `BETTER_AUTH_URL`       | Public app origin used for auth callback URLs | `http://localhost:5173` in `.env.example`                    |
-| `BETTER_AUTH_SECRET`    | Optional explicit Better Auth secret          | Falls back to `AUTH_ENCRYPTION_KEY` when unset               |
-| `ADMIN_PASSWORD`        | Optional initial admin password               | If unset, Gyre auto-generates on first startup               |
-| `BACKUP_ENCRYPTION_KEY` | Backup-file encryption key                    | 64-char hex; required in production, optional in development |
-| `NODE_ENV`              | Runtime mode                                  | `development` / `production`                                 |
-| `BODY_SIZE_LIMIT`       | Adapter-level max request body size           | Set to `>= 500M` for kubeconfig/backup uploads               |
+| Variable                | Description                                   | Default / Notes                                                          |
+| ----------------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
+| `DATABASE_URL`          | SQLite database path                          | `/data/gyre.db` in-cluster, `./data/gyre.db` local fallback              |
+| `GYRE_ENCRYPTION_KEY`   | Encryption key for stored kubeconfigs         | 64-char hex (32 bytes), required in production                           |
+| `AUTH_ENCRYPTION_KEY`   | Encryption key for auth/OAuth secrets         | 64-char hex (32 bytes), required in production                           |
+| `BETTER_AUTH_URL`       | Public app origin used for auth callback URLs | `http://localhost:5173` in `.env.example`                                |
+| `BETTER_AUTH_SECRET`    | Better Auth session signing secret            | Required in production; must be distinct from encryption keys            |
+| `ADMIN_PASSWORD`        | Optional initial admin password               | If unset, Gyre auto-generates; weak values fail in production/in-cluster |
+| `BACKUP_ENCRYPTION_KEY` | Backup-file encryption key                    | 64-char hex; required in production, optional in development             |
+| `NODE_ENV`              | Runtime mode                                  | `development` / `production`                                             |
+| `BODY_SIZE_LIMIT`       | Adapter-level max request body size           | Set to `>= 500M` for kubeconfig/backup uploads                           |
 
 ### Tunable Constants
 

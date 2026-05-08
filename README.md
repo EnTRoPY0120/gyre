@@ -67,6 +67,7 @@ kubectl create secret generic gyre-encryption -n flux-system \
   --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
   --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
   --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+  --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
   --dry-run=client -o yaml | kubectl apply -f -
 kubectl create secret generic gyre-metrics -n flux-system \
   --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \
@@ -91,14 +92,14 @@ docker run \
     -e AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32) \
-    -e ADMIN_PASSWORD=admin123 \
+    -e BETTER_AUTH_SECRET=$(openssl rand -hex 32) \
     -v gyre-data:/data \
     -v ~/.kube/config:/app/.kube/config:ro \
     -p 3000:3000 \
     ghcr.io/entropy0120/gyre:latest
 ```
 
-_Note: Make sure your current context points to a valid cluster with Flux installed. Change `ADMIN_PASSWORD` to a strong password before use._
+_Note: Make sure your current context points to a valid cluster with Flux installed. Omit `ADMIN_PASSWORD` to let Gyre generate one, or set a strong password that satisfies the app password policy._
 
 ### Option 4: Local Demo Script
 
