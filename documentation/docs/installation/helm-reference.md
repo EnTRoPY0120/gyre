@@ -178,18 +178,20 @@ Helm config keys map to these runtime env vars:
 
 ## Encryption Configuration
 
-| Parameter                   | Description                             | Default |
-| --------------------------- | --------------------------------------- | ------- |
-| `encryption.gyreKey`        | Key for encrypting cluster kubeconfigs  | `""`    |
-| `encryption.authKey`        | Key for encrypting OAuth client secrets | `""`    |
-| `encryption.backupKey`      | Key for encrypting backup files         | `""`    |
-| `encryption.existingSecret` | Existing secret with encryption keys    | `""`    |
+| Parameter                     | Description                             | Default |
+| ----------------------------- | --------------------------------------- | ------- |
+| `encryption.gyreKey`          | Key for encrypting cluster kubeconfigs  | `""`    |
+| `encryption.authKey`          | Key for encrypting OAuth client secrets | `""`    |
+| `encryption.backupKey`        | Key for encrypting backup files         | `""`    |
+| `encryption.betterAuthSecret` | Better Auth session signing secret      | `""`    |
+| `encryption.existingSecret`   | Existing secret with encryption keys    | `""`    |
 
 `encryption.existingSecret` must include all of:
 
 - `GYRE_ENCRYPTION_KEY`
 - `AUTH_ENCRYPTION_KEY`
 - `BACKUP_ENCRYPTION_KEY`
+- `BETTER_AUTH_SECRET`
 
 ## Auth Provider Secret Convention
 

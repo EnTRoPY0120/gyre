@@ -164,10 +164,14 @@ encryption:
   # Key for encrypting database backups at rest
   # DEPRECATED: Use existingSecret instead. If set, a Secret will be auto-created from this value.
   backupKey: ""
-  # Existing secret name containing encryption keys (recommended for production)
-  # Keys in secret should be named GYRE_ENCRYPTION_KEY, AUTH_ENCRYPTION_KEY, and BACKUP_ENCRYPTION_KEY
+  # Secret for Better Auth session signing
+  # DEPRECATED: Use existingSecret instead. If set, a Secret will be auto-created from this value.
+  betterAuthSecret: ""
+  # Existing secret name containing encryption keys and auth secret (recommended for production)
+  # Keys in secret should be named GYRE_ENCRYPTION_KEY, AUTH_ENCRYPTION_KEY,
+  # BACKUP_ENCRYPTION_KEY, and BETTER_AUTH_SECRET
   existingSecret: "gyre-encryption"
-  # Explicitly opt in to auto-creating a Secret from inline gyreKey/authKey/backupKey values.
+  # Explicitly opt in to auto-creating a Secret from inline values.
   # Disabled by default. Set to true only for development/testing — inline values
   # are visible in `helm get values` and Helm release history.
   allowInline: false

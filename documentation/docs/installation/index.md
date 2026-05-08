@@ -115,7 +115,8 @@ If you want to try the UI without installing it inside your cluster, you can run
 docker run \
     -e AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
-    -e ADMIN_PASSWORD=admin123 \
+    -e BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32) \
+    -e BETTER_AUTH_SECRET=$(openssl rand -hex 32) \
     -v gyre-data:/data \
     -v ~/.kube/config:/app/.kube/config:ro \
     -p 3000:3000 \
@@ -123,7 +124,7 @@ docker run \
 ```
 
 :::tip
-Change `ADMIN_PASSWORD` to a strong password before use. The `AUTH_ENCRYPTION_KEY` and `GYRE_ENCRYPTION_KEY` values are used to encrypt session data and secrets — regenerate them with `openssl rand -hex 32` each time you deploy.
+Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. Regenerate `AUTH_ENCRYPTION_KEY`, `GYRE_ENCRYPTION_KEY`, `BACKUP_ENCRYPTION_KEY`, and `BETTER_AUTH_SECRET` with `openssl rand -hex 32` on each deploy.
 :::
 
 ## Option 4: Local Demo Script

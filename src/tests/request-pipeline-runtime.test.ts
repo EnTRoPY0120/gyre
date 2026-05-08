@@ -8,12 +8,10 @@ import {
 	createKubernetesErrorsModuleStub,
 	createLoggerModuleStub,
 	createRateLimiterModuleStub,
-	createRbacModuleStub,
-	createSettingsModuleStub
+	createRbacModuleStub
 } from './helpers/module-stubs';
 
 type FluxVersionRouteModule = typeof import('../routes/api/v1/flux/version/+server.js');
-type AdminSettingsRouteModule = typeof import('../routes/api/v1/admin/settings/+server.js');
 type RootPageModule = typeof import('../routes/+page.server.js');
 
 let sessionData: {
@@ -57,20 +55,6 @@ async function resolveTestRoute(event: RequestEvent): Promise<Response> {
 			'../routes/api/v1/flux/version/+server.js'
 		);
 		return await routeModule.GET(event as Parameters<FluxVersionRouteModule['GET']>[0]);
-	}
-
-	if (routeKey === 'GET /api/v1/admin/settings') {
-		const routeModule = await importFresh<AdminSettingsRouteModule>(
-			'../routes/api/v1/admin/settings/+server.js'
-		);
-		return await routeModule.GET(event as Parameters<AdminSettingsRouteModule['GET']>[0]);
-	}
-
-	if (routeKey === 'PATCH /api/v1/admin/settings') {
-		const routeModule = await importFresh<AdminSettingsRouteModule>(
-			'../routes/api/v1/admin/settings/+server.js'
-		);
-		return await routeModule.PATCH(event as Parameters<AdminSettingsRouteModule['PATCH']>[0]);
 	}
 
 	if (routeKey === 'GET /') {
@@ -184,9 +168,6 @@ beforeEach(() => {
 	mock.module('$lib/server/flux/services.js', () => ({
 		getFluxInstalledVersion: async () => ({ version: 'v2.3.0' })
 	}));
-	const settingsModuleStub = createSettingsModuleStub();
-	mock.module('$lib/server/settings', () => settingsModuleStub);
-	mock.module('$lib/server/settings.js', () => settingsModuleStub);
 	const auditModuleStub = {
 		logAudit: async () => {},
 		logLogin: async () => {},
@@ -197,7 +178,10 @@ beforeEach(() => {
 	mock.module('$lib/server/audit.js', () => auditModuleStub);
 });
 
-afterEach(() => {
+afterEach(async () => {
+	const { _resetGyreInitializationForTests } =
+		await import('../lib/server/request/initialization.js');
+	_resetGyreInitializationForTests();
 	mock.restore();
 });
 
@@ -220,6 +204,38 @@ describe('request pipeline runtime coverage', () => {
 		expect(response.status).toBe(200);
 		expect(await response.json()).toEqual({ version: 'v2.3.0' });
 		expect(resolvedRoutes).toEqual(['GET /api/v1/flux/version']);
+	});
+
+	test('valid small state-changing request succeeds through the real pipeline', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
+		const { handle } = await importHooks();
+		const { event } = createEvent(
+			'/api/v1/admin/settings',
+			{
+				body: JSON.stringify({ localLoginEnabled: true }),
+				headers: {
+					'content-type': 'application/json',
+					'x-csrf-token': 'csrf:session-1'
+				},
+				method: 'PATCH'
+			},
+			{ gyre_session: 'session-cookie' }
+		);
+
+		const response = await handle({
+			event,
+			resolve: async (routedEvent) => {
+				resolvedRoutes.push(`${routedEvent.request.method} ${routedEvent.url.pathname}`);
+				await routedEvent.request.arrayBuffer();
+				return new Response('unreachable');
+			}
+		});
+
+		expect(response.status).toBe(200);
+		expect(resolvedRoutes).toEqual(['PATCH /api/v1/admin/settings']);
 	});
 
 	test('anonymous page requests redirect to login through the real pipeline', async () => {

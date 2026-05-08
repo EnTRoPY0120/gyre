@@ -57,6 +57,39 @@ export function createPayloadTooLargeResponse(
 	});
 }
 
+export function createMalformedContentLengthResponse(
+	event: Pick<RequestEvent, 'request' | 'url'>,
+	value: string
+): Response {
+	const path = event.url.pathname;
+
+	logger.warn(
+		{ method: event.request.method, path, contentLength: value },
+		'Malformed Content-Length header'
+	);
+
+	if (path.startsWith('/api/')) {
+		return new Response(
+			JSON.stringify({
+				error: 'Bad Request',
+				message: 'Malformed Content-Length header'
+			}),
+			{
+				status: 400,
+				headers: { 'Content-Type': 'application/json' }
+			}
+		);
+	}
+
+	const redirectParams = new URLSearchParams(event.url.search);
+	redirectParams.set('_error', 'bad_request');
+
+	return new Response(null, {
+		status: 303,
+		headers: { Location: `${path}?${redirectParams}` }
+	});
+}
+
 export async function enforceRequestSizeLimits(event: RequestEvent): Promise<Response | null> {
 	const { request } = event;
 	const path = event.url.pathname;
@@ -65,6 +98,10 @@ export async function enforceRequestSizeLimits(event: RequestEvent): Promise<Res
 	const sizeValidation = validateRequestSize(contentLength, sizeLimit, request.method);
 
 	if (!sizeValidation.valid) {
+		if (sizeValidation.reason === 'malformed') {
+			return createMalformedContentLengthResponse(event, sizeValidation.value);
+		}
+
 		return createPayloadTooLargeResponse(event, {
 			size: sizeValidation.size,
 			limit: sizeValidation.limit

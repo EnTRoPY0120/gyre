@@ -10,6 +10,7 @@ import {
 } from '$lib/server/kubernetes/flux/resources';
 import { requireAuthenticatedUser, requireScopedPermission } from '$lib/server/http/guards.js';
 import { classifyDiffError } from '$lib/server/kubernetes/flux/diff-errors';
+import { validateFluxArtifactUrl } from '$lib/server/kubernetes/flux/artifact-url-security';
 import * as k8s from '@kubernetes/client-node';
 import yaml from 'js-yaml';
 import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
@@ -267,17 +268,26 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 			const artifactPath = join(tempDir, 'artifact.tar.gz');
 			let buffer: Buffer;
 
-			// Clean up the URL - remove trailing dot after cluster.local
-			// FluxCD URLs have format: http://source-controller.flux-system.svc.cluster.local./path
-			// But the actual HTTP server listens on: http://source-controller.flux-system.svc.cluster.local/path
-			const cleanUrl = artifactUrl.replace(/\.cluster\.local\./g, '.cluster.local');
+			let trustedArtifactUrl: ReturnType<typeof validateFluxArtifactUrl>;
+			try {
+				trustedArtifactUrl = validateFluxArtifactUrl(artifactUrl, fluxNamespace);
+			} catch (artifactUrlError) {
+				logger.warn(
+					{ error: (artifactUrlError as Error).message, url: artifactUrl },
+					'Rejected untrusted Flux artifact URL'
+				);
+				throw error(400, {
+					message: 'Source artifact URL is not trusted',
+					code: 'BadRequest'
+				});
+			}
 
-			logger.info({ url: cleanUrl }, 'Cleaned artifact URL');
+			logger.info({ url: trustedArtifactUrl.url }, 'Validated artifact URL');
 
 			// Try downloading the artifact using Node.js http module
 			// This is more reliable for in-cluster service-to-service communication than fetch()
 			try {
-				buffer = await downloadArtifact(cleanUrl);
+				buffer = await downloadArtifact(trustedArtifactUrl.url);
 				logger.info({ bytes: buffer.length }, 'Artifact download successful');
 			} catch (downloadErr) {
 				logger.info(
@@ -310,7 +320,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 
 					// Use Kubernetes API to proxy HTTP request through the pod
 					// This works because we're accessing the pod's HTTP server via K8s API proxy
-					const urlPath = new URL(cleanUrl).pathname;
+					const urlPath = trustedArtifactUrl.pathname;
 
 					logger.info({ urlPath }, 'Fetching via K8s pod proxy');
 
@@ -341,7 +351,7 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 							`\n\nTroubleshooting:\n` +
 							`1. Check source-controller is running: kubectl get pod -n ${fluxNamespace} -l app=source-controller\n` +
 							`2. Verify artifact exists: kubectl get gitrepo -n ${sourceNamespace} ${sourceRef.name} -o jsonpath='{.status.artifact.url}'\n` +
-							`3. Test artifact URL manually: kubectl port-forward -n ${fluxNamespace} svc/source-controller 9090:80 && curl http://localhost:9090${new URL(cleanUrl).pathname}`
+							`3. Test artifact URL manually: kubectl port-forward -n ${fluxNamespace} svc/source-controller 9090:80 && curl http://localhost:9090${trustedArtifactUrl.pathname}`
 					);
 				}
 			}
