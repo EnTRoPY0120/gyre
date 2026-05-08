@@ -77,6 +77,7 @@ export async function initializeGyre(): Promise<void> {
 						tokenFile = join(tmpdir(), `gyre-setup-token-${Date.now()}.txt`);
 						try {
 							writeFileSync(tokenFile, token, { mode: 0o600, flag: 'wx' });
+							return tokenFile;
 						} catch (writeErr) {
 							logger.error(writeErr, '   ✗ Failed to write setup token file');
 							throw writeErr;

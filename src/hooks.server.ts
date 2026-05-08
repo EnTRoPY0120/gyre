@@ -17,16 +17,17 @@ import { enforceGlobalRateLimit } from '$lib/server/request/rate-limit.js';
 import { enforceRequestSizeLimits } from '$lib/server/request/request-size.js';
 import { hydrateSessionLocals } from '$lib/server/request/session.js';
 
+const initializationBypassRoutes = new Set([
+	'/api/health',
+	'/api/v1/health',
+	'/api/ready',
+	'/api/v1/ready'
+]);
+
 export const handle: Handle = async ({ event, resolve }) => {
 	const context = assignRequestContext(event);
 
 	return withRequestContext(context.requestId, async () => {
-		const initializationBypassRoutes = new Set([
-			'/api/health',
-			'/api/v1/health',
-			'/api/ready',
-			'/api/v1/ready'
-		]);
 		const bypassInitialization = initializationBypassRoutes.has(event.url.pathname);
 		const requestSizeResponse = await enforceRequestSizeLimits(event);
 		if (requestSizeResponse) {
@@ -42,8 +43,10 @@ export const handle: Handle = async ({ event, resolve }) => {
 			try {
 				await ensureGyreInitialized();
 			} catch (err) {
-				logger.error(err, 'Failed to ensure Gyre is initialized during request handling');
 				const status = getGyreInitializationStatus();
+				if (status.state !== 'failed') {
+					logger.error(err, 'Failed to ensure Gyre is initialized during request handling');
+				}
 				const message =
 					status.state === 'failed'
 						? 'Gyre initialization failed'

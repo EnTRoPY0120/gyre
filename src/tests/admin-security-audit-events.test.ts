@@ -387,6 +387,22 @@ describe('admin mutation audit events', () => {
 		expect(auditCalls).toEqual([]);
 	});
 
+	test('does not write or audit when settings patch has no changes', async () => {
+		const response = await patchSettings({
+			locals: { user: createUser(), cluster: 'cluster-a' },
+			setHeaders: () => {},
+			request: new Request('http://localhost/api/v1/admin/settings', {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({})
+			})
+		} as Parameters<SettingsRouteModule['PATCH']>[0]);
+
+		expect(response.status).toBe(200);
+		expect(settingWrites).toEqual([]);
+		expect(auditCalls).toEqual([]);
+	});
+
 	test('logs k8s-client-pool:clear on pool clear mutation', async () => {
 		const response = await clearClientPool({
 			locals: { user: createUser(), cluster: 'cluster-a' }

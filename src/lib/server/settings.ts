@@ -3,7 +3,7 @@
  * Manages key-value application settings with environment variable overrides.
  */
 
-import { getDb } from './db';
+import { getDb, getDbSync } from './db';
 import { appSettings } from './db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -91,7 +91,7 @@ export async function setSetting(key: string, value: string): Promise<void> {
 export async function setSettings(values: Array<{ key: string; value: string }>): Promise<void> {
 	if (values.length === 0) return;
 
-	const db = await getDb();
+	const db = getDbSync();
 	const updatedAt = new Date();
 
 	db.transaction((tx) => {
