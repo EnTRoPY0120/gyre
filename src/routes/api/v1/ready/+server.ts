@@ -19,7 +19,17 @@ export const _metadata = {
 					}
 				}
 			},
-			503: { description: 'Application initialization is incomplete or failed' }
+			503: {
+				description: 'Application initialization is incomplete or failed',
+				content: {
+					'application/json': {
+						schema: z.object({
+							status: z.enum(['initializing', 'failed']),
+							message: z.string()
+						})
+					}
+				}
+			}
 		}
 	}
 };

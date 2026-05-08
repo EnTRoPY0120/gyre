@@ -180,9 +180,6 @@ spec:
         {{- $seen := dict }}
         {{- range $provider := .Values.auth.providers }}
         {{- $providerKey := regexReplaceAll "[^A-Z0-9]" ($provider.name | upper) "_" }}
-        {{- if has (printf "GYRE_AUTH_PROVIDER_%s_CLIENT_SECRET" $providerKey) $reservedAdditionalConfig }}
-        {{- fail (printf "Auth provider %q produces reserved env var GYRE_AUTH_PROVIDER_%s_CLIENT_SECRET. Rename the provider." $provider.name $providerKey) }}
-        {{- end }}
         {{- if hasKey $seen $providerKey }}
         {{- fail (printf "Auth provider %q collides with %q for GYRE_AUTH_PROVIDER_%s_CLIENT_SECRET. Rename one provider so the sanitized secret key stays unique." $provider.name (index $seen $providerKey) $providerKey) }}
         {{- end }}

@@ -231,14 +231,35 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 		}
 
 		const { requestedKeys, updates } = normalizeSettingsPayload(body);
+		if (updates.length === 0) {
+			const [authSettings, auditRetentionDays] = await Promise.all([
+				getAuthSettings(),
+				getAuditLogRetentionDays()
+			]);
+			return json({
+				settings: {
+					localLoginEnabled: {
+						value: authSettings.localLoginEnabled,
+						overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED)
+					},
+					allowSignup: {
+						value: authSettings.allowSignup,
+						overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP)
+					},
+					domainAllowlist: {
+						value: authSettings.domainAllowlist,
+						overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST)
+					},
+					auditRetentionDays: {
+						value: auditRetentionDays,
+						overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS)
+					}
+				}
+			});
+		}
+
 		await setSettings(updates);
 		const changedKeys = updates.map((update) => update.key);
-
-		// Return updated settings
-		const [authSettings, auditRetentionDays] = await Promise.all([
-			getAuthSettings(),
-			getAuditLogRetentionDays()
-		]);
 		await logPrivilegedMutationSuccess({
 			action: 'settings:update',
 			user,
@@ -248,6 +269,12 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 				changedKeys
 			}
 		});
+
+		// Return updated settings
+		const [authSettings, auditRetentionDays] = await Promise.all([
+			getAuthSettings(),
+			getAuditLogRetentionDays()
+		]);
 		return json({
 			settings: {
 				localLoginEnabled: {

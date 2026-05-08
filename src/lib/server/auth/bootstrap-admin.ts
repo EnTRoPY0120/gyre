@@ -65,7 +65,7 @@ export async function hasUsers(): Promise<boolean> {
  * - Local development: Uses ADMIN_PASSWORD env var or generates a password
  */
 export async function createDefaultAdminIfNeeded(options?: {
-	persistSetupToken?: (password: string) => void;
+	persistSetupToken?: (password: string) => string | void;
 }): Promise<{
 	password: string | null;
 	mode: string;
@@ -115,8 +115,9 @@ export async function createDefaultAdminIfNeeded(options?: {
 	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
 	if (process.env.ADMIN_PASSWORD) warnIfWeakAdminPassword(process.env.ADMIN_PASSWORD);
 
+	let persistedSetupTokenFile: string | undefined;
 	try {
-		options?.persistSetupToken?.(password);
+		persistedSetupTokenFile = options?.persistSetupToken?.(password) ?? undefined;
 	} catch (error) {
 		logger.error(
 			error,
@@ -125,30 +126,38 @@ export async function createDefaultAdminIfNeeded(options?: {
 		throw error;
 	}
 	pendingSetupCleanup = true;
+	if (persistedSetupTokenFile) {
+		setSetupTokenFile(persistedSetupTokenFile);
+	}
 
-	const db = getDbSync();
-	const passwordHash = await hashPassword(password);
-	const newUser: NewUser = {
-		id: generateUserId(),
-		username: 'admin',
-		name: 'admin',
-		role: 'admin',
-		email: 'admin@gyre.local',
-		active: true,
-		requiresPasswordChange: true
-	};
-	db.transaction((tx) => {
-		tx.insert(users).values(newUser).run();
-		tx.insert(accounts)
-			.values({
-				id: generateUserId(),
-				providerId: 'credential',
-				accountId: newUser.id,
-				userId: newUser.id,
-				password: passwordHash
-			})
-			.run();
-	});
+	try {
+		const db = getDbSync();
+		const passwordHash = await hashPassword(password);
+		const newUser: NewUser = {
+			id: generateUserId(),
+			username: 'admin',
+			name: 'admin',
+			role: 'admin',
+			email: 'admin@gyre.local',
+			active: true,
+			requiresPasswordChange: true
+		};
+		db.transaction((tx) => {
+			tx.insert(users).values(newUser).run();
+			tx.insert(accounts)
+				.values({
+					id: generateUserId(),
+					providerId: 'credential',
+					accountId: newUser.id,
+					userId: newUser.id,
+					password: passwordHash
+				})
+				.run();
+		});
+	} catch (error) {
+		cleanupSetupTokenFile();
+		throw error;
+	}
 
 	return { password, mode: 'local' };
 }
