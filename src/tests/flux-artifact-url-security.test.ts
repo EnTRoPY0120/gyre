@@ -1,5 +1,9 @@
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 import { validateFluxArtifactUrl } from '../lib/server/kubernetes/flux/artifact-url-security.js';
+
+afterEach(() => {
+	delete process.env.FLUX_SOURCE_CONTROLLER_SERVICE;
+});
 
 describe('validateFluxArtifactUrl', () => {
 	test('accepts default source-controller service URL', () => {
@@ -33,6 +37,19 @@ describe('validateFluxArtifactUrl', () => {
 
 		expect(result.url).toBe(
 			'https://source-controller.platform-flux.svc.cluster.local/artifact.tar.gz'
+		);
+	});
+
+	test('accepts configured source-controller service name', () => {
+		process.env.FLUX_SOURCE_CONTROLLER_SERVICE = 'gyre-source-controller';
+
+		const result = validateFluxArtifactUrl(
+			'http://gyre-source-controller.flux-system.svc.cluster.local/artifact.tar.gz',
+			'flux-system'
+		);
+
+		expect(result.url).toBe(
+			'http://gyre-source-controller.flux-system.svc.cluster.local/artifact.tar.gz'
 		);
 	});
 

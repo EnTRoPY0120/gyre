@@ -252,6 +252,10 @@ describe('request pipeline', () => {
 	);
 
 	test('state-changing streamed request without Content-Length is rejected after exceeding limit', async () => {
+		sessionData = {
+			session: { id: 'session-1' },
+			user: createUser()
+		};
 		const stream = new ReadableStream<Uint8Array>({
 			start(controller) {
 				controller.enqueue(new Uint8Array(1024 * 1024));
@@ -263,12 +267,13 @@ describe('request pipeline', () => {
 
 		const response = await handle({
 			event: {
-				cookies: createCookies(),
+				cookies: createCookies({ gyre_session: 'session-cookie' }),
 				getClientAddress: () => '127.0.0.1',
 				locals: {} as App.Locals,
 				request: new Request('http://localhost/api/v1/flux/version', {
 					body: stream,
 					duplex: 'half',
+					headers: { 'x-csrf-token': 'csrf:session-1' },
 					method: 'POST'
 				} as RequestInit),
 				url: new URL('http://localhost/api/v1/flux/version')

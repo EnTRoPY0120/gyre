@@ -28,6 +28,9 @@ export function validateProductionSecurityConfig(env: SecurityEnvironment = proc
 	if (!betterAuthSecret) {
 		throw new Error('BETTER_AUTH_SECRET must be set in production!');
 	}
+	if (betterAuthSecret.length < 32) {
+		throw new Error('BETTER_AUTH_SECRET must be at least 32 characters in production!');
+	}
 
 	const authKey = env.AUTH_ENCRYPTION_KEY?.trim();
 	const gyreKey = env.GYRE_ENCRYPTION_KEY?.trim();

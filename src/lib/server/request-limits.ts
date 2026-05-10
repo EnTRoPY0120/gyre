@@ -50,8 +50,11 @@ export function getRequestSizeLimit(path: string, method: string): number {
 const _BODY_METHODS = new Set(['POST', 'PUT', 'PATCH']);
 
 /**
- * Check if request size exceeds limit based on the Content-Length header.
- * Returns { valid: true } or { valid: false, limit, size }.
+ * Validate request size from the Content-Length header.
+ * Returns { valid: true } when valid. Returns { valid: false, reason: 'malformed',
+ * limit, value } when the header is malformed, where value is the original
+ * Content-Length string. Returns { valid: false, reason: 'too_large', limit, size }
+ * when the header exceeds the limit.
  *
  * A missing Content-Length header (e.g. chunked/streamed POST/PUT/PATCH) is
  * treated as valid here and falls through to handler-side parsed-body checks.

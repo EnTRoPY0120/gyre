@@ -59,6 +59,17 @@ describe('validateProductionSecurityConfig', () => {
 		);
 	});
 
+	test('fails in production when BETTER_AUTH_SECRET is too short', () => {
+		const env = {
+			...validProductionEnv(),
+			BETTER_AUTH_SECRET: 'short-secret'
+		};
+
+		expect(() => validateProductionSecurityConfig(env)).toThrow(
+			'BETTER_AUTH_SECRET must be at least 32 characters in production!'
+		);
+	});
+
 	test.each(['AUTH_ENCRYPTION_KEY', 'GYRE_ENCRYPTION_KEY', 'BACKUP_ENCRYPTION_KEY'])(
 		'fails in production when BETTER_AUTH_SECRET matches %s',
 		(secretName) => {

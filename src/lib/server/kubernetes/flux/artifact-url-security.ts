@@ -4,9 +4,10 @@ export type ValidatedFluxArtifactUrl = {
 };
 
 export function getExpectedFluxArtifactHosts(fluxNamespace: string): Set<string> {
+	const serviceName = process.env.FLUX_SOURCE_CONTROLLER_SERVICE || 'source-controller';
 	return new Set([
-		`source-controller.${fluxNamespace}.svc`,
-		`source-controller.${fluxNamespace}.svc.cluster.local`
+		`${serviceName}.${fluxNamespace}.svc`,
+		`${serviceName}.${fluxNamespace}.svc.cluster.local`
 	]);
 }
 

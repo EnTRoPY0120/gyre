@@ -261,28 +261,26 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		}
 
 		// 3. Fetch the source content via artifact
+		let trustedArtifactUrl: ReturnType<typeof validateFluxArtifactUrl>;
+		try {
+			trustedArtifactUrl = validateFluxArtifactUrl(artifactUrl, fluxNamespace);
+		} catch (artifactUrlError) {
+			logger.warn(
+				{ error: (artifactUrlError as Error).message, url: artifactUrl },
+				'Rejected untrusted Flux artifact URL'
+			);
+			throw error(400, {
+				message: 'Source artifact URL is not trusted',
+				code: 'BadRequest'
+			});
+		}
+
 		const tempDir = await mkdtemp(join(tmpdir(), 'gyre-diff-'));
 
 		try {
-			logger.info({ url: artifactUrl }, 'Fetching artifact');
+			logger.info({ url: trustedArtifactUrl.url }, 'Fetching artifact');
 			const artifactPath = join(tempDir, 'artifact.tar.gz');
 			let buffer: Buffer;
-
-			let trustedArtifactUrl: ReturnType<typeof validateFluxArtifactUrl>;
-			try {
-				trustedArtifactUrl = validateFluxArtifactUrl(artifactUrl, fluxNamespace);
-			} catch (artifactUrlError) {
-				logger.warn(
-					{ error: (artifactUrlError as Error).message, url: artifactUrl },
-					'Rejected untrusted Flux artifact URL'
-				);
-				throw error(400, {
-					message: 'Source artifact URL is not trusted',
-					code: 'BadRequest'
-				});
-			}
-
-			logger.info({ url: trustedArtifactUrl.url }, 'Validated artifact URL');
 
 			// Try downloading the artifact using Node.js http module
 			// This is more reliable for in-cluster service-to-service communication than fetch()
