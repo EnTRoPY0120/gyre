@@ -96,7 +96,7 @@ docker run \
 ```
 
 :::tip
-Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. Regenerate `AUTH_ENCRYPTION_KEY`, `GYRE_ENCRYPTION_KEY`, `BACKUP_ENCRYPTION_KEY`, and `BETTER_AUTH_SECRET` with `openssl rand -hex 32` on each deploy.
+Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. `BETTER_AUTH_SECRET` is the session secret and may be regenerated on each deploy if you accept invalidating active sessions. `GYRE_ENCRYPTION_KEY`, `AUTH_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY` are data-encryption keys: generate them once per environment, store them securely, and rotate them only with a migration plan to avoid making existing gyre-data unreadable.
 :::
 
 ### Option 4: Local Demo Script

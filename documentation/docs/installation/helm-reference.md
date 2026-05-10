@@ -213,6 +213,17 @@ Examples:
 
 To upgrade Gyre:
 
+Before upgrading to a version that requires `BETTER_AUTH_SECRET`, update the Kubernetes Secret used by the release and add `BETTER_AUTH_SECRET` first:
+
+```bash
+kubectl create secret generic gyre-secrets \
+  --namespace flux-system \
+  --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Production no longer falls back to `AUTH_ENCRYPTION_KEY`; pods will fail to start until `BETTER_AUTH_SECRET` is present. `security-config.ts` also requires `BETTER_AUTH_SECRET` to differ from `AUTH_ENCRYPTION_KEY`, `GYRE_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY`, so this upgrade invalidates existing Better Auth sessions and users must sign in again.
+
 ```bash
 # Update Helm repository
 helm repo update
