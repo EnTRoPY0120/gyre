@@ -198,7 +198,7 @@ kubectl logs -n flux-system -l app.kubernetes.io/name=gyre
 
 To upgrade Gyre:
 
-Before upgrading to a version that requires `BETTER_AUTH_SECRET`, provision it in the deployment secret first. Production no longer falls back to `AUTH_ENCRYPTION_KEY`; pods will fail to start until `BETTER_AUTH_SECRET` is set, and `security-config.ts` requires it to differ from `AUTH_ENCRYPTION_KEY`, `GYRE_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY`. Because the Better Auth signing secret changes, existing sessions are invalidated and users must sign in again.
+Before upgrading, provision `BETTER_AUTH_SECRET` in your deployment secrets; pods will not start without it. It must be different from `AUTH_ENCRYPTION_KEY`, `GYRE_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY`. Changing this signing secret invalidates existing sessions, so users must sign in again.
 
 ```bash
 helm upgrade gyre oci://ghcr.io/entropy0120/charts/gyre \
