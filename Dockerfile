@@ -11,33 +11,32 @@ RUN go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
 # =============================================================================
 # Use Node.js as the builder base so better-sqlite3 compiles against the same
 # Node.js ABI that the runtime uses (avoids ERR_DLOPEN_FAILED at startup).
-# Bun is copied in solely for fast installs that respect bun.lock.
 FROM node:26-alpine3.23 AS builder
 
 WORKDIR /build
 
-# Copy bun binary from official image for fast, lock-respecting installs
-COPY --from=oven/bun:1.3.11-alpine /usr/local/bin/bun /usr/local/bin/bun
-
 # Install native module build tools (better-sqlite3 has no prebuilt musl binaries)
 RUN apk add --no-cache python3 make g++
 
-# Copy package files
-COPY package.json bun.lock ./
+RUN npm install -g pnpm@11.1.0
+
+# Copy package manager metadata
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY documentation/package.json ./documentation/package.json
 
 # Install all dependencies (including devDependencies for build)
 # Use cache mount for faster rebuilds
-RUN --mount=type=cache,target=/root/.bun/install/cache \
-  bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+  pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Build the SvelteKit application
-RUN bun run build
+RUN pnpm build
 
-# Prune devDependencies - production node_modules only (respects bun.lock)
-RUN bun install --production --frozen-lockfile
+# Prune devDependencies - production node_modules only
+RUN CI=true pnpm prune --prod
 
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening

@@ -8,9 +8,9 @@ This guide provides technical information for developers working on the Gyre cod
 
 ## Project Overview
 
-Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit and Bun. It provides real-time monitoring, multi-cluster management, built-in RBAC, and comprehensive FluxCD resource management.
+Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit. It provides real-time monitoring, multi-cluster management, built-in RBAC, and comprehensive FluxCD resource management.
 
-**Deployment**: Production is Helm/GitOps-first and in-cluster. Local out-of-cluster mode is supported for development/testing. Built and run with Bun in production for improved performance and native TypeScript support. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
+**Deployment**: Production is Helm/GitOps-first and in-cluster. Local out-of-cluster mode is supported for development/testing. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
 
 **Current Status**: Core functionality complete with dashboard, all FluxCD resources, real-time updates, multi-cluster support, authentication/RBAC, Monaco Editor integration, and comprehensive resource templates with complete FluxCD CRD field coverage.
 
@@ -20,16 +20,16 @@ Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit and Bun. I
 
 **DevContainer (Recommended):**
 
-The easiest way to start developing is using the provided devcontainer:
+If using a local devcontainer setup, ensure it installs pnpm 11.1.0 and Bun 1.3.11 for tests.
 
 1. Open repository in VS Code with Dev Containers extension
 2. Press `F1` → "Dev Containers: Reopen in Container"
-3. Devcontainer automatically installs Bun (if missing), runs `bun install`, mounts `~/.kube` read-only, and installs Svelte/Tailwind/YAML/Kubernetes VS Code extensions
-4. Optional: Create local kind cluster with FluxCD for testing
+3. Optional: Create local kind cluster with FluxCD for testing
 
 ```sh
 # Inside devcontainer, start development server
-bun run dev
+pnpm install
+pnpm dev
 
 # Optional: Create test cluster
 kind create cluster
@@ -39,31 +39,31 @@ flux install
 **Manual Development:**
 
 ```sh
-bun install              # Install dependencies
-bun run dev             # Start development server
-bun run dev --open      # Start dev server and open in browser
+pnpm install          # Install dependencies
+pnpm dev              # Start development server
+pnpm dev -- --open    # Start dev server and open in browser
 ```
 
 ### Code Quality
 
 ```sh
-bun run verify          # Local gate: format + lint + typecheck + build
-bun run verify:ci       # Strict app-only gate: format:check + lint + typecheck + tests + build
-bun run docs:check      # Docs gate: Docusaurus typecheck + build
-bun run helm:check      # Helm chart lint
-bun run scripts:check   # Shell syntax checks (bash -n)
-bun run verify:repo     # Repo gate: app + Helm + shell scripts
-bun run verify:repo:ci  # Full CI gate: app + docs + Helm + shell scripts
-bun run check:watch     # Type-check in watch mode
-bun run lint:fix        # Auto-fix lint issues where possible
-bun run format          # Format code
+pnpm verify          # Local gate: format + lint + typecheck + build
+pnpm verify:ci       # Strict app-only gate: format:check + lint + typecheck + tests + build
+pnpm docs:check      # Docs gate: Docusaurus typecheck + build
+pnpm helm:check      # Helm chart lint
+pnpm scripts:check   # Shell syntax checks (bash -n)
+pnpm verify:repo     # Repo gate: app + Helm + shell scripts
+pnpm verify:repo:ci  # Full CI gate: app + docs + Helm + shell scripts
+pnpm check:watch     # Type-check in watch mode
+pnpm lint:fix        # Auto-fix lint issues where possible
+pnpm format          # Format code
 ```
 
 ### Building & Testing
 
 ```sh
-bun run build           # Build SvelteKit application
-bun run preview         # Preview production build locally
+pnpm build           # Build SvelteKit application
+pnpm preview         # Preview production build locally
 
 # Docker build
 docker build -t gyre:local .
@@ -117,9 +117,9 @@ kubectl port-forward -n flux-system svc/gyre 3000:80
 ### Database Management
 
 ```sh
-bun drizzle-kit generate    # Generate migrations from schema changes
-bun drizzle-kit migrate     # Run migrations (production runs auto on startup)
-bun drizzle-kit studio      # Open database browser UI
+pnpm drizzle-kit generate    # Generate migrations from schema changes
+pnpm drizzle-kit migrate     # Run migrations (production runs auto on startup)
+pnpm drizzle-kit studio      # Open database browser UI
 ```
 
 **Database Location**: `./data/gyre.db` (development), `/data/gyre.db` (production container)
@@ -129,23 +129,20 @@ bun drizzle-kit studio      # Open database browser UI
 The project includes a Docusaurus documentation site at `entropy0120.github.io/gyre/`:
 
 ```sh
-# Navigate to documentation folder
-cd documentation
-
-# Install dependencies (uses npm, not bun)
-npm ci
+# Install dependencies from the repo root
+pnpm install
 
 # Start documentation dev server
-npm run start
+pnpm --dir documentation start
 
 # Build documentation
-npm run build
+pnpm --dir documentation build
 
 # Serve built docs locally
-npm run serve
+pnpm --dir documentation serve
 ```
 
-**Important**: The documentation folder uses npm/package-lock.json (Docusaurus requirement), while the main app uses Bun. They don't interfere with each other. Documentation auto-deploys to GitHub Pages via `.github/workflows/docs-deploy.yml` on push to main.
+**Important**: The root app and documentation site share the root `pnpm-lock.yaml` through the pnpm workspace. Documentation auto-deploys to GitHub Pages via `.github/workflows/docs-deploy.yml` on push to main.
 
 ### Release & Deployment
 
@@ -196,7 +193,7 @@ Multi-cluster support is implemented via `locals.cluster`.
 
 - **Commits**: Follow [Conventional Commits](https://www.conventionalcommits.org/).
 - **Branches**: Use `type/description` naming (e.g., `feat/add-oidc-support`, `fix/rbac-bypass`).
-- **Tests**: Automated tests are part of the normal verification flow (`bun test`, `bun run verify:ci`, `bun run verify:repo:ci`).
+- **Tests**: Automated tests are part of the normal verification flow (`pnpm test`, `pnpm verify:ci`, `pnpm verify:repo:ci`). Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
 
 ## Important Implementation Notes
 
@@ -274,5 +271,5 @@ The real-time notification system uses Server-Sent Events (SSE) located in `src/
 2. **Svelte 5 Runes**: Use `$state()`, `$derived()`, `$effect()`, `$props()`.
 3. **Database Migrations**: Use `drizzle-kit generate` for schema changes.
 4. **ServiceAccount Permissions**: Update `charts/gyre/templates/role.yaml` and `charts/gyre/templates/clusterrole.yaml` for new resources.
-5. **Documentation Folder**: Uses npm (not Bun).
+5. **Documentation Folder**: Uses pnpm through the root workspace.
 6. **Monaco Editor Lazy Loading**: Loaded via dynamic import. Always check `browser` environment.
