@@ -1,9 +1,9 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 
-spyOn(console, 'log').mockImplementation(() => {});
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+vi.spyOn(console, 'log').mockImplementation(() => {});
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../lib/server/db/schema.js';
 import { sessions, users } from '../lib/server/db/schema.js';
 
@@ -88,12 +88,12 @@ function daysFromNow(days: number) {
 
 beforeEach(async () => {
 	state.db = setupInMemoryDb();
-	mock.module('../lib/server/db/index.js', () => ({
+	vi.doMock('../lib/server/db/index.js', () => ({
 		getDb: async () => state.db,
 		getDbSync: () => state.db,
 		schema
 	}));
-	mock.module('bcryptjs', () => ({
+	vi.doMock('bcryptjs', () => ({
 		default: {
 			hash: async () => 'hashed_password',
 			compare: async () => true
@@ -101,7 +101,7 @@ beforeEach(async () => {
 		hash: async () => 'hashed_password',
 		compare: async () => true
 	}));
-	const authModule = await importFresh<AuthModule>('../lib/server/auth.js?sut');
+	const authModule = await importFresh<AuthModule>('../lib/server/auth.js');
 	cleanupExpiredSessions = authModule.cleanupExpiredSessions;
 	deleteUserSessions = authModule.deleteUserSessions;
 	generateSessionId = authModule.generateSessionId;
@@ -110,7 +110,8 @@ beforeEach(async () => {
 
 afterEach(() => {
 	state.db = null;
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('cleanupExpiredSessions', () => {
@@ -138,7 +139,7 @@ describe('cleanupExpiredSessions', () => {
 		const db = state.db!;
 		const userId = await insertUser(db);
 		const now = new Date();
-		const spy = spyOn(Date, 'now').mockReturnValue(now.getTime());
+		const spy = vi.spyOn(Date, 'now').mockReturnValue(now.getTime());
 
 		try {
 			insertSession(db, userId, now);

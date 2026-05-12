@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { validateProductionSecurityConfig } from '../lib/server/security-config.js';
 
 function validProductionEnv(): Record<string, string | undefined> {

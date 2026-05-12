@@ -3,11 +3,7 @@
 	"image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
 	"remoteUser": "node",
 	"mounts": ["source=${localEnv:HOME}/.kube,target=/home/node/.kube,type=bind,readonly"],
-	"remoteEnv": {
-		"BUN_INSTALL": "/home/node/.bun",
-		"PATH": "/home/node/.bun/bin:${containerEnv:PATH}"
-	},
-	"postCreateCommand": "bash -lc 'set -euo pipefail; if ! command -v bun >/dev/null 2>&1; then export BUN_VERSION=1.3.10; curl -fsSL https://bun.sh/install | bash; fi; export BUN_INSTALL=/home/node/.bun; export PATH=$BUN_INSTALL/bin:$PATH; bun install'",
+	"postCreateCommand": "pnpm install",
 	"customizations": {
 		"vscode": {
 			"extensions": [

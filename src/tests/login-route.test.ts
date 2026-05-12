@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import type { User } from '../lib/server/db/schema.js';
 import { importFresh } from './helpers/import-fresh';
 import { buildLoginEvent, type LoginEvent } from './helpers/login-route-event';
@@ -54,7 +54,7 @@ function buildEvent(): LoginEvent {
 beforeEach(async () => {
 	Object.assign(routeState, createRouteState());
 
-	mock.module('$lib/server/auth', () => ({
+	vi.doMock('$lib/server/auth', () => ({
 		SESSION_DURATION_DAYS: 30,
 		addPasswordHistory: async () => {},
 		authenticateUser: async () => routeState.authenticatedUser,
@@ -75,7 +75,7 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('$lib/server/settings', () => ({
+	vi.doMock('$lib/server/settings', () => ({
 		getAuthSettings: async () => ({
 			localLoginEnabled: routeState.localLoginEnabled,
 			allowSignup: true,
@@ -90,8 +90,8 @@ beforeEach(async () => {
 		},
 		logLogout: async () => {}
 	};
-	mock.module('$lib/server/audit', () => auditModuleStub);
-	mock.module('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('$lib/server/audit', () => auditModuleStub);
+	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
 
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
@@ -113,19 +113,20 @@ beforeEach(async () => {
 		revokeBetterAuthSessionByCookieValue: async () => {}
 	};
 
-	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);
-	mock.module('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 
-	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
 	POST = (await importFresh<LoginRouteModule>('../routes/api/v1/auth/login/+server.js')).POST;
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('login route', () => {

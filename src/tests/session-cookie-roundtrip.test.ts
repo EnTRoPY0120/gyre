@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
 import { importFresh } from './helpers/import-fresh';
@@ -71,8 +71,8 @@ beforeEach(() => {
 	sessionLifecycleCalls.length = 0;
 	signOutCalls = 0;
 
-	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
-	mock.module('$lib/server/metrics.js', () => ({
+	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('$lib/server/metrics.js', () => ({
 		httpRequestDurationMicroseconds: {
 			labels: () => ({
 				observe: () => {}
@@ -81,28 +81,28 @@ beforeEach(() => {
 		loginAttemptsTotal: { labels: () => ({ inc: () => {} }) },
 		sessionsCleanedUpTotal: { inc: () => {} }
 	}));
-	mock.module('$lib/server/request/initialization.js', () => ({
+	vi.doMock('$lib/server/request/initialization.js', () => ({
 		ensureGyreInitialized: async () => {},
 		isGyreInitialized: () => true
 	}));
-	mock.module('$lib/server/request/rate-limit.js', () => ({
+	vi.doMock('$lib/server/request/rate-limit.js', () => ({
 		enforceGlobalRateLimit: () => null
 	}));
-	mock.module('$lib/server/request/request-size.js', () => ({
+	vi.doMock('$lib/server/request/request-size.js', () => ({
 		STATE_CHANGING_METHODS: ['POST', 'PUT', 'DELETE', 'PATCH'],
 		createPayloadTooLargeResponse: () => new Response('payload too large', { status: 413 }),
 		enforceRequestSizeLimits: async () => null,
 		isPayloadTooLargeError: () => false
 	}));
-	mock.module('$lib/server/initialize.js', () => ({
+	vi.doMock('$lib/server/initialize.js', () => ({
 		initializeGyre: async () => {}
 	}));
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
 
-	mock.module('$lib/server/settings', () =>
+	vi.doMock('$lib/server/settings', () =>
 		createSettingsModuleStub({
 			getAuthSettings: async () => ({
 				localLoginEnabled: true,
@@ -128,29 +128,29 @@ beforeEach(() => {
 		normalizeUsername: (username: string) => username.trim().toLowerCase(),
 		verifyPassword: async () => true
 	};
-	mock.module('$lib/server/auth', () => authModuleStub);
-	mock.module('$lib/server/auth.js', () => authModuleStub);
+	vi.doMock('$lib/server/auth', () => authModuleStub);
+	vi.doMock('$lib/server/auth.js', () => authModuleStub);
 	const auditModuleStub = {
 		logAudit: async () => {},
 		logLogin: async () => {},
 		logLogout: async () => {}
 	};
-	mock.module('$lib/server/audit', () => auditModuleStub);
-	mock.module('$lib/server/audit.js', () => auditModuleStub);
-	mock.module('$lib/server/rbac.js', () =>
+	vi.doMock('$lib/server/audit', () => auditModuleStub);
+	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('$lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkClusterWideReadPermission: async () => true
 		})
 	);
-	mock.module('$lib/server/flux/services.js', () => ({
+	vi.doMock('$lib/server/flux/services.js', () => ({
 		getFluxInstalledVersion: async () => ({ version: 'v2.3.0' })
 	}));
-	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
-	mock.module('$lib/server/clusters/repository.js', () => ({
+	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
+	vi.doMock('$lib/server/clusters/repository.js', () => ({
 		getClusterById: async () => ({ id: 'cluster-a', isActive: true }),
 		getSelectableClusters: async () => []
 	}));
-	mock.module('$lib/server/csrf.js', () => ({
+	vi.doMock('$lib/server/csrf.js', () => ({
 		generateCsrfToken: (sessionId: string) => `csrf:${sessionId}`,
 		validateCsrfToken: (sessionId: string, token: string) => token === `csrf:${sessionId}`
 	}));
@@ -195,12 +195,13 @@ beforeEach(() => {
 			sessionLifecycleCalls.push(`revoke:${cookieValue}`);
 		}
 	};
-	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);
-	mock.module('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('session cookie round trip behavior', () => {

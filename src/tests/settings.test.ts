@@ -1,10 +1,10 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 
-spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
 
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 
@@ -52,15 +52,16 @@ function unsetEnv(key: string) {
 }
 
 beforeEach(async () => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 	state.db = setupInMemoryDb();
 	savedEnv = {};
-	mock.module('../lib/server/db/index.js', () => ({
+	vi.doMock('../lib/server/db/index.js', () => ({
 		getDb: async () => state.db,
 		getDbSync: () => state.db,
 		schema
 	}));
-	const settingsModule = await importFresh<SettingsModule>('../lib/server/settings.js?sut');
+	const settingsModule = await importFresh<SettingsModule>('../lib/server/settings.js');
 	getSetting = settingsModule.getSetting;
 	setSetting = settingsModule.setSetting;
 	setSettings = settingsModule.setSettings;
@@ -83,7 +84,8 @@ afterEach(() => {
 		else process.env[key] = val;
 	}
 	state.db = null;
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 // ---------------------------------------------------------------------------

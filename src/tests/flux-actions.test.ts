@@ -1,9 +1,9 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 
 type FluxActionsModule = typeof import('../lib/server/kubernetes/flux/actions.ts');
 
-spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
 
 let capturedPatchArgs: unknown[] = [];
 let capturedDeleteArgs: unknown[] = [];
@@ -46,7 +46,7 @@ beforeEach(async () => {
 	capturedDeleteArgs = [];
 	apiShouldThrow = false;
 
-	mock.module('../lib/server/kubernetes/client', () => ({
+	vi.doMock('../lib/server/kubernetes/client', () => ({
 		getCustomObjectsApi: async () => mockApi,
 		handleK8sError: (error: unknown, context: string) => {
 			return new Error(
@@ -55,7 +55,7 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('../lib/server/kubernetes/flux/resources', () => ({
+	vi.doMock('../lib/server/kubernetes/flux/resources', () => ({
 		getResourceDef: (resourceType: keyof typeof fluxResourceDefs) => fluxResourceDefs[resourceType],
 		resolveFluxResourceType: (resourceType: string) => {
 			if (resourceType === 'kustomizations') return 'Kustomization';
@@ -67,7 +67,7 @@ beforeEach(async () => {
 			return undefined;
 		}
 	}));
-	mock.module('../lib/server/kubernetes/flux/resources.js', () => ({
+	vi.doMock('../lib/server/kubernetes/flux/resources.js', () => ({
 		getResourceDef: (resourceType: keyof typeof fluxResourceDefs) => fluxResourceDefs[resourceType],
 		resolveFluxResourceType: (resourceType: string) => {
 			if (resourceType === 'kustomizations') return 'Kustomization';
@@ -84,7 +84,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('toggleSuspendResource', () => {

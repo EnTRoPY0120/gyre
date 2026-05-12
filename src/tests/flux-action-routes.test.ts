@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import type { User } from '../lib/server/db/schema.js';
 import * as actualValidation from '../lib/server/validation.js';
 import { importFresh } from './helpers/import-fresh';
@@ -81,7 +81,7 @@ beforeEach(async () => {
 	capturedLogWrites.length = 0;
 	capturedAuditCalls.length = 0;
 
-	mock.module('$lib/server/rbac.js', () =>
+	vi.doMock('$lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkPermission: async (...args: unknown[]) => {
 				capturedPermissionChecks.push(args);
@@ -90,7 +90,7 @@ beforeEach(async () => {
 		})
 	);
 
-	mock.module('$lib/server/kubernetes/flux/actions', () => ({
+	vi.doMock('$lib/server/kubernetes/flux/actions', () => ({
 		deleteResource: async () => {},
 		reconcileResource: async (...args: unknown[]) => {
 			capturedReconcileCalls.push(args);
@@ -102,7 +102,7 @@ beforeEach(async () => {
 			capturedToggleSuspendCalls.push(args);
 		}
 	}));
-	mock.module('$lib/server/kubernetes/flux/actions.js', () => ({
+	vi.doMock('$lib/server/kubernetes/flux/actions.js', () => ({
 		deleteResource: async () => {},
 		reconcileResource: async (...args: unknown[]) => {
 			capturedReconcileCalls.push(args);
@@ -115,13 +115,13 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('$lib/server/kubernetes/flux/resources', () => ({
+	vi.doMock('$lib/server/kubernetes/flux/resources', () => ({
 		resolveFluxResourceType,
 		getResourceDef,
 		getResourceTypeByPlural,
 		getAllResourcePlurals: () => ['kustomizations', 'gitrepositories', 'helmreleases']
 	}));
-	mock.module('$lib/server/kubernetes/flux/resources.js', () => ({
+	vi.doMock('$lib/server/kubernetes/flux/resources.js', () => ({
 		resolveFluxResourceType,
 		getResourceDef,
 		getResourceTypeByPlural,
@@ -138,26 +138,26 @@ beforeEach(async () => {
 		logLogin: async () => {},
 		logLogout: async () => {}
 	};
-	mock.module('$lib/server/audit', () => auditModuleStub);
-	mock.module('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('$lib/server/audit', () => auditModuleStub);
+	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
 
-	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
+	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
-	mock.module('$lib/server/validation', () => ({
+	vi.doMock('$lib/server/validation', () => ({
 		...actualValidation,
 		validateK8sNamespace: () => {},
 		validateK8sName: () => {}
 	}));
-	mock.module('$lib/server/validation.js', () => ({
+	vi.doMock('$lib/server/validation.js', () => ({
 		...actualValidation,
 		validateK8sNamespace: () => {},
 		validateK8sName: () => {}
 	}));
 
-	mock.module('$lib/server/kubernetes/flux/reconciliation-tracker', () => ({
+	vi.doMock('$lib/server/kubernetes/flux/reconciliation-tracker', () => ({
 		captureReconciliation: async () => {}
 	}));
-	mock.module('$lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
+	vi.doMock('$lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
 		captureReconciliation: async () => {}
 	}));
 
@@ -179,7 +179,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('Flux action routes normalize plural resource types', () => {

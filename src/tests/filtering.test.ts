@@ -1,7 +1,7 @@
-import { afterAll, describe, expect, mock, test } from 'bun:test';
+import { afterAll, describe, expect, vi, test } from 'vitest';
 
-mock.module('$app/environment', () => ({ dev: false }));
-mock.module('$env/dynamic/public', () => ({ env: {} }));
+vi.doMock('$app/environment', () => ({ dev: false }));
+vi.doMock('$env/dynamic/public', () => ({ env: {} }));
 
 const { searchParamsToFilters, filtersToSearchParams, parseLabels, defaultFilterState } =
 	await import('../lib/utils/filtering.js');
@@ -69,7 +69,8 @@ describe('searchParamsToFilters', () => {
 });
 
 afterAll(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 // ---------------------------------------------------------------------------

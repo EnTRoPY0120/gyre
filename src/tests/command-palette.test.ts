@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import { commandPaletteOpen } from '../lib/stores/commandPalette.js';
 
 // Helper: read current store value synchronously via subscribe

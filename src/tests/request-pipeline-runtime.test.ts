@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import type { RequestEvent } from '@sveltejs/kit';
 import { IN_CLUSTER_ID } from '../lib/clusters/identity.js';
 import type { User } from '../lib/server/db/schema.js';
@@ -103,8 +103,8 @@ beforeEach(() => {
 	clusterWideReadAllowed = true;
 	resolvedRoutes.length = 0;
 
-	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
-	mock.module('$lib/server/metrics.js', () => ({
+	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('$lib/server/metrics.js', () => ({
 		httpRequestDurationMicroseconds: {
 			labels: () => ({
 				observe: () => {}
@@ -113,13 +113,13 @@ beforeEach(() => {
 		loginAttemptsTotal: { labels: () => ({ inc: () => {} }) },
 		sessionsCleanedUpTotal: { inc: () => {} }
 	}));
-	mock.module('$lib/server/initialize.js', () => ({
+	vi.doMock('$lib/server/initialize.js', () => ({
 		initializeGyre: async () => {}
 	}));
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
 
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
@@ -140,21 +140,21 @@ beforeEach(() => {
 			}
 		})
 	};
-	mock.module('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
-	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
 
-	mock.module('$lib/server/csrf.js', () => ({
+	vi.doMock('$lib/server/csrf.js', () => ({
 		generateCsrfToken: (sessionId: string) => `csrf:${sessionId}`,
 		validateCsrfToken: (_sessionId: string, token: string) => csrfValid && token.startsWith('csrf:')
 	}));
 
-	mock.module('$lib/server/clusters/repository.js', () => ({
+	vi.doMock('$lib/server/clusters/repository.js', () => ({
 		getClusterById: async () => clusterRecord,
 		getSelectableClusters: async () => []
 	}));
 
-	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
-	mock.module('$lib/server/rbac.js', () =>
+	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
+	vi.doMock('$lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkClusterWideReadPermission: async () => clusterWideReadAllowed,
 			checkPermission: async (user, action) => {
@@ -165,7 +165,7 @@ beforeEach(() => {
 			}
 		})
 	);
-	mock.module('$lib/server/flux/services.js', () => ({
+	vi.doMock('$lib/server/flux/services.js', () => ({
 		getFluxInstalledVersion: async () => ({ version: 'v2.3.0' })
 	}));
 	const auditModuleStub = {
@@ -174,15 +174,16 @@ beforeEach(() => {
 		logLogout: async () => {},
 		logResourceWrite: async () => {}
 	};
-	mock.module('$lib/server/audit', () => auditModuleStub);
-	mock.module('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('$lib/server/audit', () => auditModuleStub);
+	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
 });
 
 afterEach(async () => {
 	const { _resetGyreInitializationForTests } =
 		await import('../lib/server/request/initialization.js');
 	_resetGyreInitializationForTests();
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('request pipeline runtime coverage', () => {

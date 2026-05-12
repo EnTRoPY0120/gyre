@@ -21,8 +21,8 @@
 		"scripts:check": "find scripts -type f -name '*.sh' -exec bash -n {} +",
 		"verify:repo": "pnpm verify && pnpm helm:check && pnpm scripts:check",
 		"verify:repo:ci": "pnpm verify:ci && pnpm docs:check && pnpm helm:check && pnpm scripts:check",
-		"test": "bun test",
-		"test:watch": "bun test --watch"
+		"test": "vitest run",
+		"test:watch": "vitest"
 	},
 	"dependencies": {
 		"@asteasolutions/zod-to-openapi": "^8.4.1",
@@ -61,7 +61,6 @@
 		"@tailwindcss/vite": "^4.1.18",
 		"@types/bcryptjs": "^3.0.0",
 		"@types/better-sqlite3": "^7.6.13",
-		"@types/bun": "^1.3.9",
 		"@types/js-cookie": "^3.0.6",
 		"@types/js-yaml": "^4.0.9",
 		"@types/node": "^25.2.1",
@@ -74,7 +73,8 @@
 		"tailwind-variants": "^3.2.2",
 		"tailwindcss": "^4.1.18",
 		"typescript": "^6.0.2",
-		"vite": "^8.0.8"
+		"vite": "^8.0.8",
+		"vitest": "^4.0.14"
 	},
 	"overrides": {
 		"cookie": "0.7.0",

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
@@ -107,7 +107,7 @@ function buildEvent(
 beforeEach(async () => {
 	Object.assign(callbackState, createCallbackState());
 
-	mock.module('$lib/server/auth/oauth', () => ({
+	vi.doMock('$lib/server/auth/oauth', () => ({
 		getOAuthProvider: async () => ({
 			config: { id: 'custom-provider' },
 			validateCallback: async () => ({ accessToken: 'access-token', tokenType: 'Bearer' }),
@@ -129,14 +129,14 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('$lib/server/auth/sso', () => ({
+	vi.doMock('$lib/server/auth/sso', () => ({
 		createOrUpdateSSOUser: async () => ({
 			user: createUser(),
 			accountLinked: true
 		})
 	}));
 
-	mock.module('$lib/server/auth', () => ({
+	vi.doMock('$lib/server/auth', () => ({
 		SESSION_DURATION_DAYS: 30,
 		addPasswordHistory: async () => {},
 		authenticateUser: async () => null,
@@ -179,13 +179,13 @@ beforeEach(async () => {
 		revokeBetterAuthSessionByCookieValue: async () => {}
 	};
 
-	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);
-	mock.module('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
 
 	GET = (
 		await importFresh<CallbackRouteModule>('../routes/api/v1/auth/[providerId]/callback/+server.js')
@@ -193,7 +193,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('oauth callback route', () => {

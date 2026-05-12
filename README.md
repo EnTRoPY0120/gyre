@@ -145,7 +145,7 @@ pnpm verify:repo:ci
 ```
 
 `verify` and `verify:ci` are app-only gates. `verify:repo` and `verify:repo:ci` are repo-wide gates.
-Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
+`pnpm test` runs the Vitest suite. Bun is no longer required for development or test execution.
 
 ---
 

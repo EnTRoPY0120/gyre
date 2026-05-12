@@ -1,8 +1,8 @@
-import { afterAll, describe, expect, mock, test } from 'bun:test';
+import { afterAll, describe, expect, vi, test } from 'vitest';
 
 // Mock SvelteKit virtual modules before importing anything that depends on them
-mock.module('$app/environment', () => ({ dev: false }));
-mock.module('$env/dynamic/public', () => ({ env: {} }));
+vi.mock('$app/environment', () => ({ dev: false }));
+vi.mock('$env/dynamic/public', () => ({ env: {} }));
 
 import { getResourceHealth } from '../lib/utils/flux.js';
 import type { K8sCondition } from '../lib/server/kubernetes/flux/types.js';
@@ -123,7 +123,8 @@ describe('getResourceHealth', () => {
 });
 
 afterAll(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 // ---------------------------------------------------------------------------

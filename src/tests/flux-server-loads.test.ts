@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { IN_CLUSTER_ID } from '../lib/clusters/identity.js';
 import * as actualAdminReadiness from '../lib/server/admin-readiness.js';
 import * as actualDashboardCache from '../lib/server/dashboard-cache.js';
@@ -6,6 +6,7 @@ import * as actualClusters from '../lib/server/clusters.js';
 import * as actualServices from '../lib/server/flux/services.js';
 import * as actualGuards from '../lib/server/http/guards.js';
 import * as actualMetrics from '../lib/server/metrics.js';
+import { importFresh } from './helpers/import-fresh';
 
 let healthResult: unknown = {
 	status: 'healthy',
@@ -101,6 +102,7 @@ function createUser() {
 }
 
 beforeEach(() => {
+	vi.resetModules();
 	healthResult = {
 		status: 'healthy',
 		kubernetes: {
@@ -165,7 +167,7 @@ beforeEach(() => {
 		}
 	] as const;
 
-	mock.module('$lib/server/flux/services.js', () => ({
+	vi.doMock('$lib/server/flux/services.js', () => ({
 		DEFAULT_FLUX_VERSION: 'v2.x.x',
 		getFluxHealthSummary: async () => {
 			if (healthShouldThrow) {
@@ -191,7 +193,7 @@ beforeEach(() => {
 		listFluxResourcesForType: async () => listResult
 	}));
 
-	mock.module('$lib/server/http/guards.js', () => ({
+	vi.doMock('$lib/server/http/guards.js', () => ({
 		requireClusterContext: (locals: App.Locals) => requireClusterContextMock(locals),
 		requireClusterWideRead: async (locals: App.Locals) => {
 			const clusterId = requireClusterContextMock(locals);
@@ -211,7 +213,7 @@ beforeEach(() => {
 		}
 	}));
 
-	mock.module('$lib/server/clusters.js', () => ({
+	vi.doMock('$lib/server/clusters.js', () => ({
 		getSelectableClusters: async (currentContext?: string | null) => {
 			const expectedContext = getExpectedSelectableClustersContext();
 			if (currentContext !== expectedContext) {
@@ -224,7 +226,7 @@ beforeEach(() => {
 		}
 	}));
 
-	mock.module('$lib/server/dashboard-cache', () => ({
+	vi.doMock('$lib/server/dashboard-cache', () => ({
 		getDashboardCache: (key: string) => {
 			getDashboardCacheCalls.push(key);
 			return dashboardCacheEntries.get(key) ?? null;
@@ -239,13 +241,13 @@ beforeEach(() => {
 		}
 	}));
 
-	mock.module('$lib/server/metrics.js', () => ({
+	vi.doMock('$lib/server/metrics.js', () => ({
 		...actualMetrics,
 		loginAttemptsTotal: { labels: () => ({ inc: () => {} }) },
 		sessionsCleanedUpTotal: { inc: () => {} }
 	}));
 
-	mock.module('$lib/server/admin-readiness.js', () => ({
+	vi.doMock('$lib/server/admin-readiness.js', () => ({
 		getAdminReadinessSummary: async () => {
 			adminReadinessCalls.push(true);
 			return adminReadinessResult;
@@ -254,18 +256,19 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	mock.restore();
-	mock.module('$lib/server/flux/services.js', () => actualServices);
-	mock.module('$lib/server/clusters.js', () => actualClusters);
-	mock.module('$lib/server/http/guards.js', () => actualGuards);
-	mock.module('$lib/server/dashboard-cache', () => actualDashboardCache);
-	mock.module('$lib/server/metrics.js', () => actualMetrics);
-	mock.module('$lib/server/admin-readiness.js', () => actualAdminReadiness);
+	vi.restoreAllMocks();
+	vi.resetModules();
+	vi.doMock('$lib/server/flux/services.js', () => actualServices);
+	vi.doMock('$lib/server/clusters.js', () => actualClusters);
+	vi.doMock('$lib/server/http/guards.js', () => actualGuards);
+	vi.doMock('$lib/server/dashboard-cache', () => actualDashboardCache);
+	vi.doMock('$lib/server/metrics.js', () => actualMetrics);
+	vi.doMock('$lib/server/admin-readiness.js', () => actualAdminReadiness);
 });
 
 describe('migrated server loads', () => {
 	async function loadDashboardPage(locals: App.Locals, parentClusterId = 'cluster-b') {
-		const { load } = await import(`../routes/+page.server.js?case=${Date.now()}-${Math.random()}`);
+		const { load } = await importFresh('../routes/+page.server.js');
 
 		return await load({
 			locals,
@@ -282,9 +285,7 @@ describe('migrated server loads', () => {
 	}
 
 	test('layout load uses shared services and preserves health/version fallbacks', async () => {
-		const { load } = await import(
-			`../routes/+layout.server.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { load } = await importFresh('../routes/+layout.server.js');
 
 		const success = await load({
 			depends: () => {},
@@ -523,9 +524,7 @@ describe('migrated server loads', () => {
 	});
 
 	test('resource list load calls the shared service and keeps the UI-facing shape', async () => {
-		const { load } = await import(
-			`../routes/resources/[type]/+page.server.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { load } = await importFresh('../routes/resources/[type]/+page.server.js');
 
 		const result = await load({
 			depends: () => {},
@@ -545,8 +544,8 @@ describe('migrated server loads', () => {
 	});
 
 	test('resource detail load calls the shared service and preserves 404/error semantics', async () => {
-		const { load } = await import(
-			`../routes/resources/[type]/[namespace]/[name]/+page.server.js?case=${Date.now()}-${Math.random()}`
+		const { load } = await importFresh(
+			'../routes/resources/[type]/[namespace]/[name]/+page.server.js'
 		);
 
 		const result = await load({
@@ -563,8 +562,8 @@ describe('migrated server loads', () => {
 		});
 
 		detailServiceError = { status: 404, body: { message: 'upstream missing' } };
-		const { load: load404 } = await import(
-			`../routes/resources/[type]/[namespace]/[name]/+page.server.js?case=${Date.now()}-${Math.random()}`
+		const { load: load404 } = await importFresh(
+			'../routes/resources/[type]/[namespace]/[name]/+page.server.js'
 		);
 		await expect(
 			load404({
@@ -583,8 +582,8 @@ describe('migrated server loads', () => {
 		});
 
 		detailServiceError = { status: 500, body: { message: 'service exploded' } };
-		const { load: load500 } = await import(
-			`../routes/resources/[type]/[namespace]/[name]/+page.server.js?case=${Date.now()}-${Math.random()}`
+		const { load: load500 } = await importFresh(
+			'../routes/resources/[type]/[namespace]/[name]/+page.server.js'
 		);
 		await expect(
 			load500({

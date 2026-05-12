@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub } from './helpers/module-stubs';
@@ -7,34 +7,35 @@ type OIDCProviderModule = typeof import('../lib/server/auth/oauth/providers/oidc
 type OAuthIndexModule = typeof import('../lib/server/auth/oauth/index.js');
 type OAuthTypesModule = typeof import('../lib/server/auth/oauth/types.js');
 
-let consoleLogSpy: ReturnType<typeof spyOn>;
-let consoleErrorSpy: ReturnType<typeof spyOn>;
-let consoleWarnSpy: ReturnType<typeof spyOn>;
+let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 let OIDCProvider: OIDCProviderModule['OIDCProvider'];
 let validateProviderConfig: OAuthIndexModule['validateProviderConfig'];
 let OAuthError: OAuthTypesModule['OAuthError'];
 
 beforeEach(() => {
-	consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
-	consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
-	consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+	consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+	consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+	consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
 afterEach(() => {
 	consoleLogSpy.mockRestore();
 	consoleErrorSpy.mockRestore();
 	consoleWarnSpy.mockRestore();
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 beforeEach(async () => {
-	mock.module('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
+	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
-	mock.module('$lib/server/auth/pkce', () => ({
+	vi.doMock('$lib/server/auth/pkce', () => ({
 		generateCodeChallenge: (v: string) => `challenge_${v}`
 	}));
 
-	mock.module('arctic', () => ({
+	vi.doMock('arctic', () => ({
 		Google: class MockGoogle {
 			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
 				return new URL(
@@ -86,7 +87,7 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('jose', () => ({
+	vi.doMock('jose', () => ({
 		createRemoteJWKSet: () => 'mock-jwks',
 		jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
 		decodeJwt: () => ({
@@ -99,14 +100,13 @@ beforeEach(async () => {
 		})
 	}));
 
-	OIDCProvider = (
-		await importFresh<OIDCProviderModule>('../lib/server/auth/oauth/providers/oidc.js')
-	).OIDCProvider;
-	validateProviderConfig = (
-		await importFresh<OAuthIndexModule>('../lib/server/auth/oauth/index.js')
-	).validateProviderConfig;
-	OAuthError = (await importFresh<OAuthTypesModule>('../lib/server/auth/oauth/types.js'))
-		.OAuthError;
+	const oidcModule = await importFresh<OIDCProviderModule>(
+		'../lib/server/auth/oauth/providers/oidc.js'
+	);
+	OIDCProvider = oidcModule.OIDCProvider;
+	validateProviderConfig = ((await import('../lib/server/auth/oauth/index.js')) as OAuthIndexModule)
+		.validateProviderConfig;
+	OAuthError = ((await import('../lib/server/auth/oauth/types.js')) as OAuthTypesModule).OAuthError;
 });
 
 const MOCK_DISCOVERY = {
@@ -152,7 +152,7 @@ function makeProvider(configOverrides: Partial<typeof mockConfig> = {}) {
 }
 
 function mockDiscovery(discovery = MOCK_DISCOVERY) {
-	return spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+	return vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 		const urlStr = url.toString();
 		if (urlStr.includes('.well-known/openid-configuration')) {
 			return new Response(JSON.stringify(discovery), { status: 200 });
@@ -222,7 +222,7 @@ describe('OIDCProvider — discover()', () => {
 			userinfo_endpoint: `${uniqueIssuer}/userinfo`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			if (url.toString().includes('.well-known/openid-configuration')) {
 				return new Response(JSON.stringify(discovery), { status: 200 });
 			}
@@ -247,7 +247,7 @@ describe('OIDCProvider — discover()', () => {
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
 		let fetchOptions: RequestInit | undefined;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
 			fetchOptions = init;
 			return new Response(JSON.stringify(discovery), { status: 200 });
 		});
@@ -270,7 +270,7 @@ describe('OIDCProvider — discover()', () => {
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
 		let fetchCount = 0;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			if (url.toString().includes('.well-known')) fetchCount++;
 			return new Response(JSON.stringify(discovery), { status: 200 });
 		});
@@ -294,7 +294,7 @@ describe('OIDCProvider — discover()', () => {
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
 		let fetchCount = 0;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			if (url.toString().includes('.well-known')) fetchCount++;
 			return new Response(JSON.stringify(discovery), { status: 200 });
 		});
@@ -321,7 +321,7 @@ describe('OIDCProvider — discover()', () => {
 
 	test('throws OAuthError with DISCOVERY_FAILED when authorization_endpoint is missing', async () => {
 		const provider = makeProvider();
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response(
 				JSON.stringify({
 					issuer: 'https://provider.example.com',
@@ -348,7 +348,7 @@ describe('OIDCProvider — discover()', () => {
 	test('throws OAuthError with DISCOVERY_FAILED when discovery issuer does not match config', async () => {
 		const uniqueIssuer = `https://issuer-mismatch-${Date.now()}.example.com`;
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response(
 				JSON.stringify({
 					...MOCK_DISCOVERY,
@@ -373,7 +373,7 @@ describe('OIDCProvider — discover()', () => {
 	test('throws OAuthError with DISCOVERY_FAILED when discovery exposes an unsafe endpoint host', async () => {
 		const uniqueIssuer = `https://unsafe-endpoint-${Date.now()}.example.com`;
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response(
 				JSON.stringify({
 					...MOCK_DISCOVERY,
@@ -423,9 +423,9 @@ describe('OIDCProvider.getAuthorizationUrl()', () => {
 			jwks_uri: `${uniqueIssuer}/.well-known/jwks`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(
-			async () => new Response(JSON.stringify(discovery), { status: 200 })
-		);
+		const spy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async () => new Response(JSON.stringify(discovery), { status: 200 }));
 		try {
 			const url = await provider.getAuthorizationUrl('state', 'my-verifier');
 			expect(url.searchParams.get('code_challenge')).toBe('challenge_my-verifier');
@@ -445,9 +445,9 @@ describe('OIDCProvider.getAuthorizationUrl()', () => {
 			jwks_uri: `${uniqueIssuer}/.well-known/jwks`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(
-			async () => new Response(JSON.stringify(discovery), { status: 200 })
-		);
+		const spy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async () => new Response(JSON.stringify(discovery), { status: 200 }));
 		try {
 			const url = await provider.getAuthorizationUrl('my-csrf-state', 'verifier');
 			expect(url.searchParams.get('state')).toBe('my-csrf-state');
@@ -486,7 +486,7 @@ describe('OIDCProvider.validateCallback()', () => {
 			jwks_uri: `${uniqueIssuer}/.well-known/jwks`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			const urlStr = url.toString();
 			if (urlStr.includes('.well-known/openid-configuration')) {
 				return new Response(JSON.stringify(discovery), { status: 200 });
@@ -523,7 +523,7 @@ describe('OIDCProvider.validateCallback()', () => {
 			jwks_uri: `${uniqueIssuer}/.well-known/jwks`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			const urlStr = url.toString();
 			if (urlStr.includes('.well-known/openid-configuration')) {
 				return new Response(JSON.stringify(discovery), { status: 200 });
@@ -572,7 +572,7 @@ describe('OIDCProvider.getUserInfo()', () => {
 			userinfo_endpoint: `${uniqueIssuer}/userinfo`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			const urlStr = url.toString();
 			if (urlStr.includes('.well-known/openid-configuration')) {
 				return new Response(JSON.stringify(discovery), { status: 200 });
@@ -606,7 +606,7 @@ describe('OIDCProvider.getUserInfo()', () => {
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
 		let userinfoOptions: RequestInit | undefined;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
 			const urlStr = url.toString();
 			if (urlStr.includes('.well-known/openid-configuration')) {
 				return new Response(JSON.stringify(discovery), { status: 200 });
@@ -640,7 +640,7 @@ describe('OIDCProvider.getUserInfo()', () => {
 			// no userinfo_endpoint
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			if (url.toString().includes('.well-known/openid-configuration')) {
 				return new Response(JSON.stringify(discoveryNoUserinfo), { status: 200 });
 			}
@@ -698,7 +698,7 @@ describe('OIDCProvider — mapClaimsToUserInfo()', () => {
 			userinfo_endpoint: `${uniqueIssuer}/userinfo`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer, roleClaim: 'groups' });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			const urlStr = url.toString();
 			if (urlStr.includes('.well-known/openid-configuration')) {
 				return new Response(JSON.stringify(discovery), { status: 200 });
@@ -779,7 +779,7 @@ describe('OIDCProvider.refreshAccessToken()', () => {
 			jwks_uri: `${uniqueIssuer}/.well-known/jwks`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			const urlStr = url.toString();
 			if (urlStr.includes('.well-known/openid-configuration')) {
 				return new Response(JSON.stringify(discovery), { status: 200 });
@@ -810,7 +810,7 @@ describe('OIDCProvider.refreshAccessToken()', () => {
 			jwks_uri: `${uniqueIssuer}/.well-known/jwks`
 		};
 		const provider = makeProvider({ issuerUrl: uniqueIssuer });
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			const urlStr = url.toString();
 			if (urlStr.includes('.well-known/openid-configuration')) {
 				return new Response(JSON.stringify(discovery), { status: 200 });

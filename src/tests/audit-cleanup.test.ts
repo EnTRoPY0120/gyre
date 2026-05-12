@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 
-spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
 
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../lib/server/db/schema.js';
 import { appSettings, auditLogs } from '../lib/server/db/schema.js';
 
@@ -105,7 +105,7 @@ function setRetentionDays(db: TestDb, value: string) {
 }
 
 beforeEach(async () => {
-	mock.module('../lib/server/db/index.js', () => ({
+	vi.doMock('../lib/server/db/index.js', () => ({
 		getDb: async () => state.db,
 		getDbSync: () => state.db,
 		schema
@@ -119,7 +119,8 @@ beforeEach(async () => {
 afterEach(() => {
 	stopAuditLogCleanup();
 	state.db = null;
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 // ---------------------------------------------------------------------------
@@ -215,7 +216,7 @@ describe('Audit Log Scheduler', () => {
 	});
 
 	test('scheduleAuditLogCleanup sets up timeouts', () => {
-		const setTimeoutSpy = spyOn(global, 'setTimeout');
+		const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
 
 		scheduleAuditLogCleanup();
 
@@ -226,8 +227,8 @@ describe('Audit Log Scheduler', () => {
 	});
 
 	test('stopAuditLogCleanup clears timeouts', () => {
-		const clearTimeoutSpy = spyOn(global, 'clearTimeout');
-		const clearIntervalSpy = spyOn(global, 'clearInterval');
+		const clearTimeoutSpy = vi.spyOn(global, 'clearTimeout');
+		const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
 
 		scheduleAuditLogCleanup();
 		stopAuditLogCleanup();

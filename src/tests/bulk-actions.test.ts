@@ -1,9 +1,9 @@
-import { afterAll, describe, expect, mock, test } from 'bun:test';
+import { afterAll, describe, expect, vi, test } from 'vitest';
 import type { FluxResource } from '../lib/types/flux.js';
 import type { BatchOperationResponse } from '../lib/components/flux/bulk-actions.js';
 
-mock.module('$app/environment', () => ({ dev: false }));
-mock.module('$env/dynamic/public', () => ({ env: {} }));
+vi.doMock('$app/environment', () => ({ dev: false }));
+vi.doMock('$env/dynamic/public', () => ({ env: {} }));
 
 const { buildRetryPayload, partitionBatchOperationResult } =
 	await import('../lib/components/flux/bulk-actions.js');
@@ -178,5 +178,6 @@ describe('partitionBatchOperationResult', () => {
 });
 
 afterAll(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });

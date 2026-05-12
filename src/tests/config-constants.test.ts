@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach } from 'bun:test';
+import { describe, test, expect, afterEach } from 'vitest';
 import { parseEnvInt } from '../lib/server/config/constants';
 
 const ENV_VAR = 'GYRE_TEST_PARSE_ENV_INT';

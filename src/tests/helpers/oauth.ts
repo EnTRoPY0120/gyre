@@ -1,4 +1,4 @@
-import { expect } from 'bun:test';
+import { expect } from 'vitest';
 
 export async function expectOAuthErrorCode(promise: Promise<unknown>, code: string) {
 	try {

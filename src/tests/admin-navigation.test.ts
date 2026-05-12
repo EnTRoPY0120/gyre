@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { ADMIN_HOME_FEATURES, getAdminSidebarLinks } from '../lib/navigation/admin.js';
 
 describe('getAdminSidebarLinks', () => {

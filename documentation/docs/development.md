@@ -193,7 +193,7 @@ Multi-cluster support is implemented via `locals.cluster`.
 
 - **Commits**: Follow [Conventional Commits](https://www.conventionalcommits.org/).
 - **Branches**: Use `type/description` naming (e.g., `feat/add-oidc-support`, `fix/rbac-bypass`).
-- **Tests**: Automated tests are part of the normal verification flow (`pnpm test`, `pnpm verify:ci`, `pnpm verify:repo:ci`). Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
+- **Tests**: Automated tests are part of the normal verification flow (`pnpm test`, `pnpm verify:ci`, `pnpm verify:repo:ci`). `pnpm test` runs the Vitest suite; Bun is no longer required for development or test execution.
 
 ## Important Implementation Notes
 

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import type { User } from '../lib/server/db/schema.js';
 import * as actualKubernetesClient from '../lib/server/kubernetes/client.js';
 import { importFresh } from './helpers/import-fresh';
@@ -79,20 +79,20 @@ beforeEach(async () => {
 		logLogout: async () => {},
 		logResourceWrite: async () => {}
 	};
-	mock.module('$lib/server/audit', () => auditModuleStub);
-	mock.module('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('$lib/server/audit', () => auditModuleStub);
+	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
 
 	const rbacModuleStub = createRbacModuleStub({
 		checkPermission: async () => permissionAllowed
 	});
-	mock.module('$lib/server/rbac.js', () => rbacModuleStub);
-	mock.module('$lib/server/rbac', () => rbacModuleStub);
+	vi.doMock('$lib/server/rbac.js', () => rbacModuleStub);
+	vi.doMock('$lib/server/rbac', () => rbacModuleStub);
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
-	mock.module('$lib/server/db', () => ({
+	vi.doMock('$lib/server/db', () => ({
 		getDb: async () => ({
 			query: {
 				authProviders: {
@@ -144,7 +144,7 @@ beforeEach(async () => {
 		})
 	}));
 
-	mock.module('$lib/auth/role-mapping', () => ({
+	vi.doMock('$lib/auth/role-mapping', () => ({
 		parseRoleMappingInput: (input: unknown) => {
 			if (!input) return null;
 			if (typeof input === 'object') return input;
@@ -152,7 +152,7 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('$lib/server/auth/role-mapping', () => ({
+	vi.doMock('$lib/server/auth/role-mapping', () => ({
 		parseRoleMappingSafe: (value: unknown) => {
 			if (!value) return null;
 			if (typeof value === 'string') {
@@ -166,13 +166,13 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('$lib/server/auth/oauth', () => ({
+	vi.doMock('$lib/server/auth/oauth', () => ({
 		validateProviderConfig: () => ({ valid: true, errors: [] })
 	}));
 
-	mock.module('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
+	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
-	mock.module('$lib/server/settings', () =>
+	vi.doMock('$lib/server/settings', () =>
 		createSettingsModuleStub({
 			setSetting: async (key: string, value: string) => {
 				settingWrites.push([key, value]);
@@ -190,7 +190,7 @@ beforeEach(async () => {
 		})
 	);
 
-	mock.module('$lib/server/kubernetes/client.js', () => ({
+	vi.doMock('$lib/server/kubernetes/client.js', () => ({
 		...actualKubernetesClient,
 		clearClientPool: () => {
 			clearPoolCalls += 1;
@@ -216,7 +216,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('admin mutation audit events', () => {

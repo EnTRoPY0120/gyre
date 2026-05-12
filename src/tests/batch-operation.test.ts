@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 import { createRateLimiterModuleStub, createRbacModuleStub } from './helpers/module-stubs';
 
@@ -18,10 +18,10 @@ beforeEach(async () => {
 	reconciledNames.length = 0;
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rbac', () => createRbacModuleStub());
-	mock.module('$lib/server/rbac.js', () => createRbacModuleStub());
+	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rbac', () => createRbacModuleStub());
+	vi.doMock('$lib/server/rbac.js', () => createRbacModuleStub());
 	const auditModuleStub = {
 		logAudit: async () => {
 			throw new Error('audit unavailable');
@@ -29,8 +29,8 @@ beforeEach(async () => {
 		logLogin: async () => {},
 		logLogout: async () => {}
 	};
-	mock.module('$lib/server/audit', () => auditModuleStub);
-	mock.module('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('$lib/server/audit', () => auditModuleStub);
+	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
 	const kubernetesClientModuleStub = {
 		deleteFluxResourcesBatch: async () => {},
 		getCustomObjectsApi: async () => ({
@@ -44,9 +44,9 @@ beforeEach(async () => {
 		}),
 		handleK8sError: (err: unknown) => err
 	};
-	mock.module('$lib/server/kubernetes/client', () => kubernetesClientModuleStub);
-	mock.module('$lib/server/kubernetes/client.js', () => kubernetesClientModuleStub);
-	mock.module('$lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
+	vi.doMock('$lib/server/kubernetes/client', () => kubernetesClientModuleStub);
+	vi.doMock('$lib/server/kubernetes/client.js', () => kubernetesClientModuleStub);
+	vi.doMock('$lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
 		captureReconciliation: async () => {}
 	}));
 	const resourcesModuleStub = {
@@ -64,8 +64,8 @@ beforeEach(async () => {
 				? 'Kustomization'
 				: undefined
 	};
-	mock.module('$lib/server/kubernetes/flux/resources', () => resourcesModuleStub);
-	mock.module('$lib/server/kubernetes/flux/resources.js', () => resourcesModuleStub);
+	vi.doMock('$lib/server/kubernetes/flux/resources', () => resourcesModuleStub);
+	vi.doMock('$lib/server/kubernetes/flux/resources.js', () => resourcesModuleStub);
 
 	runBatchFluxOperation = (
 		await importFresh<BatchOperationModule>('../lib/server/flux/use-cases/batch-operation.js')
@@ -73,7 +73,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('batch Flux operation auditing', () => {

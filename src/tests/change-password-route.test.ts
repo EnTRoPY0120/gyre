@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { INVALID_SPAN_CONTEXT, trace } from '@opentelemetry/api';
 import type { Cookies } from '@sveltejs/kit';
 import type { User } from '../lib/server/db/schema.js';
@@ -91,7 +91,7 @@ function buildEvent(): ChangePasswordEvent {
 beforeEach(async () => {
 	Object.assign(authState, createAuthState());
 
-	mock.module('$lib/server/auth', () => ({
+	vi.doMock('$lib/server/auth', () => ({
 		SESSION_DURATION_DAYS: 30,
 		addPasswordHistory: async () => {},
 		authenticateUser: async () => null,
@@ -132,16 +132,16 @@ beforeEach(async () => {
 		revokeBetterAuthSessionByCookieValue: async () => {}
 	};
 
-	mock.module('$lib/server/auth/better-auth', () => betterAuthModuleStub);
-	mock.module('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 
-	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
-	mock.module('$lib/server/audit', () => ({
+	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('$lib/server/audit', () => ({
 		logAudit: async () => {}
 	}));
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
 	POST = (
 		await importFresh<ChangePasswordRouteModule>('../routes/api/v1/auth/change-password/+server.js')
@@ -149,7 +149,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('change-password route credential handling', () => {

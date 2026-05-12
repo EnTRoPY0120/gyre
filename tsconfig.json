@@ -12,7 +12,7 @@
 		"strict": true,
 		"moduleResolution": "bundler"
 	},
-	"exclude": ["src/tests"] // Tests use bun-specific globals; they have their own tsconfig at src/tests/tsconfig.json
+	"exclude": ["src/tests"] // Tests use Vitest and have their own tsconfig at src/tests/tsconfig.json
 	// Path aliases are handled by https://svelte.dev/docs/kit/configuration#alias
 	// except $lib which is handled by https://svelte.dev/docs/kit/configuration#files
 	//

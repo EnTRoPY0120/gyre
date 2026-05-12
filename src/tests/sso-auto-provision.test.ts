@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub, createLoggerModuleStub } from './helpers/module-stubs';
 
@@ -83,7 +83,7 @@ function createProviderConfig(emailClaim = 'email') {
 beforeEach(async () => {
 	Object.assign(dbState, createDbState());
 
-	mock.module('$lib/server/db', () => ({
+	vi.doMock('$lib/server/db', () => ({
 		getDb: async () => ({
 			query: {
 				accounts: {
@@ -146,27 +146,28 @@ beforeEach(async () => {
 		})
 	}));
 
-	mock.module('$lib/server/auth', () => ({
+	vi.doMock('$lib/server/auth', () => ({
 		generateUserId: () => 'generated-user-id',
 		normalizeUsername: (username: string) => username.toLowerCase().trim(),
 		updateUser: async () => null,
 		deleteUserSessions: async () => {}
 	}));
 
-	mock.module('../lib/server/rbac-defaults.js', () => ({
+	vi.doMock('../lib/server/rbac-defaults.js', () => ({
 		bindUserToDefaultPolicies: async () => {}
 	}));
 
-	mock.module('../lib/server/auth/crypto.js', () => createAuthCryptoModuleStub());
+	vi.doMock('../lib/server/auth/crypto.js', () => createAuthCryptoModuleStub());
 
-	mock.module('../lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('../lib/server/logger.js', () => createLoggerModuleStub());
 
 	createOrUpdateSSOUser = (await importFresh<SSOModule>('../lib/server/auth/sso.js'))
 		.createOrUpdateSSOUser;
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('SSO auto provisioning', () => {
@@ -292,7 +293,7 @@ describe('SSO auto provisioning', () => {
 				emailVerified: false
 			}
 		});
-		expect(dbState.updatedUserSets.some((values) => values.emailVerified === true)).toBeFalse();
+		expect(dbState.updatedUserSets.some((values) => values.emailVerified === true)).toBe(false);
 	});
 
 	test('canonicalizes configured email claims before validating and saving them', async () => {

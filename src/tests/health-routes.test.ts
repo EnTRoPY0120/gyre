@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 
 describe('health routes', () => {
 	test('api/health and api/v1/health return the same public status payload', async () => {

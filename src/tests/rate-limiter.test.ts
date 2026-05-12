@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { describe, test, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import * as schema from '../lib/server/db/schema.js';
 
@@ -33,15 +33,24 @@ function setupInMemoryDb() {
 	return drizzle(sqlite, { schema });
 }
 
-mock.restore();
-mock.module('../lib/server/db/index.js', () => ({
+vi.restoreAllMocks();
+vi.resetModules();
+vi.doMock('../lib/server/db/index.js', () => ({
 	getDbSync: () => state.db,
 	getDb: async () => state.db,
 	schema
 }));
 
-spyOn(console, 'log').mockImplementation(() => {});
-import { RateLimiter, SSEConnectionLimiter } from '../lib/server/rate-limiter?sut';
+vi.spyOn(console, 'log').mockImplementation(() => {});
+
+let RateLimiter: typeof import('../lib/server/rate-limiter').RateLimiter;
+let SSEConnectionLimiter: typeof import('../lib/server/rate-limiter').SSEConnectionLimiter;
+
+beforeAll(async () => {
+	const rateLimiter = await import('../lib/server/rate-limiter');
+	RateLimiter = rateLimiter.RateLimiter;
+	SSEConnectionLimiter = rateLimiter.SSEConnectionLimiter;
+});
 
 afterEach(() => {
 	state.db = null;

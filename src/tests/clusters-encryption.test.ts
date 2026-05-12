@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../lib/server/db/schema.js';
 import { clusters } from '../lib/server/db/schema.js';
 import { importFresh } from './helpers/import-fresh';
@@ -54,7 +54,7 @@ function insertCluster(db: TestDb, id: string, kubeconfigEncrypted: string | nul
 const originalKey = process.env.GYRE_ENCRYPTION_KEY;
 
 beforeEach(async () => {
-	mock.module('../lib/server/db/index.js', () => ({
+	vi.doMock('../lib/server/db/index.js', () => ({
 		getDb: async () => state.db,
 		getDbSync: () => state.db,
 		schema
@@ -71,7 +71,8 @@ afterEach(() => {
 	}
 	clustersModule._resetEncryptionKeyCache();
 	state.db = null;
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('Cluster Kubeconfig Encryption', () => {

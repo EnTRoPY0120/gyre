@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import type { User } from '../lib/server/db/schema.js';
 import { importFresh } from './helpers/import-fresh';
 import { createRbacModuleStub } from './helpers/module-stubs';
@@ -32,7 +32,7 @@ function createUser(role: User['role'] = 'editor'): User {
 beforeEach(async () => {
 	permissionChecks.length = 0;
 
-	mock.module('$lib/server/rbac.js', () =>
+	vi.doMock('$lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkPermission: async (...args: unknown[]) => {
 				permissionChecks.push(args);
@@ -49,7 +49,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('admin auth providers explicit in-handler guard', () => {

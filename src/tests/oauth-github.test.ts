@@ -1,28 +1,18 @@
-import {
-	describe,
-	test,
-	expect,
-	beforeAll,
-	afterAll,
-	beforeEach,
-	afterEach,
-	mock,
-	spyOn
-} from 'bun:test';
+import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub } from './helpers/module-stubs';
 
 type GitHubProviderModule = typeof import('../lib/server/auth/oauth/providers/github.js');
 
-let consoleLogSpy: ReturnType<typeof spyOn>;
-let consoleErrorSpy: ReturnType<typeof spyOn>;
-let consoleWarnSpy: ReturnType<typeof spyOn>;
+let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
 beforeAll(() => {
-	consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
-	consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
-	consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+	consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+	consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+	consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 });
 
 afterAll(() => {
@@ -34,13 +24,13 @@ afterAll(() => {
 let GitHubProvider: GitHubProviderModule['GitHubProvider'];
 
 beforeEach(async () => {
-	mock.module('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
+	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
-	mock.module('$lib/server/auth/pkce', () => ({
+	vi.doMock('$lib/server/auth/pkce', () => ({
 		generateCodeChallenge: (v: string) => `challenge_${v}`
 	}));
 
-	mock.module('arctic', () => ({
+	vi.doMock('arctic', () => ({
 		Google: class MockGoogle {
 			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
 				return new URL(
@@ -98,7 +88,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 const mockConfig = {
@@ -182,15 +173,15 @@ describe('GitHubProvider.getAuthorizationUrl()', () => {
 describe('GitHubProvider.validateCallback() — PKCE path', () => {
 	test('sends code_verifier in request body', async () => {
 		let capturedBody: string | null = null;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (_url: string | URL | Request, init?: RequestInit) => {
+		const spy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async (_url: string | URL | Request, init?: RequestInit) => {
 				capturedBody = init?.body?.toString() ?? null;
 				return new Response(
 					JSON.stringify({ access_token: 'pkce-access-token', token_type: 'bearer' }),
 					{ status: 200, headers: { 'Content-Type': 'application/json' } }
 				);
-			}
-		);
+			});
 		try {
 			const provider = makeProvider();
 			await provider.validateCallback('auth-code', 'my-code-verifier');
@@ -202,7 +193,7 @@ describe('GitHubProvider.validateCallback() — PKCE path', () => {
 	});
 
 	test('returns accessToken extracted from token response', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response(
 				JSON.stringify({ access_token: 'pkce-access-token', token_type: 'bearer' }),
 				{ status: 200, headers: { 'Content-Type': 'application/json' } }
@@ -218,7 +209,7 @@ describe('GitHubProvider.validateCallback() — PKCE path', () => {
 	});
 
 	test('throws OAuthError when request times out', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			const err = new DOMException('The operation was aborted', 'AbortError');
 			throw err;
 		});
@@ -251,14 +242,14 @@ describe('GitHubProvider.validateCallback() — non-PKCE path', () => {
 // ---------------------------------------------------------------------------
 
 describe('GitHubProvider.validateCallback() — error handling', () => {
-	let fetchSpy: ReturnType<typeof spyOn>;
+	let fetchSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
-		fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (_input: string | URL | Request, _init?: RequestInit) => {
+		fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async (_input: string | URL | Request, _init?: RequestInit) => {
 				return new Response('Bad credentials', { status: 401 });
-			}
-		);
+			});
 	});
 
 	afterEach(() => {
@@ -279,11 +270,12 @@ describe('GitHubProvider.validateCallback() — error handling', () => {
 // ---------------------------------------------------------------------------
 
 describe('GitHubProvider.getUserInfo() — email in profile', () => {
-	let fetchSpy: ReturnType<typeof spyOn>;
+	let fetchSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
-		fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (input: string | URL | Request) => {
+		fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async (input: string | URL | Request) => {
 				const urlStr = input.toString();
 				if (urlStr === 'https://api.github.com/user') {
 					return new Response(
@@ -299,8 +291,7 @@ describe('GitHubProvider.getUserInfo() — email in profile', () => {
 					);
 				}
 				return new Response('not found', { status: 404 });
-			}
-		);
+			});
 	});
 
 	afterEach(() => {
@@ -322,11 +313,12 @@ describe('GitHubProvider.getUserInfo() — email in profile', () => {
 // ---------------------------------------------------------------------------
 
 describe('GitHubProvider.getUserInfo() — no email in profile', () => {
-	let fetchSpy: ReturnType<typeof spyOn>;
+	let fetchSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
-		fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (input: string | URL | Request) => {
+		fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async (input: string | URL | Request) => {
 				const urlStr = input.toString();
 				if (urlStr === 'https://api.github.com/user') {
 					return new Response(
@@ -351,8 +343,7 @@ describe('GitHubProvider.getUserInfo() — no email in profile', () => {
 					);
 				}
 				return new Response('not found', { status: 404 });
-			}
-		);
+			});
 	});
 
 	afterEach(() => {
@@ -371,11 +362,12 @@ describe('GitHubProvider.getUserInfo() — no email in profile', () => {
 // ---------------------------------------------------------------------------
 
 describe('GitHubProvider.getUserInfo() — fetchGroups with roleMapping', () => {
-	let fetchSpy: ReturnType<typeof spyOn>;
+	let fetchSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
-		fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (input: string | URL | Request) => {
+		fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async (input: string | URL | Request) => {
 				const urlStr = input.toString();
 				if (urlStr === 'https://api.github.com/user') {
 					return new Response(
@@ -409,8 +401,7 @@ describe('GitHubProvider.getUserInfo() — fetchGroups with roleMapping', () => 
 					);
 				}
 				return new Response('not found', { status: 404 });
-			}
-		);
+			});
 	});
 
 	afterEach(() => {
@@ -437,14 +428,14 @@ describe('GitHubProvider.getUserInfo() — fetchGroups with roleMapping', () => 
 // ---------------------------------------------------------------------------
 
 describe('GitHubProvider.getUserInfo() — API failure', () => {
-	let fetchSpy: ReturnType<typeof spyOn>;
+	let fetchSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
-		fetchSpy = spyOn(globalThis, 'fetch').mockImplementation(
-			async (_input: string | URL | Request) => {
+		fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async (_input: string | URL | Request) => {
 				return new Response('Internal Server Error', { status: 500 });
-			}
-		);
+			});
 	});
 
 	afterEach(() => {

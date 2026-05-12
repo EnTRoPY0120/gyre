@@ -1,9 +1,9 @@
-import { describe, test, expect, spyOn } from 'bun:test';
+import { describe, test, expect, vi } from 'vitest';
 
 // Suppress console noise
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'warn').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'warn').mockImplementation(() => {});
+vi.spyOn(console, 'error').mockImplementation(() => {});
 
 import {
 	OPERATION_TIMEOUTS,

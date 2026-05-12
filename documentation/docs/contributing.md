@@ -236,7 +236,7 @@ Use the same type prefixes as commit messages:
 
 Automated tests are required and part of normal verification (`pnpm test`, `pnpm verify:ci`, `pnpm verify:repo:ci`).
 
-Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
+`pnpm test` runs the Vitest suite. Bun is no longer required for development or test execution.
 
 ### Before Submitting a PR
 

@@ -4,7 +4,7 @@
  * Covers sanitizeFilename, isAllowedBackupExtension, and the kubeconfig
  * kind/apiVersion check added in GH #286.
  */
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import {
 	sanitizeFilename,
 	isAllowedBackupExtension,

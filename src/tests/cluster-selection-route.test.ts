@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { IN_CLUSTER_ID } from '../lib/clusters/identity.js';
 import { importFresh } from './helpers/import-fresh';
 
@@ -45,7 +45,7 @@ beforeEach(() => {
 	};
 	localContextNames = [];
 	defaultLocalContext = null;
-	mock.module('$lib/server/clusters/repository.js', () => ({
+	vi.doMock('$lib/server/clusters/repository.js', () => ({
 		getClusterById: async () => clusterRecord,
 		getSelectableClusters: async () => [
 			...(localContextNames.length > 0
@@ -81,7 +81,7 @@ beforeEach(() => {
 				: [])
 		]
 	}));
-	mock.module('$lib/server/clusters/local-kubeconfig.js', () => ({
+	vi.doMock('$lib/server/clusters/local-kubeconfig.js', () => ({
 		getDefaultLocalKubeconfigContext: () => defaultLocalContext,
 		hasLocalKubeconfigContext: (contextName: string) => localContextNames.includes(contextName),
 		shouldUseLocalKubeconfigContexts: () => localContextNames.length > 0
@@ -89,7 +89,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('cluster selection route', () => {

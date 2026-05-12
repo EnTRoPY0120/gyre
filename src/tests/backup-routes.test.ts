@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import * as actualFs from 'node:fs';
 import { Readable } from 'node:stream';
 import * as actualRequestLimits from '../lib/server/request-limits.js';
@@ -122,9 +122,9 @@ beforeEach(async () => {
 	restoreCalls.length = 0;
 	auditCalls.length = 0;
 
-	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
-	mock.module('$lib/server/rbac', () => createRbacModuleStub());
-	mock.module('$lib/server/rate-limiter.js', () => createRateLimiterModuleStub());
+	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('$lib/server/rbac', () => createRbacModuleStub());
+	vi.doMock('$lib/server/rate-limiter.js', () => createRateLimiterModuleStub());
 	const auditModuleStub = {
 		logAudit: async (_user: unknown, action: string, details: { resourceName?: string } = {}) => {
 			if (auditError) {
@@ -135,12 +135,12 @@ beforeEach(async () => {
 		logLogin: async () => {},
 		logLogout: async () => {}
 	};
-	mock.module('$lib/server/audit', () => auditModuleStub);
-	mock.module('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('$lib/server/audit', () => auditModuleStub);
+	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
 	const requestLimitsModuleStub = createRequestLimitsModuleStub();
-	mock.module('$lib/server/request-limits', () => requestLimitsModuleStub);
-	mock.module('$lib/server/request-limits.js', () => requestLimitsModuleStub);
-	mock.module('$lib/server/backup', () => ({
+	vi.doMock('$lib/server/request-limits', () => requestLimitsModuleStub);
+	vi.doMock('$lib/server/request-limits.js', () => requestLimitsModuleStub);
+	vi.doMock('$lib/server/backup', () => ({
 		BACKUP_FILENAME_RE,
 		BackupError: StubBackupError,
 		getBackupPath: (filename: string) => {
@@ -172,7 +172,7 @@ beforeEach(async () => {
 			return restoreResult;
 		}
 	}));
-	mock.module('node:fs', () => ({
+	vi.doMock('node:fs', () => ({
 		...actualFs,
 		createReadStream: () => Readable.from([plainDownloadBody]),
 		statSync: () => ({ size: plainDownloadBody.byteLength })
@@ -187,7 +187,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('backup route behavior', () => {

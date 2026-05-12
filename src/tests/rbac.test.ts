@@ -1,29 +1,37 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
 
-spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
 
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../lib/server/db/schema.js';
 
 // Mutable reference shared with the mock closure so each test gets a fresh DB
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
 import type { User } from '../lib/server/db/schema.js';
 
-mock.restore();
-mock.module('../lib/server/db/index.js', () => ({
+vi.restoreAllMocks();
+vi.resetModules();
+vi.doMock('../lib/server/db/index.js', () => ({
 	getDb: async () => state.db,
 	getDbSync: () => state.db,
 	schema
 }));
 
-import {
-	checkClusterWideReadPermission,
-	checkPermission,
-	isAdmin,
-	requirePermission,
-	RbacError
-} from '../lib/server/rbac.js?sut';
+let checkClusterWideReadPermission: typeof import('../lib/server/rbac.js').checkClusterWideReadPermission;
+let checkPermission: typeof import('../lib/server/rbac.js').checkPermission;
+let isAdmin: typeof import('../lib/server/rbac.js').isAdmin;
+let requirePermission: typeof import('../lib/server/rbac.js').requirePermission;
+let RbacError: typeof import('../lib/server/rbac.js').RbacError;
+
+beforeAll(async () => {
+	const rbac = await import('../lib/server/rbac.js');
+	checkClusterWideReadPermission = rbac.checkClusterWideReadPermission;
+	checkPermission = rbac.checkPermission;
+	isAdmin = rbac.isAdmin;
+	requirePermission = rbac.requirePermission;
+	RbacError = rbac.RbacError;
+});
 
 // ---------------------------------------------------------------------------
 // Helpers

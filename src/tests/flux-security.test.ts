@@ -5,16 +5,17 @@
  * apiVersion/kind mismatch detection, namespace validation, and YAML schema
  * restrictions — without requiring full SvelteKit route infrastructure.
  */
-import { describe, test, expect, mock } from 'bun:test';
+import { describe, test, expect, vi } from 'vitest';
 import yaml from 'js-yaml';
 
-mock.restore();
+vi.restoreAllMocks();
+vi.resetModules();
 
 import {
 	getResourceDef,
 	getResourceTypeByPlural,
 	FLUX_RESOURCES
-} from '../lib/server/kubernetes/flux/resources.js?sut';
+} from '../lib/server/kubernetes/flux/resources.js';
 import {
 	K8S_NAME_REGEX,
 	validateK8sNamespace,
@@ -26,7 +27,7 @@ import {
 	LABEL_KEY_PATTERN,
 	LABEL_VALUE_PATTERN,
 	SUBSTITUTE_VAR_PATTERN
-} from '../lib/server/validation.js?sut';
+} from '../lib/server/validation.js';
 
 // ---------------------------------------------------------------------------
 // apiVersion / kind mismatch logic (mirrors POST handler checks)

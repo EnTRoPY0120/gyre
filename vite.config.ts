@@ -1,3 +1,5 @@
+/// <reference types="vitest/config" />
+
 import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, loadEnv } from 'vite';
@@ -11,6 +13,11 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		plugins: [tailwindcss(), sveltekit()],
+		test: {
+			environment: 'node',
+			globals: false,
+			include: ['src/tests/**/*.test.ts']
+		},
 		server: {
 			fs: {
 				// Allow Vite dev server to serve files from the project root so that

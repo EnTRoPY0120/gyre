@@ -1,8 +1,8 @@
-import { afterAll, describe, expect, mock, test } from 'bun:test';
+import { afterAll, describe, expect, vi, test } from 'vitest';
 
 // Mock SvelteKit virtual modules before importing anything that depends on them
-mock.module('$app/environment', () => ({ dev: false }));
-mock.module('$env/dynamic/public', () => ({ env: {} }));
+vi.doMock('$app/environment', () => ({ dev: false }));
+vi.doMock('$env/dynamic/public', () => ({ env: {} }));
 
 const { advancedSearch, parseQuery } = await import('../lib/utils/search.js');
 
@@ -132,7 +132,8 @@ describe('advancedSearch', () => {
 });
 
 afterAll(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 // ---------------------------------------------------------------------------

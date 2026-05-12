@@ -1,18 +1,18 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
-import { $ } from 'bun';
+import { readdir } from 'node:fs/promises';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const repoRoot = join(import.meta.dir, '..', '..');
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const routeRoot = join(repoRoot, 'src', 'routes');
 const apiRouteRoot = join(routeRoot, 'api', 'v1');
 
 async function routeFilesUnder(path: string): Promise<string[]> {
-	const output = await $`find ${path} -name '+server.ts' -type f`.text();
-	return output
-		.split('\n')
-		.map((line) => line.trim())
-		.filter(Boolean)
+	const entries = await readdir(path, { recursive: true, withFileTypes: true });
+	return entries
+		.filter((entry) => entry.isFile() && entry.name === '+server.ts')
+		.map((entry) => join(entry.parentPath, entry.name))
 		.sort();
 }
 

@@ -31,7 +31,7 @@ If using a local devcontainer setup, ensure it installs pnpm 11.1.0 and Bun 1.3.
 - `pnpm verify:repo:ci` - Full CI repo gate for app + docs + Helm + shell scripts
 - `pnpm test` - Full Bun test suite (requires Helm on PATH for chart render regression tests)
 
-Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
+`pnpm test` runs the Vitest suite. Bun is no longer required for development or test execution.
 
 ## Questions?
 

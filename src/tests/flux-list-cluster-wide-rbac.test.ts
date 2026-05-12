@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import type { User } from '../lib/server/db/schema.js';
 import * as actualClient from '../lib/server/kubernetes/client.js';
 import * as actualValidation from '../lib/server/validation.js';
@@ -40,7 +40,7 @@ beforeEach(async () => {
 	allowClusterWide = true;
 	allowScoped = true;
 
-	mock.module('$lib/server/http/guards.js', () => ({
+	vi.doMock('$lib/server/http/guards.js', () => ({
 		requireAuthenticatedUser: () => {},
 		requireClusterContext: (locals: App.Locals) => locals.cluster ?? 'cluster-a',
 		requireClusterWideRead: async (locals: App.Locals) => {
@@ -62,15 +62,15 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('$lib/server/kubernetes/client.js', () => ({
+	vi.doMock('$lib/server/kubernetes/client.js', () => ({
 		...actualClient,
 		listFluxResources: async () => ({ items: [], total: 0, hasMore: false, offset: 0, limit: 50 }),
 		createFluxResource: async () => ({ ok: true })
 	}));
 
-	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
+	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
-	mock.module('$lib/server/validation', () => ({
+	vi.doMock('$lib/server/validation', () => ({
 		...actualValidation,
 		validateK8sNamespace: () => {},
 		validateFluxResourceSpec: () => null
@@ -84,7 +84,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('flux [resourceType] RBAC boundaries', () => {

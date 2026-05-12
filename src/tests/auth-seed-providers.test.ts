@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub, createLoggerModuleStub } from './helpers/module-stubs';
 
@@ -66,8 +66,8 @@ beforeEach(async () => {
 		state.infoLogs.push(message);
 	};
 
-	mock.module('../lib/server/logger.js', () => loggerModuleStub);
-	mock.module('../lib/server/auth/crypto', () =>
+	vi.doMock('../lib/server/logger.js', () => loggerModuleStub);
+	vi.doMock('../lib/server/auth/crypto', () =>
 		createAuthCryptoModuleStub({
 			encryptSecret: (value: string) => {
 				state.encryptInputs.push(value);
@@ -75,10 +75,10 @@ beforeEach(async () => {
 			}
 		})
 	);
-	mock.module('../lib/server/db', () => ({
+	vi.doMock('../lib/server/db', () => ({
 		getDb: async () => buildDbMock()
 	}));
-	mock.module('../lib/server/db/schema', () => ({
+	vi.doMock('../lib/server/db/schema', () => ({
 		authProviders: {}
 	}));
 
@@ -98,7 +98,8 @@ afterEach(() => {
 			originalEnv.GYRE_AUTH_PROVIDER_GITHUB_CLIENT_SECRET;
 	}
 
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('seedAuthProviders', () => {

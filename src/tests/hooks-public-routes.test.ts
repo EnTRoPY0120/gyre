@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { afterEach, describe, expect, vi, test } from 'vitest';
 import type { User } from '../lib/server/db/schema.js';
 import { isPublicRoute } from '../lib/isPublicRoute.js';
 import * as actualConfig from '../lib/server/config.js';
@@ -6,7 +6,7 @@ import * as actualConstants from '../lib/server/config/constants.js';
 import * as actualMetrics from '../lib/server/metrics.js';
 import { createRateLimiterModuleStub, createRbacModuleStub } from './helpers/module-stubs';
 
-let checkPermissionSpy: ReturnType<typeof spyOn> | undefined;
+let checkPermissionSpy: ReturnType<typeof vi.spyOn> | undefined;
 
 function createUser(role: User['role'] = 'admin'): User {
 	const now = new Date();
@@ -34,19 +34,19 @@ async function callMetrics(options: {
 	user?: User | null;
 	cluster?: string;
 }): Promise<Response> {
-	mock.module('$lib/server/config', () => ({ ...actualConfig, IS_PROD: options.isProd }));
-	mock.module('$lib/server/config.js', () => ({ ...actualConfig, IS_PROD: options.isProd }));
-	mock.module('$lib/server/config/constants', () => ({
+	vi.doMock('$lib/server/config', () => ({ ...actualConfig, IS_PROD: options.isProd }));
+	vi.doMock('$lib/server/config.js', () => ({ ...actualConfig, IS_PROD: options.isProd }));
+	vi.doMock('$lib/server/config/constants', () => ({
 		...actualConstants,
 		GYRE_METRICS_TOKEN: options.metricsToken ?? ''
 	}));
-	mock.module('$lib/server/config/constants.js', () => ({
+	vi.doMock('$lib/server/config/constants.js', () => ({
 		...actualConstants,
 		GYRE_METRICS_TOKEN: options.metricsToken ?? ''
 	}));
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
 	const rbacModule = createRbacModuleStub({
 		checkPermission: async (
@@ -61,21 +61,23 @@ async function callMetrics(options: {
 			return user.role === 'admin';
 		}
 	});
-	checkPermissionSpy = spyOn(rbacModule, 'checkPermission').mockImplementation(
-		async (
-			user: User,
-			permission: string,
-			_resourceType: string | undefined,
-			_namespace: string | undefined,
-			cluster: string | undefined
-		) => {
-			expect(permission).toBe('admin');
-			expect(cluster).toBe(options.cluster);
-			return user.role === 'admin';
-		}
-	);
-	mock.module('$lib/server/rbac.js', () => rbacModule);
-	mock.module('$lib/server/metrics', () => ({
+	checkPermissionSpy = vi
+		.spyOn(rbacModule, 'checkPermission')
+		.mockImplementation(
+			async (
+				user: User,
+				permission: string,
+				_resourceType: string | undefined,
+				_namespace: string | undefined,
+				cluster: string | undefined
+			) => {
+				expect(permission).toBe('admin');
+				expect(cluster).toBe(options.cluster);
+				return user.role === 'admin';
+			}
+		);
+	vi.doMock('$lib/server/rbac.js', () => rbacModule);
+	vi.doMock('$lib/server/metrics', () => ({
 		...actualMetrics,
 		register: {
 			metrics: async () => '# mock metrics\n',
@@ -83,9 +85,7 @@ async function callMetrics(options: {
 		}
 	}));
 
-	const { GET: metricsGET } = await import(
-		`../routes/metrics/+server.js?case=${Date.now()}-${Math.random()}`
-	);
+	const { GET: metricsGET } = await import(`../routes/metrics/+server.js`);
 
 	const headers = new Headers();
 	if (options.authHeader) {
@@ -104,7 +104,8 @@ async function callMetrics(options: {
 }
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 	checkPermissionSpy = undefined;
 });
 

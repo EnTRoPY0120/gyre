@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import type { UserPreferences } from '../lib/types/user.js';
 import * as schema from '../lib/server/db/schema.js';
@@ -90,20 +90,20 @@ beforeEach(async () => {
 		schema
 	};
 
-	mock.module('$lib/server/db', () => dbModuleMock);
-	mock.module('$lib/server/db/index.js', () => dbModuleMock);
+	vi.doMock('$lib/server/db', () => dbModuleMock);
+	vi.doMock('$lib/server/db/index.js', () => dbModuleMock);
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	mock.module('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	mock.module('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 	const auditModuleStub = {
 		logAudit: async () => {},
 		logLogin: async () => {},
 		logLogout: async () => {},
 		logResourceWrite: async () => {}
 	};
-	mock.module('$lib/server/audit', () => auditModuleStub);
-	mock.module('$lib/server/audit.js', () => auditModuleStub);
-	mock.module('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('$lib/server/audit', () => auditModuleStub);
+	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
 
 	const inMemory = setupInMemoryDb();
 	state.db = inMemory.db;
@@ -117,7 +117,8 @@ afterEach(() => {
 	state.sqlite?.close();
 	state.sqlite = null;
 	state.db = null;
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('user preferences route', () => {

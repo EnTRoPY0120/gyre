@@ -1,3 +1,4 @@
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -24,6 +25,29 @@ interface RuntimeAppHandle {
 let buildPromise: Promise<void> | null = null;
 let runtimeAppPromise: Promise<RuntimeAppHandle> | null = null;
 
+function sleep(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function collectStream(stream: NodeJS.ReadableStream): Promise<string> {
+	let output = '';
+	stream.setEncoding('utf8');
+	stream.on('data', (chunk) => {
+		output += chunk;
+	});
+	return new Promise((resolve, reject) => {
+		stream.once('error', reject);
+		stream.once('end', () => resolve(output));
+	});
+}
+
+function waitForExit(child: ChildProcessWithoutNullStreams): Promise<number | null> {
+	return new Promise((resolve, reject) => {
+		child.once('error', reject);
+		child.once('exit', (code) => resolve(code));
+	});
+}
+
 async function runBuildOnce(): Promise<void> {
 	if (!buildPromise) {
 		buildPromise = (async () => {
@@ -31,23 +55,20 @@ async function runBuildOnce(): Promise<void> {
 				...process.env,
 				NODE_ENV: 'production'
 			};
-			const build = Bun.spawn(['bun', 'run', 'build'], {
+			const build = spawn('pnpm', ['build'], {
 				cwd: REPO_ROOT,
 				env: buildEnv,
-				stderr: 'pipe',
-				stdout: 'pipe'
+				stdio: ['ignore', 'pipe', 'pipe']
 			});
-			const stdoutPromise = new Response(build.stdout).text();
-			const stderrPromise = new Response(build.stderr).text();
+			const stdoutPromise = collectStream(build.stdout);
+			const stderrPromise = collectStream(build.stderr);
 			stdoutPromise.catch(() => {});
 			stderrPromise.catch(() => {});
-			const exitCode = await build.exited;
+			const exitCode = await waitForExit(build);
 
 			if (exitCode !== 0) {
 				const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
-				throw new Error(
-					`bun run build failed with exit code ${exitCode}\n${stdout}${stderr}`.trim()
-				);
+				throw new Error(`pnpm build failed with exit code ${exitCode}\n${stdout}${stderr}`.trim());
 			}
 		})().catch((error) => {
 			buildPromise = null;
@@ -100,7 +121,10 @@ async function waitForServerExit(serverExited: Promise<void>, timeoutMs: number)
 	}
 }
 
-async function terminateServer(server: ReturnType<typeof Bun.spawn>, serverExited: Promise<void>) {
+async function terminateServer(
+	server: ChildProcessWithoutNullStreams,
+	serverExited: Promise<void>
+) {
 	server.kill('SIGTERM');
 	if (!(await waitForServerExit(serverExited, TERMINATION_GRACE_MS))) {
 		server.kill('SIGKILL');
@@ -110,13 +134,14 @@ async function terminateServer(server: ReturnType<typeof Bun.spawn>, serverExite
 
 async function waitForReadiness(
 	baseUrl: string,
-	server: ReturnType<typeof Bun.spawn>,
+	server: ChildProcessWithoutNullStreams,
 	captureStderr: () => Promise<string>,
 	timeoutMs = 30_000
 ): Promise<void> {
 	const deadline = Date.now() + timeoutMs;
-	const exitedResultPromise = server.exited.then((code) => ({ code, exited: true as const }));
-	const serverExited = server.exited.then(
+	const exitPromise = waitForExit(server);
+	const exitedResultPromise = exitPromise.then((code) => ({ code, exited: true as const }));
+	const serverExited = exitPromise.then(
 		() => undefined,
 		() => undefined
 	);
@@ -124,7 +149,7 @@ async function waitForReadiness(
 	while (Date.now() < deadline) {
 		const exitResult = await Promise.race([
 			exitedResultPromise,
-			Bun.sleep(250).then(() => ({ code: 0, exited: false as const }))
+			sleep(250).then(() => ({ code: 0, exited: false as const }))
 		]);
 
 		if (exitResult.exited) {
@@ -165,7 +190,7 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 			const backupDir = mkdtempSync(RUNTIME_TEMP_PREFIX);
 			const databasePath = join(tempDataDir, 'gyre.db');
 
-			const server = Bun.spawn(['node', 'build/index.js'], {
+			const server = spawn('node', ['build/index.js'], {
 				cwd: REPO_ROOT,
 				env: {
 					...process.env,
@@ -183,15 +208,12 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 					NODE_ENV: 'production',
 					PORT: String(port)
 				},
-				stderr: 'pipe',
-				stdout: 'ignore'
+				stdio: ['ignore', 'ignore', 'pipe']
 			});
-			const stderrPromise = server.stderr
-				? new Response(server.stderr).text()
-				: Promise.resolve('');
+			const stderrPromise = collectStream(server.stderr);
 			const captureStderr = () => stderrPromise;
 			const baseUrl = `http://127.0.0.1:${port}`;
-			const serverExited = server.exited.then(
+			const serverExited = waitForExit(server).then(
 				() => undefined,
 				() => undefined
 			);

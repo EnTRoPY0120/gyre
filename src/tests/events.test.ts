@@ -1,13 +1,13 @@
-import { afterEach, beforeEach, describe, expect, mock, spyOn, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import * as actualClient from '../lib/server/kubernetes/client.js';
 import * as actualConstants from '../lib/server/config/constants.js';
 import * as actualMetrics from '../lib/server/metrics.js';
 import { importFresh } from './helpers/import-fresh';
 
 // Suppress console noise - must be before imports
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'warn').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'warn').mockImplementation(() => {});
+vi.spyOn(console, 'error').mockImplementation(() => {});
 
 // Mock listFluxResources to control what resources are returned
 let mockResources: any[] = [];
@@ -19,11 +19,11 @@ let setEventBusShuttingDown: EventsModule['setEventBusShuttingDown'];
 
 beforeEach(async () => {
 	mockResources = [];
-	mock.module('../lib/server/kubernetes/client.js', () => ({
+	vi.doMock('../lib/server/kubernetes/client.js', () => ({
 		...actualClient,
 		listFluxResources: async () => ({ items: mockResources })
 	}));
-	mock.module('../lib/server/metrics.js', () => ({
+	vi.doMock('../lib/server/metrics.js', () => ({
 		...actualMetrics,
 		resourcePollsTotal: { labels: () => ({ inc: () => {} }) },
 		resourceUpdatesTotal: { labels: () => ({ inc: () => {} }) },
@@ -31,16 +31,16 @@ beforeEach(async () => {
 		activeWorkersGauge: { set: () => {} },
 		fluxResourceStatusGauge: { labels: () => ({ set: () => {} }), remove: () => {} }
 	}));
-	mock.module('../lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
+	vi.doMock('../lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
 		captureReconciliation: async () => {}
 	}));
-	mock.module('../lib/server/config/constants.js', () => ({
+	vi.doMock('../lib/server/config/constants.js', () => ({
 		...actualConstants,
 		SETTLING_PERIOD_MS: -1,
 		POLL_INTERVAL_MS: 50,
 		HEARTBEAT_INTERVAL_MS: 10000
 	}));
-	mock.module('../lib/server/logger.js', () => ({
+	vi.doMock('../lib/server/logger.js', () => ({
 		logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} }
 	}));
 	const eventsModule = await importFresh<EventsModule>('../lib/server/events.js');
@@ -50,7 +50,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 // ---------------------------------------------------------------------------

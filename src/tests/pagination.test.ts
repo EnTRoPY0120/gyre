@@ -1,9 +1,9 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 
-spyOn(console, 'log').mockImplementation(() => {});
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+vi.spyOn(console, 'log').mockImplementation(() => {});
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../lib/server/db/schema.js';
 
 type AuthModule = typeof import('../lib/server/auth.js');
@@ -70,16 +70,16 @@ describe('Pagination Logic', () => {
 
 	beforeEach(async () => {
 		state.db = setupInMemoryDb();
-		mock.module('../lib/server/db/index.js', () => ({
+		vi.doMock('../lib/server/db/index.js', () => ({
 			getDb: async () => state.db,
 			getDbSync: () => state.db,
 			schema
 		}));
-		mock.module('../lib/server/rbac-defaults.js', () => ({
+		vi.doMock('../lib/server/rbac-defaults.js', () => ({
 			bindUserToDefaultPolicies: async () => {},
 			syncUserPolicyBindings: async () => {}
 		}));
-		mock.module('bcryptjs', () => ({
+		vi.doMock('bcryptjs', () => ({
 			default: {
 				hash: async () => 'hashed_password',
 				compare: async () => true
@@ -87,7 +87,7 @@ describe('Pagination Logic', () => {
 			hash: async () => 'hashed_password',
 			compare: async () => true
 		}));
-		listUsersPaginated = (await importFresh<AuthModule>('../lib/server/auth.js?sut'))
+		listUsersPaginated = (await importFresh<AuthModule>('../lib/server/auth.js'))
 			.listUsersPaginated;
 
 		prefix = `pagetest_${Date.now()}`;
@@ -114,7 +114,8 @@ describe('Pagination Logic', () => {
 
 	afterEach(() => {
 		state.db = null;
-		mock.restore();
+		vi.restoreAllMocks();
+		vi.resetModules();
 	});
 
 	test('listUsersPaginated returns correct page size', async () => {

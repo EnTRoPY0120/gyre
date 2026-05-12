@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, vi, test } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 
 let listServiceResult = {
@@ -42,7 +42,7 @@ beforeEach(() => {
 		}
 	};
 
-	mock.module('$lib/server/http/guards.js', () => ({
+	vi.doMock('$lib/server/http/guards.js', () => ({
 		requireAuthenticatedUser: () => {
 			guardCalls.push('requireAuthenticatedUser');
 		},
@@ -56,12 +56,16 @@ beforeEach(() => {
 		requireScopedPermission: async (_locals: App.Locals, action: string) => {
 			guardCalls.push(`requireScopedPermission:${action}`);
 		},
+		resolveFluxRouteResourceType: (resourceType: string) => {
+			guardCalls.push(`resolveFluxRouteResourceType:${resourceType}`);
+			return 'GitRepository';
+		},
 		requireAdminPermission: async () => {
 			guardCalls.push('requireAdminPermission');
 		}
 	}));
 
-	mock.module('$lib/server/flux/services.js', () => ({
+	vi.doMock('$lib/server/flux/services.js', () => ({
 		DEFAULT_FLUX_VERSION: 'v2.x.x',
 		getFluxHealthSummary: async () => ({
 			status: 'healthy',
@@ -81,7 +85,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('flux route adapters', () => {

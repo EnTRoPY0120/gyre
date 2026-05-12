@@ -1,8 +1,9 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const TEST_DIR = import.meta.dir;
+const TEST_DIR = dirname(fileURLToPath(import.meta.url));
 
 function readRepoFile(relativePath: string): string {
 	return readFileSync(resolve(TEST_DIR, '..', relativePath), 'utf8');
