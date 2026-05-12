@@ -1,0 +1,8 @@
+packages:
+  - .
+  - documentation
+allowBuilds:
+  better-sqlite3: true
+  core-js: true
+  esbuild: true
+  vue-demi: true

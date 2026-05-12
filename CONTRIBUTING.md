@@ -8,32 +8,30 @@ Comprehensive contributing guidelines, including development setup, code standar
 
 ## Quick Start (DevContainer)
 
-The easiest way to start developing is using the provided devcontainer:
+If using a local devcontainer setup, ensure it installs pnpm 11.1.0 and Bun 1.3.11 for tests.
 
 1. Open the repository in VS Code with the **Dev Containers** extension.
 2. Press `F1` → **"Dev Containers: Reopen in Container"**.
-3. The container setup:
-   - installs Bun (if missing),
-   - runs `bun install`,
-   - mounts your host `~/.kube` at `/home/node/.kube` (read-only),
-   - installs Svelte/Tailwind/YAML/Kubernetes VS Code extensions.
-4. Inside the container, run:
+3. Inside the container, run:
    ```bash
-   bun run dev
+   pnpm install
+   pnpm dev
    ```
 
 ## Key Commands
 
-- `bun install` - Install dependencies
-- `bun run dev` - Start development server
-- `bun run verify` - App-only local gate (auto-format + lint + typecheck + build)
-- `bun run verify:ci` - App-only strict gate (format:check + lint + typecheck + tests + build)
-- `bun run docs:check` - Documentation typecheck + build (requires `npm ci --prefix documentation`)
-- `bun run helm:check` - Helm chart lint check
-- `bun run scripts:check` - Shell script syntax check (`bash -n`)
-- `bun run verify:repo` - Repo gate for app + Helm + shell scripts
-- `bun run verify:repo:ci` - Full CI repo gate for app + docs + Helm + shell scripts
-- `bun test` - Full Bun test suite (requires Helm on PATH for chart render regression tests)
+- `pnpm install` - Install dependencies
+- `pnpm dev` - Start development server
+- `pnpm verify` - App-only local gate (auto-format + lint + typecheck + build)
+- `pnpm verify:ci` - App-only strict gate (format:check + lint + typecheck + tests + build)
+- `pnpm docs:check` - Documentation typecheck + build
+- `pnpm helm:check` - Helm chart lint check
+- `pnpm scripts:check` - Shell script syntax check (`bash -n`)
+- `pnpm verify:repo` - Repo gate for app + Helm + shell scripts
+- `pnpm verify:repo:ci` - Full CI repo gate for app + docs + Helm + shell scripts
+- `pnpm test` - Full Bun test suite (requires Helm on PATH for chart render regression tests)
+
+Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
 
 ## Questions?
 

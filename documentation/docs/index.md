@@ -70,7 +70,8 @@ Then open http://localhost:3000 in your browser.
 
 ## 🛠️ Tech Stack
 
-- **Runtime:** [Bun](https://bun.sh) (v1.1+)
+- **Package Manager:** [pnpm](https://pnpm.io) 11.1.0
+- **Test Runtime:** [Bun](https://bun.sh) 1.3.11
 - **Framework:** [Svelte 5](https://svelte.dev) + SvelteKit
 - **Styling:** TailwindCSS v4 + shadcn-svelte
 - **Database:** SQLite with [Drizzle ORM](https://orm.drizzle.team)

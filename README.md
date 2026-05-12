@@ -135,16 +135,17 @@ and login with `admin` and the password from above.
 ## ✅ Verification
 
 ```bash
-bun run verify
-bun run verify:ci
-bun run docs:check
-bun run helm:check
-bun run scripts:check
-bun run verify:repo
-bun run verify:repo:ci
+pnpm verify
+pnpm verify:ci
+pnpm docs:check
+pnpm helm:check
+pnpm scripts:check
+pnpm verify:repo
+pnpm verify:repo:ci
 ```
 
 `verify` and `verify:ci` are app-only gates. `verify:repo` and `verify:repo:ci` are repo-wide gates.
+Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
 
 ---
 

@@ -14,13 +14,13 @@
 		"lint:fix": "oxlint . --fix",
 		"format": "oxfmt . --write --ignore-path .oxfmtignore",
 		"format:check": "oxfmt . --check --ignore-path .oxfmtignore",
-		"verify": "bun run format && bun run lint && bun run check && bun run build",
-		"verify:ci": "bun run format:check && bun run lint && bun run check && bun test && bun run build",
-		"docs:check": "npm ci --prefix documentation && npm --prefix documentation run typecheck && npm --prefix documentation run build",
+		"verify": "pnpm format && pnpm lint && pnpm check && pnpm build",
+		"verify:ci": "pnpm format:check && pnpm lint && pnpm check && pnpm test && pnpm build",
+		"docs:check": "pnpm --dir documentation typecheck && pnpm --dir documentation build",
 		"helm:check": "helm lint charts/gyre",
 		"scripts:check": "find scripts -type f -name '*.sh' -exec bash -n {} +",
-		"verify:repo": "bun run verify && bun run helm:check && bun run scripts:check",
-		"verify:repo:ci": "bun run verify:ci && bun run docs:check && bun run helm:check && bun run scripts:check",
+		"verify:repo": "pnpm verify && pnpm helm:check && pnpm scripts:check",
+		"verify:repo:ci": "pnpm verify:ci && pnpm docs:check && pnpm helm:check && pnpm scripts:check",
 		"test": "bun test",
 		"test:watch": "bun test --watch"
 	},
@@ -79,5 +79,9 @@
 	"overrides": {
 		"cookie": "0.7.0",
 		"dompurify": "3.4.0"
-	}
+	},
+	"engines": {
+		"node": ">=22.13"
+	},
+	"packageManager": "pnpm@11.1.0"
 }

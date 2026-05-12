@@ -10,23 +10,24 @@ Thank you for your interest in contributing to Gyre! This document outlines the 
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) (latest version)
-- [Node.js](https://nodejs.org/) 18+ (for some dev tools)
+- [Node.js](https://nodejs.org/) 22.13+
+- [pnpm](https://pnpm.io/) 11.1.0
+- [Bun](https://bun.sh/) 1.3.11 (for tests)
 - A Kubernetes cluster with FluxCD installed (for testing)
 - Git
 
 ### Quick Start (DevContainer - Recommended)
 
-The easiest way to start developing is using the provided devcontainer:
+If using a local devcontainer setup, ensure it installs pnpm 11.1.0 and Bun 1.3.11 for tests.
 
 1. Open the repository in VS Code with the Dev Containers extension
 2. Press `F1` → "Dev Containers: Reopen in Container"
-3. The devcontainer automatically installs Bun (if missing), runs `bun install`, mounts `~/.kube` read-only, and installs Svelte/Tailwind/YAML/Kubernetes VS Code extensions
-4. Optional: Create a local kind cluster with FluxCD for testing
+3. Optional: Create a local kind cluster with FluxCD for testing
 
 ```bash
 # Inside devcontainer, start development server
-bun run dev
+pnpm install
+pnpm dev
 
 # Optional: Create test cluster
 kind create cluster
@@ -37,13 +38,13 @@ flux install
 
 ```bash
 # Install dependencies
-bun install
+pnpm install
 
 # Start development server
-bun run dev
+pnpm dev
 
 # Or start with auto-open
-bun run dev --open
+pnpm dev -- --open
 ```
 
 ## Development Setup
@@ -100,19 +101,19 @@ Use these before commit/push:
 
 ```bash
 # Default local gate (auto-formats first)
-bun run verify
+pnpm verify
 
 # Strict app-only gate (non-mutating)
-bun run verify:ci
+pnpm verify:ci
 
-# Docs gate (requires npm ci --prefix documentation)
-bun run docs:check
+# Docs gate
+pnpm docs:check
 
 # Repo-wide checks
-bun run helm:check
-bun run scripts:check
-bun run verify:repo
-bun run verify:repo:ci
+pnpm helm:check
+pnpm scripts:check
+pnpm verify:repo
+pnpm verify:repo:ci
 ```
 
 ### Styling
@@ -227,13 +228,15 @@ Use the same type prefixes as commit messages:
 1. **Create a branch** from `main` following the naming convention above.
 2. **Make your changes** following the code standards.
 3. **Test your changes** in a cluster when behavior depends on Kubernetes integration.
-4. **Run quality checks** (`bun run verify` for app-only local checks, `bun run verify:repo:ci` for full repo parity).
+4. **Run quality checks** (`pnpm verify` for app-only local checks, `pnpm verify:repo:ci` for full repo parity).
 5. **Commit** using conventional commit format.
 6. **Push** your branch and open a Pull Request.
 
 ## Testing
 
-Automated tests are required and part of normal verification (`bun test`, `bun run verify:ci`, `bun run verify:repo:ci`).
+Automated tests are required and part of normal verification (`pnpm test`, `pnpm verify:ci`, `pnpm verify:repo:ci`).
+
+Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
 
 ### Before Submitting a PR
 
