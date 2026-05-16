@@ -68,7 +68,7 @@
 		"bits-ui": "^2.15.5",
 		"drizzle-kit": "^0.31.8",
 		"oxfmt": "^0.48.0",
-		"oxlint": "^1.49.0",
+		"oxlint": "^1.65.0",
 		"svelte": "^5.55.4",
 		"svelte-check": "^4.3.6",
 		"tailwind-variants": "^3.2.2",
