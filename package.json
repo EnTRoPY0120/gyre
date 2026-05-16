@@ -30,7 +30,7 @@
 		"@scalar/api-reference": "^1.52.2",
 		"arctic": "^3.7.0",
 		"bcryptjs": "^3.0.3",
-		"better-auth": "^1.6.5",
+		"better-auth": "^1.6.11",
 		"better-sqlite3": "^12.6.2",
 		"clsx": "^2.1.1",
 		"date-fns": "^4.1.0",
