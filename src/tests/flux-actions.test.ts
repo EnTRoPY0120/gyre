@@ -3,8 +3,6 @@ import { importFresh } from './helpers/import-fresh';
 
 type FluxActionsModule = typeof import('../lib/server/kubernetes/flux/actions.ts');
 
-vi.spyOn(console, 'log').mockImplementation(() => {});
-
 let capturedPatchArgs: unknown[] = [];
 let capturedDeleteArgs: unknown[] = [];
 let apiShouldThrow = false;
@@ -28,6 +26,19 @@ const fluxResourceDefs = {
 	}
 } as const;
 
+const fluxResourcesMock = {
+	getResourceDef: (resourceType: keyof typeof fluxResourceDefs) => fluxResourceDefs[resourceType],
+	resolveFluxResourceType: (resourceType: string) => {
+		if (resourceType === 'kustomizations') return 'Kustomization';
+		if (resourceType === 'gitrepositories') return 'GitRepository';
+		if (resourceType === 'helmreleases') return 'HelmRelease';
+		if (resourceType in fluxResourceDefs) {
+			return resourceType as keyof typeof fluxResourceDefs;
+		}
+		return undefined;
+	}
+};
+
 const mockApi = {
 	patchNamespacedCustomObject: async (...args: unknown[]) => {
 		capturedPatchArgs = args;
@@ -45,6 +56,7 @@ beforeEach(async () => {
 	capturedPatchArgs = [];
 	capturedDeleteArgs = [];
 	apiShouldThrow = false;
+	vi.spyOn(console, 'log').mockImplementation(() => {});
 
 	vi.doMock('../lib/server/kubernetes/client', () => ({
 		getCustomObjectsApi: async () => mockApi,
@@ -55,30 +67,8 @@ beforeEach(async () => {
 		}
 	}));
 
-	vi.doMock('../lib/server/kubernetes/flux/resources', () => ({
-		getResourceDef: (resourceType: keyof typeof fluxResourceDefs) => fluxResourceDefs[resourceType],
-		resolveFluxResourceType: (resourceType: string) => {
-			if (resourceType === 'kustomizations') return 'Kustomization';
-			if (resourceType === 'gitrepositories') return 'GitRepository';
-			if (resourceType === 'helmreleases') return 'HelmRelease';
-			if (resourceType in fluxResourceDefs) {
-				return resourceType as keyof typeof fluxResourceDefs;
-			}
-			return undefined;
-		}
-	}));
-	vi.doMock('../lib/server/kubernetes/flux/resources.js', () => ({
-		getResourceDef: (resourceType: keyof typeof fluxResourceDefs) => fluxResourceDefs[resourceType],
-		resolveFluxResourceType: (resourceType: string) => {
-			if (resourceType === 'kustomizations') return 'Kustomization';
-			if (resourceType === 'gitrepositories') return 'GitRepository';
-			if (resourceType === 'helmreleases') return 'HelmRelease';
-			if (resourceType in fluxResourceDefs) {
-				return resourceType as keyof typeof fluxResourceDefs;
-			}
-			return undefined;
-		}
-	}));
+	vi.doMock('../lib/server/kubernetes/flux/resources', () => fluxResourcesMock);
+	vi.doMock('../lib/server/kubernetes/flux/resources.js', () => fluxResourcesMock);
 
 	fluxActions = await importFresh<FluxActionsModule>('../lib/server/kubernetes/flux/actions.ts');
 });
