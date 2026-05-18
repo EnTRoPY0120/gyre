@@ -5,10 +5,11 @@
  * apiVersion/kind mismatch detection, namespace validation, and YAML schema
  * restrictions — without requiring full SvelteKit route infrastructure.
  */
-import { describe, test, expect, mock } from 'bun:test';
+import { describe, test, expect, vi } from 'vitest';
 import yaml from 'js-yaml';
 
-mock.restore();
+vi.restoreAllMocks();
+vi.resetModules();
 
 import {
 	getResourceDef,

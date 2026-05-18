@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { mergeUserPreferences, preferencesSchema } from '../lib/server/user-preferences.js';
 
 describe('preferencesSchema', () => {

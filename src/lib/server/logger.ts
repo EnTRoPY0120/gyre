@@ -9,43 +9,50 @@ export function withRequestContext<T>(requestId: string, fn: () => T): T {
 
 const level = process.env.LOG_LEVEL ?? (process.env.NODE_ENV === 'production' ? 'info' : 'debug');
 
-const pinoLogger = pino({
-	level,
-	base: undefined, // Removes pid and hostname fields, which are redundant in containerized environments like Kubernetes
-	timestamp: pino.stdTimeFunctions.isoTime,
-	redact: {
-		paths: [
-			'password',
-			'ADMIN_PASSWORD',
-			'token',
-			'secret',
-			'authorization',
-			'cookie',
-			'email',
-			'apiKey',
-			'bearer',
-			'accessToken',
-			'refreshToken',
-			'clientSecret',
-			'credential',
-			'err.config.data',
-			'req.headers.authorization',
-			'*.password',
-			'*.token',
-			'*.secret',
-			'*.apiKey',
-			'*.bearer',
-			'*.accessToken',
-			'*.refreshToken',
-			'*.clientSecret',
-			'*.authorization',
-			'*.cookie',
-			'*.email',
-			'*.credential'
-		],
-		censor: '[REDACTED]'
+const pinoLogger = pino(
+	{
+		level,
+		base: undefined, // Removes pid and hostname fields, which are redundant in containerized environments like Kubernetes
+		timestamp: pino.stdTimeFunctions.isoTime,
+		redact: {
+			paths: [
+				'password',
+				'ADMIN_PASSWORD',
+				'token',
+				'secret',
+				'authorization',
+				'cookie',
+				'email',
+				'apiKey',
+				'bearer',
+				'accessToken',
+				'refreshToken',
+				'clientSecret',
+				'credential',
+				'err.config.data',
+				'req.headers.authorization',
+				'*.password',
+				'*.token',
+				'*.secret',
+				'*.apiKey',
+				'*.bearer',
+				'*.accessToken',
+				'*.refreshToken',
+				'*.clientSecret',
+				'*.authorization',
+				'*.cookie',
+				'*.email',
+				'*.credential'
+			],
+			censor: '[REDACTED]'
+		}
+	},
+	{
+		write: (message) => {
+			process.stdout.write(message);
+		}
 	}
-});
+);
 
 function sanitizeLogMessage(msg: string): string {
 	// eslint-disable-next-line no-control-regex

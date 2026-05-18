@@ -1,17 +1,18 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 
-spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
 
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../lib/server/db/schema.js';
 
 // Mutable reference shared with the mock closure so each test gets a fresh DB
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
 import type { User } from '../lib/server/db/schema.js';
 
-mock.restore();
-mock.module('../lib/server/db/index.js', () => ({
+vi.restoreAllMocks();
+vi.resetModules();
+vi.mock('../lib/server/db/index.js', () => ({
 	getDb: async () => state.db,
 	getDbSync: () => state.db,
 	schema

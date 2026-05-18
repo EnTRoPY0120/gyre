@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import {
 	DEFAULT_ROLE_MAPPING_TEMPLATE,
 	parseRoleMappingInput,

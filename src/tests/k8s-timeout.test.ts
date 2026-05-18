@@ -1,10 +1,11 @@
-import { describe, test, expect, beforeEach, mock, spyOn } from 'bun:test';
+import { describe, test, expect, beforeEach, vi } from 'vitest';
 
-mock.restore();
+vi.restoreAllMocks();
+vi.resetModules();
 
 // Suppress console noise from handleK8sError's server-side logging and DB init.
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'error').mockImplementation(() => {});
 import * as k8s from '@kubernetes/client-node';
 import {
 	DEFAULT_TIMEOUT_MS,

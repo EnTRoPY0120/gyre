@@ -12,13 +12,12 @@ Thank you for your interest in contributing to Gyre! This document outlines the 
 
 - [Node.js](https://nodejs.org/) 22.13+
 - [pnpm](https://pnpm.io/) 11.1.0
-- [Bun](https://bun.sh/) 1.3.11 (for tests)
 - A Kubernetes cluster with FluxCD installed (for testing)
 - Git
 
 ### Quick Start (DevContainer - Recommended)
 
-If using a local devcontainer setup, ensure it installs pnpm 11.1.0 and Bun 1.3.11 for tests.
+If using a local devcontainer setup, ensure it installs Node.js and pnpm 11.1.0.
 
 1. Open the repository in VS Code with the Dev Containers extension
 2. Press `F1` → "Dev Containers: Reopen in Container"
@@ -236,7 +235,7 @@ Use the same type prefixes as commit messages:
 
 Automated tests are required and part of normal verification (`pnpm test`, `pnpm verify:ci`, `pnpm verify:repo:ci`).
 
-Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
+Tests run through Vitest on Node.js with `pnpm test`.
 
 ### Before Submitting a PR
 

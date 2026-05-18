@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach, spyOn } from 'bun:test';
+import { describe, test, expect, afterEach } from 'vitest';
 import crypto from 'node:crypto';
 import * as nodeFs from 'node:fs';
 import {
@@ -177,19 +177,15 @@ describe('Backup Encryption Module', () => {
 			const keyBuf = Buffer.from(validKeyHex, 'hex');
 			const encrypted = _encryptBackup(plaintext, keyBuf);
 
-			// Mock existsSync to say the file exists, and readFileSync to return the encrypted buffer
-			const existsSpy = spyOn(nodeFs, 'existsSync').mockReturnValue(true);
-			const readSpy = spyOn(nodeFs, 'readFileSync').mockImplementation(
-				() => encrypted as unknown as never
-			);
+			nodeFs.mkdirSync('data/backups', { recursive: true });
+			nodeFs.writeFileSync(`data/backups/${encFilename}`, encrypted);
 
 			try {
 				const result = getDecryptedBackupBuffer(encFilename);
 				expect(result).not.toBeNull();
 				expect(result).toEqual(plaintext);
 			} finally {
-				existsSpy.mockRestore();
-				readSpy.mockRestore();
+				nodeFs.rmSync(`data/backups/${encFilename}`, { force: true });
 				delete process.env.BACKUP_ENCRYPTION_KEY;
 			}
 		});
@@ -197,16 +193,13 @@ describe('Backup Encryption Module', () => {
 		test('throws BackupError when BACKUP_ENCRYPTION_KEY is unset for a .db.enc file', () => {
 			delete process.env.BACKUP_ENCRYPTION_KEY;
 
-			const existsSpy = spyOn(nodeFs, 'existsSync').mockReturnValue(true);
-			const readSpy = spyOn(nodeFs, 'readFileSync').mockImplementation(
-				() => Buffer.alloc(64) as unknown as never
-			);
+			nodeFs.mkdirSync('data/backups', { recursive: true });
+			nodeFs.writeFileSync(`data/backups/${encFilename}`, Buffer.alloc(64));
 
 			try {
 				expect(() => getDecryptedBackupBuffer(encFilename)).toThrow(BackupError);
 			} finally {
-				existsSpy.mockRestore();
-				readSpy.mockRestore();
+				nodeFs.rmSync(`data/backups/${encFilename}`, { force: true });
 			}
 		});
 	});
