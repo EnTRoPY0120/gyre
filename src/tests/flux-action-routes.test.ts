@@ -39,6 +39,47 @@ const getResourceDef = (resourceType: string) =>
 
 const getResourceTypeByPlural = (plural: string) => resolveFluxResourceType(plural);
 
+const actionsMock = {
+	deleteResource: async () => {},
+	reconcileResource: async (...args: unknown[]) => {
+		capturedReconcileCalls.push(args);
+		if (args[2] === 'bad') {
+			throw new Error('reconcile failed');
+		}
+	},
+	toggleSuspendResource: async (...args: unknown[]) => {
+		capturedToggleSuspendCalls.push(args);
+	}
+};
+
+const resourcesMock = {
+	resolveFluxResourceType,
+	getResourceDef,
+	getResourceTypeByPlural,
+	getAllResourcePlurals: () => ['kustomizations', 'gitrepositories', 'helmreleases']
+};
+
+const auditModuleStub = {
+	logResourceWrite: async (...args: unknown[]) => {
+		capturedLogWrites.push(args);
+	},
+	logAudit: async (...args: unknown[]) => {
+		capturedAuditCalls.push(args);
+	},
+	logLogin: async () => {},
+	logLogout: async () => {}
+};
+
+const validationMock = {
+	...actualValidation,
+	validateK8sNamespace: () => {},
+	validateK8sName: () => {}
+};
+
+const reconciliationTrackerMock = {
+	captureReconciliation: async () => {}
+};
+
 function createUser(role: User['role'] = 'editor'): User {
 	const now = new Date();
 	return {
@@ -90,76 +131,25 @@ beforeEach(async () => {
 		})
 	);
 
-	vi.doMock('$lib/server/kubernetes/flux/actions', () => ({
-		deleteResource: async () => {},
-		reconcileResource: async (...args: unknown[]) => {
-			capturedReconcileCalls.push(args);
-			if (args[2] === 'bad') {
-				throw new Error('reconcile failed');
-			}
-		},
-		toggleSuspendResource: async (...args: unknown[]) => {
-			capturedToggleSuspendCalls.push(args);
-		}
-	}));
-	vi.doMock('$lib/server/kubernetes/flux/actions.js', () => ({
-		deleteResource: async () => {},
-		reconcileResource: async (...args: unknown[]) => {
-			capturedReconcileCalls.push(args);
-			if (args[2] === 'bad') {
-				throw new Error('reconcile failed');
-			}
-		},
-		toggleSuspendResource: async (...args: unknown[]) => {
-			capturedToggleSuspendCalls.push(args);
-		}
-	}));
+	vi.doMock('$lib/server/kubernetes/flux/actions', () => actionsMock);
+	vi.doMock('$lib/server/kubernetes/flux/actions.js', () => actionsMock);
 
-	vi.doMock('$lib/server/kubernetes/flux/resources', () => ({
-		resolveFluxResourceType,
-		getResourceDef,
-		getResourceTypeByPlural,
-		getAllResourcePlurals: () => ['kustomizations', 'gitrepositories', 'helmreleases']
-	}));
-	vi.doMock('$lib/server/kubernetes/flux/resources.js', () => ({
-		resolveFluxResourceType,
-		getResourceDef,
-		getResourceTypeByPlural,
-		getAllResourcePlurals: () => ['kustomizations', 'gitrepositories', 'helmreleases']
-	}));
+	vi.doMock('$lib/server/kubernetes/flux/resources', () => resourcesMock);
+	vi.doMock('$lib/server/kubernetes/flux/resources.js', () => resourcesMock);
 
-	const auditModuleStub = {
-		logResourceWrite: async (...args: unknown[]) => {
-			capturedLogWrites.push(args);
-		},
-		logAudit: async (...args: unknown[]) => {
-			capturedAuditCalls.push(args);
-		},
-		logLogin: async () => {},
-		logLogout: async () => {}
-	};
 	vi.doMock('$lib/server/audit', () => auditModuleStub);
 	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
 
 	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
-	vi.doMock('$lib/server/validation', () => ({
-		...actualValidation,
-		validateK8sNamespace: () => {},
-		validateK8sName: () => {}
-	}));
-	vi.doMock('$lib/server/validation.js', () => ({
-		...actualValidation,
-		validateK8sNamespace: () => {},
-		validateK8sName: () => {}
-	}));
+	vi.doMock('$lib/server/validation', () => validationMock);
+	vi.doMock('$lib/server/validation.js', () => validationMock);
 
-	vi.doMock('$lib/server/kubernetes/flux/reconciliation-tracker', () => ({
-		captureReconciliation: async () => {}
-	}));
-	vi.doMock('$lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
-		captureReconciliation: async () => {}
-	}));
+	vi.doMock('$lib/server/kubernetes/flux/reconciliation-tracker', () => reconciliationTrackerMock);
+	vi.doMock(
+		'$lib/server/kubernetes/flux/reconciliation-tracker.js',
+		() => reconciliationTrackerMock
+	);
 
 	reconcilePOST = (
 		await importFresh<ReconcileRouteModule>(

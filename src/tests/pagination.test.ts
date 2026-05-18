@@ -171,8 +171,27 @@ describe('Pagination Logic', () => {
 });
 
 describe('Pagination – empty database', () => {
-	beforeEach(() => {
+	beforeEach(async () => {
 		state.db = setupInMemoryDb();
+		vi.doMock('../lib/server/db/index.js', () => ({
+			getDb: async () => state.db,
+			getDbSync: () => state.db,
+			schema
+		}));
+		vi.doMock('../lib/server/rbac-defaults.js', () => ({
+			bindUserToDefaultPolicies: async () => {},
+			syncUserPolicyBindings: async () => {}
+		}));
+		vi.doMock('bcryptjs', () => ({
+			default: {
+				hash: async () => 'hashed_password',
+				compare: async () => true
+			},
+			hash: async () => 'hashed_password',
+			compare: async () => true
+		}));
+		listUsersPaginated = (await importFresh<AuthModule>('../lib/server/auth.js?sut'))
+			.listUsersPaginated;
 	});
 
 	test('empty database returns total=0 and empty results', async () => {
