@@ -71,7 +71,7 @@ Then open http://localhost:3000 in your browser.
 ## 🛠️ Tech Stack
 
 - **Package Manager:** [pnpm](https://pnpm.io) 11.1.0
-- **Test Runtime:** [Bun](https://bun.sh) 1.3.11
+- **Test Runner:** [Vitest](https://vitest.dev) on Node.js
 - **Framework:** [Svelte 5](https://svelte.dev) + SvelteKit
 - **Styling:** TailwindCSS v4 + shadcn-svelte
 - **Database:** SQLite with [Drizzle ORM](https://orm.drizzle.team)

@@ -8,7 +8,7 @@ Comprehensive contributing guidelines, including development setup, code standar
 
 ## Quick Start (DevContainer)
 
-If using a local devcontainer setup, ensure it installs pnpm 11.1.0 and Bun 1.3.11 for tests.
+If using a local devcontainer setup, ensure it installs Node.js and pnpm 11.1.0.
 
 1. Open the repository in VS Code with the **Dev Containers** extension.
 2. Press `F1` → **"Dev Containers: Reopen in Container"**.
@@ -29,9 +29,9 @@ If using a local devcontainer setup, ensure it installs pnpm 11.1.0 and Bun 1.3.
 - `pnpm scripts:check` - Shell script syntax check (`bash -n`)
 - `pnpm verify:repo` - Repo gate for app + Helm + shell scripts
 - `pnpm verify:repo:ci` - Full CI repo gate for app + docs + Helm + shell scripts
-- `pnpm test` - Full Bun test suite (requires Helm on PATH for chart render regression tests)
+- `pnpm test` - Full Vitest test suite (requires Helm on PATH for chart render regression tests)
 
-Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
+Tests run through Vitest on Node.js.
 
 ## Questions?
 

@@ -1,13 +1,13 @@
-import { afterEach, beforeEach, describe, test, expect, mock, spyOn } from 'bun:test';
+import { afterEach, beforeEach, describe, test, expect, vi } from 'vitest';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub } from './helpers/module-stubs';
 
 type GoogleProviderModule = typeof import('../lib/server/auth/oauth/providers/google.js');
 
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
-spyOn(console, 'warn').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'error').mockImplementation(() => {});
+vi.spyOn(console, 'warn').mockImplementation(() => {});
 
 let arcticShouldThrow = false;
 
@@ -31,9 +31,9 @@ beforeEach(async () => {
 		preferred_username: 'user@google.com'
 	};
 
-	mock.module('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
+	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
-	mock.module('arctic', () => ({
+	vi.doMock('arctic', () => ({
 		Google: class MockGoogle {
 			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
 				return new URL(
@@ -86,7 +86,7 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('jose', () => ({
+	vi.doMock('jose', () => ({
 		createRemoteJWKSet: () => 'mock-jwks',
 		jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
 		decodeJwt: () => mockJwtClaims
@@ -98,7 +98,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 const mockConfig = {
@@ -271,7 +272,7 @@ describe('GoogleProvider.getUserInfo()', () => {
 	test('throws OAuthError with USERINFO_FAILED when OIDCProvider throws', async () => {
 		const provider = makeProvider();
 		// Without idToken and without discovery mocked, OIDCProvider calls discover() → fetch throws
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			throw new Error('Network error');
 		});
 		try {

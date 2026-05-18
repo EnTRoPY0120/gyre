@@ -1,13 +1,13 @@
-import { afterAll, afterEach, beforeEach, describe, test, expect, mock, spyOn } from 'bun:test';
+import { afterAll, afterEach, beforeEach, describe, test, expect, vi } from 'vitest';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub } from './helpers/module-stubs';
 
 type GitLabProviderModule = typeof import('../lib/server/auth/oauth/providers/gitlab.js');
 
-const consoleLogSpy = spyOn(console, 'log').mockImplementation(() => {});
-const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
-const consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
 afterAll(() => {
 	consoleLogSpy.mockRestore();
@@ -18,13 +18,13 @@ afterAll(() => {
 let GitLabProvider: GitLabProviderModule['GitLabProvider'];
 
 beforeEach(async () => {
-	mock.module('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
+	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
-	mock.module('$lib/server/auth/pkce', () => ({
+	vi.doMock('$lib/server/auth/pkce', () => ({
 		generateCodeChallenge: (v: string) => `challenge_${v}`
 	}));
 
-	mock.module('arctic', () => ({
+	vi.doMock('arctic', () => ({
 		Google: class MockGoogle {
 			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
 				return new URL(
@@ -76,7 +76,7 @@ beforeEach(async () => {
 		}
 	}));
 
-	mock.module('$lib/server/logger.js', () => ({
+	vi.doMock('$lib/server/logger.js', () => ({
 		logger: { error: () => {}, warn: () => {}, info: () => {}, debug: () => {} }
 	}));
 
@@ -86,7 +86,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 const mockConfig = {
@@ -127,7 +128,7 @@ interface FetchMockContext {
 
 function createFetchMock(responseFn: (url: string) => Response) {
 	const ctx: FetchMockContext = { url: null, body: null };
-	const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+	const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
 		const urlStr = url.toString();
 		ctx.url = urlStr;
 		ctx.body = init?.body?.toString() ?? null;
@@ -224,14 +225,16 @@ describe('GitLabProvider.validateCallback() — PKCE path', () => {
 	test('POSTs to ${baseURL}/oauth/token with code_verifier in body', async () => {
 		let capturedUrl: string | null = null;
 		let capturedBody: string | null = null;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url, init?: RequestInit) => {
-			capturedUrl = url.toString();
-			capturedBody = init?.body?.toString() ?? null;
-			return new Response(JSON.stringify({ access_token: 'pkce-token', token_type: 'bearer' }), {
-				status: 200,
-				headers: { 'content-type': 'application/json' }
+		const spy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async (url, init?: RequestInit) => {
+				capturedUrl = url.toString();
+				capturedBody = init?.body?.toString() ?? null;
+				return new Response(JSON.stringify({ access_token: 'pkce-token', token_type: 'bearer' }), {
+					status: 200,
+					headers: { 'content-type': 'application/json' }
+				});
 			});
-		});
 		try {
 			const provider = makeProvider();
 			await provider.validateCallback('auth-code', 'my-verifier');
@@ -244,7 +247,7 @@ describe('GitLabProvider.validateCallback() — PKCE path', () => {
 	});
 
 	test('returns accessToken extracted from token response', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response(
 				JSON.stringify({ access_token: 'pkce-access-token', token_type: 'bearer' }),
 				{ status: 200, headers: { 'content-type': 'application/json' } }
@@ -260,7 +263,7 @@ describe('GitLabProvider.validateCallback() — PKCE path', () => {
 	});
 
 	test('throws OAuthError when request times out', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			throw new DOMException('The operation was aborted', 'AbortError');
 		});
 		try {
@@ -293,7 +296,7 @@ describe('GitLabProvider.validateCallback() — non-PKCE path', () => {
 
 describe('GitLabProvider.validateCallback() — error handling', () => {
 	test('throws OAuthError with TOKEN_EXCHANGE_FAILED on non-OK response', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response('Unauthorized', { status: 401 });
 		});
 		try {
@@ -315,13 +318,15 @@ describe('GitLabProvider.validateCallback() — error handling', () => {
 describe('GitLabProvider.refreshAccessToken()', () => {
 	test('POSTs grant_type=refresh_token and refresh_token to token endpoint', async () => {
 		let capturedBody: string | null = null;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (_url, init?: RequestInit) => {
-			capturedBody = init?.body?.toString() ?? null;
-			return new Response(
-				JSON.stringify({ access_token: 'new-access-token', token_type: 'bearer' }),
-				{ status: 200, headers: { 'content-type': 'application/json' } }
-			);
-		});
+		const spy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockImplementation(async (_url, init?: RequestInit) => {
+				capturedBody = init?.body?.toString() ?? null;
+				return new Response(
+					JSON.stringify({ access_token: 'new-access-token', token_type: 'bearer' }),
+					{ status: 200, headers: { 'content-type': 'application/json' } }
+				);
+			});
 		try {
 			const provider = makeProvider();
 			const tokens = await provider.refreshAccessToken!('old-refresh-token');
@@ -334,7 +339,7 @@ describe('GitLabProvider.refreshAccessToken()', () => {
 	});
 
 	test('throws OAuthError with TOKEN_REFRESH_FAILED on non-OK response', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response('Bad Request', { status: 400 });
 		});
 		try {
@@ -352,7 +357,7 @@ describe('GitLabProvider.refreshAccessToken()', () => {
 
 describe('GitLabProvider.getUserInfo()', () => {
 	test('confirmed_at present → emailVerified: true', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response(
 				JSON.stringify({
 					id: 10,
@@ -379,7 +384,7 @@ describe('GitLabProvider.getUserInfo()', () => {
 	});
 
 	test('confirmed_at absent → emailVerified: false', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response(
 				JSON.stringify({
 					id: 20,
@@ -402,7 +407,7 @@ describe('GitLabProvider.getUserInfo()', () => {
 	});
 
 	test('with roleMapping: fetches groups and populates groups with full_path values', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			const urlStr = url.toString();
 			if (urlStr.includes('/api/v4/user')) {
 				return new Response(
@@ -442,7 +447,7 @@ describe('GitLabProvider.getUserInfo()', () => {
 	});
 
 	test('throws OAuthError with USERINFO_FAILED on API failure', async () => {
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
 			return new Response('Internal Server Error', { status: 500 });
 		});
 		try {
@@ -464,7 +469,7 @@ describe('GitLabProvider.getUserInfo()', () => {
 describe('GitLabProvider — fetchGitLabGroups pagination', () => {
 	test('combines groups from all pages when x-next-page header is present', async () => {
 		let callCount = 0;
-		const spy = spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
 			const urlStr = url.toString();
 			if (urlStr.includes('/api/v4/user')) {
 				return new Response(

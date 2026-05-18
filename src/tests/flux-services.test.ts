@@ -1,9 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import * as actualClient from '../lib/server/kubernetes/client.js';
-import * as actualK8sConfig from '../lib/server/kubernetes/config.js';
-import * as actualK8sErrors from '../lib/server/kubernetes/errors.js';
-import * as actualResources from '../lib/server/kubernetes/flux/resources.js';
-import * as actualLogger from '../lib/server/logger.js';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createKubernetesErrorsModuleStub } from './helpers/module-stubs';
 
 let validateKubeConfigResult = true;
@@ -34,6 +29,7 @@ let getFluxResourceStatusImpl = async () => ({
 });
 
 beforeEach(() => {
+	vi.resetModules();
 	validateKubeConfigResult = true;
 	listDeploymentsImpl = async () => ({
 		items: [
@@ -76,11 +72,11 @@ beforeEach(() => {
 		status: { observedGeneration: 1 }
 	});
 
-	mock.module('$lib/server/kubernetes/config.js', () => ({
+	vi.doMock('$lib/server/kubernetes/config.js', () => ({
 		validateKubeConfig: async () => validateKubeConfigResult
 	}));
 
-	mock.module('$lib/server/kubernetes/client.js', () => ({
+	vi.doMock('$lib/server/kubernetes/client.js', () => ({
 		getFluxResource: (...args: unknown[]) => getFluxResourceImpl(...args),
 		getFluxResourceStatus: (...args: unknown[]) => getFluxResourceStatusImpl(...args),
 		getKubeConfig: async () => ({
@@ -107,9 +103,9 @@ beforeEach(() => {
 		listFluxResources: (...args: unknown[]) => listFluxResourcesImpl(...args)
 	}));
 
-	mock.module('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
+	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
-	mock.module('$lib/server/kubernetes/flux/resources.js', () => ({
+	vi.doMock('$lib/server/kubernetes/flux/resources.js', () => ({
 		getAllResourcePlurals: () => ['gitrepositories'],
 		getAllResourceTypes: () => ['GitRepository', 'Kustomization'],
 		resolveFluxResourceType: (resourceType: string) =>
@@ -118,7 +114,7 @@ beforeEach(() => {
 				: undefined
 	}));
 
-	mock.module('$lib/server/logger.js', () => ({
+	vi.doMock('$lib/server/logger.js', () => ({
 		logger: {
 			error: () => {},
 			warn: () => {}
@@ -127,19 +123,13 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	mock.restore();
-	mock.module('$lib/server/kubernetes/config.js', () => actualK8sConfig);
-	mock.module('$lib/server/kubernetes/client.js', () => actualClient);
-	mock.module('$lib/server/kubernetes/errors.js', () => actualK8sErrors);
-	mock.module('$lib/server/kubernetes/flux/resources.js', () => actualResources);
-	mock.module('$lib/server/logger.js', () => actualLogger);
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('flux shared services', () => {
 	test('returns basic health for unauthenticated callers when details are not requested', async () => {
-		const { getFluxHealthSummary } = await import(
-			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { getFluxHealthSummary } = await import('$lib/server/flux/services.js');
 
 		await expect(
 			getFluxHealthSummary({
@@ -150,9 +140,7 @@ describe('flux shared services', () => {
 	});
 
 	test('returns detailed health metadata when requested', async () => {
-		const { getFluxHealthSummary } = await import(
-			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { getFluxHealthSummary } = await import('$lib/server/flux/services.js');
 
 		const result = await getFluxHealthSummary({
 			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: null },
@@ -181,9 +169,8 @@ describe('flux shared services', () => {
 		listDeploymentsImpl = async () => {
 			throw Object.assign(new Error('not found'), { code: 404 });
 		};
-		const { getFluxInstalledVersion, DEFAULT_FLUX_VERSION } = await import(
-			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { getFluxInstalledVersion, DEFAULT_FLUX_VERSION } =
+			await import('$lib/server/flux/services.js');
 
 		await expect(
 			getFluxInstalledVersion({
@@ -196,9 +183,7 @@ describe('flux shared services', () => {
 		listDeploymentsImpl = async () => {
 			throw new Error('boom');
 		};
-		const { getFluxInstalledVersion } = await import(
-			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { getFluxInstalledVersion } = await import('$lib/server/flux/services.js');
 
 		await expect(
 			getFluxInstalledVersion({
@@ -208,9 +193,7 @@ describe('flux shared services', () => {
 	});
 
 	test('reports partial overview failures while keeping successful summaries', async () => {
-		const { getFluxOverviewSummary } = await import(
-			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { getFluxOverviewSummary } = await import('$lib/server/flux/services.js');
 
 		const result = await getFluxOverviewSummary({
 			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: null }
@@ -237,9 +220,7 @@ describe('flux shared services', () => {
 			offset: 0,
 			total: 1
 		});
-		const { listFluxResourcesForType } = await import(
-			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { listFluxResourcesForType } = await import('$lib/server/flux/services.js');
 
 		const result = await listFluxResourcesForType({
 			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: null },
@@ -261,9 +242,7 @@ describe('flux shared services', () => {
 	});
 
 	test('returns detail data for status-only lookups and preserves resourceVersion', async () => {
-		const { getFluxResourceDetail } = await import(
-			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { getFluxResourceDetail } = await import('$lib/server/flux/services.js');
 
 		const result = await getFluxResourceDetail({
 			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: null },
@@ -289,9 +268,7 @@ describe('flux shared services', () => {
 				body: { message: 'GitRepository not found: flux-system/demo' }
 			};
 		};
-		const { getFluxResourceDetail } = await import(
-			`../lib/server/flux/services.js?case=${Date.now()}-${Math.random()}`
-		);
+		const { getFluxResourceDetail } = await import('$lib/server/flux/services.js');
 
 		await expect(
 			getFluxResourceDetail({
