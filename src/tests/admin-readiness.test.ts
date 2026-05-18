@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { buildAdminReadinessSummary } from '../lib/server/admin-readiness';
 import type { AdminReadinessState } from '../lib/server/admin-readiness';
 

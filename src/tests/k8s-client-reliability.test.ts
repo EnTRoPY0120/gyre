@@ -1,9 +1,15 @@
-import { describe, test, expect, spyOn } from 'bun:test';
+import { afterAll, describe, test, expect, vi } from 'vitest';
 
 // Suppress console noise
-spyOn(console, 'log').mockImplementation(() => {});
-spyOn(console, 'warn').mockImplementation(() => {});
-spyOn(console, 'error').mockImplementation(() => {});
+const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+afterAll(() => {
+	consoleLogSpy.mockRestore();
+	consoleWarnSpy.mockRestore();
+	consoleErrorSpy.mockRestore();
+});
 
 import {
 	OPERATION_TIMEOUTS,

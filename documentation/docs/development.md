@@ -20,7 +20,7 @@ Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit. It provid
 
 **DevContainer (Recommended):**
 
-If using a local devcontainer setup, ensure it installs pnpm 11.1.0 and Bun 1.3.11 for tests.
+If using a local devcontainer setup, ensure it installs Node.js and pnpm 11.1.0.
 
 1. Open repository in VS Code with Dev Containers extension
 2. Press `F1` → "Dev Containers: Reopen in Container"
@@ -193,7 +193,7 @@ Multi-cluster support is implemented via `locals.cluster`.
 
 - **Commits**: Follow [Conventional Commits](https://www.conventionalcommits.org/).
 - **Branches**: Use `type/description` naming (e.g., `feat/add-oidc-support`, `fix/rbac-bypass`).
-- **Tests**: Automated tests are part of the normal verification flow (`pnpm test`, `pnpm verify:ci`, `pnpm verify:repo:ci`). Tests still use Bun for now (`pnpm test` runs `bun test`) until the follow-up runtime/test migration is completed.
+- **Tests**: Automated tests run through Vitest on Node.js and are part of the normal verification flow (`pnpm test`, `pnpm verify:ci`, `pnpm verify:repo:ci`).
 
 ## Important Implementation Notes
 

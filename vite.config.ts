@@ -11,6 +11,10 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		plugins: [tailwindcss(), sveltekit()],
+		test: {
+			environment: 'node',
+			include: ['src/tests/**/*.test.ts']
+		},
 		server: {
 			fs: {
 				// Allow Vite dev server to serve files from the project root so that

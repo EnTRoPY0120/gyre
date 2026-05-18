@@ -7,7 +7,7 @@
  * is always called with the original error.
  */
 
-import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach } from 'vitest';
 import { classifyDiffError } from '../lib/server/kubernetes/flux/diff-errors.js';
 
 // ---------------------------------------------------------------------------

@@ -1,15 +1,18 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
+import { execFile } from 'node:child_process';
 import { join, relative } from 'node:path';
-import { $ } from 'bun';
+import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 
-const repoRoot = join(import.meta.dir, '..', '..');
+const execFileAsync = promisify(execFile);
+const repoRoot = join(fileURLToPath(new URL('.', import.meta.url)), '..', '..');
 const routeRoot = join(repoRoot, 'src', 'routes');
 const apiRouteRoot = join(routeRoot, 'api', 'v1');
 
 async function routeFilesUnder(path: string): Promise<string[]> {
-	const output = await $`find ${path} -name '+server.ts' -type f`.text();
-	return output
+	const { stdout } = await execFileAsync('find', [path, '-name', '+server.ts', '-type', 'f']);
+	return stdout
 		.split('\n')
 		.map((line) => line.trim())
 		.filter(Boolean)

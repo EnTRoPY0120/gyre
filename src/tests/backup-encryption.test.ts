@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach, spyOn } from 'bun:test';
+import { afterAll, describe, test, expect, afterEach, vi } from 'vitest';
 import crypto from 'node:crypto';
 import * as nodeFs from 'node:fs';
 import {
@@ -12,14 +12,53 @@ import {
 } from '../lib/server/backup';
 
 const KEY_LENGTH = 32;
+const backupFixtureEnv = vi.hoisted(() => {
+	const root = `${process.env.TMPDIR || '/tmp'}/backup-encryption-${process.pid}-${Date.now()}`;
+	const originalBackupDir = process.env.BACKUP_DIR;
+	const originalRuntimeBackupRoot = process.env.GYRE_RUNTIME_BACKUP_ROOT;
+	const originalRuntimeTestMode = process.env.GYRE_RUNTIME_TEST_MODE;
+	process.env.BACKUP_DIR = root;
+	process.env.GYRE_RUNTIME_BACKUP_ROOT = root;
+	process.env.GYRE_RUNTIME_TEST_MODE = '1';
+
+	return { originalBackupDir, originalRuntimeBackupRoot, originalRuntimeTestMode, root };
+});
+
+let backupFilenameSequence = 0;
 
 function makeKey(): Buffer {
 	return crypto.randomBytes(KEY_LENGTH);
 }
 
+function makeBackupFilename(extension: '.db' | '.db.enc'): string {
+	const timestamp = new Date(Date.now() + backupFilenameSequence++)
+		.toISOString()
+		.replace(/[:.]/g, '-');
+	return `gyre-backup-${timestamp}${extension}`;
+}
+
 describe('Backup Encryption Module', () => {
 	const originalEnv = process.env.BACKUP_ENCRYPTION_KEY;
 	const originalNodeEnv = process.env.NODE_ENV;
+
+	afterAll(() => {
+		if (backupFixtureEnv.originalBackupDir !== undefined) {
+			process.env.BACKUP_DIR = backupFixtureEnv.originalBackupDir;
+		} else {
+			delete process.env.BACKUP_DIR;
+		}
+		if (backupFixtureEnv.originalRuntimeBackupRoot !== undefined) {
+			process.env.GYRE_RUNTIME_BACKUP_ROOT = backupFixtureEnv.originalRuntimeBackupRoot;
+		} else {
+			delete process.env.GYRE_RUNTIME_BACKUP_ROOT;
+		}
+		if (backupFixtureEnv.originalRuntimeTestMode !== undefined) {
+			process.env.GYRE_RUNTIME_TEST_MODE = backupFixtureEnv.originalRuntimeTestMode;
+		} else {
+			delete process.env.GYRE_RUNTIME_TEST_MODE;
+		}
+		nodeFs.rmSync(backupFixtureEnv.root, { force: true, recursive: true });
+	});
 
 	afterEach(() => {
 		if (originalEnv !== undefined) {
@@ -168,45 +207,39 @@ describe('Backup Encryption Module', () => {
 
 	describe('getDecryptedBackupBuffer', () => {
 		const validKeyHex = 'b'.repeat(64);
-		const encFilename = 'gyre-backup-2024-01-01T00-00-00-000Z.db.enc';
 
 		test('decrypts an encrypted .db.enc file and returns the original plaintext', () => {
 			process.env.BACKUP_ENCRYPTION_KEY = validKeyHex;
+			const encFilename = makeBackupFilename('.db.enc');
 
 			const plaintext = Buffer.from('fake SQLite payload for testing');
 			const keyBuf = Buffer.from(validKeyHex, 'hex');
 			const encrypted = _encryptBackup(plaintext, keyBuf);
 
-			// Mock existsSync to say the file exists, and readFileSync to return the encrypted buffer
-			const existsSpy = spyOn(nodeFs, 'existsSync').mockReturnValue(true);
-			const readSpy = spyOn(nodeFs, 'readFileSync').mockImplementation(
-				() => encrypted as unknown as never
-			);
+			nodeFs.mkdirSync(backupFixtureEnv.root, { recursive: true });
+			nodeFs.writeFileSync(`${backupFixtureEnv.root}/${encFilename}`, encrypted);
 
 			try {
 				const result = getDecryptedBackupBuffer(encFilename);
 				expect(result).not.toBeNull();
 				expect(result).toEqual(plaintext);
 			} finally {
-				existsSpy.mockRestore();
-				readSpy.mockRestore();
+				nodeFs.rmSync(`${backupFixtureEnv.root}/${encFilename}`, { force: true });
 				delete process.env.BACKUP_ENCRYPTION_KEY;
 			}
 		});
 
 		test('throws BackupError when BACKUP_ENCRYPTION_KEY is unset for a .db.enc file', () => {
 			delete process.env.BACKUP_ENCRYPTION_KEY;
+			const encFilename = makeBackupFilename('.db.enc');
 
-			const existsSpy = spyOn(nodeFs, 'existsSync').mockReturnValue(true);
-			const readSpy = spyOn(nodeFs, 'readFileSync').mockImplementation(
-				() => Buffer.alloc(64) as unknown as never
-			);
+			nodeFs.mkdirSync(backupFixtureEnv.root, { recursive: true });
+			nodeFs.writeFileSync(`${backupFixtureEnv.root}/${encFilename}`, Buffer.alloc(64));
 
 			try {
 				expect(() => getDecryptedBackupBuffer(encFilename)).toThrow(BackupError);
 			} finally {
-				existsSpy.mockRestore();
-				readSpy.mockRestore();
+				nodeFs.rmSync(`${backupFixtureEnv.root}/${encFilename}`, { force: true });
 			}
 		});
 	});

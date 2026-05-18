@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
-import { Database } from 'bun:sqlite';
-import { drizzle } from 'drizzle-orm/bun-sqlite';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import * as schema from '../lib/server/db/schema.js';
 
@@ -33,14 +33,15 @@ function setupInMemoryDb() {
 	return drizzle(sqlite, { schema });
 }
 
-mock.restore();
-mock.module('../lib/server/db/index.js', () => ({
+vi.restoreAllMocks();
+vi.resetModules();
+vi.mock('../lib/server/db/index.js', () => ({
 	getDbSync: () => state.db,
 	getDb: async () => state.db,
 	schema
 }));
 
-spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
 import { RateLimiter, SSEConnectionLimiter } from '../lib/server/rate-limiter?sut';
 
 afterEach(() => {

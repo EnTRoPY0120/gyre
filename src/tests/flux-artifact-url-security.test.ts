@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'vitest';
 import { validateFluxArtifactUrl } from '../lib/server/kubernetes/flux/artifact-url-security.js';
 
 afterEach(() => {

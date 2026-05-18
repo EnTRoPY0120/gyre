@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
 
 let listServiceResult = {
@@ -22,6 +22,7 @@ let detailServiceResult = {
 const guardCalls: string[] = [];
 const serviceCalls: Array<{ name: string; payload: unknown }> = [];
 beforeEach(() => {
+	vi.resetModules();
 	guardCalls.length = 0;
 	serviceCalls.length = 0;
 	listServiceResult = {
@@ -42,7 +43,7 @@ beforeEach(() => {
 		}
 	};
 
-	mock.module('$lib/server/http/guards.js', () => ({
+	vi.doMock('$lib/server/http/guards.js', () => ({
 		requireAuthenticatedUser: () => {
 			guardCalls.push('requireAuthenticatedUser');
 		},
@@ -53,6 +54,8 @@ beforeEach(() => {
 		requireClusterWideRead: async () => {
 			guardCalls.push('requireClusterWideRead');
 		},
+		resolveFluxRouteResourceType: (resourceType: string) =>
+			resourceType === 'gitrepositories' ? 'GitRepository' : resourceType,
 		requireScopedPermission: async (_locals: App.Locals, action: string) => {
 			guardCalls.push(`requireScopedPermission:${action}`);
 		},
@@ -61,7 +64,7 @@ beforeEach(() => {
 		}
 	}));
 
-	mock.module('$lib/server/flux/services.js', () => ({
+	vi.doMock('$lib/server/flux/services.js', () => ({
 		DEFAULT_FLUX_VERSION: 'v2.x.x',
 		getFluxHealthSummary: async () => ({
 			status: 'healthy',
@@ -81,7 +84,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-	mock.restore();
+	vi.restoreAllMocks();
+	vi.resetModules();
 });
 
 describe('flux route adapters', () => {
