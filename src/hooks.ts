@@ -11,8 +11,7 @@ export const reroute: Reroute = ({ url }) => {
 	if (
 		pathname.startsWith('/api/') &&
 		!pathname.startsWith('/api/v1/') &&
-		!pathname.startsWith('/api/docs/')
-	) {
+		!pathname.startsWith('/api/docs/')) {
 		// Rewrite /api/* to /api/v1/*
 		// Example: /api/auth/login -> /api/v1/auth/login
 		return `/api/v1${pathname.substring(4)}`;
