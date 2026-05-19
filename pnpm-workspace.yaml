@@ -1,6 +1,10 @@
 packages:
   - .
   - documentation
+minimumReleaseAge: 4320
+minimumReleaseAgeStrict: true
+strictDepBuilds: true
+dangerouslyAllowAllBuilds: false
 allowBuilds:
   better-sqlite3: true
   core-js: true
