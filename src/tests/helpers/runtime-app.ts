@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 
 const HEALTH_PATH = '/api/v1/health';
 const ADMIN_PASSWORD = 'RuntimeAdminPassword!1';
@@ -40,7 +40,15 @@ function captureStream(stream: NodeJS.ReadableStream): Promise<string> {
 	});
 }
 
-function waitForExit(process: ChildProcessWithoutNullStreams): Promise<number | null> {
+function requirePipe(stream: NodeJS.ReadableStream | null, name: string): NodeJS.ReadableStream {
+	if (!stream) {
+		throw new Error(`${name} was not configured as a pipe`);
+	}
+
+	return stream;
+}
+
+function waitForExit(process: ChildProcess): Promise<number | null> {
 	return new Promise((resolve, reject) => {
 		process.once('error', reject);
 		process.once('exit', (code) => resolve(code));
@@ -57,11 +65,10 @@ async function runBuildOnce(): Promise<void> {
 			const build = spawn('pnpm', ['build'], {
 				cwd: REPO_ROOT,
 				env: buildEnv,
-				stderr: 'pipe',
-				stdout: 'pipe'
+				stdio: ['ignore', 'pipe', 'pipe']
 			});
-			const stdoutPromise = captureStream(build.stdout);
-			const stderrPromise = captureStream(build.stderr);
+			const stdoutPromise = captureStream(requirePipe(build.stdout, 'build stdout'));
+			const stderrPromise = captureStream(requirePipe(build.stderr, 'build stderr'));
 			stdoutPromise.catch(() => {});
 			stderrPromise.catch(() => {});
 			const exitCode = await waitForExit(build);
@@ -121,10 +128,7 @@ async function waitForServerExit(serverExited: Promise<void>, timeoutMs: number)
 	}
 }
 
-async function terminateServer(
-	server: ChildProcessWithoutNullStreams,
-	serverExited: Promise<void>
-) {
+async function terminateServer(server: ChildProcess, serverExited: Promise<void>) {
 	server.kill('SIGTERM');
 	if (!(await waitForServerExit(serverExited, TERMINATION_GRACE_MS))) {
 		server.kill('SIGKILL');
@@ -134,7 +138,7 @@ async function terminateServer(
 
 async function waitForReadiness(
 	baseUrl: string,
-	server: ChildProcessWithoutNullStreams,
+	server: ChildProcess,
 	captureStderr: () => Promise<string>,
 	timeoutMs = 30_000
 ): Promise<void> {
@@ -208,10 +212,9 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 					NODE_ENV: 'production',
 					PORT: String(port)
 				},
-				stderr: 'pipe',
-				stdout: 'ignore'
+				stdio: ['ignore', 'ignore', 'pipe']
 			});
-			const stderrPromise = captureStream(server.stderr);
+			const stderrPromise = captureStream(requirePipe(server.stderr, 'server stderr'));
 			const captureStderr = () => stderrPromise;
 			const baseUrl = `http://127.0.0.1:${port}`;
 			const serverExited = waitForExit(server).then(

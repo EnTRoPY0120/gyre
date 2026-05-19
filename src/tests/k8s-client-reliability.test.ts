@@ -1,9 +1,15 @@
-import { describe, test, expect, vi } from 'vitest';
+import { afterAll, describe, test, expect, vi } from 'vitest';
 
 // Suppress console noise
-vi.spyOn(console, 'log').mockImplementation(() => {});
-vi.spyOn(console, 'warn').mockImplementation(() => {});
-vi.spyOn(console, 'error').mockImplementation(() => {});
+const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+afterAll(() => {
+	consoleLogSpy.mockRestore();
+	consoleWarnSpy.mockRestore();
+	consoleErrorSpy.mockRestore();
+});
 
 import {
 	OPERATION_TIMEOUTS,
