@@ -80,6 +80,9 @@ COPY --from=builder --chown=gyre:gyre /build/node_modules ./node_modules
 RUN rm -rf \
   /app/node_modules/@esbuild-kit \
   /app/node_modules/@esbuild \
+  /app/node_modules/.pnpm/@esbuild-kit+* \
+  /app/node_modules/.pnpm/@esbuild+* \
+  /app/node_modules/.pnpm/esbuild@* \
   /usr/local/lib/node_modules/npm \
   /usr/local/lib/node_modules/corepack \
   /usr/local/bin/npm \
