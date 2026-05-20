@@ -1,9 +1,9 @@
 ---
 sidebar_position: 1
-slug: /
+slug: /overview
 ---
 
-# Gyre Documentation
+# Overview
 
 Welcome to **Gyre** - A modern, full-featured WebUI for FluxCD.
 

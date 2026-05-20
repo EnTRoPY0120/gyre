@@ -148,14 +148,16 @@ pnpm --dir documentation serve
 
 **Creating a Release:**
 
-1. Update versions in `package.json` and `charts/gyre/Chart.yaml`
-2. Commit changes
-3. Create and push tag (triggers automated release workflow)
+1. Update release versions in package metadata and release-facing docs.
+2. Commit changes.
+3. Create and push tag (triggers automated release workflow).
+
+`charts/gyre/Chart.yaml` intentionally keeps placeholder versions; CI injects the release version during `helm package`.
 
 ```sh
-git add package.json charts/gyre/Chart.yaml
-git commit -m "chore: bump version to v0.6.0"
-git tag -a v0.6.0 -m "Release v0.6.0"
+git add package.json documentation/package.json README.md documentation/docs charts/gyre/README.md vite.config.ts documentation/docusaurus.config.ts
+git commit -m "chore: prepare v0.7.0 release"
+git tag -a v0.7.0 -m "Release v0.7.0"
 git push origin main --tags
 ```
 

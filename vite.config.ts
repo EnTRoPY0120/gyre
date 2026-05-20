@@ -33,15 +33,21 @@ export default defineConfig(({ mode }) => {
 		build: {
 			sourcemap: false, // never emit .map files in production — avoids exposing source paths and pre-minified logic
 			reportCompressedSize: true,
+			// Monaco is intentionally lazy-loaded and emitted as its own large editor chunk.
+			chunkSizeWarningLimit: 4300,
 			rolldownOptions: {
 				output: {
 					manualChunks: (id) => {
-						if (id.includes('node_modules')) {
-							if (id.includes('monaco-editor')) return 'monaco-editor';
-							if (id.includes('lucide-svelte')) return 'vendor-icons';
-							if (id.includes('drizzle-orm')) return 'vendor-db';
-							return 'vendor';
-						}
+						if (!id.includes('node_modules')) return;
+
+						if (id.includes('monaco-editor')) return 'monaco-editor';
+						if (id.includes('lucide-svelte')) return 'vendor-icons';
+						if (id.includes('bits-ui')) return 'vendor-ui';
+						if (id.includes('/svelte/') || id.includes('@sveltejs')) return 'vendor-svelte';
+						if (id.includes('drizzle-orm')) return 'vendor-db';
+						if (id.includes('yaml') || id.includes('js-yaml')) return 'vendor-yaml';
+
+						return 'vendor';
 					}
 				}
 			}
