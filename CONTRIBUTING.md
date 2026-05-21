@@ -8,15 +8,17 @@ Comprehensive contributing guidelines, including development setup, code standar
 
 ## Quick Start (DevContainer)
 
-If using a local devcontainer setup, ensure it installs Node.js and pnpm 11.1.0.
+The repository includes a devcontainer that installs Node.js 22.13+, `pnpm@11.1.0`, and Kubernetes tooling.
 
 1. Open the repository in VS Code with the **Dev Containers** extension.
 2. Press `F1` → **"Dev Containers: Reopen in Container"**.
-3. Inside the container, run:
+3. Wait for `.devcontainer/post-create.sh` to install dependencies.
+4. Inside the container, run:
    ```bash
-   pnpm install
    pnpm dev
    ```
+
+The host kubeconfig is mounted read-only from `~/.kube`; use an existing cluster or create one manually with `kind` and `flux` when needed.
 
 ## Key Commands
 

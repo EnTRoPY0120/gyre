@@ -115,6 +115,20 @@ From a local checkout, run:
 ./scripts/demo.sh
 ```
 
+### Development Container
+
+For a standardized contributor environment, open the repository in VS Code with the Dev Containers extension and run **Dev Containers: Reopen in Container** from the command palette.
+
+The container uses Node.js 22.13+, installs `pnpm@11.1.0`, includes Kubernetes tooling (`kubectl`, `helm`, `kind`, and `flux`), and runs `pnpm install --frozen-lockfile` from `.devcontainer/post-create.sh`.
+
+Start the app inside the container with:
+
+```bash
+pnpm dev
+```
+
+Port `3000` is forwarded automatically. Your host kubeconfig is mounted read-only from `~/.kube` to `/home/node/.kube`, so you can use an existing cluster or manually create one with `kind` and install Flux when needed.
+
 ### Get Admin Credentials (for in-cluster installs)
 
 ```bash

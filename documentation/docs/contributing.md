@@ -17,18 +17,20 @@ Thank you for your interest in contributing to Gyre! This document outlines the 
 
 ### Quick Start (DevContainer - Recommended)
 
-If using a local devcontainer setup, ensure it installs Node.js and pnpm 11.1.0.
+The repository includes a devcontainer that installs Node.js 22.13+, `pnpm@11.1.0`, and Kubernetes tooling.
 
 1. Open the repository in VS Code with the Dev Containers extension
 2. Press `F1` → "Dev Containers: Reopen in Container"
-3. Optional: Create a local kind cluster with FluxCD for testing
+3. Wait for `.devcontainer/post-create.sh` to install dependencies
 
 ```bash
 # Inside devcontainer, start development server
-pnpm install
 pnpm dev
+```
 
-# Optional: Create test cluster
+The host kubeconfig is mounted read-only from `~/.kube`. Use an existing cluster or create a local kind cluster with FluxCD manually when needed:
+
+```bash
 kind create cluster
 flux install
 ```

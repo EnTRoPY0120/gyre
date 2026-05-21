@@ -20,18 +20,20 @@ Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit. It provid
 
 **DevContainer (Recommended):**
 
-If using a local devcontainer setup, ensure it installs Node.js and pnpm 11.1.0.
+The repository includes a devcontainer that installs Node.js 22.13+, `pnpm@11.1.0`, and Kubernetes tooling.
 
 1. Open repository in VS Code with Dev Containers extension
 2. Press `F1` → "Dev Containers: Reopen in Container"
-3. Optional: Create local kind cluster with FluxCD for testing
+3. Wait for `.devcontainer/post-create.sh` to install dependencies
 
 ```sh
 # Inside devcontainer, start development server
-pnpm install
 pnpm dev
+```
 
-# Optional: Create test cluster
+The host kubeconfig is mounted read-only from `~/.kube`. Use an existing cluster or create a local kind cluster with FluxCD manually when needed:
+
+```sh
 kind create cluster
 flux install
 ```

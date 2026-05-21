@@ -1,9 +1,17 @@
 {
 	"name": "Gyre Dev",
-	"image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
 	"remoteUser": "node",
+	"forwardPorts": [3000],
+	"portsAttributes": {
+		"3000": {
+			"label": "Gyre dev server"
+		}
+	},
 	"mounts": ["source=${localEnv:HOME}/.kube,target=/home/node/.kube,type=bind,readonly"],
-	"postCreateCommand": "bash -lc 'set -euo pipefail; corepack enable; corepack prepare pnpm@11.1.0 --activate; pnpm install'",
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
 	"customizations": {
 		"vscode": {
 			"extensions": [
@@ -16,7 +24,11 @@
 				"editor.formatOnSave": true,
 				"files.associations": {
 					"*.yaml": "yaml",
-					"*.yml": "yaml"
+					"*.yml": "yaml",
+					"*.gotmpl": "yaml"
+				},
+				"yaml.schemas": {
+					"https://json.schemastore.org/github-workflow.json": ".github/workflows/*.{yml,yaml}"
 				}
 			}
 		}
