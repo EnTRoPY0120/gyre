@@ -75,7 +75,7 @@
 		"tailwindcss": "^4.1.18",
 		"typescript": "^6.0.2",
 		"vite": "^8.0.13",
-		"vitest": "4.1.6"
+		"vitest": "4.1.7"
 	},
 	"overrides": {
 		"cookie": "0.7.0",
