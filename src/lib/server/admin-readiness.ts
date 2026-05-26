@@ -91,14 +91,12 @@ function writeCache<T>(value: T, ttlMs = ADMIN_READINESS_CACHE_TTL_MS): TimedCac
 }
 
 function isFailureMarker(value: unknown): value is AdminReadinessFailureMarker {
-	return (
-		typeof value === 'object' &&
-		// isFailureMarker must guard null because typeof null === 'object'; this keeps 'in'
-		// safe for AdminReadinessFailureMarker detection and silences CodeQL false positives.
-		value !== null &&
-		'__adminReadinessFailure' in value &&
-		value.__adminReadinessFailure === true
-	);
+	if (typeof value !== 'object' || value === null) {
+		return false;
+	}
+
+	const candidate = value as { __adminReadinessFailure?: unknown };
+	return candidate.__adminReadinessFailure === true;
 }
 
 function toErrorMessage(error: unknown): string {

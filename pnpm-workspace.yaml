@@ -1,6 +1,15 @@
 packages:
   - .
   - documentation
+overrides:
+  serialize-javascript: 7.0.5
+  devalue: 5.8.1
+  dompurify: 3.4.5
+  webpack-dev-server: 5.2.4
+  ws: 8.21.0
+  cookie: 0.7.0
+  qs: 6.15.2
+  uuid: 11.1.1
 minimumReleaseAge: 4320
 minimumReleaseAgeStrict: true
 strictDepBuilds: true
