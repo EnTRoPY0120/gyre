@@ -8,7 +8,7 @@
 	import ResourceGroupTotals from '$lib/components/dashboard/ResourceGroupTotals.svelte';
 	import InventoryArchitecture from '$lib/components/dashboard/InventoryArchitecture.svelte';
 	import SystemShortcuts from '$lib/components/dashboard/SystemShortcuts.svelte';
-	import { ArrowRight, TriangleAlert } from 'lucide-svelte';
+	import { ArrowRight, TriangleAlert } from '@lucide/svelte';
 
 	interface Props {
 		data: {

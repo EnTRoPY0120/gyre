@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
-	import { LogIn, Loader2, Eye, EyeOff } from 'lucide-svelte';
+	import { LogIn, Loader2, Eye, EyeOff } from '@lucide/svelte';
 	import { loginSchema } from '$lib/utils/validation';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';

@@ -25,7 +25,7 @@
 	import ResourceGrid from '$lib/components/flux/ResourceGrid.svelte';
 	import type { FluxResource } from '$lib/types/flux';
 	import { SORT_FIELDS, type SortBy } from '$lib/config/sorting';
-	import { FilterX, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-svelte';
+	import { FilterX, ArrowUpDown, ArrowUp, ArrowDown } from '@lucide/svelte';
 
 	interface Props {
 		data: {

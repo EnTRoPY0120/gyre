@@ -11,7 +11,7 @@
 		AlertDialogHeader,
 		AlertDialogTitle
 	} from '$lib/components/ui/alert-dialog';
-	import { Pause, Play, RefreshCw, Trash2, X } from 'lucide-svelte';
+	import { Pause, Play, RefreshCw, Trash2, X } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import {

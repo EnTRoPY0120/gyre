@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
-	import { Loader2, Eye, EyeOff, Check, X, ShieldAlert } from 'lucide-svelte';
+	import { Loader2, Eye, EyeOff, Check, X, ShieldAlert } from '@lucide/svelte';
 	import { changePasswordSchema } from '$lib/utils/validation';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import type { PageData } from './$types';

@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { templates } from '$lib/templates';
 	import ResourceWizard from '$lib/components/wizards/ResourceWizard.svelte';
-	import { ChevronLeft } from 'lucide-svelte';
+	import { ChevronLeft } from '@lucide/svelte';
 
 	const templateId = $derived(page.params.templateId);
 	const template = $derived(templates.find((t) => t.id === templateId));

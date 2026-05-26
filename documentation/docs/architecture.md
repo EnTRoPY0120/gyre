@@ -181,7 +181,7 @@ Multi-layer caching reduces K8s API calls:
 | ORM        | Drizzle ORM                           |
 | K8s Client | @kubernetes/client-node               |
 | Auth       | bcrypt, jose, arctic                  |
-| Icons      | lucide-svelte                         |
+| Icons      | @lucide/svelte                        |
 | UI         | bits-ui, shadcn-svelte                |
 
 ## Extensibility

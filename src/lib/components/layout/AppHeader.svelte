@@ -6,7 +6,7 @@
 	import NotificationBell from './NotificationBell.svelte';
 	import ClusterSwitcher from './ClusterSwitcher.svelte';
 	import UserMenu from './UserMenu.svelte';
-	import { ChevronRight, Menu, Search } from 'lucide-svelte';
+	import { ChevronRight, Menu, Search } from '@lucide/svelte';
 	import { sidebarOpen } from '$lib/stores/sidebar';
 	import { commandPaletteOpen } from '$lib/stores/commandPalette';
 	import { cn } from '$lib/utils';

@@ -11,7 +11,7 @@
 		Loader2,
 		Lock,
 		LockOpen
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { formatDistanceToNow } from 'date-fns';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { getCsrfToken } from '$lib/utils/csrf';

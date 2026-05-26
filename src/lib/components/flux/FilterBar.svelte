@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { FilterState } from '$lib/utils/filtering';
 	import type { ResourceHealth } from '$lib/utils/flux';
-	import { X } from 'lucide-svelte';
+	import { X } from '@lucide/svelte';
 
 	import * as Select from '$lib/components/ui/select';
 

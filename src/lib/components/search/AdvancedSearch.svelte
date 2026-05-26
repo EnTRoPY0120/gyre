@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Search, SlidersHorizontal, X } from 'lucide-svelte';
+	import { Search, SlidersHorizontal, X } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import type { FilterState } from '$lib/utils/filtering';
 

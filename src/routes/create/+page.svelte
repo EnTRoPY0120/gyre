@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { templates } from '$lib/templates';
 	import Icon from '$lib/components/ui/Icon.svelte';
-	import { ArrowRight } from 'lucide-svelte';
+	import { ArrowRight } from '@lucide/svelte';
 
 	// Group templates by category
 	const categories = [

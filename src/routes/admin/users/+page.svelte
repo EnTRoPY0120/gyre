@@ -3,7 +3,7 @@
 	import { invalidateAll, goto } from '$app/navigation';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import { UserPlus, AlertTriangle, CheckCircle2, XCircle } from 'lucide-svelte';
+	import { UserPlus, AlertTriangle, CheckCircle2, XCircle } from '@lucide/svelte';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
 	import * as Select from '$lib/components/ui/select';

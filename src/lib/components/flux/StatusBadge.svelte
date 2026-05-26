@@ -2,7 +2,7 @@
 	import type { K8sCondition } from '$lib/types/flux';
 	import { getResourceHealth, getHealthLabel } from '$lib/utils/flux';
 	import { cn } from '$lib/utils';
-	import { Check, Loader2, AlertTriangle, Pause, HelpCircle } from 'lucide-svelte';
+	import { Check, Loader2, AlertTriangle, Pause, HelpCircle } from '@lucide/svelte';
 
 	interface Props {
 		conditions?: K8sCondition[];

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
-	import { Check } from 'lucide-svelte';
+	import { Check } from '@lucide/svelte';
 	import { Select as SelectPrimitive } from 'bits-ui';
 	import type { Snippet } from 'svelte';
 

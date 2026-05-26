@@ -66,7 +66,7 @@
 		Container,
 		HardDrive,
 		Database
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 
 	interface Props extends SVGAttributes<SVGSVGElement> {
 		name: string;

@@ -2,7 +2,7 @@
 	import type { FluxResource } from '$lib/types/flux';
 	import { formatTimestamp } from '$lib/utils/flux';
 	import StatusBadge from './StatusBadge.svelte';
-	import { PackageX } from 'lucide-svelte';
+	import { PackageX } from '@lucide/svelte';
 
 	interface Props {
 		resources: FluxResource[];

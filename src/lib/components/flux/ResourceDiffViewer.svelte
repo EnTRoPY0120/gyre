@@ -1,6 +1,6 @@
 <script lang="ts">
 	import MonacoDiffEditor from '$lib/components/editors/MonacoDiffEditor.svelte';
-	import { FileDiff, CheckCircle2, PlusCircle } from 'lucide-svelte';
+	import { FileDiff, CheckCircle2, PlusCircle } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 
 	interface ResourceDiff {

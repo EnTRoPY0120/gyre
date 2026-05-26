@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { X, Save, AlertTriangle } from 'lucide-svelte';
+	import { X, Save, AlertTriangle } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
 	import yaml from 'js-yaml';

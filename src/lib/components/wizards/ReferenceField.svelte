@@ -3,7 +3,7 @@
 	import { cn } from '$lib/utils';
 	import { fetchWithRetry } from '$lib/utils/fetch';
 	import { logger } from '$lib/utils/logger.js';
-	import { Check, ChevronsUpDown, Loader2, Search } from 'lucide-svelte';
+	import { Check, ChevronsUpDown, Loader2, Search } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
 	interface K8sResourceItem {

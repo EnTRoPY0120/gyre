@@ -4,7 +4,7 @@
 	import { formatTimestamp } from '$lib/utils/flux';
 	import StatusBadge from './StatusBadge.svelte';
 	import BulkActionsToolbar from './BulkActionsToolbar.svelte';
-	import { PackageX, ChevronLeft, ChevronRight } from 'lucide-svelte';
+	import { PackageX, ChevronLeft, ChevronRight } from '@lucide/svelte';
 	import { preferences, ITEMS_PER_PAGE_OPTIONS } from '$lib/stores/preferences.svelte';
 
 	const MIN_PAGE_SIZE = Math.min(...ITEMS_PER_PAGE_OPTIONS.filter((n) => n > 0));

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Plus, Trash2 } from 'lucide-svelte';
+	import { Plus, Trash2 } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import ReferenceField from './ReferenceField.svelte';
 	import type { TemplateField } from '$lib/templates';

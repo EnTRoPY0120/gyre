@@ -17,7 +17,7 @@
 		ArrowUpDown,
 		ArrowUp,
 		ArrowDown
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 

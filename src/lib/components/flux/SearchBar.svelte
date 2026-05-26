@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import { Search, X } from 'lucide-svelte';
+	import { Search, X } from '@lucide/svelte';
 
 	interface Props {
 		value: string;

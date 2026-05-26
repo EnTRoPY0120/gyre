@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LogOut, User as UserIcon, Shield, KeyRound, BadgeCheck } from 'lucide-svelte';
+	import { LogOut, User as UserIcon, Shield, KeyRound, BadgeCheck } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import { logger } from '$lib/utils/logger.js';
 	import { fade, scale } from 'svelte/transition';

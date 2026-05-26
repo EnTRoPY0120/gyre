@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import * as AlertDialog from '$lib/components/ui/alert-dialog';
-	import { AlertTriangle, Loader2 } from 'lucide-svelte';
+	import { AlertTriangle, Loader2 } from '@lucide/svelte';
 	import { getCsrfToken } from '$lib/utils/csrf';
 
 	interface Props {

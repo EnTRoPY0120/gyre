@@ -8,7 +8,7 @@
 	import type { ResourceTemplate, TemplateField } from '$lib/templates';
 	import { cn } from '$lib/utils';
 	import { logger } from '$lib/utils/logger.js';
-	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from 'lucide-svelte';
+	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from '@lucide/svelte';
 	import * as Select from '$lib/components/ui/select';
 	import { parse, parseDocument, YAMLError } from 'yaml';
 	import { getCsrfToken } from '$lib/utils/csrf';

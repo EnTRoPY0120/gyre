@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils.js';
-	import { ChevronUp } from 'lucide-svelte';
+	import { ChevronUp } from '@lucide/svelte';
 	import { Select as SelectPrimitive } from 'bits-ui';
 
 	let {

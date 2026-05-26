@@ -41,7 +41,7 @@ export default defineConfig(({ mode }) => {
 						if (!id.includes('node_modules')) return;
 
 						if (id.includes('monaco-editor')) return 'monaco-editor';
-						if (id.includes('lucide-svelte')) return 'vendor-icons';
+						if (id.includes('@lucide/svelte')) return 'vendor-icons';
 						if (id.includes('bits-ui')) return 'vendor-ui';
 						if (id.includes('/svelte/') || id.includes('@sveltejs')) return 'vendor-svelte';
 						if (id.includes('drizzle-orm')) return 'vendor-db';

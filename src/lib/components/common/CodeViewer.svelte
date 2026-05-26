@@ -2,7 +2,7 @@
 	import { preferences } from '$lib/stores/preferences.svelte';
 	import { toYaml, toJson, copyToClipboard } from '$lib/utils/format';
 	import { cn } from '$lib/utils';
-	import { Check, Copy, FileCode, Download } from 'lucide-svelte';
+	import { Check, Copy, FileCode, Download } from '@lucide/svelte';
 	import { downloadFile, formatResourceForExport } from '$lib/utils/export';
 	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
 

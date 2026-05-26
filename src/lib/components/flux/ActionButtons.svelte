@@ -14,7 +14,7 @@
 		type ResourceAction
 	} from './action-feedback';
 	import type { FluxResource } from '$lib/types/flux';
-	import { RefreshCw, Play, Pause, Loader2, Pencil, Trash2 } from 'lucide-svelte';
+	import { RefreshCw, Play, Pause, Loader2, Pencil, Trash2 } from '@lucide/svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
 	import { logger } from '$lib/utils/logger.js';

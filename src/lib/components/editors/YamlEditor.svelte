@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
-	import { Copy, Check } from 'lucide-svelte';
+	import { Copy, Check } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import MonacoEditor from './MonacoEditor.svelte';
 

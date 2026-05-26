@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { theme, type Theme } from '$lib/stores/theme.svelte';
 	import { getCsrfToken } from '$lib/utils/csrf';
-	import { Sun, Moon, Monitor, Check } from 'lucide-svelte';
+	import { Sun, Moon, Monitor, Check } from '@lucide/svelte';
 
 	const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
 		{ value: 'light', label: 'Light', icon: Sun },
