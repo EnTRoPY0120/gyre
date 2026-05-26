@@ -118,8 +118,8 @@ export async function enforceRequestSizeLimits(event: RequestEvent): Promise<Res
 		!request.headers.has('content-length')
 	) {
 		let bytesRead = 0;
-		const transformer: Transformer<Uint8Array, Uint8Array> = {
-			transform(chunk, controller) {
+		const transformStream = new TransformStream<Uint8Array, Uint8Array>({
+			transform(chunk: Uint8Array, controller: TransformStreamDefaultController<Uint8Array>) {
 				bytesRead += chunk.byteLength;
 				if (bytesRead > sizeLimit) {
 					controller.error(
@@ -133,8 +133,7 @@ export async function enforceRequestSizeLimits(event: RequestEvent): Promise<Res
 				}
 				controller.enqueue(chunk);
 			}
-		};
-		const transformStream = new TransformStream(transformer);
+		});
 
 		const readable = request.body.pipeThrough(transformStream);
 
