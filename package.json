@@ -67,7 +67,7 @@
 		"@types/node": "^25.9.0",
 		"bits-ui": "^2.15.5",
 		"drizzle-kit": "^0.31.8",
-		"oxfmt": "^0.50.0",
+		"oxfmt": "^0.51.0",
 		"oxlint": "^1.65.0",
 		"svelte": "^5.55.4",
 		"svelte-check": "^4.3.6",
@@ -75,7 +75,7 @@
 		"tailwindcss": "^4.1.18",
 		"typescript": "^6.0.2",
 		"vite": "^8.0.13",
-		"vitest": "4.1.6"
+		"vitest": "4.1.7"
 	},
 	"overrides": {
 		"cookie": "0.7.0",
