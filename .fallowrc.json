@@ -12,6 +12,7 @@
 	"duplicates": {
 		"minOccurrences": 3
 	},
+	"ignoreDependencies": ["@mdx-js/react", "@docusaurus/module-type-aliases"],
 	"ignoreExports": [
 		{
 			"file": "src/lib/components/ui/**/index.ts",
