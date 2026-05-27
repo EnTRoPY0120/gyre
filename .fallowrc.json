@@ -45,6 +45,46 @@
 		{
 			"file": "src/lib/server/clusters/encryption.ts",
 			"exports": ["*"]
+		},
+		{
+			"file": "src/lib/templates/index.ts",
+			"exports": [
+				"GIT_REPOSITORY_TEMPLATE",
+				"HELM_REPOSITORY_TEMPLATE",
+				"KUSTOMIZATION_TEMPLATE",
+				"HELM_RELEASE_TEMPLATE",
+				"HELM_CHART_TEMPLATE",
+				"BUCKET_TEMPLATE",
+				"OCI_REPOSITORY_TEMPLATE",
+				"ALERT_TEMPLATE",
+				"PROVIDER_TEMPLATE",
+				"RECEIVER_TEMPLATE",
+				"IMAGE_REPOSITORY_TEMPLATE",
+				"IMAGE_POLICY_TEMPLATE",
+				"IMAGE_UPDATE_AUTOMATION_TEMPLATE"
+			]
+		},
+		{
+			"file": "src/lib/server/auth/oauth/index.ts",
+			"exports": [
+				"IOAuthProvider",
+				"OAuthUserInfo",
+				"OIDCDiscovery",
+				"OAuthProviderOptions",
+				"ProviderType",
+				"OIDCProvider",
+				"GitHubProvider",
+				"GitLabProvider",
+				"GoogleProvider",
+				"createOAuthProvider",
+				"getAuthProviderById"
+			]
+		}
+	],
+	"usedClassMembers": [
+		{
+			"implements": "IOAuthProvider",
+			"members": ["getAuthorizationUrl", "validateCallback", "getUserInfo", "refreshAccessToken"]
 		}
 	]
 }
