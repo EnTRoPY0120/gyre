@@ -1,0 +1,49 @@
+{
+	"$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+	"entry": [
+		"src/hooks.{ts,js}",
+		"src/hooks.{client,server}.{ts,js}",
+		"src/service-worker.{ts,js}",
+		"src/routes/**/+*.{svelte,ts,js}"
+	],
+	"workspaces": {
+		"patterns": [".", "documentation"]
+	},
+	"duplicates": {
+		"minOccurrences": 3
+	},
+	"ignoreExports": [
+		{
+			"file": "src/lib/components/ui/**/index.ts",
+			"exports": ["*"]
+		},
+		{
+			"file": "src/lib/server/db/index.ts",
+			"exports": ["*"]
+		},
+		{
+			"file": "src/lib/server/db/schema.ts",
+			"exports": ["*"]
+		},
+		{
+			"file": "src/lib/server/db/schemas/*.ts",
+			"exports": ["*"]
+		},
+		{
+			"file": "src/lib/types/*.ts",
+			"exports": ["*"]
+		},
+		{
+			"file": "src/routes/**/+server.ts",
+			"exports": ["_metadata"]
+		},
+		{
+			"file": "src/lib/server/auth/crypto.ts",
+			"exports": ["*"]
+		},
+		{
+			"file": "src/lib/server/clusters/encryption.ts",
+			"exports": ["*"]
+		}
+	]
+}
