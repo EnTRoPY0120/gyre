@@ -6,7 +6,7 @@ import type { FluxResource, K8sCondition } from '../kubernetes/flux/types.js';
 import { resourcePollsTotal, resourceUpdatesTotal, fluxResourceStatusGauge } from '../metrics.js';
 import { captureReconciliation } from '../kubernetes/flux/reconciliation-tracker.js';
 import { POLL_INTERVAL_MS, SETTLING_PERIOD_MS } from '../config/constants.js';
-import { broadcast } from './bus.js';
+import { broadcast } from './dispatcher.js';
 import { normalizeError, type ClusterContext } from './types.js';
 
 const WATCH_RESOURCES: FluxResourceType[] = [

@@ -1,7 +1,8 @@
 import { logger } from '../logger.js';
 import { activeWorkers, setEventBusShuttingDown } from './state.js';
 import { activeWorkersGauge, sseSubscribersGauge } from '../metrics.js';
-import { broadcast, stopWorker } from './bus.js';
+import { stopWorker } from './bus.js';
+import { broadcast } from './dispatcher.js';
 import { normalizeError } from './types.js';
 
 export { setEventBusShuttingDown } from './state.js';

@@ -4,7 +4,8 @@ import { HEARTBEAT_INTERVAL_MS } from '../config/constants.js';
 import { activeWorkers, isEventBusShuttingDown, SERVER_SESSION_ID } from './state.js';
 import { activeWorkersGauge, fluxResourceStatusGauge, sseSubscribersGauge } from '../metrics.js';
 import { poll } from './poller.js';
-import { normalizeError, type ClusterContext, type SSEEvent, type Subscriber } from './types.js';
+import { broadcast } from './dispatcher.js';
+import { normalizeError, type ClusterContext, type Subscriber } from './types.js';
 
 /**
  * Subscribe to events for a specific cluster
@@ -123,26 +124,4 @@ export function stopWorker(context: ClusterContext, reason: string = 'no active 
 		{ clusterId: context.clusterId, reason },
 		'[EventBus] Stopping consolidated polling worker'
 	);
-}
-
-export function broadcast(context: ClusterContext, event: SSEEvent) {
-	// The loop is fault-tolerant: if a subscriber callback throws (e.g. during SHUTDOWN due to a closed stream),
-	// it is caught and logged, ensuring remaining subscribers still receive the event.
-	for (const subscriber of context.subscribers) {
-		try {
-			subscriber(event);
-		} catch (err) {
-			if (event.type === 'SHUTDOWN') {
-				logger.debug(
-					{ clusterId: context.clusterId, err: normalizeError(err) },
-					'[EventBus] Error broadcasting SHUTDOWN to subscriber'
-				);
-			} else {
-				logger.error(
-					{ clusterId: context.clusterId, err: normalizeError(err) },
-					'[EventBus] Error broadcasting to subscriber'
-				);
-			}
-		}
-	}
 }
