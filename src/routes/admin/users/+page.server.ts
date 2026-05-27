@@ -14,20 +14,17 @@ import { isAdmin } from '$lib/server/rbac';
 import { logUserManagement } from '$lib/server/audit';
 import { passwordSchema } from '$lib/utils/validation';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
+import { parseAdminPagination } from '../pagination';
 
 /**
  * Load function for user management page
  */
 export const load: PageServerLoad = async ({ locals, url }) => {
 	// Get pagination and search params from URL
-	const search = url.searchParams.get('search') || '';
-	const limitParam = parseInt(url.searchParams.get('limit') || '10');
-	const offsetParam = parseInt(url.searchParams.get('offset') || '0');
-	const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 10;
-	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+	const pagination = parseAdminPagination(url);
 
 	// Load paginated users
-	const { users, total } = await listUsersPaginated({ search, limit, offset });
+	const { users, total } = await listUsersPaginated(pagination);
 
 	return {
 		users: users.map((u) => ({
@@ -41,9 +38,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			updatedAt: u.updatedAt
 		})),
 		total,
-		search,
-		limit,
-		offset,
+		...pagination,
 		currentUser: locals.user!
 	};
 };

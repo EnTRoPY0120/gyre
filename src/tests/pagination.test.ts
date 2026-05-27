@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { importFresh } from './helpers/import-fresh';
+import { parseAdminPagination } from '../routes/admin/pagination';
 
 vi.spyOn(console, 'log').mockImplementation(() => {});
 import Database from 'better-sqlite3';
@@ -15,6 +16,10 @@ let listUsersPaginated: AuthModule['listUsersPaginated'];
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function adminUrl(search = '') {
+	return new URL(`http://localhost/admin/users${search}`);
+}
 
 const CREATE_USERS_TABLE = `
 	CREATE TABLE IF NOT EXISTS users (
@@ -167,6 +172,41 @@ describe('Pagination Logic', () => {
 		const result = await listUsersPaginated({ limit: 10, offset: 10_000 });
 		expect(result.users).toHaveLength(0);
 		expect(result.total).toBeGreaterThanOrEqual(15);
+	});
+});
+
+describe('parseAdminPagination', () => {
+	test('uses defaults when params are missing', () => {
+		expect(parseAdminPagination(adminUrl())).toEqual({ search: '', limit: 10, offset: 0 });
+	});
+
+	test('caps positive limit at 100', () => {
+		expect(parseAdminPagination(adminUrl('?limit=500'))).toEqual({
+			search: '',
+			limit: 100,
+			offset: 0
+		});
+	});
+
+	test('falls back for invalid limits and offsets', () => {
+		expect(parseAdminPagination(adminUrl('?limit=-1&offset=-1'))).toEqual({
+			search: '',
+			limit: 10,
+			offset: 0
+		});
+		expect(parseAdminPagination(adminUrl('?limit=nope&offset=nope'))).toEqual({
+			search: '',
+			limit: 10,
+			offset: 0
+		});
+	});
+
+	test('preserves search and valid pagination params', () => {
+		expect(parseAdminPagination(adminUrl('?search=flux&limit=25&offset=50'))).toEqual({
+			search: 'flux',
+			limit: 25,
+			offset: 50
+		});
 	});
 });
 
