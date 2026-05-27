@@ -2,12 +2,14 @@ import { afterEach, beforeEach, describe, test, expect, vi } from 'vitest';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub } from './helpers/module-stubs';
+import {
+	createArcticProviderMocks,
+	createJoseMocks,
+	createOAuthProviderConfig,
+	suppressOAuthProviderConsole
+} from './helpers/oauth-provider-mocks';
 
 type GoogleProviderModule = typeof import('../lib/server/auth/oauth/providers/google.js');
-
-vi.spyOn(console, 'log').mockImplementation(() => {});
-vi.spyOn(console, 'error').mockImplementation(() => {});
-vi.spyOn(console, 'warn').mockImplementation(() => {});
 
 let arcticShouldThrow = false;
 
@@ -20,8 +22,11 @@ let mockJwtClaims: Record<string, unknown> = {
 };
 
 let GoogleProvider: GoogleProviderModule['GoogleProvider'];
+let consoleSpies: ReturnType<typeof suppressOAuthProviderConsole>;
 
 beforeEach(async () => {
+	consoleSpies = suppressOAuthProviderConsole();
+
 	arcticShouldThrow = false;
 	mockJwtClaims = {
 		sub: '123',
@@ -33,64 +38,11 @@ beforeEach(async () => {
 
 	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
-	vi.doMock('arctic', () => ({
-		Google: class MockGoogle {
-			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
-				return new URL(
-					`https://accounts.google.com/o/oauth2/auth?state=${state}&verifier=${encodeURIComponent(verifier)}&scope=${scopes.join(',')}`
-				);
-			}
-			async validateAuthorizationCode(_code: string, _verifier: string) {
-				if (arcticShouldThrow) throw new Error('invalid_grant');
-				return {
-					accessToken: () => 'google-access-token',
-					refreshToken: () => 'google-refresh-token',
-					idToken: () => 'google-id-token',
-					accessTokenExpiresAt: () => null
-				};
-			}
-		},
-		GitHub: class MockGitHub {
-			createAuthorizationURL(state: string, scopes: string[]) {
-				return new URL(
-					`https://github.com/login/oauth/authorize?state=${state}&scope=${scopes.join(',')}`
-				);
-			}
-			async validateAuthorizationCode() {
-				return {
-					accessToken: () => 'arctic-access-token',
-					hasScopes: () => true,
-					scopes: () => ['read:user', 'user:email'],
-					accessTokenExpiresAt: () => null
-				};
-			}
-		},
-		GitLab: class MockGitLab {
-			constructor(
-				public baseURL: string,
-				public clientId: string,
-				_clientSecret: string,
-				_redirectUri: string
-			) {}
-			async createAuthorizationURL(state: string, scopes: string[]) {
-				return new URL(`${this.baseURL}/oauth/authorize?state=${state}&scope=${scopes.join(',')}`);
-			}
-			async validateAuthorizationCode() {
-				return {
-					accessToken: () => 'arctic-access-token',
-					hasRefreshToken: () => false,
-					refreshToken: () => undefined,
-					accessTokenExpiresAt: () => null
-				};
-			}
-		}
-	}));
+	vi.doMock('arctic', () =>
+		createArcticProviderMocks({ google: { shouldThrow: () => arcticShouldThrow } })
+	);
 
-	vi.doMock('jose', () => ({
-		createRemoteJWKSet: () => 'mock-jwks',
-		jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
-		decodeJwt: () => mockJwtClaims
-	}));
+	vi.doMock('jose', () => createJoseMocks({ decodeJwt: () => mockJwtClaims }));
 
 	GoogleProvider = (
 		await importFresh<GoogleProviderModule>('../lib/server/auth/oauth/providers/google.js')
@@ -98,33 +50,19 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+	consoleSpies.restore();
 	vi.restoreAllMocks();
 	vi.resetModules();
 });
 
-const mockConfig = {
+const mockConfig = createOAuthProviderConfig({
 	id: 'google-1',
 	name: 'Google',
 	type: 'oauth2-google' as const,
-	enabled: true,
-	clientId: 'test-client-id',
-	clientSecretEncrypted: 'encrypted-secret',
 	issuerUrl: 'https://accounts.google.com',
-	authorizationUrl: null,
-	tokenUrl: null,
-	userInfoUrl: null,
-	jwksUrl: null,
-	autoProvision: true,
 	defaultRole: 'viewer' as const,
-	roleMapping: null as string | null,
-	roleClaim: 'groups',
-	usernameClaim: 'preferred_username',
-	emailClaim: 'email',
-	usePkce: true,
-	scopes: 'openid profile email',
-	createdAt: new Date(),
-	updatedAt: new Date()
-};
+	scopes: 'openid profile email'
+});
 
 function makeProvider(overrides: Record<string, unknown> = {}) {
 	return new GoogleProvider({

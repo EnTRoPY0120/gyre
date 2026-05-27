@@ -14,21 +14,18 @@ import {
 import type { RbacAction } from '$lib/server/rbac';
 import { listUsers } from '$lib/server/auth';
 import { logRbacChange } from '$lib/server/audit';
+import { parseAdminPagination } from '../pagination';
 
 /**
  * Load function for RBAC policy management page
  */
 export const load: PageServerLoad = async ({ url }) => {
 	// Get pagination and search params from URL
-	const search = url.searchParams.get('search') || '';
-	const limitParam = parseInt(url.searchParams.get('limit') || '10');
-	const offsetParam = parseInt(url.searchParams.get('offset') || '0');
-	const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 10;
-	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+	const pagination = parseAdminPagination(url);
 
 	// Load paginated policies and all users
 	const [{ policies, total }, users] = await Promise.all([
-		getAllPoliciesPaginated({ search, limit, offset }),
+		getAllPoliciesPaginated(pagination),
 		listUsers()
 	]);
 
@@ -54,9 +51,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			updatedAt: p.updatedAt
 		})),
 		total,
-		search,
-		limit,
-		offset,
+		...pagination,
 		users: users.map((u) => ({
 			id: u.id,
 			username: u.username,

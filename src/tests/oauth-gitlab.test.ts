@@ -1,80 +1,28 @@
-import { afterAll, afterEach, beforeEach, describe, test, expect, vi } from 'vitest';
+import { afterEach, beforeEach, describe, test, expect, vi } from 'vitest';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub } from './helpers/module-stubs';
+import {
+	createArcticProviderMocks,
+	createOAuthProviderConfig,
+	suppressOAuthProviderConsole
+} from './helpers/oauth-provider-mocks';
 
 type GitLabProviderModule = typeof import('../lib/server/auth/oauth/providers/gitlab.js');
 
-const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-afterAll(() => {
-	consoleLogSpy.mockRestore();
-	consoleErrorSpy.mockRestore();
-	consoleWarnSpy.mockRestore();
-});
-
 let GitLabProvider: GitLabProviderModule['GitLabProvider'];
+let consoleSpies: ReturnType<typeof suppressOAuthProviderConsole>;
 
 beforeEach(async () => {
+	consoleSpies = suppressOAuthProviderConsole();
+
 	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
 	vi.doMock('$lib/server/auth/pkce', () => ({
 		generateCodeChallenge: (v: string) => `challenge_${v}`
 	}));
 
-	vi.doMock('arctic', () => ({
-		Google: class MockGoogle {
-			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
-				return new URL(
-					`https://accounts.google.com/o/oauth2/auth?state=${state}&verifier=${encodeURIComponent(verifier)}&scope=${scopes.join(',')}`
-				);
-			}
-			async validateAuthorizationCode() {
-				return {
-					accessToken: () => 'google-access-token',
-					refreshToken: () => 'google-refresh-token',
-					idToken: () => 'google-id-token',
-					accessTokenExpiresAt: () => null
-				};
-			}
-		},
-		GitHub: class MockGitHub {
-			createAuthorizationURL(state: string, scopes: string[]) {
-				return new URL(
-					`https://github.com/login/oauth/authorize?state=${state}&scope=${scopes.join(',')}`
-				);
-			}
-			async validateAuthorizationCode() {
-				return {
-					accessToken: () => 'arctic-access-token',
-					hasScopes: () => true,
-					scopes: () => ['read:user', 'user:email'],
-					accessTokenExpiresAt: () => null
-				};
-			}
-		},
-		GitLab: class MockGitLab {
-			constructor(
-				public baseURL: string,
-				public clientId: string,
-				_clientSecret: string,
-				_redirectUri: string
-			) {}
-			async createAuthorizationURL(state: string, scopes: string[]) {
-				return new URL(`${this.baseURL}/oauth/authorize?state=${state}&scope=${scopes.join(',')}`);
-			}
-			async validateAuthorizationCode(_code: string) {
-				return {
-					accessToken: () => 'arctic-access-token',
-					hasRefreshToken: () => false,
-					refreshToken: () => undefined,
-					accessTokenExpiresAt: () => null
-				};
-			}
-		}
-	}));
+	vi.doMock('arctic', () => createArcticProviderMocks());
 
 	vi.doMock('$lib/server/logger.js', () => ({
 		logger: { error: () => {}, warn: () => {}, info: () => {}, debug: () => {} }
@@ -86,33 +34,19 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+	consoleSpies.restore();
 	vi.restoreAllMocks();
 	vi.resetModules();
 });
 
-const mockConfig = {
+const mockConfig = createOAuthProviderConfig({
 	id: 'gitlab-1',
 	name: 'GitLab',
 	type: 'oauth2-gitlab' as const,
-	enabled: true,
-	clientId: 'test-client-id',
-	clientSecretEncrypted: 'encrypted-secret',
 	issuerUrl: 'https://gitlab.com',
-	authorizationUrl: null,
-	tokenUrl: null,
-	userInfoUrl: null,
-	jwksUrl: null,
-	autoProvision: true,
 	defaultRole: 'viewer' as const,
-	roleMapping: null as string | null,
-	roleClaim: 'groups',
-	usernameClaim: 'preferred_username',
-	emailClaim: 'email',
-	usePkce: true,
-	scopes: 'read_user openid profile email',
-	createdAt: new Date(),
-	updatedAt: new Date()
-};
+	scopes: 'read_user openid profile email'
+});
 
 function makeProvider(overrides: Record<string, unknown> = {}) {
 	return GitLabProvider({

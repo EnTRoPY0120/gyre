@@ -15,17 +15,14 @@ import { logClusterChange } from '$lib/server/audit';
 import { invalidateDashboardCache } from '$lib/server/dashboard-cache';
 import { clearClientPool } from '$lib/server/kubernetes/client.js';
 import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
+import { parseAdminPagination } from '../pagination';
 
 /**
  * Load function for cluster management page
  */
 export const load: PageServerLoad = async ({ url }) => {
 	// Get pagination and search params from URL
-	const search = url.searchParams.get('search') || '';
-	const limitParam = parseInt(url.searchParams.get('limit') || '10');
-	const offsetParam = parseInt(url.searchParams.get('offset') || '0');
-	const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(limitParam, 100) : 10;
-	const offset = Number.isFinite(offsetParam) && offsetParam >= 0 ? offsetParam : 0;
+	const pagination = parseAdminPagination(url);
 
 	// Surface errors injected by the request-size middleware via redirect.
 	const urlError =
@@ -34,7 +31,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			: null;
 
 	// Load paginated clusters
-	const { clusters, total } = await getAllClustersPaginated({ search, limit, offset });
+	const { clusters, total } = await getAllClustersPaginated(pagination);
 
 	return {
 		urlError,
@@ -50,9 +47,7 @@ export const load: PageServerLoad = async ({ url }) => {
 			createdAt: c.createdAt
 		})),
 		total,
-		search,
-		limit,
-		offset
+		...pagination
 	};
 };
 

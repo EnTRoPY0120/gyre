@@ -1,86 +1,28 @@
-import { describe, test, expect, beforeAll, afterAll, beforeEach, afterEach, vi } from 'vitest';
+import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub } from './helpers/module-stubs';
+import {
+	createArcticProviderMocks,
+	createOAuthProviderConfig,
+	suppressOAuthProviderConsole
+} from './helpers/oauth-provider-mocks';
 
 type GitHubProviderModule = typeof import('../lib/server/auth/oauth/providers/github.js');
 
-let consoleLogSpy: ReturnType<typeof vi.spyOn>;
-let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
-
-beforeAll(() => {
-	consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-	consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-	consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-});
-
-afterAll(() => {
-	consoleLogSpy.mockRestore();
-	consoleErrorSpy.mockRestore();
-	consoleWarnSpy.mockRestore();
-});
-
 let GitHubProvider: GitHubProviderModule['GitHubProvider'];
+let consoleSpies: ReturnType<typeof suppressOAuthProviderConsole>;
 
 beforeEach(async () => {
+	consoleSpies = suppressOAuthProviderConsole();
+
 	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
 
 	vi.doMock('$lib/server/auth/pkce', () => ({
 		generateCodeChallenge: (v: string) => `challenge_${v}`
 	}));
 
-	vi.doMock('arctic', () => ({
-		Google: class MockGoogle {
-			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
-				return new URL(
-					`https://accounts.google.com/o/oauth2/auth?state=${state}&verifier=${encodeURIComponent(verifier)}&scope=${scopes.join(',')}`
-				);
-			}
-			async validateAuthorizationCode() {
-				return {
-					accessToken: () => 'google-access-token',
-					refreshToken: () => 'google-refresh-token',
-					idToken: () => 'google-id-token',
-					accessTokenExpiresAt: () => null
-				};
-			}
-		},
-		GitHub: class MockGitHub {
-			createAuthorizationURL(state: string, scopes: string[]) {
-				return new URL(
-					`https://github.com/login/oauth/authorize?state=${state}&scope=${scopes.join(',')}`
-				);
-			}
-			async validateAuthorizationCode(_code: string) {
-				return {
-					accessToken: () => 'arctic-access-token',
-					hasScopes: () => true,
-					scopes: () => ['read:user', 'user:email'],
-					accessTokenExpiresAt: () => null
-				};
-			}
-		},
-		GitLab: class MockGitLab {
-			constructor(
-				public baseURL: string,
-				public clientId: string,
-				_clientSecret: string,
-				_redirectUri: string
-			) {}
-			async createAuthorizationURL(state: string, scopes: string[]) {
-				return new URL(`${this.baseURL}/oauth/authorize?state=${state}&scope=${scopes.join(',')}`);
-			}
-			async validateAuthorizationCode() {
-				return {
-					accessToken: () => 'arctic-access-token',
-					hasRefreshToken: () => false,
-					refreshToken: () => undefined,
-					accessTokenExpiresAt: () => null
-				};
-			}
-		}
-	}));
+	vi.doMock('arctic', () => createArcticProviderMocks());
 
 	GitHubProvider = (
 		await importFresh<GitHubProviderModule>('../lib/server/auth/oauth/providers/github.js')
@@ -88,33 +30,17 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+	consoleSpies.restore();
 	vi.restoreAllMocks();
 	vi.resetModules();
 });
 
-const mockConfig = {
+const mockConfig = createOAuthProviderConfig({
 	id: 'github-1',
 	name: 'GitHub',
 	type: 'oauth2-github',
-	enabled: true,
-	clientId: 'test-client-id',
-	clientSecretEncrypted: 'encrypted-secret',
-	issuerUrl: null,
-	authorizationUrl: null,
-	tokenUrl: null,
-	userInfoUrl: null,
-	jwksUrl: null,
-	autoProvision: true,
-	defaultRole: 'viewer',
-	roleMapping: null as string | null,
-	roleClaim: 'groups',
-	usernameClaim: 'preferred_username',
-	emailClaim: 'email',
-	usePkce: true,
-	scopes: 'read:user user:email',
-	createdAt: new Date(),
-	updatedAt: new Date()
-};
+	scopes: 'read:user user:email'
+});
 
 // Helpers
 function makeProvider(configOverrides: Partial<typeof mockConfig> = {}) {

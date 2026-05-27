@@ -2,28 +2,28 @@ import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
 import { expectOAuthErrorCode } from './helpers/oauth.js';
 import { importFresh } from './helpers/import-fresh';
 import { createAuthCryptoModuleStub } from './helpers/module-stubs';
+import {
+	createArcticProviderMocks,
+	createJoseMocks,
+	createOAuthProviderConfig,
+	suppressOAuthProviderConsole
+} from './helpers/oauth-provider-mocks';
 
 type OIDCProviderModule = typeof import('../lib/server/auth/oauth/providers/oidc.js');
 type OAuthIndexModule = typeof import('../lib/server/auth/oauth/index.js');
 type OAuthTypesModule = typeof import('../lib/server/auth/oauth/types.js');
 
-let consoleLogSpy: ReturnType<typeof vi.spyOn>;
-let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
-let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+let consoleSpies: ReturnType<typeof suppressOAuthProviderConsole>;
 let OIDCProvider: OIDCProviderModule['OIDCProvider'];
 let validateProviderConfig: OAuthIndexModule['validateProviderConfig'];
 let OAuthError: OAuthTypesModule['OAuthError'];
 
 beforeEach(() => {
-	consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-	consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-	consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+	consoleSpies = suppressOAuthProviderConsole();
 });
 
 afterEach(() => {
-	consoleLogSpy.mockRestore();
-	consoleErrorSpy.mockRestore();
-	consoleWarnSpy.mockRestore();
+	consoleSpies.restore();
 	vi.restoreAllMocks();
 	vi.resetModules();
 });
@@ -35,70 +35,20 @@ beforeEach(async () => {
 		generateCodeChallenge: (v: string) => `challenge_${v}`
 	}));
 
-	vi.doMock('arctic', () => ({
-		Google: class MockGoogle {
-			createAuthorizationURL(state: string, verifier: string, scopes: string[]) {
-				return new URL(
-					`https://accounts.google.com/o/oauth2/auth?state=${state}&verifier=${encodeURIComponent(verifier)}&scope=${scopes.join(',')}`
-				);
-			}
-			async validateAuthorizationCode() {
-				return {
-					accessToken: () => 'google-access-token',
-					refreshToken: () => 'google-refresh-token',
-					idToken: () => 'google-id-token',
-					accessTokenExpiresAt: () => null
-				};
-			}
-		},
-		GitHub: class MockGitHub {
-			createAuthorizationURL(state: string, scopes: string[]) {
-				return new URL(
-					`https://github.com/login/oauth/authorize?state=${state}&scope=${scopes.join(',')}`
-				);
-			}
-			async validateAuthorizationCode() {
-				return {
-					accessToken: () => 'arctic-access-token',
-					hasScopes: () => true,
-					scopes: () => ['read:user', 'user:email'],
-					accessTokenExpiresAt: () => null
-				};
-			}
-		},
-		GitLab: class MockGitLab {
-			constructor(
-				public baseURL: string,
-				public clientId: string,
-				_clientSecret: string,
-				_redirectUri: string
-			) {}
-			async createAuthorizationURL(state: string, scopes: string[]) {
-				return new URL(`${this.baseURL}/oauth/authorize?state=${state}&scope=${scopes.join(',')}`);
-			}
-			async validateAuthorizationCode() {
-				return {
-					accessToken: () => 'arctic-access-token',
-					hasRefreshToken: () => false,
-					refreshToken: () => undefined,
-					accessTokenExpiresAt: () => null
-				};
-			}
-		}
-	}));
+	vi.doMock('arctic', () => createArcticProviderMocks());
 
-	vi.doMock('jose', () => ({
-		createRemoteJWKSet: () => 'mock-jwks',
-		jwtVerify: async () => ({ payload: {}, protectedHeader: {} }),
-		decodeJwt: () => ({
-			sub: 'user-123',
-			email: 'user@example.com',
-			email_verified: true,
-			name: 'Test User',
-			preferred_username: 'testuser',
-			groups: ['admin', 'developers']
+	vi.doMock('jose', () =>
+		createJoseMocks({
+			decodeJwt: () => ({
+				sub: 'user-123',
+				email: 'user@example.com',
+				email_verified: true,
+				name: 'Test User',
+				preferred_username: 'testuser',
+				groups: ['admin', 'developers']
+			})
 		})
-	}));
+	);
 
 	OIDCProvider = (
 		await importFresh<OIDCProviderModule>('../lib/server/auth/oauth/providers/oidc.js')
@@ -121,29 +71,14 @@ const MOCK_DISCOVERY = {
 	id_token_signing_alg_values_supported: ['RS256']
 };
 
-const mockConfig = {
+const mockConfig = createOAuthProviderConfig({
 	id: 'oidc-1',
 	name: 'Test OIDC',
 	type: 'oidc' as const,
-	enabled: true,
-	clientId: 'test-client-id',
-	clientSecretEncrypted: 'encrypted-secret',
 	issuerUrl: 'https://provider.example.com',
-	authorizationUrl: null,
-	tokenUrl: null,
-	userInfoUrl: null,
-	jwksUrl: null,
-	autoProvision: true,
 	defaultRole: 'viewer' as const,
-	roleMapping: null as string | null,
-	roleClaim: 'groups',
-	usernameClaim: 'preferred_username',
-	emailClaim: 'email',
-	usePkce: true,
-	scopes: 'openid profile email',
-	createdAt: new Date(),
-	updatedAt: new Date()
-};
+	scopes: 'openid profile email'
+});
 
 function makeProvider(configOverrides: Partial<typeof mockConfig> = {}) {
 	return new OIDCProvider({
