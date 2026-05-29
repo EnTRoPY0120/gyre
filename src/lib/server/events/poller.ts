@@ -58,11 +58,13 @@ async function pollResourceType(
 
 		if (!context.isActive) return false;
 
-		resourcePollsTotal.labels(context.clusterId, resourceType, 'success').inc();
-
 		if (resourceList && resourceList.items) {
-			return await processResourceItems(context, resourceType, resourceList.items);
+			const shouldContinue = await processResourceItems(context, resourceType, resourceList.items);
+			resourcePollsTotal.labels(context.clusterId, resourceType, 'success').inc();
+			return shouldContinue;
 		}
+
+		resourcePollsTotal.labels(context.clusterId, resourceType, 'success').inc();
 	} catch (err) {
 		resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();
 		logger.error(

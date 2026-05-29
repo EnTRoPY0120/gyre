@@ -20,11 +20,8 @@ let mockCaptureReconciliation: ReturnType<typeof vi.fn>;
 let pollMetricIncrements: Array<{ clusterId: string; resourceType: string; status: string }>;
 let throwOnStatusGaugeSet = false;
 
-beforeEach(async () => {
-	mockResources = [];
-	mockCaptureReconciliation = vi.fn(async () => {});
-	pollMetricIncrements = [];
-	throwOnStatusGaugeSet = false;
+function applyEventMocks(opts: { settlingPeriodMs: number; gaugeThrows?: boolean }) {
+	throwOnStatusGaugeSet = opts.gaugeThrows ?? false;
 	vi.doMock('../lib/server/kubernetes/client.js', () => ({
 		...actualClient,
 		listFluxResources: async () => ({ items: mockResources })
@@ -53,13 +50,20 @@ beforeEach(async () => {
 	}));
 	vi.doMock('../lib/server/config/constants.js', () => ({
 		...actualConstants,
-		SETTLING_PERIOD_MS: -1,
+		SETTLING_PERIOD_MS: opts.settlingPeriodMs,
 		POLL_INTERVAL_MS: 50,
 		HEARTBEAT_INTERVAL_MS: 10000
 	}));
 	vi.doMock('../lib/server/logger.js', () => ({
 		logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} }
 	}));
+}
+
+beforeEach(async () => {
+	mockResources = [];
+	mockCaptureReconciliation = vi.fn(async () => {});
+	pollMetricIncrements = [];
+	applyEventMocks({ settlingPeriodMs: -1 });
 	const eventsModule = await importFresh<EventsModule>('../lib/server/events.js');
 	subscribe = eventsModule.subscribe;
 	closeAllEventStreams = eventsModule.closeAllEventStreams;
@@ -236,6 +240,14 @@ describe('Poll change detection', () => {
 						metric.status === 'error'
 				)
 			).toBe(true);
+			expect(
+				pollMetricIncrements.some(
+					(metric) =>
+						metric.clusterId === clusterId &&
+						metric.resourceType === 'GitRepository' &&
+						metric.status === 'success'
+				)
+			).toBe(false);
 		} finally {
 			unsub();
 		}
@@ -312,30 +324,7 @@ describe('Poll change detection', () => {
 
 	test('resource removed before settling is cleaned up without DELETED broadcast', async () => {
 		vi.resetModules();
-		vi.doMock('../lib/server/kubernetes/client.js', () => ({
-			...actualClient,
-			listFluxResources: async () => ({ items: mockResources })
-		}));
-		vi.doMock('../lib/server/metrics.js', () => ({
-			...actualMetrics,
-			resourcePollsTotal: { labels: () => ({ inc: () => {} }) },
-			resourceUpdatesTotal: { labels: () => ({ inc: () => {} }) },
-			sseSubscribersGauge: { labels: () => ({ set: () => {} }), reset: () => {} },
-			activeWorkersGauge: { set: () => {} },
-			fluxResourceStatusGauge: { labels: () => ({ set: () => {} }), remove: () => {} }
-		}));
-		vi.doMock('../lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
-			captureReconciliation: mockCaptureReconciliation
-		}));
-		vi.doMock('../lib/server/config/constants.js', () => ({
-			...actualConstants,
-			SETTLING_PERIOD_MS: 60_000,
-			POLL_INTERVAL_MS: 50,
-			HEARTBEAT_INTERVAL_MS: 10000
-		}));
-		vi.doMock('../lib/server/logger.js', () => ({
-			logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} }
-		}));
+		applyEventMocks({ settlingPeriodMs: 60_000 });
 		const eventsModule = await importFresh<EventsModule>('../lib/server/events.js');
 		const subscribeWithSettling = eventsModule.subscribe;
 
