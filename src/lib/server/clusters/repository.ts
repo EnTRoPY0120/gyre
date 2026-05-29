@@ -201,5 +201,3 @@ export async function getClusterKubeconfig(id: string): Promise<string | null> {
 
 	return decryptKubeconfig(cluster.kubeconfigEncrypted);
 }
-
-export type { NewCluster, NewClusterContext };

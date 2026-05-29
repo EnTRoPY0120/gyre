@@ -1,12 +1,6 @@
 import { logger } from '../logger.js';
-import {
-	testEncryption as testAuthEncryption,
-	isUsingDevelopmentKey as isUsingDevAuthKey
-} from '../auth/crypto.js';
-import {
-	testEncryption as testClusterEncryption,
-	isUsingDevelopmentKey as isUsingDevClusterKey
-} from '../clusters/encryption.js';
+import { testAuthEncryption, isUsingDevelopmentAuthKey } from '../auth/crypto.js';
+import { testClusterEncryption, isUsingDevelopmentClusterKey } from '../clusters/encryption.js';
 import { validateProductionSecurityConfig } from '../security-config.js';
 
 export function validateStartupSecurity(isProd: boolean): void {
@@ -17,7 +11,7 @@ export function validateStartupSecurity(isProd: boolean): void {
 		if (!testAuthEncryption()) {
 			throw new Error('AUTH encryption check failed');
 		}
-		if (isUsingDevAuthKey()) {
+		if (isUsingDevelopmentAuthKey()) {
 			if (isProd) {
 				throw new Error('AUTH_ENCRYPTION_KEY must be set in production');
 			}
@@ -28,7 +22,7 @@ export function validateStartupSecurity(isProd: boolean): void {
 		if (!testClusterEncryption()) {
 			throw new Error('Cluster kubeconfig encryption check failed');
 		}
-		if (isUsingDevClusterKey()) {
+		if (isUsingDevelopmentClusterKey()) {
 			if (isProd) {
 				throw new Error('GYRE_ENCRYPTION_KEY must be set in production');
 			}

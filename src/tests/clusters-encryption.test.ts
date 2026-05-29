@@ -76,21 +76,21 @@ afterEach(() => {
 });
 
 describe('Cluster Kubeconfig Encryption', () => {
-	describe('testEncryption()', () => {
+	describe('testClusterEncryption()', () => {
 		test('returns true when encryption subsystem is working', () => {
-			expect(clustersModule.testEncryption()).toBe(true);
+			expect(clustersModule.testClusterEncryption()).toBe(true);
 		});
 	});
 
-	describe('isUsingDevelopmentKey()', () => {
+	describe('isUsingDevelopmentClusterKey()', () => {
 		test('returns true when GYRE_ENCRYPTION_KEY is not set', () => {
 			delete process.env.GYRE_ENCRYPTION_KEY;
-			expect(clustersModule.isUsingDevelopmentKey()).toBe(true);
+			expect(clustersModule.isUsingDevelopmentClusterKey()).toBe(true);
 		});
 
 		test('returns false when GYRE_ENCRYPTION_KEY is set', () => {
 			process.env.GYRE_ENCRYPTION_KEY = 'a'.repeat(64);
-			expect(clustersModule.isUsingDevelopmentKey()).toBe(false);
+			expect(clustersModule.isUsingDevelopmentClusterKey()).toBe(false);
 		});
 	});
 

@@ -46,14 +46,14 @@ function getEncryptionKeyLazy(): string {
 /**
  * Check if the encryption key is the insecure development default.
  */
-export function isUsingDevelopmentKey(): boolean {
+export function isUsingDevelopmentClusterKey(): boolean {
 	return !process.env.GYRE_ENCRYPTION_KEY;
 }
 
 /**
  * Validate that encryption/decryption works correctly.
  */
-export function testEncryption(): boolean {
+export function testClusterEncryption(): boolean {
 	try {
 		const testSecret = 'test-kubeconfig-' + crypto.randomUUID();
 		const encrypted = encryptKubeconfig(testSecret);
