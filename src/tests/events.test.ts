@@ -16,9 +16,11 @@ import type { SSEEvent } from '../lib/server/events.js';
 let subscribe: EventsModule['subscribe'];
 let closeAllEventStreams: EventsModule['closeAllEventStreams'];
 let setEventBusShuttingDown: EventsModule['setEventBusShuttingDown'];
+let mockCaptureReconciliation: ReturnType<typeof vi.fn>;
 
 beforeEach(async () => {
 	mockResources = [];
+	mockCaptureReconciliation = vi.fn(async () => {});
 	vi.doMock('../lib/server/kubernetes/client.js', () => ({
 		...actualClient,
 		listFluxResources: async () => ({ items: mockResources })
@@ -32,7 +34,7 @@ beforeEach(async () => {
 		fluxResourceStatusGauge: { labels: () => ({ set: () => {} }), remove: () => {} }
 	}));
 	vi.doMock('../lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
-		captureReconciliation: async () => {}
+		captureReconciliation: mockCaptureReconciliation
 	}));
 	vi.doMock('../lib/server/config/constants.js', () => ({
 		...actualConstants,
@@ -270,6 +272,24 @@ describe('Poll change detection', () => {
 		}
 	});
 
+	test('captureReconciliation failure does not block ADDED event broadcast', async () => {
+		const events: SSEEvent[] = [];
+		const clusterId = uniqueClusterId('reconciliation-failure');
+		mockCaptureReconciliation.mockRejectedValueOnce(new Error('history unavailable'));
+
+		mockResources = [makeResource('new-app', 'flux-system', 'v1')];
+		const unsub = subscribe((e) => events.push(e), clusterId);
+
+		await wait(150);
+
+		try {
+			expect(mockCaptureReconciliation).toHaveBeenCalled();
+			expect(events.some((e) => e.type === 'ADDED')).toBe(true);
+		} finally {
+			unsub();
+		}
+	});
+
 	test('transient Unknown ready status does not trigger notification', async () => {
 		const events: SSEEvent[] = [];
 		const clusterId = uniqueClusterId('unknown-transient');
@@ -290,6 +310,37 @@ describe('Poll change detection', () => {
 			// Unknown status with unchanged revision should NOT trigger a MODIFIED notification
 			const modifiedAfter = events.slice(eventsAfterFirstPoll).filter((e) => e.type === 'MODIFIED');
 			expect(modifiedAfter.length).toBe(0);
+		} finally {
+			unsub();
+		}
+	});
+
+	test('transient Unknown ready status with changed revision waits for stable notification', async () => {
+		const events: SSEEvent[] = [];
+		const clusterId = uniqueClusterId('unknown-revision-transient');
+
+		mockResources = [makeResource('my-app', 'flux-system', 'v1', 'True', 'rev-1')];
+		const unsub = subscribe((e) => events.push(e), clusterId);
+
+		await wait(150);
+		const eventsAfterFirstPoll = events.length;
+
+		mockResources = [makeResource('my-app', 'flux-system', 'v2', 'Unknown', 'rev-2')];
+		await wait(150);
+
+		const modifiedWhileUnknown = events
+			.slice(eventsAfterFirstPoll)
+			.filter((e) => e.type === 'MODIFIED' && e.resourceType === 'GitRepository');
+
+		mockResources = [makeResource('my-app', 'flux-system', 'v3', 'True', 'rev-2')];
+		await wait(150);
+
+		try {
+			const stableModified = events
+				.slice(eventsAfterFirstPoll)
+				.filter((e) => e.type === 'MODIFIED' && e.resourceType === 'GitRepository');
+			expect(modifiedWhileUnknown).toHaveLength(0);
+			expect(stableModified).toHaveLength(1);
 		} finally {
 			unsub();
 		}
