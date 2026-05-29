@@ -17,21 +17,36 @@ let subscribe: EventsModule['subscribe'];
 let closeAllEventStreams: EventsModule['closeAllEventStreams'];
 let setEventBusShuttingDown: EventsModule['setEventBusShuttingDown'];
 let mockCaptureReconciliation: ReturnType<typeof vi.fn>;
+let pollMetricIncrements: Array<{ clusterId: string; resourceType: string; status: string }>;
+let throwOnStatusGaugeSet = false;
 
 beforeEach(async () => {
 	mockResources = [];
 	mockCaptureReconciliation = vi.fn(async () => {});
+	pollMetricIncrements = [];
+	throwOnStatusGaugeSet = false;
 	vi.doMock('../lib/server/kubernetes/client.js', () => ({
 		...actualClient,
 		listFluxResources: async () => ({ items: mockResources })
 	}));
 	vi.doMock('../lib/server/metrics.js', () => ({
 		...actualMetrics,
-		resourcePollsTotal: { labels: () => ({ inc: () => {} }) },
+		resourcePollsTotal: {
+			labels: (clusterId: string, resourceType: string, status: string) => ({
+				inc: () => pollMetricIncrements.push({ clusterId, resourceType, status })
+			})
+		},
 		resourceUpdatesTotal: { labels: () => ({ inc: () => {} }) },
 		sseSubscribersGauge: { labels: () => ({ set: () => {} }), reset: () => {} },
 		activeWorkersGauge: { set: () => {} },
-		fluxResourceStatusGauge: { labels: () => ({ set: () => {} }), remove: () => {} }
+		fluxResourceStatusGauge: {
+			labels: () => ({
+				set: () => {
+					if (throwOnStatusGaugeSet) throw new Error('status gauge unavailable');
+				}
+			}),
+			remove: () => {}
+		}
 	}));
 	vi.doMock('../lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
 		captureReconciliation: mockCaptureReconciliation
@@ -203,6 +218,29 @@ describe('subscribe()', () => {
 // ---------------------------------------------------------------------------
 
 describe('Poll change detection', () => {
+	test('resource processing rejection increments poll error metric', async () => {
+		const events: SSEEvent[] = [];
+		const clusterId = uniqueClusterId('processing-error');
+		throwOnStatusGaugeSet = true;
+		mockResources = [makeResource('my-app', 'flux-system', 'v1')];
+
+		const unsub = subscribe((e) => events.push(e), clusterId);
+		await wait(150);
+
+		try {
+			expect(
+				pollMetricIncrements.some(
+					(metric) =>
+						metric.clusterId === clusterId &&
+						metric.resourceType === 'GitRepository' &&
+						metric.status === 'error'
+				)
+			).toBe(true);
+		} finally {
+			unsub();
+		}
+	});
+
 	test('resource with changed resourceVersion broadcasts MODIFIED event', async () => {
 		const events: SSEEvent[] = [];
 		const clusterId = uniqueClusterId('modified');
@@ -267,6 +305,52 @@ describe('Poll change detection', () => {
 		try {
 			const added = events.filter((e) => e.type === 'ADDED');
 			expect(added.length).toBeGreaterThan(0);
+		} finally {
+			unsub();
+		}
+	});
+
+	test('resource removed before settling is cleaned up without DELETED broadcast', async () => {
+		vi.resetModules();
+		vi.doMock('../lib/server/kubernetes/client.js', () => ({
+			...actualClient,
+			listFluxResources: async () => ({ items: mockResources })
+		}));
+		vi.doMock('../lib/server/metrics.js', () => ({
+			...actualMetrics,
+			resourcePollsTotal: { labels: () => ({ inc: () => {} }) },
+			resourceUpdatesTotal: { labels: () => ({ inc: () => {} }) },
+			sseSubscribersGauge: { labels: () => ({ set: () => {} }), reset: () => {} },
+			activeWorkersGauge: { set: () => {} },
+			fluxResourceStatusGauge: { labels: () => ({ set: () => {} }), remove: () => {} }
+		}));
+		vi.doMock('../lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
+			captureReconciliation: mockCaptureReconciliation
+		}));
+		vi.doMock('../lib/server/config/constants.js', () => ({
+			...actualConstants,
+			SETTLING_PERIOD_MS: 60_000,
+			POLL_INTERVAL_MS: 50,
+			HEARTBEAT_INTERVAL_MS: 10000
+		}));
+		vi.doMock('../lib/server/logger.js', () => ({
+			logger: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} }
+		}));
+		const eventsModule = await importFresh<EventsModule>('../lib/server/events.js');
+		const subscribeWithSettling = eventsModule.subscribe;
+
+		const events: SSEEvent[] = [];
+		const clusterId = uniqueClusterId('removed-before-settle');
+		mockResources = [makeResource('new-app', 'flux-system', 'v1')];
+		const unsub = subscribeWithSettling((e) => events.push(e), clusterId);
+		await wait(150);
+
+		mockResources = [];
+		await wait(150);
+
+		try {
+			expect(events.some((e) => e.type === 'ADDED')).toBe(false);
+			expect(events.some((e) => e.type === 'DELETED')).toBe(false);
 		} finally {
 			unsub();
 		}

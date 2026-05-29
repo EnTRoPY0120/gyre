@@ -61,7 +61,7 @@ async function pollResourceType(
 		resourcePollsTotal.labels(context.clusterId, resourceType, 'success').inc();
 
 		if (resourceList && resourceList.items) {
-			return processResourceItems(context, resourceType, resourceList.items);
+			return await processResourceItems(context, resourceType, resourceList.items);
 		}
 	} catch (err) {
 		resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();
@@ -216,12 +216,12 @@ function pruneMissingResources(
 	}
 
 	for (const key of Array.from(context.resourceFirstSeen.keys())) {
-		if (
-			key.startsWith(`${resourceType}/`) &&
-			!currentKeys.has(key) &&
-			!context.lastStates.has(key)
-		) {
-			broadcastDeletedResource(context, key);
+		if (key.startsWith(`${resourceType}/`) && !currentKeys.has(key)) {
+			if (context.lastStates.has(key)) {
+				broadcastDeletedResource(context, key);
+			} else {
+				cleanupResourceState(context, key);
+			}
 		}
 	}
 }
@@ -342,9 +342,6 @@ function shouldNotifyModified(
 function broadcastDeletedResource(context: ClusterContext, key: string) {
 	const [type, namespace, name] = key.split('/');
 
-	// Clear status gauge
-	fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
-
 	resourceUpdatesTotal.labels(context.clusterId, type, 'deleted').inc();
 	broadcast(context, {
 		type: 'DELETED',
@@ -360,6 +357,13 @@ function broadcastDeletedResource(context: ClusterContext, key: string) {
 		timestamp: new Date().toISOString()
 	});
 
+	cleanupResourceState(context, key);
+}
+
+function cleanupResourceState(context: ClusterContext, key: string) {
+	const [type, namespace, name] = key.split('/');
+
+	fluxResourceStatusGauge.remove(context.clusterId, type, namespace, name, 'Ready');
 	context.lastStates.delete(key);
 	context.lastNotificationStates.delete(key);
 	context.resourceFirstSeen.delete(key);
