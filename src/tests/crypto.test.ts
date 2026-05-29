@@ -125,21 +125,21 @@ describe('Encryption Module', () => {
 		});
 	});
 
-	describe('isUsingDevelopmentKey', () => {
+	describe('isUsingDevelopmentAuthKey', () => {
 		test('returns true when AUTH_ENCRYPTION_KEY is not set', () => {
 			delete process.env.AUTH_ENCRYPTION_KEY;
-			expect(cryptoModule.isUsingDevelopmentKey()).toBe(true);
+			expect(cryptoModule.isUsingDevelopmentAuthKey()).toBe(true);
 		});
 
 		test('returns false when AUTH_ENCRYPTION_KEY is set', () => {
 			process.env.AUTH_ENCRYPTION_KEY = 'a'.repeat(64);
-			expect(cryptoModule.isUsingDevelopmentKey()).toBe(false);
+			expect(cryptoModule.isUsingDevelopmentAuthKey()).toBe(false);
 		});
 	});
 
-	describe('testEncryption', () => {
+	describe('testAuthEncryption', () => {
 		test('returns true when encryption subsystem is working', () => {
-			expect(cryptoModule.testEncryption()).toBe(true);
+			expect(cryptoModule.testAuthEncryption()).toBe(true);
 		});
 	});
 });

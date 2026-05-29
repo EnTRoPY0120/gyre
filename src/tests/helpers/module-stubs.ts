@@ -29,8 +29,8 @@ export function createAuthCryptoModuleStub(
 		decryptSecret: (value: string) => string;
 		encryptSecret: (value: string) => string;
 		generateEncryptionKey: () => string;
-		isUsingDevelopmentKey: () => boolean;
-		testEncryption: () => boolean;
+		isUsingDevelopmentAuthKey: () => boolean;
+		testAuthEncryption: () => boolean;
 		_resetKeyCache: () => void;
 	}> = {}
 ) {
@@ -67,8 +67,8 @@ export function createAuthCryptoModuleStub(
 			return `${ivHex}:${ciphertext}:${authTag}`;
 		},
 		generateEncryptionKey: () => randomBytes(32).toString('hex'),
-		isUsingDevelopmentKey: () => !process.env.AUTH_ENCRYPTION_KEY,
-		testEncryption: () => {
+		isUsingDevelopmentAuthKey: () => !process.env.AUTH_ENCRYPTION_KEY,
+		testAuthEncryption: () => {
 			const encrypted = stub.encryptSecret('test-value');
 			return stub.decryptSecret(encrypted) === 'test-value';
 		},
