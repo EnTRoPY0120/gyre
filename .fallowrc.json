@@ -16,7 +16,7 @@
 	"ignoreExports": [
 		{
 			"file": "src/lib/components/ui/**/index.ts",
-			"exports": ["*"]
+			"exports": ["Root"]
 		},
 		{
 			"file": "src/lib/server/db/index.ts",
@@ -37,14 +37,6 @@
 		{
 			"file": "src/routes/**/+server.ts",
 			"exports": ["_metadata"]
-		},
-		{
-			"file": "src/lib/server/auth/crypto.ts",
-			"exports": ["*"]
-		},
-		{
-			"file": "src/lib/server/clusters/encryption.ts",
-			"exports": ["*"]
 		},
 		{
 			"file": "src/lib/templates/index.ts",

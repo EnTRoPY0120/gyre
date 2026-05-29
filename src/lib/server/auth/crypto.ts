@@ -115,7 +115,7 @@ export function decryptSecret(ciphertext: string): string {
  * Check if the encryption key is the insecure development default.
  * Use this to warn users in production environments.
  */
-export function isUsingDevelopmentKey(): boolean {
+export function isUsingDevelopmentAuthKey(): boolean {
 	return !process.env.AUTH_ENCRYPTION_KEY;
 }
 
@@ -123,7 +123,7 @@ export function isUsingDevelopmentKey(): boolean {
  * Validate that encryption/decryption works correctly.
  * Useful for startup checks.
  */
-export function testEncryption(): boolean {
+export function testAuthEncryption(): boolean {
 	try {
 		const testSecret = 'test-secret-' + crypto.randomBytes(8).toString('hex');
 		const encrypted = encryptSecret(testSecret);
