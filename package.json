@@ -48,7 +48,7 @@
 		"zod": "^4.3.6"
 	},
 	"devDependencies": {
-		"@internationalized/date": "^3.10.1",
+		"@internationalized/date": "^3.12.2",
 		"@opentelemetry/api": "1.9.1",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.60.1",
