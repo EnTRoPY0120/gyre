@@ -60,7 +60,7 @@
 		"@types/node": "^25.9.1",
 		"bits-ui": "^2.15.5",
 		"drizzle-kit": "^0.31.8",
-		"oxfmt": "^0.51.0",
+		"oxfmt": "^0.53.0",
 		"oxlint": "^1.66.0",
 		"svelte": "^5.55.9",
 		"svelte-check": "^4.3.6",
