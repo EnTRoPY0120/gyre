@@ -3,7 +3,7 @@ export type RoleMapping = Record<string, string[]>;
 export const DEFAULT_ROLE_MAPPING_TEMPLATE =
 	'{\n  "admin": [],\n  "editor": [],\n  "viewer": []\n}';
 
-export const ROLE_MAPPING_ERROR_MESSAGE =
+const ROLE_MAPPING_ERROR_MESSAGE =
 	'roleMapping must be an object mapping role names to arrays of group strings';
 
 function isRoleMapping(value: unknown): value is RoleMapping {

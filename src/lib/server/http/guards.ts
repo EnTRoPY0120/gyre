@@ -66,7 +66,7 @@ export function requireClusterContext(locals: App.Locals) {
 	return locals.cluster;
 }
 
-export function enforceRateLimitPreset(
+function enforceRateLimitPreset(
 	event: RateLimitEvent,
 	preset: RateLimitPreset,
 	identifier: string
@@ -136,7 +136,7 @@ export async function requireScopedPermission(
 	}
 }
 
-export async function requireAdminPermission(
+async function requireAdminPermission(
 	locals: App.Locals,
 	resourceType?: string,
 	namespace?: string
@@ -182,7 +182,7 @@ export function validateFluxRouteIdentity(namespace: string, name: string): void
 	validateK8sName(name);
 }
 
-export async function requireFluxResourcePermission(
+async function requireFluxResourcePermission(
 	locals: App.Locals,
 	params: FluxRouteParams,
 	action: RbacAction

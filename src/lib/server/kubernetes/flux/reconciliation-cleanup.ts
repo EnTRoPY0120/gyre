@@ -4,7 +4,7 @@ import { getDbSync } from '../../db/index.js';
 import { reconciliationHistory } from '../../db/schema.js';
 import { MS_PER_MINUTE, getCutoffDate, getRandomJitterMs } from '../../utils/time.js';
 
-export interface CleanupStats {
+interface CleanupStats {
 	deletedSuccess: number;
 	deletedFailure: number;
 	totalDeleted: number;
@@ -27,7 +27,7 @@ const CLEANUP_POLICIES = {
  * Clean up old reconciliation history entries
  * @returns Statistics about the cleanup operation
  */
-export async function cleanupReconciliationHistory(): Promise<CleanupStats> {
+async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 	const db = getDbSync();
 	const stats: CleanupStats = {
 		deletedSuccess: 0,
@@ -204,7 +204,7 @@ export function scheduleCleanup(): void {
  * Stop the cleanup scheduler (useful for testing or graceful shutdown).
  * Returns the in-flight cleanup promise (if any) so callers can await its completion.
  */
-export function stopCleanup(): Promise<void> {
+function stopCleanup(): Promise<void> {
 	if (cleanupInterval) {
 		clearInterval(cleanupInterval);
 		cleanupInterval = null;

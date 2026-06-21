@@ -214,7 +214,7 @@ export async function getCoreV1Api(
  * getKubeConfig is invoked inside the factory so it is only called on cache misses.
  * @param context - Optional canonical cluster ID
  */
-export async function getAppsV1Api(
+async function getAppsV1Api(
 	context?: string,
 	reqCache?: ReqCache,
 	timeoutMs = OPERATION_TIMEOUTS.get

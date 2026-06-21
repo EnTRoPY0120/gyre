@@ -13,28 +13,4 @@ import Value from './select-value.svelte';
 
 const GroupHeading = SelectPrimitive.GroupHeading;
 
-export {
-	Root,
-	Content,
-	Group,
-	Item,
-	Label,
-	ScrollDownButton,
-	ScrollUpButton,
-	Separator,
-	Trigger,
-	Value,
-	GroupHeading,
-	//
-	Root as Select,
-	Content as SelectContent,
-	Group as SelectGroup,
-	Item as SelectItem,
-	Label as SelectLabel,
-	ScrollDownButton as SelectScrollDownButton,
-	ScrollUpButton as SelectScrollUpButton,
-	Separator as SelectSeparator,
-	Trigger as SelectTrigger,
-	Value as SelectValue,
-	GroupHeading as SelectGroupHeading
-};
+export { Root, Content, Item, Trigger, Value };

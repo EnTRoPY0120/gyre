@@ -4,7 +4,7 @@ import { logger } from '../logger.js';
 import { passwordSchema } from '$lib/utils/validation.js';
 import { SALT_ROUNDS } from './constants.js';
 
-export function warnIfWeakAdminPassword(password: string): void {
+function warnIfWeakAdminPassword(password: string): void {
 	const result = passwordSchema.safeParse(password);
 	if (!result.success) {
 		logger.warn(
@@ -69,7 +69,7 @@ export function generateStrongPassword(): string {
  * @deprecated The generated admin password is no longer stored in memory.
  * It is returned directly from createDefaultAdminIfNeeded() and written to a restricted temp file.
  */
-export function getGeneratedAdminPassword(): string | null {
+function getGeneratedAdminPassword(): string | null {
 	return null;
 }
 

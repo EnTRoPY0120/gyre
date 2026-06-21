@@ -39,7 +39,7 @@ export function auditLogSecretAccess(
  * @param name - Name of the Secret
  * @param context - Optional cluster context
  */
-export async function readSecret(
+async function readSecret(
 	namespace: string,
 	name: string,
 	context?: string

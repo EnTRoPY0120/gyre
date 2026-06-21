@@ -18,7 +18,7 @@ export interface AdminNavigationLink {
 	bg: string;
 }
 
-export const ADMIN_SIDEBAR_LINKS: ReadonlyArray<AdminNavigationLink> = [
+const ADMIN_SIDEBAR_LINKS: ReadonlyArray<AdminNavigationLink> = [
 	{
 		id: 'settings',
 		label: 'Settings',
@@ -113,7 +113,7 @@ export const ADMIN_HOME_FEATURES: ReadonlyArray<AdminNavigationLink> = [
 ];
 
 // Keep this aligned with server-side `isAdmin(user)` in `src/lib/server/rbac.ts`.
-export function isAdminRole(role?: string | null): boolean {
+function isAdminRole(role?: string | null): boolean {
 	return role === 'admin';
 }
 

@@ -68,7 +68,7 @@ export function generateCodeChallenge(codeVerifier: string): string {
  * @param codeChallenge - The code challenge to verify against
  * @returns true if code_challenge == SHA256(code_verifier)
  */
-export function verifyCodeChallenge(codeVerifier: string, codeChallenge: string): boolean {
+function verifyCodeChallenge(codeVerifier: string, codeChallenge: string): boolean {
 	const computedChallenge = generateCodeChallenge(codeVerifier);
 	return computedChallenge === codeChallenge;
 }
@@ -79,7 +79,7 @@ export function verifyCodeChallenge(codeVerifier: string, codeChallenge: string)
  *
  * @returns Object with verifier and challenge
  */
-export function generatePKCEPair(): { verifier: string; challenge: string } {
+function generatePKCEPair(): { verifier: string; challenge: string } {
 	const verifier = generateCodeVerifier();
 	const challenge = generateCodeChallenge(verifier);
 	return { verifier, challenge };
@@ -89,7 +89,7 @@ export function generatePKCEPair(): { verifier: string; challenge: string } {
  * Validate PKCE parameters for correctness.
  * Useful for input validation.
  */
-export function validatePKCEParams(params: { verifier?: string; challenge?: string }): {
+function validatePKCEParams(params: { verifier?: string; challenge?: string }): {
 	valid: boolean;
 	error?: string;
 } {

@@ -214,7 +214,7 @@ export function checkRateLimit(
 	}
 }
 
-export class AccountLockout {
+class AccountLockout {
 	private cleanupInterval: NodeJS.Timeout | undefined;
 
 	constructor() {

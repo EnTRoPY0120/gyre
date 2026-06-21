@@ -16,39 +16,4 @@ import SubTrigger from './dropdown-menu-sub-trigger.svelte';
 import GroupHeading from './dropdown-menu-group-heading.svelte';
 import Portal from './dropdown-menu-portal.svelte';
 
-export {
-	CheckboxGroup,
-	CheckboxItem,
-	Content,
-	Portal,
-	Root as DropdownMenu,
-	CheckboxGroup as DropdownMenuCheckboxGroup,
-	CheckboxItem as DropdownMenuCheckboxItem,
-	Content as DropdownMenuContent,
-	Portal as DropdownMenuPortal,
-	Group as DropdownMenuGroup,
-	Item as DropdownMenuItem,
-	Label as DropdownMenuLabel,
-	RadioGroup as DropdownMenuRadioGroup,
-	RadioItem as DropdownMenuRadioItem,
-	Separator as DropdownMenuSeparator,
-	Shortcut as DropdownMenuShortcut,
-	Sub as DropdownMenuSub,
-	SubContent as DropdownMenuSubContent,
-	SubTrigger as DropdownMenuSubTrigger,
-	Trigger as DropdownMenuTrigger,
-	GroupHeading as DropdownMenuGroupHeading,
-	Group,
-	GroupHeading,
-	Item,
-	Label,
-	RadioGroup,
-	RadioItem,
-	Root,
-	Separator,
-	Shortcut,
-	Sub,
-	SubContent,
-	SubTrigger,
-	Trigger
-};
+export { Content, Item, Label, RadioGroup, RadioItem, Root, Separator, Trigger };

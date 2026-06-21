@@ -23,7 +23,7 @@ import { parseRoleMappingInput } from '$lib/auth/role-mapping';
  * @param redirectUri - Optional override for redirect URI
  * @returns OAuth provider instance
  */
-export function createOAuthProvider(config: AuthProvider, redirectUri?: string): IOAuthProvider {
+function createOAuthProvider(config: AuthProvider, redirectUri?: string): IOAuthProvider {
 	const options = { config, redirectUri };
 
 	switch (config.type) {
@@ -55,7 +55,7 @@ export function createOAuthProvider(config: AuthProvider, redirectUri?: string):
  * @param providerId - Provider ID
  * @returns Provider configuration or null if not found
  */
-export async function getAuthProviderById(providerId: string): Promise<AuthProvider | null> {
+async function getAuthProviderById(providerId: string): Promise<AuthProvider | null> {
 	const db = await getDb();
 	const provider = await db.query.authProviders.findFirst({
 		where: eq(authProviders.id, providerId)

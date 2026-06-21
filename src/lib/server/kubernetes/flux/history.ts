@@ -5,7 +5,7 @@ import type { FluxResourceType } from './resources.js';
 import { getReconciliationHistory } from './reconciliation-tracker.js';
 import { getResourceDef } from './resources.js';
 
-export interface ResourceRevision {
+interface ResourceRevision {
 	revision: string;
 	timestamp: string;
 	status: string;
@@ -16,7 +16,7 @@ export interface ResourceRevision {
  * Get history for a Flux resource
  * Now uses the unified reconciliation_history table for all FluxCD resources
  */
-export async function getResourceHistory(
+async function getResourceHistory(
 	type: FluxResourceType,
 	namespace: string,
 	name: string,

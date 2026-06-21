@@ -47,7 +47,7 @@ let _authEncryptionKey: Buffer | null = null;
  * Internal for testing: Clear the cached encryption key.
  * This ensures changes to AUTH_ENCRYPTION_KEY in environment are picked up.
  */
-export function _resetKeyCache(): void {
+function _resetKeyCache(): void {
 	_authEncryptionKey = null;
 }
 
@@ -62,7 +62,7 @@ function getAuthEncryptionKeyLazy(): Buffer {
  * Generate a random encryption key suitable for AUTH_ENCRYPTION_KEY.
  * @returns 64 hex characters (32 bytes)
  */
-export function generateEncryptionKey(): string {
+function generateEncryptionKey(): string {
 	return crypto.randomBytes(KEY_LENGTH).toString('hex');
 }
 

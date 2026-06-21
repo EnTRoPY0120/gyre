@@ -2,7 +2,7 @@ import { z } from '$lib/server/openapi';
 import type { UserPreferences } from '$lib/types/user';
 import { ADMIN_ONBOARDING_CHECKLIST_IDS } from '$lib/user-preferences';
 
-export const notificationPreferencesSchema = z
+const notificationPreferencesSchema = z
 	.object({
 		enabled: z.boolean().optional(),
 		resourceTypes: z.array(z.string()).optional(),
@@ -11,7 +11,7 @@ export const notificationPreferencesSchema = z
 	})
 	.optional();
 
-export const onboardingPreferencesSchema = z
+const onboardingPreferencesSchema = z
 	.object({
 		// Legacy compatibility fields retained for existing stored preferences.
 		adminChecklistDismissed: z.boolean().optional(),

@@ -176,7 +176,7 @@ function validateSpecMap(
 	}
 }
 
-export function validateFluxYaml(
+function validateFluxYaml(
 	content: string,
 	monacoInstance: typeof Monaco
 ): Monaco.editor.IMarkerData[] {

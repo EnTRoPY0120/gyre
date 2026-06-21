@@ -57,7 +57,7 @@ export function createPayloadTooLargeResponse(
 	});
 }
 
-export function createMalformedContentLengthResponse(
+function createMalformedContentLengthResponse(
 	event: Pick<RequestEvent, 'request' | 'url'>,
 	value: string
 ): Response {

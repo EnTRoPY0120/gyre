@@ -233,7 +233,6 @@ export async function requirePermission(
  * Custom RBAC error
  */
 export class RbacError extends Error {
-	status = 403;
 	body: { message: string; code: string };
 
 	constructor(
@@ -310,7 +309,7 @@ export async function unbindPolicyFromUser(userId: string, policyId: string): Pr
 /**
  * Get all policies for a user
  */
-export async function getUserPolicies(userId: string) {
+async function getUserPolicies(userId: string) {
 	const db = getDbSync();
 
 	const results = await db
@@ -355,7 +354,7 @@ export async function getAllUserPolicies(
 /**
  * Get all available policies
  */
-export async function getAllPolicies() {
+async function getAllPolicies() {
 	const db = getDbSync();
 	return db.query.rbacPolicies.findMany({
 		orderBy: (policies, { desc }) => [desc(policies.createdAt)]
@@ -455,7 +454,7 @@ export function isAdmin(user: User): boolean {
 /**
  * Check if user can perform admin actions
  */
-export async function canAdmin(user: User): Promise<boolean> {
+async function canAdmin(user: User): Promise<boolean> {
 	if (user.role === 'admin') return true;
 	return checkPermission(user, 'admin');
 }

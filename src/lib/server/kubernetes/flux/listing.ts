@@ -216,7 +216,7 @@ export async function listFluxResourcesInNamespace(
  * @param context - Optional cluster ID or context name
  * @param pollIntervalMs - Interval between polls (default: 5000ms)
  */
-export async function* watchFluxResources(
+async function* watchFluxResources(
 	resourceType: FluxResourceType,
 	context?: string,
 	pollIntervalMs = 5000

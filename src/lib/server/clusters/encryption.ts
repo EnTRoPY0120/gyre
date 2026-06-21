@@ -130,7 +130,6 @@ export function decryptKubeconfig(encrypted: string): string {
 	);
 }
 
-export { decryptKubeconfig as _decryptKubeconfig };
-export function _resetEncryptionKeyCache(): void {
+function _resetEncryptionKeyCache(): void {
 	_encryptionKey = null;
 }

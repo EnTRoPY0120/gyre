@@ -1,4 +1,4 @@
-export const SAFE_URL_PROTOCOLS = ['http:', 'https:', 'ssh:', 'git:', 'oci:'];
+const SAFE_URL_PROTOCOLS = ['http:', 'https:', 'ssh:', 'git:', 'oci:'];
 
 /**
  * Returns true if the given URL has a safe protocol for external linking.

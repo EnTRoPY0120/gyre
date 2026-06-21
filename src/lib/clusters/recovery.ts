@@ -19,9 +19,7 @@ export interface ClusterRecoverySummary {
 	actions: ClusterRecoverySummaryAction[];
 }
 
-export function getFirstFailingHealthCheck(
-	checks: HealthCheckResult[]
-): HealthCheckResult | undefined {
+function getFirstFailingHealthCheck(checks: HealthCheckResult[]): HealthCheckResult | undefined {
 	return checks.find((check) => !check.passed);
 }
 

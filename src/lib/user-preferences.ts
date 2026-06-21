@@ -12,7 +12,7 @@ function extractChecklistIds<const TItems extends ReadonlyArray<{ readonly id: s
 	};
 }
 
-export const ADMIN_ONBOARDING_CHECKLIST_ITEMS = [
+const ADMIN_ONBOARDING_CHECKLIST_ITEMS = [
 	{
 		id: 'clusters',
 		title: 'Review cluster connectivity',
@@ -42,10 +42,10 @@ export const ADMIN_ONBOARDING_CHECKLIST_ITEMS = [
 export const ADMIN_ONBOARDING_CHECKLIST_IDS = extractChecklistIds(ADMIN_ONBOARDING_CHECKLIST_ITEMS);
 const VALID_ADMIN_ONBOARDING_CHECKLIST_IDS = new Set<string>(ADMIN_ONBOARDING_CHECKLIST_IDS);
 
-export type AdminOnboardingChecklistId = (typeof ADMIN_ONBOARDING_CHECKLIST_IDS)[number];
-export type AdminOnboardingChecklistItem = (typeof ADMIN_ONBOARDING_CHECKLIST_ITEMS)[number];
+type AdminOnboardingChecklistId = (typeof ADMIN_ONBOARDING_CHECKLIST_IDS)[number];
+type AdminOnboardingChecklistItem = (typeof ADMIN_ONBOARDING_CHECKLIST_ITEMS)[number];
 
-export function normalizeAdminChecklistCompletedItems(
+function normalizeAdminChecklistCompletedItems(
 	items: string[] | undefined
 ): AdminOnboardingChecklistId[] {
 	if (!Array.isArray(items)) {
@@ -61,7 +61,7 @@ export function normalizeAdminChecklistCompletedItems(
 	];
 }
 
-export function getAdminChecklistState(preferences?: UserPreferences | null) {
+function getAdminChecklistState(preferences?: UserPreferences | null) {
 	const completedItems = normalizeAdminChecklistCompletedItems(
 		preferences?.onboarding?.adminChecklistCompletedItems
 	);

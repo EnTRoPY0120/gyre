@@ -15,11 +15,8 @@ export {
 	Title,
 	Action,
 	Cancel,
-	Portal,
 	Footer,
 	Header,
-	Trigger,
-	Overlay,
 	Content,
 	Description,
 	//
@@ -27,11 +24,8 @@ export {
 	Title as AlertDialogTitle,
 	Action as AlertDialogAction,
 	Cancel as AlertDialogCancel,
-	Portal as AlertDialogPortal,
 	Footer as AlertDialogFooter,
 	Header as AlertDialogHeader,
-	Trigger as AlertDialogTrigger,
-	Overlay as AlertDialogOverlay,
 	Content as AlertDialogContent,
 	Description as AlertDialogDescription
 };

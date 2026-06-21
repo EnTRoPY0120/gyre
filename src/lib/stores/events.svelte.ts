@@ -595,4 +595,4 @@ class RealtimeStore {
 export const eventsStore = new RealtimeStore();
 
 // Legacy alias for backwards compatibility
-export type WebSocketStatus = ConnectionStatus;
+type WebSocketStatus = ConnectionStatus;
