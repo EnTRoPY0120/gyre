@@ -10,7 +10,8 @@
 		"patterns": [".", "documentation"]
 	},
 	"duplicates": {
-		"minOccurrences": 3
+		"minOccurrences": 3,
+		"minTokens": 200
 	},
 	"ignoreDependencies": ["@mdx-js/react", "@docusaurus/module-type-aliases"],
 	"ignoreExports": [
