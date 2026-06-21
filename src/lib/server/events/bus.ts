@@ -84,7 +84,7 @@ export function subscribe(subscriber: Subscriber, clusterId: string = IN_CLUSTER
 	};
 }
 
-export function startWorker(context: ClusterContext) {
+function startWorker(context: ClusterContext) {
 	if (context.isActive) return;
 	context.isActive = true;
 	activeWorkersGauge.set(activeWorkers.size);

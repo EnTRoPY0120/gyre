@@ -116,7 +116,7 @@ export async function logLogout(user: User, ipAddress?: string): Promise<void> {
 /**
  * Log resource read (list/view)
  */
-export async function logResourceRead(
+async function logResourceRead(
 	user: User,
 	resourceType: string,
 	resourceName?: string,
@@ -134,7 +134,7 @@ export async function logResourceRead(
 /**
  * Log resource write (create/update)
  */
-export async function logResourceWrite(
+async function logResourceWrite(
 	user: User,
 	resourceType: string,
 	action: 'suspend' | 'resume' | 'reconcile' | 'update' | 'rollback',
@@ -208,7 +208,7 @@ export type AuditLogSortOrder = 'asc' | 'desc';
 /**
  * Get recent audit logs
  */
-export async function getRecentAuditLogs(
+async function getRecentAuditLogs(
 	userId?: string,
 	action?: string,
 	limit: number = 100,
@@ -305,7 +305,7 @@ export async function getAuditLogsPaginated(options: {
 /**
  * Clean up old audit logs based on retention policy
  */
-export async function cleanupOldAuditLogs(): Promise<number> {
+async function cleanupOldAuditLogs(): Promise<number> {
 	try {
 		const db = getDbSync();
 		const retentionDays = await getAuditLogRetentionDays();
@@ -420,7 +420,7 @@ export function scheduleAuditLogCleanup(): void {
  * Stop the audit log cleanup scheduler.
  * Returns the in-flight cleanup promise (if any) so callers can await its completion.
  */
-export function stopAuditLogCleanup(): Promise<void> {
+function stopAuditLogCleanup(): Promise<void> {
 	if (cleanupInterval) {
 		clearInterval(cleanupInterval);
 		cleanupInterval = null;

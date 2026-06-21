@@ -70,7 +70,7 @@ export interface FluxResourceList {
 /**
  * GitRepository-specific types
  */
-export interface GitRepositorySpec extends Record<string, unknown> {
+interface GitRepositorySpec extends Record<string, unknown> {
 	url: string;
 	interval: string;
 	ref?: {
@@ -86,14 +86,14 @@ export interface GitRepositorySpec extends Record<string, unknown> {
 	ignore?: string;
 }
 
-export interface GitRepository extends FluxResource {
+interface GitRepository extends FluxResource {
 	spec: GitRepositorySpec;
 }
 
 /**
  * HelmRelease-specific types
  */
-export interface HelmReleaseSpec extends Record<string, unknown> {
+interface HelmReleaseSpec extends Record<string, unknown> {
 	chart: {
 		spec: {
 			chart: string;
@@ -112,14 +112,14 @@ export interface HelmReleaseSpec extends Record<string, unknown> {
 	suspend?: boolean;
 }
 
-export interface HelmRelease extends FluxResource {
+interface HelmRelease extends FluxResource {
 	spec: HelmReleaseSpec;
 }
 
 /**
  * Kustomization-specific types
  */
-export interface KustomizationSpec extends Record<string, unknown> {
+interface KustomizationSpec extends Record<string, unknown> {
 	interval: string;
 	sourceRef: {
 		kind: string;
@@ -134,6 +134,6 @@ export interface KustomizationSpec extends Record<string, unknown> {
 	targetNamespace?: string;
 }
 
-export interface Kustomization extends FluxResource {
+interface Kustomization extends FluxResource {
 	spec: KustomizationSpec;
 }

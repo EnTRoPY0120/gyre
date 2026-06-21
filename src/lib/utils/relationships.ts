@@ -50,7 +50,7 @@ export interface ResourceRef {
 	matchLabels?: Record<string, string>;
 }
 
-export interface ResourceRelationship {
+interface ResourceRelationship {
 	source: ResourceRef;
 	target: ResourceRef;
 	type: 'source' | 'manages' | 'uses' | 'triggers' | 'notifies';
@@ -67,7 +67,7 @@ export interface ResourceNode {
 /**
  * Extract the source reference from a Kustomization
  */
-export function getKustomizationSourceRef(
+function getKustomizationSourceRef(
 	kustomization: FluxResource & {
 		spec?: { sourceRef?: { kind: string; name: string; namespace?: string; apiVersion?: string } };
 	}
@@ -86,7 +86,7 @@ export function getKustomizationSourceRef(
 /**
  * Extract the source reference from a HelmRelease
  */
-export function getHelmReleaseSourceRef(
+function getHelmReleaseSourceRef(
 	helmRelease: FluxResource & {
 		spec?: {
 			chart?: {
@@ -112,7 +112,7 @@ export function getHelmReleaseSourceRef(
 /**
  * Extract Provider reference from an Alert
  */
-export function getAlertProviderRef(
+function getAlertProviderRef(
 	alert: FluxResource & { spec?: { providerRef?: { name: string } } }
 ): ResourceRef | null {
 	const providerRef = alert.spec?.providerRef;
@@ -128,7 +128,7 @@ export function getAlertProviderRef(
 /**
  * Extract event sources from an Alert (resources it watches)
  */
-export function getAlertEventSources(
+function getAlertEventSources(
 	alert: FluxResource & {
 		spec?: {
 			eventSources?: Array<{
@@ -152,7 +152,7 @@ export function getAlertEventSources(
 /**
  * Extract resources that a Receiver can trigger
  */
-export function getReceiverResources(
+function getReceiverResources(
 	receiver: FluxResource & {
 		spec?: {
 			resources?: Array<{
@@ -176,7 +176,7 @@ export function getReceiverResources(
 /**
  * Determine the FluxResourceType from a kind string
  */
-export function kindToFluxType(kind: string): FluxResourceType | null {
+function kindToFluxType(kind: string): FluxResourceType | null {
 	const mapping: Record<string, FluxResourceType> = {
 		GitRepository: FluxResourceType.GitRepository,
 		HelmRepository: FluxResourceType.HelmRepository,
@@ -195,7 +195,7 @@ export function kindToFluxType(kind: string): FluxResourceType | null {
 /**
  * Build a relationship map from a collection of FluxCD resources
  */
-export function buildRelationshipMap(resources: {
+function buildRelationshipMap(resources: {
 	kustomizations?: FluxResource[];
 	helmReleases?: FluxResource[];
 	gitRepositories?: FluxResource[];
@@ -326,6 +326,6 @@ export function getResourceStatus(
 /**
  * Create a resource reference key for lookups
  */
-export function resourceRefKey(ref: ResourceRef): string {
+function resourceRefKey(ref: ResourceRef): string {
 	return `${ref.kind}/${ref.namespace || 'cluster-scoped'}/${ref.name}`;
 }

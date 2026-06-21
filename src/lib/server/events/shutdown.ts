@@ -5,12 +5,10 @@ import { stopWorker } from './bus.js';
 import { broadcast } from './dispatcher.js';
 import { normalizeError } from './types.js';
 
-export { setEventBusShuttingDown } from './state.js';
-
 /**
  * Mark the event bus as shutting down to prevent new subscriptions
  */
-export async function closeAllEventStreams() {
+async function closeAllEventStreams() {
 	logger.info('[EventBus] Shutting down all event streams...');
 	setEventBusShuttingDown();
 

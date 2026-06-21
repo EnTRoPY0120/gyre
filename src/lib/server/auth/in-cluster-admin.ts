@@ -181,6 +181,6 @@ export async function validateInClusterAdmin(password: string): Promise<boolean>
 /**
  * Check if in-cluster admin password has been used
  */
-export function isInClusterAdminPasswordConsumed(): boolean {
+function isInClusterAdminPasswordConsumed(): boolean {
 	return inClusterFirstLoginDone;
 }

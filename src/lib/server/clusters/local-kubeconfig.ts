@@ -21,7 +21,7 @@ export function loadLocalKubeConfig(): k8s.KubeConfig | null {
 	}
 }
 
-export function getLocalKubeconfigContextNames(): string[] {
+function getLocalKubeconfigContextNames(): string[] {
 	const config = loadLocalKubeConfig();
 	if (!config) {
 		return [];

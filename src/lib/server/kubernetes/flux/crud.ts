@@ -135,7 +135,7 @@ export async function updateFluxResource(
  * Delete a FluxCD resource with timeout protection.
  * Gracefully handles 404 Not Found errors (idempotent deletion).
  */
-export async function deleteFluxResource(
+async function deleteFluxResource(
 	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,

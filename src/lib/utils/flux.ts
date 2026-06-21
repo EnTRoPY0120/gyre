@@ -90,7 +90,7 @@ export function formatTimestamp(timestamp?: string): string {
 /**
  * Format FluxCD interval string (e.g., "5m", "1h", "24h")
  */
-export function formatInterval(interval?: string): string {
+function formatInterval(interval?: string): string {
 	if (!interval) return 'Not set';
 
 	// Interval is already in a readable format (e.g., "5m", "1h30m")
@@ -100,7 +100,7 @@ export function formatInterval(interval?: string): string {
 /**
  * Get health badge color
  */
-export function getHealthColor(health: ResourceHealth): string {
+function getHealthColor(health: ResourceHealth): string {
 	switch (health) {
 		case 'healthy':
 			return 'green';
@@ -136,7 +136,7 @@ export function getHealthLabel(health: ResourceHealth): string {
 /**
  * Truncate text with ellipsis
  */
-export function truncate(text: string, maxLength: number): string {
+function truncate(text: string, maxLength: number): string {
 	if (text.length <= maxLength) return text;
 	return text.substring(0, maxLength - 3) + '...';
 }

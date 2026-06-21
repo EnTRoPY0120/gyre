@@ -45,7 +45,7 @@ export function cleanupSetupTokenFile(): void {
 }
 
 // Check if any users exist (for initial setup)
-export async function hasUsers(): Promise<boolean> {
+async function hasUsers(): Promise<boolean> {
 	try {
 		const db = getDbSync();
 		const result = db

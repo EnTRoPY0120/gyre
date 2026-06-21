@@ -127,7 +127,7 @@ export async function getAllRecentEvents(limit = 10, context?: string): Promise<
 /**
  * Format event timestamp as relative time
  */
-export function formatEventTime(timestamp: string | null): string {
+function formatEventTime(timestamp: string | null): string {
 	if (!timestamp) return 'Unknown';
 
 	const now = new Date();

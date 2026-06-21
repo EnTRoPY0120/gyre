@@ -277,7 +277,7 @@ export async function getReconciliationHistory(
 /**
  * Get the most recent reconciliation for a resource
  */
-export async function getLatestReconciliation(
+async function getLatestReconciliation(
 	resourceType: FluxResourceType,
 	namespace: string,
 	name: string,

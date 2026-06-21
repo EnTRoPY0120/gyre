@@ -39,7 +39,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	return {
-		mode: process.env.KUBERNETES_SERVICE_HOST ? 'in-cluster' : 'local',
 		providers,
 		localLoginEnabled
 	};

@@ -20,10 +20,4 @@ export { GitLabProvider } from './providers/gitlab';
 export { GoogleProvider } from './providers/google';
 
 // Factory functions
-export {
-	createOAuthProvider,
-	getAuthProviderById,
-	getEnabledAuthProviders,
-	getOAuthProvider,
-	validateProviderConfig
-} from './factory';
+export { getEnabledAuthProviders, getOAuthProvider, validateProviderConfig } from './factory';

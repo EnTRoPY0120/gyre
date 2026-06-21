@@ -5,6 +5,5 @@ export {
 	Root,
 	Content,
 	//
-	Root as Dialog,
-	Content as DialogContent
+	Root as Dialog
 };

@@ -3,7 +3,7 @@ export type ValidatedFluxArtifactUrl = {
 	pathname: string;
 };
 
-export function getExpectedFluxArtifactHosts(fluxNamespace: string): Set<string> {
+function getExpectedFluxArtifactHosts(fluxNamespace: string): Set<string> {
 	const serviceName = process.env.FLUX_SOURCE_CONTROLLER_SERVICE || 'source-controller';
 	return new Set([
 		`${serviceName}.${fluxNamespace}.svc`,

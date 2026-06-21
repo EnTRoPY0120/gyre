@@ -204,7 +204,7 @@
 </script>
 
 <Dialog.Dialog bind:open onOpenChange={handleOpenChange}>
-	<Dialog.DialogContent class="p-0 shadow-2xl max-w-2xl">
+	<Dialog.Content class="p-0 shadow-2xl max-w-2xl">
 		<div class="flex h-full w-full flex-col overflow-hidden rounded-lg bg-zinc-900 text-zinc-50">
 			<!-- Search input -->
 			<div class="flex items-center border-b border-zinc-800 px-3">
@@ -300,5 +300,5 @@
 				</div>
 			</div>
 		</div>
-	</Dialog.DialogContent>
+	</Dialog.Content>
 </Dialog.Dialog>

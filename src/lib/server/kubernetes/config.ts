@@ -118,10 +118,7 @@ export function loadKubeConfig(options?: KubeConfigOptions): k8s.KubeConfig {
  * Create a kubeconfig from uploaded cluster data
  * Used when loading clusters from the database
  */
-export function createKubeConfigFromString(
-	kubeconfigYaml: string,
-	contextName?: string
-): k8s.KubeConfig {
+function createKubeConfigFromString(kubeconfigYaml: string, contextName?: string): k8s.KubeConfig {
 	const config = new k8s.KubeConfig();
 	config.loadFromString(kubeconfigYaml);
 
@@ -164,7 +161,7 @@ export async function validateKubeConfig(config: k8s.KubeConfig): Promise<boolea
  * @param throwOnFailure - If true, throws an error on validation failure
  * @returns true if validation succeeds, false otherwise
  */
-export async function revalidateKubeConfig(
+async function revalidateKubeConfig(
 	config: k8s.KubeConfig,
 	throwOnFailure = false
 ): Promise<boolean> {

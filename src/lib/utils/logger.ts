@@ -19,7 +19,7 @@ const currentLevel: LogLevel =
 	LOG_LEVELS[configuredLevel] !== undefined ? configuredLevel : dev ? 'debug' : 'info';
 const currentLevelNum = LOG_LEVELS[currentLevel];
 
-export function shouldLog(level: LogLevel): boolean {
+function shouldLog(level: LogLevel): boolean {
 	return currentLevelNum <= LOG_LEVELS[level];
 }
 

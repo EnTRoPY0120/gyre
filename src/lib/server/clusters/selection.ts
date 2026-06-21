@@ -7,7 +7,7 @@ import {
 } from './local-kubeconfig.js';
 import type { Cookies } from '@sveltejs/kit';
 
-export const CLUSTER_SELECTION_COOKIE = 'gyre_cluster';
+const CLUSTER_SELECTION_COOKIE = 'gyre_cluster';
 
 const COOKIE_OPTIONS = {
 	path: '/',
@@ -17,7 +17,7 @@ const COOKIE_OPTIONS = {
 	maxAge: 60 * 60 * 24 * 30
 };
 
-export function getDefaultClusterSelection(): string {
+function getDefaultClusterSelection(): string {
 	return getDefaultLocalKubeconfigContext() ?? IN_CLUSTER_ID;
 }
 

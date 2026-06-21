@@ -24,7 +24,7 @@ import {
 	validateFluxRouteIdentity
 } from '$lib/server/http/guards.js';
 
-export function batchDeleteUseCase(params: {
+function batchDeleteUseCase(params: {
 	concurrency?: number;
 	items: DeleteItem[];
 	locals: App.Locals;

@@ -4,13 +4,7 @@ export type {
 	K8sCondition,
 	FluxResource,
 	FluxResourceStatus,
-	FluxResourceList,
-	GitRepository,
-	GitRepositorySpec,
-	HelmRelease,
-	HelmReleaseSpec,
-	Kustomization,
-	KustomizationSpec
+	FluxResourceList
 } from '$lib/server/kubernetes/flux/types';
 
 /**

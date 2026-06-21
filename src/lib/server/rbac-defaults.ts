@@ -13,7 +13,7 @@ type Tx = Parameters<Parameters<ReturnType<typeof getDbSync>['transaction']>[0]>
 /**
  * Default policy IDs (deterministic UUIDs for idempotency)
  */
-export const DEFAULT_POLICY_IDS = {
+const DEFAULT_POLICY_IDS = {
 	VIEWER_READ_ALL: '00000000-0000-0000-0000-000000000001',
 	EDITOR_READ_ALL: '00000000-0000-0000-0000-000000000002',
 	EDITOR_WRITE_ALL: '00000000-0000-0000-0000-000000000003'
@@ -153,7 +153,7 @@ export async function repairUserPolicyBindings(): Promise<number> {
  * Sync user's policy bindings to match their current role
  * Called when a user's role is changed
  */
-export async function syncUserPolicyBindings(user: User): Promise<void> {
+async function syncUserPolicyBindings(user: User): Promise<void> {
 	const db = getDbSync();
 	db.transaction((tx) => {
 		syncUserPolicyBindingsInTx(tx, user);

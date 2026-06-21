@@ -61,7 +61,7 @@ export function scheduleSessionCleanup(): void {
 /**
  * Stop the cleanup scheduler (useful for testing or graceful shutdown)
  */
-export function stopSessionCleanup(): void {
+function stopSessionCleanup(): void {
 	if (cleanupInterval) {
 		clearInterval(cleanupInterval);
 		cleanupInterval = null;

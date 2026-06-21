@@ -181,7 +181,7 @@ async function getCachedBackupCount(): Promise<number> {
 	return getCached('backupCount', async () => listBackups().length);
 }
 
-export function clearAdminReadinessCacheForTests(): void {
+function clearAdminReadinessCacheForTests(): void {
 	adminReadinessGeneration += 1;
 	adminReadinessCache.authSettings = null;
 	adminReadinessCache.enabledProviderCount = null;

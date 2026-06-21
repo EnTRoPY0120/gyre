@@ -20,9 +20,9 @@ import {
 import type { OAuthTokens } from '$lib/server/auth/oauth';
 import { and, eq } from 'drizzle-orm';
 
-export const BETTER_AUTH_BASE_PATH = '/api/v1/auth';
-export const BETTER_AUTH_SESSION_COOKIE_NAME = 'gyre_session';
-export const BETTER_AUTH_SESSION_COOKIE_NAMES = [
+const BETTER_AUTH_BASE_PATH = '/api/v1/auth';
+const BETTER_AUTH_SESSION_COOKIE_NAME = 'gyre_session';
+const BETTER_AUTH_SESSION_COOKIE_NAMES = [
 	`__Secure-${BETTER_AUTH_SESSION_COOKIE_NAME}`,
 	BETTER_AUTH_SESSION_COOKIE_NAME
 ] as const;
@@ -173,7 +173,7 @@ export function getBetterAuth() {
 	return authInstance;
 }
 
-export type BetterAuthInstance = ReturnType<typeof getBetterAuth>;
+type BetterAuthInstance = ReturnType<typeof getBetterAuth>;
 
 function toSvelteCookieOptions(attributes: {
 	path?: string;

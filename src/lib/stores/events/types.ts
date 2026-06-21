@@ -1,6 +1,6 @@
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
-export interface NotificationState {
+interface NotificationState {
 	revision: string | undefined;
 	readyStatus: string | undefined;
 	readyReason: string | undefined;
