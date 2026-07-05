@@ -176,14 +176,16 @@ export function scheduleCleanup(): void {
 	);
 
 	// Run initial cleanup after delay
-	setTimeout(() => {
+	const initialCleanupTimeout = setTimeout(() => {
 		runCleanupOnce();
 
 		// Then run every 24 hours
-		setInterval(() => {
+		const cleanupInterval = setInterval(() => {
 			runCleanupOnce();
 		}, CLEANUP_INTERVAL_MS);
+		cleanupInterval.unref();
 	}, initialDelay);
+	initialCleanupTimeout.unref();
 
 	cleanupScheduled = true;
 
@@ -191,8 +193,9 @@ export function scheduleCleanup(): void {
 	// We add a random jitter (0-30m) to prevent multiple instances from contending.
 	const startupDelayWithJitter = 5 * MS_PER_MINUTE + getRandomJitterMs(30);
 
-	setTimeout(() => {
+	const startupCleanupTimeout = setTimeout(() => {
 		logger.info('[ReconciliationCleanup] Running initial cleanup...');
 		runCleanupOnce();
 	}, startupDelayWithJitter);
+	startupCleanupTimeout.unref();
 }
