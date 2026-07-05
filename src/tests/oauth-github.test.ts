@@ -189,6 +189,20 @@ describe('GitHubProvider.validateCallback() — error handling', () => {
 			'TOKEN_EXCHANGE_FAILED'
 		);
 	});
+
+	test('maps missing access_token to provider-specific OAuthError message', async () => {
+		fetchSpy.mockImplementation(async () => {
+			return new Response(JSON.stringify({ token_type: 'bearer' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			});
+		});
+
+		const provider = makeProvider();
+		await expect(provider.validateCallback('bad-code', 'verifier')).rejects.toThrow(
+			'Missing access_token in GitHub token response'
+		);
+	});
 });
 
 // ---------------------------------------------------------------------------

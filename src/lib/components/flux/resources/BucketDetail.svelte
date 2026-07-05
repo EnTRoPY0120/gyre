@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { FluxResource } from '$lib/types/flux';
-	import { formatTimestamp } from '$lib/utils/flux';
+	import ArtifactSummary from '$lib/components/flux/details/ArtifactSummary.svelte';
+	import DetailField from '$lib/components/flux/details/DetailField.svelte';
+	import IgnorePatternsPanel from '$lib/components/flux/details/IgnorePatternsPanel.svelte';
+	import SecretRefBadge from '$lib/components/flux/details/SecretRefBadge.svelte';
+	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
 
 	interface Props {
 		resource: FluxResource;
@@ -135,97 +139,38 @@
 			{/if}
 
 			{#if interval}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Sync Interval</dt>
-					<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{interval}</dd>
-				</div>
+				<DetailField label="Sync Interval">
+					<span class="text-sm text-gray-900 dark:text-gray-100">{interval}</span>
+				</DetailField>
 			{/if}
 
 			{#if timeout}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Timeout</dt>
-					<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{timeout}</dd>
-				</div>
+				<DetailField label="Timeout">
+					<span class="text-sm text-gray-900 dark:text-gray-100">{timeout}</span>
+				</DetailField>
 			{/if}
 
 			{#if secretRef}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
-						Authentication Secret
-					</dt>
-					<dd class="mt-1">
-						<span
-							class="inline-flex items-center gap-1 rounded-md bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300"
-						>
-							<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-								/>
-							</svg>
-							{secretRef.name}
-						</span>
-					</dd>
-				</div>
+				<DetailField label="Authentication Secret">
+					<SecretRefBadge name={secretRef.name} />
+				</DetailField>
 			{/if}
 
 			{#if suspend !== undefined}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Suspended</dt>
-					<dd class="mt-1">
-						<span
-							class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {suspend
-								? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-								: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'}"
-						>
-							{suspend ? 'Yes' : 'No'}
-						</span>
-					</dd>
-				</div>
+				<DetailField label="Suspended">
+					<SuspendedBadge suspended={suspend} />
+				</DetailField>
 			{/if}
 		</dl>
 	</div>
 
 	<!-- Latest Artifact -->
 	{#if artifact}
-		<div
-			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-		>
-			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Latest Artifact</h3>
-			<dl class="grid gap-4 sm:grid-cols-2">
-				{#if artifact.revision}
-					<div class="sm:col-span-2">
-						<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Revision</dt>
-						<dd class="mt-1 font-mono text-sm text-gray-900 dark:text-gray-100">
-							{artifact.revision}
-						</dd>
-					</div>
-				{/if}
-
-				{#if artifact.lastUpdateTime}
-					<div>
-						<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</dt>
-						<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
-							{formatTimestamp(artifact.lastUpdateTime)}
-						</dd>
-					</div>
-				{/if}
-			</dl>
-		</div>
+		<ArtifactSummary {artifact} />
 	{/if}
 
 	<!-- Ignore Patterns -->
 	{#if ignore}
-		<div
-			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-		>
-			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Ignore Patterns</h3>
-			<pre
-				class="overflow-auto rounded-lg bg-gray-100 p-4 text-sm text-gray-800 dark:bg-gray-900 dark:text-gray-200"><code
-					>{ignore}</code
-				></pre>
-		</div>
+		<IgnorePatternsPanel {ignore} />
 	{/if}
 </div>

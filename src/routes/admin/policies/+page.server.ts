@@ -8,13 +8,18 @@ import {
 	getAllUserPolicies,
 	bindPolicyToUser,
 	unbindPolicyFromUser,
-	isAdmin,
 	isValidNamespacePattern
 } from '$lib/server/rbac';
 import type { RbacAction } from '$lib/server/rbac';
 import { listUsers } from '$lib/server/auth';
 import { logRbacChange } from '$lib/server/audit';
 import { parseAdminPagination } from '../pagination';
+import {
+	getRequiredFormString,
+	requireAdminFormUser,
+	serializePagination,
+	validateLength
+} from '../server-helpers';
 
 /**
  * Load function for RBAC policy management page
@@ -24,10 +29,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	const pagination = parseAdminPagination(url);
 
 	// Load paginated policies and all users
-	const [{ policies, total }, users] = await Promise.all([
-		getAllPoliciesPaginated(pagination),
-		listUsers()
-	]);
+	const [page, users] = await Promise.all([getAllPoliciesPaginated(pagination), listUsers()]);
 
 	// Batch-fetch policies for all users in a single JOIN query (avoids N+1)
 	const allPoliciesByUser = await getAllUserPolicies(users.map((u) => u.id));
@@ -37,7 +39,7 @@ export const load: PageServerLoad = async ({ url }) => {
 	}
 
 	return {
-		policies: policies.map((p) => ({
+		...serializePagination(page, 'policies', (p) => ({
 			id: p.id,
 			name: p.name,
 			description: p.description,
@@ -50,7 +52,6 @@ export const load: PageServerLoad = async ({ url }) => {
 			createdAt: p.createdAt,
 			updatedAt: p.updatedAt
 		})),
-		total,
 		...pagination,
 		users: users.map((u) => ({
 			id: u.id,
@@ -67,9 +68,8 @@ export const actions: Actions = {
 	 * Create a new RBAC policy
 	 */
 	create: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
 		const name = formData.get('name') as string;
@@ -84,13 +84,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'Name, role, and action are required' });
 		}
 
-		if (name.length < 3) {
-			return fail(400, { error: 'Policy name must be at least 3 characters' });
-		}
-
-		if (name.length > 100) {
-			return fail(400, { error: 'Policy name must be at most 100 characters' });
-		}
+		const nameLengthError = validateLength(name, {
+			min: 3,
+			max: 100,
+			minMessage: 'Policy name must be at least 3 characters',
+			maxMessage: 'Policy name must be at most 100 characters'
+		});
+		if (nameLengthError) return nameLengthError;
 
 		if (namespacePattern && !isValidNamespacePattern(namespacePattern)) {
 			return fail(400, {
@@ -109,7 +109,7 @@ export const actions: Actions = {
 				namespacePattern: namespacePattern || undefined
 			});
 
-			await logRbacChange(locals.user, 'create', name, undefined, {
+			await logRbacChange(user, 'create', name, undefined, {
 				role,
 				action,
 				resourceType,
@@ -127,22 +127,18 @@ export const actions: Actions = {
 	 * Delete a policy
 	 */
 	delete: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
-		const policyId = formData.get('policyId') as string;
+		const policyId = getRequiredFormString(formData, 'policyId', 'Policy ID is required');
+		if (typeof policyId !== 'string') return policyId;
 		const policyName = formData.get('policyName') as string;
-
-		if (!policyId) {
-			return fail(400, { error: 'Policy ID is required' });
-		}
 
 		try {
 			await deletePolicy(policyId);
 
-			await logRbacChange(locals.user, 'delete', policyName || 'unknown', undefined, { policyId });
+			await logRbacChange(user, 'delete', policyName || 'unknown', undefined, { policyId });
 
 			return { success: true };
 		} catch (error) {
@@ -155,9 +151,8 @@ export const actions: Actions = {
 	 * Bind a policy to a user
 	 */
 	bind: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
 		const userId = formData.get('userId') as string;
@@ -171,7 +166,7 @@ export const actions: Actions = {
 		try {
 			await bindPolicyToUser(userId, policyId);
 
-			await logRbacChange(locals.user, 'bind', policyName || 'unknown', userId, { policyId });
+			await logRbacChange(user, 'bind', policyName || 'unknown', userId, { policyId });
 
 			return { success: true };
 		} catch (error) {
@@ -184,9 +179,8 @@ export const actions: Actions = {
 	 * Unbind a policy from a user
 	 */
 	unbind: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
 		const userId = formData.get('userId') as string;
@@ -200,7 +194,7 @@ export const actions: Actions = {
 		try {
 			await unbindPolicyFromUser(userId, policyId);
 
-			await logRbacChange(locals.user, 'unbind', policyName || 'unknown', userId, { policyId });
+			await logRbacChange(user, 'unbind', policyName || 'unknown', userId, { policyId });
 
 			return { success: true };
 		} catch (error) {

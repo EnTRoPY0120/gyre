@@ -13,6 +13,7 @@ import { GitLab } from 'arctic';
 import type { IOAuthProvider, OAuthTokens, OAuthUserInfo, OAuthProviderOptions } from '../types';
 import { OAuthError } from '../types';
 import { decryptSecret } from '$lib/server/auth/crypto';
+import { exchangeOAuthTokenWithBasicAuth } from '$lib/server/auth/oauth/token-exchange';
 import { generateCodeChallenge } from '$lib/server/auth/pkce';
 import { logger } from '$lib/server/logger.js';
 
@@ -171,8 +172,6 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 		 */
 		async validateCallback(code: string, codeVerifier?: string): Promise<OAuthTokens> {
 			if (codeVerifier) {
-				const clientSecret = decryptSecret(config.clientSecretEncrypted);
-				const credentials = Buffer.from(`${config.clientId}:${clientSecret}`).toString('base64');
 				const tokenEndpoint = `${baseURL}/oauth/token`;
 
 				const body = new URLSearchParams({
@@ -182,50 +181,22 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 					code_verifier: codeVerifier
 				});
 
-				const controller = new AbortController();
-				const timeoutId = setTimeout(() => controller.abort(), 10_000);
+				const tokens = await exchangeOAuthTokenWithBasicAuth({
+					clientId: config.clientId,
+					clientSecretEncrypted: config.clientSecretEncrypted,
+					endpoint: tokenEndpoint,
+					body,
+					missingAccessTokenMessage: 'Missing access_token in GitLab token response',
+					errorMessagePrefix: 'Failed to exchange code for token',
+					errorCode: 'TOKEN_EXCHANGE_FAILED'
+				});
 
-				try {
-					const response = await fetch(tokenEndpoint, {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/x-www-form-urlencoded',
-							Accept: 'application/json',
-							Authorization: `Basic ${credentials}`
-						},
-						body: body.toString(),
-						signal: controller.signal
-					});
-					clearTimeout(timeoutId);
-
-					if (!response.ok) {
-						throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-					}
-
-					const data = await response.json();
-
-					if (data.error) {
-						throw new Error(data.error_description ?? data.error);
-					}
-
-					if (!data.access_token) {
-						throw new Error('Missing access_token in GitLab token response');
-					}
-
-					return {
-						accessToken: data.access_token,
-						refreshToken: data.refresh_token,
-						expiresIn: typeof data.expires_in === 'number' ? data.expires_in : undefined,
-						tokenType: data.token_type ?? 'Bearer'
-					};
-				} catch (error) {
-					clearTimeout(timeoutId);
-					throw new OAuthError(
-						`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
-						'TOKEN_EXCHANGE_FAILED',
-						error
-					);
-				}
+				return {
+					accessToken: tokens.accessToken,
+					refreshToken: tokens.refreshToken,
+					expiresIn: tokens.expiresIn,
+					tokenType: tokens.tokenType
+				};
 			}
 
 			// No PKCE — use Arctic's client as before
@@ -254,8 +225,6 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 		 * Refresh an expired access token using a GitLab refresh token
 		 */
 		async refreshAccessToken(refreshToken: string): Promise<OAuthTokens> {
-			const clientSecret = decryptSecret(config.clientSecretEncrypted);
-			const credentials = Buffer.from(`${config.clientId}:${clientSecret}`).toString('base64');
 			const tokenEndpoint = `${baseURL}/oauth/token`;
 
 			const body = new URLSearchParams({
@@ -263,50 +232,22 @@ export function GitLabProvider(options: OAuthProviderOptions): IOAuthProvider {
 				refresh_token: refreshToken
 			});
 
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 10_000);
+			const tokens = await exchangeOAuthTokenWithBasicAuth({
+				clientId: config.clientId,
+				clientSecretEncrypted: config.clientSecretEncrypted,
+				endpoint: tokenEndpoint,
+				body,
+				missingAccessTokenMessage: 'Missing access_token in GitLab refresh response',
+				errorMessagePrefix: 'Failed to refresh token',
+				errorCode: 'TOKEN_REFRESH_FAILED'
+			});
 
-			try {
-				const response = await fetch(tokenEndpoint, {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/x-www-form-urlencoded',
-						Accept: 'application/json',
-						Authorization: `Basic ${credentials}`
-					},
-					body: body.toString(),
-					signal: controller.signal
-				});
-				clearTimeout(timeoutId);
-
-				if (!response.ok) {
-					throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-				}
-
-				const data = await response.json();
-
-				if (data.error) {
-					throw new Error(data.error_description ?? data.error);
-				}
-
-				if (!data.access_token) {
-					throw new Error('Missing access_token in GitLab refresh response');
-				}
-
-				return {
-					accessToken: data.access_token,
-					refreshToken: data.refresh_token,
-					expiresIn: typeof data.expires_in === 'number' ? data.expires_in : undefined,
-					tokenType: data.token_type ?? 'Bearer'
-				};
-			} catch (error) {
-				clearTimeout(timeoutId);
-				throw new OAuthError(
-					`Failed to refresh token: ${error instanceof Error ? error.message : 'Unknown error'}`,
-					'TOKEN_REFRESH_FAILED',
-					error
-				);
-			}
+			return {
+				accessToken: tokens.accessToken,
+				refreshToken: tokens.refreshToken,
+				expiresIn: tokens.expiresIn,
+				tokenType: tokens.tokenType
+			};
 		},
 
 		/**

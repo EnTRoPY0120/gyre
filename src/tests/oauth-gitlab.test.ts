@@ -243,6 +243,23 @@ describe('GitLabProvider.validateCallback() — error handling', () => {
 			spy.mockRestore();
 		}
 	});
+
+	test('maps missing access_token to provider-specific OAuthError message', async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+			return new Response(JSON.stringify({ token_type: 'bearer' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			});
+		});
+		try {
+			const provider = makeProvider();
+			await expect(provider.validateCallback('bad-code', 'verifier')).rejects.toThrow(
+				'Missing access_token in GitLab token response'
+			);
+		} finally {
+			spy.mockRestore();
+		}
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -279,6 +296,23 @@ describe('GitLabProvider.refreshAccessToken()', () => {
 		try {
 			const provider = makeProvider();
 			await expectOAuthErrorCode(provider.refreshAccessToken!('bad-token'), 'TOKEN_REFRESH_FAILED');
+		} finally {
+			spy.mockRestore();
+		}
+	});
+
+	test('maps missing refresh access_token to provider-specific OAuthError message', async () => {
+		const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+			return new Response(JSON.stringify({ token_type: 'bearer' }), {
+				status: 200,
+				headers: { 'content-type': 'application/json' }
+			});
+		});
+		try {
+			const provider = makeProvider();
+			await expect(provider.refreshAccessToken!('bad-token')).rejects.toThrow(
+				'Missing access_token in GitLab refresh response'
+			);
 		} finally {
 			spy.mockRestore();
 		}

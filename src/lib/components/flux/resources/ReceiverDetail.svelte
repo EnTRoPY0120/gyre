@@ -1,4 +1,7 @@
 <script lang="ts">
+	import DetailField from '$lib/components/flux/details/DetailField.svelte';
+	import SecretRefBadge from '$lib/components/flux/details/SecretRefBadge.svelte';
+	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
 	import type { FluxResource } from '$lib/types/flux';
 
 	interface Props {
@@ -61,39 +64,15 @@
 			{/if}
 
 			{#if secretRef}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Token Secret</dt>
-					<dd class="mt-1">
-						<span
-							class="inline-flex items-center gap-1 rounded-md bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300"
-						>
-							<svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-								/>
-							</svg>
-							{secretRef.name}
-						</span>
-					</dd>
-				</div>
+				<DetailField label="Token Secret">
+					<SecretRefBadge name={secretRef.name} />
+				</DetailField>
 			{/if}
 
 			{#if suspend !== undefined}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Suspended</dt>
-					<dd class="mt-1">
-						<span
-							class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {suspend
-								? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-								: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'}"
-						>
-							{suspend ? 'Yes' : 'No'}
-						</span>
-					</dd>
-				</div>
+				<DetailField label="Suspended">
+					<SuspendedBadge suspended={suspend} />
+				</DetailField>
 			{/if}
 		</dl>
 	</div>

@@ -1,10 +1,7 @@
-import { json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
+import { getFluxResourceEvents } from '$lib/server/flux/use-cases/resource-actions.js';
+import { createFluxResourceReadMetadata } from '$lib/server/openapi/flux-route-metadata.js';
 import type { RequestHandler } from './$types';
-import { getResourceEvents } from '$lib/server/kubernetes/events';
-import { FLUX_RESOURCES } from '$lib/server/kubernetes/flux/resources';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { requireFluxResourceRead } from '$lib/server/http/guards.js';
 
 const eventSchema = z.object({
 	type: z.string().openapi({ example: 'Normal' }),
@@ -23,45 +20,14 @@ const eventSchema = z.object({
 });
 
 export const _metadata = {
-	GET: {
+	GET: createFluxResourceReadMetadata({
 		summary: 'Get resource events',
 		description: 'Retrieve Kubernetes events associated with a specific FluxCD resource.',
-		tags: ['Flux'],
-		request: {
-			params: z.object({
-				resourceType: z.string().openapi({ example: 'gitrepositories' }),
-				namespace: z.string().openapi({ example: 'flux-system' }),
-				name: z.string().openapi({ example: 'my-repo' })
-			})
-		},
-		responses: {
-			200: {
-				description: 'Events for the resource',
-				content: {
-					'application/json': {
-						schema: z.object({ events: z.array(eventSchema) })
-					}
-				}
-			},
-			400: { description: 'Invalid resource type' },
-			401: { description: 'Authentication required' },
-			403: { description: 'Permission denied' },
-			500: { description: 'Internal server error' }
-		}
-	}
+		responseDescription: 'Events for the resource',
+		responseSchema: z.object({ events: z.array(eventSchema) }),
+		includeInternalServerError: true
+	})
 };
 
-export const GET: RequestHandler = async ({ params, locals }) => {
-	const { resourceType, namespace, name } = await requireFluxResourceRead(locals, params);
-
-	// Get the resource kind from FLUX_RESOURCES
-	const resourceDef = FLUX_RESOURCES[resourceType];
-	const resourceKind = resourceDef.kind;
-
-	try {
-		const events = await getResourceEvents(namespace, name, resourceKind, locals.cluster);
-		return json({ events });
-	} catch (err) {
-		handleApiError(err, `Failed to fetch events for ${resourceType}/${namespace}/${name}`);
-	}
-};
+export const GET: RequestHandler = ({ params, locals }) =>
+	getFluxResourceEvents({ params, locals });

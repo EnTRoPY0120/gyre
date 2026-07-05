@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { invalidateAll, goto } from '$app/navigation';
+	import { buildAdminPageUrl, buildAdminSearchUrl } from '$lib/admin/navigation';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import AdminConfirmDialog from '$lib/components/admin/AdminConfirmDialog.svelte';
 	import { resourceGroups } from '$lib/config/resources';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
@@ -66,20 +68,11 @@
 
 	function handleSearch(value: string) {
 		searchValue = value;
-		const url = new URL(window.location.href);
-		if (value) {
-			url.searchParams.set('search', value);
-		} else {
-			url.searchParams.delete('search');
-		}
-		url.searchParams.set('offset', '0'); // Reset to first page on search
-		goto(url.toString());
+		goto(buildAdminSearchUrl(value));
 	}
 
 	function handlePageChange(newOffset: number) {
-		const url = new URL(window.location.href);
-		url.searchParams.set('offset', newOffset.toString());
-		goto(url.toString());
+		goto(buildAdminPageUrl(newOffset));
 	}
 
 	// Get all resource types from config
@@ -534,29 +527,7 @@
 
 	<!-- Delete Confirmation Modal -->
 	{#if deletingPolicy}
-		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
-			role="dialog"
-			aria-modal="true"
-			tabindex="-1"
-			aria-labelledby="delete-policy-title"
-			onclick={(e) => e.target === e.currentTarget && closeModals()}
-			onkeydown={(e) => e.key === 'Escape' && closeModals()}
-		>
-			<div
-				class="h-full w-full overflow-y-auto border border-red-500/30 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
-			>
-				<div class="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-500/20">
-					<svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-						/>
-					</svg>
-				</div>
-				<h2 id="delete-policy-title" class="mb-2 text-xl font-bold text-white">Delete Policy</h2>
+		<AdminConfirmDialog title="Delete Policy" titleId="delete-policy-title" onClose={closeModals}>
 				<p class="mb-6 text-slate-400">
 					Are you sure you want to delete <strong class="text-white">{deletingPolicy.name}</strong>?
 					This will remove the policy from all assigned users. This action cannot be undone.
@@ -581,8 +552,7 @@
 					<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>
 					<Button type="submit" variant="destructive">Delete Policy</Button>
 				</form>
-			</div>
-		</div>
+		</AdminConfirmDialog>
 	{/if}
 
 	<!-- Assign Policy Modal -->
