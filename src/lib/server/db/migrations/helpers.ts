@@ -6,7 +6,7 @@ import type { getDbSync } from '../index.js';
 export type Db = ReturnType<typeof getDbSync>;
 export type MigrationDb = Pick<Db, 'run' | 'select'>;
 
-export function isDuplicateColumnError(err: unknown): boolean {
+function isDuplicateColumnError(err: unknown): boolean {
 	if (!(err instanceof Error)) return false;
 
 	if (err.message.includes('duplicate column name')) {
@@ -31,7 +31,7 @@ export function addColumnsIgnoringDuplicates(db: Db, ddls: SQL[], errorMessage: 
 	}
 }
 
-export function hasMigrationFlag(db: Db, key: string): boolean {
+function hasMigrationFlag(db: Db, key: string): boolean {
 	const result = db
 		.select({ value: sql`value` })
 		.from(sql`app_settings`)
@@ -41,7 +41,7 @@ export function hasMigrationFlag(db: Db, key: string): boolean {
 	return result?.value === 'true';
 }
 
-export function setMigrationFlag(tx: MigrationDb, key: string): void {
+function setMigrationFlag(tx: MigrationDb, key: string): void {
 	tx.run(
 		sql`INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (${key}, 'true', (unixepoch()))`
 	);

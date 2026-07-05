@@ -6,7 +6,7 @@ export const fluxResourceParamsSchema = z.object({
 	name: z.string().openapi({ example: 'my-repo' })
 });
 
-export const fluxActionSuccessSchema = z.object({ success: z.boolean(), message: z.string() });
+const fluxActionSuccessSchema = z.object({ success: z.boolean(), message: z.string() });
 
 const authResponses = {
 	401: { description: 'Authentication required' },
