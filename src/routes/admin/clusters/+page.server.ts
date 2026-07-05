@@ -10,12 +10,17 @@ import {
 	testClusterConnection,
 	getClusterById
 } from '$lib/server/clusters';
-import { isAdmin } from '$lib/server/rbac';
 import { logClusterChange } from '$lib/server/audit';
 import { invalidateDashboardCache } from '$lib/server/dashboard-cache';
 import { clearClientPool } from '$lib/server/kubernetes/client.js';
 import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
 import { parseAdminPagination } from '../pagination';
+import {
+	getRequiredFormString,
+	requireAdminFormUser,
+	serializePagination,
+	validateLength
+} from '../server-helpers';
 
 /**
  * Load function for cluster management page
@@ -31,11 +36,11 @@ export const load: PageServerLoad = async ({ url }) => {
 			: null;
 
 	// Load paginated clusters
-	const { clusters, total } = await getAllClustersPaginated(pagination);
+	const page = await getAllClustersPaginated(pagination);
 
 	return {
 		urlError,
-		clusters: clusters.map((c) => ({
+		...serializePagination(page, 'clusters', (c) => ({
 			id: c.id,
 			name: c.name,
 			description: c.description,
@@ -46,7 +51,6 @@ export const load: PageServerLoad = async ({ url }) => {
 			lastError: c.lastError,
 			createdAt: c.createdAt
 		})),
-		total,
 		...pagination
 	};
 };
@@ -56,9 +60,8 @@ export const actions: Actions = {
 	 * Create a new cluster from kubeconfig
 	 */
 	create: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
 		const name = formData.get('name') as string;
@@ -70,13 +73,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'Name and kubeconfig are required' });
 		}
 
-		if (name.length < 3) {
-			return fail(400, { error: 'Name must be at least 3 characters' });
-		}
-
-		if (name.length > 100) {
-			return fail(400, { error: 'Name must be at most 100 characters' });
-		}
+		const nameLengthError = validateLength(name, {
+			min: 3,
+			max: 100,
+			minMessage: 'Name must be at least 3 characters',
+			maxMessage: 'Name must be at most 100 characters'
+		});
+		if (nameLengthError) return nameLengthError;
 
 		if (description && description.length > 500) {
 			return fail(400, { error: 'Description must be at most 500 characters' });
@@ -137,7 +140,7 @@ export const actions: Actions = {
 				isLocal: true
 			});
 
-			await logClusterChange(locals.user, 'create', name, {
+			await logClusterChange(user, 'create', name, {
 				clusterId: cluster.id,
 				contextCount: cluster.contextCount
 			});
@@ -159,21 +162,17 @@ export const actions: Actions = {
 	 * Test cluster connection
 	 */
 	test: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
-		const clusterId = formData.get('clusterId') as string;
-
-		if (!clusterId) {
-			return fail(400, { error: 'Cluster ID is required' });
-		}
+		const clusterId = getRequiredFormString(formData, 'clusterId', 'Cluster ID is required');
+		if (typeof clusterId !== 'string') return clusterId;
 
 		try {
 			const result = await testClusterConnection(clusterId);
 
-			await logClusterChange(locals.user, 'test', result.clusterName, {
+			await logClusterChange(user, 'test', result.clusterName, {
 				clusterId,
 				connected: result.connected,
 				error: result.error
@@ -206,17 +205,13 @@ export const actions: Actions = {
 	 * Toggle cluster active state
 	 */
 	toggle: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
-		const clusterId = formData.get('clusterId') as string;
+		const clusterId = getRequiredFormString(formData, 'clusterId', 'Cluster ID is required');
+		if (typeof clusterId !== 'string') return clusterId;
 		const isActive = formData.get('isActive') === 'true';
-
-		if (!clusterId) {
-			return fail(400, { error: 'Cluster ID is required' });
-		}
 
 		try {
 			const updated = await updateCluster(clusterId, { isActive });
@@ -224,7 +219,7 @@ export const actions: Actions = {
 			if (updated) {
 				clearClientPool(clusterId);
 				invalidateDashboardCache(clusterId);
-				await logClusterChange(locals.user, 'update', updated.name, { clusterId, isActive });
+				await logClusterChange(user, 'update', updated.name, { clusterId, isActive });
 			}
 
 			return { success: true, isActive };
@@ -238,16 +233,12 @@ export const actions: Actions = {
 	 * Delete a cluster
 	 */
 	delete: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
-		const clusterId = formData.get('clusterId') as string;
-
-		if (!clusterId) {
-			return fail(400, { error: 'Cluster ID is required' });
-		}
+		const clusterId = getRequiredFormString(formData, 'clusterId', 'Cluster ID is required');
+		if (typeof clusterId !== 'string') return clusterId;
 
 		try {
 			const existing = await getClusterById(clusterId);
@@ -259,7 +250,7 @@ export const actions: Actions = {
 			clearClientPool(clusterId);
 			invalidateDashboardCache(clusterId);
 
-			await logClusterChange(locals.user, 'delete', existing.name, { clusterId });
+			await logClusterChange(user, 'delete', existing.name, { clusterId });
 
 			return { success: true };
 		} catch (error) {

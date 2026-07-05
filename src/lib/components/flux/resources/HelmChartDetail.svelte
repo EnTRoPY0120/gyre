@@ -1,6 +1,8 @@
 <script lang="ts">
+	import ArtifactSummary from '$lib/components/flux/details/ArtifactSummary.svelte';
+	import DetailField from '$lib/components/flux/details/DetailField.svelte';
+	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
 	import type { FluxResource } from '$lib/types/flux';
-	import { formatTimestamp } from '$lib/utils/flux';
 
 	interface Props {
 		resource: FluxResource;
@@ -101,10 +103,9 @@
 			{/if}
 
 			{#if interval}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Sync Interval</dt>
-					<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{interval}</dd>
-				</div>
+				<DetailField label="Sync Interval">
+					<span class="text-sm text-gray-900 dark:text-gray-100">{interval}</span>
+				</DetailField>
 			{/if}
 
 			{#if reconcileStrategy}
@@ -123,18 +124,9 @@
 			{/if}
 
 			{#if suspend !== undefined}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Suspended</dt>
-					<dd class="mt-1">
-						<span
-							class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {suspend
-								? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-								: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'}"
-						>
-							{suspend ? 'Yes' : 'No'}
-						</span>
-					</dd>
-				</div>
+				<DetailField label="Suspended">
+					<SuspendedBadge suspended={suspend} />
+				</DetailField>
 			{/if}
 		</dl>
 	</div>
@@ -170,38 +162,6 @@
 
 	<!-- Latest Artifact -->
 	{#if artifact}
-		<div
-			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
-		>
-			<h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-100">Latest Artifact</h3>
-			<dl class="grid gap-4 sm:grid-cols-2">
-				{#if artifact.revision}
-					<div class="sm:col-span-2">
-						<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Revision</dt>
-						<dd class="mt-1 font-mono text-sm text-gray-900 dark:text-gray-100">
-							{artifact.revision}
-						</dd>
-					</div>
-				{/if}
-
-				{#if observedChartName}
-					<div>
-						<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">
-							Observed Chart Name
-						</dt>
-						<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{observedChartName}</dd>
-					</div>
-				{/if}
-
-				{#if artifact.lastUpdateTime}
-					<div>
-						<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Last Updated</dt>
-						<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">
-							{formatTimestamp(artifact.lastUpdateTime)}
-						</dd>
-					</div>
-				{/if}
-			</dl>
-		</div>
+		<ArtifactSummary {artifact} {observedChartName} />
 	{/if}
 </div>

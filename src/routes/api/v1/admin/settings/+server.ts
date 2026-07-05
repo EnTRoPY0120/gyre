@@ -8,13 +8,12 @@ import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import {
-	getAuthSettings,
-	getAuditLogRetentionDays,
 	setSettings,
 	SETTINGS_KEYS,
 	isSettingOverriddenByEnv,
 	SETTING_ENV_OVERRIDES
 } from '$lib/server/settings';
+import { serializePublicSettings } from '$lib/server/settings/serialization';
 import {
 	enforceUserRateLimitPreset,
 	logPrivilegedMutationSuccess,
@@ -182,32 +181,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	await requirePrivilegedAdminPermission({ ...locals, cluster: undefined });
 
 	try {
-		const [authSettings, auditRetentionDays] = await Promise.all([
-			getAuthSettings(),
-			getAuditLogRetentionDays()
-		]);
-
-		// Include override status for UI
-		return json({
-			settings: {
-				localLoginEnabled: {
-					value: authSettings.localLoginEnabled,
-					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED)
-				},
-				allowSignup: {
-					value: authSettings.allowSignup,
-					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP)
-				},
-				domainAllowlist: {
-					value: authSettings.domainAllowlist,
-					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST)
-				},
-				auditRetentionDays: {
-					value: auditRetentionDays,
-					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS)
-				}
-			}
-		});
+		return json(await serializePublicSettings());
 	} catch (err) {
 		logger.error(err, 'Failed to load settings:');
 		throw error(500, { message: 'Failed to load settings' });
@@ -232,30 +206,7 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 
 		const { requestedKeys, updates } = normalizeSettingsPayload(body);
 		if (updates.length === 0) {
-			const [authSettings, auditRetentionDays] = await Promise.all([
-				getAuthSettings(),
-				getAuditLogRetentionDays()
-			]);
-			return json({
-				settings: {
-					localLoginEnabled: {
-						value: authSettings.localLoginEnabled,
-						overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED)
-					},
-					allowSignup: {
-						value: authSettings.allowSignup,
-						overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP)
-					},
-					domainAllowlist: {
-						value: authSettings.domainAllowlist,
-						overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST)
-					},
-					auditRetentionDays: {
-						value: auditRetentionDays,
-						overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS)
-					}
-				}
-			});
+			return json(await serializePublicSettings());
 		}
 
 		await setSettings(updates);
@@ -271,30 +222,7 @@ export const PATCH: RequestHandler = async ({ locals, request, setHeaders }) => 
 		});
 
 		// Return updated settings
-		const [authSettings, auditRetentionDays] = await Promise.all([
-			getAuthSettings(),
-			getAuditLogRetentionDays()
-		]);
-		return json({
-			settings: {
-				localLoginEnabled: {
-					value: authSettings.localLoginEnabled,
-					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED)
-				},
-				allowSignup: {
-					value: authSettings.allowSignup,
-					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP)
-				},
-				domainAllowlist: {
-					value: authSettings.domainAllowlist,
-					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST)
-				},
-				auditRetentionDays: {
-					value: auditRetentionDays,
-					overriddenByEnv: isSettingOverriddenByEnv(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS)
-				}
-			}
-		});
+		return json(await serializePublicSettings());
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err) {
 			throw err;

@@ -10,11 +10,16 @@ import {
 	deleteUser,
 	updateUserPassword
 } from '$lib/server/auth';
-import { isAdmin } from '$lib/server/rbac';
 import { logUserManagement } from '$lib/server/audit';
 import { passwordSchema } from '$lib/utils/validation';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { parseAdminPagination } from '../pagination';
+import {
+	getRequiredFormString,
+	requireAdminFormUser,
+	serializePagination,
+	validateLength
+} from '../server-helpers';
 
 /**
  * Load function for user management page
@@ -24,10 +29,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const pagination = parseAdminPagination(url);
 
 	// Load paginated users
-	const { users, total } = await listUsersPaginated(pagination);
+	const page = await listUsersPaginated(pagination);
 
 	return {
-		users: users.map((u) => ({
+		...serializePagination(page, 'users', (u) => ({
 			id: u.id,
 			username: u.username,
 			email: u.email,
@@ -37,7 +42,6 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			createdAt: u.createdAt,
 			updatedAt: u.updatedAt
 		})),
-		total,
 		...pagination,
 		currentUser: locals.user!
 	};
@@ -48,9 +52,8 @@ export const actions: Actions = {
 	 * Create a new user
 	 */
 	create: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
 		const username = formData.get('username') as string;
@@ -63,13 +66,13 @@ export const actions: Actions = {
 			return fail(400, { error: 'Username, password, and role are required' });
 		}
 
-		if (username.length < 3) {
-			return fail(400, { error: 'Username must be at least 3 characters' });
-		}
-
-		if (username.length > 64) {
-			return fail(400, { error: 'Username must be at most 64 characters' });
-		}
+		const usernameLengthError = validateLength(username, {
+			min: 3,
+			max: 64,
+			minMessage: 'Username must be at least 3 characters',
+			maxMessage: 'Username must be at most 64 characters'
+		});
+		if (usernameLengthError) return usernameLengthError;
 
 		if (email) {
 			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -90,7 +93,7 @@ export const actions: Actions = {
 		try {
 			const newUser = await createUser(username, password, role, email || undefined);
 
-			await logUserManagement(locals.user, 'create', newUser.id, newUser.username, { role, email });
+			await logUserManagement(user, 'create', newUser.id, newUser.username, { role, email });
 
 			return { success: true, user: newUser };
 		} catch (error) {
@@ -106,19 +109,15 @@ export const actions: Actions = {
 	 * Update an existing user
 	 */
 	update: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
+		const userId = getRequiredFormString(formData, 'userId', 'User ID is required');
+		if (typeof userId !== 'string') return userId;
 		const email = formData.get('email') as string;
 		const role = formData.get('role') as 'admin' | 'editor' | 'viewer' | null;
 		const active = formData.get('active') as string;
-
-		if (!userId) {
-			return fail(400, { error: 'User ID is required' });
-		}
 
 		if (email) {
 			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -128,12 +127,12 @@ export const actions: Actions = {
 		}
 
 		// Prevent self-demotion from admin
-		if (userId === locals.user.id && role && role !== 'admin') {
+		if (userId === user.id && role && role !== 'admin') {
 			return fail(400, { error: 'Cannot remove your own admin role' });
 		}
 
 		// Prevent self-deactivation
-		if (userId === locals.user.id && active === 'false') {
+		if (userId === user.id && active === 'false') {
 			return fail(400, { error: 'Cannot deactivate your own account' });
 		}
 
@@ -146,7 +145,7 @@ export const actions: Actions = {
 			const updatedUser = await updateUser(userId, updates);
 
 			if (updatedUser) {
-				await logUserManagement(locals.user, 'update', userId, updatedUser.username, updates);
+				await logUserManagement(user, 'update', userId, updatedUser.username, updates);
 			}
 
 			return { success: true };
@@ -160,27 +159,23 @@ export const actions: Actions = {
 	 * Delete a user
 	 */
 	delete: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
 		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
+		const userId = getRequiredFormString(formData, 'userId', 'User ID is required');
+		if (typeof userId !== 'string') return userId;
 		const username = formData.get('username') as string;
 
-		if (!userId) {
-			return fail(400, { error: 'User ID is required' });
-		}
-
 		// Prevent self-deletion
-		if (userId === locals.user.id) {
+		if (userId === user.id) {
 			return fail(400, { error: 'Cannot delete your own account' });
 		}
 
 		try {
 			await deleteUser(userId);
 
-			await logUserManagement(locals.user, 'delete', userId, username || 'unknown', {});
+			await logUserManagement(user, 'delete', userId, username || 'unknown', {});
 
 			return { success: true };
 		} catch (error) {
@@ -195,11 +190,10 @@ export const actions: Actions = {
 	 */
 	resetPassword: async (event) => {
 		const { request, locals } = event;
-		if (!locals.user || !isAdmin(locals.user)) {
-			return fail(403, { error: 'Forbidden' });
-		}
+		const user = requireAdminFormUser(locals);
+		if ('status' in user) return user;
 
-		const rateLimit = tryCheckRateLimit(event, `admin-reset:${locals.user.id}`, 10, 15 * 60 * 1000);
+		const rateLimit = tryCheckRateLimit(event, `admin-reset:${user.id}`, 10, 15 * 60 * 1000);
 		if (rateLimit.limited) {
 			return fail(429, {
 				error: `Too many password reset attempts. Try again in ${rateLimit.retryAfter} seconds.`
@@ -238,7 +232,7 @@ export const actions: Actions = {
 		try {
 			await updateUserPassword(userId, newPassword);
 
-			await logUserManagement(locals.user, 'update', userId, 'password-reset', {
+			await logUserManagement(user, 'update', userId, 'password-reset', {
 				passwordReset: true
 			});
 

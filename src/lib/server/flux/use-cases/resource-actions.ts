@@ -1,8 +1,10 @@
 import { json } from '@sveltejs/kit';
 import { getControllerLogs, type ReqCache } from '$lib/server/kubernetes/client.js';
+import { getResourceEvents } from '$lib/server/kubernetes/events';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { reconcileResource, toggleSuspendResource } from '$lib/server/kubernetes/flux/actions.js';
 import { captureReconciliation } from '$lib/server/kubernetes/flux/reconciliation-tracker.js';
+import { FLUX_RESOURCES } from '$lib/server/kubernetes/flux/resources';
 import {
 	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
@@ -117,5 +119,23 @@ export async function getFluxResourceLogs({
 		return json({ logs });
 	} catch (err) {
 		handleApiError(err, `Error fetching logs for ${context.name}`);
+	}
+}
+
+export async function getFluxResourceEvents({
+	locals,
+	params
+}: {
+	locals: App.Locals;
+	params: FluxRouteParams;
+}) {
+	const { resourceType, namespace, name } = await requireFluxResourceRead(locals, params);
+	const resourceDef = FLUX_RESOURCES[resourceType];
+
+	try {
+		const events = await getResourceEvents(namespace, name, resourceDef.kind, locals.cluster);
+		return json({ events });
+	} catch (err) {
+		handleApiError(err, `Failed to fetch events for ${resourceType}/${namespace}/${name}`);
 	}
 }

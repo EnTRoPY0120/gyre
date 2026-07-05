@@ -1,19 +1,6 @@
 import { logger } from '../../logger.js';
 import { sql } from 'drizzle-orm';
-import type { getDbSync } from '../index.js';
-
-type Db = ReturnType<typeof getDbSync>;
-
-function isDuplicateColumnError(err: unknown): boolean {
-	if (!(err instanceof Error)) return false;
-
-	if (err.message.includes('duplicate column name')) {
-		return true;
-	}
-
-	const cause = 'cause' in err ? err.cause : undefined;
-	return cause instanceof Error && cause.message.includes('duplicate column name');
-}
+import { addColumnsIgnoringDuplicates, runFlaggedMigration, type Db } from './helpers.js';
 
 export interface MigrationFlags {
 	hasLegacyUserProviders: boolean;
@@ -56,81 +43,63 @@ export function initAuthTables(db: Db, flags: MigrationFlags): void {
 	`);
 
 	// Migration: ensure existing usernames are lowercased (run once)
-	try {
-		const result = db
-			.select({ value: sql`value` })
-			.from(sql`app_settings`)
-			.where(sql`key = 'migrations.users_lowercased'`)
-			.get() as { value: string } | undefined;
+	runFlaggedMigration({
+		db,
+		key: 'migrations.users_lowercased',
+		successMessage: '[DB] Migration: lowercased existing usernames',
+		failureMessage: '[DB] Failed to run username normalization migration:',
+		run: (tx) => {
+			const allUsers = tx
+				.select({ id: sql`id`, username: sql`username` })
+				.from(sql`users`)
+				.all() as { id: string; username: string }[];
 
-		if (!result || result.value !== 'true') {
-			db.transaction((tx) => {
-				const allUsers = tx
-					.select({ id: sql`id`, username: sql`username` })
-					.from(sql`users`)
-					.all() as { id: string; username: string }[];
-
-				const groups = new Map<string, { id: string; username: string }[]>();
-				for (const user of allUsers) {
-					const normalized = user.username.toLowerCase().trim();
-					if (!groups.has(normalized)) {
-						groups.set(normalized, []);
-					}
-					groups.get(normalized)!.push(user);
+			const groups = new Map<string, { id: string; username: string }[]>();
+			for (const user of allUsers) {
+				const normalized = user.username.toLowerCase().trim();
+				if (!groups.has(normalized)) {
+					groups.set(normalized, []);
 				}
-
-				// Pass 1: Set all users to unique temp names to avoid cross-update conflicts
-				for (const user of allUsers) {
-					const tempName = `__tmp__${user.id}`;
-					tx.run(sql`UPDATE users SET username = ${tempName} WHERE id = ${user.id}`);
-				}
-
-				// Pass 2: Assign final names, tracking globally taken names to prevent collisions
-				const taken = new Set<string>();
-				for (const [normalized, group] of groups) {
-					group.sort((a, b) => a.id.localeCompare(b.id));
-					if (group.length > 1) {
-						logger.warn(`[DB] Migration: resolved username collision across ${group.length} users`);
-					}
-					let counter = 1;
-					for (let i = 0; i < group.length; i++) {
-						let candidate = i === 0 ? normalized : `${normalized}_${i}`;
-						while (taken.has(candidate)) {
-							candidate = `${normalized}_${counter++}`;
-						}
-						taken.add(candidate);
-						tx.run(sql`UPDATE users SET username = ${candidate} WHERE id = ${group[i].id}`);
-					}
-				}
-
-				tx.run(
-					sql`INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES ('migrations.users_lowercased', 'true', (unixepoch()))`
-				);
-			});
-			logger.info('[DB] Migration: lowercased existing usernames');
-		}
-	} catch (error) {
-		logger.error(error, '[DB] Failed to run username normalization migration:');
-		throw error;
-	}
-
-	for (const ddl of [
-		sql`ALTER TABLE users ADD COLUMN preferences TEXT`,
-		sql`ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
-		sql`ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0`,
-		sql`ALTER TABLE users ADD COLUMN image TEXT`,
-		sql`ALTER TABLE users ADD COLUMN requires_password_change INTEGER NOT NULL DEFAULT 0`
-	]) {
-		try {
-			db.run(ddl);
-		} catch (err) {
-			if (isDuplicateColumnError(err)) {
-				continue;
+				groups.get(normalized)!.push(user);
 			}
-			logger.error(err, '[DB] Failed to add Better Auth user column:');
-			throw err;
+
+			// Pass 1: Set all users to unique temp names to avoid cross-update conflicts
+			for (const user of allUsers) {
+				const tempName = `__tmp__${user.id}`;
+				tx.run(sql`UPDATE users SET username = ${tempName} WHERE id = ${user.id}`);
+			}
+
+			// Pass 2: Assign final names, tracking globally taken names to prevent collisions
+			const taken = new Set<string>();
+			for (const [normalized, group] of groups) {
+				group.sort((a, b) => a.id.localeCompare(b.id));
+				if (group.length > 1) {
+					logger.warn(`[DB] Migration: resolved username collision across ${group.length} users`);
+				}
+				let counter = 1;
+				for (let i = 0; i < group.length; i++) {
+					let candidate = i === 0 ? normalized : `${normalized}_${i}`;
+					while (taken.has(candidate)) {
+						candidate = `${normalized}_${counter++}`;
+					}
+					taken.add(candidate);
+					tx.run(sql`UPDATE users SET username = ${candidate} WHERE id = ${group[i].id}`);
+				}
+			}
 		}
-	}
+	});
+
+	addColumnsIgnoringDuplicates(
+		db,
+		[
+			sql`ALTER TABLE users ADD COLUMN preferences TEXT`,
+			sql`ALTER TABLE users ADD COLUMN name TEXT NOT NULL DEFAULT ''`,
+			sql`ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0`,
+			sql`ALTER TABLE users ADD COLUMN image TEXT`,
+			sql`ALTER TABLE users ADD COLUMN requires_password_change INTEGER NOT NULL DEFAULT 0`
+		],
+		'[DB] Failed to add Better Auth user column:'
+	);
 
 	db.run(sql`UPDATE users SET name = username WHERE name = '' OR name IS NULL`);
 
@@ -149,20 +118,14 @@ export function initAuthTables(db: Db, flags: MigrationFlags): void {
 		)
 	`);
 
-	for (const ddl of [
-		sql`ALTER TABLE sessions ADD COLUMN token TEXT`,
-		sql`ALTER TABLE sessions ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (unixepoch())`
-	]) {
-		try {
-			db.run(ddl);
-		} catch (err) {
-			if (isDuplicateColumnError(err)) {
-				continue;
-			}
-			logger.error(err, '[DB] Failed to add Better Auth session column:');
-			throw err;
-		}
-	}
+	addColumnsIgnoringDuplicates(
+		db,
+		[
+			sql`ALTER TABLE sessions ADD COLUMN token TEXT`,
+			sql`ALTER TABLE sessions ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (unixepoch())`
+		],
+		'[DB] Failed to add Better Auth session column:'
+	);
 
 	db.run(sql`UPDATE sessions SET token = id WHERE token IS NULL OR token = ''`);
 	db.run(sql`UPDATE sessions SET updated_at = created_at WHERE updated_at IS NULL`);
@@ -224,22 +187,16 @@ export function initAuthTables(db: Db, flags: MigrationFlags): void {
 		)
 	`);
 
-	for (const ddl of [
-		sql`ALTER TABLE accounts ADD COLUMN last_login_at INTEGER`,
-		sql`ALTER TABLE accounts ADD COLUMN access_token_encrypted TEXT`,
-		sql`ALTER TABLE accounts ADD COLUMN refresh_token_encrypted TEXT`,
-		sql`ALTER TABLE accounts ADD COLUMN id_token_encrypted TEXT`
-	]) {
-		try {
-			db.run(ddl);
-		} catch (err) {
-			if (isDuplicateColumnError(err)) {
-				continue;
-			}
-			logger.error(err, '[DB] Failed to add Better Auth account column:');
-			throw err;
-		}
-	}
+	addColumnsIgnoringDuplicates(
+		db,
+		[
+			sql`ALTER TABLE accounts ADD COLUMN last_login_at INTEGER`,
+			sql`ALTER TABLE accounts ADD COLUMN access_token_encrypted TEXT`,
+			sql`ALTER TABLE accounts ADD COLUMN refresh_token_encrypted TEXT`,
+			sql`ALTER TABLE accounts ADD COLUMN id_token_encrypted TEXT`
+		],
+		'[DB] Failed to add Better Auth account column:'
+	);
 
 	if (hasLegacyPasswordHashColumn) {
 		db.run(sql`

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import DetailField from '$lib/components/flux/details/DetailField.svelte';
+	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
 	import type { FluxResource } from '$lib/types/flux';
 
 	interface Props {
@@ -125,32 +127,21 @@
 			{/if}
 
 			{#if interval}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Reconcile Interval</dt>
-					<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{interval}</dd>
-				</div>
+				<DetailField label="Reconcile Interval">
+					<span class="text-sm text-gray-900 dark:text-gray-100">{interval}</span>
+				</DetailField>
 			{/if}
 
 			{#if timeout}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Timeout</dt>
-					<dd class="mt-1 text-sm text-gray-900 dark:text-gray-100">{timeout}</dd>
-				</div>
+				<DetailField label="Timeout">
+					<span class="text-sm text-gray-900 dark:text-gray-100">{timeout}</span>
+				</DetailField>
 			{/if}
 
 			{#if suspend !== undefined}
-				<div>
-					<dt class="text-sm font-medium text-gray-500 dark:text-gray-400">Suspended</dt>
-					<dd class="mt-1">
-						<span
-							class="inline-flex rounded-md px-2 py-0.5 text-xs font-medium {suspend
-								? 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'
-								: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'}"
-						>
-							{suspend ? 'Yes' : 'No'}
-						</span>
-					</dd>
-				</div>
+				<DetailField label="Suspended">
+					<SuspendedBadge suspended={suspend} />
+				</DetailField>
 			{/if}
 		</dl>
 	</div>

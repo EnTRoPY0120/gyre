@@ -12,6 +12,7 @@ import { GitHub } from 'arctic';
 import type { IOAuthProvider, OAuthTokens, OAuthUserInfo, OAuthProviderOptions } from '../types';
 import { OAuthError } from '../types';
 import { decryptSecret } from '$lib/server/auth/crypto';
+import { exchangeOAuthTokenWithBasicAuth } from '$lib/server/auth/oauth/token-exchange';
 import { generateCodeChallenge } from '$lib/server/auth/pkce';
 
 interface GitHubUser {
@@ -111,8 +112,6 @@ export class GitHubProvider implements IOAuthProvider {
 		if (codeVerifier) {
 			// Arctic's GitHub.validateAuthorizationCode doesn't accept a code_verifier.
 			// When PKCE is in use, do a raw exchange so the verifier reaches GitHub.
-			const clientSecret = decryptSecret(this.config.clientSecretEncrypted);
-			const credentials = Buffer.from(`${this.config.clientId}:${clientSecret}`).toString('base64');
 			const body = new URLSearchParams({
 				grant_type: 'authorization_code',
 				code,
@@ -120,48 +119,22 @@ export class GitHubProvider implements IOAuthProvider {
 				code_verifier: codeVerifier
 			});
 
-			const controller = new AbortController();
-			const timeoutId = setTimeout(() => controller.abort(), 10_000);
+			const tokens = await exchangeOAuthTokenWithBasicAuth({
+				clientId: this.config.clientId,
+				clientSecretEncrypted: this.config.clientSecretEncrypted,
+				endpoint: 'https://github.com/login/oauth/access_token',
+				body,
+				missingAccessTokenMessage: 'Missing access_token in GitHub token response',
+				errorMessagePrefix: 'Failed to exchange code for token',
+				errorCode: 'TOKEN_EXCHANGE_FAILED'
+			});
 
-			try {
-				const response = await fetch('https://github.com/login/oauth/access_token', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/x-www-form-urlencoded',
-						Accept: 'application/json',
-						Authorization: `Basic ${credentials}`
-					},
-					body: body.toString(),
-					signal: controller.signal
-				});
-				clearTimeout(timeoutId);
-
-				if (!response.ok) {
-					throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-				}
-
-				const data = await response.json();
-				if (data.error) {
-					throw new Error(data.error_description ?? data.error);
-				}
-				if (!data.access_token) {
-					throw new Error('Missing access_token in GitHub token response');
-				}
-
-				return {
-					accessToken: data.access_token,
-					refreshToken: data.refresh_token,
-					tokenType: data.token_type ?? 'Bearer',
-					scope: data.scope
-				};
-			} catch (error) {
-				clearTimeout(timeoutId);
-				throw new OAuthError(
-					`Failed to exchange code for token: ${error instanceof Error ? error.message : 'Unknown error'}`,
-					'TOKEN_EXCHANGE_FAILED',
-					error
-				);
-			}
+			return {
+				accessToken: tokens.accessToken,
+				refreshToken: tokens.refreshToken,
+				tokenType: tokens.tokenType,
+				scope: tokens.scope
+			};
 		}
 
 		// No PKCE — use Arctic's client as before
