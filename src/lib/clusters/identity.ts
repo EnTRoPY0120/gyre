@@ -19,7 +19,3 @@ export function normalizeClusterId(value?: string | null): string {
 	}
 	return normalized;
 }
-
-function isInClusterId(value: string): boolean {
-	return normalizeClusterId(value) === IN_CLUSTER_ID;
-}

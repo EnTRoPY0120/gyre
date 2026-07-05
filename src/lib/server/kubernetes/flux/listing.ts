@@ -1,4 +1,3 @@
-import { logger } from '../../logger.js';
 import { getResourceDef, type FluxResourceType } from './resources.js';
 import type { FluxResource, FluxResourceList } from './types.js';
 import { getCustomObjectsApi } from '../client-pool.js';
@@ -199,70 +198,5 @@ export async function listFluxResourcesInNamespace(
 		return response as unknown as FluxResourceList;
 	} catch (error) {
 		throw handleK8sError(error, `list ${resourceType} in namespace ${namespace}`);
-	}
-}
-
-/**
- * Poll for changes to FluxCD resources of a specific type across all namespaces.
- * Returns an async iterable that yields resources when changes are detected.
- * Includes automatic reconnection on failure with exponential backoff.
- *
- * Note: This implements polling-based change detection since the Kubernetes
- * client-node library's watch API has limitations for custom resources.
- * For production use, consider implementing server-sent events (SSE) or WebSocket
- * based on the Kubernetes Watch API for true real-time updates.
- *
- * @param resourceType - Type of Flux resource to watch
- * @param context - Optional cluster ID or context name
- * @param pollIntervalMs - Interval between polls (default: 5000ms)
- */
-async function* watchFluxResources(
-	resourceType: FluxResourceType,
-	context?: string,
-	pollIntervalMs = 5000
-): AsyncGenerator<PaginatedFluxResourceList, void, unknown> {
-	const resourceDef = getResourceDef(resourceType);
-	if (!resourceDef) {
-		throw new Error(`Unknown resource type: ${resourceType}`);
-	}
-
-	let lastResourceVersion: string | undefined;
-	let reconnectAttempts = 0;
-	const maxReconnectAttempts = 10;
-	const baseBackoffMs = 1000;
-
-	while (reconnectAttempts < maxReconnectAttempts) {
-		try {
-			const result = await listFluxResources(resourceType, context);
-
-			// Reset reconnect counter on any successful poll (not just version changes)
-			reconnectAttempts = 0;
-
-			// Check if resource version changed
-			const currentVersion = result.metadata?.resourceVersion;
-			if (currentVersion !== lastResourceVersion) {
-				lastResourceVersion = currentVersion;
-				yield result;
-			}
-
-			// Wait before next poll
-			await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
-		} catch (error) {
-			const err = error instanceof Error ? error : new Error(String(error));
-
-			reconnectAttempts++;
-			if (reconnectAttempts < maxReconnectAttempts) {
-				// Exponential backoff: 1s, 2s, 4s, 8s, etc., capped at 30s
-				const backoffMs = Math.min(baseBackoffMs * Math.pow(2, reconnectAttempts - 1), 30_000);
-				logger.warn(
-					`Poll for ${resourceType} failed, retrying in ${backoffMs}ms (attempt ${reconnectAttempts}/${maxReconnectAttempts})`,
-					err
-				);
-				await new Promise((resolve) => setTimeout(resolve, backoffMs));
-			} else {
-				logger.error(`Poll for ${resourceType} failed after ${maxReconnectAttempts} attempts`);
-				throw err;
-			}
-		}
 	}
 }

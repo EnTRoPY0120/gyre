@@ -126,9 +126,6 @@ async function cleanupReconciliationHistory(): Promise<CleanupStats> {
 }
 
 let cleanupScheduled = false;
-let cleanupInterval: NodeJS.Timeout | null = null;
-let initialDelayTimeout: NodeJS.Timeout | null = null;
-let immediateCleanupTimeout: NodeJS.Timeout | null = null;
 let cleanupInFlight: Promise<void> | null = null;
 
 /**
@@ -179,11 +176,11 @@ export function scheduleCleanup(): void {
 	);
 
 	// Run initial cleanup after delay
-	initialDelayTimeout = setTimeout(() => {
+	setTimeout(() => {
 		runCleanupOnce();
 
 		// Then run every 24 hours
-		cleanupInterval = setInterval(() => {
+		setInterval(() => {
 			runCleanupOnce();
 		}, CLEANUP_INTERVAL_MS);
 	}, initialDelay);
@@ -194,30 +191,8 @@ export function scheduleCleanup(): void {
 	// We add a random jitter (0-30m) to prevent multiple instances from contending.
 	const startupDelayWithJitter = 5 * MS_PER_MINUTE + getRandomJitterMs(30);
 
-	immediateCleanupTimeout = setTimeout(() => {
+	setTimeout(() => {
 		logger.info('[ReconciliationCleanup] Running initial cleanup...');
 		runCleanupOnce();
 	}, startupDelayWithJitter);
-}
-
-/**
- * Stop the cleanup scheduler (useful for testing or graceful shutdown).
- * Returns the in-flight cleanup promise (if any) so callers can await its completion.
- */
-function stopCleanup(): Promise<void> {
-	if (cleanupInterval) {
-		clearInterval(cleanupInterval);
-		cleanupInterval = null;
-	}
-	if (initialDelayTimeout) {
-		clearTimeout(initialDelayTimeout);
-		initialDelayTimeout = null;
-	}
-	if (immediateCleanupTimeout) {
-		clearTimeout(immediateCleanupTimeout);
-		immediateCleanupTimeout = null;
-	}
-	cleanupScheduled = false;
-	logger.info('[ReconciliationCleanup] Cleanup scheduler stopped');
-	return cleanupInFlight ?? Promise.resolve();
 }

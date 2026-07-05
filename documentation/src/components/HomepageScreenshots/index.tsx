@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
-import Heading from '@theme/Heading';
 import styles from './styles.module.css';
 
 type ScreenshotItem = {
@@ -42,9 +41,7 @@ function Screenshot({ title, description, imageSrc, imageAlt }: ScreenshotItem) 
 					<img src={imageSrc} alt={imageAlt} className={styles.screenshotImage} />
 				</div>
 				<div className={styles.screenshotContent}>
-					<Heading as="h3" className={styles.screenshotTitle}>
-						{title}
-					</Heading>
+					<h3 className={styles.screenshotTitle}>{title}</h3>
 					<p className={styles.screenshotDescription}>{description}</p>
 				</div>
 			</div>
@@ -57,9 +54,7 @@ export default function HomepageScreenshots(): ReactNode {
 		<section className={styles.screenshots}>
 			<div className="container">
 				<div className={styles.sectionHeader}>
-					<Heading as="h2" className={styles.sectionTitle}>
-						See it in Action
-					</Heading>
+					<h2 className={styles.sectionTitle}>See it in Action</h2>
 					<p className={styles.sectionDescription}>
 						Experience the power of Gyre with an intuitive interface designed for FluxCD resource
 						management.

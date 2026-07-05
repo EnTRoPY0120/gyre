@@ -43,7 +43,3 @@ export const templates: ResourceTemplate[] = [
 	IMAGE_POLICY_TEMPLATE,
 	IMAGE_UPDATE_AUTOMATION_TEMPLATE
 ];
-
-function getPluralByKind(kind: string): string | undefined {
-	return templates.find((t) => t.kind === kind)?.plural;
-}

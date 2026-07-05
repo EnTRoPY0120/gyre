@@ -1,8 +1,5 @@
 import { normalizeClusterId } from '$lib/clusters/identity.js';
-import * as k8s from '@kubernetes/client-node';
 import { logger } from '../logger.js';
-import { getCoreV1Api } from './client-pool.js';
-import { handleK8sError } from './error-handler.js';
 
 /**
  * Audit log helper for sensitive resource access (e.g., Secrets).
@@ -31,26 +28,4 @@ export function auditLogSecretAccess(
 
 	// Use warn level for sensitive resource access to ensure it's logged to files
 	logger.warn(msg);
-}
-
-/**
- * Read a Kubernetes Secret (CoreV1 API) with audit logging.
- * @param namespace - Namespace containing the Secret
- * @param name - Name of the Secret
- * @param context - Optional cluster context
- */
-async function readSecret(
-	namespace: string,
-	name: string,
-	context?: string
-): Promise<k8s.V1Secret> {
-	// Audit log before attempting read (logs both success and failure)
-	auditLogSecretAccess('get', 'Secret', namespace, name, context);
-	try {
-		const api = await getCoreV1Api(context);
-		const response = await api.readNamespacedSecret({ namespace, name });
-		return response;
-	} catch (error) {
-		throw handleK8sError(error, `read Secret ${namespace}/${name}`);
-	}
 }

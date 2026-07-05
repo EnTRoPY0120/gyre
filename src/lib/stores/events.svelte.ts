@@ -593,6 +593,3 @@ class RealtimeStore {
 
 // Singleton instance
 export const eventsStore = new RealtimeStore();
-
-// Legacy alias for backwards compatibility
-type WebSocketStatus = ConnectionStatus;

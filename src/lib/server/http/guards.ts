@@ -136,14 +136,6 @@ export async function requireScopedPermission(
 	}
 }
 
-async function requireAdminPermission(
-	locals: App.Locals,
-	resourceType?: string,
-	namespace?: string
-): Promise<void> {
-	await requirePrivilegedAdminPermission(locals, resourceType, namespace);
-}
-
 export async function requirePrivilegedAdminPermission(
 	locals: App.Locals,
 	resourceType?: string,

@@ -233,6 +233,7 @@ export async function requirePermission(
  * Custom RBAC error
  */
 export class RbacError extends Error {
+	status = 403;
 	body: { message: string; code: string };
 
 	constructor(
@@ -307,23 +308,6 @@ export async function unbindPolicyFromUser(userId: string, policyId: string): Pr
 }
 
 /**
- * Get all policies for a user
- */
-async function getUserPolicies(userId: string) {
-	const db = getDbSync();
-
-	const results = await db
-		.select({
-			policy: rbacPolicies
-		})
-		.from(rbacBindings)
-		.innerJoin(rbacPolicies, eq(rbacBindings.policyId, rbacPolicies.id))
-		.where(eq(rbacBindings.userId, userId));
-
-	return results.map((r) => r.policy);
-}
-
-/**
  * Get all policies for a set of users in a single JOIN query.
  * Returns a record mapping each userId to its array of policies.
  * Users with no bindings will not appear as keys in the result.
@@ -349,16 +333,6 @@ export async function getAllUserPolicies(
 		grouped[row.userId].push(row.policy);
 	}
 	return grouped;
-}
-
-/**
- * Get all available policies
- */
-async function getAllPolicies() {
-	const db = getDbSync();
-	return db.query.rbacPolicies.findMany({
-		orderBy: (policies, { desc }) => [desc(policies.createdAt)]
-	});
 }
 
 /**
@@ -449,12 +423,4 @@ export async function quarantineInvalidNamespacePatterns(): Promise<number> {
  */
 export function isAdmin(user: User): boolean {
 	return user.role === 'admin';
-}
-
-/**
- * Check if user can perform admin actions
- */
-async function canAdmin(user: User): Promise<boolean> {
-	if (user.role === 'admin') return true;
-	return checkPermission(user, 'admin');
 }

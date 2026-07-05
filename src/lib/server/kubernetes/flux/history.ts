@@ -5,36 +5,6 @@ import type { FluxResourceType } from './resources.js';
 import { getReconciliationHistory } from './reconciliation-tracker.js';
 import { getResourceDef } from './resources.js';
 
-interface ResourceRevision {
-	revision: string;
-	timestamp: string;
-	status: string;
-	message?: string;
-}
-
-/**
- * Get history for a Flux resource
- * Now uses the unified reconciliation_history table for all FluxCD resources
- */
-async function getResourceHistory(
-	type: FluxResourceType,
-	namespace: string,
-	name: string,
-	context?: string
-): Promise<ResourceRevision[]> {
-	// Use the new reconciliation history system for all resources
-	const clusterId = normalizeClusterId(context);
-	const history = await getReconciliationHistory(type, namespace, name, clusterId);
-
-	// Transform to the expected format for backward compatibility
-	return history.map((entry) => ({
-		revision: entry.revision || 'unknown',
-		timestamp: entry.reconcileCompletedAt?.toISOString() || new Date().toISOString(),
-		status: entry.status,
-		message: entry.readyMessage || entry.errorMessage || undefined
-	}));
-}
-
 /**
  * Rollback a FluxCD resource to a previous state
  * This restores the spec from a historical snapshot and triggers reconciliation

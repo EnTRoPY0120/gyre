@@ -149,19 +149,6 @@ export async function repairUserPolicyBindings(): Promise<number> {
 	return repairedCount;
 }
 
-/**
- * Sync user's policy bindings to match their current role
- * Called when a user's role is changed
- */
-async function syncUserPolicyBindings(user: User): Promise<void> {
-	const db = getDbSync();
-	db.transaction((tx) => {
-		syncUserPolicyBindingsInTx(tx, user);
-	});
-
-	logger.info(`   ✓ Synced RBAC bindings for role: ${user.role}`);
-}
-
 export function syncUserPolicyBindingsInTx(tx: Tx, user: User): void {
 	// Admin doesn't need policy bindings
 	if (user.role === 'admin') {

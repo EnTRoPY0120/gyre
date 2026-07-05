@@ -273,27 +273,3 @@ export async function getReconciliationHistory(
 
 	return history;
 }
-
-/**
- * Get the most recent reconciliation for a resource
- */
-async function getLatestReconciliation(
-	resourceType: FluxResourceType,
-	namespace: string,
-	name: string,
-	clusterId: string = 'in-cluster'
-): Promise<typeof reconciliationHistory.$inferSelect | null> {
-	const db = getDbSync();
-
-	const latest = await db.query.reconciliationHistory.findFirst({
-		where: and(
-			eq(reconciliationHistory.resourceType, resourceType),
-			eq(reconciliationHistory.namespace, namespace),
-			eq(reconciliationHistory.name, name),
-			eq(reconciliationHistory.clusterId, clusterId)
-		),
-		orderBy: [desc(reconciliationHistory.reconcileCompletedAt)]
-	});
-
-	return latest || null;
-}

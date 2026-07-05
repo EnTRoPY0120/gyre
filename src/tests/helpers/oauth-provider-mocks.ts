@@ -122,5 +122,3 @@ export function createJoseMocks(options: JoseMockOptions = {}) {
 			}))
 	};
 }
-
-type OAuthProviderConfig = ReturnType<typeof createOAuthProviderConfig>;

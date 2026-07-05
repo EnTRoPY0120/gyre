@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import clsx from 'clsx';
-import Heading from '@theme/Heading';
 import styles from './styles.module.css';
 
 type FeatureItem = {
@@ -79,9 +78,7 @@ function Feature({ title, icon, description }: FeatureItem) {
 			<div className={styles.featureCard}>
 				<div className={styles.featureIcon}>{icon}</div>
 				<div className={styles.featureContent}>
-					<Heading as="h3" className={styles.featureTitle}>
-						{title}
-					</Heading>
+					<h3 className={styles.featureTitle}>{title}</h3>
 					<p className={styles.featureDescription}>{description}</p>
 				</div>
 			</div>
@@ -94,9 +91,7 @@ export default function HomepageFeatures(): ReactNode {
 		<section className={styles.features}>
 			<div className="container">
 				<div className={styles.sectionHeader}>
-					<Heading as="h2" className={styles.sectionTitle}>
-						Why Gyre?
-					</Heading>
+					<h2 className={styles.sectionTitle}>Why Gyre?</h2>
 					<p className={styles.sectionDescription}>
 						A powerful WebUI designed specifically for FluxCD, bringing modern GitOps workflows to
 						your fingertips.

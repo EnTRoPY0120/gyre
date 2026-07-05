@@ -177,10 +177,3 @@ export async function validateInClusterAdmin(password: string): Promise<boolean>
 
 	return isValid;
 }
-
-/**
- * Check if in-cluster admin password has been used
- */
-function isInClusterAdminPasswordConsumed(): boolean {
-	return inClusterFirstLoginDone;
-}
