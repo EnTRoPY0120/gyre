@@ -114,45 +114,6 @@ export async function logLogout(user: User, ipAddress?: string): Promise<void> {
 }
 
 /**
- * Log resource read (list/view)
- */
-async function logResourceRead(
-	user: User,
-	resourceType: string,
-	resourceName?: string,
-	namespace?: string,
-	clusterId?: string
-): Promise<void> {
-	await logAudit(user, 'read', {
-		resourceType,
-		resourceName,
-		namespace,
-		clusterId
-	});
-}
-
-/**
- * Log resource write (create/update)
- */
-async function logResourceWrite(
-	user: User,
-	resourceType: string,
-	action: 'suspend' | 'resume' | 'reconcile' | 'update' | 'rollback',
-	resourceName: string,
-	namespace: string,
-	clusterId?: string,
-	details?: Record<string, unknown>
-): Promise<void> {
-	await logAudit(user, `write:${action}`, {
-		resourceType,
-		resourceName,
-		namespace,
-		clusterId,
-		details
-	});
-}
-
-/**
  * Log user management action
  */
 export async function logUserManagement(
@@ -204,39 +165,7 @@ export async function logClusterChange(
 
 export type AuditLogSortBy = 'date' | 'action';
 export type AuditLogSortOrder = 'asc' | 'desc';
-
-/**
- * Get recent audit logs
- */
-async function getRecentAuditLogs(
-	userId?: string,
-	action?: string,
-	limit: number = 100,
-	includeUser: boolean = true
-) {
-	const db = getDbSync();
-
-	// Build where conditions
-	const conditions = [];
-
-	if (userId) {
-		conditions.push(eq(auditLogs.userId, userId));
-	}
-
-	if (action) {
-		conditions.push(eq(auditLogs.action, action));
-	}
-
-	// Use the query helper from Drizzle
-	const logs = await db.query.auditLogs.findMany({
-		where: conditions.length > 0 ? and(...conditions) : undefined,
-		with: includeUser ? { user: true } : undefined,
-		orderBy: [desc(auditLogs.createdAt)],
-		limit
-	});
-
-	return logs;
-}
+type AuditLogWithUser = typeof auditLogs.$inferSelect & { user: User | null };
 
 /**
  * Get paginated audit logs with sorting and filtering
@@ -249,7 +178,7 @@ export async function getAuditLogsPaginated(options: {
 	offset?: number;
 	sortBy?: AuditLogSortBy;
 	sortOrder?: AuditLogSortOrder;
-}): Promise<{ logs: Awaited<ReturnType<typeof getRecentAuditLogs>>; total: number }> {
+}): Promise<{ logs: AuditLogWithUser[]; total: number }> {
 	const db = getDbSync();
 	const {
 		userId,
@@ -305,7 +234,7 @@ export async function getAuditLogsPaginated(options: {
 /**
  * Clean up old audit logs based on retention policy
  */
-async function cleanupOldAuditLogs(): Promise<number> {
+export async function cleanupOldAuditLogs(): Promise<number> {
 	try {
 		const db = getDbSync();
 		const retentionDays = await getAuditLogRetentionDays();
@@ -420,7 +349,7 @@ export function scheduleAuditLogCleanup(): void {
  * Stop the audit log cleanup scheduler.
  * Returns the in-flight cleanup promise (if any) so callers can await its completion.
  */
-function stopAuditLogCleanup(): Promise<void> {
+export function stopAuditLogCleanup(): Promise<void> {
 	if (cleanupInterval) {
 		clearInterval(cleanupInterval);
 		cleanupInterval = null;

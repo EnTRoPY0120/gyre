@@ -4,8 +4,6 @@ import { MS_PER_HOUR, MS_PER_MINUTE, getRandomJitterMs } from '../utils/time.js'
 
 let cleanupScheduled = false;
 let isCleaning = false;
-let cleanupInterval: NodeJS.Timeout | null = null;
-let immediateCleanupTimeout: NodeJS.Timeout | null = null;
 
 /**
  * Perform the cleanup with locking
@@ -42,7 +40,7 @@ export function scheduleSessionCleanup(): void {
 	logger.info(`[SessionCleanup] Scheduling session cleanup to run every hour`);
 
 	// Run every hour
-	cleanupInterval = setInterval(() => {
+	setInterval(() => {
 		performCleanup();
 	}, CLEANUP_INTERVAL_MS);
 
@@ -52,24 +50,8 @@ export function scheduleSessionCleanup(): void {
 	// We add a random jitter (0-10m) to prevent multiple instances from contending.
 	const startupDelayWithJitter = 1 * MS_PER_MINUTE + getRandomJitterMs(10);
 
-	immediateCleanupTimeout = setTimeout(() => {
+	setTimeout(() => {
 		logger.info('[SessionCleanup] Running initial session cleanup...');
 		performCleanup();
 	}, startupDelayWithJitter);
-}
-
-/**
- * Stop the cleanup scheduler (useful for testing or graceful shutdown)
- */
-function stopSessionCleanup(): void {
-	if (cleanupInterval) {
-		clearInterval(cleanupInterval);
-		cleanupInterval = null;
-	}
-	if (immediateCleanupTimeout) {
-		clearTimeout(immediateCleanupTimeout);
-		immediateCleanupTimeout = null;
-	}
-	cleanupScheduled = false;
-	logger.info('[SessionCleanup] Session cleanup scheduler stopped');
 }

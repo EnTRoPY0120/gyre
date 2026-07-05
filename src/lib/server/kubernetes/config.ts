@@ -115,21 +115,6 @@ export function loadKubeConfig(options?: KubeConfigOptions): k8s.KubeConfig {
 }
 
 /**
- * Create a kubeconfig from uploaded cluster data
- * Used when loading clusters from the database
- */
-function createKubeConfigFromString(kubeconfigYaml: string, contextName?: string): k8s.KubeConfig {
-	const config = new k8s.KubeConfig();
-	config.loadFromString(kubeconfigYaml);
-
-	if (contextName && config.getContexts().some((c) => c.name === contextName)) {
-		config.setCurrentContext(contextName);
-	}
-
-	return config;
-}
-
-/**
  * Validates that the loaded config can connect to the cluster.
  * Performs a namespace-scoped probe (list pods) to verify connectivity without
  * requiring cluster-scoped RBAC permissions. Falls back to "default" namespace
@@ -148,48 +133,6 @@ export async function validateKubeConfig(config: k8s.KubeConfig): Promise<boolea
 		return true;
 	} catch (error) {
 		logger.error(error, 'Failed to validate kubeconfig');
-		return false;
-	}
-}
-
-/**
- * Re-validates the kubeconfig by attempting to connect to the cluster.
- * This is useful for detecting if kubeconfig files have been rotated,
- * certificates have been renewed, or cluster connectivity has changed.
- *
- * @param config - The KubeConfig to validate
- * @param throwOnFailure - If true, throws an error on validation failure
- * @returns true if validation succeeds, false otherwise
- */
-async function revalidateKubeConfig(
-	config: k8s.KubeConfig,
-	throwOnFailure = false
-): Promise<boolean> {
-	const clusterName = config.getCurrentCluster()?.name || 'unknown';
-	try {
-		const isValid = await validateKubeConfig(config);
-		if (isValid) {
-			logger.debug(`✓ Kubeconfig revalidation successful for cluster: ${clusterName}`);
-			return true;
-		} else {
-			const msg = `Kubeconfig validation failed for cluster: ${clusterName}`;
-			logger.warn(msg);
-			if (throwOnFailure) {
-				throw new ConfigurationError(msg);
-			}
-			return false;
-		}
-	} catch (error) {
-		// Rethrow ConfigurationError immediately without wrapping
-		if (error instanceof ConfigurationError) {
-			throw error;
-		}
-
-		const msg = `Kubeconfig revalidation failed for cluster: ${clusterName}`;
-		logger.error(error, msg);
-		if (throwOnFailure) {
-			throw new ConfigurationError(msg);
-		}
 		return false;
 	}
 }

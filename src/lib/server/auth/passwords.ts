@@ -65,14 +65,6 @@ export function generateStrongPassword(): string {
 	return passwordChars.join('');
 }
 
-/**
- * @deprecated The generated admin password is no longer stored in memory.
- * It is returned directly from createDefaultAdminIfNeeded() and written to a restricted temp file.
- */
-function getGeneratedAdminPassword(): string | null {
-	return null;
-}
-
 // Password hashing
 export async function hashPassword(password: string): Promise<string> {
 	return bcrypt.hash(password, SALT_ROUNDS);

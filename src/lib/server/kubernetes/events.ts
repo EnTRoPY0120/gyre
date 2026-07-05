@@ -123,25 +123,3 @@ export async function getAllRecentEvents(limit = 10, context?: string): Promise<
 		throw handleK8sError(error, 'fetch all recent events');
 	}
 }
-
-/**
- * Format event timestamp as relative time
- */
-function formatEventTime(timestamp: string | null): string {
-	if (!timestamp) return 'Unknown';
-
-	const now = new Date();
-	const eventTime = new Date(timestamp);
-	const diffMs = now.getTime() - eventTime.getTime();
-	const diffSeconds = Math.floor(diffMs / 1000);
-	const diffMinutes = Math.floor(diffSeconds / 60);
-	const diffHours = Math.floor(diffMinutes / 60);
-	const diffDays = Math.floor(diffHours / 24);
-
-	if (diffSeconds < 60) return `${diffSeconds}s ago`;
-	if (diffMinutes < 60) return `${diffMinutes}m ago`;
-	if (diffHours < 24) return `${diffHours}h ago`;
-	if (diffDays < 7) return `${diffDays}d ago`;
-
-	return eventTime.toLocaleDateString();
-}

@@ -88,34 +88,6 @@ export function formatTimestamp(timestamp?: string): string {
 }
 
 /**
- * Format FluxCD interval string (e.g., "5m", "1h", "24h")
- */
-function formatInterval(interval?: string): string {
-	if (!interval) return 'Not set';
-
-	// Interval is already in a readable format (e.g., "5m", "1h30m")
-	return interval;
-}
-
-/**
- * Get health badge color
- */
-function getHealthColor(health: ResourceHealth): string {
-	switch (health) {
-		case 'healthy':
-			return 'green';
-		case 'progressing':
-			return 'blue';
-		case 'failed':
-			return 'red';
-		case 'suspended':
-			return 'gray';
-		default:
-			return 'gray';
-	}
-}
-
-/**
  * Get health badge label
  */
 export function getHealthLabel(health: ResourceHealth): string {
@@ -131,12 +103,4 @@ export function getHealthLabel(health: ResourceHealth): string {
 		default:
 			return 'Unknown';
 	}
-}
-
-/**
- * Truncate text with ellipsis
- */
-function truncate(text: string, maxLength: number): string {
-	if (text.length <= maxLength) return text;
-	return text.substring(0, maxLength - 3) + '...';
 }

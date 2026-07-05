@@ -173,8 +173,6 @@ export function getBetterAuth() {
 	return authInstance;
 }
 
-type BetterAuthInstance = ReturnType<typeof getBetterAuth>;
-
 function toSvelteCookieOptions(attributes: {
 	path?: string;
 	domain?: string;

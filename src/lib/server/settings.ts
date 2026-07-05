@@ -49,7 +49,7 @@ export const SETTING_ENV_OVERRIDES = ENV_OVERRIDES;
  * @param key - Setting key
  * @returns Setting value (env var > DB > default)
  */
-async function getSetting(key: string): Promise<string> {
+export async function getSetting(key: string): Promise<string> {
 	// Check env var override first
 	const envVar = ENV_OVERRIDES[key];
 	if (envVar && process.env[envVar]) {
@@ -71,7 +71,7 @@ async function getSetting(key: string): Promise<string> {
  * @param key - Setting key
  * @param value - Setting value
  */
-async function setSetting(key: string, value: string): Promise<void> {
+export async function setSetting(key: string, value: string): Promise<void> {
 	const db = await getDb();
 
 	// Atomic upsert using ON CONFLICT
@@ -147,30 +147,6 @@ export async function getAuthSettings(): Promise<AuthSettings> {
 		allowSignup: allowSignupStr === 'true',
 		domainAllowlist: parseJsonArray(domainAllowlistStr)
 	};
-}
-
-/**
- * Convenience: Check if local login is enabled.
- */
-async function isLocalLoginEnabled(): Promise<boolean> {
-	const value = await getSetting(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED);
-	return value === 'true';
-}
-
-/**
- * Convenience: Check if signup is allowed.
- */
-async function isSignupAllowed(): Promise<boolean> {
-	const value = await getSetting(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP);
-	return value === 'true';
-}
-
-/**
- * Convenience: Get domain allowlist.
- */
-async function getDomainAllowlist(): Promise<string[]> {
-	const value = await getSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST);
-	return parseJsonArray(value);
 }
 
 /**

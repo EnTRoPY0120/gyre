@@ -208,20 +208,3 @@ export async function getCoreV1Api(
 		return makeApiClientWithTimeout(config, k8s.CoreV1Api, timeoutMs);
 	});
 }
-
-/**
- * Create AppsV1Api client, reusing a pooled instance when possible.
- * getKubeConfig is invoked inside the factory so it is only called on cache misses.
- * @param context - Optional canonical cluster ID
- */
-async function getAppsV1Api(
-	context?: string,
-	reqCache?: ReqCache,
-	timeoutMs = OPERATION_TIMEOUTS.get
-): Promise<k8s.AppsV1Api> {
-	const key = normalizeClusterId(context);
-	return getOrCreate(appsV1Pool, `${key}:${timeoutMs}`, async () => {
-		const config = await getKubeConfig(key, reqCache);
-		return makeApiClientWithTimeout(config, k8s.AppsV1Api, timeoutMs);
-	});
-}

@@ -9,9 +9,6 @@ extendZodWithOpenApi(z);
 
 export { z };
 
-/** Security requirement for endpoints that require authentication */
-const SESSION_SECURITY = [{ CookieAuth: [] }];
-
 /** Shared schema for structured API error responses */
 export const errorSchema = z.object({ message: z.string(), code: z.string() });
 

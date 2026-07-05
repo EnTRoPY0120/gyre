@@ -181,16 +181,6 @@ async function getCachedBackupCount(): Promise<number> {
 	return getCached('backupCount', async () => listBackups().length);
 }
 
-function clearAdminReadinessCacheForTests(): void {
-	adminReadinessGeneration += 1;
-	adminReadinessCache.authSettings = null;
-	adminReadinessCache.enabledProviderCount = null;
-	adminReadinessCache.backupCount = null;
-	adminReadinessInflight.authSettings = null;
-	adminReadinessInflight.enabledProviderCount = null;
-	adminReadinessInflight.backupCount = null;
-}
-
 export interface AdminReadinessState {
 	clusterConnected: boolean;
 	localLoginEnabled: boolean | null;

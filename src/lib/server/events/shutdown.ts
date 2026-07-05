@@ -8,7 +8,7 @@ import { normalizeError } from './types.js';
 /**
  * Mark the event bus as shutting down to prevent new subscriptions
  */
-async function closeAllEventStreams() {
+export async function closeAllEventStreams() {
 	logger.info('[EventBus] Shutting down all event streams...');
 	setEventBusShuttingDown();
 

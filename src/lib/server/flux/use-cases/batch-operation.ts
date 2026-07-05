@@ -11,7 +11,6 @@ import {
 } from '$lib/server/kubernetes/flux/actions.js';
 import { captureReconciliation } from '$lib/server/kubernetes/flux/reconciliation-tracker.js';
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
-import { deleteFluxResourcesBatch, type DeleteItem } from '$lib/server/kubernetes/client.js';
 import { sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
 import {
 	enforceUserRateLimitPreset,
@@ -23,14 +22,6 @@ import {
 	resolveFluxRouteResourceType,
 	validateFluxRouteIdentity
 } from '$lib/server/http/guards.js';
-
-function batchDeleteUseCase(params: {
-	concurrency?: number;
-	items: DeleteItem[];
-	locals: App.Locals;
-}) {
-	return deleteFluxResourcesBatch(params.items, params.locals.cluster, params.concurrency);
-}
 
 export type BatchFluxOperation = 'reconcile' | 'suspend' | 'resume' | 'delete';
 

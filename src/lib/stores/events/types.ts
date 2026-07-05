@@ -1,12 +1,5 @@
 export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
 
-interface NotificationState {
-	revision: string | undefined;
-	readyStatus: string | undefined;
-	readyReason: string | undefined;
-	messagePreview: string;
-}
-
 export interface ResourceEvent {
 	type: 'ADDED' | 'MODIFIED' | 'DELETED' | 'CONNECTED' | 'HEARTBEAT' | 'ERROR' | 'SHUTDOWN';
 	clusterId?: string;
