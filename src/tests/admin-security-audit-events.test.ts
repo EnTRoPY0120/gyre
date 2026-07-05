@@ -174,9 +174,6 @@ beforeEach(async () => {
 
 	vi.doMock('$lib/server/settings', () =>
 		createSettingsModuleStub({
-			setSetting: async (key: string, value: string) => {
-				settingWrites.push([key, value]);
-			},
 			setSettings: async (values: Array<{ key: string; value: string }>) => {
 				settingWrites.push(...values.map(({ key, value }) => [key, value] as [string, string]));
 			},

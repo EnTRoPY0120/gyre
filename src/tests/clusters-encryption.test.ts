@@ -69,7 +69,6 @@ afterEach(() => {
 	} else {
 		delete process.env.GYRE_ENCRYPTION_KEY;
 	}
-	clustersModule._resetEncryptionKeyCache();
 	state.db = null;
 	vi.restoreAllMocks();
 	vi.resetModules();
@@ -94,24 +93,24 @@ describe('Cluster Kubeconfig Encryption', () => {
 		});
 	});
 
-	describe('_decryptKubeconfig — v2 format', () => {
+	describe('decryptKubeconfig() v2 format', () => {
 		test('throws on invalid v2 string (wrong number of colons)', () => {
-			expect(() => clustersModule._decryptKubeconfig('v2:abc:def')).toThrow(
+			expect(() => clustersModule.decryptKubeconfig('v2:abc:def')).toThrow(
 				'Invalid v2 encrypted kubeconfig format'
 			);
 		});
 	});
 
-	describe('_decryptKubeconfig — XOR format rejection', () => {
+	describe('decryptKubeconfig() XOR format rejection', () => {
 		test('throws when given a non-v2 prefixed string', () => {
 			const legacyXor = Buffer.from('fake-xor-data').toString('base64');
-			expect(() => clustersModule._decryptKubeconfig(legacyXor)).toThrow(
+			expect(() => clustersModule.decryptKubeconfig(legacyXor)).toThrow(
 				'Unsupported kubeconfig encryption format'
 			);
 		});
 
 		test('error message mentions v2', () => {
-			expect(() => clustersModule._decryptKubeconfig('not-v2')).toThrow('v2');
+			expect(() => clustersModule.decryptKubeconfig('not-v2')).toThrow('v2');
 		});
 	});
 });
@@ -119,9 +118,9 @@ describe('Cluster Kubeconfig Encryption', () => {
 describe('migrateKubeconfigs()', () => {
 	const TEST_KEY = 'ab'.repeat(32);
 
-	beforeEach(() => {
+	beforeEach(async () => {
 		process.env.GYRE_ENCRYPTION_KEY = TEST_KEY;
-		clustersModule._resetEncryptionKeyCache();
+		clustersModule = await importFresh<ClustersModule>('../lib/server/clusters');
 		state.db = setupInMemoryDb();
 	});
 
@@ -181,7 +180,7 @@ describe('migrateKubeconfigs()', () => {
 		insertCluster(state.db!, 'wrong-key', originalCiphertext);
 
 		process.env.GYRE_ENCRYPTION_KEY = 'bb'.repeat(32);
-		clustersModule._resetEncryptionKeyCache();
+		clustersModule = await importFresh<ClustersModule>('../lib/server/clusters');
 
 		const result = await clustersModule.migrateKubeconfigs();
 

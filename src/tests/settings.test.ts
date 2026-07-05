@@ -11,8 +11,6 @@ import { eq } from 'drizzle-orm';
 // Mutable reference shared with the mock closure so each test gets a fresh DB
 const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
 type SettingsModule = typeof import('../lib/server/settings.js');
-let getSetting: SettingsModule['getSetting'];
-let setSetting: SettingsModule['setSetting'];
 let setSettings: SettingsModule['setSettings'];
 let getAuthSettings: SettingsModule['getAuthSettings'];
 let getAuditLogRetentionDays: SettingsModule['getAuditLogRetentionDays'];
@@ -36,6 +34,10 @@ function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
 	sqlite.exec(CREATE_APP_SETTINGS);
 	return drizzle(sqlite, { schema });
+}
+
+async function setSingleSetting(key: string, value: string) {
+	await setSettings([{ key, value }]);
 }
 
 // Env var save/restore helpers
@@ -62,8 +64,6 @@ beforeEach(async () => {
 		schema
 	}));
 	const settingsModule = await importFresh<SettingsModule>('../lib/server/settings.js?sut');
-	getSetting = settingsModule.getSetting;
-	setSetting = settingsModule.setSetting;
 	setSettings = settingsModule.setSettings;
 	getAuthSettings = settingsModule.getAuthSettings;
 	getAuditLogRetentionDays = settingsModule.getAuditLogRetentionDays;
@@ -88,86 +88,6 @@ afterEach(() => {
 	vi.resetModules();
 });
 
-// ---------------------------------------------------------------------------
-// getSetting
-// ---------------------------------------------------------------------------
-
-describe('getSetting', () => {
-	test('env override takes precedence over DB value', async () => {
-		// Insert a different value in DB
-		await setSetting(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED, 'false');
-		// Set env var to override
-		setEnv('GYRE_AUTH_LOCAL_LOGIN_ENABLED', 'true');
-
-		const value = await getSetting(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED);
-		expect(value).toBe('true'); // env var wins
-	});
-
-	test('direct DB updates are visible on the next read in the same process', async () => {
-		const key = SETTINGS_KEYS.AUTH_ALLOW_SIGNUP;
-
-		await state
-			.db!.insert(schema.appSettings)
-			.values({ key, value: 'cached-value', updatedAt: new Date() })
-			.onConflictDoNothing();
-
-		const val1 = await getSetting(key);
-		expect(val1).toBe('cached-value');
-
-		await state
-			.db!.update(schema.appSettings)
-			.set({ value: 'new-db-value', updatedAt: new Date() })
-			.where(eq(schema.appSettings.key, key));
-
-		const val2 = await getSetting(key);
-		expect(val2).toBe('new-db-value');
-	});
-
-	test('DB miss falls back to DEFAULTS map', async () => {
-		// Key is not in the DB — should return the default value
-		const value = await getSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS);
-		expect(value).toBe('90');
-	});
-});
-
-// ---------------------------------------------------------------------------
-// setSetting
-// ---------------------------------------------------------------------------
-
-describe('setSetting', () => {
-	test('upserts to DB on first call', async () => {
-		await setSetting('audit.retentionDays', '30');
-
-		const row = await state.db!.query.appSettings.findFirst({
-			where: eq(schema.appSettings.key, 'audit.retentionDays')
-		});
-		expect(row?.value).toBe('30');
-	});
-
-	test('updates existing DB value on second call', async () => {
-		await setSetting('audit.retentionDays', '30');
-		await setSetting('audit.retentionDays', '60');
-
-		const row = await state.db!.query.appSettings.findFirst({
-			where: eq(schema.appSettings.key, 'audit.retentionDays')
-		});
-		expect(row?.value).toBe('60');
-	});
-
-	test('subsequent getSetting reads updated values after setSetting', async () => {
-		const key = SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED;
-
-		await setSetting(key, 'true');
-		const val1 = await getSetting(key);
-		expect(val1).toBe('true');
-
-		await setSetting(key, 'false');
-
-		const val2 = await getSetting(key);
-		expect(val2).toBe('false');
-	});
-});
-
 describe('setSettings', () => {
 	test('upserts multiple settings in one transaction', async () => {
 		await setSettings([
@@ -175,8 +95,26 @@ describe('setSettings', () => {
 			{ key: SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST, value: '["example.com"]' }
 		]);
 
-		expect(await getSetting(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP)).toBe('false');
-		expect(await getSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST)).toBe('["example.com"]');
+		const rows = await state.db!.select().from(schema.appSettings).all();
+		expect(rows).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ key: SETTINGS_KEYS.AUTH_ALLOW_SIGNUP, value: 'false' }),
+				expect.objectContaining({
+					key: SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST,
+					value: '["example.com"]'
+				})
+			])
+		);
+	});
+
+	test('updates existing DB value on a later call', async () => {
+		await setSingleSetting('audit.retentionDays', '30');
+		await setSingleSetting('audit.retentionDays', '60');
+
+		const row = await state.db!.query.appSettings.findFirst({
+			where: eq(schema.appSettings.key, 'audit.retentionDays')
+		});
+		expect(row?.value).toBe('60');
 	});
 });
 
@@ -186,25 +124,25 @@ describe('setSettings', () => {
 
 describe('getAuditLogRetentionDays', () => {
 	test('valid integer string parsed correctly', async () => {
-		await setSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, '30');
+		await setSingleSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, '30');
 		const days = await getAuditLogRetentionDays();
 		expect(days).toBe(30);
 	});
 
 	test('invalid string returns 90 default', async () => {
-		await setSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, 'abc');
+		await setSingleSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, 'abc');
 		const days = await getAuditLogRetentionDays();
 		expect(days).toBe(90);
 	});
 
 	test('zero returns 90 default', async () => {
-		await setSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, '0');
+		await setSingleSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, '0');
 		const days = await getAuditLogRetentionDays();
 		expect(days).toBe(90);
 	});
 
 	test('negative value returns 90 default', async () => {
-		await setSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, '-5');
+		await setSingleSetting(SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, '-5');
 		const days = await getAuditLogRetentionDays();
 		expect(days).toBe(90);
 	});
@@ -233,9 +171,11 @@ describe('isSettingOverriddenByEnv', () => {
 
 describe('getAuthSettings', () => {
 	test('returns typed object with correct fields', async () => {
-		await setSetting(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED, 'true');
-		await setSetting(SETTINGS_KEYS.AUTH_ALLOW_SIGNUP, 'false');
-		await setSetting(SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST, '["example.com","corp.io"]');
+		await setSettings([
+			{ key: SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED, value: 'true' },
+			{ key: SETTINGS_KEYS.AUTH_ALLOW_SIGNUP, value: 'false' },
+			{ key: SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST, value: '["example.com","corp.io"]' }
+		]);
 
 		const settings = await getAuthSettings();
 
@@ -283,7 +223,7 @@ describe('seedAuthSettings', () => {
 
 	test('does not overwrite existing DB values on second call', async () => {
 		// Set a custom value first
-		await setSetting(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED, 'false');
+		await setSingleSetting(SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED, 'false');
 
 		// Seed again — should not overwrite
 		await seedAuthSettings();

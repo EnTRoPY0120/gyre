@@ -234,7 +234,7 @@ export async function getAuditLogsPaginated(options: {
 /**
  * Clean up old audit logs based on retention policy
  */
-export async function cleanupOldAuditLogs(): Promise<number> {
+async function cleanupOldAuditLogs(): Promise<number> {
 	try {
 		const db = getDbSync();
 		const retentionDays = await getAuditLogRetentionDays();
@@ -270,9 +270,6 @@ export async function cleanupOldAuditLogs(): Promise<number> {
 const CLEANUP_HOUR = 3; // 3 AM - Chosen as a low-traffic window to minimize impact on database performance
 
 let cleanupScheduled = false;
-let cleanupInterval: NodeJS.Timeout | null = null;
-let initialDelayTimeout: NodeJS.Timeout | null = null;
-let immediateCleanupTimeout: NodeJS.Timeout | null = null;
 let cleanupInFlight: Promise<void> | null = null;
 
 /**
@@ -316,13 +313,13 @@ export function scheduleAuditLogCleanup(): void {
 	);
 
 	// Run initial cleanup after the calculated delay to align with the daily schedule
-	initialDelayTimeout = setTimeout(() => {
+	setTimeout(() => {
 		runCleanupOnce().catch((err) => {
 			logger.error('[AuditCleanup] Scheduled cleanup failed:', err);
 		});
 
 		// Then run every 24 hours
-		cleanupInterval = setInterval(() => {
+		setInterval(() => {
 			runCleanupOnce().catch((err) => {
 				logger.error('[AuditCleanup] Periodic cleanup failed:', err);
 			});
@@ -335,7 +332,7 @@ export function scheduleAuditLogCleanup(): void {
 	// We add a random jitter (0-30m) to INITIAL_CLEANUP_DELAY_MS to prevent multiple instances from contending.
 	const startupDelayWithJitter = INITIAL_CLEANUP_DELAY_MS + getRandomJitterMs(30);
 
-	immediateCleanupTimeout = setTimeout(() => {
+	setTimeout(() => {
 		logger.info('[AuditCleanup] Running startup cleanup task...');
 		runCleanupOnce().catch((err) => {
 			logger.error('[AuditCleanup] Startup cleanup task failed:', err);
@@ -343,25 +340,4 @@ export function scheduleAuditLogCleanup(): void {
 	}, startupDelayWithJitter);
 
 	cleanupScheduled = true;
-}
-
-/**
- * Stop the audit log cleanup scheduler.
- * Returns the in-flight cleanup promise (if any) so callers can await its completion.
- */
-export function stopAuditLogCleanup(): Promise<void> {
-	if (cleanupInterval) {
-		clearInterval(cleanupInterval);
-		cleanupInterval = null;
-	}
-	if (initialDelayTimeout) {
-		clearTimeout(initialDelayTimeout);
-		initialDelayTimeout = null;
-	}
-	if (immediateCleanupTimeout) {
-		clearTimeout(immediateCleanupTimeout);
-		immediateCleanupTimeout = null;
-	}
-	cleanupScheduled = false;
-	return cleanupInFlight ?? Promise.resolve();
 }

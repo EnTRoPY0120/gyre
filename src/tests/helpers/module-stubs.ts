@@ -28,10 +28,8 @@ export function createAuthCryptoModuleStub(
 	overrides: Partial<{
 		decryptSecret: (value: string) => string;
 		encryptSecret: (value: string) => string;
-		generateEncryptionKey: () => string;
 		isUsingDevelopmentAuthKey: () => boolean;
 		testAuthEncryption: () => boolean;
-		_resetKeyCache: () => void;
 	}> = {}
 ) {
 	const stub = {
@@ -66,13 +64,11 @@ export function createAuthCryptoModuleStub(
 			const authTag = computeAuthTag(ivHex, ciphertext);
 			return `${ivHex}:${ciphertext}:${authTag}`;
 		},
-		generateEncryptionKey: () => randomBytes(32).toString('hex'),
 		isUsingDevelopmentAuthKey: () => !process.env.AUTH_ENCRYPTION_KEY,
 		testAuthEncryption: () => {
 			const encrypted = stub.encryptSecret('test-value');
 			return stub.decryptSecret(encrypted) === 'test-value';
-		},
-		_resetKeyCache: () => {}
+		}
 	};
 
 	return { ...stub, ...overrides };
@@ -111,7 +107,6 @@ export function createRbacModuleStub(
 	}> = {}
 ) {
 	class StubRbacError extends Error {
-		status = 403;
 		body: { message: string; code: string };
 
 		constructor(
@@ -168,8 +163,6 @@ export function createSettingsModuleStub(
 			AUTH_DOMAIN_ALLOWLIST: string;
 			AUDIT_LOG_RETENTION_DAYS: string;
 		};
-		getSetting: (key: string) => string | Promise<string>;
-		setSetting: (key: string, value: string) => void | Promise<void>;
 		setSettings: (values: Array<{ key: string; value: string }>) => void | Promise<void>;
 		getAuthSettings: () =>
 			| {
@@ -200,14 +193,6 @@ export function createSettingsModuleStub(
 
 	const stub = {
 		SETTINGS_KEYS,
-		getSetting: async (key: string) => {
-			if (key === SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED) return 'true';
-			if (key === SETTINGS_KEYS.AUTH_ALLOW_SIGNUP) return 'true';
-			if (key === SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST) return '[]';
-			if (key === SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS) return '90';
-			return '';
-		},
-		setSetting: async () => {},
 		setSettings: async () => {},
 		getAuthSettings: async () => ({
 			localLoginEnabled: true,

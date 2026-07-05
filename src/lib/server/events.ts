@@ -3,4 +3,3 @@ export * from './events/state.js';
 export * from './events/dispatcher.js';
 export * from './events/bus.js';
 export * from './events/poller.js';
-export * from './events/shutdown.js';

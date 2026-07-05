@@ -509,7 +509,6 @@ describe('requirePermission', () => {
 		} catch (err) {
 			expect(err).toBeInstanceOf(RbacError);
 			expect((err as RbacError).action).toBe('write');
-			expect((err as RbacError).status).toBe(403);
 		}
 	});
 

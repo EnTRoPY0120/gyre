@@ -1,7 +1,7 @@
 import { logger } from '../logger.js';
 import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
 import { HEARTBEAT_INTERVAL_MS } from '../config/constants.js';
-import { activeWorkers, isEventBusShuttingDown, SERVER_SESSION_ID } from './state.js';
+import { activeWorkers, SERVER_SESSION_ID } from './state.js';
 import { activeWorkersGauge, fluxResourceStatusGauge, sseSubscribersGauge } from '../metrics.js';
 import { poll } from './poller.js';
 import { broadcast } from './dispatcher.js';
@@ -14,15 +14,6 @@ import { normalizeError, type ClusterContext, type Subscriber } from './types.js
  */
 export function subscribe(subscriber: Subscriber, clusterId: string = IN_CLUSTER_ID): () => void {
 	const canonicalClusterId = normalizeClusterId(clusterId);
-
-	// Prevent new subscriptions during shutdown
-	if (isEventBusShuttingDown()) {
-		logger.warn(
-			{ clusterId: canonicalClusterId },
-			'[EventBus] Rejecting new subscription: shutting down'
-		);
-		return () => {};
-	}
 
 	let context = activeWorkers.get(canonicalClusterId);
 
@@ -101,7 +92,7 @@ function startWorker(context: ClusterContext) {
 	}, HEARTBEAT_INTERVAL_MS);
 }
 
-export function stopWorker(context: ClusterContext, reason: string = 'no active subscribers') {
+function stopWorker(context: ClusterContext, reason: string = 'no active subscribers') {
 	if (!context.isActive) return;
 	context.isActive = false;
 	activeWorkersGauge.set(Array.from(activeWorkers.values()).filter((w) => w.isActive).length);
