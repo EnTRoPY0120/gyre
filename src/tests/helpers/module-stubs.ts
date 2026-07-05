@@ -179,9 +179,6 @@ export function createSettingsModuleStub(
 		isSettingOverriddenByEnv: (key: string) => boolean;
 		SETTING_ENV_OVERRIDES: Record<string, string>;
 		seedAuthSettings: () => void | Promise<void>;
-		isLocalLoginEnabled: () => boolean | Promise<boolean>;
-		isSignupAllowed: () => boolean | Promise<boolean>;
-		getDomainAllowlist: () => string[] | Promise<string[]>;
 	}> = {}
 ) {
 	const SETTINGS_KEYS = {
@@ -207,10 +204,7 @@ export function createSettingsModuleStub(
 			[SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST]: 'GYRE_AUTH_DOMAIN_ALLOWLIST',
 			[SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS]: 'GYRE_AUDIT_LOG_RETENTION_DAYS'
 		},
-		seedAuthSettings: async () => {},
-		isLocalLoginEnabled: async () => true,
-		isSignupAllowed: async () => true,
-		getDomainAllowlist: async () => []
+		seedAuthSettings: async () => {}
 	};
 
 	return { ...stub, ...overrides };
