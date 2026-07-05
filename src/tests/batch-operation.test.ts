@@ -32,7 +32,6 @@ beforeEach(async () => {
 	vi.doMock('$lib/server/audit', () => auditModuleStub);
 	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
 	const kubernetesClientModuleStub = {
-		deleteFluxResourcesBatch: async () => {},
 		getCustomObjectsApi: async () => ({
 			deleteNamespacedCustomObject: async () => {},
 			patchNamespacedCustomObject: async ({ name }: { name: string }) => {

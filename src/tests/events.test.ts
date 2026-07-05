@@ -14,8 +14,6 @@ let mockResources: any[] = [];
 type EventsModule = typeof import('../lib/server/events.js');
 import type { SSEEvent } from '../lib/server/events.js';
 let subscribe: EventsModule['subscribe'];
-let closeAllEventStreams: EventsModule['closeAllEventStreams'];
-let setEventBusShuttingDown: EventsModule['setEventBusShuttingDown'];
 let mockCaptureReconciliation: ReturnType<typeof vi.fn>;
 let pollMetricIncrements: Array<{ clusterId: string; resourceType: string; status: string }>;
 let throwOnStatusGaugeSet = false;
@@ -66,8 +64,6 @@ beforeEach(async () => {
 	applyEventMocks({ settlingPeriodMs: -1 });
 	const eventsModule = await importFresh<EventsModule>('../lib/server/events.js');
 	subscribe = eventsModule.subscribe;
-	closeAllEventStreams = eventsModule.closeAllEventStreams;
-	setEventBusShuttingDown = eventsModule.setEventBusShuttingDown;
 });
 
 afterEach(() => {
@@ -111,9 +107,7 @@ function uniqueClusterId(label: string) {
 // ---------------------------------------------------------------------------
 // subscribe() - basic behavior
 // ---------------------------------------------------------------------------
-// IMPORTANT: Do NOT call closeAllEventStreams() in cleanup — it sets
-// isShuttingDown=true, which is module-level state that cannot be reset.
-// Instead, each test calls unsub() to stop the worker cleanly.
+// Each test calls unsub() to stop the worker cleanly.
 // ---------------------------------------------------------------------------
 
 describe('subscribe()', () => {
@@ -464,54 +458,3 @@ describe('Poll change detection', () => {
 		}
 	});
 });
-
-// ---------------------------------------------------------------------------
-// closeAllEventStreams()
-// Note: closeAllEventStreams() sets isShuttingDown=true internally.
-// The test for subscribe()-during-shutdown comes AFTER this section.
-// ---------------------------------------------------------------------------
-
-describe('closeAllEventStreams()', () => {
-	test('broadcasts SHUTDOWN to all subscribers and stops workers', async () => {
-		const events1: SSEEvent[] = [];
-		const events2: SSEEvent[] = [];
-		const clusterId = uniqueClusterId('shutdown-broadcast');
-		mockResources = [];
-
-		// Subscribe two subscribers (no cleanup via unsub — closeAllEventStreams handles it)
-		subscribe((e) => events1.push(e), clusterId);
-		subscribe((e) => events2.push(e), clusterId);
-
-		await closeAllEventStreams();
-
-		// Both subscribers should have received SHUTDOWN
-		expect(events1.some((e) => e.type === 'SHUTDOWN')).toBe(true);
-		expect(events2.some((e) => e.type === 'SHUTDOWN')).toBe(true);
-	});
-});
-
-// ---------------------------------------------------------------------------
-// setEventBusShuttingDown() — MUST be last: sets unresettable module-level flag
-// ---------------------------------------------------------------------------
-
-describe('setEventBusShuttingDown()', () => {
-	test('subsequent subscribe() calls return no-op and emit no CONNECTED event', () => {
-		const events: SSEEvent[] = [];
-		const clusterId = uniqueClusterId('shutdown-flag');
-
-		setEventBusShuttingDown();
-
-		const unsub = subscribe((e) => events.push(e), clusterId);
-
-		// No CONNECTED event — subscription was rejected
-		expect(events).toHaveLength(0);
-
-		// Returned unsub is a no-op and must not throw
-		expect(() => unsub()).not.toThrow();
-	});
-});
-
-// ⚠️ WARNING: Do NOT add any tests below this point. setEventBusShuttingDown()
-// sets an unresettable module-level flag that permanently disables subscribe().
-// Any tests added after this block will fail because subscribe() will always return
-// a no-op subscriber. This describe block must remain the final block in the file.

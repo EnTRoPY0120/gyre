@@ -49,7 +49,7 @@ export const SETTING_ENV_OVERRIDES = ENV_OVERRIDES;
  * @param key - Setting key
  * @returns Setting value (env var > DB > default)
  */
-export async function getSetting(key: string): Promise<string> {
+async function getSetting(key: string): Promise<string> {
 	// Check env var override first
 	const envVar = ENV_OVERRIDES[key];
 	if (envVar && process.env[envVar]) {
@@ -63,29 +63,6 @@ export async function getSetting(key: string): Promise<string> {
 	});
 
 	return setting?.value ?? getDefaultValue(key);
-}
-
-/**
- * Set a setting value in the database (upsert).
- * Note: Env var overrides will still take precedence at runtime.
- * @param key - Setting key
- * @param value - Setting value
- */
-export async function setSetting(key: string, value: string): Promise<void> {
-	const db = await getDb();
-
-	// Atomic upsert using ON CONFLICT
-	await db
-		.insert(appSettings)
-		.values({
-			key,
-			value,
-			updatedAt: new Date()
-		})
-		.onConflictDoUpdate({
-			target: appSettings.key,
-			set: { value, updatedAt: new Date() }
-		});
 }
 
 export async function setSettings(values: Array<{ key: string; value: string }>): Promise<void> {

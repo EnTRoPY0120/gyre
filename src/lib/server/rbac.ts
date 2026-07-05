@@ -233,7 +233,6 @@ export async function requirePermission(
  * Custom RBAC error
  */
 export class RbacError extends Error {
-	status = 403;
 	body: { message: string; code: string };
 
 	constructor(

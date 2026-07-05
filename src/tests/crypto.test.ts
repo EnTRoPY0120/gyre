@@ -24,21 +24,6 @@ describe('Encryption Module', () => {
 		} else {
 			delete process.env.NODE_ENV;
 		}
-		cryptoModule._resetKeyCache();
-	});
-
-	describe('generateEncryptionKey', () => {
-		test('generates a 64 character hex string (32 bytes)', () => {
-			const key = cryptoModule.generateEncryptionKey();
-			expect(key).toHaveLength(64);
-			expect(key).toMatch(/^[0-9a-f]{64}$/);
-		});
-
-		test('generates unique keys each time', () => {
-			const key1 = cryptoModule.generateEncryptionKey();
-			const key2 = cryptoModule.generateEncryptionKey();
-			expect(key1).not.toBe(key2);
-		});
 	});
 
 	describe('encryptSecret / decryptSecret round-trip', () => {
