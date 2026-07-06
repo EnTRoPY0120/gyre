@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
+import { z } from '../lib/server/openapi';
 import {
 	createFluxResourceActionMetadata,
+	createFluxResourceReadMetadata,
 	fluxResourceParamsSchema
 } from '../lib/server/openapi/flux-route-metadata.js';
 
@@ -21,6 +23,24 @@ describe('Flux route metadata helpers', () => {
 		expect(metadata.summary).toBe('Resume resource');
 		expect(metadata.description).toBe('Resume reconciliation for a suspended FluxCD resource.');
 		expect(metadata.responses[200].description).toBe('Resource resumed successfully');
+		expect(metadata.responses[500]).toEqual({ description: 'Internal server error' });
+	});
+
+	test('read metadata preserves read descriptions and shared params schema', () => {
+		const responseSchema = z.object({ name: z.string() });
+		const metadata = createFluxResourceReadMetadata({
+			summary: 'Get resource',
+			description: 'Read a FluxCD resource.',
+			responseDescription: 'Flux resource details',
+			responseSchema,
+			includeInternalServerError: true
+		});
+
+		expect(metadata.summary).toBe('Get resource');
+		expect(metadata.description).toBe('Read a FluxCD resource.');
+		expect(metadata.request.params).toBe(fluxResourceParamsSchema);
+		expect(metadata.responses[200].description).toBe('Flux resource details');
+		expect(metadata.responses[200].content['application/json'].schema).toBe(responseSchema);
 		expect(metadata.responses[500]).toEqual({ description: 'Internal server error' });
 	});
 });

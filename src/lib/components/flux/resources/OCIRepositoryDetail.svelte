@@ -2,6 +2,7 @@
 	import type { FluxResource } from '$lib/types/flux';
 	import ArtifactSummary from '$lib/components/flux/details/ArtifactSummary.svelte';
 	import DetailField from '$lib/components/flux/details/DetailField.svelte';
+	import DetailTextField from '$lib/components/flux/details/DetailTextField.svelte';
 	import IgnorePatternsPanel from '$lib/components/flux/details/IgnorePatternsPanel.svelte';
 	import SecretRefBadge from '$lib/components/flux/details/SecretRefBadge.svelte';
 	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
@@ -132,15 +133,11 @@
 			{/if}
 
 			{#if interval}
-				<DetailField label="Sync Interval">
-					<span class="text-sm text-gray-900 dark:text-gray-100">{interval}</span>
-				</DetailField>
+				<DetailTextField label="Sync Interval" value={interval} />
 			{/if}
 
 			{#if timeout}
-				<DetailField label="Timeout">
-					<span class="text-sm text-gray-900 dark:text-gray-100">{timeout}</span>
-				</DetailField>
+				<DetailTextField label="Timeout" value={timeout} />
 			{/if}
 
 			{#if suspend !== undefined}

@@ -10,8 +10,16 @@
 
 <div
 	class="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-900/50 dark:bg-red-900/20"
+	role="alert"
+	aria-live="assertive"
 >
-	<svg class="mx-auto h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+	<svg
+		class="mx-auto h-12 w-12 text-red-400"
+		fill="none"
+		stroke="currentColor"
+		viewBox="0 0 24 24"
+		aria-hidden="true"
+	>
 		<path
 			stroke-linecap="round"
 			stroke-linejoin="round"

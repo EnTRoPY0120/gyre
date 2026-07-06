@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	try {
-		return serializePublicSettings();
+		return await serializePublicSettings();
 	} catch (err) {
 		logger.error(err, 'Failed to load settings:');
 		throw error(500, { message: 'Failed to load settings' });

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DetailField from '$lib/components/flux/details/DetailField.svelte';
+	import DetailTextField from '$lib/components/flux/details/DetailTextField.svelte';
 	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
 	import type { FluxResource } from '$lib/types/flux';
 	import { formatTimestamp } from '$lib/utils/flux';
@@ -92,15 +93,11 @@
 			{/if}
 
 			{#if interval}
-				<DetailField label="Reconcile Interval">
-					<span class="text-sm text-gray-900 dark:text-gray-100">{interval}</span>
-				</DetailField>
+				<DetailTextField label="Reconcile Interval" value={interval} />
 			{/if}
 
 			{#if timeout}
-				<DetailField label="Timeout">
-					<span class="text-sm text-gray-900 dark:text-gray-100">{timeout}</span>
-				</DetailField>
+				<DetailTextField label="Timeout" value={timeout} />
 			{/if}
 
 			{#if targetNamespace}
