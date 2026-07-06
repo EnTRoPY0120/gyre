@@ -4,6 +4,7 @@ import type { RequestHandler } from './$types';
 import { getReconciliationHistory } from '$lib/server/kubernetes/flux/reconciliation-tracker';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { requireFluxResourceRead } from '$lib/server/http/guards.js';
+import { parseHistoryQuery } from '$lib/server/flux/use-cases/history.js';
 
 export const _metadata = {
 	GET: {
@@ -57,30 +58,13 @@ export const GET: RequestHandler = async ({ params, locals, url }) => {
 		params
 	);
 
-	// Parse and validate query parameters
-	const limitParam = url.searchParams.get('limit');
-	const parsedLimit = limitParam ? parseInt(limitParam, 10) : 100;
-	const limit = Number.isNaN(parsedLimit) ? 100 : Math.min(Math.max(parsedLimit, 1), 1000);
-
-	const statusParam = url.searchParams.get('status');
-	const allowedStatuses = ['success', 'failure', 'unknown'];
-	const statusFilter =
-		statusParam && allowedStatuses.includes(statusParam)
-			? (statusParam as 'success' | 'failure' | 'unknown')
-			: null;
-
-	const sinceParam = url.searchParams.get('since');
-	let since: Date | undefined;
-	if (sinceParam) {
-		const sinceDate = new Date(sinceParam);
-		since = Number.isNaN(sinceDate.getTime()) ? undefined : sinceDate;
-	}
+	const query = parseHistoryQuery(url.searchParams);
 
 	try {
 		const timeline = await getReconciliationHistory(resourceType, namespace, name, clusterId, {
-			limit,
-			status: statusFilter || undefined,
-			since
+			limit: query.limit,
+			status: query.status,
+			since: query.since
 		});
 
 		return json({
