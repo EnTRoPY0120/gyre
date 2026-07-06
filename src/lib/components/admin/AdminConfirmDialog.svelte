@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import type { Snippet } from 'svelte';
+	import { modalFocusTrap } from '$lib/utils/focus-trap';
 
 	interface Props {
 		title: string;
@@ -10,15 +10,10 @@
 	}
 
 	let { title, titleId, onClose, children }: Props = $props();
-	let dialogElement: HTMLDivElement;
-
-	onMount(() => {
-		dialogElement.focus();
-	});
 </script>
 
 <div
-	bind:this={dialogElement}
+	use:modalFocusTrap
 	class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
 	role="dialog"
 	aria-modal="true"
