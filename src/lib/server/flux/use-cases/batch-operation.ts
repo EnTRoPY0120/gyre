@@ -60,7 +60,32 @@ function defaultResource(resource: unknown): BatchResourceItem {
 	return { type: 'unknown', namespace: 'unknown', name: 'unknown' };
 }
 
-function validateBatchResource(resource: unknown): BatchResourceItem {
+export async function parseBatchOperationRequestBody(request: Request): Promise<unknown[]> {
+	let body: { resources?: unknown[] } | null;
+	try {
+		body = await request.json();
+	} catch {
+		throw error(400, { message: 'Invalid JSON in request body' });
+	}
+
+	if (body === null || typeof body !== 'object') {
+		throw error(400, { message: 'Missing or invalid resources array in request body' });
+	}
+
+	if (!body.resources || !Array.isArray(body.resources)) {
+		throw error(400, { message: 'Missing or invalid resources array in request body' });
+	}
+
+	if (body.resources.length > MAX_BATCH_SIZE) {
+		throw error(400, {
+			message: `Batch size exceeded: maximum ${MAX_BATCH_SIZE} resources allowed per request`
+		});
+	}
+
+	return body.resources;
+}
+
+export function validateBatchResource(resource: unknown): BatchResourceItem {
 	if (
 		!resource ||
 		typeof resource !== 'object' ||
@@ -75,6 +100,31 @@ function validateBatchResource(resource: unknown): BatchResourceItem {
 	}
 
 	return resource as BatchResourceItem;
+}
+
+async function authorizeBatchResource(
+	locals: App.Locals,
+	operation: BatchFluxOperation,
+	resource: BatchResourceItem
+): Promise<FluxResourceType> {
+	validateFluxRouteIdentity(resource.namespace, resource.name);
+	const resourceType = resolveFluxRouteResourceType(resource.type);
+
+	if (operation === 'delete') {
+		await requireFluxResourceAdmin(locals, {
+			resourceType: resource.type,
+			namespace: resource.namespace,
+			name: resource.name
+		});
+	} else {
+		await requireFluxResourceWrite(locals, {
+			resourceType: resource.type,
+			namespace: resource.namespace,
+			name: resource.name
+		});
+	}
+
+	return resourceType;
 }
 
 async function runSingleOperation(
@@ -106,6 +156,118 @@ async function runSingleOperation(
 	}
 }
 
+function batchErrorMessage(err: unknown): string {
+	return err &&
+		typeof err === 'object' &&
+		'status' in err &&
+		(err as { status: number }).status === 403
+		? 'Permission denied'
+		: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err));
+}
+
+async function logBatchSuccess(params: {
+	action: string;
+	clusterId: string;
+	ipAddress: string;
+	resource: BatchResourceItem;
+	resourceType: FluxResourceType;
+	user: NonNullable<App.Locals['user']>;
+}) {
+	try {
+		await logPrivilegedMutationSuccess({
+			action: params.action,
+			user: params.user,
+			resourceType: params.resourceType,
+			name: params.resource.name,
+			namespace: params.resource.namespace,
+			clusterId: params.clusterId,
+			ipAddress: params.ipAddress
+		});
+	} catch {
+		// Audit logging is best-effort and must not change batch results.
+	}
+}
+
+async function logBatchFailure(params: {
+	action: string;
+	clusterId: string;
+	ipAddress: string;
+	message: string;
+	resource: BatchResourceItem;
+	user: NonNullable<App.Locals['user']>;
+}) {
+	try {
+		await logPrivilegedMutationFailure({
+			action: params.action,
+			user: params.user,
+			resourceType: params.resource.type,
+			name: params.resource.name,
+			namespace: params.resource.namespace,
+			clusterId: params.clusterId,
+			ipAddress: params.ipAddress,
+			error: params.message
+		});
+	} catch {
+		// Audit logging is best-effort and must not abort the batch loop.
+	}
+}
+
+async function runBatchItem(params: {
+	action: string;
+	clusterId: string;
+	ipAddress: string;
+	locals: App.Locals;
+	operation: BatchFluxOperation;
+	rawResource: unknown;
+	user: NonNullable<App.Locals['user']>;
+}): Promise<BatchOperationResult> {
+	const displayResource = defaultResource(params.rawResource);
+
+	try {
+		const resource = validateBatchResource(params.rawResource);
+		const resourceType = await authorizeBatchResource(params.locals, params.operation, resource);
+		await runSingleOperation(
+			params.operation,
+			resourceType,
+			resource.namespace,
+			resource.name,
+			params.clusterId,
+			params.user.id
+		);
+
+		await logBatchSuccess({
+			action: params.action,
+			clusterId: params.clusterId,
+			ipAddress: params.ipAddress,
+			resource,
+			resourceType,
+			user: params.user
+		});
+
+		return {
+			resource,
+			success: true,
+			message: successMessages[params.operation](resource.name)
+		};
+	} catch (err) {
+		const message = batchErrorMessage(err);
+		await logBatchFailure({
+			action: params.action,
+			clusterId: params.clusterId,
+			ipAddress: params.ipAddress,
+			message,
+			resource: displayResource,
+			user: params.user
+		});
+
+		return {
+			resource: displayResource,
+			success: false,
+			message
+		};
+	}
+}
+
 export async function runBatchFluxOperation({
 	getClientAddress,
 	locals,
@@ -117,110 +279,20 @@ export async function runBatchFluxOperation({
 	const clusterId = requireClusterContext(locals);
 	const ipAddress = getClientAddress();
 	const action = auditActions[operation];
-
-	let body: { resources?: unknown[] } | null;
-	try {
-		body = await request.json();
-	} catch {
-		throw error(400, { message: 'Invalid JSON in request body' });
-	}
-
-	if (body === null || typeof body !== 'object') {
-		throw error(400, { message: 'Missing or invalid resources array in request body' });
-	}
-
-	if (!body.resources || !Array.isArray(body.resources)) {
-		throw error(400, { message: 'Missing or invalid resources array in request body' });
-	}
-
-	if (body.resources.length > MAX_BATCH_SIZE) {
-		throw error(400, {
-			message: `Batch size exceeded: maximum ${MAX_BATCH_SIZE} resources allowed per request`
-		});
-	}
-
+	const resources = await parseBatchOperationRequestBody(request);
 	const results: BatchOperationResult[] = [];
-
-	for (const rawResource of body.resources) {
-		const displayResource = defaultResource(rawResource);
-
-		try {
-			const resource = validateBatchResource(rawResource);
-			validateFluxRouteIdentity(resource.namespace, resource.name);
-			const resourceType = resolveFluxRouteResourceType(resource.type);
-
-			if (operation === 'delete') {
-				await requireFluxResourceAdmin(locals, {
-					resourceType: resource.type,
-					namespace: resource.namespace,
-					name: resource.name
-				});
-			} else {
-				await requireFluxResourceWrite(locals, {
-					resourceType: resource.type,
-					namespace: resource.namespace,
-					name: resource.name
-				});
-			}
-
-			await runSingleOperation(
-				operation,
-				resourceType,
-				resource.namespace,
-				resource.name,
+	for (const rawResource of resources) {
+		results.push(
+			await runBatchItem({
+				action,
 				clusterId,
-				user.id
-			);
-
-			results.push({
-				resource,
-				success: true,
-				message: successMessages[operation](resource.name)
-			});
-
-			try {
-				await logPrivilegedMutationSuccess({
-					action,
-					user,
-					resourceType,
-					name: resource.name,
-					namespace: resource.namespace,
-					clusterId,
-					ipAddress
-				});
-			} catch {
-				// Audit logging is best-effort and must not change batch results.
-			}
-		} catch (err) {
-			const message =
-				err &&
-				typeof err === 'object' &&
-				'status' in err &&
-				(err as { status: number }).status === 403
-					? 'Permission denied'
-					: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err));
-
-			results.push({
-				resource: displayResource,
-				success: false,
-				message
-			});
-
-			try {
-				await logPrivilegedMutationFailure({
-					action,
-					user,
-					resourceType: displayResource.type,
-					name: displayResource.name,
-					namespace: displayResource.namespace,
-					clusterId,
-					ipAddress,
-					error: message
-				});
-			} catch {
-				// Audit logging is best-effort and must not abort the batch loop.
-			}
-		}
+				ipAddress,
+				locals,
+				operation,
+				rawResource,
+				user
+			})
+		);
 	}
 
 	const successful = results.filter((result) => result.success).length;

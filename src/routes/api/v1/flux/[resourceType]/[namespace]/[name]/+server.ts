@@ -1,17 +1,11 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { updateFluxResource, type ReqCache } from '$lib/server/kubernetes/client.js';
-import { getResourceDef, type FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
+import { type FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { deleteResource } from '$lib/server/kubernetes/flux/actions.js';
-import type { K8sResource } from '$lib/types/kubernetes';
-import yaml from 'js-yaml';
-import {
-	validateK8sNamespace,
-	validateK8sName,
-	validateFluxResourceSpec
-} from '$lib/server/validation';
+import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 import {
 	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
@@ -26,6 +20,10 @@ import {
 	setPrivateCacheHeaders
 } from '$lib/server/http/transport.js';
 import { getFluxResourceDetail } from '$lib/server/flux/services.js';
+import {
+	parseFluxResourceUpdateBody,
+	validateFluxResourceUpdateManifest
+} from '$lib/server/flux/use-cases/resource-update.js';
 
 export const _metadata = {
 	GET: {
@@ -179,72 +177,13 @@ export const PUT: RequestHandler = async ({ params, request, locals }) => {
 
 	await requireScopedPermission(locals, 'write', resolvedType, namespace);
 
-	// Parse request body
-	let body: { yaml?: unknown };
-	try {
-		body = await request.json();
-	} catch {
-		throw error(400, { message: 'Invalid JSON in request body' });
-	}
-
-	if (!body.yaml || typeof body.yaml !== 'string') {
-		throw error(400, { message: 'Missing or invalid yaml field in request body' });
-	}
-
-	// Parse YAML to object
-	let resource: K8sResource;
-	try {
-		resource = yaml.load(body.yaml, { schema: yaml.JSON_SCHEMA }) as K8sResource;
-	} catch (err) {
-		throw error(400, {
-			message: `Invalid YAML: ${err instanceof Error ? err.message : 'Unable to parse'}`
-		});
-	}
-
-	// Validate resource structure
-	if (!resource || typeof resource !== 'object') {
-		throw error(400, { message: 'Invalid resource: must be a valid Kubernetes object' });
-	}
-
-	if (!resource.apiVersion || !resource.kind || !resource.metadata) {
-		throw error(400, {
-			message: 'Invalid resource: missing required fields (apiVersion, kind, metadata)'
-		});
-	}
-
-	if (resource.kind !== resolvedType) {
-		throw error(400, {
-			message: `kind mismatch: expected "${resolvedType}", got "${resource.kind}"`
-		});
-	}
-
-	const resourceDef = getResourceDef(resolvedType)!;
-	if (resource.apiVersion !== resourceDef.apiVersion) {
-		throw error(400, {
-			message: `apiVersion mismatch: expected "${resourceDef.apiVersion}", got "${resource.apiVersion}"`
-		});
-	}
-
-	const specError = validateFluxResourceSpec(
-		resolvedType,
-		(resource.spec ?? {}) as Record<string, unknown>
-	);
-	if (specError) {
-		throw error(422, { message: specError });
-	}
-
-	// Validate name and namespace match
-	if (resource.metadata.name !== name) {
-		throw error(400, {
-			message: `Resource name mismatch: expected "${name}", got "${resource.metadata.name}"`
-		});
-	}
-
-	if (resource.metadata.namespace && resource.metadata.namespace !== namespace) {
-		throw error(400, {
-			message: `Namespace mismatch: expected "${namespace}", got "${resource.metadata.namespace}"`
-		});
-	}
+	const body = await parseFluxResourceUpdateBody(request);
+	const resource = validateFluxResourceUpdateManifest({
+		name,
+		namespace,
+		requestBody: body.yaml,
+		resourceType: resolvedType
+	});
 
 	const reqCache: ReqCache = new Map();
 
