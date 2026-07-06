@@ -1,5 +1,6 @@
 <script lang="ts">
 	import DetailField from '$lib/components/flux/details/DetailField.svelte';
+	import DetailTextField from '$lib/components/flux/details/DetailTextField.svelte';
 	import SecretRefBadge from '$lib/components/flux/details/SecretRefBadge.svelte';
 	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
 	import TlsCertBadge from '$lib/components/flux/details/TlsCertBadge.svelte';
@@ -140,9 +141,7 @@
 			{/if}
 
 			{#if timeout}
-				<DetailField label="Timeout">
-					<span class="text-sm text-gray-900 dark:text-gray-100">{timeout}</span>
-				</DetailField>
+				<DetailTextField label="Timeout" value={timeout} />
 			{/if}
 
 			{#if proxy}
