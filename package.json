@@ -28,7 +28,7 @@
 		"@asteasolutions/zod-to-openapi": "^8.4.1",
 		"@kubernetes/client-node": "^1.4.0",
 		"@lucide/svelte": "^1.17.0",
-		"@sveltejs/kit": "^2.60.1",
+		"@sveltejs/kit": "^2.70.1",
 		"@tailwindcss/typography": "^0.5.19",
 		"arctic": "^3.7.0",
 		"bcryptjs": "^3.0.3",
