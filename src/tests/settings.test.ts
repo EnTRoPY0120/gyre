@@ -9,7 +9,10 @@ import * as schema from '../lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 
 // Mutable reference shared with the mock closure so each test gets a fresh DB
-const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+const state: {
+	db: ReturnType<typeof drizzle<typeof schema>> | null;
+	sqlite: Database | null;
+} = { db: null, sqlite: null };
 type SettingsModule = typeof import('../lib/server/settings.js');
 let setSettings: SettingsModule['setSettings'];
 let getAuthSettings: SettingsModule['getAuthSettings'];
@@ -32,6 +35,7 @@ const CREATE_APP_SETTINGS = `
 
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
+	state.sqlite = sqlite;
 	sqlite.exec(CREATE_APP_SETTINGS);
 	return drizzle(sqlite, { schema });
 }
@@ -78,6 +82,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+	state.sqlite?.close();
+	state.sqlite = null;
 	// Restore env vars
 	for (const [key, val] of Object.entries(savedEnv)) {
 		if (val === undefined) delete process.env[key];

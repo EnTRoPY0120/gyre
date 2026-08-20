@@ -9,7 +9,10 @@ import { sessions, users } from '../lib/server/db/schema.js';
 
 type AuthModule = typeof import('../lib/server/auth.js');
 
-const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+const state: {
+	db: ReturnType<typeof drizzle<typeof schema>> | null;
+	sqlite: Database | null;
+} = { db: null, sqlite: null };
 let cleanupExpiredSessions: AuthModule['cleanupExpiredSessions'];
 let deleteUserSessions: AuthModule['deleteUserSessions'];
 let generateSessionId: AuthModule['generateSessionId'];
@@ -48,6 +51,7 @@ const CREATE_SESSIONS_TABLE = `
 
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
+	state.sqlite = sqlite;
 	sqlite.exec(CREATE_USERS_TABLE);
 	sqlite.exec(CREATE_SESSIONS_TABLE);
 	return drizzle(sqlite, { schema });
@@ -109,6 +113,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+	state.sqlite?.close();
+	state.sqlite = null;
 	state.db = null;
 	vi.restoreAllMocks();
 	vi.resetModules();
