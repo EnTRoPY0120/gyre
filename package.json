@@ -21,7 +21,7 @@
 		"scripts:check": "find scripts -type f -name '*.sh' -exec bash -n {} +",
 		"verify:repo": "pnpm verify && pnpm helm:check && pnpm scripts:check",
 		"verify:repo:ci": "pnpm verify:ci && pnpm docs:check && pnpm helm:check && pnpm scripts:check",
-		"test": "vitest run",
+		"test": "vitest run --exclude src/tests/k8s-timeout.test.ts && vitest run src/tests/k8s-timeout.test.ts",
 		"test:watch": "vitest"
 	},
 	"dependencies": {

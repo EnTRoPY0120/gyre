@@ -14,7 +14,8 @@ export default defineConfig(({ mode }) => {
 		test: {
 			environment: 'node',
 			include: ['src/tests/**/*.test.ts'],
-			fileParallelism: false
+			fileParallelism: false,
+			isolate: false
 		},
 		server: {
 			fs: {

@@ -173,6 +173,10 @@ describe('Pool key includes timeoutMs', () => {
 // ---------------------------------------------------------------------------
 
 describe('_createTimeoutMiddleware — integration', () => {
+	beforeEach(() => {
+		vi.useRealTimers();
+	});
+
 	test('sets an AbortSignal on the RequestContext', async () => {
 		const middleware = _createTimeoutMiddleware(500);
 		const ctx = new k8s.RequestContext('https://example.com', k8s.HttpMethod.GET);
