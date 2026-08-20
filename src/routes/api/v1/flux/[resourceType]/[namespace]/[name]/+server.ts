@@ -6,7 +6,7 @@ import { getResourceDef, type FluxResourceType } from '$lib/server/kubernetes/fl
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { deleteResource } from '$lib/server/kubernetes/flux/actions.js';
 import type { K8sResource } from '$lib/types/kubernetes';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import {
 	validateK8sNamespace,
 	validateK8sName,

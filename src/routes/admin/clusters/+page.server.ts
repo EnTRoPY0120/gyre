@@ -1,5 +1,5 @@
 import { logger } from '$lib/server/logger.js';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {

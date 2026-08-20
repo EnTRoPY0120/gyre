@@ -1,6 +1,6 @@
 import { logger } from '../logger.js';
 import { and, eq } from 'drizzle-orm';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { getDbSync } from '../db/index.js';
 import { clusters } from '../db/schema.js';
 import { decryptLegacyXorKubeconfig, encryptKubeconfig } from './encryption.js';
