@@ -11,7 +11,7 @@ RUN go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
 # =============================================================================
 # Use Node.js as the builder base so better-sqlite3 compiles against the same
 # Node.js ABI that the runtime uses (avoids ERR_DLOPEN_FAILED at startup).
-FROM node:26-slim AS builder
+FROM node:26-bookworm-slim AS builder
 
 WORKDIR /build
 
@@ -44,7 +44,7 @@ RUN CI=true pnpm prune --prod
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:26-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
@@ -57,6 +57,7 @@ LABEL org.opencontainers.image.title="Gyre" \
 RUN apt-get update && \
   apt-get upgrade -y && \
   apt-get install -y --no-install-recommends ca-certificates && \
+  DEBIAN_FRONTEND=noninteractive apt-get purge -y --allow-remove-essential perl-base && \
   rm -rf /var/lib/apt/lists/*
 
 # Copy Kustomize binary from kustomize-builder
