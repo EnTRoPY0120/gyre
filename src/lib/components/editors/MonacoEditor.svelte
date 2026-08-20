@@ -69,30 +69,30 @@ import { registerFluxValidation } from './yamlValidator';
 					getWorker: async function (_moduleId: string, label: string) {
 						if (label === 'json') {
 							const { default: JsonWorker } = await import(
-								'monaco-editor/esm/vs/language/json/json.worker?worker'
+								'monaco-editor/language/json/json.worker?worker'
 							);
 							return new JsonWorker();
 						}
 						if (label === 'css' || label === 'scss' || label === 'less') {
 							const { default: CssWorker } = await import(
-								'monaco-editor/esm/vs/language/css/css.worker?worker'
+								'monaco-editor/language/css/css.worker?worker'
 							);
 							return new CssWorker();
 						}
 						if (label === 'html' || label === 'handlebars' || label === 'razor') {
 							const { default: HtmlWorker } = await import(
-								'monaco-editor/esm/vs/language/html/html.worker?worker'
+								'monaco-editor/language/html/html.worker?worker'
 							);
 							return new HtmlWorker();
 						}
 						if (label === 'typescript' || label === 'javascript') {
 							const { default: TsWorker } = await import(
-								'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
+								'monaco-editor/language/typescript/ts.worker?worker'
 							);
 							return new TsWorker();
 						}
 						const { default: EditorWorker } = await import(
-							'monaco-editor/esm/vs/editor/editor.worker?worker'
+							'monaco-editor/editor/editor.worker?worker'
 						);
 						return new EditorWorker();
 					}

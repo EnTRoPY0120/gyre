@@ -56,12 +56,12 @@ import { defineMonacoThemes } from './monacoTheme';
 						getWorker: async function (_moduleId: string, label: string) {
 							if (label === 'json') {
 								const { default: JsonWorker } = await import(
-									'monaco-editor/esm/vs/language/json/json.worker?worker'
+									'monaco-editor/language/json/json.worker?worker'
 								);
 								return new JsonWorker();
 							}
 							const { default: EditorWorker } = await import(
-								'monaco-editor/esm/vs/editor/editor.worker?worker'
+								'monaco-editor/editor/editor.worker?worker'
 							);
 							return new EditorWorker();
 						}
