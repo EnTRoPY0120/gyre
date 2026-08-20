@@ -2,7 +2,7 @@
 # =============================================================================
 # Stage 0: Build Kustomize from source to ensure latest Go stdlib (fixes CVEs)
 # =============================================================================
-FROM golang:1.26-alpine AS kustomize-builder
+FROM golang:1.26-bookworm AS kustomize-builder
 ARG KUSTOMIZE_VERSION=v5.8.1
 RUN go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
 
@@ -11,12 +11,15 @@ RUN go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
 # =============================================================================
 # Use Node.js as the builder base so better-sqlite3 compiles against the same
 # Node.js ABI that the runtime uses (avoids ERR_DLOPEN_FAILED at startup).
-FROM node:26-alpine3.23 AS builder
+FROM node:26-slim AS builder
 
 WORKDIR /build
 
-# Install native module build tools (better-sqlite3 has no prebuilt musl binaries)
-RUN apk add --no-cache python3 make g++
+# Install native module build tools (better-sqlite3 needs to compile against the
+# same Node.js ABI that the runtime uses).
+RUN apt-get update && \
+  apt-get install -y --no-install-recommends python3 make g++ && \
+  rm -rf /var/lib/apt/lists/*
 
 RUN npm install -g pnpm@11.1.0
 
@@ -41,7 +44,7 @@ RUN CI=true pnpm prune --prod
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:26-alpine3.23 AS runtime
+FROM node:26-slim AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
@@ -49,18 +52,19 @@ LABEL org.opencontainers.image.title="Gyre" \
   org.opencontainers.image.vendor="Gyre Project" \
   org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
-# Upgrade OS packages to pull in security patches (e.g. zlib CVE-2026-22184)
-RUN apk upgrade --no-cache
-
-# Install CA certificates
-RUN apk add --no-cache ca-certificates
+# Upgrade OS packages and install CA certificates to pull in security patches
+# (e.g. zlib CVE-2026-22184).
+RUN apt-get update && \
+  apt-get upgrade -y && \
+  apt-get install -y --no-install-recommends ca-certificates && \
+  rm -rf /var/lib/apt/lists/*
 
 # Copy Kustomize binary from kustomize-builder
 COPY --from=kustomize-builder /go/bin/kustomize /usr/local/bin/kustomize
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S gyre && \
-  adduser -S -D -H -u 1001 -h /app -s /sbin/nologin -G gyre -g gyre gyre
+RUN groupadd --gid 1001 gyre && \
+  useradd --uid 1001 --gid gyre --home-dir /app --shell /usr/sbin/nologin --no-create-home gyre
 
 WORKDIR /app
 
