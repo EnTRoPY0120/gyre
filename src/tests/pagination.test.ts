@@ -10,7 +10,10 @@ import * as schema from '../lib/server/db/schema.js';
 type AuthModule = typeof import('../lib/server/auth.js');
 
 // Mutable reference shared with the mock closure so each test gets a fresh DB
-const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+const state: {
+	db: ReturnType<typeof drizzle<typeof schema>> | null;
+	sqlite: Database | null;
+} = { db: null, sqlite: null };
 let listUsersPaginated: AuthModule['listUsersPaginated'];
 
 // ---------------------------------------------------------------------------
@@ -65,6 +68,7 @@ const CREATE_ACCOUNTS_TABLE = `
 
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
+	state.sqlite = sqlite;
 	sqlite.exec(CREATE_USERS_TABLE);
 	sqlite.exec(CREATE_ACCOUNTS_TABLE);
 	return drizzle(sqlite, { schema });
@@ -118,6 +122,8 @@ describe('Pagination Logic', () => {
 	});
 
 	afterEach(() => {
+		state.sqlite?.close();
+		state.sqlite = null;
 		state.db = null;
 		vi.restoreAllMocks();
 		vi.resetModules();
@@ -238,5 +244,13 @@ describe('Pagination – empty database', () => {
 		const result = await listUsersPaginated({ limit: 10 });
 		expect(result.total).toBe(0);
 		expect(result.users).toHaveLength(0);
+	});
+
+	afterEach(() => {
+		state.sqlite?.close();
+		state.sqlite = null;
+		state.db = null;
+		vi.restoreAllMocks();
+		vi.resetModules();
 	});
 });

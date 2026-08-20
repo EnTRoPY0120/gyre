@@ -12,7 +12,7 @@ import { requireAuthenticatedUser, requireScopedPermission } from '$lib/server/h
 import { classifyDiffError } from '$lib/server/kubernetes/flux/diff-errors';
 import { validateFluxArtifactUrl } from '$lib/server/kubernetes/flux/artifact-url-security';
 import * as k8s from '@kubernetes/client-node';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

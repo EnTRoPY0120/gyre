@@ -7,7 +7,10 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../lib/server/db/schema.js';
 
 // Mutable reference shared with the mock closure so each test gets a fresh DB
-const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+const state: {
+	db: ReturnType<typeof drizzle<typeof schema>> | null;
+	sqlite: Database | null;
+} = { db: null, sqlite: null };
 import type { User } from '../lib/server/db/schema.js';
 
 vi.restoreAllMocks();
@@ -74,6 +77,7 @@ const CREATE_RBAC_BINDINGS = `
 
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
+	state.sqlite = sqlite;
 	sqlite.exec(CREATE_USERS);
 	sqlite.exec(CREATE_RBAC_POLICIES);
 	sqlite.exec(CREATE_RBAC_BINDINGS);
@@ -99,6 +103,8 @@ function makeUser(id: string, role: 'admin' | 'editor' | 'viewer' = 'viewer'): U
 }
 
 afterEach(() => {
+	state.sqlite?.close();
+	state.sqlite = null;
 	state.db = null;
 });
 

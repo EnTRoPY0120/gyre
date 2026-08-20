@@ -18,7 +18,7 @@
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
 	import { logger } from '$lib/utils/logger.js';
-	import yaml from 'js-yaml';
+	import * as yaml from 'js-yaml';
 	import { getCsrfToken } from '$lib/utils/csrf';
 
 	let {

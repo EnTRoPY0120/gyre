@@ -4,7 +4,10 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { eq } from 'drizzle-orm';
 import * as schema from '../lib/server/db/schema.js';
 
-const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+const state: {
+	db: ReturnType<typeof drizzle<typeof schema>> | null;
+	sqlite: Database | null;
+} = { db: null, sqlite: null };
 
 const CREATE_RATE_LIMITS = `
 	CREATE TABLE IF NOT EXISTS rate_limits (
@@ -28,6 +31,7 @@ const CREATE_LOGIN_LOCKOUTS = `
 
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
+	state.sqlite = sqlite;
 	sqlite.exec(CREATE_RATE_LIMITS);
 	sqlite.exec(CREATE_LOGIN_LOCKOUTS);
 	return drizzle(sqlite, { schema });
@@ -45,6 +49,8 @@ vi.spyOn(console, 'log').mockImplementation(() => {});
 import { RateLimiter, SSEConnectionLimiter } from '../lib/server/rate-limiter?sut';
 
 afterEach(() => {
+	state.sqlite?.close();
+	state.sqlite = null;
 	state.db = null;
 });
 

@@ -6,7 +6,7 @@
  * restrictions — without requiring full SvelteKit route infrastructure.
  */
 import { describe, test, expect, vi } from 'vitest';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 vi.restoreAllMocks();
 vi.resetModules();

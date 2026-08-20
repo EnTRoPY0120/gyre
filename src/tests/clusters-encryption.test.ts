@@ -8,7 +8,10 @@ import { encryptLegacyXorKubeconfig } from './helpers/xor-kubeconfig.js';
 
 type ClustersModule = typeof import('../lib/server/clusters');
 
-const state: { db: ReturnType<typeof drizzle<typeof schema>> | null } = { db: null };
+const state: {
+	db: ReturnType<typeof drizzle<typeof schema>> | null;
+	sqlite: Database | null;
+} = { db: null, sqlite: null };
 
 let clustersModule: ClustersModule;
 
@@ -32,6 +35,7 @@ const VALID_KUBECONFIG_YAML = 'apiVersion: v1\nclusters: []\ncontexts: []\nusers
 
 function setupInMemoryDb() {
 	const sqlite = new Database(':memory:');
+	state.sqlite = sqlite;
 	sqlite.exec(CREATE_CLUSTERS_TABLE);
 	return drizzle(sqlite, { schema });
 }
@@ -64,6 +68,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+	state.sqlite?.close();
+	state.sqlite = null;
 	if (originalKey !== undefined) {
 		process.env.GYRE_ENCRYPTION_KEY = originalKey;
 	} else {
