@@ -13,7 +13,8 @@ export default defineConfig(({ mode }) => {
 		plugins: [tailwindcss(), sveltekit()],
 		test: {
 			environment: 'node',
-			include: ['src/tests/**/*.test.ts']
+			include: ['src/tests/**/*.test.ts'],
+			fileParallelism: false
 		},
 		server: {
 			fs: {
