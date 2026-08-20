@@ -1,4 +1,5 @@
 {
+	"$schema": "./node_modules/oxlint/configuration_schema.json",
 	"plugins": ["import", "typescript", "unicorn"],
 	"env": {
 		"browser": true,
@@ -24,13 +25,38 @@
 	"rules": {
 		"no-unused-vars": "warn",
 		"no-console": "error",
-		"no-debugger": "warn"
+		"no-debugger": "error",
+		"no-warning-comments": [
+			"warn",
+			{
+				"terms": ["todo", "fixme", "hack", "xxx"],
+				"location": "anywhere"
+			}
+		],
+		"no-duplicate-imports": "warn",
+		"no-nested-ternary": "warn",
+		"no-throw-literal": "warn",
+		"no-unsafe-optional-chaining": "error",
+		"no-unsafe-negation": "error",
+		"no-constant-binary-expression": "error",
+		"no-useless-catch": "error",
+		"typescript/ban-ts-comment": "warn",
+		"typescript/no-explicit-any": "warn",
+		"typescript/no-non-null-assertion": "warn",
+		"typescript/only-throw-error": "error"
 	},
 	"overrides": [
 		{
 			"files": ["src/lib/utils/logger.ts", "src/lib/server/logger.ts"],
 			"rules": {
 				"no-console": "off"
+			}
+		},
+		{
+			"files": ["src/tests/**"],
+			"rules": {
+				"no-throw-literal": "off",
+				"typescript/no-non-null-assertion": "off"
 			}
 		}
 	]
