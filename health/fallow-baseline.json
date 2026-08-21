@@ -748,11 +748,6 @@
         "count": 1
       }
     },
-    "src/routes/admin/users/+page.svelte": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/routes/api/docs/openapi.json/+server.ts": {
       "crap_moderate": {
         "count": 1

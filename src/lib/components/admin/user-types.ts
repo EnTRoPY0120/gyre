@@ -8,3 +8,10 @@ export interface User {
 	createdAt: Date;
 	updatedAt: Date;
 }
+
+export interface NewUser {
+	username: string;
+	email: string;
+	role: User['role'];
+	password: string;
+}
