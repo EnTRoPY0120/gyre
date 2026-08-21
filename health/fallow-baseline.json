@@ -730,11 +730,6 @@
         "count": 3
       }
     },
-    "src/routes/admin/policies/+page.svelte": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/routes/admin/settings/+page.svelte": {
       "crap_moderate": {
         "count": 1

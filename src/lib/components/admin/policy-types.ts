@@ -18,3 +18,12 @@ export interface PolicyUser {
 	role: 'admin' | 'editor' | 'viewer';
 	active: boolean;
 }
+
+export interface NewPolicy {
+	name: string;
+	description: string;
+	role: Policy['role'];
+	action: Policy['action'];
+	resourceType: string;
+	namespacePattern: string;
+}
