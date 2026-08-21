@@ -78,6 +78,16 @@ jobs:
             org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/README.md
             org.opencontainers.image.version=${{ github.ref_name }}
             org.opencontainers.image.revision=${{ github.sha }}
+          annotations: |
+            org.opencontainers.image.title=Gyre
+            org.opencontainers.image.description=Modern WebUI for FluxCD
+            org.opencontainers.image.vendor=Gyre Project
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/README.md
+            org.opencontainers.image.version=${{ github.ref_name }}
+            org.opencontainers.image.revision=${{ github.sha }}
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
 
       # Build into the local Docker daemon and scan before pushing.
       # Trivy 0.50+ dropped the docker-archive: URI scheme; it resolves image
@@ -143,6 +153,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
           cache-from: type=gha
           provenance: true
           sbom: true
