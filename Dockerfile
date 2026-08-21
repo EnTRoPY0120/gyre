@@ -6,21 +6,20 @@ FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS kustomize-builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG KUSTOMIZE_VERSION=v5.8.1
-RUN mkdir -p /out && \
+RUN mkdir -p /out /tmp/kustomize && \
+  cd /tmp/kustomize && \
+  go mod init kustomize-builder && \
+  go get sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION} && \
+  go mod edit -require=golang.org/x/text@v0.39.0 && \
   GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-  go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION} && \
-  if [ -x "/go/bin/${TARGETOS}_${TARGETARCH}/kustomize" ]; then \
-    cp "/go/bin/${TARGETOS}_${TARGETARCH}/kustomize" /out/kustomize; \
-  else \
-    cp /go/bin/kustomize /out/kustomize; \
-  fi
+  go build -mod=mod -o /out/kustomize sigs.k8s.io/kustomize/kustomize/v5
 
 # =============================================================================
 # Stage 1: Builder - Build the SvelteKit application
 # =============================================================================
 # Use Node.js as the builder base so better-sqlite3 compiles against the same
 # Node.js ABI that the runtime uses (avoids ERR_DLOPEN_FAILED at startup).
-FROM node:26-bookworm-slim AS builder
+FROM node:26-slim AS builder
 
 WORKDIR /build
 
@@ -47,13 +46,15 @@ COPY . .
 # Build the SvelteKit application
 RUN pnpm build
 
-# Prune devDependencies - production node_modules only
-RUN CI=true pnpm prune --prod
+# Create an isolated production dependency tree for the application workspace.
+# This avoids copying the shared workspace virtual store, which otherwise keeps
+# documentation and build-only packages in the runtime image.
+RUN pnpm deploy --filter gyre --prod /prod
 
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:26-bookworm-slim AS runtime
+FROM node:26-slim AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
@@ -78,11 +79,11 @@ RUN groupadd --gid 1001 gyre && \
 
 WORKDIR /app
 
-# Copy built application and pruned production node_modules from builder
+# Copy built application and the isolated production dependency tree from builder
 COPY --from=builder --chown=gyre:gyre /build/build ./build
-COPY --from=builder --chown=gyre:gyre /build/package.json ./package.json
+COPY --from=builder --chown=gyre:gyre /prod/package.json ./package.json
 COPY --from=builder --chown=gyre:gyre /build/drizzle ./drizzle
-COPY --from=builder --chown=gyre:gyre /build/node_modules ./node_modules
+COPY --from=builder --chown=gyre:gyre /prod/node_modules ./node_modules
 
 # Remove build-tool binaries that are not needed at runtime.
 # @esbuild-kit is a transitive dependency of drizzle-kit (dev-only) that leaks
