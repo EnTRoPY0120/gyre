@@ -6,7 +6,14 @@ FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS kustomize-builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG KUSTOMIZE_VERSION=v5.8.1
-RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION}
+RUN mkdir -p /out && \
+  GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+  go install sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION} && \
+  if [ -x "/go/bin/${TARGETOS}_${TARGETARCH}/kustomize" ]; then \
+    cp "/go/bin/${TARGETOS}_${TARGETARCH}/kustomize" /out/kustomize; \
+  else \
+    cp /go/bin/kustomize /out/kustomize; \
+  fi
 
 # =============================================================================
 # Stage 1: Builder - Build the SvelteKit application
@@ -63,7 +70,7 @@ RUN apt-get update && \
   rm -rf /var/lib/apt/lists/*
 
 # Copy Kustomize binary from kustomize-builder
-COPY --from=kustomize-builder /go/bin/kustomize /usr/local/bin/kustomize
+COPY --from=kustomize-builder /out/kustomize /usr/local/bin/kustomize
 
 # Create non-root user for security
 RUN groupadd --gid 1001 gyre && \
