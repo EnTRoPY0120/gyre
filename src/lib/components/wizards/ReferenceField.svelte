@@ -1,31 +1,12 @@
 <script lang="ts">
-	import { resolveResourceRouteType } from '$lib/config/resources';
 	import { cn } from '$lib/utils';
-	import { fetchWithRetry } from '$lib/utils/fetch';
 	import { logger } from '$lib/utils/logger.js';
 	import { Check, ChevronsUpDown, Loader2, Search } from '@lucide/svelte';
 	import { onMount } from 'svelte';
+	import { fetchReferenceResources, isAbortError, type ReferenceOption } from './reference-fetch';
+	import { getReferenceKeyAction } from './reference-keyboard';
 
-	interface K8sResourceItem {
-		kind?: string;
-		metadata: {
-			name: string;
-			namespace?: string;
-		};
-	}
-
-	interface K8sResourceList {
-		items?: K8sResourceItem[];
-	}
-
-	export interface ReferenceOption {
-		key: string;
-		kind: string;
-		name: string;
-		namespace?: string;
-		label: string;
-		searchText: string;
-	}
+	export type { ReferenceOption } from './reference-fetch';
 
 	let {
 		id,
@@ -91,12 +72,6 @@
 		loading = false;
 	}
 
-	function isAbortError(error: unknown): boolean {
-		return error instanceof DOMException
-			? error.name === 'AbortError'
-			: error instanceof Error && error.name === 'AbortError';
-	}
-
 	function parseOptionKey(key: string) {
 		const firstSeparator = key.indexOf(':');
 		const secondSeparator = key.indexOf(':', firstSeparator + 1);
@@ -112,18 +87,6 @@
 			resource.name === value &&
 			(!referenceNamespace || (resource.namespace ?? '') === referenceNamespace)
 		);
-	}
-
-	function buildOptionLabel(
-		name: string,
-		namespace: string | undefined,
-		kind: string,
-		includeKind: boolean
-	): string {
-		const details: string[] = [];
-		if (namespace) details.push(namespace);
-		if (includeKind) details.push(kind);
-		return details.length > 0 ? `${name} (${details.join(', ')})` : name;
 	}
 
 	// Resolve the actual resource types to fetch
@@ -221,113 +184,9 @@
 
 		loading = true;
 		try {
-			const includeKindInLabel = activeReferenceTypes.length > 1;
-			const existingResourcesByKind = new Map<string, ReferenceOption[]>();
-			for (const resource of resources) {
-				const kindResources = existingResourcesByKind.get(resource.kind) ?? [];
-				kindResources.push(resource);
-				existingResourcesByKind.set(resource.kind, kindResources);
-			}
-
-			const fetchTargets = activeReferenceTypes
-				.filter((kind) => kind !== '*')
-				.map((kind) => ({
-					kind,
-					promise: (async () => {
-					const routeType = resolveResourceRouteType(kind);
-					if (!routeType) {
-						throw new Error(`Unknown reference type: ${kind}`);
-					}
-
-					const res = await fetchWithRetry(
-						`/api/v1/flux/${routeType}`,
-						{ signal: controller.signal },
-						{ maxRetries: 0 }
-					);
-					if (!res.ok) {
-						const errorBody = await res.text();
-						throw new Error(
-							`Failed to fetch ${routeType}: ${res.status} ${res.statusText} - ${errorBody}`
-						);
-					}
-
-					const data = (await res.json()) as K8sResourceList;
-					return (
-						data.items?.map((item) => {
-							const optionKind = item.kind || kind;
-							const optionNamespace = item.metadata.namespace;
-							const label = buildOptionLabel(
-								item.metadata.name,
-								optionNamespace,
-								optionKind,
-								includeKindInLabel
-							);
-
-							return {
-								key: `${optionKind}:${optionNamespace || ''}:${item.metadata.name}`,
-								kind: optionKind,
-								name: item.metadata.name,
-								namespace: optionNamespace,
-								label,
-								searchText: [item.metadata.name, optionNamespace, optionKind]
-									.filter(Boolean)
-									.join(' ')
-									.toLowerCase()
-							} satisfies ReferenceOption;
-						}) || []
-					);
-					})()
-				}));
-
-			const results = await Promise.allSettled(fetchTargets.map((target) => target.promise));
-			const freshResourcesByKind = new Map<string, ReferenceOption[]>();
-			let sawFailure = false;
-
-			results.forEach((result, index) => {
-				if (currentFetchId !== fetchRequestId) return;
-
-				const { kind } = fetchTargets[index];
-
-				if (result.status === 'fulfilled') {
-					freshResourcesByKind.set(kind, result.value);
-				} else if (!isAbortError(result.reason)) {
-					sawFailure = true;
-				} else {
-					return;
-				}
-
-				if (result.status === 'rejected' && !isAbortError(result.reason)) {
-					logger.error(
-						result.reason instanceof Error ? result.reason : new Error(String(result.reason)),
-						'Failed to fetch resources:'
-					);
-				}
-			});
-
 			if (currentFetchId === fetchRequestId) {
-				const allKindsSucceeded = fetchTargets.every(({ kind }) => freshResourcesByKind.has(kind));
-				const mergedResources = new Map<string, ReferenceOption>();
-
-				for (const { kind } of fetchTargets) {
-					const kindResources = freshResourcesByKind.get(kind) ?? existingResourcesByKind.get(kind) ?? [];
-					for (const resource of kindResources) {
-						mergedResources.set(resource.key, resource);
-					}
-				}
-
-				if (allKindsSucceeded) {
-					resources = Array.from(mergedResources.values()).sort((a, b) =>
-						a.label.localeCompare(b.label)
-					);
-				} else if (!sawFailure) {
-					resources = Array.from(mergedResources.values()).sort((a, b) =>
-						a.label.localeCompare(b.label)
-					);
-				} else if (mergedResources.size > 0) {
-					resources = Array.from(mergedResources.values()).sort((a, b) =>
-						a.label.localeCompare(b.label)
-					);
-				}
+				const result = await fetchReferenceResources(activeReferenceTypes, resources, controller.signal);
+				if (result.resources.length > 0 || !result.sawFailure) resources = result.resources;
 			}
 		} catch (err) {
 			if (currentFetchId === fetchRequestId && !isAbortError(err)) {
@@ -364,38 +223,25 @@
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
-		if (!open) {
-			if (e.key === 'Enter' || e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-				e.preventDefault();
-				handleToggle();
-			}
-			return;
-		}
+		const action = getReferenceKeyAction(
+			e.key,
+			open,
+			focusedIndex,
+			filteredResources.length
+		);
+		if (action.preventDefault) e.preventDefault();
 
-		switch (e.key) {
-			case 'ArrowDown':
-				e.preventDefault();
-				if (filteredResources.length > 0) {
-					focusedIndex = (focusedIndex + 1) % filteredResources.length;
-				}
+		switch (action.type) {
+			case 'toggle':
+				handleToggle();
 				break;
-			case 'ArrowUp':
-				e.preventDefault();
-				if (filteredResources.length > 0) {
-					focusedIndex = focusedIndex <= 0 ? filteredResources.length - 1 : focusedIndex - 1;
-				}
+			case 'move':
+				focusedIndex = action.index;
 				break;
-			case 'Enter':
-				e.preventDefault();
-				if (focusedIndex >= 0 && focusedIndex < filteredResources.length) {
-					handleSelect(filteredResources[focusedIndex]);
-				}
+			case 'select':
+				handleSelect(filteredResources[action.index]);
 				break;
-			case 'Escape':
-				e.preventDefault();
-				open = false;
-				break;
-			case 'Tab':
+			case 'close':
 				open = false;
 				break;
 		}

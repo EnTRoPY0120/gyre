@@ -1,26 +1,16 @@
 <script lang="ts">
-	import { enhance, applyAction } from '$app/forms';
-	import { invalidateAll, goto } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { buildAdminPageUrl, buildAdminSearchUrl } from '$lib/admin/navigation';
-	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
-	import AdminConfirmDialog from '$lib/components/admin/AdminConfirmDialog.svelte';
-	import { UserPlus, AlertTriangle, CheckCircle2, XCircle } from '@lucide/svelte';
+	import UserTable from '$lib/components/admin/UserTable.svelte';
+	import UserCreateModal from '$lib/components/admin/UserCreateModal.svelte';
+	import UserEditModal from '$lib/components/admin/UserEditModal.svelte';
+	import UserDeleteDialog from '$lib/components/admin/UserDeleteDialog.svelte';
+	import UserResetPasswordModal from '$lib/components/admin/UserResetPasswordModal.svelte';
+	import type { NewUser, User } from '$lib/components/admin/user-types';
+	import { UserPlus, AlertTriangle, CheckCircle2 } from '@lucide/svelte';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
-	import * as Select from '$lib/components/ui/select';
-
-	interface User {
-		id: string;
-		username: string;
-		email: string | null;
-		role: 'admin' | 'editor' | 'viewer';
-		active: boolean;
-		isLocal: boolean;
-		createdAt: Date;
-		updatedAt: Date;
-	}
-
 	let { data, form } = $props<{
 		data: {
 			users: User[];
@@ -46,7 +36,7 @@
 		searchValue = data.search;
 	});
 
-	let newUser = $state({
+	let newUser = $state<NewUser>({
 		username: '',
 		email: '',
 		role: 'viewer' as 'admin' | 'editor' | 'viewer',
@@ -167,155 +157,15 @@
 
 	<!-- Users Table -->
 	<div class="rounded-xl border border-slate-700/50 bg-slate-800/50">
-		<table class="w-full">
-			<thead>
-				<tr class="border-b border-slate-700/50">
-					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">User</th>
-					<th class="px-4 py-3 text-left text-sm font-medium text-slate-400">Role</th>
-					<th class="hidden px-4 py-3 text-left text-sm font-medium text-slate-400 md:table-cell"
-						>Status</th
-					>
-					<th class="hidden px-4 py-3 text-left text-sm font-medium text-slate-400 sm:table-cell"
-						>Created</th
-					>
-					<th class="px-4 py-3 text-right text-sm font-medium text-slate-400">Actions</th>
-				</tr>
-			</thead>
-			<tbody class="divide-y divide-slate-700/50">
-				{#each data.users as user (user.id)}
-					<tr class="hover:bg-slate-700/30">
-						<td class="px-4 py-3">
-							<div class="flex items-center gap-3">
-								<div class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700">
-									<svg
-										class="h-4 w-4 text-slate-400"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-										/>
-									</svg>
-								</div>
-								<div>
-									<div class="flex items-center gap-2">
-										<p class="font-medium text-white">{user.username}</p>
-										{#if !user.isLocal}
-											<span
-												class="flex items-center gap-1 rounded-full border border-blue-500/20 bg-blue-500/10 px-2 py-0.5 text-[10px] font-medium text-blue-400"
-												title="SSO User"
-											>
-												<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-													<path
-														stroke-linecap="round"
-														stroke-linejoin="round"
-														stroke-width="2"
-														d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-													/>
-												</svg>
-												SSO
-											</span>
-										{/if}
-									</div>
-									{#if user.email}
-										<p class="text-xs text-slate-400">{user.email}</p>
-									{/if}
-								</div>
-							</div>
-						</td>
-						<td class="px-4 py-3">
-							<span
-								class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium {getRoleBadgeColor(
-									user.role
-								)}"
-							>
-								{user.role}
-							</span>
-						</td>
-						<td class="hidden px-4 py-3 md:table-cell">
-							{#if user.active}
-								<span class="inline-flex items-center gap-1.5 text-sm text-emerald-400">
-									<CheckCircle2 size={14} />
-									Active
-								</span>
-							{:else}
-								<span class="inline-flex items-center gap-1.5 text-sm text-slate-400">
-									<XCircle size={14} />
-									Inactive
-								</span>
-							{/if}
-						</td>
-						<td class="hidden px-4 py-3 text-sm text-slate-400 sm:table-cell">
-							{formatDate(user.createdAt)}
-						</td>
-						<td class="px-4 py-3">
-							<div class="flex justify-end gap-2">
-								{#if user.isLocal}
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										onclick={() => openResetPasswordModal(user)}
-										title="Reset Password"
-										aria-label={`Reset password for ${user.username}`}
-									>
-										<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-											/>
-										</svg>
-									</Button>
-								{/if}
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									onclick={() => openEditModal(user)}
-									title="Edit"
-									aria-label={`Edit user ${user.username}`}
-								>
-									<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-										/>
-									</svg>
-								</Button>
-								{#if user.id !== data.currentUser.id}
-									<Button
-										type="button"
-										variant="ghost"
-										size="sm"
-										onclick={() => openDeleteModal(user)}
-										class="text-red-400 hover:text-red-300"
-										title="Delete"
-										aria-label={`Delete user ${user.username}`}
-									>
-										<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-											/>
-										</svg>
-									</Button>
-								{/if}
-							</div>
-						</td>
-					</tr>
-				{/each}
-			</tbody>
-		</table>
+		<UserTable
+			users={data.users}
+			currentUserId={data.currentUser.id}
+			{getRoleBadgeColor}
+			{formatDate}
+			onResetPassword={openResetPasswordModal}
+			onEdit={openEditModal}
+			onDelete={openDeleteModal}
+		/>
 
 		<!-- Pagination -->
 		<Pagination total={data.total} limit={data.limit} offset={data.offset} onPageChange={handlePageChange} />
@@ -323,370 +173,35 @@
 
 	<!-- Create User Modal -->
 	{#if showCreateModal}
-		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
-			role="dialog"
-			aria-modal="true"
-			tabindex="-1"
-			aria-labelledby="create-user-title"
-			onclick={(e) => e.target === e.currentTarget && closeModals()}
-			onkeydown={(e) => e.key === 'Escape' && closeModals()}
-		>
-			<div
-				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
-			>
-				<h2 id="create-user-title" class="mb-4 text-xl font-bold text-white">Create New User</h2>
-
-				<form
-					method="POST"
-					action="?/create"
-					use:enhance={() => {
-						return async ({ result }) => {
-							if (result.type === 'success') {
-								closeModals();
-								invalidateAll();
-							} else {
-								await applyAction(result);
-							}
-						};
-					}}
-					class="space-y-4"
-				>
-					<input type="hidden" name="_csrf" value={getCsrfToken()} />
-					<div>
-						<label for="username" class="mb-1 block text-sm font-medium text-slate-300"
-							>Username</label
-						>
-						<input
-							type="text"
-							id="username"
-							name="username"
-							bind:value={newUser.username}
-							required
-							minlength="3"
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:outline-none"
-							placeholder="Enter username"
-						/>
-					</div>
-
-					<div>
-						<label for="email" class="mb-1 block text-sm font-medium text-slate-300"
-							>Email (optional)</label
-						>
-						<input
-							type="email"
-							id="email"
-							name="email"
-							bind:value={newUser.email}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:outline-none"
-							placeholder="user@example.com"
-						/>
-					</div>
-
-					<div>
-						<label for="role" class="mb-1 block text-sm font-medium text-slate-300">Role</label>
-						<Select.Root
-							type="single"
-							value={newUser.role}
-							onValueChange={(v) => (newUser.role = v as 'admin' | 'editor' | 'viewer')}
-						>
-							<Select.Trigger id="role" class="w-full">
-								<Select.Value placeholder="Select Role">
-									<span class="capitalize">{newUser.role}</span>
-								</Select.Value>
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="viewer">Viewer (read-only)</Select.Item>
-								<Select.Item value="editor">Editor (can modify resources)</Select.Item>
-								<Select.Item value="admin">Admin (full access)</Select.Item>
-							</Select.Content>
-						</Select.Root>
-						<input type="hidden" name="role" value={newUser.role} />
-					</div>
-
-					<div>
-						<label for="password" class="mb-1 block text-sm font-medium text-slate-300"
-							>Password</label
-						>
-						<div class="flex gap-2">
-							<input
-								type="text"
-								id="password"
-								name="password"
-								bind:value={newUser.password}
-								required
-								minlength="8"
-								pattern={PASSWORD_PATTERN}
-								title={PASSWORD_TITLE}
-								aria-describedby="password-hint"
-								class="flex-1 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
-							/>
-							<Button
-								type="button"
-								variant="secondary"
-								onclick={() => (newUser.password = generatePassword())}
-							>
-								Regenerate
-							</Button>
-						</div>
-						<p id="password-hint" class="mt-1 text-xs text-slate-400">
-							Min 8 characters · one uppercase · one lowercase · one number · one special character
-						</p>
-					</div>
-
-					<div class="flex justify-end gap-3 pt-4">
-						<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>
-						<Button
-							type="submit"
-							class="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-900 hover:from-amber-400 hover:to-amber-500"
-						>
-							Create User
-						</Button>
-					</div>
-				</form>
-			</div>
-		</div>
+		<UserCreateModal
+			bind:newUser
+			passwordPattern={PASSWORD_PATTERN}
+			passwordTitle={PASSWORD_TITLE}
+			onClose={closeModals}
+			onGeneratePassword={generatePassword}
+		/>
 	{/if}
 
 	<!-- Edit User Modal -->
 	{#if editingUser}
-		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
-			role="dialog"
-			aria-modal="true"
-			tabindex="-1"
-			aria-labelledby="edit-user-title"
-			onclick={(e) => e.target === e.currentTarget && closeModals()}
-			onkeydown={(e) => e.key === 'Escape' && closeModals()}
-		>
-			<div
-				class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 shadow-2xl sm:h-auto sm:max-w-md sm:rounded-xl"
-			>
-				<h2 id="edit-user-title" class="mb-4 text-xl font-bold text-white">
-					Edit User: {editingUser.username}
-				</h2>
-
-				<form
-					method="POST"
-					action="?/update"
-					use:enhance={() => {
-						return async ({ result }) => {
-							if (result.type === 'success') {
-								closeModals();
-								invalidateAll();
-							} else {
-								await applyAction(result);
-							}
-						};
-					}}
-					class="space-y-4"
-				>
-					<input type="hidden" name="_csrf" value={getCsrfToken()} />
-					<input type="hidden" name="userId" value={editingUser.id} />
-
-					<div>
-						<label for="editEmail" class="mb-1 block text-sm font-medium text-slate-300"
-							>Email</label
-						>
-						<input
-							type="email"
-							id="editEmail"
-							name="email"
-							value={editingUser.email || ''}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:outline-none"
-							placeholder="user@example.com"
-						/>
-					</div>
-
-					<div>
-						<label for="editRole" class="mb-1 block text-sm font-medium text-slate-300">Role</label>
-						<Select.Root
-							type="single"
-							value={editingUser.role}
-							onValueChange={(v) => (editingUser!.role = v as 'admin' | 'editor' | 'viewer')}
-						>
-							<Select.Trigger id="editRole" class="w-full">
-								<Select.Value placeholder="Select Role">
-									<span class="capitalize">{editingUser.role}</span>
-								</Select.Value>
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="viewer">Viewer (read-only)</Select.Item>
-								<Select.Item value="editor">Editor (can modify resources)</Select.Item>
-								<Select.Item value="admin">Admin (full access)</Select.Item>
-							</Select.Content>
-						</Select.Root>
-						<input type="hidden" name="role" value={editingUser.role} />
-					</div>
-
-					<div class="flex items-center gap-2">
-						<input
-							type="checkbox"
-							name="active"
-							value="true"
-							checked={editingUser.active}
-							id="active"
-							class="rounded border-slate-600 bg-slate-700 text-amber-500 focus:ring-amber-500"
-						/>
-						<input type="hidden" name="active" value="false" />
-						<label for="active" class="text-sm text-slate-300">Active</label>
-					</div>
-
-					<div class="flex justify-end gap-3 pt-4">
-						<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>
-						<Button
-							type="submit"
-							class="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-900 hover:from-amber-400 hover:to-amber-500"
-						>
-							Save Changes
-						</Button>
-					</div>
-				</form>
-			</div>
-		</div>
+		<UserEditModal user={editingUser} onClose={closeModals} />
 	{/if}
 
 	<!-- Delete Confirmation Modal -->
 	{#if deletingUser}
-		<AdminConfirmDialog title="Delete User" titleId="delete-user-title" onClose={closeModals}>
-				<p class="mb-6 text-slate-400">
-					Are you sure you want to delete <strong class="text-white">{deletingUser.username}</strong
-					>? This action cannot be undone.
-				</p>
-
-				<form
-					method="POST"
-					action="?/delete"
-					use:enhance={() => {
-						return async ({ result }) => {
-							if (result.type === 'success') {
-								closeModals();
-								invalidateAll();
-							} else {
-								await applyAction(result);
-							}
-						};
-					}}
-					class="flex justify-end gap-3"
-				>
-					<input type="hidden" name="_csrf" value={getCsrfToken()} />
-					<input type="hidden" name="userId" value={deletingUser.id} />
-					<input type="hidden" name="username" value={deletingUser.username} />
-					<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>
-					<Button type="submit" variant="destructive">Delete User</Button>
-				</form>
-		</AdminConfirmDialog>
+		<UserDeleteDialog user={deletingUser} onClose={closeModals} />
 	{/if}
 
 	<!-- Reset Password Modal -->
 	{#if resettingPassword}
-		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-			role="dialog"
-			aria-modal="true"
-			tabindex="-1"
-			aria-labelledby="reset-password-title"
-			aria-describedby={passwordResetSuccess
-				? 'reset-password-success-message reset-password-generated-password reset-password-success-hint'
-				: 'reset-password-description new-password-hint reset-password-warning'}
-			onclick={(e) => e.target === e.currentTarget && closeModals()}
-			onkeydown={(e) => e.key === 'Escape' && closeModals()}
-		>
-			<div class="w-full max-w-md rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-2xl">
-				<h2 id="reset-password-title" class="mb-4 text-xl font-bold text-white">Reset Password</h2>
-				<p id="reset-password-description" class="mb-4 text-slate-400">
-					Generate a new password for <strong class="text-white"
-						>{resettingPassword.username}</strong
-					>
-				</p>
-
-				{#if passwordResetSuccess}
-				<div class="space-y-4">
-					<div
-						id="reset-password-success-message"
-						class="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 text-emerald-400"
-					>
-						<div class="flex items-center gap-2">
-							<CheckCircle2 size={16} />
-							Password reset successfully
-						</div>
-					</div>
-					<div id="reset-password-generated-password" class="rounded bg-slate-900 p-3">
-						<p class="text-xs text-slate-400">New Password:</p>
-						<p class="font-mono text-sm text-amber-400">{generatedPassword}</p>
-						<p id="reset-password-success-hint" class="mt-1 text-xs text-slate-500">
-							Copy this now - it won't be shown again
-						</p>
-					</div>
-					<div class="flex justify-end pt-2">
-						<Button type="button" onclick={closeModals}>Done</Button>
-					</div>
-				</div>
-			{:else}
-				<form
-					method="POST"
-					action="?/resetPassword"
-					use:enhance={() => {
-						return async ({ result }) => {
-							if (result.type === 'success') {
-								passwordResetSuccess = true;
-								invalidateAll();
-							} else {
-								await applyAction(result);
-							}
-						};
-					}}
-					class="space-y-4"
-				>
-					<input type="hidden" name="_csrf" value={getCsrfToken()} />
-					<input type="hidden" name="userId" value={resettingPassword.id} />
-
-					<div>
-						<label for="newPassword" class="mb-1 block text-sm font-medium text-slate-300"
-							>New Password</label
-						>
-						<div class="flex gap-2">
-							<input
-								type="text"
-								id="newPassword"
-								name="newPassword"
-								bind:value={generatedPassword}
-								required
-								minlength="8"
-								pattern={PASSWORD_PATTERN}
-								title={PASSWORD_TITLE}
-								aria-describedby="new-password-hint"
-								class="flex-1 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:border-amber-500 focus:outline-none"
-							/>
-							<Button
-								type="button"
-								variant="secondary"
-								onclick={() => (generatedPassword = generatePassword())}
-							>
-								Regenerate
-							</Button>
-						</div>
-						<p id="new-password-hint" class="mt-1 text-xs text-slate-400">
-							Min 8 characters · one uppercase · one lowercase · one number · one special character
-						</p>
-					</div>
-
-					<p id="reset-password-warning" class="text-xs text-amber-400">
-						Copy the password before submitting - it will only be shown once after reset.
-					</p>
-
-					<div class="flex justify-end gap-3 pt-4">
-						<Button type="button" variant="ghost" onclick={closeModals}>Cancel</Button>
-						<Button
-							type="submit"
-							class="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-900 hover:from-amber-400 hover:to-amber-500"
-						>
-							Reset Password
-						</Button>
-					</div>
-				</form>
-			{/if}
-			</div>
-		</div>
+		<UserResetPasswordModal
+			user={resettingPassword}
+			bind:generatedPassword
+			bind:passwordResetSuccess
+			passwordPattern={PASSWORD_PATTERN}
+			passwordTitle={PASSWORD_TITLE}
+			onClose={closeModals}
+			onGeneratePassword={generatePassword}
+		/>
 	{/if}
 </div>

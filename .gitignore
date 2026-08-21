@@ -13,6 +13,7 @@ node_modules
 /dist
 /documentation/build
 /documentation/dist
+/coverage
 
 # OS
 .DS_Store

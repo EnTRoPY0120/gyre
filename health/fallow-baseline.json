@@ -1,0 +1,925 @@
+{
+  "finding_counts": {
+    "src/lib/clusters/recovery.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/CommandPalette.svelte": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "src/lib/components/admin/AuthProviderForm.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/admin/ClusterCreateModal.svelte": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/admin/ClusterHealthCheckModal.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/auth/PasswordStrength.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/common/CodeViewer.svelte": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/dashboard/AdminOnboardingChecklist.svelte": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/dashboard/InventoryArchitecture.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/dashboard/SystemShortcuts.svelte": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/editors/MonacoDiffEditor.svelte": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/lib/components/editors/MonacoEditor.svelte": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/lib/components/editors/fluxCompletions.ts": {
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/editors/yamlValidator.ts": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 2
+      }
+    },
+    "src/lib/components/flux/ActionButtons.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/BulkActionsToolbar.svelte": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/ConditionList.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/DeleteResourceModal.svelte": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/EditResourceModal.svelte": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/EventsList.svelte": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/ResourceTable.svelte": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/lib/components/flux/StatusBadge.svelte": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/VersionHistory.svelte": {
+      "complexity_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/resources/AlertDetail.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/resources/BucketDetail.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/resources/GitRepositoryDetail.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/resources/HelmReleaseDetail.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/resources/HelmRepositoryDetail.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/resources/KustomizationDetail.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/resources/OCIRepositoryDetail.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/flux/resources/ReceiverDetail.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/layout/AppHeader.svelte": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/components/layout/AppSidebar.svelte": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/layout/ClusterSwitcher.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/layout/NotificationDropdown.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/layout/SidebarPrimaryNav.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/layout/SidebarResourceGroup.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/layout/ThemeToggle.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/lib/components/layout/UserMenu.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/resources/tabs/DiffTab.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/resources/tabs/LogsTab.svelte": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 5
+      }
+    },
+    "src/lib/components/resources/tabs/OverviewTab.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/wizards/ArrayField.svelte": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/wizards/ReferenceField.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "src/lib/components/wizards/ResourceWizard.svelte": {
+      "crap_high": {
+        "count": 5
+      },
+      "crap_moderate": {
+        "count": 4
+      }
+    },
+    "src/lib/components/wizards/WizardField.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/wizards/WizardFieldSections.svelte": {
+      "complexity_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/components/wizards/field-validation.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/wizards/reference-fetch.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/wizards/reference-keyboard.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/admin-readiness.ts": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/server/audit.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/auth/better-auth.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/auth/bootstrap-admin.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/auth/credentials.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/lib/server/auth/in-cluster-admin.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/auth/oauth/factory.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/auth/role-mapping.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/auth/seed-provider-helpers.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/server/auth/sso-provisioning.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/auth/users.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/backup.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/clusters/health-checks.ts": {
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/lib/server/clusters/health.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/server/clusters/migration.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/flux/services.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/flux/use-cases/resource-diff.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/lib/server/flux/use-cases/rollback.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/kubernetes/client-factory.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/kubernetes/client-pool.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/kubernetes/error-handler.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/server/kubernetes/errors.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/kubernetes/flux/history.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/server/kubernetes/flux/listing-helpers.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/kubernetes/flux/logs.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/server/kubernetes/flux/reconciliation-tracker.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/kubernetes/kubeconfig-provider.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/lifecycle/startup.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/logger.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/rbac-defaults.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/rbac.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/server/request/csrf.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/server/validation.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/stores/cluster.svelte.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/stores/events.svelte.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/lib/stores/preferences.svelte.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/stores/resourceCache.svelte.ts": {
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/stores/theme.svelte.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/utils/csrf.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/utils/error-normalization.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/utils/fetch.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/lib/utils/filtering.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/lib/utils/flux.ts": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/utils/focus-trap.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/lib/utils/logger.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/utils/polling.svelte.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/+layout.server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/+layout.svelte": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/+page.server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/admin/+page.server.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/admin/audit-logs/+page.server.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/routes/admin/audit-logs/+page.svelte": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/admin/auth-providers/+page.svelte": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/routes/admin/backups/+page.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/routes/admin/clusters/+page.server.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/routes/admin/clusters/+page.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/admin/policies/+page.server.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/routes/admin/settings/+page.svelte": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/admin/users/+page.server.ts": {
+      "crap_critical": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/docs/openapi.json/+server.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/admin/auth-providers/+server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/admin/auth-providers/[id]/+server.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/admin/backups/+server.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 2
+      }
+    },
+    "src/routes/api/v1/admin/backups/download/+server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/admin/backups/restore/+server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/admin/settings/+server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/auth/[providerId]/callback/+server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/auth/[providerId]/login/+server.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/auth/change-password/+server.ts": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/auth/login/+server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/events/+server.ts": {
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/routes/api/v1/flux/[resourceType]/+server.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/flux/[resourceType]/[namespace]/[name]/+server.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/flux/[resourceType]/[namespace]/[name]/diff/+server.ts": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/routes/api/v1/flux/[resourceType]/[namespace]/[name]/rollback/+server.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/change-password/+page.svelte": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/login/+page.svelte": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/metrics/+server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/resources/[type]/+page.server.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/resources/[type]/+page.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/routes/resources/[type]/[namespace]/[name]/+page.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 2
+      },
+      "crap_high": {
+        "count": 4
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/routes/settings/notifications/+page.svelte": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/service-worker.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/tests/helpers/module-stubs.ts": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "vite.config.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    }
+  },
+  "runtime_coverage_findings": [],
+  "target_keys": [
+    "src/lib/server/validation.ts:complexity",
+    "src/lib/utils/csrf.ts:high impact",
+    "src/lib/utils/flux.ts:high impact",
+    "src/lib/server/auth/oauth/url-security.ts:high impact",
+    "src/lib/server/auth/sso-claims.ts:high impact",
+    "src/lib/components/wizards/ArrayField.svelte:complexity",
+    "src/lib/components/CommandPalette.svelte:complexity",
+    "src/lib/components/wizards/WizardField.svelte:complexity",
+    "src/lib/utils/focus-trap.ts:untested risk",
+    "src/lib/components/flux/ResourceTable.svelte:complexity",
+    "src/routes/admin/auth-providers/+page.svelte:complexity",
+    "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
+    "src/lib/components/flux/resources/KustomizationDetail.svelte:complexity",
+    "src/lib/components/editors/yamlValidator.ts:complexity",
+    "src/lib/components/wizards/WizardFieldSections.svelte:complexity",
+    "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
+    "src/lib/components/flux/VersionHistory.svelte:complexity",
+    "src/lib/components/admin/ClusterHealthCheckModal.svelte:complexity",
+    "src/lib/components/flux/resources/AlertDetail.svelte:complexity",
+    "src/routes/admin/audit-logs/+page.svelte:complexity",
+    "src/lib/components/layout/NotificationDropdown.svelte:complexity"
+  ]
+}
