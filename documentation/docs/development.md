@@ -59,7 +59,25 @@ pnpm verify:repo:ci  # Full CI gate: app + docs + Helm + shell scripts
 pnpm check:watch     # Type-check in watch mode
 pnpm lint:fix        # Auto-fix lint issues where possible
 pnpm format          # Format code
+pnpm fallow:health   # Report complexity and maintainability findings
+pnpm fallow:health:coverage  # Report Fallow findings with coverage-backed CRAP scores
+pnpm fallow:health:baseline   # Report findings that differ from the checked-in baseline
 ```
+
+Fallow health is advisory and does not replace `pnpm verify:ci`. The checked-in
+[`health/fallow-baseline.json`](https://github.com/entropy0120/gyre/blob/main/health/fallow-baseline.json)
+captures the current report so refactors can distinguish existing findings from
+new ones. Regenerate it intentionally with:
+
+```sh
+pnpm exec fallow health --save-baseline health/fallow-baseline.json --report-only
+```
+
+The coverage-backed command runs the unit and integration tests with Vitest's
+Istanbul provider, excluding the adapter-node runtime smoke test and the
+separately-run Kubernetes timeout test, then passes `coverage/coverage-final.json`
+to Fallow for exact CRAP scores. The coverage directory is local-only and is
+ignored by Git.
 
 ### Building & Testing
 

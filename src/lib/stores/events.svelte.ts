@@ -23,13 +23,17 @@ import type {
 	ResourceEvent,
 	StatusCallback
 } from './events/types.js';
-
-interface NotificationState {
-	revision: string | undefined;
-	readyStatus: string | undefined;
-	readyReason: string | undefined;
-	messagePreview: string;
-}
+import {
+	getNotificationKey,
+	getNotificationState,
+	getNotificationType,
+	getEventControlAction,
+	isDuplicateNotification,
+	buildNotification,
+	parseStoredNotificationState,
+	type EventControlAction,
+	type NotificationState
+} from './events/helpers.js';
 
 function hashStorageUserIdentity(value: string): string {
 	let hash = 0xcbf29ce484222325n;
@@ -136,49 +140,9 @@ class RealtimeStore {
 			const storedState = localStorage.getItem(keys.state);
 			if (storedState) {
 				const parsed = JSON.parse(storedState);
-				if (Array.isArray(parsed)) {
-					// Legacy format: [[key, string], ...] — discard, will re-populate from events
-					this.lastNotificationState = new Map();
-				} else if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.entries)) {
-					// Current format: entries are NotificationState objects.
-					// Validate present fields and normalize missing optional ones — JSON.stringify
-					// drops undefined values so keys like revision/readyStatus/readyReason may be absent.
-					const validEntries = (parsed.entries as unknown[]).flatMap<[string, NotificationState]>(
-						(entry) => {
-							if (
-								!Array.isArray(entry) ||
-								entry.length !== 2 ||
-								typeof entry[0] !== 'string' ||
-								typeof entry[1] !== 'object' ||
-								entry[1] === null
-							) {
-								return [];
-							}
-							const raw = entry[1] as Record<string, unknown>;
-							// Reject entries where a present field has an unexpected type
-							if ('revision' in raw && typeof raw.revision !== 'string') return [];
-							if ('readyStatus' in raw && typeof raw.readyStatus !== 'string') return [];
-							if ('readyReason' in raw && typeof raw.readyReason !== 'string') return [];
-							if ('messagePreview' in raw && typeof raw.messagePreview !== 'string') return [];
-							return [
-								[
-									entry[0],
-									{
-										revision: typeof raw.revision === 'string' ? raw.revision : undefined,
-										readyStatus: typeof raw.readyStatus === 'string' ? raw.readyStatus : undefined,
-										readyReason: typeof raw.readyReason === 'string' ? raw.readyReason : undefined,
-										messagePreview: typeof raw.messagePreview === 'string' ? raw.messagePreview : ''
-									}
-								]
-							];
-						}
-					);
-					this.lastNotificationState = new Map(validEntries);
-					if (parsed.sessionId) {
-						this.lastServerSessionId = parsed.sessionId;
-					}
-				}
-				// else: unrecognised format — leave lastNotificationState as empty Map
+				const restoredState = parseStoredNotificationState(parsed);
+				this.lastNotificationState = new Map(restoredState.entries);
+				if (restoredState.sessionId) this.lastServerSessionId = restoredState.sessionId;
 			}
 		} catch (err) {
 			logger.error(err, '[Storage] Failed to load persisted notifications:');
@@ -345,44 +309,38 @@ class RealtimeStore {
 		}, delay);
 	}
 
-	private handleMessage(data: ResourceEvent) {
-		if (data.type === 'SHUTDOWN') {
-			const permanent = data.reason === 'server_shutdown';
+	private handleControlEvent(event: ResourceEvent, controlAction: EventControlAction): boolean {
+		if (!controlAction) return false;
+
+		if (controlAction.type === 'shutdown') {
 			logger.info(
-				`[SSE] Received SHUTDOWN event from server (reason: ${data.reason || 'unknown'}), disconnecting and ${
-					permanent ? 'preventing' : 'allowing'
+				`[SSE] Received SHUTDOWN event from server (reason: ${event.reason || 'unknown'}), disconnecting and ${
+					controlAction.permanent ? 'preventing' : 'allowing'
 				} reconnects.`
 			);
-			this.isServerShutdown = permanent;
+			this.isServerShutdown = controlAction.permanent;
 			this.disconnect();
-			if (!permanent) {
-				this.scheduleReconnect();
-			}
-			return;
+			if (!controlAction.permanent) this.scheduleReconnect();
+			return true;
 		}
 
-		if (data.type === 'HEARTBEAT') {
-			return;
-		}
+		if (controlAction.type === 'heartbeat') return true;
 
-		if (data.type === 'CONNECTED') {
-			if (
-				data.serverSessionId &&
-				this.lastServerSessionId !== null &&
-				this.lastServerSessionId !== data.serverSessionId
-			) {
-				logger.info('[SSE] Server session changed, clearing local notification state');
-				this.lastNotificationState.clear();
-			}
-			if (data.serverSessionId) {
-				this.lastServerSessionId = data.serverSessionId;
-				// Persist so page reloads can detect server restarts
-				this.saveToStorage();
-			}
-			return;
+		if (controlAction.sessionChanged) {
+			logger.info('[SSE] Server session changed, clearing local notification state');
+			this.lastNotificationState.clear();
 		}
+		if (controlAction.sessionId) {
+			this.lastServerSessionId = controlAction.sessionId;
+			this.saveToStorage();
+		}
+		return true;
+	}
 
-		// Notify all event subscribers
+	private handleMessage(data: ResourceEvent) {
+		const controlAction = getEventControlAction(data, this.lastServerSessionId);
+		if (this.handleControlEvent(data, controlAction)) return;
+
 		this.eventCallbacks.forEach((callback) => {
 			try {
 				callback(data);
@@ -391,140 +349,43 @@ class RealtimeStore {
 			}
 		});
 
-		// Create notification for resource events
-		if (data.resource) {
-			this.addNotification(data);
-		}
+		if (data.resource) this.addNotification(data);
 	}
 
 	private addNotification(event: ResourceEvent) {
 		if (!event.resource || !event.resourceType) return;
 
-		// Check preferences before processing
-		const type = this.getNotificationType(event);
+		const type = getNotificationType(event);
 		const namespace = event.resource.metadata.namespace;
-
-		if (!preferences.shouldShowNotification(event.resourceType, namespace, type)) {
-			return;
-		}
+		if (!preferences.shouldShowNotification(event.resourceType, namespace, type)) return;
 
 		const clusterId = event.clusterId || IN_CLUSTER_ID;
-		const resourceKey = `${clusterId}/${event.resourceType}/${event.resource.metadata.namespace}/${event.resource.metadata.name}`;
-		const readyCondition = event.resource.status?.conditions?.find((c) => c.type === 'Ready');
-
-		// Build a state signature matching server-side logic
-		// Focus on actual meaningful changes: revision/SHA, ready state, and message preview
-		const revision = this.getRevisionFromResource(event.resource);
-		const messagePreview = readyCondition?.message?.substring(0, MESSAGE_PREVIEW_LENGTH) || '';
-
-		// Match the server-side notificationState structure exactly (no extra fields)
-		const currentStateObj: NotificationState = {
-			revision,
-			readyStatus: readyCondition?.status,
-			readyReason: readyCondition?.reason,
-			messagePreview
-		};
-
+		const resourceKey = getNotificationKey(event, clusterId);
+		if (!resourceKey) return;
+		const currentStateObj: NotificationState = getNotificationState(event, MESSAGE_PREVIEW_LENGTH);
 		const previousState = this.lastNotificationState.get(resourceKey);
 
-		// Skip notification if this exact state was already notified
-		// Exception: Always notify ADDED and DELETED events
-		if (
-			event.type === 'MODIFIED' &&
-			JSON.stringify(currentStateObj) === JSON.stringify(previousState)
-		) {
-			// This is a duplicate notification - same resource in same state
+		if (isDuplicateNotification(event, currentStateObj, previousState)) {
 			logger.debug(
-				`[Notification] Skipping duplicate for ${resourceKey}: state unchanged (revision: ${revision || 'none'})`
+				`[Notification] Skipping duplicate for ${resourceKey}: state unchanged (revision: ${currentStateObj.revision || 'none'})`
 			);
 			return;
 		}
 
-		// Update the state cache (will be persisted with notification)
 		this.lastNotificationState.set(resourceKey, currentStateObj);
-
-		// Log state change for debugging
 		if (previousState) {
 			logger.debug(
-				`[Notification] State change for ${resourceKey}: revision "${previousState.revision || 'none'}" -> "${revision || 'none'}", ready: ${currentStateObj.readyStatus}`
+				`[Notification] State change for ${resourceKey}: revision "${previousState.revision || 'none'}" -> "${currentStateObj.revision || 'none'}", ready: ${currentStateObj.readyStatus}`
 			);
 		} else {
 			logger.debug(
-				`[Notification] New notification for ${resourceKey}: ${event.type}, revision: ${revision || 'none'}`
+				`[Notification] New notification for ${resourceKey}: ${event.type}, revision: ${currentStateObj.revision || 'none'}`
 			);
 		}
 
-		const notification: NotificationMessage = {
-			id: crypto.randomUUID(),
-			clusterId,
-			type: this.getNotificationType(event),
-			title: this.getNotificationTitle(event),
-			message: this.getNotificationMessage(event),
-			resourceType: event.resourceType,
-			resourceName: event.resource.metadata.name,
-			resourceNamespace: event.resource.metadata.namespace,
-			timestamp: new Date(),
-			read: false
-		};
-
-		// Add to beginning of array and limit total notifications.
-		// The higher limit accommodates events from multiple clusters sharing one store.
+		const notification = buildNotification(event, clusterId, type);
 		this.notifications = [notification, ...this.notifications.slice(0, MAX_NOTIFICATIONS - 1)];
-
-		// Persist to localStorage
 		this.saveToStorage();
-	}
-
-	private getNotificationType(event: ResourceEvent): NotificationMessage['type'] {
-		if (event.type === 'ERROR') return 'error';
-		if (event.type === 'DELETED') return 'warning';
-
-		// Check if resource has failed conditions
-		const readyCondition = event.resource?.status?.conditions?.find((c) => c.type === 'Ready');
-		if (readyCondition?.status === 'False') return 'warning';
-
-		if (event.type === 'ADDED') return 'success';
-		return 'info';
-	}
-
-	private getNotificationTitle(event: ResourceEvent): string {
-		switch (event.type) {
-			case 'ADDED':
-				return `${event.resourceType} Created`;
-			case 'MODIFIED':
-				return `${event.resourceType} Updated`;
-			case 'DELETED':
-				return `${event.resourceType} Deleted`;
-			case 'ERROR':
-				return `${event.resourceType} Error`;
-			default:
-				return `${event.resourceType} Event`;
-		}
-	}
-
-	private getNotificationMessage(event: ResourceEvent): string {
-		if (!event.resource) return event.message || 'Unknown event';
-
-		const name = event.resource.metadata.name;
-		const namespace = event.resource.metadata.namespace;
-		const readyCondition = event.resource.status?.conditions?.find((c) => c.type === 'Ready');
-
-		if (readyCondition?.message) {
-			return `${name} in ${namespace}: ${readyCondition.message}`;
-		}
-
-		return `${name} in ${namespace}`;
-	}
-
-	private getRevisionFromResource(resource: ResourceEvent['resource']): string | undefined {
-		if (!resource) return undefined;
-		const status = resource.status as Record<string, unknown> | undefined;
-		if (!status) return undefined;
-		return (
-			(status.lastAppliedRevision as string) ||
-			((status.artifact as Record<string, unknown>)?.revision as string) ||
-			(status.lastAttemptedRevision as string)
-		);
 	}
 
 	private notifyStatusChange(status: ConnectionStatus) {

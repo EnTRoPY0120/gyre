@@ -5,7 +5,7 @@ import { validateFluxArtifactUrl } from '$lib/server/kubernetes/flux/artifact-ur
 import { FLUX_RESOURCES, type FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import type { FluxResource } from '$lib/server/kubernetes/flux/types';
 import * as k8s from '@kubernetes/client-node';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import http from 'node:http';

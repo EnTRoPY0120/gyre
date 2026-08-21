@@ -14,6 +14,7 @@ import {
 import { applyBetterAuthCookies, getBetterAuth } from '$lib/server/auth/better-auth';
 import { logAudit } from '$lib/server/audit';
 import { checkRateLimit } from '$lib/server/rate-limiter';
+import { assertPasswordStrength } from '$lib/server/auth/password-validation.js';
 
 export const _metadata = {
 	POST: {
@@ -132,24 +133,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			});
 		}
 
-		// Validate new password strength
-		if (newPassword.length < 8) {
-			throw error(400, { message: 'New password must be at least 8 characters long.' });
-		}
-		if (!/[A-Z]/.test(newPassword)) {
-			throw error(400, { message: 'New password must contain at least one uppercase letter.' });
-		}
-		if (!/[a-z]/.test(newPassword)) {
-			throw error(400, { message: 'New password must contain at least one lowercase letter.' });
-		}
-		if (!/[0-9]/.test(newPassword)) {
-			throw error(400, { message: 'New password must contain at least one number.' });
-		}
-		if (!/[!@#$%^&*(),.?":{}|<>]/.test(newPassword)) {
-			throw error(400, {
-				message: 'New password must contain at least one special character (e.g., !@#$%^&*).'
-			});
-		}
+		assertPasswordStrength(newPassword);
 
 		// Verify current password using the hash already in hand — no second DB read.
 		const { user } = locals;

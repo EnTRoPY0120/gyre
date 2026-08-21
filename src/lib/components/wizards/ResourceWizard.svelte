@@ -2,17 +2,18 @@
 	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button';
 	import YamlEditor from '$lib/components/editors/YamlEditor.svelte';
-	import ArrayField from '$lib/components/wizards/ArrayField.svelte';
-	import ReferenceField from '$lib/components/wizards/ReferenceField.svelte';
-	import FieldHelp from '$lib/components/wizards/FieldHelp.svelte';
+	import WizardFieldSections from '$lib/components/wizards/WizardFieldSections.svelte';
 	import type { ResourceTemplate, TemplateField } from '$lib/templates';
 	import { cn } from '$lib/utils';
 	import { logger } from '$lib/utils/logger.js';
-	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from '@lucide/svelte';
-	import * as Select from '$lib/components/ui/select';
+	import { Loader2, Check, AlertCircle, Code, ListChecks } from '@lucide/svelte';
 	import { parse, parseDocument, YAMLError } from 'yaml';
 	import { getCsrfToken } from '$lib/utils/csrf';
-	import safeRegex from 'safe-regex2';
+	import {
+		coerceWizardFieldValue,
+		validateHelmReleaseResourceValues as validateWizardHelmReleaseResourceValues,
+		validateWizardField
+	} from './field-validation';
 
 	// Kubernetes name/namespace validation — RFC 1123 DNS label, max 63 chars.
 	// Kept in sync with K8S_NAME_REGEX in src/lib/server/validation.ts.
@@ -233,24 +234,7 @@
 	}
 
 	function coerceFieldValue(field: TemplateField, value: unknown): unknown {
-		if (field.type !== 'number') {
-			return value;
-		}
-
-		if (value === '' || value === null || value === undefined) {
-			return undefined;
-		}
-
-		if (typeof value === 'number') {
-			return Number.isFinite(value) ? value : undefined;
-		}
-
-		if (typeof value === 'string') {
-			const parsedValue = Number(value);
-			return Number.isFinite(parsedValue) ? parsedValue : undefined;
-		}
-
-		return undefined;
+		return coerceWizardFieldValue(field, value);
 	}
 
 	function ensureTemplateField(field: TemplateField): TemplateField {
@@ -431,49 +415,7 @@
 
 	// Validate a single field
 	function validateField(field: (typeof template.fields)[0]): string | null {
-		const value = formValues[field.name];
-
-		// Skip validation if field is not visible
-		if (!shouldShowField(field)) {
-			return null;
-		}
-
-		// Required field validation
-		if (field.required && (value === undefined || value === null || value === '')) {
-			return `${field.label} is required`;
-		}
-
-		// Skip further validation if field is empty and not required
-		if (!value) {
-			return null;
-		}
-
-		// Custom pattern validation
-		if (field.validation?.pattern && typeof value === 'string') {
-			try {
-				if (!safeRegex(field.validation.pattern)) {
-					return `Invalid validation pattern for ${field.label}`;
-				}
-				const regex = new RegExp(field.validation.pattern);
-				if (!regex.test(value)) {
-					return field.validation.message || `Invalid format for ${field.label}`;
-				}
-			} catch {
-				return `Invalid validation pattern for ${field.label}`;
-			}
-		}
-
-		// Number range validation
-		if (field.type === 'number' && typeof value === 'number') {
-			if (field.validation?.min !== undefined && value < field.validation.min) {
-				return `${field.label} must be at least ${field.validation.min}`;
-			}
-			if (field.validation?.max !== undefined && value > field.validation.max) {
-				return `${field.label} must be at most ${field.validation.max}`;
-			}
-		}
-
-		return null;
+		return validateWizardField(field, formValues[field.name], shouldShowField(field));
 	}
 
 	// Validate all fields
@@ -506,40 +448,7 @@
 	}
 
 	function validateHelmReleaseResourceValues(): string | null {
-		if (template.kind !== 'HelmRelease') return null;
-
-		const structuredResourceFields = [
-			'resourceLimitsCpu',
-			'resourceLimitsMemory',
-			'resourceRequestsCpu',
-			'resourceRequestsMemory'
-		];
-		if (!structuredResourceFields.some((fieldName) => Boolean(formValues[fieldName]))) {
-			return null;
-		}
-
-		const values = formValues.values;
-		if (!values) return null;
-
-		try {
-			const parsedValues =
-				typeof values === 'string'
-					? (parse(values) as Record<string, unknown> | null)
-					: (values as Record<string, unknown>);
-			if (
-				parsedValues &&
-				typeof parsedValues === 'object' &&
-				!Array.isArray(parsedValues) &&
-				'resources' in parsedValues
-			) {
-				return 'Remove resources from Values before using structured resource fields.';
-			}
-		} catch (err) {
-			logger.warn(err, 'Failed to parse HelmRelease values while checking resource conflicts');
-			return null;
-		}
-
-		return null;
+		return validateWizardHelmReleaseResourceValues(template, formValues);
 	}
 
 	// Check if form is valid (derived)
@@ -613,296 +522,28 @@
 				mode === 'yaml' && 'min-h-[500px]'
 			)}
 		>
-			{#if mode === 'wizard'}
-				<div class="divide-y divide-border">
-					{#if template.sections}
-						{#each template.sections as section (section.id)}
-							{@const sectionFields = fieldsBySection[section.id] || []}
-							{#if sectionFields.length > 0}
-								<div class="p-6">
-									<button
-										onclick={() => toggleSection(section.id)}
-										class="mb-4 flex w-full items-center justify-between text-left"
-									>
-										<div>
-											<h3 class="text-base font-semibold">{section.title}</h3>
-											{#if section.description}
-												<p class="text-sm text-muted-foreground">{section.description}</p>
-											{/if}
-										</div>
-										{#if section.collapsible}
-											<ChevronDown
-												size={20}
-												class={cn(
-													'text-muted-foreground transition-transform',
-													expandedSections[section.id] ? 'rotate-180' : ''
-												)}
-											/>
-										{/if}
-									</button>
-
-									{#if expandedSections[section.id]}
-										<div class="grid gap-6">
-											{#each sectionFields as field (field.name)}
-												{#if shouldShowField(field)}
-													<div class="flex flex-col gap-1.5">
-														<div class="flex items-center gap-2">
-															<label
-																for="field-{field.name}"
-																class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-															>
-																{field.label}
-																{#if field.required}<span class="text-red-500">*</span>{/if}
-															</label>
-															<FieldHelp helpText={field.helpText} docsUrl={field.docsUrl} />
-														</div>
-
-														{#if field.type === 'select'}
-															<Select.Root
-																type="single"
-																value={formValues[field.name] as string}
-																onValueChange={(v) => setFieldValue(field, v)}
-															>
-																<Select.Trigger
-																	id="field-{field.name}"
-																	class={cn(
-																		'w-full',
-																		validationErrors[field.name] && 'border-red-500'
-																	)}
-																>
-																	<Select.Value placeholder="Select {field.label}">
-																		{field.options?.find(
-																			(o) => String(o.value) === String(formValues[field.name])
-																		)?.label ||
-																			formValues[field.name] ||
-																			`Select ${field.label}`}
-																	</Select.Value>
-																</Select.Trigger>
-																<Select.Content>
-																	{#each field.options || [] as opt (opt.value)}
-																		<Select.Item value={opt.value}>{opt.label}</Select.Item>
-																	{/each}
-																</Select.Content>
-															</Select.Root>
-														{:else if field.type === 'boolean'}
-															<div class="flex items-center gap-2">
-																<input
-																	id="field-{field.name}"
-																	type="checkbox"
-																	checked={Boolean(formValues[field.name])}
-																	onchange={(event) =>
-																		setFieldValue(field, (event.currentTarget as HTMLInputElement).checked)}
-																	class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-																/>
-																<span class="text-sm text-muted-foreground"
-																	>{field.description || ''}</span
-																>
-															</div>
-														{:else if field.type === 'textarea'}
-															<textarea
-																id="field-{field.name}"
-																value={String(formValues[field.name] ?? '')}
-																oninput={(event) =>
-																	setFieldValue(field, (event.currentTarget as HTMLTextAreaElement).value)}
-																placeholder={field.placeholder || field.description}
-																rows="4"
-																class={cn(
-																	'flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-																	validationErrors[field.name] && 'border-red-500'
-																)}
-															></textarea>
-														{:else if field.type === 'array'}
-															{#if !formValues[field.name]}
-																{(formValues[field.name] = [])}
-															{/if}
-															<ArrayField
-																bind:value={formValues[field.name] as unknown[]}
-																itemType={field.arrayItemType || 'string'}
-																itemFields={field.arrayItemFields || []}
-																placeholder={field.placeholder}
-																error={validationErrors[field.name]}
-															/>
-														{:else if field.referenceType || field.referenceTypeField}
-											<ReferenceField
-												id="field-{field.name}"
-												bind:value={formValues[field.name] as string}
-												referenceType={field.referenceType}
-												referenceTypeField={field.referenceTypeField}
-												referenceNamespace={field.referenceNamespaceField
-													? String(formValues[field.referenceNamespaceField] ?? '')
-													: ''}
-												{formValues}
-												placeholder={field.placeholder || field.description}
-												error={validationErrors[field.name]}
-												onValueChange={(nextValue, selection) =>
-													handleReferenceValueChange(field, nextValue, selection)}
-											/>
-														{:else}
-															<input
-																id="field-{field.name}"
-																type={field.type === 'number' ? 'number' : 'text'}
-																value={String(formValues[field.name] ?? '')}
-																oninput={(event) =>
-																	setFieldValue(field, (event.currentTarget as HTMLInputElement).value)}
-																onblur={() => {
-																	if (field.type === 'number') {
-																		commitFieldValue(field);
-																	}
-																}}
-																placeholder={field.placeholder || field.description}
-																class={cn(
-																	'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-																	validationErrors[field.name] && 'border-red-500'
-																)}
-															/>
-														{/if}
-
-														{#if validationErrors[field.name]}
-															<p class="text-xs text-red-500">{validationErrors[field.name]}</p>
-														{:else if field.description && field.type !== 'boolean'}
-															<p class="text-xs text-muted-foreground">{field.description}</p>
-														{/if}
-													</div>
-												{/if}
-											{/each}
-										</div>
-									{/if}
-								</div>
-							{/if}
-						{/each}
-					{:else}
-						<!-- Fallback for templates without sections -->
-						<div class="p-6">
-							<div class="grid gap-6">
-								{#each template.fields as field (field.name)}
-									{#if shouldShowField(field)}
-										<div class="flex flex-col gap-1.5">
-											<div class="flex items-center gap-2">
-												<label
-													for="field-{field.name}"
-													class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-												>
-													{field.label}
-													{#if field.required}<span class="text-red-500">*</span>{/if}
-												</label>
-												<FieldHelp helpText={field.helpText} docsUrl={field.docsUrl} />
-											</div>
-
-											{#if field.type === 'select'}
-												<Select.Root
-													type="single"
-													value={formValues[field.name] as string}
-													onValueChange={(v) => setFieldValue(field, v)}
-												>
-													<Select.Trigger
-														id="field-{field.name}"
-														class={cn(
-															'w-full',
-															validationErrors[field.name] && 'border-red-500'
-														)}
-													>
-														<Select.Value placeholder="Select {field.label}" />
-													</Select.Trigger>
-													<Select.Content>
-														{#each field.options || [] as opt (opt.value)}
-															<Select.Item value={opt.value}>{opt.label}</Select.Item>
-														{/each}
-													</Select.Content>
-												</Select.Root>
-											{:else if field.type === 'boolean'}
-												<div class="flex items-center gap-2">
-													<input
-														id="field-{field.name}"
-														type="checkbox"
-														checked={Boolean(formValues[field.name])}
-														onchange={(event) =>
-															setFieldValue(field, (event.currentTarget as HTMLInputElement).checked)}
-														class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-													/>
-													<span class="text-sm text-muted-foreground"
-														>{field.description || ''}</span
-													>
-												</div>
-											{:else if field.type === 'textarea'}
-												<textarea
-													id="field-{field.name}"
-													value={String(formValues[field.name] ?? '')}
-													oninput={(event) =>
-														setFieldValue(field, (event.currentTarget as HTMLTextAreaElement).value)}
-													placeholder={field.placeholder || field.description}
-													rows="4"
-													class={cn(
-														'flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-														validationErrors[field.name] && 'border-red-500'
-													)}
-												></textarea>
-											{:else if field.type === 'array'}
-												{#if !formValues[field.name]}
-													{(formValues[field.name] = [])}
-												{/if}
-												<ArrayField
-													bind:value={formValues[field.name] as unknown[]}
-													itemType={field.arrayItemType || 'string'}
-													itemFields={field.arrayItemFields || []}
-													placeholder={field.placeholder}
-													error={validationErrors[field.name]}
-												/>
-											{:else if field.referenceType || field.referenceTypeField}
-										<ReferenceField
-											id="field-{field.name}"
-											bind:value={formValues[field.name] as string}
-											referenceType={field.referenceType}
-											referenceTypeField={field.referenceTypeField}
-											referenceNamespace={field.referenceNamespaceField
-												? String(formValues[field.referenceNamespaceField] ?? '')
-												: ''}
-											{formValues}
-											placeholder={field.placeholder || field.description}
-											error={validationErrors[field.name]}
-											onValueChange={(nextValue, selection) =>
-												handleReferenceValueChange(field, nextValue, selection)}
-										/>
-											{:else}
-												<input
-													id="field-{field.name}"
-													type={field.type === 'number' ? 'number' : 'text'}
-													value={String(formValues[field.name] ?? '')}
-													oninput={(event) =>
-														setFieldValue(field, (event.currentTarget as HTMLInputElement).value)}
-													onblur={() => {
-														if (field.type === 'number') {
-															commitFieldValue(field);
-														}
-													}}
-													placeholder={field.placeholder || field.description}
-													class={cn(
-														'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-														validationErrors[field.name] && 'border-red-500'
-													)}
-												/>
-											{/if}
-
-											{#if validationErrors[field.name]}
-												<p class="text-xs text-red-500">{validationErrors[field.name]}</p>
-											{:else if field.description && field.type !== 'boolean'}
-												<p class="text-xs text-muted-foreground">{field.description}</p>
-											{/if}
-										</div>
-									{/if}
-								{/each}
-							</div>
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<YamlEditor
-					bind:value={currentYaml}
-					onCopy={copyYaml}
-					{copySuccess}
-					error={yamlError}
-					className="h-full min-h-[500px]"
-				/>
-			{/if}
+				{#if mode === 'wizard'}
+					<WizardFieldSections
+						{template}
+						{fieldsBySection}
+						{expandedSections}
+						{formValues}
+						{validationErrors}
+						{shouldShowField}
+						onToggleSection={toggleSection}
+						onSetFieldValue={setFieldValue}
+						onReferenceValueChange={handleReferenceValueChange}
+						onCommit={commitFieldValue}
+					/>
+				{:else}
+					<YamlEditor
+						bind:value={currentYaml}
+						onCopy={copyYaml}
+						{copySuccess}
+						error={yamlError}
+						className="h-full min-h-[500px]"
+					/>
+				{/if}
 		</div>
 
 		<!-- Sidebar / Preview -->

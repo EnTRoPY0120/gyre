@@ -2,7 +2,7 @@ import { error } from '@sveltejs/kit';
 import { getResourceDef, type FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
 import { validateFluxResourceSpec } from '$lib/server/validation';
 import type { K8sResource } from '$lib/types/kubernetes';
-import yaml from 'js-yaml';
+import * as yaml from 'js-yaml';
 
 export interface ValidateFluxResourceUpdateParams {
 	name: string;
@@ -57,7 +57,10 @@ export function validateFluxResourceUpdateManifest({
 		});
 	}
 
-	const resourceDef = getResourceDef(resourceType)!;
+	const resourceDef = getResourceDef(resourceType);
+	if (!resourceDef) {
+		throw error(400, { message: `Unsupported resource type: ${resourceType}` });
+	}
 	if (resource.apiVersion !== resourceDef.apiVersion) {
 		throw error(400, {
 			message: `apiVersion mismatch: expected "${resourceDef.apiVersion}", got "${resource.apiVersion}"`

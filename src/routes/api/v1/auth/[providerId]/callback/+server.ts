@@ -17,7 +17,11 @@ import { logger } from '$lib/server/logger.js';
 import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
+import { getOAuthProvider } from '$lib/server/auth/oauth';
+import {
+	getOAuthCallbackErrorMessage,
+	getSsoLoginErrorMessage
+} from '$lib/server/auth/oauth/callback-helpers.js';
 
 export const _metadata = {
 	GET: {
@@ -138,21 +142,10 @@ export const GET: RequestHandler = async (event) => {
 
 		// Check if user creation/retrieval was successful
 		if (!result.user) {
-			// Provide specific error message based on reason
-			let message = 'Authentication failed. Please contact your administrator.';
-			if (result.reason === 'signup_disabled') {
-				message = 'New account registration is not available. Please contact your administrator.';
-			} else if (result.reason === 'domain_not_allowed') {
-				message = 'Your email domain is not authorized for this application.';
-			} else if (result.reason === 'auto_provision_disabled') {
-				message = 'Account auto-provisioning is disabled. Please contact your administrator.';
-			} else if (result.reason === 'user_not_found') {
-				message = 'Your user account could not be found. Please contact your administrator.';
-			} else if (result.reason === 'user_disabled') {
-				message = 'Your account has been disabled. Please contact your administrator.';
-			}
-
-			throw redirect(302, `/login?error=${encodeURIComponent(message)}`);
+			throw redirect(
+				302,
+				`/login?error=${encodeURIComponent(getSsoLoginErrorMessage(result.reason))}`
+			);
 		}
 
 		const user = result.user;
@@ -186,26 +179,7 @@ export const GET: RequestHandler = async (event) => {
 
 		logger.error(err, 'OAuth callback error:');
 
-		let errorMessage = 'Authentication failed';
-
-		// Handle OAuth-specific errors
-		if (err instanceof OAuthError) {
-			if (err.code === 'PROVIDER_NOT_FOUND') {
-				errorMessage = 'Authentication provider not found';
-			} else if (err.code === 'PROVIDER_DISABLED') {
-				errorMessage = 'Authentication provider is disabled';
-			} else if (err.code === 'TOKEN_EXCHANGE_FAILED') {
-				errorMessage = 'Failed to exchange authorization code for token';
-			} else if (err.code === 'USERINFO_FAILED') {
-				errorMessage = 'Failed to fetch user information from provider';
-			} else if (err.code === 'INVALID_ID_TOKEN') {
-				errorMessage = 'Invalid ID token from provider';
-			} else {
-				errorMessage = `OAuth error: ${err.message}`;
-			}
-		}
-
 		// Redirect to login page with error message instead of showing error page
-		throw redirect(302, `/login?error=${encodeURIComponent(errorMessage)}`);
+		throw redirect(302, `/login?error=${encodeURIComponent(getOAuthCallbackErrorMessage(err))}`);
 	}
 };

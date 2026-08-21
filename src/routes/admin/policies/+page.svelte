@@ -6,34 +6,15 @@
 	import Button from '$lib/components/ui/button/button.svelte';
 	import AdminConfirmDialog from '$lib/components/admin/AdminConfirmDialog.svelte';
 	import { resourceGroups } from '$lib/config/resources';
+	import PolicyCard from '$lib/components/admin/PolicyCard.svelte';
+	import type { Policy, PolicyUser } from '$lib/components/admin/policy-types';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
 	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
 	import * as Select from '$lib/components/ui/select';
 
-	interface Policy {
-		id: string;
-		name: string;
-		description: string | null;
-		role: 'admin' | 'editor' | 'viewer';
-		action: 'read' | 'write' | 'admin';
-		resourceType: string | null;
-		namespacePattern: string | null;
-		clusterId: string | null;
-		isActive: boolean;
-		createdAt: Date;
-		updatedAt: Date;
-	}
-
-	interface User {
-		id: string;
-		username: string;
-		role: 'admin' | 'editor' | 'viewer';
-		active: boolean;
-	}
-
 	interface PageData {
 		policies: Policy[];
-		users: User[];
+		users: PolicyUser[];
 		userPolicies: Record<string, Policy[]>;
 		total: number;
 		search: string;
@@ -137,12 +118,12 @@
 		}
 	}
 
-	function getUsersWithPolicy(policyId: string): User[] {
+	function getUsersWithPolicy(policyId: string): PolicyUser[] {
 		const userIds = Object.entries(data.userPolicies as Record<string, Policy[]>)
 			.filter(([, policies]: [string, Policy[]]) => policies.some((p: Policy) => p.id === policyId))
 			.map(([userId]: [string, Policy[]]) => userId);
 
-		return data.users.filter((u: User) => userIds.includes(u.id));
+		return data.users.filter((u: PolicyUser) => userIds.includes(u.id));
 	}
 </script>
 
@@ -202,137 +183,14 @@
 	{#if data.policies.length > 0}
 		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
 			{#each data.policies as policy (policy.id)}
-			<div class="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4">
-				<div class="mb-3 flex items-start justify-between">
-					<div>
-						<h3 class="font-semibold text-white">{policy.name}</h3>
-						{#if policy.description}
-							<p class="text-sm text-slate-400">{policy.description}</p>
-						{/if}
-					</div>
-					{#if !policy.isActive}
-						<span class="rounded bg-slate-700 px-2 py-1 text-xs text-slate-400">Inactive</span>
-					{/if}
-				</div>
-
-				<!-- Policy Details -->
-				<div class="mb-3 space-y-2">
-					<div class="flex items-center gap-2">
-						<span class="text-xs text-slate-500">Role:</span>
-						<span
-							class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium {getRoleBadgeColor(
-								policy.role
-							)}"
-						>
-							{policy.role}
-						</span>
-					</div>
-					<div class="flex items-center gap-2">
-						<span class="text-xs text-slate-500">Action:</span>
-						<span
-							class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium {getActionBadgeColor(
-								policy.action
-							)}"
-						>
-							{policy.action}
-						</span>
-					</div>
-					{#if policy.resourceType}
-						<div class="flex items-center gap-2">
-							<span class="text-xs text-slate-500">Resource:</span>
-							<span class="text-xs text-slate-300">{policy.resourceType}</span>
-						</div>
-					{/if}
-					{#if policy.namespacePattern}
-						<div class="flex items-center gap-2">
-							<span class="text-xs text-slate-500">Namespace:</span>
-							<code class="rounded bg-slate-700 px-1.5 py-0.5 text-xs text-amber-400"
-								>{policy.namespacePattern}</code
-							>
-						</div>
-					{/if}
-				</div>
-
-				<!-- Assigned Users -->
-				<div class="mb-3">
-					<p class="mb-1 text-xs text-slate-500">Assigned to:</p>
-					{#if getUsersWithPolicy(policy.id).length > 0}
-						{@const assignedUsers = getUsersWithPolicy(policy.id)}
-						<div class="flex flex-wrap gap-1">
-							{#each assignedUsers as user (user.id)}
-								<form
-									method="POST"
-									action="?/unbind"
-									use:enhance={() => {
-										return async ({ result }) => {
-											if (result.type === 'success') {
-												invalidateAll();
-											}
-										};
-									}}
-									class="inline"
-								>
-									<input type="hidden" name="_csrf" value={getCsrfToken()} />
-									<input type="hidden" name="userId" value={user.id} />
-									<input type="hidden" name="policyId" value={policy.id} />
-									<input type="hidden" name="policyName" value={policy.name} />
-									<button
-										type="submit"
-										class="inline-flex items-center gap-1 rounded-full bg-slate-700 px-2 py-1 text-xs text-slate-300 transition-colors hover:bg-red-500/20 hover:text-red-400"
-									>
-										{user.username}
-										<svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-											<path
-												stroke-linecap="round"
-												stroke-linejoin="round"
-												stroke-width="2"
-												d="M6 18L18 6M6 6l12 12"
-											/>
-										</svg>
-									</button>
-								</form>
-							{/each}
-						</div>
-					{:else}
-						<span class="text-xs text-slate-500 italic">Not assigned to any users</span>
-					{/if}
-				</div>
-
-				<!-- Actions -->
-				<div class="flex justify-end gap-2 border-t border-slate-700/50 pt-3">
-					<Button
-						variant="ghost"
-						size="sm"
-						onclick={() => openAssignModal(policy)}
-						title="Assign to User"
-					>
-						<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"
-							/>
-						</svg>
-					</Button>
-					<Button
-						variant="ghost"
-						size="sm"
-						onclick={() => openDeleteModal(policy)}
-						class="text-red-400 hover:text-red-300"
-						title="Delete Policy"
-					>
-						<svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-							/>
-						</svg>
-					</Button>
-				</div>
-			</div>
+				<PolicyCard
+					{policy}
+					assignedUsers={getUsersWithPolicy(policy.id)}
+					roleBadgeColor={getRoleBadgeColor(policy.role)}
+					actionBadgeColor={getActionBadgeColor(policy.action)}
+					onAssign={openAssignModal}
+					onDelete={openDeleteModal}
+				/>
 			{/each}
 		</div>
 
@@ -602,12 +460,12 @@
 						>
 							<Select.Trigger id="userId" class="w-full">
 								<Select.Value placeholder="Choose a user...">
-									{data.users.find((u: User) => u.id === selectedUserId)?.username || 'Choose a user...'}
+									{data.users.find((u: PolicyUser) => u.id === selectedUserId)?.username || 'Choose a user...'}
 								</Select.Value>
 							</Select.Trigger>
 							<Select.Content>
 								<Select.Item value="">Choose a user...</Select.Item>
-								{#each data.users.filter((u: User) => u.active && assigningPolicy && !getUsersWithPolicy(assigningPolicy.id).find((au: User) => au.id === u.id)) as user (user.id)}
+								{#each data.users.filter((u: PolicyUser) => u.active && assigningPolicy && !getUsersWithPolicy(assigningPolicy.id).find((au: PolicyUser) => au.id === u.id)) as user (user.id)}
 									<Select.Item value={user.id}>{user.username} ({user.role})</Select.Item>
 								{/each}
 							</Select.Content>
