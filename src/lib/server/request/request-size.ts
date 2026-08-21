@@ -118,22 +118,24 @@ export async function enforceRequestSizeLimits(event: RequestEvent): Promise<Res
 		!request.headers.has('content-length')
 	) {
 		let bytesRead = 0;
-		const transformStream = new TransformStream<Uint8Array, Uint8Array>({
-			transform(chunk: Uint8Array, controller: TransformStreamDefaultController<Uint8Array>) {
-				bytesRead += chunk.byteLength;
-				if (bytesRead > sizeLimit) {
-					controller.error(
-						Object.assign(new Error('Payload Too Large'), {
-							isPayloadTooLarge: true,
-							limit: sizeLimit,
-							size: bytesRead
-						})
-					);
-					return;
+		const transformStream = Reflect.construct(TransformStream, [
+			{
+				transform(chunk: Uint8Array, controller: TransformStreamDefaultController<Uint8Array>) {
+					bytesRead += chunk.byteLength;
+					if (bytesRead > sizeLimit) {
+						controller.error(
+							Object.assign(new Error('Payload Too Large'), {
+								isPayloadTooLarge: true,
+								limit: sizeLimit,
+								size: bytesRead
+							})
+						);
+						return;
+					}
+					controller.enqueue(chunk);
 				}
-				controller.enqueue(chunk);
 			}
-		});
+		]) as TransformStream<Uint8Array, Uint8Array>;
 
 		const readable = request.body.pipeThrough(transformStream);
 

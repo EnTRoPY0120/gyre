@@ -91,7 +91,7 @@ function writeCache<T>(value: T, ttlMs = ADMIN_READINESS_CACHE_TTL_MS): TimedCac
 }
 
 function isFailureMarker(value: unknown): value is AdminReadinessFailureMarker {
-	if (typeof value !== 'object' || value === null) {
+	if (value === null || typeof value !== 'object') {
 		return false;
 	}
 
