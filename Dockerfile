@@ -11,23 +11,22 @@ RUN mkdir -p /out /tmp/kustomize && \
   go mod init kustomize-builder && \
   go get sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION} && \
   go mod edit -require=golang.org/x/text@v0.39.0 && \
-  GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+  CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
   go build -mod=mod -o /out/kustomize sigs.k8s.io/kustomize/kustomize/v5
 
 # =============================================================================
 # Stage 1: Builder - Build the SvelteKit application
 # =============================================================================
-# Use Node.js as the builder base so better-sqlite3 compiles against the same
-# Node.js ABI that the runtime uses (avoids ERR_DLOPEN_FAILED at startup).
-FROM node:26-slim AS builder
+# Use the same Alpine Node.js base for build and runtime so better-sqlite3 is
+# compiled against the runtime's ABI and C library (avoids ERR_DLOPEN_FAILED at
+# startup).
+FROM node:26-alpine3.23 AS builder
 
 WORKDIR /build
 
-# Install native module build tools (better-sqlite3 needs to compile against the
-# same Node.js ABI that the runtime uses).
-RUN apt-get update && \
-  apt-get install -y --no-install-recommends python3 make g++ && \
-  rm -rf /var/lib/apt/lists/*
+# Install native module build tools (better-sqlite3 has no prebuilt musl
+# binaries for every supported architecture).
+RUN apk add --no-cache python3 make g++
 
 RUN npm install -g pnpm@11.1.0
 
@@ -54,7 +53,7 @@ RUN pnpm deploy --filter gyre --prod /prod
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
 # =============================================================================
-FROM node:26-slim AS runtime
+FROM node:26-alpine3.23 AS runtime
 
 # Add metadata labels
 LABEL org.opencontainers.image.title="Gyre" \
@@ -62,20 +61,16 @@ LABEL org.opencontainers.image.title="Gyre" \
   org.opencontainers.image.vendor="Gyre Project" \
   org.opencontainers.image.source="https://github.com/EnTRoPY0120/gyre"
 
-# Upgrade OS packages and install CA certificates to pull in security patches
-# (e.g. zlib CVE-2026-22184).
-RUN apt-get update && \
-  apt-get upgrade -y && \
-  apt-get install -y --no-install-recommends ca-certificates && \
-  DEBIAN_FRONTEND=noninteractive apt-get purge -y --allow-remove-essential perl-base && \
-  rm -rf /var/lib/apt/lists/*
+# Upgrade OS packages and install CA certificates to pull in security patches.
+RUN apk upgrade --no-cache && \
+  apk add --no-cache ca-certificates
 
 # Copy Kustomize binary from kustomize-builder
 COPY --from=kustomize-builder /out/kustomize /usr/local/bin/kustomize
 
 # Create non-root user for security
-RUN groupadd --gid 1001 gyre && \
-  useradd --uid 1001 --gid gyre --home-dir /app --shell /usr/sbin/nologin --no-create-home gyre
+RUN addgroup -S -g 1001 gyre && \
+  adduser -S -D -H -u 1001 -h /app -s /sbin/nologin -G gyre -g gyre gyre
 
 WORKDIR /app
 
