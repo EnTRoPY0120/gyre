@@ -1,2 +1,7 @@
 # Trivy Vulnerability Ignores
 # This file lists CVEs that are intentionally ignored with justification
+
+# Debian marks this zlib issue as will_not_fix. It affects optional minizip APIs;
+# the Node runtime does not dynamically link libz, and zlib1g is essential to
+# the Debian package manager so removing it would leave the base image broken.
+CVE-2023-45853
