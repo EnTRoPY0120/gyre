@@ -197,9 +197,6 @@
       }
     },
     "src/lib/components/layout/AppSidebar.svelte": {
-      "complexity_critical": {
-        "count": 1
-      },
       "crap_moderate": {
         "count": 1
       }
@@ -210,6 +207,11 @@
       }
     },
     "src/lib/components/layout/NotificationDropdown.svelte": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/lib/components/layout/SidebarPrimaryNav.svelte": {
       "complexity_high": {
         "count": 1
       }
@@ -911,19 +913,19 @@
     "src/lib/server/validation.ts:complexity",
     "src/lib/utils/csrf.ts:high impact",
     "src/lib/utils/flux.ts:high impact",
-    "src/lib/components/wizards/ArrayField.svelte:complexity",
-    "src/lib/server/auth/sso-claims.ts:high impact",
     "src/lib/server/auth/oauth/url-security.ts:high impact",
+    "src/lib/server/auth/sso-claims.ts:high impact",
+    "src/lib/components/wizards/ArrayField.svelte:complexity",
     "src/lib/components/CommandPalette.svelte:complexity",
-    "src/lib/components/layout/AppSidebar.svelte:complexity",
-    "src/lib/utils/focus-trap.ts:untested risk",
     "src/lib/components/wizards/WizardField.svelte:complexity",
+    "src/lib/utils/focus-trap.ts:untested risk",
     "src/lib/components/flux/ResourceTable.svelte:complexity",
     "src/routes/admin/auth-providers/+page.svelte:complexity",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/resources/KustomizationDetail.svelte:complexity",
     "src/lib/components/editors/yamlValidator.ts:complexity",
     "src/lib/components/wizards/WizardFieldSections.svelte:complexity",
+    "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
     "src/lib/components/flux/VersionHistory.svelte:complexity",
     "src/lib/components/admin/ClusterHealthCheckModal.svelte:complexity",
     "src/lib/components/flux/resources/AlertDetail.svelte:complexity",
