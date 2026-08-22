@@ -2,7 +2,7 @@
 # =============================================================================
 # Stage 0: Build Kustomize from source to ensure latest Go stdlib (fixes CVEs)
 # =============================================================================
-FROM --platform=$BUILDPLATFORM golang:1.26-bookworm AS kustomize-builder
+FROM --platform=$BUILDPLATFORM golang:1.27-bookworm AS kustomize-builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG KUSTOMIZE_VERSION=v5.8.1
