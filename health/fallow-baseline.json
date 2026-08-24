@@ -360,11 +360,6 @@
         "count": 2
       }
     },
-    "src/lib/server/flux/use-cases/rollback.ts": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/lib/server/kubernetes/client-factory.ts": {
       "crap_high": {
         "count": 1
