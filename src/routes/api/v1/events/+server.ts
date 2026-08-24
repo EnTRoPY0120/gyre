@@ -34,28 +34,38 @@ export const _metadata = {
 	}
 };
 
-export const GET: RequestHandler = async ({ request, locals, getClientAddress }) => {
-	const user = requireAuthenticatedUser(locals);
+interface EventConnectionContext {
+	clusterId: string;
+	sessionId: string;
+	userId: string;
+}
 
-	const clusterId = locals.cluster ?? IN_CLUSTER_ID;
-
-	await requireClusterWideRead(locals);
-
-	// Enforce per-session and per-user concurrent connection limits.
-	// Session ID is preferred over client IP because IP addresses can be shared
-	// across many users (NAT, VPN, corporate proxies).
+function getEventConnectionContext(
+	user: { id: string | number },
+	locals: App.Locals,
+	getClientAddress: () => string
+): EventConnectionContext {
 	const rawSessionId = locals.session?.id;
 	if (!rawSessionId) {
 		logger.warn(
 			'[SSE] Authenticated user has no session ID; falling back to IP for connection limiting'
 		);
 	}
-	const sessionId = rawSessionId ?? getClientAddress();
-	const userId = String(user.id);
 
+	return {
+		clusterId: locals.cluster ?? IN_CLUSTER_ID,
+		sessionId: rawSessionId ?? getClientAddress(),
+		userId: String(user.id)
+	};
+}
+
+function acquireEventConnection(context: EventConnectionContext): {
+	clusterId: string;
+	release: () => void;
+} {
 	const connectionResult = acquireSseConnectionSlot({
-		sessionId,
-		userId,
+		sessionId: context.sessionId,
+		userId: context.userId,
 		maxPerSession: SSE_MAX_CONNECTIONS_PER_SESSION,
 		maxPerUser: SSE_MAX_CONNECTIONS_PER_USER
 	});
@@ -65,7 +75,16 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 		return error(429, { message: connectionResult.reason });
 	}
 
-	const { release } = connectionResult;
+	return { clusterId: context.clusterId, release: connectionResult.release };
+}
+
+export const GET: RequestHandler = async ({ request, locals, getClientAddress }) => {
+	const user = requireAuthenticatedUser(locals);
+
+	await requireClusterWideRead(locals);
+
+	const connectionContext = getEventConnectionContext(user, locals, getClientAddress);
+	const { clusterId, release } = acquireEventConnection(connectionContext);
 	// Shared cleanup ref so both start() and cancel() can invoke the same teardown.
 	// start() is called synchronously during ReadableStream construction, so
 	// cleanupRef is always populated before cancel() can fire.

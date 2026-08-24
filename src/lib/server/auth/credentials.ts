@@ -133,6 +133,64 @@ export async function isPasswordInHistory(
 	return false;
 }
 
+function archivePasswordHistoryInTx(
+	tx: Tx,
+	userId: string,
+	currentCredentialHash: string | null,
+	now: number
+): void {
+	if (!currentCredentialHash) {
+		return;
+	}
+
+	// Archive the old hash and prune history atomically with the password update
+	// so a crash between the two operations cannot leave the DB in a partial state.
+	tx.insert(passwordHistory)
+		.values({
+			id: generateUserId(),
+			userId,
+			passwordHash: currentCredentialHash,
+			createdAtMs: now
+		})
+		.onConflictDoNothing()
+		.run();
+
+	prunePasswordHistoryInTx(tx, userId);
+}
+
+function updateUserPasswordInTx(tx: Tx, id: string, newPasswordHash: string, now: number): void {
+	const existingUser = tx.select({ id: users.id }).from(users).where(eq(users.id, id)).get();
+
+	if (!existingUser) {
+		throw new Error('User not found');
+	}
+
+	const currentCredential = tx
+		.select({ password: accounts.password })
+		.from(accounts)
+		.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
+		.get();
+	archivePasswordHistoryInTx(tx, id, currentCredential?.password || null, now);
+
+	const updatedCredentialAccount = tx
+		.update(accounts)
+		.set({ password: newPasswordHash, updatedAt: new Date() })
+		.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
+		.run();
+
+	if (updatedCredentialAccount.changes === 0) {
+		tx.insert(accounts)
+			.values({
+				id: generateUserId(),
+				providerId: 'credential',
+				accountId: id,
+				userId: id,
+				password: newPasswordHash
+			})
+			.run();
+	}
+}
+
 export async function updateUserPassword(id: string, newPassword: string): Promise<void> {
 	const db = await getDb();
 
@@ -140,52 +198,5 @@ export async function updateUserPassword(id: string, newPassword: string): Promi
 	const newPasswordHash = await hashPassword(newPassword);
 	const now = Date.now();
 
-	await db.transaction((tx) => {
-		const existingUser = tx.select({ id: users.id }).from(users).where(eq(users.id, id)).get();
-
-		if (!existingUser) {
-			throw new Error('User not found');
-		}
-
-		const currentCredential = tx
-			.select({ password: accounts.password })
-			.from(accounts)
-			.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
-			.get();
-		const currentCredentialHash = currentCredential?.password || null;
-
-		// Archive the old hash and prune history atomically with the password update
-		// so a crash between the two operations cannot leave the DB in a partial state.
-		if (currentCredentialHash) {
-			tx.insert(passwordHistory)
-				.values({
-					id: generateUserId(),
-					userId: id,
-					passwordHash: currentCredentialHash,
-					createdAtMs: now
-				})
-				.onConflictDoNothing()
-				.run();
-
-			prunePasswordHistoryInTx(tx, id);
-		}
-
-		const updatedCredentialAccount = tx
-			.update(accounts)
-			.set({ password: newPasswordHash, updatedAt: new Date() })
-			.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
-			.run();
-
-		if (updatedCredentialAccount.changes === 0) {
-			tx.insert(accounts)
-				.values({
-					id: generateUserId(),
-					providerId: 'credential',
-					accountId: id,
-					userId: id,
-					password: newPasswordHash
-				})
-				.run();
-		}
-	});
+	await db.transaction((tx) => updateUserPasswordInTx(tx, id, newPasswordHash, now));
 }

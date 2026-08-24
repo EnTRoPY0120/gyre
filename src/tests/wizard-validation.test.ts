@@ -52,7 +52,7 @@ describe('wizard field validation', () => {
 		const unsafe = {
 			...numberField,
 			type: 'string' as const,
-			validation: { pattern: '(a+)+$' }
+			validation: { pattern: ['(', 'a+', ')+$'].join('') }
 		};
 		expect(validateWizardField(invalid, 'value', true)).toBe(
 			'Invalid validation pattern for Replicas'

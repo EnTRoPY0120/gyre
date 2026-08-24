@@ -227,6 +227,23 @@ export async function downloadArtifact(url: string, timeoutMs = 15000): Promise<
 	});
 }
 
+function getSourceControllerPodName(pods: k8s.V1PodList, namespace: string): string {
+	if (!pods.items || pods.items.length === 0) {
+		throw new Error(`No source-controller pod found in ${namespace} namespace`);
+	}
+
+	const podName = pods.items[0].metadata?.name;
+	if (!podName) {
+		throw new Error('source-controller pod has no name');
+	}
+
+	return podName;
+}
+
+function normalizeProxyResponse(response: Buffer | string): Buffer {
+	return Buffer.isBuffer(response) ? response : Buffer.from(response, 'binary');
+}
+
 async function fetchArtifactViaKubernetes(params: {
 	clusterId: string | undefined;
 	fluxNamespace: string;
@@ -239,15 +256,7 @@ async function fetchArtifactViaKubernetes(params: {
 		namespace: params.fluxNamespace,
 		labelSelector: 'app=source-controller'
 	});
-
-	if (!pods.items || pods.items.length === 0) {
-		throw new Error(`No source-controller pod found in ${params.fluxNamespace} namespace`);
-	}
-
-	const podName = pods.items[0].metadata?.name;
-	if (!podName) {
-		throw new Error('source-controller pod has no name');
-	}
+	const podName = getSourceControllerPodName(pods, params.fluxNamespace);
 
 	logger.info({ podName }, 'Using source-controller pod');
 	const proxyResponse = await coreApi.connectGetNamespacedPodProxy({
@@ -256,9 +265,7 @@ async function fetchArtifactViaKubernetes(params: {
 		path: params.trustedPathname
 	});
 
-	const buffer = Buffer.isBuffer(proxyResponse)
-		? proxyResponse
-		: Buffer.from(proxyResponse as string, 'binary');
+	const buffer = normalizeProxyResponse(proxyResponse);
 
 	logger.info({ bytes: buffer.length }, 'K8s pod proxy fetch successful');
 	return buffer;
