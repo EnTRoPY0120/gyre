@@ -7,18 +7,12 @@ import {
 	type ReqCache,
 	type ListOptions
 } from '$lib/server/kubernetes/client.js';
-import {
-	getAllResourcePlurals,
-	getResourceDef,
-	getResourceTypeByPlural
-} from '$lib/server/kubernetes/flux/resources.js';
 import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import {
 	requireAuthenticatedUser,
 	requireClusterWideRead,
 	requireScopedPermission
 } from '$lib/server/http/guards.js';
-import { validateK8sNamespace, validateFluxResourceSpec } from '$lib/server/validation';
 import { VALID_SORT_BY, VALID_SORT_ORDER } from '$lib/config/sorting';
 import {
 	computeWeakEtag,
@@ -26,17 +20,10 @@ import {
 	setPrivateCacheHeaders
 } from '$lib/server/http/transport.js';
 import { listFluxResourcesForType } from '$lib/server/flux/services.js';
-
-/** Zod schema for POST create FluxCD resource request body – used for OpenAPI and runtime validation */
-const createFluxResourceBodySchema = z.looseObject({
-	apiVersion: z.string().min(1),
-	kind: z.string().min(1),
-	metadata: z.looseObject({
-		name: z.string().min(1),
-		namespace: z.string().optional()
-	}),
-	spec: z.record(z.string(), z.unknown())
-});
+import {
+	createFluxResourceBodySchema,
+	validateCreateFluxResourceRequest
+} from './create-route-helpers';
 
 export const _metadata = {
 	GET: {
@@ -194,50 +181,12 @@ export const POST: RequestHandler = async ({ params, locals, request }) => {
 		throw error(400, { message: 'Invalid JSON in request body' });
 	}
 
-	const parsed = createFluxResourceBodySchema.safeParse(rawBody);
-	if (!parsed.success) {
-		const message = parsed.error.issues
-			.map((issue) => {
-				const pathLabel = issue.path.length > 0 ? issue.path.join('.') : 'body';
-				return `${pathLabel}: ${issue.message}`;
-			})
-			.join('; ');
-		throw error(400, { message: `Invalid request body: ${message}` });
-	}
-
-	const body = parsed.data;
-	const namespace = body.metadata.namespace ?? 'default';
-	validateK8sNamespace(namespace);
-	body.metadata.namespace = namespace;
-
-	// Resolve resource type
-	const resolvedType = getResourceTypeByPlural(resourceType);
-	if (!resolvedType) {
-		const validPlurals = getAllResourcePlurals();
-		throw error(400, {
-			message: `Invalid resource type: ${resourceType}. Valid types: ${validPlurals.join(', ')}`
-		});
-	}
+	const { body, namespace, resolvedType } = validateCreateFluxResourceRequest(
+		rawBody,
+		resourceType
+	);
 
 	await requireScopedPermission(locals, 'write', resolvedType, namespace);
-
-	if (body.kind !== resolvedType) {
-		throw error(400, {
-			message: `kind mismatch: body declares "${body.kind}" but endpoint handles "${resolvedType}"`
-		});
-	}
-
-	const resourceDef = getResourceDef(resolvedType)!;
-	if (body.apiVersion !== resourceDef.apiVersion) {
-		throw error(400, {
-			message: `apiVersion mismatch: body declares "${body.apiVersion}" but "${resolvedType}" requires "${resourceDef.apiVersion}"`
-		});
-	}
-
-	const specError = validateFluxResourceSpec(resolvedType, body.spec ?? {});
-	if (specError) {
-		throw error(422, { message: specError });
-	}
 
 	const reqCache: ReqCache = new Map();
 
