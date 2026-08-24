@@ -11,6 +11,11 @@ on:
       - develop
   workflow_dispatch:
 
+# Keep only the newest verification run for a branch or pull request.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint-typecheck:
     runs-on: ubuntu-latest

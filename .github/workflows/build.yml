@@ -19,6 +19,11 @@ on:
       - '**.md'
   workflow_dispatch:
 
+# A newer push supersedes an older image build for the same branch or PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: entropy0120/gyre
