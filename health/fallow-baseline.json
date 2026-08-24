@@ -140,8 +140,8 @@
         "count": 1
       }
     },
-    "src/lib/components/flux/VersionHistory.svelte": {
-      "complexity_critical": {
+    "src/lib/components/flux/VersionHistoryEntry.svelte": {
+      "complexity_high": {
         "count": 1
       }
     },
@@ -712,9 +712,9 @@
     "src/lib/components/flux/ResourceTable.svelte:complexity",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/resources/KustomizationDetail.svelte:complexity",
+    "src/lib/components/flux/VersionHistoryEntry.svelte:complexity",
     "src/lib/components/wizards/WizardFieldSections.svelte:complexity",
     "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
-    "src/lib/components/flux/VersionHistory.svelte:complexity",
     "src/lib/components/admin/ClusterHealthCheckModal.svelte:complexity",
     "src/lib/components/flux/resources/AlertDetail.svelte:complexity",
     "src/routes/admin/audit-logs/+page.svelte:complexity"
