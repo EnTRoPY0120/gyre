@@ -1,5 +1,13 @@
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { fetchWithRetry } from '../lib/utils/fetch.js';
+
+beforeEach(() => {
+	vi.useRealTimers();
+});
+
+afterEach(() => {
+	vi.useRealTimers();
+});
 
 function response(status: number): Response {
 	return new Response(null, { status });
