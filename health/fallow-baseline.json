@@ -170,11 +170,6 @@
         "count": 1
       }
     },
-    "src/lib/components/flux/resources/KustomizationDetail.svelte": {
-      "complexity_high": {
-        "count": 1
-      }
-    },
     "src/lib/components/flux/resources/OCIRepositoryDetail.svelte": {
       "complexity_high": {
         "count": 1
@@ -711,7 +706,6 @@
     "src/lib/components/wizards/WizardField.svelte:complexity",
     "src/lib/components/flux/ResourceTable.svelte:complexity",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
-    "src/lib/components/flux/resources/KustomizationDetail.svelte:complexity",
     "src/lib/components/flux/VersionHistoryEntry.svelte:complexity",
     "src/lib/components/wizards/WizardFieldSections.svelte:complexity",
     "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
