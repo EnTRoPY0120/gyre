@@ -268,7 +268,7 @@
       }
     },
     "src/lib/components/wizards/WizardField.svelte": {
-      "complexity_high": {
+      "complexity_moderate": {
         "count": 1
       }
     },
@@ -689,9 +689,8 @@
   "runtime_coverage_findings": [],
   "target_keys": [
     "src/lib/components/wizards/ArrayFieldObjectItem.svelte:complexity",
-    "src/lib/utils/csrf.ts:high impact",
     "src/lib/server/auth/oauth/url-security.ts:high impact",
-    "src/lib/components/wizards/WizardField.svelte:complexity",
+    "src/lib/utils/csrf.ts:high impact",
     "src/lib/server/auth/sso-claims.ts:high impact",
     "src/lib/utils/focus-trap.ts:high impact",
     "src/lib/components/CommandPalette.svelte:complexity",
