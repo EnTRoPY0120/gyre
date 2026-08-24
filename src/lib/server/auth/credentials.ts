@@ -25,17 +25,17 @@ function prunePasswordHistoryInTx(tx: Tx, userId: string): void {
 // Pre-computed dummy hash for constant-time comparisons (prevents timing-based enumeration)
 const DUMMY_HASH: Promise<string> = bcrypt.hash('__dummy_password_for_timing__', SALT_ROUNDS);
 
+function isInClusterAdminUser(user: Pick<User, 'username'>): boolean {
+	return normalizeUsername(user.username) === 'admin' && isInClusterMode();
+}
+
 export async function getCredentialPasswordHash(userId: string): Promise<string | null> {
 	const db = await getDb();
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, userId)
 	});
 
-	if (!user) {
-		return null;
-	}
-
-	if (normalizeUsername(user.username) === 'admin' && isInClusterMode()) {
+	if (!user || isInClusterAdminUser(user)) {
 		return null;
 	}
 
