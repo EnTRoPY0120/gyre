@@ -26,11 +26,6 @@
         "count": 1
       }
     },
-    "src/lib/components/admin/ClusterHealthCheckModal.svelte": {
-      "complexity_high": {
-        "count": 1
-      }
-    },
     "src/lib/components/auth/PasswordStrength.svelte": {
       "complexity_moderate": {
         "count": 1
@@ -697,7 +692,6 @@
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/VersionHistoryEntry.svelte:complexity",
     "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
-    "src/lib/components/admin/ClusterHealthCheckModal.svelte:complexity",
     "src/lib/components/flux/resources/AlertDetail.svelte:complexity",
     "src/routes/admin/audit-logs/+page.svelte:complexity"
   ]
