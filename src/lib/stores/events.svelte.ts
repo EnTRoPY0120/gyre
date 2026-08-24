@@ -31,6 +31,7 @@ import {
 	type EventControlAction,
 	type NotificationState
 } from './events/helpers.js';
+import { createEventSource } from './events/connection.js';
 
 function hashStorageUserIdentity(value: string): string {
 	let hash = 0xcbf29ce484222325n;
@@ -208,49 +209,51 @@ class RealtimeStore {
 		const sseUrl = '/api/v1/events';
 
 		try {
-			this.eventSource = new EventSource(sseUrl);
-			const es = this.eventSource;
-
-			es.onopen = () => {
-				if (this.eventSource !== es) return;
-				this.status = 'connected';
-				this.reconnectAttempts = 0;
-				this.notifyStatusChange('connected');
-				logger.info('[SSE] Connected to event stream');
-			};
-
-			es.onmessage = (event) => {
-				if (this.eventSource !== es) return;
-				try {
-					const data: ResourceEvent = JSON.parse(event.data);
-					this.handleMessage(data);
-				} catch (err) {
-					logger.error(err, '[SSE] Failed to parse message:');
-				}
-			};
-
-			es.onerror = () => {
-				if (this.eventSource !== es) return;
-				const rs = es.readyState;
-				if (rs === EventSource.CLOSED) {
-					logger.info('[SSE] Connection closed');
-					this.status = 'disconnected';
-					this.notifyStatusChange('disconnected');
-				} else {
-					logger.warn('[SSE] Connection error');
-					this.status = 'error';
-					this.notifyStatusChange('error');
-				}
-				es.close();
-				this.eventSource = null;
-				this.scheduleReconnect();
-			};
+			this.eventSource = createEventSource(sseUrl, {
+				onOpen: (source) => this.handleSseOpen(source),
+				onMessage: (source, event) => this.handleSseMessage(source, event),
+				onError: (source) => this.handleSseError(source)
+			});
 		} catch (err) {
 			logger.error(err, '[SSE] Failed to connect:');
 			this.status = 'error';
 			this.notifyStatusChange('error');
 			this.scheduleReconnect();
 		}
+	}
+
+	private handleSseOpen(source: EventSource) {
+		if (this.eventSource !== source) return;
+		this.status = 'connected';
+		this.reconnectAttempts = 0;
+		this.notifyStatusChange('connected');
+		logger.info('[SSE] Connected to event stream');
+	}
+
+	private handleSseMessage(source: EventSource, event: MessageEvent) {
+		if (this.eventSource !== source) return;
+		try {
+			const data: ResourceEvent = JSON.parse(event.data);
+			this.handleMessage(data);
+		} catch (err) {
+			logger.error(err, '[SSE] Failed to parse message:');
+		}
+	}
+
+	private handleSseError(source: EventSource) {
+		if (this.eventSource !== source) return;
+		if (source.readyState === EventSource.CLOSED) {
+			logger.info('[SSE] Connection closed');
+			this.status = 'disconnected';
+			this.notifyStatusChange('disconnected');
+		} else {
+			logger.warn('[SSE] Connection error');
+			this.status = 'error';
+			this.notifyStatusChange('error');
+		}
+		source.close();
+		this.eventSource = null;
+		this.scheduleReconnect();
 	}
 
 	disconnect() {
