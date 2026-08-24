@@ -1,117 +1,39 @@
+import { and, desc, eq, gte, isNull } from 'drizzle-orm';
 import { logger } from '../../logger.js';
-import { eq, and, desc, gte, isNull } from 'drizzle-orm';
 import { getDbSync, type NewReconciliationHistory } from '../../db/index.js';
 import { reconciliationHistory } from '../../db/schema.js';
-import type { FluxResource, K8sCondition } from './types.js';
+import { buildOutcomeEntry, buildTriggerEntry } from './reconciliation-entry.js';
+import type { CaptureReconciliationOptions } from './reconciliation-entry.js';
 import type { FluxResourceType } from './resources.js';
 
-/**
- * Extract revision from FluxCD resource status
- */
-function getResourceRevision(resource: FluxResource): string {
-	return (
-		resource.status?.lastAppliedRevision ||
-		resource.status?.artifact?.revision ||
-		resource.status?.lastAttemptedRevision ||
-		''
-	);
-}
+export type { CaptureReconciliationOptions } from './reconciliation-entry.js';
 
-/**
- * Get previous revision from resource status
- */
-function getPreviousRevision(resource: FluxResource): string | null {
-	// For sources (GitRepository, HelmRepository, etc.), check lastAttemptedRevision
-	// For deployments (Kustomization, HelmRelease), this is the previous applied revision
-	// This is best-effort - FluxCD doesn't always expose previous revision
-	return resource.status?.lastAttemptedRevision || null;
-}
+type ReconciliationDb = ReturnType<typeof getDbSync>;
 
-/**
- * Determine reconciliation status from resource conditions
- */
-function determineStatus(
-	readyCondition: K8sCondition | undefined
-): 'success' | 'failure' | 'unknown' {
-	if (!readyCondition) return 'unknown';
-	if (readyCondition.status === 'True') return 'success';
-	if (readyCondition.status === 'False') return 'failure';
-	return 'unknown';
-}
+async function isDuplicateOutcome(
+	db: ReconciliationDb,
+	options: CaptureReconciliationOptions,
+	entry: NewReconciliationHistory
+): Promise<boolean> {
+	if (!entry.revision || !options.resource) return false;
 
-/**
- * Calculate reconciliation duration from resource status
- * Returns duration in milliseconds or null if unavailable
- */
-function calculateDuration(resource: FluxResource): number | null {
-	const startTime = getReconcileStartTime(resource);
-	const endTime = getReconcileCompletedTime(resource);
-	if (!startTime) return null;
-	const durationMs = endTime.getTime() - startTime.getTime();
-	if (durationMs < 0) return null;
-	// When durationMs is 0, both timestamps came from the same Ready condition
-	// lastTransitionTime — either because there is no artifact, or because the
-	// artifact exists but has no lastUpdateTime yet (partially-populated status).
-	// In both cases the real duration is unknown, so return null.
-	if (durationMs === 0 && (!resource.status?.artifact || !resource.status.artifact.lastUpdateTime))
-		return null;
-	return durationMs;
-}
+	const readyReasonCondition = entry.readyReason
+		? eq(reconciliationHistory.readyReason, entry.readyReason)
+		: isNull(reconciliationHistory.readyReason);
 
-/**
- * Get reconciliation start time from resource status
- * Returns timestamp or null if unavailable
- */
-function getReconcileStartTime(resource: FluxResource): Date | null {
-	// Best effort: Use lastTransitionTime from Ready condition
-	const readyCondition = resource.status?.conditions?.find((c) => c.type === 'Ready');
-	if (readyCondition?.lastTransitionTime) {
-		return new Date(readyCondition.lastTransitionTime);
-	}
-	return null;
-}
+	const existing = await db.query.reconciliationHistory.findFirst({
+		where: and(
+			eq(reconciliationHistory.resourceType, options.resourceType),
+			eq(reconciliationHistory.namespace, options.namespace),
+			eq(reconciliationHistory.name, options.name),
+			eq(reconciliationHistory.clusterId, options.clusterId),
+			eq(reconciliationHistory.revision, entry.revision),
+			eq(reconciliationHistory.status, entry.status),
+			readyReasonCondition
+		)
+	});
 
-/**
- * Get reconciliation completion time from resource status
- * Returns timestamp, defaulting to current time if unavailable
- */
-function getReconcileCompletedTime(resource: FluxResource): Date {
-	// Use artifact lastUpdateTime for sources
-	if (resource.status?.artifact?.lastUpdateTime) {
-		return new Date(resource.status.artifact.lastUpdateTime);
-	}
-
-	// Use Ready condition lastTransitionTime
-	const readyCondition = resource.status?.conditions?.find((c) => c.type === 'Ready');
-	if (readyCondition?.lastTransitionTime) {
-		return new Date(readyCondition.lastTransitionTime);
-	}
-
-	// Fallback to current time
-	return new Date();
-}
-
-/**
- * Get Stalled condition reason if resource is stalled
- */
-function getStalledReason(resource: FluxResource): string | null {
-	const stalledCondition = resource.status?.conditions?.find((c) => c.type === 'Stalled');
-	if (stalledCondition?.status === 'True') {
-		return stalledCondition.reason || 'Stalled';
-	}
-	return null;
-}
-
-export interface CaptureReconciliationOptions {
-	resourceType: FluxResourceType;
-	namespace: string;
-	name: string;
-	clusterId: string;
-	/** Full resource state for outcome events. Omit for trigger-only entries
-	 *  (e.g. manual reconcile) where no outcome is available yet. */
-	resource?: FluxResource;
-	triggerType?: 'automatic' | 'manual' | 'webhook' | 'rollback';
-	triggeredByUserId?: string | null;
+	return Boolean(existing);
 }
 
 /**
@@ -123,101 +45,11 @@ export interface CaptureReconciliationOptions {
 export async function captureReconciliation(options: CaptureReconciliationOptions): Promise<void> {
 	try {
 		const db = getDbSync();
+		const entry = options.resource
+			? buildOutcomeEntry({ ...options, resource: options.resource })
+			: buildTriggerEntry(options);
 
-		let entry: NewReconciliationHistory;
-
-		if (options.resource) {
-			// Outcome entry: extract all status fields from the resource.
-			const readyCondition = options.resource.status?.conditions?.find((c) => c.type === 'Ready');
-			const revision = getResourceRevision(options.resource);
-			const previousRevision = getPreviousRevision(options.resource);
-			const status = determineStatus(readyCondition);
-			const durationMs = calculateDuration(options.resource);
-			const reconcileStartedAt = getReconcileStartTime(options.resource);
-			const reconcileCompletedAt = getReconcileCompletedTime(options.resource);
-			const stalledReason = getStalledReason(options.resource);
-			const errorMessage =
-				status === 'failure' && readyCondition?.message ? readyCondition.message : null;
-
-			// Check for duplicate entry using revision + status + readyReason.
-			// Timestamps are intentionally excluded: Kubernetes timestamps can vary by
-			// milliseconds between polls, causing the same reconciliation event to be
-			// inserted more than once. Revision + outcome is a stable dedup key.
-			if (revision) {
-				const readyReasonCondition = readyCondition?.reason
-					? eq(reconciliationHistory.readyReason, readyCondition.reason)
-					: isNull(reconciliationHistory.readyReason);
-
-				const existing = await db.query.reconciliationHistory.findFirst({
-					where: and(
-						eq(reconciliationHistory.resourceType, options.resourceType),
-						eq(reconciliationHistory.namespace, options.namespace),
-						eq(reconciliationHistory.name, options.name),
-						eq(reconciliationHistory.clusterId, options.clusterId),
-						eq(reconciliationHistory.revision, revision),
-						eq(reconciliationHistory.status, status),
-						readyReasonCondition
-					)
-				});
-
-				if (existing) {
-					// Already captured this reconciliation
-					return;
-				}
-			}
-
-			entry = {
-				id: crypto.randomUUID(),
-				resourceType: options.resourceType,
-				namespace: options.namespace,
-				name: options.name,
-				clusterId: options.clusterId,
-				revision: revision || null,
-				previousRevision: previousRevision,
-				status,
-				readyStatus: readyCondition?.status || null,
-				readyReason: readyCondition?.reason || null,
-				readyMessage: readyCondition?.message || null,
-				reconcileStartedAt: reconcileStartedAt,
-				reconcileCompletedAt: reconcileCompletedAt,
-				durationMs: durationMs,
-				specSnapshot: options.resource.spec ? JSON.stringify(options.resource.spec) : null,
-				metadataSnapshot: JSON.stringify({
-					labels: options.resource.metadata.labels || {},
-					annotations: options.resource.metadata.annotations || {}
-				}),
-				triggerType: options.triggerType || 'automatic',
-				triggeredByUser: options.triggeredByUserId || null,
-				errorMessage: errorMessage,
-				stalledReason: stalledReason
-			};
-		} else {
-			// Trigger-only entry: no resource state available yet.
-			// Stores only who triggered the reconciliation and when.
-			entry = {
-				id: crypto.randomUUID(),
-				resourceType: options.resourceType,
-				namespace: options.namespace,
-				name: options.name,
-				clusterId: options.clusterId,
-				revision: null,
-				previousRevision: null,
-				status: 'unknown',
-				readyStatus: null,
-				readyReason: null,
-				readyMessage: null,
-				reconcileStartedAt: null,
-				reconcileCompletedAt: new Date(),
-				durationMs: null,
-				specSnapshot: null,
-				metadataSnapshot: null,
-				triggerType: options.triggerType || 'manual',
-				triggeredByUser: options.triggeredByUserId || null,
-				errorMessage: null,
-				stalledReason: null
-			};
-		}
-
+		if (await isDuplicateOutcome(db, options, entry)) return;
 		await db.insert(reconciliationHistory).values(entry);
 	} catch (error) {
 		// Don't throw - history capture should never break the main flow
@@ -249,7 +81,6 @@ export async function getReconciliationHistory(
 ): Promise<(typeof reconciliationHistory.$inferSelect)[]> {
 	const db = getDbSync();
 
-	// Build where conditions
 	const conditions = [
 		eq(reconciliationHistory.resourceType, resourceType),
 		eq(reconciliationHistory.namespace, namespace),
