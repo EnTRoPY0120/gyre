@@ -13,7 +13,11 @@
 		validateWizardField
 	} from './field-validation';
 	import { createResourceFromWizard, getWizardResourceRedirect } from './resource-submit';
-	import { getWizardValueAtPath, inferVirtualFieldValue } from './wizard-values';
+	import {
+		buildWizardFormValues,
+		getWizardValueAtPath,
+		inferVirtualFieldValue
+	} from './wizard-values';
 
 	let {
 		template,
@@ -81,26 +85,7 @@
 			const parsed = parse(template.yaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
-			const values: Record<string, unknown> = {};
-
-			template.fields.forEach((field) => {
-				values[field.name] = coerceFieldValue(field, getWizardValueAtPath(parsed, field.path));
-
-				// Apply default namespace
-				if (field.name === 'namespace' && defaultNamespace) {
-					values[field.name] = defaultNamespace;
-				}
-
-				if (field.virtual) {
-					const manifestValue = inferVirtualFieldValue(field, template.fields, parsed);
-					if (manifestValue !== undefined) {
-						values[field.name] = manifestValue;
-					} else if (values[field.name] === undefined && field.default !== undefined) {
-						values[field.name] = field.default;
-					}
-				}
-			});
-			formValues = values;
+			formValues = buildWizardFormValues(template, parsed, defaultNamespace);
 			hasInitializedFormValues = true;
 		} catch (err) {
 			logger.error(err, 'Failed to parse initial YAML');

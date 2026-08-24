@@ -1,4 +1,5 @@
-import type { TemplateField } from '$lib/templates';
+import type { ResourceTemplate, TemplateField } from '$lib/templates';
+import { coerceWizardFieldValue } from './field-validation';
 
 export function getWizardValueAtPath(source: Record<string, unknown>, path: string): unknown {
 	let current: unknown = source;
@@ -16,6 +17,45 @@ function hasPopulatedValue(value: unknown): boolean {
 		value !== '' &&
 		(!Array.isArray(value) || value.length > 0)
 	);
+}
+
+function getInitialFieldValue(
+	field: TemplateField,
+	fields: TemplateField[],
+	source: Record<string, unknown>,
+	defaultNamespace?: string
+): unknown {
+	let value = coerceWizardFieldValue(field, getWizardValueAtPath(source, field.path));
+
+	if (field.name === 'namespace' && defaultNamespace) {
+		value = defaultNamespace;
+	}
+
+	if (!field.virtual) {
+		return value;
+	}
+
+	const manifestValue = inferVirtualFieldValue(field, fields, source);
+	if (manifestValue !== undefined) {
+		return manifestValue;
+	}
+
+	return value === undefined ? field.default : value;
+}
+
+/** Build the wizard's initial form state from the template manifest. */
+export function buildWizardFormValues(
+	template: ResourceTemplate,
+	source: Record<string, unknown>,
+	defaultNamespace?: string
+): Record<string, unknown> {
+	const values: Record<string, unknown> = {};
+
+	for (const field of template.fields) {
+		values[field.name] = getInitialFieldValue(field, template.fields, source, defaultNamespace);
+	}
+
+	return values;
 }
 
 /** Infer a virtual selector from the first populated field that controls it. */
