@@ -456,14 +456,6 @@
         "count": 1
       }
     },
-    "src/lib/server/kubernetes/flux/listing-helpers.ts": {
-      "complexity_moderate": {
-        "count": 1
-      },
-      "crap_moderate": {
-        "count": 1
-      }
-    },
     "src/lib/server/kubernetes/flux/logs.ts": {
       "crap_critical": {
         "count": 1

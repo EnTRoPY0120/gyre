@@ -1,4 +1,5 @@
 import type { FluxResource } from './types.js';
+import { getResourceStatus } from './resource-status.js';
 
 export interface ListOptions {
 	limit?: number;
@@ -14,45 +15,6 @@ const STATUS_ORDER: Record<string, number> = {
 	unknown: 3,
 	healthy: 4
 };
-
-function getResourceStatus(resource: FluxResource): string {
-	if (resource.spec?.suspend) return 'suspended';
-	const conditions = resource.status?.conditions;
-	if (!conditions || conditions.length === 0) return 'unknown';
-
-	const stalled = conditions.find(
-		(condition) => condition.type === 'Stalled' || condition.type === 'Failed'
-	);
-	if (stalled?.status === 'True') return 'failed';
-
-	const generation = resource.metadata.generation;
-	const observedGeneration = resource.status?.observedGeneration;
-	if (
-		generation !== undefined &&
-		observedGeneration !== undefined &&
-		observedGeneration < generation
-	) {
-		return 'progressing';
-	}
-
-	for (const type of ['Ready', 'Healthy', 'Succeeded', 'Available']) {
-		const condition = conditions.find((candidate) => candidate.type === type);
-		if (!condition) continue;
-		if (condition.status === 'True') return 'healthy';
-		if (
-			condition.status === 'False' &&
-			(condition.reason === 'Progressing' ||
-				condition.reason === 'ProgressingWithRetry' ||
-				condition.reason === 'DependencyNotReady' ||
-				condition.reason === 'ReconciliationInProgress')
-		) {
-			return 'progressing';
-		}
-		if (condition.status === 'False') return 'failed';
-	}
-
-	return 'unknown';
-}
 
 function sortResources(
 	items: FluxResource[],
