@@ -351,10 +351,10 @@
     },
     "src/lib/stores/events.svelte.ts": {
       "crap_high": {
-        "count": 2
+        "count": 1
       },
       "crap_moderate": {
-        "count": 3
+        "count": 4
       }
     },
     "src/lib/stores/preferences.svelte.ts": {

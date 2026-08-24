@@ -27,6 +27,7 @@ import {
 	getEventControlAction,
 	buildNotification,
 	prepareNotification,
+	type NotificationCandidate,
 	parseStoredNotificationState,
 	type EventControlAction,
 	type NotificationState
@@ -379,6 +380,11 @@ class RealtimeStore {
 		}
 
 		this.lastNotificationState.set(candidate.resourceKey, candidate.currentState);
+		this.logNotificationStateChange(event, candidate);
+		this.storeNotification(event, candidate);
+	}
+
+	private logNotificationStateChange(event: ResourceEvent, candidate: NotificationCandidate) {
 		if (candidate.previousState) {
 			logger.debug(
 				`[Notification] State change for ${candidate.resourceKey}: revision "${candidate.previousState.revision || 'none'}" -> "${candidate.currentState.revision || 'none'}", ready: ${candidate.currentState.readyStatus}`
@@ -388,7 +394,9 @@ class RealtimeStore {
 				`[Notification] New notification for ${candidate.resourceKey}: ${event.type}, revision: ${candidate.currentState.revision || 'none'}`
 			);
 		}
+	}
 
+	private storeNotification(event: ResourceEvent, candidate: NotificationCandidate) {
 		const notification = buildNotification(event, candidate.clusterId, candidate.type);
 		this.notifications = [notification, ...this.notifications.slice(0, MAX_NOTIFICATIONS - 1)];
 		this.saveToStorage();
