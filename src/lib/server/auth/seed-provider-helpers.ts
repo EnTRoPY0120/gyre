@@ -47,26 +47,29 @@ export function parseProviderSeedJson(providersJson: string): unknown[] {
 	}
 }
 
-function normalizeRoleMapping(config: ProviderSeedConfig): string | null {
-	if (config.roleMapping == null) return null;
+export function normalizeRoleMapping(
+	providerName: string,
+	roleMapping: string | Record<string, string[]> | null | undefined
+): string | null {
+	if (roleMapping == null) return null;
 
-	let parsed: unknown = config.roleMapping;
-	if (typeof config.roleMapping === 'string') {
+	let parsed: unknown = roleMapping;
+	if (typeof roleMapping === 'string') {
 		try {
-			parsed = JSON.parse(config.roleMapping);
+			parsed = JSON.parse(roleMapping);
 		} catch {
-			throw new Error(`Provider "${config.name}" has invalid roleMapping: not valid JSON`);
+			throw new Error(`Provider "${providerName}" has invalid roleMapping: not valid JSON`);
 		}
 	}
 	if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-		throw new Error(`Provider "${config.name}" has invalid roleMapping: must be a JSON object`);
+		throw new Error(`Provider "${providerName}" has invalid roleMapping: must be a JSON object`);
 	}
 
 	const validated: Record<string, string[]> = {};
 	for (const [key, value] of Object.entries(parsed)) {
 		if (!Array.isArray(value) || !value.every((item) => typeof item === 'string')) {
 			throw new Error(
-				`Provider "${config.name}" has invalid roleMapping: values must be string[] for key "${key}"`
+				`Provider "${providerName}" has invalid roleMapping: values must be string[] for key "${key}"`
 			);
 		}
 		validated[key] = value;
@@ -127,7 +130,7 @@ export function prepareSeedProvider(
 		jwksUrl: validatedConfig.jwksUrl || null,
 		autoProvision: validatedConfig.autoProvision ?? true,
 		defaultRole: validatedConfig.defaultRole || 'viewer',
-		roleMapping: normalizeRoleMapping(validatedConfig),
+		roleMapping: normalizeRoleMapping(validatedConfig.name, validatedConfig.roleMapping),
 		roleClaim: validatedConfig.roleClaim || 'groups',
 		usernameClaim: validatedConfig.usernameClaim || 'preferred_username',
 		emailClaim: validatedConfig.emailClaim || 'email',
