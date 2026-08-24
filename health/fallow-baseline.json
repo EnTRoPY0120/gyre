@@ -522,9 +522,6 @@
       }
     },
     "src/routes/admin/clusters/+page.svelte": {
-      "complexity_moderate": {
-        "count": 1
-      },
       "crap_moderate": {
         "count": 1
       }
