@@ -29,7 +29,8 @@
 	import ErrorDisplay from '$lib/components/ui/ErrorDisplay.svelte';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import { loadResourceDiff } from './diff-request';
-import { matchesResourceEvent } from './resource-event-match';
+import { loadResourceLogs, requestResourceRollback } from './resource-requests';
+	import { matchesResourceEvent } from './resource-event-match';
 
 	interface Props {
 		data: {
@@ -220,24 +221,21 @@ import { matchesResourceEvent } from './resource-event-match';
 		const signal = getNewAbortSignal();
 		logsLoading = true;
 		logsError = null;
-		try {
-			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`), { signal });
-			if (!res.ok) {
-				const isJson = res.headers.get('content-type')?.includes('application/json');
-				const errMsg = isJson
-					? await res.json().then((d: { message?: string }) => d.message).catch(() => null)
-					: await res.text().catch(() => null);
-				throw new Error(errMsg || `Failed to fetch logs: ${res.statusText}`);
-			}
-			const result = await res.json();
-			logs = result.logs || '';
-			logsFetched = true;
-		} catch (err) {
-			if ((err as Error).name === 'AbortError') return;
-			logsError = err instanceof Error ? err.message : 'Failed to load logs';
-		} finally {
+		const result = await loadResourceLogs(
+			resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`),
+			signal
+		);
+		if ('aborted' in result) {
 			logsLoading = false;
+			return;
 		}
+		if ('error' in result) {
+			logsError = result.error.message;
+		} else {
+			logs = result.response.logs;
+			logsFetched = true;
+		}
+		logsLoading = false;
 	}
 
 	async function fetchHistory() {
@@ -291,18 +289,11 @@ import { matchesResourceEvent } from './resource-event-match';
 		const { historyId, revision } = myPending;
 		const displayRevision = revision ? revision.slice(0, 8) : historyId.slice(0, 8);
 		try {
-			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`), {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-				body: JSON.stringify({ historyId, revision })
-			});
-			if (!res.ok) {
-				const isJson = res.headers.get('content-type')?.includes('application/json');
-				const errMsg = isJson
-					? await res.json().then((d: { message?: string }) => d.message).catch(() => null)
-					: await res.text().catch(() => null);
-				throw new Error(errMsg || 'Rollback failed');
-			}
+			await requestResourceRollback(
+				resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`),
+				{ historyId, revision },
+				getCsrfToken()
+			);
 			toast.success(`Successfully initiated rollback to ${displayRevision}`);
 			historyFetched = false;
 			await fetchHistory();
