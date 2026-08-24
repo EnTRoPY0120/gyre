@@ -128,11 +128,13 @@
       }
     },
     "src/lib/components/flux/ResourceTable.svelte": {
-      "complexity_high": {
-        "count": 1
-      },
       "crap_moderate": {
         "count": 2
+      }
+    },
+    "src/lib/components/flux/ResourceTableBody.svelte": {
+      "complexity_moderate": {
+        "count": 1
       }
     },
     "src/lib/components/flux/StatusBadge.svelte": {
@@ -701,7 +703,6 @@
     "src/lib/utils/focus-trap.ts:high impact",
     "src/lib/components/CommandPalette.svelte:complexity",
     "src/lib/components/wizards/WizardField.svelte:complexity",
-    "src/lib/components/flux/ResourceTable.svelte:complexity",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/VersionHistoryEntry.svelte:complexity",
     "src/lib/components/wizards/WizardFieldSections.svelte:complexity",
