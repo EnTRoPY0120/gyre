@@ -1,6 +1,15 @@
 import * as yaml from 'js-yaml';
 import type { K8sResource } from '$lib/types/kubernetes';
 
+interface UpdateResourceOptions {
+	resourceType: string;
+	namespace: string;
+	name: string;
+	yamlContent: string;
+	csrfToken: string;
+	fetcher?: typeof fetch;
+}
+
 /** Validate the editable resource contract before sending it to the API. */
 export function validateResourceYaml(
 	yamlContent: string,
@@ -46,4 +55,30 @@ export async function getResourceUpdateError(response: Response): Promise<string
 	}
 
 	return body;
+}
+
+/** Persist an edited Flux resource through the resource update endpoint. */
+export async function updateResource({
+	resourceType,
+	namespace,
+	name,
+	yamlContent,
+	csrfToken,
+	fetcher = fetch
+}: UpdateResourceOptions): Promise<void> {
+	const response = await fetcher(
+		`/api/v1/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+		{
+			method: 'PUT',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-CSRF-Token': csrfToken
+			},
+			body: JSON.stringify({ yaml: yamlContent })
+		}
+	);
+
+	if (!response.ok) {
+		throw new Error(await getResourceUpdateError(response));
+	}
 }

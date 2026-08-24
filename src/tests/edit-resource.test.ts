@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
 	getResourceUpdateError,
+	updateResource,
 	validateResourceYaml
 } from '../lib/components/flux/edit-resource.js';
 
@@ -59,5 +60,52 @@ describe('getResourceUpdateError', () => {
 		expect(
 			await getResourceUpdateError(new Response('', { status: 500, statusText: 'Server Error' }))
 		).toBe('Failed to update resource: Server Error');
+	});
+});
+
+describe('updateResource', () => {
+	test('sends an encoded PUT request with the resource YAML and CSRF token', async () => {
+		const fetcher = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
+
+		await updateResource({
+			resourceType: 'git repositories',
+			namespace: 'flux system',
+			name: 'source/app',
+			yamlContent: validYaml,
+			csrfToken: 'csrf-token',
+			fetcher
+		});
+
+		expect(fetcher).toHaveBeenCalledWith(
+			'/api/v1/flux/git%20repositories/flux%20system/source%2Fapp',
+			expect.objectContaining({
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-CSRF-Token': 'csrf-token'
+				},
+				body: JSON.stringify({ yaml: validYaml })
+			})
+		);
+	});
+
+	test('throws the endpoint error for an unsuccessful response', async () => {
+		const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
+			new Response(JSON.stringify({ error: 'Update rejected' }), {
+				status: 422,
+				statusText: 'Unprocessable Entity'
+			})
+		);
+
+		await expect(
+			updateResource({
+				resourceType: 'gitrepositories',
+				namespace: 'flux-system',
+				name: 'source',
+				yamlContent: validYaml,
+				csrfToken: 'csrf-token',
+				fetcher
+			})
+		).rejects.toThrow('Update rejected');
 	});
 });

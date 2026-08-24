@@ -2,7 +2,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import type * as Monaco from 'monaco-editor';
 	import { getCsrfToken } from '$lib/utils/csrf';
-	import { getResourceUpdateError, validateResourceYaml } from './edit-resource';
+	import { updateResource, validateResourceYaml } from './edit-resource';
 	import EditResourceModalEditor from './EditResourceModalEditor.svelte';
 	import EditResourceModalError from './EditResourceModalError.svelte';
 	import EditResourceModalFooter from './EditResourceModalFooter.svelte';
@@ -73,22 +73,13 @@
 
 		saving = true;
 		try {
-			const response = await fetch(
-				`/api/v1/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
-				{
-					method: 'PUT',
-					headers: {
-						'Content-Type': 'application/json',
-						'X-CSRF-Token': getCsrfToken()
-					},
-					body: JSON.stringify({ yaml: yamlContent })
-				}
-			);
-
-			if (!response.ok) {
-				throw new Error(await getResourceUpdateError(response));
-			}
-
+			await updateResource({
+				resourceType,
+				namespace,
+				name,
+				yamlContent,
+				csrfToken: getCsrfToken()
+			});
 			await invalidateAll();
 			onSuccess?.();
 			open = false;
