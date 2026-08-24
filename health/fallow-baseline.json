@@ -530,14 +530,6 @@
         "count": 1
       }
     },
-    "src/lib/server/validation.ts": {
-      "complexity_critical": {
-        "count": 1
-      },
-      "crap_critical": {
-        "count": 1
-      }
-    },
     "src/lib/stores/cluster.svelte.ts": {
       "crap_high": {
         "count": 1
@@ -894,7 +886,6 @@
   },
   "runtime_coverage_findings": [],
   "target_keys": [
-    "src/lib/server/validation.ts:complexity",
     "src/lib/utils/csrf.ts:high impact",
     "src/lib/utils/flux.ts:high impact",
     "src/lib/server/auth/oauth/url-security.ts:high impact",
