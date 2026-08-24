@@ -2,6 +2,7 @@ import { browser } from '$app/environment';
 import type { UserPreferences } from '$lib/types/user';
 import type { ViewPreferences } from '$lib/types/view';
 import { safeGetItem, safeSetItem, safeRemoveItem } from '$lib/utils/storage';
+import { shouldShowNotification } from './notification-preferences';
 
 type CodeFormat = 'yaml' | 'json';
 
@@ -170,32 +171,7 @@ function createPreferencesStore() {
 			};
 		},
 		shouldShowNotification(resourceType: string, namespace: string, type: string): boolean {
-			if (!_notifications.enabled) return false;
-
-			if (
-				_notifications.resourceTypes &&
-				_notifications.resourceTypes.length > 0 &&
-				!_notifications.resourceTypes.includes(resourceType)
-			) {
-				return false;
-			}
-
-			if (
-				_notifications.namespaces &&
-				_notifications.namespaces.length > 0 &&
-				!_notifications.namespaces.includes(namespace)
-			) {
-				return false;
-			}
-
-			if (_notifications.events && !_notifications.events.includes(type as any)) {
-				if (type === 'error' && _notifications.events.includes('failure')) {
-					return true;
-				}
-				return false;
-			}
-
-			return true;
+			return shouldShowNotification(_notifications, resourceType, namespace, type);
 		}
 	};
 }
