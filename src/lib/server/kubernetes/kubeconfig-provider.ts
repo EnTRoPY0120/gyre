@@ -12,6 +12,76 @@ let baseConfig: k8s.KubeConfig | null = null;
 // Request cache scope: per-request only, success-only, naturally discarded at request end.
 export type ReqCache = Map<string, Promise<k8s.KubeConfig>>;
 
+function cloneKubeConfig(config: k8s.KubeConfig): k8s.KubeConfig {
+	const clone = new k8s.KubeConfig();
+	clone.loadFromString(config.exportConfig());
+	return clone;
+}
+
+function loadInClusterKubeConfig(): k8s.KubeConfig {
+	if (!baseConfig) {
+		baseConfig = loadKubeConfig();
+	}
+
+	return cloneKubeConfig(baseConfig);
+}
+
+function loadLocalContextKubeConfig(contextName: string): k8s.KubeConfig {
+	const localConfig = loadLocalKubeConfig();
+	if (!localConfig) {
+		throw new Error(`Local kubeconfig context "${contextName}" is not available`);
+	}
+
+	localConfig.setCurrentContext(contextName);
+	const config = cloneKubeConfig(localConfig);
+	config.setCurrentContext(contextName);
+	logger.debug(`✓ Loaded local Kubernetes configuration for context: ${contextName}`);
+	return config;
+}
+
+async function loadStoredClusterKubeConfig(clusterId: string): Promise<k8s.KubeConfig> {
+	const kubeconfigYaml = await getClusterKubeconfig(clusterId);
+	if (!kubeconfigYaml) {
+		throw new Error(`Cluster with ID "${clusterId}" not found or has no valid configuration`);
+	}
+
+	const config = new k8s.KubeConfig();
+	config.loadFromString(kubeconfigYaml);
+	logger.debug(`✓ Loaded Kubernetes configuration from database for cluster: ${clusterId}`);
+	return config;
+}
+
+async function loadConfigForCluster(clusterId: string): Promise<k8s.KubeConfig> {
+	if (clusterId === IN_CLUSTER_ID) {
+		return loadInClusterKubeConfig();
+	}
+
+	if (hasLocalKubeconfigContext(clusterId)) {
+		return loadLocalContextKubeConfig(clusterId);
+	}
+
+	return loadStoredClusterKubeConfig(clusterId);
+}
+
+function cacheConfigLoad(
+	key: string,
+	reqCache: ReqCache,
+	load: () => Promise<k8s.KubeConfig>
+): Promise<k8s.KubeConfig> {
+	const cachedPromise = load()
+		.then((config) => {
+			reqCache.set(key, Promise.resolve(config));
+			return config;
+		})
+		.catch((error) => {
+			reqCache.delete(key);
+			throw error;
+		});
+
+	reqCache.set(key, cachedPromise);
+	return cachedPromise;
+}
+
 /**
  * Get or create KubeConfig for a specific canonical cluster ID.
  * Only caches successful configs; failed promises are not cached to allow retries.
@@ -24,67 +94,18 @@ export async function getKubeConfig(
 	const key = normalizeClusterId(clusterId);
 
 	// Check cache for successful configs only
-	if (reqCache && reqCache.has(key)) {
-		const cachedPromise = reqCache.get(key)!;
+	const cachedPromise = reqCache?.get(key);
+	if (cachedPromise) {
 		// Verify the cached promise hasn't rejected
 		// Note: We return the promise as-is; if it rejected, caller will handle the rejection
 		return cachedPromise;
 	}
 
-	const loadConfig = async () => {
-		let config: k8s.KubeConfig;
-
-		if (key === IN_CLUSTER_ID) {
-			if (!baseConfig) {
-				baseConfig = loadKubeConfig();
-			}
-			config = new k8s.KubeConfig();
-			config.loadFromString(baseConfig.exportConfig());
-		} else if (hasLocalKubeconfigContext(key)) {
-			const localConfig = loadLocalKubeConfig();
-			if (!localConfig) {
-				throw new Error(`Local kubeconfig context "${key}" is not available`);
-			}
-			localConfig.setCurrentContext(key);
-			config = new k8s.KubeConfig();
-			config.loadFromString(localConfig.exportConfig());
-			config.setCurrentContext(key);
-			logger.debug(`✓ Loaded local Kubernetes configuration for context: ${key}`);
-		} else {
-			const kubeconfigYaml = await getClusterKubeconfig(key);
-			if (!kubeconfigYaml) {
-				throw new Error(`Cluster with ID "${key}" not found or has no valid configuration`);
-			}
-			config = new k8s.KubeConfig();
-			config.loadFromString(kubeconfigYaml);
-			logger.debug(`✓ Loaded Kubernetes configuration from database for cluster: ${key}`);
-		}
-
-		return config;
-	};
-
-	// Wrap promise handling to implement success-only caching with concurrent deduplication
 	if (reqCache) {
-		// Create the promise
-		const cachedPromise = loadConfig()
-			.then((config) => {
-				// On success, cache the resolved promise for future calls
-				reqCache.set(key, Promise.resolve(config));
-				return config;
-			})
-			.catch((error) => {
-				// On failure, ensure no stale cache entry exists, allowing retries
-				reqCache.delete(key);
-				throw error;
-			});
-
-		// Store the in-flight promise immediately so concurrent callers reuse it
-		reqCache.set(key, cachedPromise);
-
-		return cachedPromise;
+		return cacheConfigLoad(key, reqCache, () => loadConfigForCluster(key));
 	}
 
-	return loadConfig();
+	return loadConfigForCluster(key);
 }
 
 export function clearBaseKubeConfig(): void {
