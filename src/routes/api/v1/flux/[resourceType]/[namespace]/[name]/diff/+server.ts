@@ -1,15 +1,11 @@
-import { logger } from '$lib/server/logger.js';
-import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { z, errorSchema } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
-import { requireAuthenticatedUser, requireScopedPermission } from '$lib/server/http/guards.js';
-import { classifyDiffError } from '$lib/server/kubernetes/flux/diff-errors';
-import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 import {
 	getDiffCacheControl,
 	runFluxResourceDiff
 } from '$lib/server/flux/use-cases/resource-diff.js';
+import { authorizeDiffRoute, handleDiffRouteError, validateDiffRoute } from './route-helpers.js';
 
 export const _metadata = {
 	GET: {
@@ -87,62 +83,26 @@ export const _metadata = {
 };
 
 export const GET: RequestHandler = async ({ params, locals, url }) => {
-	const { resourceType: pluralType, namespace, name } = params;
-	const clusterId = locals.cluster;
-
-	validateK8sNamespace(namespace);
-	validateK8sName(name);
-	const forceRefresh = url.searchParams.get('force') === 'true';
-
-	// Check if running in-cluster (required for drift detection)
-	const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
-	if (!isInCluster) {
-		throw error(503, {
-			message:
-				'Drift detection is only available when Gyre is deployed in a Kubernetes cluster. ' +
-				'This feature requires in-cluster access to the source-controller and is not supported in local development mode.',
-			code: 'ServiceUnavailable'
-		});
-	}
-
-	const resourceType = getResourceTypeByPlural(pluralType);
-
-	// Only kustomizations support diffing for now
-	if (resourceType !== 'Kustomization') {
-		throw error(400, {
-			message: 'Diffing is only supported for Kustomizations',
-			code: 'BadRequest'
-		});
-	}
-
-	requireAuthenticatedUser(locals);
-	await requireScopedPermission(locals, 'read', 'Kustomization', namespace);
-
-	// Allow overriding the Flux system namespace via environment variable.
-	// Defaults to flux-system but can be changed for non-standard installations.
-	const fluxNamespace = process.env.FLUX_NAMESPACE || 'flux-system';
+	const context = validateDiffRoute({
+		...params,
+		clusterId: locals.cluster,
+		forceRefresh: url.searchParams.get('force') === 'true'
+	});
+	await authorizeDiffRoute(locals, context.namespace);
 
 	try {
 		const result = await runFluxResourceDiff({
-			clusterId,
-			fluxNamespace,
-			name,
-			namespace,
-			resourceType
+			clusterId: context.clusterId,
+			fluxNamespace: context.fluxNamespace,
+			name: context.name,
+			namespace: context.namespace,
+			resourceType: context.resourceType
 		});
 
 		return json(result, {
-			headers: { 'Cache-Control': getDiffCacheControl(forceRefresh) }
+			headers: { 'Cache-Control': getDiffCacheControl(context.forceRefresh) }
 		});
 	} catch (err) {
-		if (isHttpError(err) || isRedirect(err)) {
-			throw err;
-		}
-
-		logger.error(err, 'Diff error:');
-		const { status, message: clientMessage } = classifyDiffError(err);
-		const code =
-			status === 503 ? 'ServiceUnavailable' : status === 400 ? 'BadRequest' : 'InternalServerError';
-		throw error(status, { message: clientMessage, code });
+		handleDiffRouteError(err);
 	}
 };

@@ -662,11 +662,6 @@
         "count": 1
       }
     },
-    "src/routes/api/v1/flux/[resourceType]/[namespace]/[name]/diff/+server.ts": {
-      "crap_high": {
-        "count": 1
-      }
-    },
     "src/routes/api/v1/flux/[resourceType]/[namespace]/[name]/rollback/+server.ts": {
       "crap_moderate": {
         "count": 1
