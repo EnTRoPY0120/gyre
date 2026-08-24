@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	getLoginDestination,
+	getLoginErrorState,
 	getProviderColor,
 	getProviderIcon,
 	LoginRequestError,
@@ -61,5 +62,16 @@ describe('login flow helpers', () => {
 		expect(getProviderIcon('unknown')).toBe('key');
 		expect(getProviderColor('oauth2-gitlab')).toBe('provider-gitlab');
 		expect(getProviderColor('unknown')).toBe('provider-oidc');
+	});
+
+	test('converts login failures into form and toast state', () => {
+		expect(getLoginErrorState(new LoginRequestError('Invalid password', 401))).toEqual({
+			password: 'Invalid password',
+			message: 'Invalid password'
+		});
+		expect(getLoginErrorState(new LoginRequestError('Service unavailable', 503))).toEqual({
+			message: 'Service unavailable'
+		});
+		expect(getLoginErrorState('unknown failure')).toEqual({ message: 'Login failed' });
 	});
 });

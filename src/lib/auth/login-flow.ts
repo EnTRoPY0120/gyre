@@ -23,6 +23,18 @@ export class LoginRequestError extends Error {
 	}
 }
 
+export function getLoginErrorState(error: unknown): {
+	password?: string;
+	message: string;
+} {
+	const password =
+		error instanceof LoginRequestError && error.status === 401 ? error.message : undefined;
+	return {
+		...(password ? { password } : {}),
+		message: error instanceof Error ? error.message : 'Login failed'
+	};
+}
+
 export function validateLoginCredentials(username: string, password: string) {
 	const validation = loginSchema.safeParse({ username, password });
 	if (validation.success) return { errors: {}, firstMessage: null };

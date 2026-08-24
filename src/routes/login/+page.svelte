@@ -3,7 +3,7 @@
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import LoginPanel from '$lib/components/auth/LoginPanel.svelte';
-	import { getLoginDestination, LoginRequestError, submitLogin, validateLoginCredentials } from '$lib/auth/login-flow';
+	import { getLoginDestination, getLoginErrorState, submitLogin, validateLoginCredentials } from '$lib/auth/login-flow';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -68,10 +68,11 @@
 				);
 			}
 		} catch (err) {
-			if (err instanceof LoginRequestError && err.status === 401) {
-				errors.password = err.message;
+			const loginError = getLoginErrorState(err);
+			if (loginError.password) {
+				errors.password = loginError.password;
 			}
-			toast.error(err instanceof Error ? err.message : 'Login failed');
+			toast.error(loginError.message);
 			loading = false;
 		}
 	}
