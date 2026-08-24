@@ -115,10 +115,7 @@
         "count": 1
       }
     },
-    "src/lib/components/flux/EventsList.svelte": {
-      "complexity_high": {
-        "count": 1
-      },
+    "src/lib/components/flux/EventCard.svelte": {
       "crap_moderate": {
         "count": 1
       }
