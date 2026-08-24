@@ -96,6 +96,23 @@
 		}
 	}
 
+	async function requestBackupRestore(file: File): Promise<{ message: string }> {
+		const formData = new FormData();
+		formData.append('file', file);
+		const response = await fetch('/api/v1/admin/backups/restore', {
+			method: 'POST',
+			headers: { 'X-CSRF-Token': getCsrfToken() },
+			body: formData
+		});
+
+		if (!response.ok) {
+			const err = await response.json();
+			throw new Error(err.message || 'Failed to restore backup');
+		}
+
+		return response.json();
+	}
+
 	function handleRestoreClick() {
 		restoreInput?.click();
 	}
@@ -113,20 +130,7 @@
 
 		restoring = true;
 		try {
-			const formData = new FormData();
-			formData.append('file', restoreFile);
-			const response = await fetch('/api/v1/admin/backups/restore', {
-				method: 'POST',
-				headers: { 'X-CSRF-Token': getCsrfToken() },
-				body: formData
-			});
-
-			if (!response.ok) {
-				const err = await response.json();
-				throw new Error(err.message || 'Failed to restore backup');
-			}
-
-			const result = await response.json();
+			const result = await requestBackupRestore(restoreFile);
 			toast.success(result.message);
 			showRestoreConfirm = false;
 			restoreFile = null;
