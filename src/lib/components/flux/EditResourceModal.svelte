@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
-	import { X, Save, AlertTriangle } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button';
-	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
-import type * as Monaco from 'monaco-editor';
-import { getCsrfToken } from '$lib/utils/csrf';
-import { getResourceUpdateError, validateResourceYaml } from './edit-resource';
+	import type * as Monaco from 'monaco-editor';
+	import { getCsrfToken } from '$lib/utils/csrf';
+	import { getResourceUpdateError, validateResourceYaml } from './edit-resource';
+	import EditResourceModalEditor from './EditResourceModalEditor.svelte';
+	import EditResourceModalError from './EditResourceModalError.svelte';
+	import EditResourceModalFooter from './EditResourceModalFooter.svelte';
+	import EditResourceModalHeader from './EditResourceModalHeader.svelte';
 
 	interface Props {
 		open: boolean;
@@ -27,7 +28,6 @@ import { getResourceUpdateError, validateResourceYaml } from './edit-resource';
 		onSuccess
 	}: Props = $props();
 
-	// State
 	let yamlContent = $state('');
 	let saving = $state(false);
 	let error = $state<string | null>(null);
@@ -35,67 +35,60 @@ import { getResourceUpdateError, validateResourceYaml } from './edit-resource';
 	let modalEl = $state<HTMLDivElement | null>(null);
 	let previousActiveElement: HTMLElement | null = null;
 
-	// Reset state when modal opens or initialYaml changes
 	$effect(() => {
 		if (open) {
 			yamlContent = initialYaml;
 			error = null;
 			validationErrors = [];
 
-			// Store previous active element to restore focus later
 			if (typeof document !== 'undefined') {
 				previousActiveElement = document.activeElement as HTMLElement;
-				// Focus the modal for accessibility
 				setTimeout(() => modalEl?.focus(), 50);
 			}
 		} else if (previousActiveElement) {
-			// Restore focus when closing
 			previousActiveElement.focus();
 			previousActiveElement = null;
 		}
 	});
 
-	// Handle validation from Monaco
 	function handleValidation(errors: Monaco.editor.IMarker[]) {
-		validationErrors = errors.filter((e) => e.severity === 8); // Only errors, not warnings
+		validationErrors = errors.filter((e) => e.severity === 8);
 	}
 
-	// Save resource
 	async function handleSave() {
 		if (saving) return;
 
 		error = null;
 
-		// Validate YAML syntax
 		const validationError = validateResourceYaml(yamlContent, name, namespace);
 		if (validationError) {
 			error = validationError;
 			return;
 		}
 
-		// Check Monaco validation errors
 		if (validationErrors.length > 0) {
 			error = 'Please fix YAML syntax errors before saving';
 			return;
 		}
 
-		// Save to API
 		saving = true;
 		try {
-			const response = await fetch(`/api/v1/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`, {
-				method: 'PUT',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-CSRF-Token': getCsrfToken()
-				},
-				body: JSON.stringify({ yaml: yamlContent })
-			});
+			const response = await fetch(
+				`/api/v1/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+				{
+					method: 'PUT',
+					headers: {
+						'Content-Type': 'application/json',
+						'X-CSRF-Token': getCsrfToken()
+					},
+					body: JSON.stringify({ yaml: yamlContent })
+				}
+			);
 
 			if (!response.ok) {
 				throw new Error(await getResourceUpdateError(response));
 			}
 
-			// Success - invalidate cache and close modal
 			await invalidateAll();
 			onSuccess?.();
 			open = false;
@@ -107,7 +100,6 @@ import { getResourceUpdateError, validateResourceYaml } from './edit-resource';
 		}
 	}
 
-	// Handle keyboard shortcuts
 	function handleKeydown(e: KeyboardEvent) {
 		if (e.key === 'Escape' && !saving) {
 			e.preventDefault();
@@ -120,7 +112,6 @@ import { getResourceUpdateError, validateResourceYaml } from './edit-resource';
 		}
 	}
 
-	// Close modal
 	function handleClose() {
 		if (saving) return;
 		open = false;
@@ -141,104 +132,27 @@ import { getResourceUpdateError, validateResourceYaml } from './edit-resource';
 		<div
 			class="relative flex h-full w-full flex-col border border-zinc-700 bg-zinc-800 shadow-xl md:max-h-[90vh] md:max-w-4xl md:rounded-lg"
 		>
-			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-zinc-700 p-4 md:p-6">
-				<div>
-					<h2 id="edit-resource-title" class="text-xl font-semibold text-zinc-100">
-						Edit Resource
-					</h2>
-					<p class="mt-1 text-sm text-zinc-400">
-						{resourceType}/{namespace}/{name}
-					</p>
-				</div>
-				<button
-					onclick={handleClose}
-					disabled={saving}
-					class="text-zinc-400 transition-colors hover:text-zinc-100 disabled:opacity-50"
-					aria-label="Close modal"
-				>
-					<X size={24} />
-				</button>
-			</div>
-
-			<!-- Editor Area -->
-			<div class="flex-1 overflow-hidden p-4 md:p-6">
-				<div class="h-full overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
-					<MonacoEditor
-						bind:value={yamlContent}
-						language="yaml"
-						readonly={saving}
-						height="100%"
-						lineNumbers="on"
-						minimap={true}
-						onValidation={handleValidation}
-					/>
-				</div>
-			</div>
-
-			<!-- Error Display -->
+			<EditResourceModalHeader
+				{resourceType}
+				{namespace}
+				{name}
+				{saving}
+				onClose={handleClose}
+			/>
+			<EditResourceModalEditor
+				bind:value={yamlContent}
+				readonly={saving}
+				onValidation={handleValidation}
+			/>
 			{#if error}
-				<div class="px-6 pb-4">
-					<div
-						class="animate-in fade-in slide-in-from-top-1 flex flex-col gap-2 rounded-lg border border-red-500/20 bg-red-500/5 p-3 text-xs duration-200"
-					>
-						<div class="flex items-center gap-2 font-semibold text-red-400">
-							<AlertTriangle size={14} />
-							<span>Validation Error</span>
-						</div>
-						<pre
-							class="overflow-x-auto font-mono leading-relaxed whitespace-pre-wrap text-red-300/90">{error}</pre>
-					</div>
-				</div>
+				<EditResourceModalError {error} />
 			{/if}
-
-			<!-- Footer -->
-			<div
-				class="flex items-center justify-between border-t border-zinc-700 bg-zinc-900/50 p-4 md:p-6"
-			>
-				<div class="text-xs text-zinc-500">
-					{#if validationErrors.length > 0}
-						<span class="text-red-400"
-							>{validationErrors.length} error{validationErrors.length !== 1 ? 's' : ''} found</span
-						>
-					{:else}
-						Press <kbd class="rounded border border-zinc-700 bg-zinc-800 px-1.5 py-0.5">Ctrl+S</kbd> to
-						save
-					{/if}
-				</div>
-				<div class="flex gap-3">
-					<Button
-						variant="outline"
-						onclick={handleClose}
-						disabled={saving}
-						class="border-zinc-600 hover:bg-zinc-700"
-					>
-						Cancel
-					</Button>
-					<Button
-						onclick={handleSave}
-						disabled={saving || validationErrors.length > 0}
-						class="bg-gradient-to-r from-amber-500 to-orange-600 text-white hover:from-amber-600 hover:to-orange-700"
-					>
-						{#if saving}
-							<div
-								class="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"
-							></div>
-							Saving...
-						{:else}
-							<Save size={16} class="mr-2" />
-							Save Changes
-						{/if}
-					</Button>
-				</div>
-			</div>
+			<EditResourceModalFooter
+				validationErrorCount={validationErrors.length}
+				{saving}
+				onClose={handleClose}
+				onSave={handleSave}
+			/>
 		</div>
 	</div>
 {/if}
-
-<style>
-	kbd {
-		font-family: ui-monospace, monospace;
-		font-size: 0.75rem;
-	}
-</style>
