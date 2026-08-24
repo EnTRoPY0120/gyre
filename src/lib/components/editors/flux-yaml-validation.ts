@@ -164,13 +164,13 @@ function validateEnumField(
 
 function validateSpecField(
 	item: Pair,
+	key: string,
 	kind: string,
 	fieldPath: string,
 	content: string,
 	markers: Monaco.editor.IMarkerData[],
 	errorSeverity: number
 ): void {
-	const key = String(item.key.value);
 	validateBooleanField(item, key, content, markers, errorSeverity);
 	validateDurationField(item, key, content, markers, errorSeverity);
 	validateEnumField(item, key, kind, fieldPath, content, markers, errorSeverity);
@@ -194,7 +194,7 @@ function validateSpecMap(
 		presentKeys.add(key);
 
 		const fieldPath = parentPath ? `${parentPath}.${key}` : key;
-		validateSpecField(item, kind, fieldPath, content, markers, errorSeverity);
+		validateSpecField(item, key, kind, fieldPath, content, markers, errorSeverity);
 
 		if (isMap(item.value)) {
 			validateSpecMap(
