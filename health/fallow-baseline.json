@@ -444,7 +444,7 @@
     },
     "src/lib/stores/events.svelte.ts": {
       "crap_high": {
-        "count": 3
+        "count": 2
       },
       "crap_moderate": {
         "count": 3

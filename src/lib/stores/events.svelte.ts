@@ -310,19 +310,28 @@ class RealtimeStore {
 		if (!controlAction) return false;
 
 		if (controlAction.type === 'shutdown') {
-			logger.info(
-				`[SSE] Received SHUTDOWN event from server (reason: ${event.reason || 'unknown'}), disconnecting and ${
-					controlAction.permanent ? 'preventing' : 'allowing'
-				} reconnects.`
-			);
-			this.isServerShutdown = controlAction.permanent;
-			this.disconnect();
-			if (!controlAction.permanent) this.scheduleReconnect();
+			this.handleShutdownEvent(event, controlAction.permanent);
 			return true;
 		}
 
 		if (controlAction.type === 'heartbeat') return true;
 
+		this.handleConnectedEvent(controlAction);
+		return true;
+	}
+
+	private handleShutdownEvent(event: ResourceEvent, permanent: boolean) {
+		logger.info(
+			`[SSE] Received SHUTDOWN event from server (reason: ${event.reason || 'unknown'}), disconnecting and ${
+				permanent ? 'preventing' : 'allowing'
+			} reconnects.`
+		);
+		this.isServerShutdown = permanent;
+		this.disconnect();
+		if (!permanent) this.scheduleReconnect();
+	}
+
+	private handleConnectedEvent(controlAction: Extract<EventControlAction, { type: 'connected' }>) {
 		if (controlAction.sessionChanged) {
 			logger.info('[SSE] Server session changed, clearing local notification state');
 			this.lastNotificationState.clear();
@@ -331,7 +340,6 @@ class RealtimeStore {
 			this.lastServerSessionId = controlAction.sessionId;
 			this.saveToStorage();
 		}
-		return true;
 	}
 
 	private handleMessage(data: ResourceEvent) {
