@@ -137,37 +137,48 @@ export function gracefulShutdown(): void {
 	}
 }
 
-async function getOrCreate<T>(
+function getPooledClient<T extends object>(
+	pool: Map<string, PoolEntry<T>>,
+	key: string,
+	now: number
+): T | undefined {
+	const entry = pool.get(key);
+	if (!entry) return undefined;
+
+	if (now - entry.createdAt >= POOL_TTL_MS) {
+		// TTL expired — evict stale entry
+		pool.delete(key);
+		poolMetricsState.evictions++;
+		return undefined;
+	}
+
+	// Connection is valid
+	entry.lastAccess = now;
+	poolMetricsState.hits++;
+	return entry.client;
+}
+
+function ensurePoolCapacity<T extends object>(pool: Map<string, PoolEntry<T>>): void {
+	if (pool.size < MAX_POOL_SIZE) return;
+
+	// Pool full — prefer evicting expired entries first to avoid discarding
+	// still-valid connections; fall back to LRU only if none are expired.
+	pruneExpiredEntries();
+	if (pool.size >= MAX_POOL_SIZE) {
+		evictLRU(pool);
+	}
+}
+
+async function getOrCreate<T extends object>(
 	pool: Map<string, PoolEntry<T>>,
 	key: string,
 	factory: () => Promise<T>
 ): Promise<T> {
 	const now = Date.now();
-	const entry = pool.get(key);
+	const pooledClient = getPooledClient(pool, key, now);
+	if (pooledClient) return pooledClient;
 
-	if (entry) {
-		const isExpired = now - entry.createdAt >= POOL_TTL_MS;
-
-		if (isExpired) {
-			// TTL expired — evict stale entry
-			pool.delete(key);
-			poolMetricsState.evictions++;
-		} else {
-			// Connection is valid
-			entry.lastAccess = now;
-			poolMetricsState.hits++;
-			return entry.client;
-		}
-	}
-
-	if (pool.size >= MAX_POOL_SIZE) {
-		// Pool full — prefer evicting expired entries first to avoid discarding
-		// still-valid connections; fall back to LRU only if none are expired.
-		pruneExpiredEntries();
-		if (pool.size >= MAX_POOL_SIZE) {
-			evictLRU(pool);
-		}
-	}
+	ensurePoolCapacity(pool);
 
 	poolMetricsState.misses++;
 	const client = await factory();
