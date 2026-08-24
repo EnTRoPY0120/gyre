@@ -185,11 +185,6 @@
         "count": 1
       }
     },
-    "src/lib/components/layout/AppHeader.svelte": {
-      "crap_critical": {
-        "count": 1
-      }
-    },
     "src/lib/components/layout/AppSidebar.svelte": {
       "crap_moderate": {
         "count": 1
