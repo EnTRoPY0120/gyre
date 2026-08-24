@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { Loader2, Pause, Pencil, Play, RefreshCw, Trash2 } from '@lucide/svelte';
 	import type { ActionFeedbackTone, ResourceAction } from './action-feedback';
-
-	type Action = 'edit' | 'reconcile' | 'suspend' | 'resume' | 'delete';
+	import ResourceActionPermission from './ResourceActionPermission.svelte';
 
 	let {
 		canWrite,
@@ -27,8 +25,20 @@
 	} = $props();
 </script>
 
-{#snippet actionButton(action: Action)}
-	{#if action === 'edit'}
+<div class="flex items-center gap-2">
+	{#if feedback}
+		<span
+			role="alert"
+			aria-live="assertive"
+			class="animate-in fade-in slide-in-from-right-2 text-sm {feedback.tone === 'warning'
+				? 'text-amber-600'
+				: 'text-red-600'}"
+		>
+			{feedback.message}
+		</span>
+	{/if}
+
+	<ResourceActionPermission {canWrite} action="edit">
 		<Button
 			variant="outline"
 			size="sm"
@@ -40,7 +50,9 @@
 			<Pencil class="h-4 w-4 md:mr-2" />
 			<span class="hidden md:inline">Edit</span>
 		</Button>
-	{:else if action === 'reconcile'}
+	</ResourceActionPermission>
+
+	<ResourceActionPermission {canWrite} action="reconcile">
 		<Button
 			variant="outline"
 			size="sm"
@@ -56,35 +68,43 @@
 			{/if}
 			<span class="hidden md:inline">Reconcile</span>
 		</Button>
-	{:else if action === 'resume'}
-		<Button
-			variant="default"
-			size="sm"
-			disabled={isLoading || !canWrite}
-			onclick={() => onAction('resume')}
-			class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 {!canWrite
-				? 'pointer-events-none'
-				: ''}"
-			aria-label="Resume"
-		>
-			<Play class="h-4 w-4 md:mr-2" />
-			<span class="hidden md:inline">Resume</span>
-		</Button>
-	{:else if action === 'suspend'}
-		<Button
-			variant="ghost"
-			size="sm"
-			disabled={isLoading || !canWrite}
-			onclick={onSuspend}
-			class="text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-950/30 {!canWrite
-				? 'pointer-events-none'
-				: ''}"
-			aria-label="Suspend"
-		>
-			<Pause class="h-4 w-4 md:mr-2" />
-			<span class="hidden md:inline">Suspend</span>
-		</Button>
-	{:else if action === 'delete'}
+	</ResourceActionPermission>
+
+	{#if isSuspended}
+		<ResourceActionPermission {canWrite} action="resume">
+			<Button
+				variant="default"
+				size="sm"
+				disabled={isLoading || !canWrite}
+				onclick={() => onAction('resume')}
+				class="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 {!canWrite
+					? 'pointer-events-none'
+					: ''}"
+				aria-label="Resume"
+			>
+				<Play class="h-4 w-4 md:mr-2" />
+				<span class="hidden md:inline">Resume</span>
+			</Button>
+		</ResourceActionPermission>
+	{:else}
+		<ResourceActionPermission {canWrite} action="suspend">
+			<Button
+				variant="ghost"
+				size="sm"
+				disabled={isLoading || !canWrite}
+				onclick={onSuspend}
+				class="text-amber-600 hover:bg-amber-50 hover:text-amber-700 dark:text-amber-500 dark:hover:bg-amber-950/30 {!canWrite
+					? 'pointer-events-none'
+					: ''}"
+				aria-label="Suspend"
+			>
+				<Pause class="h-4 w-4 md:mr-2" />
+				<span class="hidden md:inline">Suspend</span>
+			</Button>
+		</ResourceActionPermission>
+	{/if}
+
+	<ResourceActionPermission {canWrite} action="delete">
 		<Button
 			variant="ghost"
 			size="sm"
@@ -98,49 +118,5 @@
 			<Trash2 class="h-4 w-4 md:mr-2" />
 			<span class="hidden md:inline">Delete</span>
 		</Button>
-	{/if}
-{/snippet}
-
-{#snippet withPermissionTooltip(action: Action)}
-	{#if !canWrite}
-		<Tooltip.Provider delayDuration={200}>
-			<Tooltip.Root>
-				<Tooltip.Trigger>
-					{#snippet child({ props })}
-						<span {...props}>
-							{@render actionButton(action)}
-						</span>
-					{/snippet}
-				</Tooltip.Trigger>
-				<Tooltip.Content side="top">
-					<p class="text-xs">You need additional permissions to {action} resources.</p>
-				</Tooltip.Content>
-			</Tooltip.Root>
-		</Tooltip.Provider>
-	{:else}
-		{@render actionButton(action)}
-	{/if}
-{/snippet}
-
-<div class="flex items-center gap-2">
-	{#if feedback}
-		<span
-			role="alert"
-			aria-live="assertive"
-			class="animate-in fade-in slide-in-from-right-2 text-sm {feedback.tone === 'warning'
-				? 'text-amber-600'
-				: 'text-red-600'}"
-		>
-			{feedback.message}
-		</span>
-	{/if}
-
-	{@render withPermissionTooltip('edit')}
-	{@render withPermissionTooltip('reconcile')}
-	{#if isSuspended}
-		{@render withPermissionTooltip('resume')}
-	{:else}
-		{@render withPermissionTooltip('suspend')}
-	{/if}
-	{@render withPermissionTooltip('delete')}
+	</ResourceActionPermission>
 </div>
