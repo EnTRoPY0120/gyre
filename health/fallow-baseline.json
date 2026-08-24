@@ -6,11 +6,13 @@
       }
     },
     "src/lib/components/CommandPalette.svelte": {
-      "complexity_critical": {
-        "count": 1
-      },
       "crap_moderate": {
         "count": 4
+      }
+    },
+    "src/lib/components/CommandPaletteResultItem.svelte": {
+      "complexity_moderate": {
+        "count": 1
       }
     },
     "src/lib/components/admin/AuditLogTableRow.svelte": {
@@ -690,7 +692,6 @@
     "src/lib/utils/csrf.ts:high impact",
     "src/lib/server/auth/sso-claims.ts:high impact",
     "src/lib/utils/focus-trap.ts:high impact",
-    "src/lib/components/CommandPalette.svelte:complexity",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/VersionHistoryEntry.svelte:complexity",
     "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
