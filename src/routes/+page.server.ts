@@ -1,5 +1,4 @@
 import type { PageServerLoad } from './$types';
-import { isHttpError } from '@sveltejs/kit';
 import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { resourceGroups } from '$lib/config/resources';
 import { getAdminReadinessSummary } from '$lib/server/admin-readiness.js';
@@ -11,8 +10,7 @@ import {
 } from '$lib/server/dashboard-cache';
 import { getFluxOverviewSummary } from '$lib/server/flux/services.js';
 import { requireClusterWideRead } from '$lib/server/http/guards.js';
-import { AuthorizationError } from '$lib/server/kubernetes/errors.js';
-import { RbacError } from '$lib/server/rbac.js';
+import { isPermissionErrorLike } from '$lib/server/http/permission-errors.js';
 import type { AdminReadinessSummary } from '$lib/types/admin-readiness';
 
 type GroupCounts = Record<
@@ -28,44 +26,6 @@ type OverviewResult = {
 	failed: number;
 	suspended: number;
 };
-
-function parseHttpStatus(value: unknown): number | null {
-	if (typeof value === 'number') {
-		return value;
-	}
-	if (typeof value === 'string' && /^\d+$/.test(value)) {
-		return Number(value);
-	}
-	return null;
-}
-
-function isPermissionErrorLike(error: unknown): boolean {
-	if (isHttpError(error)) {
-		return error.status === 401 || error.status === 403;
-	}
-	if (error instanceof RbacError || error instanceof AuthorizationError) {
-		return true;
-	}
-
-	if (typeof error !== 'object' || error === null) {
-		return false;
-	}
-
-	const candidate = error as { code?: unknown; name?: unknown; status?: unknown };
-	const statusCode = parseHttpStatus(candidate.status) ?? parseHttpStatus(candidate.code);
-	if (statusCode === 401 || statusCode === 403) {
-		return true;
-	}
-
-	if (typeof candidate.code === 'string') {
-		const normalizedCode = candidate.code.toLowerCase();
-		if (normalizedCode === 'forbidden' || normalizedCode === 'unauthorized') {
-			return true;
-		}
-	}
-
-	return candidate.name === 'AuthorizationError' || candidate.name === 'RbacError';
-}
 
 export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 	// Get health data from parent layout
