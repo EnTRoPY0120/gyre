@@ -19,6 +19,7 @@ import {
 	respondNotModified,
 	setPrivateCacheHeaders
 } from '$lib/server/http/transport.js';
+import { executePrivilegedDelete } from './delete-route-helpers.js';
 import { getFluxResourceDetail } from '$lib/server/flux/services.js';
 import {
 	parseFluxResourceUpdateBody,
@@ -219,55 +220,33 @@ export const DELETE: RequestHandler = async ({ params, locals, getClientAddress 
 
 	const resolvedType: FluxResourceType = resolveFluxRouteResourceType(resourceType);
 
-	try {
-		await requireScopedPermission(locals, 'admin', resolvedType, namespace);
-	} catch (err) {
-		const isPermissionError =
-			err !== null &&
-			typeof err === 'object' &&
-			'status' in err &&
-			(err as { status: unknown }).status === 403;
+	await executePrivilegedDelete({
+		requirePermission: () => requireScopedPermission(locals, 'admin', resolvedType, namespace),
+		deleteResource: () => deleteResource(resolvedType, namespace, name, clusterId),
+		logFailure: (error) =>
+			logPrivilegedMutationFailure({
+				action: 'admin:delete',
+				user,
+				resourceType: resolvedType,
+				name,
+				namespace,
+				clusterId,
+				ipAddress: getClientAddress(),
+				error
+			}),
+		logSuccess: () =>
+			logPrivilegedMutationSuccess({
+				action: 'admin:delete',
+				user,
+				resourceType: resolvedType,
+				name,
+				namespace,
+				clusterId,
+				ipAddress: getClientAddress()
+			}),
+		mapError: (error) =>
+			handleApiError(error, `Error deleting ${resolvedType} ${namespace}/${name}`)
+	});
 
-		await logPrivilegedMutationFailure({
-			action: 'admin:delete',
-			user,
-			resourceType: resolvedType,
-			name,
-			namespace,
-			clusterId,
-			ipAddress: getClientAddress(),
-			error: isPermissionError ? 'Permission denied' : err
-		});
-
-		throw err;
-	}
-
-	try {
-		await deleteResource(resolvedType, namespace, name, clusterId);
-
-		await logPrivilegedMutationSuccess({
-			action: 'admin:delete',
-			user,
-			resourceType: resolvedType,
-			name,
-			namespace,
-			clusterId,
-			ipAddress: getClientAddress()
-		});
-
-		return new Response(null, { status: 204 });
-	} catch (err) {
-		await logPrivilegedMutationFailure({
-			action: 'admin:delete',
-			user,
-			resourceType: resolvedType,
-			name,
-			namespace,
-			clusterId,
-			ipAddress: getClientAddress(),
-			error: err
-		});
-
-		throw handleApiError(err, `Error deleting ${resolvedType} ${namespace}/${name}`);
-	}
+	return new Response(null, { status: 204 });
 };
