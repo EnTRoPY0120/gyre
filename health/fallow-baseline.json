@@ -144,8 +144,8 @@
         "count": 1
       }
     },
-    "src/lib/components/flux/VersionHistoryEntry.svelte": {
-      "complexity_high": {
+    "src/lib/components/flux/VersionHistoryEntryPreview.svelte": {
+      "complexity_moderate": {
         "count": 1
       }
     },
@@ -650,7 +650,6 @@
     "src/lib/server/auth/oauth/url-security.ts:high impact",
     "src/lib/utils/csrf.ts:high impact",
     "src/lib/server/auth/sso-claims.ts:high impact",
-    "src/lib/utils/focus-trap.ts:high impact",
-    "src/lib/components/flux/VersionHistoryEntry.svelte:complexity"
+    "src/lib/utils/focus-trap.ts:high impact"
   ]
 }
