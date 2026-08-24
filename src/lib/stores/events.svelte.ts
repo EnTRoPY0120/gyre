@@ -184,16 +184,24 @@ class RealtimeStore {
 		}
 	}
 
-	connect() {
-		if (this.isServerShutdown) {
-			// In development, the server may have restarted (HMR) while client is alive.
-			// Allow reconnecting in dev mode.
-			if (import.meta.env.DEV) {
-				this.isServerShutdown = false;
-			} else {
-				return;
-			}
+	private canReconnectAfterServerShutdown(): boolean {
+		if (!this.isServerShutdown) return true;
+		if (import.meta.env.DEV) {
+			this.isServerShutdown = false;
+			return true;
 		}
+		return false;
+	}
+
+	private handleConnectionFailure(error: unknown) {
+		logger.error(error, '[SSE] Failed to connect:');
+		this.status = 'error';
+		this.notifyStatusChange('error');
+		this.scheduleReconnect();
+	}
+
+	connect() {
+		if (!this.canReconnectAfterServerShutdown()) return;
 
 		if (this.eventSource?.readyState === EventSource.OPEN) {
 			return;
@@ -216,10 +224,7 @@ class RealtimeStore {
 				onError: (source) => this.handleSseError(source)
 			});
 		} catch (err) {
-			logger.error(err, '[SSE] Failed to connect:');
-			this.status = 'error';
-			this.notifyStatusChange('error');
-			this.scheduleReconnect();
+			this.handleConnectionFailure(err);
 		}
 	}
 
@@ -280,15 +285,7 @@ class RealtimeStore {
 	}
 
 	private scheduleReconnect() {
-		if (this.isServerShutdown) {
-			// In development, the server may have restarted (HMR) while the client is alive.
-			// Allow reconnecting in dev mode; in production, respect the shutdown signal.
-			if (import.meta.env.DEV) {
-				this.isServerShutdown = false;
-			} else {
-				return;
-			}
-		}
+		if (!this.canReconnectAfterServerShutdown()) return;
 
 		if (this.reconnectAttempts >= this.maxReconnectAttempts) {
 			logger.warn('[SSE] Max reconnect attempts reached, giving up');
