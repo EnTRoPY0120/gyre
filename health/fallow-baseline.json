@@ -203,10 +203,10 @@
     },
     "src/lib/components/wizards/ResourceWizard.svelte": {
       "crap_high": {
-        "count": 3
+        "count": 2
       },
       "crap_moderate": {
-        "count": 4
+        "count": 5
       }
     },
     "src/lib/components/wizards/reference-keyboard.ts": {

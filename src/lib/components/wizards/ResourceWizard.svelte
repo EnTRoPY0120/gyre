@@ -125,44 +125,52 @@
 	function updateYamlFromForm() {
 		try {
 			const doc = parseDocument(currentYaml || template.yaml);
-
-			template.fields.forEach((field) => {
-				if (field.virtual) return;
-
-				if (!shouldShowField(field)) {
-					const visibleFieldWithSamePath = template.fields.some(
-						(candidate) =>
-							candidate !== field &&
-							!candidate.virtual &&
-							candidate.path === field.path &&
-							shouldShowField(candidate)
-					);
-					if (!visibleFieldWithSamePath) {
-						doc.deleteIn(field.path.split('.'));
-					}
-					return;
-				}
-
-				const value = coerceFieldValue(field, formValues[field.name]);
-				const path = field.path.split('.');
-
-				if (field.name === 'verifyMode' && value === '') {
-					doc.deleteIn(path.slice(0, -1));
-					return;
-				}
-
-				if (field.type === 'number' && value === undefined) {
-					doc.deleteIn(path);
-					return;
-				}
-
-				doc.setIn(path, value);
-			});
+			template.fields.forEach((field) => applyFieldToYaml(doc, field));
 
 			currentYaml = doc.toString();
 		} catch (err) {
 			logger.error(err, 'Failed to update YAML from form');
 		}
+	}
+
+	function applyFieldToYaml(doc: ReturnType<typeof parseDocument>, field: TemplateField) {
+		if (field.virtual || removeHiddenField(doc, field)) return;
+
+		const value = coerceFieldValue(field, formValues[field.name]);
+		if (removeEmptyFieldValue(doc, field, value)) return;
+
+		doc.setIn(field.path.split('.'), value);
+	}
+
+	function removeHiddenField(doc: ReturnType<typeof parseDocument>, field: TemplateField): boolean {
+		if (shouldShowField(field)) return false;
+
+		const visibleFieldWithSamePath = template.fields.some(
+			(candidate) =>
+				candidate !== field &&
+				!candidate.virtual &&
+				candidate.path === field.path &&
+				shouldShowField(candidate)
+		);
+		if (!visibleFieldWithSamePath) doc.deleteIn(field.path.split('.'));
+		return true;
+	}
+
+	function removeEmptyFieldValue(
+		doc: ReturnType<typeof parseDocument>,
+		field: TemplateField,
+		value: unknown
+	): boolean {
+		const path = field.path.split('.');
+		if (field.name === 'verifyMode' && value === '') {
+			doc.deleteIn(path.slice(0, -1));
+			return true;
+		}
+		if (field.type === 'number' && value === undefined) {
+			doc.deleteIn(path);
+			return true;
+		}
+		return false;
 	}
 
 	// Synchronize form values when YAML changes (YAML -> Wizard)
