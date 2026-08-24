@@ -585,11 +585,6 @@
         "count": 1
       }
     },
-    "src/routes/resources/[type]/+page.svelte": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/routes/resources/[type]/[namespace]/[name]/+page.svelte": {
       "crap_high": {
         "count": 3
