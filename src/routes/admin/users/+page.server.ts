@@ -23,6 +23,47 @@ import {
 	validateUserCreateInput,
 	validateUserUpdateInput
 } from './action-validation';
+import type { User } from '$lib/server/db/schema';
+
+interface UserCreateInput {
+	username: string;
+	email: string;
+	role: 'admin' | 'editor' | 'viewer';
+	password: string;
+}
+
+function readUserCreateInput(formData: FormData): UserCreateInput {
+	return {
+		username: formData.get('username') as string,
+		email: formData.get('email') as string,
+		role: formData.get('role') as UserCreateInput['role'],
+		password: formData.get('password') as string
+	};
+}
+
+async function createUserAndLog(user: User, input: UserCreateInput) {
+	try {
+		const newUser = await createUser(
+			input.username,
+			input.password,
+			input.role,
+			input.email || undefined
+		);
+
+		await logUserManagement(user, 'create', newUser.id, newUser.username, {
+			role: input.role,
+			email: input.email
+		});
+
+		return { success: true, user: newUser };
+	} catch (error) {
+		logger.error(error, 'Error creating user:');
+		if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+			return fail(400, { error: 'Failed to create user' });
+		}
+		return fail(500, { error: 'Failed to create user' });
+	}
+}
 
 /**
  * Load function for user management page
@@ -81,28 +122,17 @@ export const actions: Actions = {
 		const user = requireAdminFormUser(locals);
 		if ('status' in user) return user;
 
-		const formData = await request.formData();
-		const username = formData.get('username') as string;
-		const email = formData.get('email') as string;
-		const role = formData.get('role') as 'admin' | 'editor' | 'viewer';
-		const password = formData.get('password') as string;
+		const input = readUserCreateInput(await request.formData());
 
-		const validationError = validateUserCreateInput(username, email, password, role);
+		const validationError = validateUserCreateInput(
+			input.username,
+			input.email,
+			input.password,
+			input.role
+		);
 		if (validationError) return fail(400, { error: validationError });
 
-		try {
-			const newUser = await createUser(username, password, role, email || undefined);
-
-			await logUserManagement(user, 'create', newUser.id, newUser.username, { role, email });
-
-			return { success: true, user: newUser };
-		} catch (error) {
-			logger.error(error, 'Error creating user:');
-			if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
-				return fail(400, { error: 'Failed to create user' });
-			}
-			return fail(500, { error: 'Failed to create user' });
-		}
+		return createUserAndLog(user, input);
 	},
 
 	/**

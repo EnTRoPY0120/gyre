@@ -22,6 +22,9 @@
 	const formattedCode = $derived(preferences.format === 'yaml' ? toYaml(data) : toJson(data));
 	const language = $derived(preferences.format as 'yaml' | 'json');
 
+	type CodeFormat = 'yaml' | 'json';
+	const FORMAT_SHORTCUTS: Record<string, CodeFormat> = { j: 'json', y: 'yaml' };
+
 	async function handleCopy() {
 		const success = await copyToClipboard(formattedCode);
 		if (success) {
@@ -43,14 +46,17 @@
 		);
 	}
 
-	function handleKeydown(e: KeyboardEvent) {
-		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'j') {
-			e.preventDefault();
-			preferences.setFormat('json');
-		} else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-			e.preventDefault();
-			preferences.setFormat('yaml');
-		}
+	function getFormatShortcut(event: KeyboardEvent): CodeFormat | null {
+		if (!event.ctrlKey && !event.metaKey) return null;
+		return FORMAT_SHORTCUTS[event.key.toLowerCase()] ?? null;
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		const format = getFormatShortcut(event);
+		if (!format) return;
+
+		event.preventDefault();
+		preferences.setFormat(format);
 	}
 </script>
 

@@ -19,6 +19,52 @@ import {
 	requireAdminFormUser,
 	serializePagination
 } from '../server-helpers';
+import type { User } from '$lib/server/db/schema';
+
+interface PolicyCreateFormInput {
+	name: string;
+	description: string;
+	role: 'admin' | 'editor' | 'viewer';
+	action: RbacAction;
+	resourceType: string;
+	namespacePattern: string;
+}
+
+function readPolicyCreateInput(formData: FormData): PolicyCreateFormInput {
+	return {
+		name: formData.get('name') as string,
+		description: formData.get('description') as string,
+		role: formData.get('role') as PolicyCreateFormInput['role'],
+		action: formData.get('action') as RbacAction,
+		resourceType: formData.get('resourceType') as string,
+		namespacePattern: formData.get('namespacePattern') as string
+	};
+}
+
+async function createPolicyAndLog(user: User, input: PolicyCreateFormInput) {
+	try {
+		const policyId = await createPolicy({
+			name: input.name,
+			description: input.description || undefined,
+			role: input.role,
+			action: input.action,
+			resourceType: input.resourceType || undefined,
+			namespacePattern: input.namespacePattern || undefined
+		});
+
+		await logRbacChange(user, 'create', input.name, undefined, {
+			role: input.role,
+			action: input.action,
+			resourceType: input.resourceType,
+			namespacePattern: input.namespacePattern
+		});
+
+		return { success: true, policyId };
+	} catch (error) {
+		logger.error(error, 'Error creating policy:');
+		return fail(500, { error: 'Failed to create policy' });
+	}
+}
 
 /**
  * Load function for RBAC policy management page
@@ -70,44 +116,17 @@ export const actions: Actions = {
 		const user = requireAdminFormUser(locals);
 		if ('status' in user) return user;
 
-		const formData = await request.formData();
-		const name = formData.get('name') as string;
-		const description = formData.get('description') as string;
-		const role = formData.get('role') as 'admin' | 'editor' | 'viewer';
-		const action = formData.get('action') as RbacAction;
-		const resourceType = formData.get('resourceType') as string;
-		const namespacePattern = formData.get('namespacePattern') as string;
+		const input = readPolicyCreateInput(await request.formData());
 
 		const validationError = validatePolicyCreateInput({
-			name,
-			role,
-			action,
-			namespacePattern
+			name: input.name,
+			role: input.role,
+			action: input.action,
+			namespacePattern: input.namespacePattern
 		});
 		if (validationError) return fail(400, { error: validationError });
 
-		try {
-			const policyId = await createPolicy({
-				name,
-				description: description || undefined,
-				role,
-				action,
-				resourceType: resourceType || undefined,
-				namespacePattern: namespacePattern || undefined
-			});
-
-			await logRbacChange(user, 'create', name, undefined, {
-				role,
-				action,
-				resourceType,
-				namespacePattern
-			});
-
-			return { success: true, policyId };
-		} catch (error) {
-			logger.error(error, 'Error creating policy:');
-			return fail(500, { error: 'Failed to create policy' });
-		}
+		return createPolicyAndLog(user, input);
 	},
 
 	/**

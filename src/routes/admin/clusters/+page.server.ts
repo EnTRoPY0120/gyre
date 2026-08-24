@@ -19,6 +19,45 @@ import {
 	requireAdminFormUser,
 	serializePagination
 } from '../server-helpers';
+import type { User } from '$lib/server/db/schema';
+
+interface ClusterCreateInput {
+	name: string;
+	description: string;
+	kubeconfig: string;
+}
+
+function readClusterCreateInput(formData: FormData): ClusterCreateInput {
+	return {
+		name: formData.get('name') as string,
+		description: formData.get('description') as string,
+		kubeconfig: formData.get('kubeconfig') as string
+	};
+}
+
+async function createClusterAndLog(user: User, input: ClusterCreateInput) {
+	try {
+		const cluster = await createCluster({
+			name: input.name,
+			description: input.description || undefined,
+			kubeconfig: input.kubeconfig,
+			isLocal: true
+		});
+
+		await logClusterChange(user, 'create', input.name, {
+			clusterId: cluster.id,
+			contextCount: cluster.contextCount
+		});
+
+		return { success: true, cluster };
+	} catch (error) {
+		logger.error(error, 'Error creating cluster:');
+		if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+			return fail(400, { error: 'A cluster with this name already exists' });
+		}
+		return fail(500, { error: 'Failed to create cluster' });
+	}
+}
 
 /**
  * Load function for cluster management page
@@ -61,36 +100,12 @@ export const actions: Actions = {
 		const user = requireAdminFormUser(locals);
 		if ('status' in user) return user;
 
-		const formData = await request.formData();
-		const name = formData.get('name') as string;
-		const description = formData.get('description') as string;
-		const kubeconfig = formData.get('kubeconfig') as string;
+		const input = readClusterCreateInput(await request.formData());
 
-		const validationError = validateClusterCreateInput({ name, description, kubeconfig });
+		const validationError = validateClusterCreateInput(input);
 		if (validationError) return fail(validationError.status, { error: validationError.error });
 
-		try {
-			// Create cluster
-			const cluster = await createCluster({
-				name,
-				description: description || undefined,
-				kubeconfig,
-				isLocal: true
-			});
-
-			await logClusterChange(user, 'create', name, {
-				clusterId: cluster.id,
-				contextCount: cluster.contextCount
-			});
-
-			return { success: true, cluster };
-		} catch (error) {
-			logger.error(error, 'Error creating cluster:');
-			if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
-				return fail(400, { error: 'A cluster with this name already exists' });
-			}
-			return fail(500, { error: 'Failed to create cluster' });
-		}
+		return createClusterAndLog(user, input);
 	},
 
 	/**

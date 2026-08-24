@@ -22,6 +22,29 @@
 	// Compute the list of focusable menu items dynamically
 	const menuItemCount = $derived(isLocalUser ? 3 : 2); // Role, [ChangePassword], Logout
 
+	type MenuKeyAction =
+		| { type: 'move'; index: number }
+		| { type: 'close'; restoreFocus: boolean; preventDefault: boolean }
+		| { type: 'ignore' };
+
+	const MENU_KEY_ACTIONS: Record<
+		string,
+		(index: number, itemCount: number) => Exclude<MenuKeyAction, { type: 'ignore' }>
+	> = {
+		ArrowDown: (index, itemCount) => ({ type: 'move', index: (index + 1) % itemCount }),
+		ArrowUp: (index, itemCount) => ({
+			type: 'move',
+			index: index <= 0 ? itemCount - 1 : index - 1
+		}),
+		Escape: () => ({ type: 'close', restoreFocus: true, preventDefault: true }),
+		Tab: () => ({ type: 'close', restoreFocus: false, preventDefault: false })
+	};
+
+	function getMenuKeyAction(key: string, open: boolean, index: number, itemCount: number): MenuKeyAction {
+		if (!open) return { type: 'ignore' };
+		return MENU_KEY_ACTIONS[key]?.(index, itemCount) ?? { type: 'ignore' };
+	}
+
 	async function handleLogout() {
 		logoutError = null;
 		try {
@@ -73,27 +96,18 @@
 	}
 
 	function handleMenuKeydown(e: KeyboardEvent) {
-		if (!isOpen) return;
-
-		switch (e.key) {
-			case 'ArrowDown':
+		const action = getMenuKeyAction(e.key, isOpen, selectedIndex, menuItemCount);
+		switch (action.type) {
+			case 'move':
 				e.preventDefault();
-				selectedIndex = (selectedIndex + 1) % menuItemCount;
-				focusItem(selectedIndex);
+				selectedIndex = action.index;
+				focusItem(action.index);
 				break;
-			case 'ArrowUp':
-				e.preventDefault();
-				selectedIndex = selectedIndex <= 0 ? menuItemCount - 1 : selectedIndex - 1;
-				focusItem(selectedIndex);
+			case 'close':
+				if (action.preventDefault) e.preventDefault();
+				closeMenu(action.restoreFocus);
 				break;
-			case 'Escape':
-				e.preventDefault();
-				// Per ARIA pattern: Escape returns focus to the trigger
-				closeMenu(true);
-				break;
-			case 'Tab':
-				// Tab moves focus naturally; don't steal it back to the trigger
-				closeMenu(false);
+			case 'ignore':
 				break;
 		}
 	}

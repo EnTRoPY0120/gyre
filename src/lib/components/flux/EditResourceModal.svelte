@@ -55,35 +55,43 @@
 		validationErrors = errors.filter((e) => e.severity === 8);
 	}
 
+	function getSaveValidationError(): string | null {
+		const resourceError = validateResourceYaml(yamlContent, name, namespace);
+		if (resourceError) return resourceError;
+		if (validationErrors.length > 0) {
+			return 'Please fix YAML syntax errors before saving';
+		}
+		return null;
+	}
+
+	async function persistResourceUpdate(): Promise<void> {
+		await updateResource({
+			resourceType,
+			namespace,
+			name,
+			yamlContent,
+			csrfToken: getCsrfToken()
+		});
+		await invalidateAll();
+		onSuccess?.();
+		open = false;
+		onClose();
+	}
+
 	async function handleSave() {
 		if (saving) return;
 
 		error = null;
 
-		const validationError = validateResourceYaml(yamlContent, name, namespace);
+		const validationError = getSaveValidationError();
 		if (validationError) {
 			error = validationError;
 			return;
 		}
 
-		if (validationErrors.length > 0) {
-			error = 'Please fix YAML syntax errors before saving';
-			return;
-		}
-
 		saving = true;
 		try {
-			await updateResource({
-				resourceType,
-				namespace,
-				name,
-				yamlContent,
-				csrfToken: getCsrfToken()
-			});
-			await invalidateAll();
-			onSuccess?.();
-			open = false;
-			onClose();
+			await persistResourceUpdate();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Failed to update resource';
 		} finally {

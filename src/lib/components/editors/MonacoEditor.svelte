@@ -52,100 +52,106 @@ import { getMonacoWorker } from './monaco-workers';
 	let markersDisposable: Monaco.IDisposable | undefined = $state();
 	let fluxValidationDisposable: Monaco.IDisposable | undefined = $state();
 
+	function createEditorInstance(
+		monacoModule: typeof Monaco,
+		container: HTMLDivElement
+	): Monaco.editor.IStandaloneCodeEditor {
+		return monacoModule.editor.create(container, {
+			value,
+			language,
+			theme: theme.resolvedTheme === 'dark' ? 'gyre-dark' : 'gyre-light',
+			readOnly: readonly,
+			automaticLayout: true,
+			minimap: { enabled: minimap },
+			lineNumbers,
+			scrollBeyondLastLine: false,
+			fontSize: 14,
+			lineHeight: 22,
+			fontFamily:
+				"'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace",
+			fontLigatures: true,
+			wordWrap: 'on',
+			wrappingIndent: 'indent',
+			tabSize: 2,
+			insertSpaces: true,
+			padding: { top: 12, bottom: 12 },
+			cursorBlinking: 'smooth',
+			cursorSmoothCaretAnimation: 'on',
+			smoothScrolling: true,
+			renderLineHighlight: 'all',
+			roundedSelection: true,
+			scrollbar: {
+				vertical: 'visible',
+				horizontal: 'visible',
+				useShadows: false,
+				verticalScrollbarSize: 10,
+				horizontalScrollbarSize: 10
+			}
+		});
+	}
+
+	function registerContentChangeListener(editorInstance: Monaco.editor.IStandaloneCodeEditor): void {
+		contentChangeDisposable = editorInstance.onDidChangeModelContent(() => {
+			const currentValue = editorInstance.getValue();
+			value = currentValue;
+			onChange?.(currentValue);
+		});
+	}
+
+	function registerMarkerListener(
+		monacoModule: typeof Monaco,
+		editorInstance: Monaco.editor.IStandaloneCodeEditor
+	): void {
+		if (!onValidation) return;
+
+		markersDisposable = monacoModule.editor.onDidChangeMarkers((uris) => {
+			const model = editorInstance.getModel();
+			if (!model || !uris.some((uri) => uri.toString() === model.uri.toString())) return;
+
+			onValidation(monacoModule.editor.getModelMarkers({ resource: model.uri }));
+		});
+	}
+
+	async function initializeEditor(container: HTMLDivElement): Promise<void> {
+		try {
+			const monacoModule = await import('monaco-editor');
+			monaco = monacoModule;
+
+			defineMonacoThemes(monacoModule);
+			registerFluxLanguageFeatures(monacoModule);
+			self.MonacoEnvironment = { getWorker: getMonacoWorker };
+
+			editor = createEditorInstance(monacoModule, container);
+			fluxValidationDisposable = registerFluxValidation(monacoModule, editor);
+			registerContentChangeListener(editor);
+			registerMarkerListener(monacoModule, editor);
+
+			loading = false;
+			onReady?.();
+		} catch (err) {
+			logger.error(err, 'Failed to load Monaco Editor:');
+			error = err instanceof Error ? err.message : 'Failed to load editor';
+			showFallback = true;
+			loading = false;
+			onReady?.();
+		}
+	}
+
+	function disposeEditor(): void {
+		contentChangeDisposable?.dispose();
+		markersDisposable?.dispose();
+		fluxValidationDisposable?.dispose();
+		editor?.dispose();
+	}
+
 	// Initialize Monaco Editor
 	onMount(() => {
 		if (!browser || !containerEl) return;
 
-		(async () => {
-			try {
-				// Dynamically import Monaco to avoid SSR issues
-				const monacoModule = await import('monaco-editor');
-				monaco = monacoModule;
-
-				// Register custom Gyre themes and FluxCD language features
-				defineMonacoThemes(monaco);
-				registerFluxLanguageFeatures(monaco);
-
-				// Configure Monaco environment - bundle workers via Vite for same-origin serving
-				self.MonacoEnvironment = {
-					getWorker: getMonacoWorker
-				};
-
-				// Create editor instance
-				editor = monaco.editor.create(containerEl, {
-					value: value,
-					language: language,
-					theme: theme.resolvedTheme === 'dark' ? 'gyre-dark' : 'gyre-light',
-					readOnly: readonly,
-					automaticLayout: true,
-					minimap: { enabled: minimap },
-					lineNumbers: lineNumbers,
-					scrollBeyondLastLine: false,
-					fontSize: 14,
-					lineHeight: 22,
-					fontFamily:
-						"'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace",
-					fontLigatures: true,
-					wordWrap: 'on',
-					wrappingIndent: 'indent',
-					tabSize: 2,
-					insertSpaces: true,
-					padding: { top: 12, bottom: 12 },
-					cursorBlinking: 'smooth',
-					cursorSmoothCaretAnimation: 'on',
-					smoothScrolling: true,
-					renderLineHighlight: 'all',
-					roundedSelection: true,
-					scrollbar: {
-						vertical: 'visible',
-						horizontal: 'visible',
-						useShadows: false,
-						verticalScrollbarSize: 10,
-						horizontalScrollbarSize: 10
-					}
-				});
-
-				// Register FluxCD semantic validation for this editor instance
-				fluxValidationDisposable = registerFluxValidation(monaco, editor);
-
-				// Listen for content changes and store disposable
-				contentChangeDisposable = editor.onDidChangeModelContent(() => {
-					if (!editor) return;
-					const currentValue = editor.getValue();
-					value = currentValue;
-					onChange?.(currentValue);
-				});
-
-				// Listen for validation markers and store disposable
-				if (onValidation) {
-					markersDisposable = monaco.editor.onDidChangeMarkers((uris) => {
-						if (!editor || !monaco) return;
-						const model = editor.getModel();
-						if (!model || !uris.some((uri) => uri.toString() === model.uri.toString())) return;
-
-						const markers = monaco.editor.getModelMarkers({ resource: model.uri });
-						onValidation(markers);
-					});
-				}
-
-				loading = false;
-				onReady?.();
-			} catch (err) {
-				logger.error(err, 'Failed to load Monaco Editor:');
-				error = err instanceof Error ? err.message : 'Failed to load editor';
-				showFallback = true;
-				loading = false;
-				onReady?.();
-			}
-		})();
+		void initializeEditor(containerEl);
 
 		// Cleanup on unmount
-		return () => {
-			contentChangeDisposable?.dispose();
-			markersDisposable?.dispose();
-			fluxValidationDisposable?.dispose();
-			editor?.dispose();
-		};
+		return disposeEditor;
 	});
 
 	// Update editor value when prop changes externally

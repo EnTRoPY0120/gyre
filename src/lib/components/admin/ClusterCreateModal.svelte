@@ -20,23 +20,29 @@
 		onKubeconfigChange: (value: string) => void;
 		onDraggingChange: (dragging: boolean) => void;
 		onClose: () => void;
-	} = $props();
+		} = $props();
+
+	const KUBECONFIG_EXTENSIONS = ['.json', '.yaml', '.yml'];
+
+	function isKubeconfigFile(file: File): boolean {
+		return KUBECONFIG_EXTENSIONS.some((extension) => file.name.endsWith(extension));
+	}
+
+	function readKubeconfigFile(file: File): void {
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			const content = event.target?.result;
+			if (typeof content === 'string') onKubeconfigChange(content);
+		};
+		reader.readAsText(file);
+	}
 
 	function handleDrop(event: DragEvent) {
 		event.preventDefault();
 		onDraggingChange(false);
 
-		const files = event.dataTransfer?.files;
-		if (!files || files.length === 0) return;
-
-		const file = files[0];
-		if (!file.name.endsWith('.json') && !file.name.endsWith('.yaml') && !file.name.endsWith('.yml')) {
-			return;
-		}
-
-		const reader = new FileReader();
-		reader.onload = (e) => onKubeconfigChange(e.target?.result as string);
-		reader.readAsText(file);
+		const file = event.dataTransfer?.files?.[0];
+		if (file && isKubeconfigFile(file)) readKubeconfigFile(file);
 	}
 </script>
 

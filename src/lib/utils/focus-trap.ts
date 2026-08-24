@@ -12,6 +12,20 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
 	);
 }
 
+function getConnectedElement(element: HTMLElement | null): HTMLElement | null {
+	if (!element?.isConnected || !element.ownerDocument?.contains(element)) return null;
+	return element;
+}
+
+function restoreFocus(previousActiveElement: HTMLElement | null): void {
+	const previousElement = getConnectedElement(previousActiveElement);
+	const activeElement =
+		document.activeElement instanceof HTMLElement ? document.activeElement : null;
+	const fallbackElement = getConnectedElement(activeElement) ?? document.body;
+
+	(previousElement ?? fallbackElement).focus();
+}
+
 export function getInitialFocusTarget(
 	node: HTMLElement,
 	labelledElement: HTMLElement | null
@@ -78,17 +92,7 @@ export function modalFocusTrap(node: HTMLElement) {
 	return {
 		destroy() {
 			node.removeEventListener('keydown', handleKeydown);
-			const livePreviousActiveElement =
-				previousActiveElement?.isConnected &&
-				previousActiveElement.ownerDocument?.contains(previousActiveElement)
-					? previousActiveElement
-					: null;
-			const fallbackFocusTarget =
-				document.activeElement instanceof HTMLElement && document.activeElement.isConnected
-					? document.activeElement
-					: document.body;
-
-			(livePreviousActiveElement ?? fallbackFocusTarget).focus();
+			restoreFocus(previousActiveElement);
 			previousActiveElement = null;
 		}
 	};
