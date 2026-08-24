@@ -563,14 +563,6 @@
         "count": 1
       }
     },
-    "src/routes/admin/audit-logs/+page.server.ts": {
-      "complexity_critical": {
-        "count": 1
-      },
-      "crap_critical": {
-        "count": 1
-      }
-    },
     "src/routes/admin/audit-logs/+page.svelte": {
       "complexity_critical": {
         "count": 1
@@ -579,6 +571,11 @@
         "count": 1
       },
       "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/routes/admin/audit-logs/page-helpers.ts": {
+      "complexity_moderate": {
         "count": 1
       }
     },
