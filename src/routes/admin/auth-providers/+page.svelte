@@ -17,6 +17,7 @@
 	} from '$lib/components/admin/auth-provider';
 	import { logger } from '$lib/utils/logger.js';
 	import { requestAuthProviderMutation } from './auth-provider-requests';
+	import { buildAuthProviderUpdates } from './form-helpers';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -130,22 +131,7 @@
 
 		try {
 			const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
-			const updates: Record<string, unknown> = {
-				name: formData.name,
-				type: formData.type,
-				enabled: formData.enabled,
-				clientId: formData.clientId,
-				issuerUrl: formData.issuerUrl,
-				autoProvision: formData.autoProvision,
-				defaultRole: formData.defaultRole,
-				roleMapping,
-				roleClaim: formData.roleClaim,
-				usernameClaim: formData.usernameClaim,
-				emailClaim: formData.emailClaim,
-				usePkce: formData.usePkce,
-				scopes: formData.scopes
-			};
-			if (formData.clientSecret) updates.clientSecret = formData.clientSecret;
+			const updates = buildAuthProviderUpdates(formData, roleMapping);
 
 			await requestAuthProviderMutation(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
 				method: 'PATCH',
