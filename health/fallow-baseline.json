@@ -210,11 +210,6 @@
         "count": 1
       }
     },
-    "src/lib/components/wizards/ArrayFieldObjectItem.svelte": {
-      "complexity_high": {
-        "count": 1
-      }
-    },
     "src/lib/components/wizards/ReferenceField.svelte": {
       "crap_high": {
         "count": 1
@@ -646,7 +641,6 @@
   },
   "runtime_coverage_findings": [],
   "target_keys": [
-    "src/lib/components/wizards/ArrayFieldObjectItem.svelte:complexity",
     "src/lib/server/auth/oauth/url-security.ts:high impact",
     "src/lib/utils/csrf.ts:high impact",
     "src/lib/server/auth/sso-claims.ts:high impact",
