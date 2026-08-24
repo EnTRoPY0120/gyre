@@ -324,11 +324,6 @@
         "count": 1
       }
     },
-    "src/lib/server/auth/seed-provider-helpers.ts": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/lib/server/auth/users.ts": {
       "crap_moderate": {
         "count": 1

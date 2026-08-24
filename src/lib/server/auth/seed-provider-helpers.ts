@@ -77,11 +77,7 @@ export function normalizeRoleMapping(
 	return JSON.stringify(validated);
 }
 
-export function prepareSeedProvider(
-	config: unknown,
-	index: number,
-	secretEnvKeyToProviderName: Map<string, string>
-): NewAuthProvider {
+function parseSeedProviderConfig(config: unknown, index: number): ProviderSeedConfig {
 	if (
 		typeof config === 'object' &&
 		config !== null &&
@@ -99,21 +95,42 @@ export function prepareSeedProvider(
 		);
 		throw new Error(`Provider at index ${index} failed validation: ${issues.join('; ')}`);
 	}
-	const validatedConfig: ProviderSeedConfig = parseResult.data;
-	const sanitizedName = validatedConfig.name.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+
+	return parseResult.data;
+}
+
+function reserveSecretEnvKey(
+	providerName: string,
+	secretEnvKeyToProviderName: Map<string, string>
+): string {
+	const sanitizedName = providerName.toUpperCase().replace(/[^A-Z0-9]/g, '_');
 	const envSecretKey = `GYRE_AUTH_PROVIDER_${sanitizedName}_CLIENT_SECRET`;
 	const collidingProviderName = secretEnvKeyToProviderName.get(envSecretKey);
 	if (collidingProviderName) {
 		throw new Error(
-			`Provider "${validatedConfig.name}" env secret key ${envSecretKey} collides with provider "${collidingProviderName}"`
+			`Provider "${providerName}" env secret key ${envSecretKey} collides with provider "${collidingProviderName}"`
 		);
 	}
-	secretEnvKeyToProviderName.set(envSecretKey, validatedConfig.name);
+	secretEnvKeyToProviderName.set(envSecretKey, providerName);
+	return envSecretKey;
+}
 
+function requireSeedProviderSecret(providerName: string, envSecretKey: string): string {
 	const clientSecret = process.env[envSecretKey];
 	if (!clientSecret || clientSecret.trim() === '') {
-		throw new Error(`Provider "${validatedConfig.name}" missing required env var ${envSecretKey}`);
+		throw new Error(`Provider "${providerName}" missing required env var ${envSecretKey}`);
 	}
+	return clientSecret;
+}
+
+export function prepareSeedProvider(
+	config: unknown,
+	index: number,
+	secretEnvKeyToProviderName: Map<string, string>
+): NewAuthProvider {
+	const validatedConfig = parseSeedProviderConfig(config, index);
+	const envSecretKey = reserveSecretEnvKey(validatedConfig.name, secretEnvKeyToProviderName);
+	const clientSecret = requireSeedProviderSecret(validatedConfig.name, envSecretKey);
 
 	const now = new Date();
 	return {
