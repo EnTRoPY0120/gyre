@@ -60,6 +60,50 @@
 		}
 	});
 
+	async function submitBatchOperation(
+		action: BatchAction,
+		resources: ReturnType<typeof toBatchResourceItem>[]
+	): Promise<BatchOperationResponse> {
+		const response = await fetch(`/api/v1/flux/batch/${action}`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+			body: JSON.stringify({ resources })
+		});
+
+		if (!response.ok) throw new Error(`Failed to ${action} resources`);
+		return response.json();
+	}
+
+	function applyBatchResult(
+		action: BatchAction,
+		resourcesToOperateOn: FluxResource[],
+		data: BatchOperationResponse
+	): void {
+		const result = partitionBatchOperationResult(resourcesToOperateOn, data);
+
+		if (result.allSucceeded) {
+			toast.success(`Successfully ${pastTenseMap[action]} ${data.summary.successful} resource(s)`, {
+				description: 'All operations completed successfully'
+			});
+			lastBatchResult = null;
+			onClearSelection();
+		} else if (result.allFailed) {
+			toast.error(`Failed to ${action} resources`, {
+				description: `All ${data.summary.failed} operations failed`
+			});
+			lastBatchResult = { action, failedResources: result.failedResources };
+			onSetSelection(result.nextSelectedResources);
+		} else {
+			toast.warning(`Partially completed ${action} operation`, {
+				description: `${data.summary.successful} succeeded, ${data.summary.failed} failed`
+			});
+			lastBatchResult = { action, failedResources: result.failedResources };
+			onSetSelection(result.nextSelectedResources);
+		}
+
+		onOperationComplete?.();
+	}
+
 	async function performBatchOperation(
 		action: BatchAction,
 		resourcesToOperateOn: FluxResource[] = selectedResources
@@ -71,38 +115,8 @@
 		const resources = resourcesToOperateOn.map((resource) => toBatchResourceItem(resource));
 
 		try {
-			const response = await fetch(`/api/v1/flux/batch/${action}`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-				body: JSON.stringify({ resources })
-			});
-
-			if (!response.ok) throw new Error(`Failed to ${action} resources`);
-
-			const data: BatchOperationResponse = await response.json();
-			const result = partitionBatchOperationResult(resourcesToOperateOn, data);
-
-			if (result.allSucceeded) {
-				toast.success(`Successfully ${pastTenseMap[action]} ${data.summary.successful} resource(s)`, {
-					description: 'All operations completed successfully'
-				});
-				lastBatchResult = null;
-				onClearSelection();
-			} else if (result.allFailed) {
-				toast.error(`Failed to ${action} resources`, {
-					description: `All ${data.summary.failed} operations failed`
-				});
-				lastBatchResult = { action, failedResources: result.failedResources };
-				onSetSelection(result.nextSelectedResources);
-			} else {
-				toast.warning(`Partially completed ${action} operation`, {
-					description: `${data.summary.successful} succeeded, ${data.summary.failed} failed`
-				});
-				lastBatchResult = { action, failedResources: result.failedResources };
-				onSetSelection(result.nextSelectedResources);
-			}
-
-			if (onOperationComplete) onOperationComplete();
+			const data = await submitBatchOperation(action, resources);
+			applyBatchResult(action, resourcesToOperateOn, data);
 		} catch (err) {
 			toast.error(`Error performing ${action} operation`, {
 				description: err instanceof Error ? err.message : 'Unknown error'
