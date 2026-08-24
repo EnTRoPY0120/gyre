@@ -158,29 +158,33 @@ class RealtimeStore {
 		this.scheduleReconnect();
 	}
 
-	connect() {
-		if (!this.canReconnectAfterServerShutdown()) return;
+	private canStartConnection(): boolean {
+		if (!this.canReconnectAfterServerShutdown()) return false;
 
 		if (this.eventSource?.readyState === EventSource.OPEN) {
-			return;
+			return false;
 		}
 
 		// Only connect in browser environment
-		if (typeof window === 'undefined') {
-			return;
-		}
+		return typeof window !== 'undefined';
+	}
+
+	private createEventStream(): EventSource {
+		return createEventSource('/api/v1/events', {
+			onOpen: (source) => this.handleSseOpen(source),
+			onMessage: (source, event) => this.handleSseMessage(source, event),
+			onError: (source) => this.handleSseError(source)
+		});
+	}
+
+	connect() {
+		if (!this.canStartConnection()) return;
 
 		this.status = 'connecting';
 		this.notifyStatusChange('connecting');
 
-		const sseUrl = '/api/v1/events';
-
 		try {
-			this.eventSource = createEventSource(sseUrl, {
-				onOpen: (source) => this.handleSseOpen(source),
-				onMessage: (source, event) => this.handleSseMessage(source, event),
-				onError: (source) => this.handleSseError(source)
-			});
+			this.eventSource = this.createEventStream();
 		} catch (err) {
 			this.handleConnectionFailure(err);
 		}
