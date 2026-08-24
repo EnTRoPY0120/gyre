@@ -3,10 +3,9 @@
 	import { X, Save, AlertTriangle } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
-	import * as yaml from 'js-yaml';
-	import type * as Monaco from 'monaco-editor';
-	import type { K8sResource } from '$lib/types/kubernetes';
-	import { getCsrfToken } from '$lib/utils/csrf';
+import type * as Monaco from 'monaco-editor';
+import { getCsrfToken } from '$lib/utils/csrf';
+import { getResourceUpdateError, validateResourceYaml } from './edit-resource';
 
 	interface Props {
 		open: boolean;
@@ -68,33 +67,9 @@
 		error = null;
 
 		// Validate YAML syntax
-		try {
-			const parsed = yaml.load(yamlContent); // js-yaml v4: yaml.load() is safe by default (no JS execution)
-
-			// Validate basic resource structure
-			if (!parsed || typeof parsed !== 'object') {
-				error = 'Invalid YAML: must be a valid Kubernetes resource object';
-				return;
-			}
-
-			const resource = parsed as K8sResource;
-			if (!resource.apiVersion || !resource.kind || !resource.metadata) {
-				error = 'Invalid resource: missing required fields (apiVersion, kind, metadata)';
-				return;
-			}
-
-			// Validate name and namespace match
-			if (resource.metadata.name !== name) {
-				error = `Resource name mismatch: expected "${name}", got "${resource.metadata.name}"`;
-				return;
-			}
-
-			if (resource.metadata.namespace && resource.metadata.namespace !== namespace) {
-				error = `Namespace mismatch: expected "${namespace}", got "${resource.metadata.namespace}"`;
-				return;
-			}
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Invalid YAML syntax';
+		const validationError = validateResourceYaml(yamlContent, name, namespace);
+		if (validationError) {
+			error = validationError;
 			return;
 		}
 
@@ -117,16 +92,7 @@
 			});
 
 			if (!response.ok) {
-				let errorMessage = `Failed to update resource: ${response.statusText}`;
-				try {
-					const data = await response.json();
-					errorMessage = data.error || data.message || errorMessage;
-				} catch {
-					// Fallback to text if JSON parsing fails
-					const text = await response.text().catch(() => '');
-					if (text) errorMessage = text;
-				}
-				throw new Error(errorMessage);
+				throw new Error(await getResourceUpdateError(response));
 			}
 
 			// Success - invalidate cache and close modal
