@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { createKubernetesErrorsModuleStub } from './helpers/module-stubs';
+import {
+	DEFAULT_FLUX_VERSION,
+	getFluxDeploymentVersion,
+	getFluxNamespaceVersion
+} from '../lib/server/flux/version-helpers.js';
 
 let validateKubeConfigResult = true;
 let listDeploymentsImpl = async () => ({
@@ -128,6 +133,28 @@ afterEach(() => {
 });
 
 describe('flux shared services', () => {
+	test('selects Flux deployment and namespace version labels predictably', () => {
+		expect(
+			getFluxDeploymentVersion([
+				{ metadata: { name: 'other-controller', labels: { 'app.kubernetes.io/version': 'v1' } } },
+				{
+					metadata: {
+						name: 'source-controller',
+						labels: { 'app.kubernetes.io/version': 'v2' }
+					}
+				}
+			])
+		).toBe('v2');
+		expect(
+			getFluxDeploymentVersion([
+				{ metadata: { name: 'other-controller', labels: { 'app.kubernetes.io/version': 'v1' } } }
+			])
+		).toBe('v1');
+		expect(getFluxDeploymentVersion([])).toBeUndefined();
+		expect(getFluxNamespaceVersion({ 'app.kubernetes.io/version': 'v2.4.0' })).toBe('v2.4.0');
+		expect(getFluxNamespaceVersion()).toBe(DEFAULT_FLUX_VERSION);
+	});
+
 	test('returns basic health for unauthenticated callers when details are not requested', async () => {
 		const { getFluxHealthSummary } = await import('$lib/server/flux/services.js');
 
