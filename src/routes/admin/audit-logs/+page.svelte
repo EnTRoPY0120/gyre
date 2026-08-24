@@ -20,6 +20,7 @@
 	} from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+import { filterAuditLogs } from './page-filters';
 
 	interface AuditLog {
 		id: string;
@@ -67,17 +68,7 @@
 	});
 
 	let filteredLogs = $derived.by(() => {
-		if (!debouncedQuery) return data.logs;
-		const q = debouncedQuery.toLowerCase();
-		return data.logs.filter(
-			(log: AuditLog) =>
-				log.action.toLowerCase().includes(q) ||
-				(log.resourceName && log.resourceName.toLowerCase().includes(q)) ||
-				(log.resourceType && log.resourceType.toLowerCase().includes(q)) ||
-				(log.namespace && log.namespace.toLowerCase().includes(q)) ||
-				(log.user?.username && log.user.username.toLowerCase().includes(q)) ||
-				(log.ipAddress && log.ipAddress.toLowerCase().includes(q))
-		);
+		return filterAuditLogs<AuditLog>(data.logs, debouncedQuery);
 	});
 
 	let expandedLogId = $state<string | null>(null);
