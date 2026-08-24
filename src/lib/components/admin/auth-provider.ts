@@ -24,6 +24,19 @@ export interface AuthProviderFormData {
 	scopes: string;
 }
 
+export interface AuthProviderSummary {
+	id: string;
+	name: string;
+	type: AuthProviderType;
+	enabled: boolean;
+	clientId: string;
+	issuerUrl: string | null;
+	autoProvision: boolean;
+	defaultRole: AuthProviderRole;
+	usePkce: boolean;
+	scopes: string;
+}
+
 export function createEmptyAuthProviderFormData(): AuthProviderFormData {
 	return {
 		name: '',

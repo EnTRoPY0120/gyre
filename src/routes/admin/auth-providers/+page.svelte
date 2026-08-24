@@ -2,7 +2,8 @@
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
 	import AuthProviderForm from '$lib/components/admin/AuthProviderForm.svelte';
-	import AdminConfirmDialog from '$lib/components/admin/AdminConfirmDialog.svelte';
+	import AuthProviderCard from '$lib/components/admin/AuthProviderCard.svelte';
+	import AuthProviderDeleteDialog from '$lib/components/admin/AuthProviderDeleteDialog.svelte';
 	import {
 		DEFAULT_ROLE_MAPPING_TEMPLATE,
 		parseRoleMappingInput,
@@ -12,7 +13,8 @@
 		createEmptyAuthProviderFormData,
 		type AuthProviderFormData,
 		type AuthProviderRole,
-		type AuthProviderType
+		type AuthProviderType,
+		type AuthProviderSummary
 	} from '$lib/components/admin/auth-provider';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import { logger } from '$lib/utils/logger.js';
@@ -267,44 +269,13 @@
 	{:else}
 		<div class="grid gap-4">
 			{#each providers as provider (provider.id)}
-				<div class="rounded-lg border border-slate-700 bg-slate-800/50 p-6 transition-colors hover:border-slate-600">
-					<div class="flex items-start justify-between gap-4">
-						<div class="min-w-0 flex-1">
-							<div class="flex flex-wrap items-center gap-3">
-								<h3 class="text-lg font-semibold text-slate-100">{provider.name}</h3>
-								<span
-									class="rounded-full px-2.5 py-0.5 text-xs font-medium {provider.enabled ? 'bg-green-500/10 text-green-400' : 'bg-slate-600/20 text-slate-400'}"
-								>
-									{provider.enabled ? 'Enabled' : 'Disabled'}
-								</span>
-								<span class="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs font-medium text-slate-300">
-									{getProviderTypeName(provider.type)}
-								</span>
-							</div>
-							<div class="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-								<div><span class="text-slate-400">Client ID:</span> <span class="ml-2 font-mono text-slate-300">{provider.clientId}</span></div>
-								{#if provider.issuerUrl}<div><span class="text-slate-400">Issuer:</span> <span class="ml-2 text-slate-300">{provider.issuerUrl}</span></div>{/if}
-								<div><span class="text-slate-400">Auto-provision:</span> <span class="ml-2 text-slate-300">{provider.autoProvision ? 'Yes' : 'No'}</span></div>
-								<div><span class="text-slate-400">Default Role:</span> <span class="ml-2 text-slate-300 capitalize">{provider.defaultRole}</span></div>
-								<div><span class="text-slate-400">PKCE:</span> <span class="ml-2 text-slate-300">{provider.usePkce ? 'Enabled' : 'Disabled'}</span></div>
-								<div><span class="text-slate-400">Scopes:</span> <span class="ml-2 font-mono text-xs text-slate-300">{provider.scopes}</span></div>
-							</div>
-						</div>
-						<div class="flex items-center gap-2">
-							<button
-								type="button"
-								onclick={() => toggleEnabled(provider)}
-								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
-								title={provider.enabled ? 'Disable' : 'Enable'}
-								aria-label={`${provider.enabled ? 'Disable' : 'Enable'} provider ${provider.name}`}
-							>
-								{provider.enabled ? '✓' : '×'}
-							</button>
-							<button type="button" onclick={() => openEditModal(provider)} class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700" aria-label={`Edit provider ${provider.name}`}>Edit</button>
-							<button type="button" onclick={() => openDeleteModal(provider)} class="rounded-lg p-2 text-red-400 transition-colors hover:bg-slate-700" aria-label={`Delete provider ${provider.name}`}>Delete</button>
-						</div>
-					</div>
-				</div>
+				<AuthProviderCard
+					provider={provider as AuthProviderSummary}
+					{getProviderTypeName}
+					onToggle={toggleEnabled}
+					onEdit={openEditModal}
+					onDelete={openDeleteModal}
+				/>
 			{/each}
 		</div>
 	{/if}
@@ -338,15 +309,11 @@
 {/if}
 
 {#if showDeleteModal && selectedProvider}
-	<AdminConfirmDialog title="Delete Provider" titleId="delete-provider-title" onClose={closeModals}>
-		<p class="mb-6 text-slate-400">
-			Are you sure you want to delete <strong class="text-white">{selectedProvider.name}</strong>? This
-			action cannot be undone and will affect all users linked to this provider.
-		</p>
-		{#if error}<div class="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400">{error}</div>{/if}
-		<div class="flex justify-end gap-3">
-			<button type="button" onclick={closeModals} class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 transition-colors hover:bg-slate-700">Cancel</button>
-			<button type="button" onclick={handleDelete} disabled={loading} class="rounded-lg bg-red-500 px-4 py-2 font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50">{loading ? 'Deleting...' : 'Delete'}</button>
-		</div>
-	</AdminConfirmDialog>
+	<AuthProviderDeleteDialog
+		provider={selectedProvider as AuthProviderSummary}
+		{error}
+		{loading}
+		onClose={closeModals}
+		onDelete={handleDelete}
+	/>
 {/if}
