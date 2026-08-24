@@ -272,11 +272,6 @@
         "count": 1
       }
     },
-    "src/lib/components/wizards/WizardFieldSections.svelte": {
-      "complexity_critical": {
-        "count": 1
-      }
-    },
     "src/lib/components/wizards/reference-keyboard.ts": {
       "complexity_moderate": {
         "count": 1
@@ -696,13 +691,12 @@
     "src/lib/components/wizards/ArrayFieldObjectItem.svelte:complexity",
     "src/lib/utils/csrf.ts:high impact",
     "src/lib/server/auth/oauth/url-security.ts:high impact",
+    "src/lib/components/wizards/WizardField.svelte:complexity",
     "src/lib/server/auth/sso-claims.ts:high impact",
     "src/lib/utils/focus-trap.ts:high impact",
     "src/lib/components/CommandPalette.svelte:complexity",
-    "src/lib/components/wizards/WizardField.svelte:complexity",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/VersionHistoryEntry.svelte:complexity",
-    "src/lib/components/wizards/WizardFieldSections.svelte:complexity",
     "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
     "src/lib/components/admin/ClusterHealthCheckModal.svelte:complexity",
     "src/lib/components/flux/resources/AlertDetail.svelte:complexity",
