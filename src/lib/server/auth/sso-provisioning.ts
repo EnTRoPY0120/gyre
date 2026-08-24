@@ -4,19 +4,19 @@ import { accounts, users, type AuthProvider, type User } from '$lib/server/db/sc
 import { getDb } from '$lib/server/db';
 import { generateUserId, normalizeUsername } from '$lib/server/auth';
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
-import { encryptSecret } from './crypto.js';
 import type { OAuthTokens, OAuthUserInfo } from './oauth/types';
 import type { SSOUserResult } from './sso';
 import type { extractEmail, extractUsername } from './sso-claims';
 import { mapRoleFromGroups } from './role-mapping';
 import { logger } from '../logger.js';
+import {
+	createSSOAccountRecord,
+	createSSOUserRecord,
+	getProvisioningAccessReason,
+	type AuthSettings
+} from './sso-provisioning-helpers.js';
 
 type Db = Awaited<ReturnType<typeof getDb>>;
-
-type AuthSettings = {
-	allowSignup: boolean;
-	domainAllowlist: string[];
-};
 
 type ClaimExtractors = {
 	extractEmail: typeof extractEmail;
@@ -68,7 +68,7 @@ export async function provisionNewSSOUser({
 		logger.info(`Username ${username} exists, using ${finalUsername} instead`);
 	}
 	const userId = generateUserId();
-	const newUser = createUserRecord(userId, finalUsername, email, userInfo, role);
+	const newUser = createSSOUserRecord(userId, finalUsername, email, userInfo, role);
 
 	await insertUserAndAccount(db, newUser, userInfo, providerId, tokens, userId);
 	const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
@@ -108,24 +108,6 @@ async function findDisabledUser(
 	return 'user_disabled';
 }
 
-function getProvisioningAccessReason(
-	authSettings: AuthSettings,
-	providerConfig: AuthProvider,
-	email: string | undefined
-): SSOUserResult['reason'] {
-	if (!authSettings.allowSignup) return 'signup_disabled';
-	if (!providerConfig.autoProvision) return 'auto_provision_disabled';
-	if (!isAllowedDomain(email, authSettings.domainAllowlist)) return 'domain_not_allowed';
-	return undefined;
-}
-
-function isAllowedDomain(email: string | undefined, allowlist: string[]): boolean {
-	if (allowlist.length === 0) return true;
-	const domain = email?.split('@')[1]?.toLowerCase();
-	const normalizedAllowlist = allowlist.map((entry) => entry.trim().toLowerCase());
-	return Boolean(domain && normalizedAllowlist.includes(domain));
-}
-
 function mapRole(userInfo: OAuthUserInfo, providerConfig: AuthProvider): User['role'] {
 	return mapRoleFromGroups(
 		userInfo.groups || [],
@@ -139,54 +121,18 @@ async function findAvailableUsername(db: Db, username: string, subject: string):
 	return existingUsername ? `${username}_${subject.substring(0, 8)}` : username;
 }
 
-function createUserRecord(
-	id: string,
-	username: string,
-	email: string | undefined,
-	userInfo: OAuthUserInfo,
-	role: User['role']
-) {
-	return {
-		id,
-		username,
-		email: email || null,
-		name: userInfo.name || username,
-		image: typeof userInfo.picture === 'string' ? userInfo.picture : null,
-		role,
-		active: true,
-		isLocal: false,
-		...(userInfo.emailVerified === true ? { emailVerified: true } : {})
-	};
-}
-
 async function insertUserAndAccount(
 	db: Db,
-	newUser: ReturnType<typeof createUserRecord>,
+	newUser: ReturnType<typeof createSSOUserRecord>,
 	userInfo: OAuthUserInfo,
 	providerId: string,
 	tokens: OAuthTokens | undefined,
 	userId: string
 ) {
+	const account = createSSOAccountRecord(userId, providerId, userInfo, tokens);
 	await db.transaction((tx) => {
 		tx.insert(users).values(newUser).run();
-		tx.insert(accounts)
-			.values({
-				id: generateUserId(),
-				userId,
-				providerId,
-				accountId: userInfo.sub,
-				accessToken: null,
-				refreshToken: null,
-				idToken: null,
-				accessTokenExpiresAt:
-					tokens?.expiresIn != null ? new Date(Date.now() + tokens.expiresIn * 1000) : null,
-				scope: tokens?.scope ?? null,
-				lastLoginAt: new Date(),
-				accessTokenEncrypted: tokens?.accessToken ? encryptSecret(tokens.accessToken) : null,
-				refreshTokenEncrypted: tokens?.refreshToken ? encryptSecret(tokens.refreshToken) : null,
-				idTokenEncrypted: tokens?.idToken ? encryptSecret(tokens.idToken) : null
-			})
-			.run();
+		tx.insert(accounts).values(account).run();
 	});
 }
 

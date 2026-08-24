@@ -340,14 +340,6 @@
         "count": 1
       }
     },
-    "src/lib/server/auth/sso-provisioning.ts": {
-      "crap_critical": {
-        "count": 1
-      },
-      "crap_moderate": {
-        "count": 1
-      }
-    },
     "src/lib/server/auth/users.ts": {
       "crap_moderate": {
         "count": 1
