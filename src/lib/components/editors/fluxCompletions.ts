@@ -1446,6 +1446,27 @@ function extractKind(lines: string[]): string {
 	return '';
 }
 
+function getLineIndent(line: string): number {
+	return line.match(/^(\s*)/)?.[1].length ?? 0;
+}
+
+function getIndentedKey(line: string): string | null {
+	return line.match(/^[\s-]*(\w[\w-]*)\s*:/)?.[1] ?? null;
+}
+
+function getParentPathStep(
+	line: string,
+	targetIndent: number
+): { lineIndent: number; key: string | null } | null {
+	if (!line.trim() || line.trim().startsWith('#')) return null;
+
+	const lineIndent = getLineIndent(line);
+	return {
+		lineIndent,
+		key: lineIndent < targetIndent ? getIndentedKey(line) : null
+	};
+}
+
 /**
  * Build a dot-separated parent path by walking lines above the cursor
  * and tracking indentation levels.
@@ -1455,18 +1476,12 @@ function getParentPath(lines: string[], cursorLineIndex: number, currentIndent: 
 	let targetIndent = currentIndent;
 
 	for (let i = cursorLineIndex - 1; i >= 0; i--) {
-		const line = lines[i];
-		if (!line.trim() || line.trim().startsWith('#')) continue;
+		const step = getParentPathStep(lines[i], targetIndent);
+		if (!step) continue;
 
-		const lineIndent = line.match(/^(\s*)/)?.[1].length ?? 0;
-
-		if (lineIndent < targetIndent) {
-			// Strip leading `- ` for list items before extracting the key
-			const keyMatch = line.match(/^[\s-]*(\w[\w-]*)\s*:/);
-			if (keyMatch) {
-				path.unshift(keyMatch[1]);
-				targetIndent = lineIndent;
-			}
+		if (step.key) {
+			path.unshift(step.key);
+			targetIndent = step.lineIndent;
 		}
 
 		if (targetIndent === 0) break;
@@ -1485,6 +1500,168 @@ function getValueCompletionContext(line: string, cursorColumn: number): string |
 	return valueMatch ? valueMatch[1] : null;
 }
 
+function createValueCompletionList(
+	monaco: typeof Monaco,
+	position: Monaco.Position,
+	fieldName: string,
+	values: string[]
+): Monaco.languages.CompletionList {
+	const range = new monaco.Range(
+		position.lineNumber,
+		position.column,
+		position.lineNumber,
+		position.column
+	);
+	return {
+		suggestions: values.map((value) => ({
+			label: value,
+			kind: monaco.languages.CompletionItemKind.Value,
+			insertText: value,
+			range,
+			detail: fieldName
+		}))
+	};
+}
+
+function getValueCompletionList(
+	monaco: typeof Monaco,
+	lines: string[],
+	position: Monaco.Position,
+	currentLine: string,
+	kind: string,
+	lineIndent: number
+): Monaco.languages.CompletionList | null {
+	const fieldName = getValueCompletionContext(currentLine, position.column);
+	if (!fieldName || !kind) return null;
+
+	const parentPath = getParentPath(lines, position.lineNumber - 1, lineIndent);
+	const pathKey = `${kind}.${parentPath}.${fieldName}`;
+	const values = VALUE_COMPLETIONS_BY_PATH[pathKey] ?? VALUE_COMPLETIONS[fieldName];
+	return values ? createValueCompletionList(monaco, position, fieldName, values) : null;
+}
+
+function formatCompletionInsertText(insertText: string, baseIndent: string): string {
+	if (!insertText.includes('\n')) return insertText;
+	return insertText
+		.split('\n')
+		.map((line, index) => (index === 0 ? line : baseIndent + line))
+		.join('\n');
+}
+
+function getKeyCompletionList(
+	monaco: typeof Monaco,
+	model: Monaco.editor.ITextModel,
+	position: Monaco.Position,
+	lines: string[],
+	currentLine: string,
+	kind: string
+): Monaco.languages.CompletionList {
+	// Only trigger for lines that are empty or contain only whitespace up to cursor
+	const beforeCursor = currentLine.substring(0, position.column - 1);
+	if (beforeCursor.trim() !== '') return { suggestions: [] };
+
+	const lineIndent = getLineIndent(currentLine);
+	const currentIndent = Math.max(lineIndent, position.column - 1);
+	if (!kind || !SCHEMA[kind]) return { suggestions: [] };
+
+	const parentPath = getParentPath(lines, position.lineNumber - 1, currentIndent);
+	const completions = SCHEMA[kind][parentPath];
+	if (!completions) return { suggestions: [] };
+
+	const wordInfo = model.getWordUntilPosition(position);
+	const replaceRange = new monaco.Range(
+		position.lineNumber,
+		wordInfo.startColumn,
+		position.lineNumber,
+		wordInfo.endColumn
+	);
+	const baseIndent = ' '.repeat(currentIndent);
+
+	return {
+		suggestions: completions.map((item) => ({
+			label: item.label,
+			kind: monaco.languages.CompletionItemKind.Field,
+			detail: item.detail,
+			documentation: { value: item.documentation },
+			insertText: formatCompletionInsertText(item.insertText, baseIndent),
+			insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
+			range: replaceRange
+		}))
+	};
+}
+
+function getCompletionList(
+	monaco: typeof Monaco,
+	model: Monaco.editor.ITextModel,
+	position: Monaco.Position
+): Monaco.languages.CompletionList {
+	const lines = model.getLinesContent();
+	const currentLine = lines[position.lineNumber - 1];
+	const kind = extractKind(lines);
+	const valueCompletions = getValueCompletionList(
+		monaco,
+		lines,
+		position,
+		currentLine,
+		kind,
+		getLineIndent(currentLine)
+	);
+
+	return (
+		valueCompletions ?? getKeyCompletionList(monaco, model, position, lines, currentLine, kind)
+	);
+}
+
+function getHoverSchemaEntry(
+	lines: string[],
+	position: Monaco.Position,
+	word: Monaco.editor.IWordAtPosition
+): FieldCompletion | undefined {
+	const currentLine = lines[position.lineNumber - 1];
+	const kind = extractKind(lines);
+	const parentPath = getParentPath(lines, position.lineNumber - 1, getLineIndent(currentLine));
+	const schemaCompletions = kind && SCHEMA[kind] ? SCHEMA[kind][parentPath] : [];
+	return schemaCompletions?.find((completion) => completion.label === word.word);
+}
+
+function getHoverDocumentation(
+	word: Monaco.editor.IWordAtPosition,
+	schemaEntry: FieldCompletion | undefined
+): string | undefined {
+	return schemaEntry?.documentation ?? FIELD_HOVER_DOCS[word.word as keyof typeof FIELD_HOVER_DOCS];
+}
+
+function getHover(
+	monaco: typeof Monaco,
+	model: Monaco.editor.ITextModel,
+	position: Monaco.Position
+): Monaco.languages.Hover | null {
+	const word = model.getWordAtPosition(position);
+	if (!word) return null;
+
+	const lines = model.getLinesContent();
+	const currentLine = lines[position.lineNumber - 1];
+	const afterWord = currentLine.substring(word.endColumn - 1).trimStart();
+	if (!afterWord.startsWith(':')) return null;
+
+	const schemaEntry = getHoverSchemaEntry(lines, position, word);
+	const markdownDoc = getHoverDocumentation(word, schemaEntry);
+	if (!markdownDoc) return null;
+
+	return {
+		range: new monaco.Range(
+			position.lineNumber,
+			word.startColumn,
+			position.lineNumber,
+			word.endColumn
+		),
+		contents: [
+			{ value: `**${word.word}** — ${schemaEntry?.detail ?? 'FluxCD field'}` },
+			{ value: markdownDoc }
+		]
+	};
+}
+
 /**
  * Register FluxCD-aware YAML completions and hover documentation in Monaco.
  * Safe to call multiple times — registers only once.
@@ -1501,84 +1678,7 @@ export function registerFluxLanguageFeatures(monaco: typeof Monaco): void {
 			model: Monaco.editor.ITextModel,
 			position: Monaco.Position
 		): Monaco.languages.CompletionList {
-			const lines = model.getLinesContent();
-			const lineIndex = position.lineNumber - 1;
-			const currentLine = lines[lineIndex];
-			const kind = extractKind(lines);
-			const lineIndent = currentLine.match(/^(\s*)/)?.[1].length ?? 0;
-
-			// ── Value completion (after `key: `) ────────────────────────────
-			const fieldName = getValueCompletionContext(currentLine, position.column);
-			if (fieldName && kind) {
-				const valParentPath = getParentPath(lines, lineIndex, lineIndent);
-				const pathKey = `${kind}.${valParentPath}.${fieldName}`;
-				const enumValues = VALUE_COMPLETIONS_BY_PATH[pathKey] ?? VALUE_COMPLETIONS[fieldName];
-				if (enumValues) {
-					const range = new monaco.Range(
-						position.lineNumber,
-						position.column,
-						position.lineNumber,
-						position.column
-					);
-					return {
-						suggestions: enumValues.map((val) => ({
-							label: val,
-							kind: monaco.languages.CompletionItemKind.Value,
-							insertText: val,
-							range,
-							detail: fieldName
-						}))
-					};
-				}
-			}
-
-			// ── Key completion ───────────────────────────────────────────────
-			// Only trigger for lines that are empty or contain only whitespace up to cursor
-			const beforeCursor = currentLine.substring(0, position.column - 1);
-			if (beforeCursor.trim() !== '') return { suggestions: [] };
-
-			// Determine the effective indentation (may differ from line content
-			// when the user has typed spaces but not yet a key)
-			const currentIndent = Math.max(lineIndent, position.column - 1);
-
-			if (!kind || !SCHEMA[kind]) return { suggestions: [] };
-
-			const parentPath = getParentPath(lines, lineIndex, currentIndent);
-			const completions = SCHEMA[kind][parentPath];
-			if (!completions) return { suggestions: [] };
-
-			// Use the word at/before position to determine the replace range
-			const wordInfo = model.getWordUntilPosition(position);
-			const replaceRange = new monaco.Range(
-				position.lineNumber,
-				wordInfo.startColumn,
-				position.lineNumber,
-				wordInfo.endColumn
-			);
-
-			const baseIndent = ' '.repeat(currentIndent);
-			return {
-				suggestions: completions.map((item) => {
-					// Re-indent multiline snippets so continuation lines align
-					// with the surrounding document indentation.
-					const insertText = item.insertText.includes('\n')
-						? item.insertText
-								.split('\n')
-								.map((line, i) => (i === 0 ? line : baseIndent + line))
-								.join('\n')
-						: item.insertText;
-
-					return {
-						label: item.label,
-						kind: monaco.languages.CompletionItemKind.Field,
-						detail: item.detail,
-						documentation: { value: item.documentation },
-						insertText,
-						insertTextRules: monaco.languages.CompletionItemInsertTextRule.None,
-						range: replaceRange
-					};
-				})
-			};
+			return getCompletionList(monaco, model, position);
 		}
 	});
 
@@ -1588,43 +1688,7 @@ export function registerFluxLanguageFeatures(monaco: typeof Monaco): void {
 			model: Monaco.editor.ITextModel,
 			position: Monaco.Position
 		): Monaco.languages.Hover | null {
-			const word = model.getWordAtPosition(position);
-			if (!word) return null;
-
-			const lines = model.getLinesContent();
-			const lineIndex = position.lineNumber - 1;
-			const currentLine = lines[lineIndex];
-
-			// Only show hover when the word is at a key position (followed by `:`)
-			const afterWord = currentLine.substring(word.endColumn - 1).trimStart();
-			if (!afterWord.startsWith(':')) return null;
-
-			// Look up schema entry for context-specific documentation
-			const kind = extractKind(lines);
-			const lineIndent = currentLine.match(/^(\s*)/)?.[1].length ?? 0;
-			const parentPath = getParentPath(lines, lineIndex, lineIndent);
-			const schemaCompletions = kind && SCHEMA[kind] ? SCHEMA[kind][parentPath] : [];
-			const schemaEntry = schemaCompletions?.find((c) => c.label === word.word);
-
-			// Use schema documentation as primary; fall back to generic FIELD_HOVER_DOCS
-			const markdownDoc =
-				schemaEntry?.documentation ?? FIELD_HOVER_DOCS[word.word as keyof typeof FIELD_HOVER_DOCS];
-			if (!markdownDoc) return null;
-
-			return {
-				range: new monaco.Range(
-					position.lineNumber,
-					word.startColumn,
-					position.lineNumber,
-					word.endColumn
-				),
-				contents: [
-					{
-						value: `**${word.word}** — ${schemaEntry?.detail ?? 'FluxCD field'}`
-					},
-					{ value: markdownDoc }
-				]
-			};
+			return getHover(monaco, model, position);
 		}
 	});
 }
