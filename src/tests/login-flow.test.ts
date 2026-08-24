@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
 	getLoginDestination,
 	getLoginErrorState,
+	getPostLoginRedirect,
 	getProviderColor,
 	getProviderIcon,
 	LoginRequestError,
@@ -36,6 +37,21 @@ describe('login flow helpers', () => {
 		expect(getLoginDestination('https://evil.example/phish', currentUrl)).toBe('/');
 		expect(getLoginDestination('javascript:alert(1)', currentUrl)).toBe('/');
 		expect(getLoginDestination(null, currentUrl)).toBe('/');
+	});
+
+	test('forces first-login users through password change before returnTo', () => {
+		const currentUrl = 'https://gyre.example/login?returnTo=%2Fadmin';
+
+		expect(
+			getPostLoginRedirect(
+				{ user: { requiresPasswordChange: true, canChangePassword: true } },
+				'/admin',
+				currentUrl
+			)
+		).toBe('/change-password?first=true');
+		expect(
+			getPostLoginRedirect({ user: { requiresPasswordChange: false } }, '/admin', currentUrl)
+		).toBe('/admin');
 	});
 
 	test('submits credentials and preserves structured login errors', async () => {

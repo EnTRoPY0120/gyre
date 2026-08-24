@@ -3,7 +3,12 @@
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import LoginPanel from '$lib/components/auth/LoginPanel.svelte';
-	import { getLoginDestination, getLoginErrorState, submitLogin, validateLoginCredentials } from '$lib/auth/login-flow';
+	import {
+		getLoginErrorState,
+		getPostLoginRedirect,
+		submitLogin,
+		validateLoginCredentials
+	} from '$lib/auth/login-flow';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -59,14 +64,11 @@
 
 			toast.success('Login successful! Redirecting...');
 
-			if (result.user?.requiresPasswordChange && result.user?.canChangePassword) {
-				window.location.href = '/change-password?first=true';
-			} else {
-				window.location.href = getLoginDestination(
-					page.url.searchParams.get('returnTo'),
-					window.location.href
-				);
-			}
+			window.location.href = getPostLoginRedirect(
+				result,
+				page.url.searchParams.get('returnTo'),
+				window.location.href
+			);
 		} catch (err) {
 			const loginError = getLoginErrorState(err);
 			if (loginError.password) {

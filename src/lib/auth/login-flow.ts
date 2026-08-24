@@ -87,6 +87,18 @@ export function getLoginDestination(returnTo: string | null, currentUrl: string)
 	return '/';
 }
 
+export function getPostLoginRedirect(
+	result: LoginResponse,
+	returnTo: string | null,
+	currentUrl: string
+): string {
+	if (result.user?.requiresPasswordChange && result.user?.canChangePassword) {
+		return '/change-password?first=true';
+	}
+
+	return getLoginDestination(returnTo, currentUrl);
+}
+
 export function getProviderIcon(type: string): string {
 	return (
 		(
