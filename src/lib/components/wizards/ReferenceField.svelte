@@ -83,6 +83,22 @@
 		);
 	}
 
+	function getSelectedResourceByKey(): ReferenceOption | null {
+		if (!selectedKey) return null;
+		const selectedByKey = resources.find((resource) => resource.key === selectedKey);
+		return selectedByKey && optionMatchesCurrentValue(selectedByKey) ? selectedByKey : null;
+	}
+
+	function findSelectedResource(): ReferenceOption | null {
+		if (!value) return null;
+
+		const selectedByKey = getSelectedResourceByKey();
+		if (selectedByKey) return selectedByKey;
+
+		const matches = resources.filter((resource) => optionMatchesCurrentValue(resource));
+		return matches.length === 1 ? matches[0] : null;
+	}
+
 	function isCurrentFetch(fetchId: number): boolean {
 		return fetchId === fetchRequestId;
 	}
@@ -120,19 +136,7 @@
 		return resources.filter((resource) => resource.searchText.includes(query));
 	});
 
-	const selectedResource = $derived.by(() => {
-		if (!value) return null;
-
-		if (selectedKey) {
-			const selectedByKey = resources.find((resource) => resource.key === selectedKey);
-			if (selectedByKey && optionMatchesCurrentValue(selectedByKey)) {
-				return selectedByKey;
-			}
-		}
-
-		const matches = resources.filter((resource) => optionMatchesCurrentValue(resource));
-		return matches.length === 1 ? matches[0] : null;
-	});
+	const selectedResource = $derived.by(findSelectedResource);
 
 	const displayValue = $derived.by(() => {
 		return getReferenceDisplayValue({

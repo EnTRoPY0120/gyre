@@ -1,5 +1,23 @@
 import { getCsrfToken } from '$lib/utils/csrf';
 
+function getMessageFromResponseData(data: unknown, fallbackMessage: string): string {
+	const message = (data as { message?: unknown } | null)?.message;
+	if (typeof message !== 'string') return fallbackMessage;
+	return message || fallbackMessage;
+}
+
+async function getMutationErrorMessage(
+	response: Response,
+	fallbackMessage: string
+): Promise<string> {
+	try {
+		return getMessageFromResponseData(await response.json(), fallbackMessage);
+	} catch {
+		// Keep the operation-specific fallback when the response is not JSON.
+		return fallbackMessage;
+	}
+}
+
 export async function requestAuthProviderMutation(
 	url: string,
 	options: RequestInit,
@@ -15,12 +33,5 @@ export async function requestAuthProviderMutation(
 
 	if (response.ok) return;
 
-	let message = fallbackMessage;
-	try {
-		const data = await response.json();
-		if (typeof data?.message === 'string' && data.message) message = data.message;
-	} catch {
-		// Keep the operation-specific fallback when the response is not JSON.
-	}
-	throw new Error(message);
+	throw new Error(await getMutationErrorMessage(response, fallbackMessage));
 }
