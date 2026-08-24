@@ -636,7 +636,7 @@
       }
     },
     "src/routes/admin/users/+page.server.ts": {
-      "crap_critical": {
+      "crap_high": {
         "count": 3
       },
       "crap_moderate": {

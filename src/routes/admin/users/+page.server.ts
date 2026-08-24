@@ -11,15 +11,18 @@ import {
 	updateUserPassword
 } from '$lib/server/auth';
 import { logUserManagement } from '$lib/server/audit';
-import { passwordSchema } from '$lib/utils/validation';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { parseAdminPagination } from '../pagination';
 import {
 	getRequiredFormString,
 	requireAdminFormUser,
-	serializePagination,
-	validateLength
+	serializePagination
 } from '../server-helpers';
+import {
+	validatePasswordResetInput,
+	validateUserCreateInput,
+	validateUserUpdateInput
+} from './action-validation';
 
 /**
  * Load function for user management page
@@ -61,34 +64,8 @@ export const actions: Actions = {
 		const role = formData.get('role') as 'admin' | 'editor' | 'viewer';
 		const password = formData.get('password') as string;
 
-		// Validation
-		if (!username || !password || !role) {
-			return fail(400, { error: 'Username, password, and role are required' });
-		}
-
-		const usernameLengthError = validateLength(username, {
-			min: 3,
-			max: 64,
-			minMessage: 'Username must be at least 3 characters',
-			maxMessage: 'Username must be at most 64 characters'
-		});
-		if (usernameLengthError) return usernameLengthError;
-
-		if (email) {
-			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!emailRegex.test(email)) {
-				return fail(400, { error: 'Invalid email format' });
-			}
-		}
-
-		const passwordValidation = passwordSchema.safeParse(password);
-		if (!passwordValidation.success) {
-			return fail(400, {
-				error:
-					passwordValidation.error.issues[0]?.message ??
-					'Password does not meet strength requirements'
-			});
-		}
+		const validationError = validateUserCreateInput(username, email, password, role);
+		if (validationError) return fail(400, { error: validationError });
 
 		try {
 			const newUser = await createUser(username, password, role, email || undefined);
@@ -119,22 +96,8 @@ export const actions: Actions = {
 		const role = formData.get('role') as 'admin' | 'editor' | 'viewer' | null;
 		const active = formData.get('active') as string;
 
-		if (email) {
-			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!emailRegex.test(email)) {
-				return fail(400, { error: 'Invalid email format' });
-			}
-		}
-
-		// Prevent self-demotion from admin
-		if (userId === user.id && role && role !== 'admin') {
-			return fail(400, { error: 'Cannot remove your own admin role' });
-		}
-
-		// Prevent self-deactivation
-		if (userId === user.id && active === 'false') {
-			return fail(400, { error: 'Cannot deactivate your own account' });
-		}
+		const validationError = validateUserUpdateInput(userId, user.id, email, role, active);
+		if (validationError) return fail(400, { error: validationError });
 
 		try {
 			const updates: Parameters<typeof updateUser>[1] = {};
@@ -204,18 +167,8 @@ export const actions: Actions = {
 		const userId = formData.get('userId') as string;
 		const newPassword = formData.get('newPassword') as string;
 
-		if (!userId || !newPassword) {
-			return fail(400, { error: 'User ID and new password are required' });
-		}
-
-		const passwordValidation = passwordSchema.safeParse(newPassword);
-		if (!passwordValidation.success) {
-			return fail(400, {
-				error:
-					passwordValidation.error.issues[0]?.message ??
-					'Password does not meet strength requirements'
-			});
-		}
+		const validationError = validatePasswordResetInput(userId, newPassword);
+		if (validationError) return fail(400, { error: validationError });
 
 		// Check if user is SSO user
 		const targetUser = await getUserById(userId);
