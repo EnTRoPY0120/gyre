@@ -2,6 +2,7 @@
 	import { theme, type Theme } from '$lib/stores/theme.svelte';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import { Sun, Moon, Monitor, Check } from '@lucide/svelte';
+	import { getThemeButtonKeyAction, getThemeMenuItemKeyAction } from './theme-keyboard';
 
 	const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
 		{ value: 'light', label: 'Light', icon: Sun },
@@ -45,50 +46,48 @@
 	}
 
 	function handleButtonKeydown(e: KeyboardEvent) {
-		if (e.key === ' ' || e.key === 'Enter') {
-			e.preventDefault();
-			if (!isOpen) {
+		const action = getThemeButtonKeyAction(
+			e.key,
+			isOpen,
+			selectedIndex,
+			themeOptions.length,
+			getInitialIndex()
+		);
+		if (action.preventDefault) e.preventDefault();
+
+		switch (action.type) {
+			case 'open':
 				isOpen = true;
-				selectedIndex = getInitialIndex();
-				// Focus the menu item after the menu opens
+				selectedIndex = action.index;
 				$effect.pre(() => {
-					if (isOpen && selectedIndex >= 0) {
-						focusMenuButton(selectedIndex);
-					}
+					if (isOpen && selectedIndex >= 0) focusMenuButton(selectedIndex);
 				});
-			} else {
+				break;
+			case 'move':
+				selectedIndex = action.index;
+				focusMenuButton(selectedIndex);
+				break;
+			case 'close':
 				isOpen = false;
-			}
-		} else if (e.key === 'ArrowDown' && isOpen) {
-			e.preventDefault();
-			selectedIndex = (selectedIndex + 1) % themeOptions.length;
-			focusMenuButton(selectedIndex);
-		} else if (e.key === 'ArrowUp' && isOpen) {
-			e.preventDefault();
-			selectedIndex = (selectedIndex - 1 + themeOptions.length) % themeOptions.length;
-			focusMenuButton(selectedIndex);
-		} else if (e.key === 'Escape') {
-			isOpen = false;
+				break;
 		}
 	}
 
 	function handleMenuItemKeydown(e: KeyboardEvent, option: Theme, index: number) {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			selectTheme(option);
-		} else if (e.key === 'ArrowDown') {
-			e.preventDefault();
-			selectedIndex = (selectedIndex + 1) % themeOptions.length;
-			focusMenuButton(selectedIndex);
-		} else if (e.key === 'ArrowUp') {
-			e.preventDefault();
-			selectedIndex = (selectedIndex - 1 + themeOptions.length) % themeOptions.length;
-			focusMenuButton(selectedIndex);
-		} else if (e.key === 'Escape') {
-			e.preventDefault();
-			isOpen = false;
-		} else if (e.key === 'Tab') {
-			isOpen = false;
+		const action = getThemeMenuItemKeyAction(e.key, themeOptions.length, selectedIndex);
+		if (action.preventDefault) e.preventDefault();
+
+		switch (action.type) {
+			case 'select':
+				selectTheme(option);
+				break;
+			case 'move':
+				selectedIndex = action.index;
+				focusMenuButton(selectedIndex);
+				break;
+			case 'close':
+				isOpen = false;
+				break;
 		}
 	}
 </script>
