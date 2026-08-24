@@ -165,11 +165,6 @@
         "count": 1
       }
     },
-    "src/lib/components/layout/NotificationDropdown.svelte": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/lib/components/layout/ThemeToggle.svelte": {
       "complexity_moderate": {
         "count": 1
