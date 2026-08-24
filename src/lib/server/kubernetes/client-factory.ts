@@ -5,6 +5,59 @@ import * as https from 'https';
 import { URL } from 'url';
 import { _createTimeoutMiddleware } from './timeouts.js';
 
+function createResponseContext(res: http.IncomingMessage, chunks: Buffer[]): k8s.ResponseContext {
+	const buffer = Buffer.concat(chunks);
+	const responseHeaders: Record<string, string> = {};
+	for (const [key, value] of Object.entries(res.headers)) {
+		if (Array.isArray(value)) {
+			responseHeaders[key] = value.join(', ');
+		} else if (value !== undefined) {
+			responseHeaders[key] = String(value);
+		}
+	}
+
+	return new k8s.ResponseContext(res.statusCode ?? 0, responseHeaders, {
+		binary: async () => buffer,
+		text: async () => buffer.toString('utf-8')
+	});
+}
+
+function collectResponse(res: http.IncomingMessage): Promise<k8s.ResponseContext> {
+	return new Promise((resolve) => {
+		const chunks: Buffer[] = [];
+		res.on('data', (chunk) => {
+			chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+		});
+		res.on('end', () => resolve(createResponseContext(res, chunks)));
+	});
+}
+
+function attachAbortSignal(req: http.ClientRequest, signal: AbortSignal | undefined): boolean {
+	if (!signal) return true;
+
+	const abort = () => {
+		req.destroy(new Error('Request aborted'));
+	};
+	if (signal.aborted) {
+		abort();
+		return false;
+	}
+
+	signal.addEventListener('abort', abort, { once: true });
+	req.on('close', () => signal.removeEventListener('abort', abort));
+	return true;
+}
+
+function writeRequestBody(req: http.ClientRequest, body: unknown): void {
+	if (body === undefined) {
+		req.end();
+	} else if (typeof body === 'string' || Buffer.isBuffer(body)) {
+		req.end(body);
+	} else {
+		req.end(String(body));
+	}
+}
+
 class NodeHttpLibrary implements k8s.PromiseHttpLibrary {
 	send(request: k8s.RequestContext): Promise<k8s.ResponseContext> {
 		return new Promise((resolve, reject) => {
@@ -22,53 +75,14 @@ class NodeHttpLibrary implements k8s.PromiseHttpLibrary {
 					agent
 				},
 				(res) => {
-					const chunks: Buffer[] = [];
-					res.on('data', (chunk) => {
-						chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-					});
-					res.on('end', () => {
-						const buffer = Buffer.concat(chunks);
-						const responseHeaders: Record<string, string> = {};
-						for (const [key, value] of Object.entries(res.headers)) {
-							if (Array.isArray(value)) {
-								responseHeaders[key] = value.join(', ');
-							} else if (value !== undefined) {
-								responseHeaders[key] = String(value);
-							}
-						}
-
-						resolve(
-							new k8s.ResponseContext(res.statusCode ?? 0, responseHeaders, {
-								binary: async () => buffer,
-								text: async () => buffer.toString('utf-8')
-							})
-						);
-					});
+					void collectResponse(res).then(resolve);
 				}
 			);
 
-			const signal = request.getSignal();
-			const abort = () => {
-				req.destroy(new Error('Request aborted'));
-			};
-			if (signal) {
-				if (signal.aborted) {
-					abort();
-					return;
-				}
-				signal.addEventListener('abort', abort, { once: true });
-				req.on('close', () => signal.removeEventListener('abort', abort));
-			}
+			if (!attachAbortSignal(req, request.getSignal())) return;
 
 			req.on('error', reject);
-
-			if (body === undefined) {
-				req.end();
-			} else if (typeof body === 'string' || Buffer.isBuffer(body)) {
-				req.end(body);
-			} else {
-				req.end(String(body));
-			}
+			writeRequestBody(req, body);
 		});
 	}
 }
