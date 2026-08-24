@@ -149,8 +149,8 @@
         "count": 1
       }
     },
-    "src/lib/components/flux/resources/AlertDetail.svelte": {
-      "complexity_high": {
+    "src/lib/components/flux/resources/AlertEventFilters.svelte": {
+      "complexity_moderate": {
         "count": 1
       }
     },
@@ -684,7 +684,6 @@
     "src/lib/utils/focus-trap.ts:high impact",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/VersionHistoryEntry.svelte:complexity",
-    "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
-    "src/lib/components/flux/resources/AlertDetail.svelte:complexity"
+    "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity"
   ]
 }
