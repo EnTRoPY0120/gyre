@@ -5,7 +5,6 @@
 	import AuthProviderModals from '$lib/components/admin/AuthProviderModals.svelte';
 	import {
 		DEFAULT_ROLE_MAPPING_TEMPLATE,
-		parseRoleMappingInput,
 		stringifyRoleMappingForForm
 	} from '$lib/auth/role-mapping';
 	import {
@@ -17,7 +16,7 @@
 	} from '$lib/components/admin/auth-provider';
 	import { logger } from '$lib/utils/logger.js';
 	import { requestAuthProviderMutation } from './auth-provider-requests';
-	import { buildAuthProviderUpdates } from './form-helpers';
+	import { buildAuthProviderUpdates, normalizeRoleMappingForSave } from './form-helpers';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -82,19 +81,6 @@
 		showEditModal = false;
 		showDeleteModal = false;
 		selectedProvider = null;
-	}
-
-	function normalizeRoleMappingForSave(value: string) {
-		const trimmed = value.trim();
-		if (!trimmed || trimmed === DEFAULT_ROLE_MAPPING_TEMPLATE.trim()) return null;
-
-		try {
-			const parsed = parseRoleMappingInput(trimmed);
-			if (!parsed || Object.values(parsed).every((groups) => groups.length === 0)) return null;
-			return parsed;
-		} catch {
-			return null;
-		}
 	}
 
 	async function handleCreate() {

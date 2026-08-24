@@ -144,17 +144,25 @@
 		if (activeTab !== validTab) activeTab = validTab;
 	});
 
+	function getTabTargetIndex(key: string, index: number, tabCount: number): number | null {
+		if (key === 'ArrowRight') return (index + 1) % tabCount;
+		if (key === 'ArrowLeft') return (index - 1 + tabCount) % tabCount;
+		if (key === 'Home') return 0;
+		if (key === 'End') return tabCount - 1;
+		return null;
+	}
+
+	function focusTab(event: KeyboardEvent, targetIndex: number): void {
+		((event.target as HTMLElement).parentElement?.children[targetIndex] as HTMLElement)?.focus();
+	}
+
 	function handleKeydown(event: KeyboardEvent, index: number) {
-		let targetIndex: number | null = null;
-		if (event.key === 'ArrowRight') targetIndex = (index + 1) % tabs.length;
-		else if (event.key === 'ArrowLeft') targetIndex = (index - 1 + tabs.length) % tabs.length;
-		else if (event.key === 'Home') targetIndex = 0;
-		else if (event.key === 'End') targetIndex = tabs.length - 1;
-		if (targetIndex !== null) {
-			event.preventDefault();
-			setActiveTab(tabs[targetIndex].id);
-			((event.target as HTMLElement).parentElement?.children[targetIndex] as HTMLElement)?.focus();
-		}
+		const targetIndex = getTabTargetIndex(event.key, index, tabs.length);
+		if (targetIndex === null) return;
+
+		event.preventDefault();
+		setActiveTab(tabs[targetIndex].id);
+		focusTab(event, targetIndex);
 	}
 
 	let activeAbortController: AbortController | null = null;
@@ -248,7 +256,12 @@
 			diffsError = result.error;
 			return;
 		}
+		applySuccessfulDiffResult(result);
+	}
 
+	type SuccessfulDiffResult = Extract<ResourceDiffLoadResult, { response: unknown }>;
+
+	function applySuccessfulDiffResult(result: SuccessfulDiffResult): void {
 		diffs = result.response.diffs || [];
 		diffsTimestamp = result.response.timestamp || null;
 		diffsRevision = result.response.revision || null;

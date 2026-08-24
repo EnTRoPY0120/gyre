@@ -11,6 +11,13 @@ class ClusterStore {
 	loaded = $state<boolean>(false);
 	error = $state<string | null>(null);
 
+	private applySwitchResponse(payload: Awaited<ReturnType<typeof requestClusterSwitch>>): void {
+		this.current = normalizeClusterId(payload.currentClusterId ?? payload.currentCluster?.id);
+		if (payload.selectableClusters) {
+			this.setAvailable(payload.selectableClusters);
+		}
+	}
+
 	async setCluster(id: string) {
 		const previousId = this.current;
 		const requestedId = normalizeClusterId(id);
@@ -19,10 +26,7 @@ class ClusterStore {
 
 		try {
 			const payload = await requestClusterSwitch(requestedId);
-			this.current = normalizeClusterId(payload.currentClusterId ?? payload.currentCluster?.id);
-			if (payload.selectableClusters) {
-				this.setAvailable(payload.selectableClusters);
-			}
+			this.applySwitchResponse(payload);
 			await invalidate('gyre:layout');
 		} catch (error) {
 			this.current = previousId;

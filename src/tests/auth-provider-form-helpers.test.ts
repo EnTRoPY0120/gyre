@@ -1,6 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { createEmptyAuthProviderFormData } from '../lib/components/admin/auth-provider.js';
-import { buildAuthProviderUpdates } from '../routes/admin/auth-providers/form-helpers.js';
+import {
+	buildAuthProviderUpdates,
+	normalizeRoleMappingForSave
+} from '../routes/admin/auth-providers/form-helpers.js';
+import { DEFAULT_ROLE_MAPPING_TEMPLATE } from '../lib/auth/role-mapping.js';
 
 describe('buildAuthProviderUpdates', () => {
 	test('does not clear an existing client secret when the edit form leaves it blank', () => {
@@ -19,5 +23,23 @@ describe('buildAuthProviderUpdates', () => {
 			clientSecret: 'new-secret',
 			roleMapping
 		});
+	});
+});
+
+describe('normalizeRoleMappingForSave', () => {
+	test('omits blank and default template mappings', () => {
+		expect(normalizeRoleMappingForSave('')).toBeNull();
+		expect(normalizeRoleMappingForSave(DEFAULT_ROLE_MAPPING_TEMPLATE)).toBeNull();
+	});
+
+	test('preserves non-empty role mappings for submission', () => {
+		expect(normalizeRoleMappingForSave('{"admin":["platform-admin"]}')).toEqual({
+			admin: ['platform-admin']
+		});
+	});
+
+	test('fails closed for malformed and empty mappings', () => {
+		expect(normalizeRoleMappingForSave('{invalid')).toBeNull();
+		expect(normalizeRoleMappingForSave('{"admin":[]}')).toBeNull();
 	});
 });
