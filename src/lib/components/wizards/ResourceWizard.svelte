@@ -230,16 +230,43 @@
 		setFieldValue(fallbackField, value);
 	}
 
-	async function handleSubmit() {
-		// Check for YAML syntax errors first
-		if (yamlError) {
-			error = yamlError;
-			return;
-		}
-
-		// Validate form before submitting (only in wizard mode)
+	function getSubmitValidationError(): string | null {
+		if (yamlError) return yamlError;
 		if (mode === 'wizard' && !validateForm()) {
-			error = 'Please fix validation errors before submitting';
+			return 'Please fix validation errors before submitting';
+		}
+		return null;
+	}
+
+	function prepareWizardSubmission(): void {
+		if (mode !== 'wizard') return;
+
+		template.fields.forEach((field) => {
+			if (field.type === 'number') commitFieldValue(field);
+		});
+		updateYamlFromForm();
+	}
+
+	async function createSubmittedResource(): Promise<Awaited<ReturnType<typeof createResourceFromWizard>>> {
+		prepareWizardSubmission();
+		const parsed = parse(currentYaml) as Record<string, unknown> & {
+			metadata?: { namespace?: string; name?: string };
+		};
+		return createResourceFromWizard(template.plural, parsed, getCsrfToken());
+	}
+
+	function scheduleResourceRedirect(
+		createdResource: Awaited<ReturnType<typeof createResourceFromWizard>>
+	): void {
+		setTimeout(() => {
+			void goto(getWizardResourceRedirect(template.plural, createdResource));
+		}, 1500);
+	}
+
+	async function handleSubmit() {
+		const validationError = getSubmitValidationError();
+		if (validationError) {
+			error = validationError;
 			return;
 		}
 
@@ -247,25 +274,10 @@
 		error = null;
 
 		try {
-			if (mode === 'wizard') {
-				template.fields.forEach((field) => {
-					if (field.type === 'number') {
-						commitFieldValue(field);
-					}
-				});
-				updateYamlFromForm();
-			}
-
-			const parsed = parse(currentYaml) as Record<string, unknown> & {
-				metadata?: { namespace?: string; name?: string };
-			};
-			const createdResource = await createResourceFromWizard(template.plural, parsed, getCsrfToken());
+			const createdResource = await createSubmittedResource();
 
 			success = true;
-
-			setTimeout(() => {
-				void goto(getWizardResourceRedirect(template.plural, createdResource));
-			}, 1500);
+			scheduleResourceRedirect(createdResource);
 		} catch (err) {
 			error = (err as Error).message;
 		} finally {

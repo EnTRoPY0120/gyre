@@ -28,6 +28,21 @@
 		}
 	});
 
+	async function requestResourceDeletion(): Promise<void> {
+		const response = await fetch(
+			`/api/v1/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+			{
+				method: 'DELETE',
+				headers: { 'X-CSRF-Token': getCsrfToken() }
+			}
+		);
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(data.message || 'Failed to delete resource');
+		}
+	}
+
 	async function handleDelete() {
 		if (!canConfirm || isDeleting) return;
 
@@ -35,18 +50,7 @@
 		error = null;
 
 		try {
-			const response = await fetch(
-			`/api/v1/flux/${encodeURIComponent(resourceType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
-			{
-				method: 'DELETE',
-				headers: { 'X-CSRF-Token': getCsrfToken() }
-			});
-
-			if (!response.ok) {
-				const data = await response.json().catch(() => ({}));
-				throw new Error(data.message || 'Failed to delete resource');
-			}
-
+			await requestResourceDeletion();
 			open = false;
 			await goto(`/resources/${encodeURIComponent(resourceType)}`);
 		} catch (err) {

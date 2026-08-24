@@ -88,33 +88,33 @@ export async function bindUserToDefaultPolicies(user: User): Promise<void> {
 	});
 }
 
+function getDefaultPolicyIdsForRole(role: User['role']): readonly string[] {
+	switch (role) {
+		case 'viewer':
+			return [DEFAULT_POLICY_IDS.VIEWER_READ_ALL];
+		case 'editor':
+			return [DEFAULT_POLICY_IDS.EDITOR_READ_ALL, DEFAULT_POLICY_IDS.EDITOR_WRITE_ALL];
+		case 'admin':
+			return [];
+	}
+}
+
+function ensurePolicyBinding(tx: Tx, userId: string, policyId: string): void {
+	const existing = tx
+		.select({ userId: rbacBindings.userId })
+		.from(rbacBindings)
+		.where(and(eq(rbacBindings.userId, userId), eq(rbacBindings.policyId, policyId)))
+		.get();
+
+	if (!existing) {
+		tx.insert(rbacBindings).values({ userId, policyId }).run();
+	}
+}
+
 export function bindUserToDefaultPoliciesInTx(tx: Tx, user: User): void {
 	// Admin role doesn't need policy bindings (has full access by role)
-	if (user.role === 'admin') {
-		return;
-	}
-
-	const policiesToBind: string[] = [];
-
-	// Determine which policies to bind based on role
-	if (user.role === 'viewer') {
-		policiesToBind.push(DEFAULT_POLICY_IDS.VIEWER_READ_ALL);
-	} else if (user.role === 'editor') {
-		policiesToBind.push(DEFAULT_POLICY_IDS.EDITOR_READ_ALL);
-		policiesToBind.push(DEFAULT_POLICY_IDS.EDITOR_WRITE_ALL);
-	}
-
-	// Bind policies to user (skip if already bound)
-	for (const policyId of policiesToBind) {
-		const existing = tx
-			.select({ userId: rbacBindings.userId })
-			.from(rbacBindings)
-			.where(and(eq(rbacBindings.userId, user.id), eq(rbacBindings.policyId, policyId)))
-			.get();
-
-		if (!existing) {
-			tx.insert(rbacBindings).values({ userId: user.id, policyId }).run();
-		}
+	for (const policyId of getDefaultPolicyIdsForRole(user.role)) {
+		ensurePolicyBinding(tx, user.id, policyId);
 	}
 }
 

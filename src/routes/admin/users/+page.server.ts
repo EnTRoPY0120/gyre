@@ -114,6 +114,49 @@ async function getPasswordResetError(userId: string): Promise<string | null> {
 	return null;
 }
 
+async function updateUserAndLog(
+	user: User,
+	userId: string,
+	updates: Parameters<typeof updateUser>[1]
+) {
+	try {
+		const updatedUser = await updateUser(userId, updates);
+
+		if (updatedUser) {
+			await logUserManagement(user, 'update', userId, updatedUser.username, updates);
+		}
+
+		return { success: true };
+	} catch (error) {
+		logger.error(error, 'Error updating user:');
+		return fail(500, { error: 'Failed to update user' });
+	}
+}
+
+async function deleteUserAndLog(user: User, userId: string, username: string) {
+	try {
+		await deleteUser(userId);
+		await logUserManagement(user, 'delete', userId, username || 'unknown', {});
+		return { success: true };
+	} catch (error) {
+		logger.error(error, 'Error deleting user:');
+		return fail(500, { error: 'Failed to delete user' });
+	}
+}
+
+async function resetUserPasswordAndLog(user: User, userId: string, newPassword: string) {
+	try {
+		await updateUserPassword(userId, newPassword);
+		await logUserManagement(user, 'update', userId, 'password-reset', {
+			passwordReset: true
+		});
+		return { success: true };
+	} catch (error) {
+		logger.error(error, 'Error resetting password:');
+		return fail(500, { error: 'Failed to reset password' });
+	}
+}
+
 export const actions: Actions = {
 	/**
 	 * Create a new user
@@ -152,19 +195,7 @@ export const actions: Actions = {
 		const validationError = validateUserUpdateInput(userId, user.id, email, role, active);
 		if (validationError) return fail(400, { error: validationError });
 
-		try {
-			const updates = buildUserUpdates(email, role, active);
-			const updatedUser = await updateUser(userId, updates);
-
-			if (updatedUser) {
-				await logUserManagement(user, 'update', userId, updatedUser.username, updates);
-			}
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error updating user:');
-			return fail(500, { error: 'Failed to update user' });
-		}
+		return updateUserAndLog(user, userId, buildUserUpdates(email, role, active));
 	},
 
 	/**
@@ -184,16 +215,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'Cannot delete your own account' });
 		}
 
-		try {
-			await deleteUser(userId);
-
-			await logUserManagement(user, 'delete', userId, username || 'unknown', {});
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error deleting user:');
-			return fail(500, { error: 'Failed to delete user' });
-		}
+		return deleteUserAndLog(user, userId, username);
 	},
 
 	/**
@@ -222,17 +244,6 @@ export const actions: Actions = {
 		const targetError = await getPasswordResetError(userId);
 		if (targetError) return fail(400, { error: targetError });
 
-		try {
-			await updateUserPassword(userId, newPassword);
-
-			await logUserManagement(user, 'update', userId, 'password-reset', {
-				passwordReset: true
-			});
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error resetting password:');
-			return fail(500, { error: 'Failed to reset password' });
-		}
+		return resetUserPasswordAndLog(user, userId, newPassword);
 	}
 };

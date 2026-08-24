@@ -154,33 +154,41 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 	}
 }
 
+async function ensureInClusterAdminPasswordHash(): Promise<string | null> {
+	if (!inClusterAdminPasswordHash) {
+		// Try to load from secret if not already loaded
+		await loadOrCreateInClusterAdmin();
+	}
+
+	return inClusterAdminPasswordHash;
+}
+
+async function markInClusterAdminFirstLogin(): Promise<void> {
+	try {
+		const api = await createK8sClient();
+		const namespace = getCurrentNamespace();
+		await markSecretConsumed(api, namespace);
+		inClusterFirstLoginDone = true;
+	} catch (error) {
+		logger.error(error, 'Failed to mark secret as consumed:');
+	}
+}
+
 /**
  * Validate admin login for in-cluster mode
  * - Checks against the K8s secret password
  * - After first successful login, marks secret as consumed
  */
 export async function validateInClusterAdmin(password: string): Promise<boolean> {
-	if (!inClusterAdminPasswordHash) {
-		// Try to load from secret if not already loaded
-		await loadOrCreateInClusterAdmin();
-	}
-
-	if (!inClusterAdminPasswordHash) {
+	const passwordHash = await ensureInClusterAdminPasswordHash();
+	if (!passwordHash) {
 		return false;
 	}
 
-	const isValid = await verifyPassword(password, inClusterAdminPasswordHash);
+	const isValid = await verifyPassword(password, passwordHash);
 
 	if (isValid && !inClusterFirstLoginDone) {
-		// Mark as consumed
-		try {
-			const api = await createK8sClient();
-			const namespace = getCurrentNamespace();
-			await markSecretConsumed(api, namespace);
-			inClusterFirstLoginDone = true;
-		} catch (error) {
-			logger.error(error, 'Failed to mark secret as consumed:');
-		}
+		await markInClusterAdminFirstLogin();
 	}
 
 	return isValid;

@@ -260,25 +260,37 @@
 		rollbackConfirmOpen = true;
 	}
 
+	function getRollbackDisplayRevision(historyId: string, revision: string | null): string {
+		return revision ? revision.slice(0, 8) : historyId.slice(0, 8);
+	}
+
+	async function executeRollback(historyId: string, revision: string | null): Promise<void> {
+		const displayRevision = getRollbackDisplayRevision(historyId, revision);
+		await requestResourceRollback(
+			resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`),
+			{ historyId, revision },
+			getCsrfToken()
+		);
+		toast.success(`Successfully initiated rollback to ${displayRevision}`);
+		historyFetched = false;
+		await fetchHistory();
+		await invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
+	}
+
+	function clearPendingRollback(expected: { historyId: string; revision: string | null }): void {
+		if (pendingRollback === expected) pendingRollback = null;
+	}
+
 	async function confirmRollback() {
-		if (!pendingRollback) return;
 		const myPending = pendingRollback;
-		const { historyId, revision } = myPending;
-		const displayRevision = revision ? revision.slice(0, 8) : historyId.slice(0, 8);
+		if (!myPending) return;
+
 		try {
-			await requestResourceRollback(
-				resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`),
-				{ historyId, revision },
-				getCsrfToken()
-			);
-			toast.success(`Successfully initiated rollback to ${displayRevision}`);
-			historyFetched = false;
-			await fetchHistory();
-			await invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
+			await executeRollback(myPending.historyId, myPending.revision);
 		} catch (err) {
 			toast.error(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		} finally {
-			if (pendingRollback === myPending) pendingRollback = null;
+			clearPendingRollback(myPending);
 		}
 	}
 

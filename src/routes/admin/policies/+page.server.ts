@@ -66,6 +66,33 @@ async function createPolicyAndLog(user: User, input: PolicyCreateFormInput) {
 	}
 }
 
+async function bindPolicyAndLog(user: User, userId: string, policyId: string, policyName: string) {
+	try {
+		await bindPolicyToUser(userId, policyId);
+		await logRbacChange(user, 'bind', policyName || 'unknown', userId, { policyId });
+		return { success: true };
+	} catch (error) {
+		logger.error(error, 'Error binding policy:');
+		return fail(500, { error: 'Failed to bind policy to user' });
+	}
+}
+
+async function unbindPolicyAndLog(
+	user: User,
+	userId: string,
+	policyId: string,
+	policyName: string
+) {
+	try {
+		await unbindPolicyFromUser(userId, policyId);
+		await logRbacChange(user, 'unbind', policyName || 'unknown', userId, { policyId });
+		return { success: true };
+	} catch (error) {
+		logger.error(error, 'Error unbinding policy:');
+		return fail(500, { error: 'Failed to unbind policy from user' });
+	}
+}
+
 /**
  * Load function for RBAC policy management page
  */
@@ -169,16 +196,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'User ID and Policy ID are required' });
 		}
 
-		try {
-			await bindPolicyToUser(userId, policyId);
-
-			await logRbacChange(user, 'bind', policyName || 'unknown', userId, { policyId });
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error binding policy:');
-			return fail(500, { error: 'Failed to bind policy to user' });
-		}
+		return bindPolicyAndLog(user, userId, policyId, policyName);
 	},
 
 	/**
@@ -197,15 +215,6 @@ export const actions: Actions = {
 			return fail(400, { error: 'User ID and Policy ID are required' });
 		}
 
-		try {
-			await unbindPolicyFromUser(userId, policyId);
-
-			await logRbacChange(user, 'unbind', policyName || 'unknown', userId, { policyId });
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error unbinding policy:');
-			return fail(500, { error: 'Failed to unbind policy from user' });
-		}
+		return unbindPolicyAndLog(user, userId, policyId, policyName);
 	}
 };
