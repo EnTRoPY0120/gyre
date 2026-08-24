@@ -2,6 +2,18 @@ export interface CreatedResource {
 	metadata?: { namespace?: string; name?: string };
 }
 
+const K8S_NAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+
+export function getWizardResourceRedirect(plural: string, resource: CreatedResource): string {
+	const namespace = resource.metadata?.namespace;
+	const name = resource.metadata?.name;
+	if (namespace && name && K8S_NAME_RE.test(namespace) && K8S_NAME_RE.test(name)) {
+		return `/resources/${plural}/${namespace}/${name}`;
+	}
+
+	return `/resources/${plural}`;
+}
+
 /** Create a resource from the wizard manifest and normalize API failures. */
 export async function createResourceFromWizard(
 	plural: string,

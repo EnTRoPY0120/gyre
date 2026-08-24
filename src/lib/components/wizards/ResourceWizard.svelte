@@ -12,12 +12,8 @@
 		validateHelmReleaseResourceValues as validateWizardHelmReleaseResourceValues,
 		validateWizardField
 	} from './field-validation';
-	import { createResourceFromWizard } from './resource-submit';
+	import { createResourceFromWizard, getWizardResourceRedirect } from './resource-submit';
 	import { getWizardValueAtPath, inferVirtualFieldValue } from './wizard-values';
-
-	// Kubernetes name/namespace validation — RFC 1123 DNS label, max 63 chars.
-	// Kept in sync with K8S_NAME_REGEX in src/lib/server/validation.ts.
-	const K8S_NAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 	let {
 		template,
@@ -283,13 +279,7 @@
 			success = true;
 
 			setTimeout(() => {
-				const ns = createdResource.metadata?.namespace;
-				const name = createdResource.metadata?.name;
-				if (ns && name && K8S_NAME_RE.test(ns) && K8S_NAME_RE.test(name)) {
-					void goto(`/resources/${template.plural}/${ns}/${name}`);
-				} else {
-					void goto(`/resources/${template.plural}`);
-				}
+				void goto(getWizardResourceRedirect(template.plural, createdResource));
 			}, 1500);
 		} catch (err) {
 			error = (err as Error).message;

@@ -1,5 +1,27 @@
 import { describe, expect, test, vi } from 'vitest';
-import { createResourceFromWizard } from '../lib/components/wizards/resource-submit.js';
+import {
+	createResourceFromWizard,
+	getWizardResourceRedirect
+} from '../lib/components/wizards/resource-submit.js';
+
+describe('getWizardResourceRedirect', () => {
+	test('navigates to a validated created resource', () => {
+		expect(
+			getWizardResourceRedirect('gitrepositories', {
+				metadata: { namespace: 'flux-system', name: 'source-prod' }
+			})
+		).toBe('/resources/gitrepositories/flux-system/source-prod');
+	});
+
+	test('falls back to the collection for missing or unsafe metadata', () => {
+		expect(getWizardResourceRedirect('gitrepositories', {})).toBe('/resources/gitrepositories');
+		expect(
+			getWizardResourceRedirect('gitrepositories', {
+				metadata: { namespace: 'flux-system', name: '../secrets' }
+			})
+		).toBe('/resources/gitrepositories');
+	});
+});
 
 describe('createResourceFromWizard', () => {
 	test('sends the manifest and CSRF token and returns created metadata', async () => {
