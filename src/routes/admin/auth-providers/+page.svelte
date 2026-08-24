@@ -15,8 +15,8 @@
 		type AuthProviderType,
 		type AuthProviderSummary
 	} from '$lib/components/admin/auth-provider';
-	import { getCsrfToken } from '$lib/utils/csrf';
 	import { logger } from '$lib/utils/logger.js';
+	import { requestAuthProviderMutation } from './auth-provider-requests';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -106,16 +106,11 @@
 			const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
 			const { roleMapping: _roleMapping, ...providerData } = formData;
 			const body = roleMapping === null ? providerData : { ...providerData, roleMapping };
-			const response = await fetch('/api/v1/admin/auth-providers', {
+			await requestAuthProviderMutation('/api/v1/admin/auth-providers', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
-			});
-
-			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Failed to create provider');
-			}
+			}, 'Failed to create provider');
 
 			success = 'Provider created successfully';
 			await invalidateAll();
@@ -152,16 +147,11 @@
 			};
 			if (formData.clientSecret) updates.clientSecret = formData.clientSecret;
 
-			const response = await fetch(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
+			await requestAuthProviderMutation(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(updates)
-			});
-
-			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Failed to update provider');
-			}
+			}, 'Failed to update provider');
 
 			success = 'Provider updated successfully';
 			await invalidateAll();
@@ -180,14 +170,9 @@
 		loading = true;
 
 		try {
-			const response = await fetch(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
+			await requestAuthProviderMutation(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
 				method: 'DELETE',
-				headers: { 'X-CSRF-Token': getCsrfToken() }
-			});
-			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Failed to delete provider');
-			}
+			}, 'Failed to delete provider');
 
 			success = 'Provider deleted successfully';
 			await invalidateAll();
@@ -201,12 +186,11 @@
 
 	async function toggleEnabled(provider: (typeof providers)[number]) {
 		try {
-			const response = await fetch(`/api/v1/admin/auth-providers/${provider.id}`, {
+			await requestAuthProviderMutation(`/api/v1/admin/auth-providers/${provider.id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ enabled: !provider.enabled })
-			});
-			if (!response.ok) throw new Error('Failed to toggle provider');
+			}, 'Failed to toggle provider');
 			await invalidateAll();
 		} catch (err) {
 			logger.error(err, 'Failed to toggle provider:');

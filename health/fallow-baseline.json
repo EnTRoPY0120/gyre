@@ -442,11 +442,13 @@
       }
     },
     "src/routes/admin/auth-providers/+page.svelte": {
-      "crap_high": {
-        "count": 2
-      },
       "crap_moderate": {
-        "count": 2
+        "count": 3
+      }
+    },
+    "src/routes/admin/auth-providers/auth-provider-requests.ts": {
+      "crap_moderate": {
+        "count": 1
       }
     },
     "src/routes/admin/backups/+page.svelte": {
