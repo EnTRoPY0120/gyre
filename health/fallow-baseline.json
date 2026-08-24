@@ -264,9 +264,6 @@
       }
     },
     "src/lib/components/wizards/ReferenceField.svelte": {
-      "complexity_moderate": {
-        "count": 1
-      },
       "crap_critical": {
         "count": 1
       },
