@@ -236,6 +236,43 @@ export async function downloadArtifact(url: string, timeoutMs = 15000): Promise<
 	});
 }
 
+async function fetchArtifactViaKubernetes(params: {
+	clusterId: string | undefined;
+	fluxNamespace: string;
+	reqCache: ReqCache;
+	trustedPathname: string;
+}): Promise<Buffer> {
+	const config = await getKubeConfig(params.clusterId, params.reqCache);
+	const coreApi = config.makeApiClient(k8s.CoreV1Api);
+	const pods = await coreApi.listNamespacedPod({
+		namespace: params.fluxNamespace,
+		labelSelector: 'app=source-controller'
+	});
+
+	if (!pods.items || pods.items.length === 0) {
+		throw new Error(`No source-controller pod found in ${params.fluxNamespace} namespace`);
+	}
+
+	const podName = pods.items[0].metadata?.name;
+	if (!podName) {
+		throw new Error('source-controller pod has no name');
+	}
+
+	logger.info({ podName }, 'Using source-controller pod');
+	const proxyResponse = await coreApi.connectGetNamespacedPodProxy({
+		name: `${podName}:9090`,
+		namespace: params.fluxNamespace,
+		path: params.trustedPathname
+	});
+
+	const buffer = Buffer.isBuffer(proxyResponse)
+		? proxyResponse
+		: Buffer.from(proxyResponse as string, 'binary');
+
+	logger.info({ bytes: buffer.length }, 'K8s pod proxy fetch successful');
+	return buffer;
+}
+
 async function fetchArtifactWithFallback(params: {
 	artifactUrl: string;
 	clusterId: string | undefined;
@@ -253,35 +290,7 @@ async function fetchArtifactWithFallback(params: {
 		logger.info({ error: (downloadErr as Error).message }, 'HTTP download failed, trying fallback');
 
 		try {
-			const config = await getKubeConfig(params.clusterId, params.reqCache);
-			const coreApi = config.makeApiClient(k8s.CoreV1Api);
-			const pods = await coreApi.listNamespacedPod({
-				namespace: params.fluxNamespace,
-				labelSelector: 'app=source-controller'
-			});
-
-			if (!pods.items || pods.items.length === 0) {
-				throw new Error(`No source-controller pod found in ${params.fluxNamespace} namespace`);
-			}
-
-			const podName = pods.items[0].metadata?.name;
-			if (!podName) {
-				throw new Error('source-controller pod has no name');
-			}
-
-			logger.info({ podName }, 'Using source-controller pod');
-			const proxyResponse = await coreApi.connectGetNamespacedPodProxy({
-				name: `${podName}:9090`,
-				namespace: params.fluxNamespace,
-				path: params.trustedPathname
-			});
-
-			const buffer = Buffer.isBuffer(proxyResponse)
-				? proxyResponse
-				: Buffer.from(proxyResponse as string, 'binary');
-
-			logger.info({ bytes: buffer.length }, 'K8s pod proxy fetch successful');
-			return buffer;
+			return await fetchArtifactViaKubernetes(params);
 		} catch (execErr) {
 			throw new Error(
 				`All fetch methods failed. ` +
