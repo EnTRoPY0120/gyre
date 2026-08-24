@@ -18,8 +18,9 @@
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
 	import { logger } from '$lib/utils/logger.js';
-	import * as yaml from 'js-yaml';
-	import { getCsrfToken } from '$lib/utils/csrf';
+import * as yaml from 'js-yaml';
+import { getCsrfToken } from '$lib/utils/csrf';
+import { executeResourceAction } from './resource-action';
 
 	let {
 		resource,
@@ -99,40 +100,19 @@
 			resourceCache.setResource(type, namespace, name, buildOptimisticResource(resource, action));
 		}
 
-		let mutationError: Error | null = null;
-		let invalidateError: Error | null = null;
-
-		try {
-			const response = await fetch(`/api/v1/flux/${encodeURIComponent(type)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}/${encodeURIComponent(action)}`, {
-				method: 'POST',
-				headers: { 'X-CSRF-Token': getCsrfToken() }
-			});
-
-			if (!response.ok) {
-				const data = await response.json().catch(() => ({}));
-				throw new Error(data.message || `Failed to ${action} resource`);
-			}
-		} catch (err) {
-			mutationError = err as Error;
-		}
-
-		if (!mutationError) {
-			try {
-				await invalidate(`flux:resource:${type}:${namespace}:${name}`);
-			} catch (err) {
-				invalidateError = err as Error;
-				if (retryTimeout) {
-					clearTimeout(retryTimeout);
-				}
+		const { mutationError, invalidateError } = await executeResourceAction(
+			{ type, namespace, name, action, csrfToken: getCsrfToken() },
+			`flux:resource:${type}:${namespace}:${name}`,
+			(key) => invalidate(key),
+			(retry) => {
+				if (retryTimeout) clearTimeout(retryTimeout);
 				retryTimeout = setTimeout(() => {
-					invalidate(`flux:resource:${type}:${namespace}:${name}`)
-						.catch(() => {})
-						.finally(() => {
-							retryTimeout = null;
-						});
-				}, 1500);
+					retry().finally(() => {
+						retryTimeout = null;
+				});
+			}, 1500);
 			}
-		}
+		);
 
 		const actionFeedback = resolveResourceActionFeedback({
 			action,
