@@ -27,6 +27,9 @@ documentation/.docusaurus/**
 # Data
 data/**
 
+# Generated health report
+health/fallow-baseline.json
+
 # Environment files
 .env
 .env.*

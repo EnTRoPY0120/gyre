@@ -3,13 +3,11 @@ import { createResourceFromWizard } from '../lib/components/wizards/resource-sub
 
 describe('createResourceFromWizard', () => {
 	test('sends the manifest and CSRF token and returns created metadata', async () => {
-		const fetcher = vi
-			.fn()
-			.mockResolvedValue(
-				new Response(JSON.stringify({ metadata: { namespace: 'apps', name: 'demo' } }), {
-					status: 201
-				})
-			);
+		const fetcher = vi.fn().mockResolvedValue(
+			new Response(JSON.stringify({ metadata: { namespace: 'apps', name: 'demo' } }), {
+				status: 201
+			})
+		);
 		const manifest = { apiVersion: 'v1', kind: 'Demo' };
 
 		await expect(

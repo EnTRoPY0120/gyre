@@ -98,5 +98,7 @@ export async function fetchWithRetry(
 	if (lastResponse) {
 		return lastResponse;
 	}
-	throw lastError;
+	const finalError =
+		lastError instanceof Error ? lastError : new Error(String(lastError ?? 'Fetch failed'));
+	throw finalError;
 }
