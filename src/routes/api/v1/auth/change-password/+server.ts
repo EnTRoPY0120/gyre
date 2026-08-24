@@ -2,60 +2,9 @@ import { logger } from '$lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import {
-	addPasswordHistory,
-	clearRequiresPasswordChange,
-	isPasswordInHistory,
-	verifyPassword
-} from '$lib/server/auth';
-import { applyBetterAuthCookies, getBetterAuth } from '$lib/server/auth/better-auth';
-import { logAudit } from '$lib/server/audit';
 import { checkRateLimit } from '$lib/server/rate-limiter';
-import { assertPasswordStrength } from '$lib/server/auth/password-validation.js';
-import { requireCredentialPasswordHash } from './credential-password';
+import { executePasswordChange } from './flow';
 import { validatePasswordChangeInput } from './validation';
-import type { User } from '$lib/server/db/schema.js';
-
-async function ensureCurrentPasswordValid(
-	user: User,
-	currentPassword: string,
-	currentCredentialHash: string,
-	ipAddress?: string
-): Promise<void> {
-	const isCurrentValid = await verifyPassword(currentPassword, currentCredentialHash);
-	if (isCurrentValid) return;
-
-	await logAudit(user, 'password_change_failed', {
-		success: false,
-		ipAddress,
-		details: { reason: 'invalid_current_password' }
-	});
-	throw error(401, { message: 'Current password is incorrect' });
-}
-
-async function ensurePasswordIsNotReused(
-	user: User,
-	newPassword: string,
-	currentCredentialHash: string,
-	ipAddress?: string
-): Promise<void> {
-	const isSamePassword = await verifyPassword(newPassword, currentCredentialHash);
-	if (isSamePassword) {
-		throw error(400, { message: 'New password must be different from current password' });
-	}
-
-	const isReused = await isPasswordInHistory(user.id, newPassword);
-	if (!isReused) return;
-
-	await logAudit(user, 'password_change_failed', {
-		success: false,
-		ipAddress,
-		details: { reason: 'password_reuse_attempt' }
-	});
-	throw error(400, {
-		message: 'New password cannot be the same as a recently used password'
-	});
-}
 
 export const _metadata = {
 	POST: {
@@ -140,45 +89,14 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			});
 		}
 
-		const currentCredentialHash = await requireCredentialPasswordHash(locals.user);
-
-		assertPasswordStrength(newPassword);
-
-		const { user } = locals;
-		const ipAddress = locals.session?.ipAddress || undefined;
-		// Verify current password using the hash already in hand — no second DB read.
-		await ensureCurrentPasswordValid(user, currentPassword, currentCredentialHash, ipAddress);
-
-		// Prevent using the same or a recently used password.
-		await ensurePasswordIsNotReused(user, newPassword, currentCredentialHash, ipAddress);
-
-		// Record current password in history BEFORE rotating. addPasswordHistory is
-		// idempotent for (user.id, currentCredentialHash), so retries do not crowd
-		// out real history entries before the live credential changes.
-		await addPasswordHistory(user.id, currentCredentialHash);
-
-		// Update password through Better Auth so the credential account remains the
-		// sole live password source of truth.
-		const auth = getBetterAuth();
-		const changePasswordResult = await auth.api.changePassword({
-			headers: request.headers,
-			body: {
-				currentPassword,
-				newPassword,
-				revokeOtherSessions: false
-			},
-			returnHeaders: true
+		await executePasswordChange({
+			user: locals.user,
+			request,
+			cookies,
+			currentPassword,
+			newPassword,
+			ipAddress: locals.session?.ipAddress || undefined
 		});
-		applyBetterAuthCookies(cookies, changePasswordResult.headers);
-
-		// Log successful password change
-		await logAudit(user, 'password_changed', {
-			success: true,
-			ipAddress: locals.session?.ipAddress || undefined,
-			details: { userId: user.id }
-		});
-
-		await clearRequiresPasswordChange(user.id);
 
 		return json({
 			success: true,
