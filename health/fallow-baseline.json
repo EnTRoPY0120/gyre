@@ -13,6 +13,11 @@
         "count": 4
       }
     },
+    "src/lib/components/admin/AuditLogTableRow.svelte": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
     "src/lib/components/admin/AuthProviderForm.svelte": {
       "complexity_moderate": {
         "count": 1
@@ -493,9 +498,6 @@
       }
     },
     "src/routes/admin/audit-logs/+page.svelte": {
-      "complexity_critical": {
-        "count": 1
-      },
       "crap_moderate": {
         "count": 1
       }
@@ -692,7 +694,6 @@
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/VersionHistoryEntry.svelte:complexity",
     "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
-    "src/lib/components/flux/resources/AlertDetail.svelte:complexity",
-    "src/routes/admin/audit-logs/+page.svelte:complexity"
+    "src/lib/components/flux/resources/AlertDetail.svelte:complexity"
   ]
 }
