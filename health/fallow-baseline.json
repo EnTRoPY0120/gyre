@@ -187,11 +187,6 @@
         "count": 1
       }
     },
-    "src/lib/components/resources/tabs/DiffTab.svelte": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/lib/components/resources/tabs/LogsTab.svelte": {
       "complexity_high": {
         "count": 1
