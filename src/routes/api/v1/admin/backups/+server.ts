@@ -195,6 +195,36 @@ export const POST: RequestHandler = async ({ locals, setHeaders }) => {
 	}
 };
 
+function getBackupFilename(url: URL): string {
+	const filename = url.searchParams.get('filename');
+	if (!filename) {
+		throw error(400, { message: 'Missing filename parameter', code: 'BadRequest' });
+	}
+
+	if (!BACKUP_FILENAME_RE.test(filename)) {
+		throw error(400, { message: 'Invalid backup filename', code: 'BadRequest' });
+	}
+
+	return filename;
+}
+
+async function deleteBackupAndRecord(
+	filename: string,
+	user: Parameters<typeof logPrivilegedMutationSuccess>[0]['user']
+): Promise<void> {
+	const deleted = deleteBackup(filename);
+	if (!deleted) {
+		throw error(404, { message: 'Backup not found', code: 'NotFound' });
+	}
+
+	await logPrivilegedMutationSuccess({
+		action: 'backup:delete',
+		user,
+		resourceType: 'DatabaseBackup',
+		name: filename
+	});
+}
+
 /**
  * DELETE /api/admin/backups?filename=...
  * Deletes a specific backup file.
@@ -207,28 +237,10 @@ export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 	);
 	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
-	const filename = url.searchParams.get('filename');
-	if (!filename) {
-		throw error(400, { message: 'Missing filename parameter', code: 'BadRequest' });
-	}
-
-	if (!BACKUP_FILENAME_RE.test(filename)) {
-		throw error(400, { message: 'Invalid backup filename', code: 'BadRequest' });
-	}
+	const filename = getBackupFilename(url);
 
 	try {
-		const deleted = deleteBackup(filename);
-		if (!deleted) {
-			throw error(404, { message: 'Backup not found', code: 'NotFound' });
-		}
-
-		await logPrivilegedMutationSuccess({
-			action: 'backup:delete',
-			user,
-			resourceType: 'DatabaseBackup',
-			name: filename
-		});
-
+		await deleteBackupAndRecord(filename, user);
 		return json({ success: true });
 	} catch (err) {
 		if (err && typeof err === 'object' && 'status' in err) {
