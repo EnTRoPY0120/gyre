@@ -1,5 +1,6 @@
 import { invalidate } from '$app/navigation';
 import { IN_CLUSTER_ID, normalizeClusterId, type ClusterOption } from '$lib/clusters/identity.js';
+import { requestClusterSwitch } from './cluster-requests';
 
 /**
  * Cluster Store using Svelte 5's $state
@@ -17,21 +18,7 @@ class ClusterStore {
 		this.error = null;
 
 		try {
-			const response = await fetch('/api/v1/user/cluster', {
-				method: 'PUT',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ clusterId: requestedId })
-			});
-
-			if (!response.ok) {
-				throw new Error('Failed to switch cluster');
-			}
-
-			const payload = (await response.json()) as {
-				currentClusterId?: string;
-				currentCluster?: ClusterOption;
-				selectableClusters?: ClusterOption[];
-			};
+			const payload = await requestClusterSwitch(requestedId);
 			this.current = normalizeClusterId(payload.currentClusterId ?? payload.currentCluster?.id);
 			if (payload.selectableClusters) {
 				this.setAvailable(payload.selectableClusters);
