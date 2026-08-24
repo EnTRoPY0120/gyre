@@ -8,17 +8,16 @@ import {
 	getAllUserPolicies,
 	bindPolicyToUser,
 	unbindPolicyFromUser,
-	isValidNamespacePattern
+	type RbacAction
 } from '$lib/server/rbac';
-import type { RbacAction } from '$lib/server/rbac';
 import { listUsers } from '$lib/server/auth';
 import { logRbacChange } from '$lib/server/audit';
 import { parseAdminPagination } from '../pagination';
+import { validatePolicyCreateInput } from './create-validation';
 import {
 	getRequiredFormString,
 	requireAdminFormUser,
-	serializePagination,
-	validateLength
+	serializePagination
 } from '../server-helpers';
 
 /**
@@ -79,25 +78,13 @@ export const actions: Actions = {
 		const resourceType = formData.get('resourceType') as string;
 		const namespacePattern = formData.get('namespacePattern') as string;
 
-		// Validation
-		if (!name || !role || !action) {
-			return fail(400, { error: 'Name, role, and action are required' });
-		}
-
-		const nameLengthError = validateLength(name, {
-			min: 3,
-			max: 100,
-			minMessage: 'Policy name must be at least 3 characters',
-			maxMessage: 'Policy name must be at most 100 characters'
+		const validationError = validatePolicyCreateInput({
+			name,
+			role,
+			action,
+			namespacePattern
 		});
-		if (nameLengthError) return nameLengthError;
-
-		if (namespacePattern && !isValidNamespacePattern(namespacePattern)) {
-			return fail(400, {
-				error:
-					'Invalid namespace pattern: must contain only lowercase alphanumeric characters, hyphens, and wildcards (* ?)'
-			});
-		}
+		if (validationError) return fail(400, { error: validationError });
 
 		try {
 			const policyId = await createPolicy({
