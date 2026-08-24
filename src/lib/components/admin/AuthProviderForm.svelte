@@ -1,9 +1,12 @@
 <script lang="ts">
-	import * as Select from '$lib/components/ui/select';
 	import { modalFocusTrap } from '$lib/utils/focus-trap';
 	import { parseRoleMappingInput } from '$lib/auth/role-mapping';
-	import type { AuthProviderFormData, AuthProviderRole, AuthProviderType } from './auth-provider';
+	import type { AuthProviderFormData } from './auth-provider';
 	import AuthProviderAdvancedSettings from './AuthProviderAdvancedSettings.svelte';
+	import AuthProviderFormActions from './AuthProviderFormActions.svelte';
+	import AuthProviderIdentityFields from './AuthProviderIdentityFields.svelte';
+	import AuthProviderIssuerField from './AuthProviderIssuerField.svelte';
+	import AuthProviderProvisioningFields from './AuthProviderProvisioningFields.svelte';
 
 	type Props = {
 		mode: 'create' | 'edit';
@@ -49,22 +52,6 @@
 		}
 	});
 
-	function getProviderTypeName(type: string): string {
-		switch (type) {
-			case 'oidc':
-				return 'OIDC';
-			case 'oauth2-google':
-				return 'Google OAuth';
-			case 'oauth2-github':
-				return 'GitHub OAuth';
-			case 'oauth2-gitlab':
-				return 'GitLab OAuth';
-			case 'oauth2-generic':
-				return 'Generic OAuth2';
-			default:
-				return type;
-		}
-	}
 </script>
 
 <div
@@ -120,145 +107,13 @@
 			}}
 			class="space-y-4"
 		>
-			<div class="grid grid-cols-2 gap-4">
-				<div>
-					<label for={`${idPrefix}provider-name`} class="mb-1 block text-sm font-medium text-slate-300"
-						>Provider Name</label
-					>
-					<input
-						id={`${idPrefix}provider-name`}
-						type="text"
-						bind:value={formData.name}
-						placeholder="e.g., Company Okta"
-						required
-						class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-					/>
-				</div>
-				<div>
-					<label for={`${idPrefix}provider-type`} class="mb-1 block text-sm font-medium text-slate-300"
-						>Provider Type</label
-					>
-					<Select.Root
-						type="single"
-						value={formData.type}
-						onValueChange={(v) => (formData.type = v as AuthProviderType)}
-					>
-						<Select.Trigger id={`${idPrefix}provider-type`} class="w-full">
-							<Select.Value placeholder="Select Provider Type">
-								{getProviderTypeName(formData.type)}
-							</Select.Value>
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="oidc">OIDC (Generic)</Select.Item>
-							<Select.Item value="oauth2-google">Google OAuth</Select.Item>
-							<Select.Item value="oauth2-github">GitHub OAuth</Select.Item>
-							<Select.Item value="oauth2-gitlab">GitLab OAuth</Select.Item>
-							<Select.Item value="oauth2-generic">Generic OAuth2</Select.Item>
-						</Select.Content>
-					</Select.Root>
-				</div>
-			</div>
-
-			<div class="grid grid-cols-2 gap-4">
-				<div>
-					<label for={`${idPrefix}client-id`} class="mb-1 block text-sm font-medium text-slate-300"
-						>Client ID</label
-					>
-					<input
-						id={`${idPrefix}client-id`}
-						type="text"
-						bind:value={formData.clientId}
-						required
-						class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-					/>
-				</div>
-				<div>
-					<label for={`${idPrefix}client-secret`} class="mb-1 block text-sm font-medium text-slate-300"
-						>Client Secret</label
-					>
-					<input
-						id={`${idPrefix}client-secret`}
-						type="password"
-						bind:value={formData.clientSecret}
-						placeholder={isCreate ? undefined : 'Leave blank to keep current'}
-						required={isCreate}
-						class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-					/>
-				</div>
-			</div>
-
-			{#if formData.type === 'oidc' || formData.type === 'oauth2-generic' || formData.type === 'oauth2-gitlab'}
-				<div>
-					<label for={`${idPrefix}issuer-url`} class="mb-1 block text-sm font-medium text-slate-300">
-						{formData.type === 'oauth2-gitlab' ? 'GitLab Instance URL' : 'Issuer URL'}
-					</label>
-					<input
-						id={`${idPrefix}issuer-url`}
-						type="url"
-						bind:value={formData.issuerUrl}
-						placeholder={formData.type === 'oauth2-gitlab' ? 'https://gitlab.com' : 'https://example.com'}
-						required={formData.type !== 'oauth2-gitlab'}
-						class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-					/>
-					{#if formData.type === 'oauth2-gitlab'}
-						<p class="mt-1 text-xs text-slate-400">Leave empty to use gitlab.com</p>
-					{/if}
-				</div>
-			{/if}
-
-			<div class="grid grid-cols-2 gap-4">
-				<div>
-					<label class="flex items-center gap-2 text-sm font-medium text-slate-300">
-						<input
-							id={`${idPrefix}auto-provision`}
-							type="checkbox"
-							bind:checked={formData.autoProvision}
-							class="rounded"
-						/>
-						Auto-provision users
-					</label>
-				</div>
-				<div>
-					<label for={`${idPrefix}default-role`} class="mb-1 block text-sm font-medium text-slate-300"
-						>Default Role</label
-					>
-					<Select.Root
-						type="single"
-						value={formData.defaultRole}
-						onValueChange={(v) => (formData.defaultRole = v as AuthProviderRole)}
-					>
-						<Select.Trigger id={`${idPrefix}default-role`} class="w-full">
-							<Select.Value placeholder="Select Default Role">
-								<span class="capitalize">{formData.defaultRole}</span>
-							</Select.Value>
-						</Select.Trigger>
-						<Select.Content>
-							<Select.Item value="viewer">Viewer</Select.Item>
-							<Select.Item value="editor">Editor</Select.Item>
-							<Select.Item value="admin">Admin</Select.Item>
-						</Select.Content>
-					</Select.Root>
-				</div>
-			</div>
+			<AuthProviderIdentityFields {formData} {isCreate} {idPrefix} />
+			<AuthProviderIssuerField {formData} {idPrefix} />
+			<AuthProviderProvisioningFields {formData} {idPrefix} />
 
 			<AuthProviderAdvancedSettings bind:formData {idPrefix} {roleMappingError} />
 
-			<div class="flex gap-3 pt-4">
-				<button
-					type="submit"
-					disabled={loading || !!roleMappingError}
-					class="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-900 transition-colors hover:bg-amber-400 disabled:opacity-50"
-				>
-					{loading ? (isCreate ? 'Creating...' : 'Updating...') : isCreate ? 'Create Provider' : 'Update Provider'}
-				</button>
-				<button
-					type="button"
-					onclick={onClose}
-					class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 transition-colors hover:bg-slate-700"
-				>
-					Cancel
-				</button>
-			</div>
+			<AuthProviderFormActions {loading} {isCreate} {roleMappingError} {onClose} />
 		</form>
 	</div>
 </div>
