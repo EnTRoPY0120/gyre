@@ -14,14 +14,11 @@
  */
 
 import { logger } from '$lib/server/logger.js';
-import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
+import { redirect, isHttpError, isRedirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { getOAuthProvider } from '$lib/server/auth/oauth';
-import {
-	getOAuthCallbackErrorMessage,
-	getSsoLoginErrorMessage
-} from '$lib/server/auth/oauth/callback-helpers.js';
+import { getOAuthCallbackErrorMessage } from '$lib/server/auth/oauth/callback-helpers.js';
+import { handleOAuthCallback } from './oauth-callback-flow';
 
 export const _metadata = {
 	GET: {
@@ -52,125 +49,14 @@ export const _metadata = {
 		}
 	}
 };
-import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
-import { cleanupSetupTokenFile } from '$lib/server/auth';
-import {
-	createBetterAuthSessionForUser,
-	ensureBetterAuthOAuthAccount
-} from '$lib/server/auth/better-auth';
-import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 
 /**
  * GET /api/auth/[providerId]/callback
  * Handles OAuth callback from IdP
  */
 export const GET: RequestHandler = async (event) => {
-	const { params, url, cookies, request, getClientAddress, setHeaders } = event;
-	const { providerId } = params;
-
 	try {
-		// Rate limit: 10 attempts per minute per IP
-		const ipAddress = getClientAddress();
-		const rateLimit = tryCheckRateLimit(
-			{ setHeaders },
-			`oauth_callback:${ipAddress}`,
-			10,
-			60 * 1000
-		);
-
-		if (rateLimit.limited) {
-			throw redirect(
-				302,
-				`/login?error=${encodeURIComponent(`Too many requests. Please try again in ${rateLimit.retryAfter} seconds.`)}`
-			);
-		}
-
-		// Extract code and state from query parameters
-		const code = url.searchParams.get('code');
-		const returnedState = url.searchParams.get('state');
-		const errorParam = url.searchParams.get('error');
-		const errorDescription = url.searchParams.get('error_description');
-
-		// Check for OAuth errors from IdP
-		if (errorParam) {
-			logger.error(
-				new Error(errorDescription || errorParam || 'OAuth error'),
-				'OAuth error from IdP:',
-				errorParam
-			);
-			throw redirect(302, `/login?error=${encodeURIComponent(errorDescription || errorParam)}`);
-		}
-
-		// Validate required parameters
-		if (!code || !returnedState) {
-			throw error(400, { message: 'Missing code or state parameter' });
-		}
-
-		// Validate state (CSRF protection) against the browser-scoped one-time cookie.
-		const storedState = cookies.get(`oauth_state_${providerId}`);
-		if (!storedState || storedState !== returnedState) {
-			logger.error(
-				{ err: new Error('State mismatch: CSRF state validation failed') },
-				'CSRF state validation failed'
-			);
-			throw error(400, { message: 'Invalid state parameter (possible CSRF attack)' });
-		}
-
-		// Get code verifier (PKCE)
-		const codeVerifier = cookies.get(`oauth_verifier_${providerId}`);
-
-		// Clear state and verifier cookies (single-use)
-		cookies.delete(`oauth_state_${providerId}`, { path: '/' });
-		if (codeVerifier) {
-			cookies.delete(`oauth_verifier_${providerId}`, { path: '/' });
-		}
-
-		// Get provider configuration and create OAuth client
-		const provider = await getOAuthProvider(providerId);
-
-		// Build redirect URI (this callback URL)
-		const redirectUri = `${url.origin}/api/v1/auth/${providerId}/callback`;
-
-		// Exchange authorization code for tokens
-		const tokens = await provider.validateCallback(code, codeVerifier, redirectUri);
-
-		// Fetch user information from IdP
-		const userInfo = await provider.getUserInfo(tokens);
-
-		// Auto-provision user or find existing user
-		const result = await createOrUpdateSSOUser(providerId, userInfo, provider.config, tokens);
-
-		// Check if user creation/retrieval was successful
-		if (!result.user) {
-			throw redirect(
-				302,
-				`/login?error=${encodeURIComponent(getSsoLoginErrorMessage(result.reason))}`
-			);
-		}
-
-		const user = result.user;
-
-		// Check if user account is active
-		if (!user.active) {
-			throw redirect(
-				302,
-				`/login?error=${encodeURIComponent('Your account has been disabled. Please contact your administrator.')}`
-			);
-		}
-
-		if (!result.accountLinked) {
-			await ensureBetterAuthOAuthAccount(user.id, providerId, userInfo.sub, tokens);
-		}
-		await createBetterAuthSessionForUser(cookies, user.id, {
-			ipAddress,
-			userAgent: request.headers.get('user-agent') ?? undefined
-		});
-		cleanupSetupTokenFile();
-
-		logger.info({ providerId, userId: user.id }, 'SSO login successful');
-
-		// Redirect to home page
-		throw redirect(302, '/');
+		return await handleOAuthCallback(event);
 	} catch (err) {
 		// Re-throw SvelteKit errors (redirect, error)
 		if (isHttpError(err) || isRedirect(err)) {

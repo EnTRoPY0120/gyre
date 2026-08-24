@@ -607,11 +607,6 @@
         "count": 1
       }
     },
-    "src/routes/api/v1/auth/[providerId]/callback/+server.ts": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/routes/api/v1/auth/change-password/+server.ts": {
       "crap_moderate": {
         "count": 1
