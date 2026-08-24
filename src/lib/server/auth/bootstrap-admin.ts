@@ -102,20 +102,21 @@ async function createInClusterAdmin(): Promise<string> {
 	return password;
 }
 
-async function createLocalAdmin(options?: {
-	persistSetupToken?: (password: string) => string | void;
-}): Promise<string> {
-	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
-	if (process.env.ADMIN_PASSWORD) {
-		validateAdminPasswordStrength(
-			process.env.ADMIN_PASSWORD,
-			process.env.NODE_ENV === 'production'
-		);
-	}
+function getLocalAdminPassword(): string {
+	const configuredPassword = process.env.ADMIN_PASSWORD;
+	if (!configuredPassword) return generateStrongPassword();
 
+	validateAdminPasswordStrength(configuredPassword, process.env.NODE_ENV === 'production');
+	return configuredPassword;
+}
+
+function persistLocalSetupToken(
+	password: string,
+	persistSetupToken?: (password: string) => string | void
+): void {
 	let persistedSetupTokenFile: string | undefined;
 	try {
-		persistedSetupTokenFile = options?.persistSetupToken?.(password) ?? undefined;
+		persistedSetupTokenFile = persistSetupToken?.(password) ?? undefined;
 	} catch (error) {
 		logger.error(
 			error,
@@ -123,9 +124,12 @@ async function createLocalAdmin(options?: {
 		);
 		throw error;
 	}
+
 	pendingSetupCleanup = true;
 	if (persistedSetupTokenFile) setSetupTokenFile(persistedSetupTokenFile);
+}
 
+async function persistLocalAdmin(password: string): Promise<void> {
 	try {
 		const passwordHash = await hashPassword(password);
 		insertAdminUser(passwordHash, true);
@@ -133,7 +137,14 @@ async function createLocalAdmin(options?: {
 		cleanupSetupTokenFile();
 		throw error;
 	}
+}
 
+async function createLocalAdmin(options?: {
+	persistSetupToken?: (password: string) => string | void;
+}): Promise<string> {
+	const password = getLocalAdminPassword();
+	persistLocalSetupToken(password, options?.persistSetupToken);
+	await persistLocalAdmin(password);
 	return password;
 }
 
