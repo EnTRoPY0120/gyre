@@ -1,5 +1,4 @@
 import { logger } from '$lib/server/logger.js';
-import * as yaml from 'js-yaml';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
@@ -13,13 +12,12 @@ import {
 import { logClusterChange } from '$lib/server/audit';
 import { invalidateDashboardCache } from '$lib/server/dashboard-cache';
 import { clearClientPool } from '$lib/server/kubernetes/client.js';
-import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
 import { parseAdminPagination } from '../pagination';
+import { validateClusterCreateInput } from './create-validation';
 import {
 	getRequiredFormString,
 	requireAdminFormUser,
-	serializePagination,
-	validateLength
+	serializePagination
 } from '../server-helpers';
 
 /**
@@ -68,70 +66,10 @@ export const actions: Actions = {
 		const description = formData.get('description') as string;
 		const kubeconfig = formData.get('kubeconfig') as string;
 
-		// Validation
-		if (!name || !kubeconfig) {
-			return fail(400, { error: 'Name and kubeconfig are required' });
-		}
-
-		const nameLengthError = validateLength(name, {
-			min: 3,
-			max: 100,
-			minMessage: 'Name must be at least 3 characters',
-			maxMessage: 'Name must be at most 100 characters'
-		});
-		if (nameLengthError) return nameLengthError;
-
-		if (description && description.length > 500) {
-			return fail(400, { error: 'Description must be at most 500 characters' });
-		}
-
-		// Validate kubeconfig size (max 10MB).
-		// This check is the fallback for requests where Content-Length was absent
-		// (e.g. chunked transfer encoding) and the middleware passed them through.
-		// When Content-Length IS present the middleware rejects oversized requests
-		// first and redirects back to this page, so this code is not reached.
-		// Note: the middleware measures the total multipart body (including boundary
-		// overhead and other fields) while TextEncoder measures the kubeconfig field
-		// alone. The two thresholds differ slightly, but multipart overhead is
-		// negligible relative to the 10MB limit.
-		const kubeconfigSize = new TextEncoder().encode(kubeconfig).length;
-		if (kubeconfigSize > REQUEST_LIMITS.KUBECONFIG_UPLOAD) {
-			return fail(413, {
-				error: `Kubeconfig is too large. Maximum size is ${formatSize(REQUEST_LIMITS.KUBECONFIG_UPLOAD)}, received ${formatSize(kubeconfigSize)}`
-			});
-		}
+		const validationError = validateClusterCreateInput({ name, description, kubeconfig });
+		if (validationError) return fail(validationError.status, { error: validationError.error });
 
 		try {
-			// Validate kubeconfig format (accepts both YAML and JSON)
-			const parsed = yaml.load(kubeconfig);
-			if (
-				parsed === null ||
-				parsed === undefined ||
-				typeof parsed !== 'object' ||
-				!(parsed as { clusters?: unknown }).clusters ||
-				!(parsed as { contexts?: unknown }).contexts
-			) {
-				return fail(400, { error: 'Invalid kubeconfig: missing clusters or contexts' });
-			}
-
-			const config = parsed as {
-				clusters?: unknown;
-				contexts?: unknown;
-				kind?: unknown;
-				apiVersion?: unknown;
-			};
-			if (config.kind !== 'Config' || config.apiVersion !== 'v1') {
-				return fail(400, {
-					error: 'Invalid kubeconfig: must have kind: Config and apiVersion: v1'
-				});
-			}
-
-			if (!Array.isArray(config.clusters) || !Array.isArray(config.contexts)) {
-				return fail(400, {
-					error: 'Invalid kubeconfig: clusters and contexts must be arrays'
-				});
-			}
-
 			// Create cluster
 			const cluster = await createCluster({
 				name,
@@ -150,9 +88,6 @@ export const actions: Actions = {
 			logger.error(error, 'Error creating cluster:');
 			if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
 				return fail(400, { error: 'A cluster with this name already exists' });
-			}
-			if (error instanceof yaml.YAMLException) {
-				return fail(400, { error: 'Invalid kubeconfig format: could not parse as YAML or JSON' });
 			}
 			return fail(500, { error: 'Failed to create cluster' });
 		}

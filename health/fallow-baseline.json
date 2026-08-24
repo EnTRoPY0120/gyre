@@ -634,10 +634,7 @@
       }
     },
     "src/routes/admin/clusters/+page.server.ts": {
-      "complexity_critical": {
-        "count": 1
-      },
-      "crap_critical": {
+      "crap_high": {
         "count": 1
       },
       "crap_moderate": {
