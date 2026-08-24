@@ -50,6 +50,29 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	};
 };
 
+function buildUserUpdates(
+	email: string,
+	role: 'admin' | 'editor' | 'viewer' | null,
+	active: string
+): Parameters<typeof updateUser>[1] {
+	const updates: Parameters<typeof updateUser>[1] = {};
+	if (email) updates.email = email;
+	if (role) updates.role = role;
+	if (active !== null) updates.active = active === 'true';
+	return updates;
+}
+
+async function getPasswordResetError(userId: string): Promise<string | null> {
+	const targetUser = await getUserById(userId);
+	if (targetUser && targetUser.isLocal === false) {
+		return 'Cannot reset password for SSO users';
+	}
+	if (targetUser && !(await hasManagedPassword(targetUser.id))) {
+		return 'The in-cluster admin password is managed via the Kubernetes secret and cannot be reset here';
+	}
+	return null;
+}
+
 export const actions: Actions = {
 	/**
 	 * Create a new user
@@ -100,11 +123,7 @@ export const actions: Actions = {
 		if (validationError) return fail(400, { error: validationError });
 
 		try {
-			const updates: Parameters<typeof updateUser>[1] = {};
-			if (email) updates.email = email;
-			if (role) updates.role = role;
-			if (active !== null) updates.active = active === 'true';
-
+			const updates = buildUserUpdates(email, role, active);
 			const updatedUser = await updateUser(userId, updates);
 
 			if (updatedUser) {
@@ -170,17 +189,8 @@ export const actions: Actions = {
 		const validationError = validatePasswordResetInput(userId, newPassword);
 		if (validationError) return fail(400, { error: validationError });
 
-		// Check if user is SSO user
-		const targetUser = await getUserById(userId);
-		if (targetUser && targetUser.isLocal === false) {
-			return fail(400, { error: 'Cannot reset password for SSO users' });
-		}
-		if (targetUser && !(await hasManagedPassword(targetUser.id))) {
-			return fail(400, {
-				error:
-					'The in-cluster admin password is managed via the Kubernetes secret and cannot be reset here'
-			});
-		}
+		const targetError = await getPasswordResetError(userId);
+		if (targetError) return fail(400, { error: targetError });
 
 		try {
 			await updateUserPassword(userId, newPassword);
