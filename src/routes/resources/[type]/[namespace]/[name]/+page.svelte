@@ -2,35 +2,23 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
-	import { eventsStore } from '$lib/stores/events.svelte';
-	import { createAutoRefresh } from '$lib/utils/polling.svelte';
 	import { onMount, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
-	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
-	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
-	import Breadcrumbs from '$lib/components/common/Breadcrumbs.svelte';
-	import OverviewTab from '$lib/components/resources/tabs/OverviewTab.svelte';
-	import EventsTab from '$lib/components/resources/tabs/EventsTab.svelte';
-	import LogsTab from '$lib/components/resources/tabs/LogsTab.svelte';
-	import HistoryTab from '$lib/components/resources/tabs/HistoryTab.svelte';
-	import DiffTab from '$lib/components/resources/tabs/DiffTab.svelte';
-	import type { FluxResource, K8sCondition } from '$lib/types/flux';
-	import type {
-		K8sEvent,
-		ResourceDiff,
-		ReconciliationEntry
-	} from '$lib/types/resource';
+	import { eventsStore } from '$lib/stores/events.svelte';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
-	import { sanitizeResource } from '$lib/utils/kubernetes';
+	import { createAutoRefresh } from '$lib/utils/polling.svelte';
+	import { getCsrfToken } from '$lib/utils/csrf';
 	import { BASE_TABS, DIFF_TAB, type TabId } from '$lib/config/tabs';
+	import type { FluxResource, K8sCondition } from '$lib/types/flux';
+	import type { K8sEvent, ReconciliationEntry, ResourceDiff } from '$lib/types/resource';
 	import type { DiffError } from '$lib/components/resources/tabs/DiffTab.svelte';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
-	import ErrorDisplay from '$lib/components/ui/ErrorDisplay.svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
 	import { loadResourceDiff } from './diff-request';
-import { loadResourceLogs, requestResourceRollback } from './resource-requests';
+	import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 	import { matchesResourceEvent } from './resource-event-match';
+	import ResourceDetailHeader from '$lib/components/resources/ResourceDetailHeader.svelte';
+	import ResourceDetailTabPanel from '$lib/components/resources/ResourceDetailTabPanel.svelte';
+	import ResourceDetailTabs from '$lib/components/resources/ResourceDetailTabs.svelte';
 
 	interface Props {
 		data: {
@@ -43,12 +31,10 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 
 	let { data }: Props = $props();
 
-	// Make resource reactive via cache store with fallback to initial data
 	const resource = $derived(
 		resourceCache.getResource(data.resourceType, data.namespace, data.name) || data.resource
 	);
 
-	// Auto-refresh setup with targeted invalidation
 	createAutoRefresh({
 		invalidate: async () => {
 			await Promise.all([
@@ -58,12 +44,10 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 		}
 	});
 
-	// Keep the cache aligned with the latest loader result so invalidations don't leave stale data behind.
 	$effect(() => {
 		resourceCache.setResource(data.resourceType, data.namespace, data.name, data.resource);
 	});
 
-	// Real-time updates via SSE
 	onMount(() => {
 		const unsubscribe = eventsStore.onEvent((event) => {
 			if (matchesResourceEvent(event, data.resourceType, data.namespace, data.name)) {
@@ -75,7 +59,7 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 
 	function getAvailableTabIds(resourceType = data.resourceType): TabId[] {
 		return [
-			...BASE_TABS.map((t) => t.id),
+			...BASE_TABS.map((tab) => tab.id),
 			...(resourceType === 'kustomizations' ? [DIFF_TAB.id] : [])
 		];
 	}
@@ -96,19 +80,16 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
 	}
 
-	// Fetching states
 	let events = $state<K8sEvent[]>([]);
 	let eventsLoading = $state(false);
 	let eventsError = $state<string | null>(null);
 	let eventsFetched = $state(false);
-
 	let logs = $state<string>('');
 	let logsLoading = $state(false);
 	let logsError = $state<string | null>(null);
 	let logsFetched = $state(false);
 	let showRawLogs = $state(false);
 	let logContainer = $state<HTMLDivElement | null>(null);
-
 	let diffs = $state<ResourceDiff[]>([]);
 	let diffsLoading = $state(false);
 	let diffsError = $state<DiffError | null>(null);
@@ -116,11 +97,9 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 	let diffsCached = $state(false);
 	let diffsTimestamp = $state<number | null>(null);
 	let diffsRevision = $state<string | null>(null);
-
 	let timeline = $state<ReconciliationEntry[]>([]);
 	let historyLoading = $state(false);
 	let historyFetched = $state(false);
-
 	let rollbackConfirmOpen = $state(false);
 	let pendingRollback = $state<{ historyId: string; revision: string | null } | null>(null);
 
@@ -143,56 +122,39 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 			})
 	);
 
-	// Autoscroll to bottom when logs change
 	$effect(() => {
-		if (logs && logContainer && !showRawLogs) {
-			logContainer.scrollTop = logContainer.scrollHeight;
-		}
+		if (logs && logContainer && !showRawLogs) logContainer.scrollTop = logContainer.scrollHeight;
 	});
 
 	const isKustomization = $derived(data.resourceType === 'kustomizations');
 	const resourceKey = $derived(JSON.stringify([data.resourceType, data.namespace, data.name]));
-
 	const tabs = $derived.by(() => {
 		const base = [...BASE_TABS];
 		if (isKustomization) base.push(DIFF_TAB);
 		return base;
 	});
 
-	// Keep activeTab in sync with the URL (handles direct links, browser back/forward, and resource navigation).
 	$effect(() => {
-		const param = $page.url.searchParams.get('tab');
-		const validTab = getValidTab(param);
-		if (activeTab !== validTab) {
-			activeTab = validTab;
-		}
+		const validTab = getValidTab($page.url.searchParams.get('tab'));
+		if (activeTab !== validTab) activeTab = validTab;
 	});
 
-	// Keyboard navigation for tabs
-	function handleKeydown(e: KeyboardEvent, index: number) {
+	function handleKeydown(event: KeyboardEvent, index: number) {
 		let targetIndex: number | null = null;
-		if (e.key === 'ArrowRight') {
-			targetIndex = (index + 1) % tabs.length;
-		} else if (e.key === 'ArrowLeft') {
-			targetIndex = (index - 1 + tabs.length) % tabs.length;
-		} else if (e.key === 'Home') {
-			targetIndex = 0;
-		} else if (e.key === 'End') {
-			targetIndex = tabs.length - 1;
-		}
+		if (event.key === 'ArrowRight') targetIndex = (index + 1) % tabs.length;
+		else if (event.key === 'ArrowLeft') targetIndex = (index - 1 + tabs.length) % tabs.length;
+		else if (event.key === 'Home') targetIndex = 0;
+		else if (event.key === 'End') targetIndex = tabs.length - 1;
 		if (targetIndex !== null) {
-			e.preventDefault();
+			event.preventDefault();
 			setActiveTab(tabs[targetIndex].id);
-			((e.target as HTMLElement).parentElement?.children[targetIndex] as HTMLElement)?.focus();
+			((event.target as HTMLElement).parentElement?.children[targetIndex] as HTMLElement)?.focus();
 		}
 	}
 
 	let activeAbortController: AbortController | null = null;
-
 	function getNewAbortSignal() {
-		if (activeAbortController) {
-			activeAbortController.abort();
-		}
+		activeAbortController?.abort();
 		activeAbortController = new AbortController();
 		return activeAbortController.signal;
 	}
@@ -203,9 +165,12 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 		eventsLoading = true;
 		eventsError = null;
 		try {
-			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/events`), { signal });
-			if (!res.ok) throw new Error(`Failed to fetch events: ${res.statusText}`);
-			const result = await res.json();
+			const response = await fetch(
+				resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/events`),
+				{ signal }
+			);
+			if (!response.ok) throw new Error(`Failed to fetch events: ${response.statusText}`);
+			const result = await response.json();
 			events = result.events || [];
 			eventsFetched = true;
 		} catch (err) {
@@ -229,9 +194,8 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 			logsLoading = false;
 			return;
 		}
-		if ('error' in result) {
-			logsError = result.error.message;
-		} else {
+		if ('error' in result) logsError = result.error.message;
+		else {
 			logs = result.response.logs;
 			logsFetched = true;
 		}
@@ -243,9 +207,12 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 		const signal = getNewAbortSignal();
 		historyLoading = true;
 		try {
-			const res = await fetch(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/history`), { signal });
-			if (!res.ok) throw new Error(`Failed to fetch history: ${res.statusText}`);
-			const result = await res.json();
+			const response = await fetch(
+				resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/history`),
+				{ signal }
+			);
+			if (!response.ok) throw new Error(`Failed to fetch history: ${response.statusText}`);
+			const result = await response.json();
 			timeline = result.timeline || [];
 			historyFetched = true;
 		} catch (err) {
@@ -262,7 +229,10 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 		diffsLoading = true;
 		diffsError = null;
 		try {
-			const url = new URL(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`), window.location.origin);
+			const url = new URL(
+				resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`),
+				window.location.origin
+			);
 			const result = await loadResourceDiff(url.toString(), force, signal);
 			if ('aborted' in result) return;
 			if ('error' in result) {
@@ -301,16 +271,8 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 		} catch (err) {
 			toast.error(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`);
 		} finally {
-			if (pendingRollback === myPending) {
-				pendingRollback = null;
-			}
+			if (pendingRollback === myPending) pendingRollback = null;
 		}
-	}
-
-	async function viewInKubectl() {
-		const kind = resource.kind;
-		const command = `kubectl get ${kind.toLowerCase()} ${data.name} -n ${data.namespace}`;
-		await copyToClipboard(command);
 	}
 
 	async function copyToClipboard(text: string) {
@@ -322,17 +284,37 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 		}
 	}
 
-	// Reset all tab-local state when resource identity changes so stale data doesn't persist
+	function viewInKubectl() {
+		const command = `kubectl get ${resource.kind.toLowerCase()} ${data.name} -n ${data.namespace}`;
+		void copyToClipboard(command);
+	}
+
+	function refreshEvents() {
+		eventsFetched = false;
+		void fetchEvents();
+	}
+
+	function refreshLogs() {
+		logsFetched = false;
+		void fetchLogs();
+	}
+
+	function refreshHistory() {
+		historyFetched = false;
+		void fetchHistory();
+	}
+
+	function refreshDiff() {
+		diffsFetched = false;
+		void fetchDiff(true);
+	}
+
 	$effect(() => {
-		// Track identity fields to establish reactive dependency
 		void data.name;
 		void data.namespace;
 		void data.resourceType;
-
-		// Abort any in-flight requests from the previous resource
 		activeAbortController?.abort();
 		activeAbortController = null;
-
 		events = [];
 		eventsLoading = false;
 		eventsError = null;
@@ -356,18 +338,16 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 		pendingRollback = null;
 	});
 
-	// Consolidated effect for tab data fetching
 	$effect(() => {
 		const tab = activeTab;
-		// Also track identity so the effect re-runs when the resource changes
 		void data.name;
 		void data.namespace;
 		void data.resourceType;
 		untrack(() => {
-			if (tab === 'events' && !eventsFetched) fetchEvents();
-			if (tab === 'logs' && !logsFetched) fetchLogs();
-			if (tab === 'history' && !historyFetched) fetchHistory();
-			if (tab === 'diff' && !diffsFetched) fetchDiff();
+			if (tab === 'events' && !eventsFetched) void fetchEvents();
+			if (tab === 'logs' && !logsFetched) void fetchLogs();
+			if (tab === 'history' && !historyFetched) void fetchHistory();
+			if (tab === 'diff' && !diffsFetched) void fetchDiff();
 		});
 	});
 
@@ -375,175 +355,53 @@ import { loadResourceLogs, requestResourceRollback } from './resource-requests';
 </script>
 
 <div class="space-y-6">
-	<!-- Breadcrumbs and Header -->
-	<div class="space-y-4">
-		<Breadcrumbs resourceType={data.resourceType} namespace={data.namespace} name={data.name} />
-		
-		<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-			<div class="flex-1">
-				<div class="flex items-center gap-3">
-					<h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">{data.name}</h1>
-					<button
-						type="button"
-						class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-						onclick={async () => await copyToClipboard(data.name)}
-						aria-label="Copy resource name"
-					>
-						<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-						</svg>
-					</button>
-					<StatusBadge
-						conditions={resource.status?.conditions}
-						suspended={resource.spec?.suspend as boolean | undefined}
-						observedGeneration={resource.status?.observedGeneration}
-						generation={resource.metadata?.generation}
-					/>
-				</div>
-				<p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-					{data.resourceType} in <span class="font-medium text-gray-700 dark:text-gray-300">{data.namespace}</span>
-				</p>
-			</div>
-			
-			<div class="flex flex-wrap items-center gap-2">
-				<button
-					type="button"
-					class="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-3 py-1.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-					onclick={viewInKubectl}
-					aria-label="View in Kubernetes (copy kubectl command)"
-				>
-					<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-					</svg>
-					Kubectl
-				</button>
-				<ActionButtons
-					resource={resource}
-					type={data.resourceType}
-					namespace={data.namespace}
-					name={data.name}
-				/>
-			</div>
-		</div>
-	</div>
+	<ResourceDetailHeader
+		{resource}
+		resourceType={data.resourceType}
+		namespace={data.namespace}
+		name={data.name}
+		onCopyName={() => void copyToClipboard(data.name)}
+		onViewInKubectl={viewInKubectl}
+	/>
 
-	<!-- Tabs -->
-	<div class="scrollbar-none overflow-x-auto border-b border-gray-200 dark:border-gray-700">
-		<div class="-mb-px flex min-w-max space-x-8" role="tablist" aria-label="Resource Details">
-			{#each tabs as tab, i (tab.id)}
-				<button
-					id="{tab.id}-tab"
-					role="tab"
-					aria-selected={activeTab === tab.id}
-					aria-controls="{tab.id}-panel"
-					tabindex={activeTab === tab.id ? 0 : -1}
-					type="button"
-					class="border-b-2 px-1 py-4 text-sm font-medium whitespace-nowrap transition-colors {activeTab ===
-					tab.id
-						? 'border-blue-500 text-blue-600 dark:border-blue-400 dark:text-blue-400'
-						: 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-300'}"
-					onclick={() => setActiveTab(tab.id)}
-					onkeydown={(e) => handleKeydown(e, i)}
-				>
-					{tab.label}
-				</button>
-			{/each}
-		</div>
-	</div>
+	<ResourceDetailTabs
+		{tabs}
+		{activeTab}
+		onSelectTab={setActiveTab}
+		onKeydown={handleKeydown}
+	/>
 
-	<!-- Tab Content -->
 	{#key activeTab}
-	<svelte:boundary>
-		<div class="pt-2">
-			{#if activeTab === 'overview'}
-				<div id="overview-panel" role="tabpanel" aria-labelledby="overview-tab">
-					<OverviewTab {resource} resourceType={data.resourceType} {conditions} />
-				</div>
-			{:else if activeTab === 'spec'}
-				<div id="spec-panel" role="tabpanel" aria-labelledby="spec-tab">
-					<CodeViewer
-						data={sanitizeResource(resource) as unknown as Record<string, unknown>}
-						title="Full Resource Manifest"
-					/>
-				</div>
-			{:else if activeTab === 'status'}
-				<div id="status-panel" role="tabpanel" aria-labelledby="status-tab">
-					<CodeViewer
-						data={(resource.status as Record<string, unknown>) || {}}
-						title="Resource Status"
-						showDownload={false}
-					/>
-				</div>
-			{:else if activeTab === 'events'}
-				<div id="events-panel" role="tabpanel" aria-labelledby="events-tab">
-					<EventsTab
-						events={events}
-						loading={eventsLoading}
-						error={eventsError}
-						onRefresh={() => {
-							eventsFetched = false;
-							fetchEvents();
-						}}
-					/>
-				</div>
-			{:else if activeTab === 'logs'}
-				<div id="logs-panel" role="tabpanel" aria-labelledby="logs-tab">
-					{#key resourceKey}
-						<LogsTab
-							{logs}
-							{formattedLogs}
-							loading={logsLoading}
-							error={logsError}
-							{showRawLogs}
-							onRefresh={() => {
-								logsFetched = false;
-								fetchLogs();
-							}}
-							onToggleRaw={(v) => (showRawLogs = v)}
-							bind:logContainer
-						/>
-					{/key}
-				</div>
-			{:else if activeTab === 'history'}
-				<div id="history-panel" role="tabpanel" aria-labelledby="history-tab">
-					<HistoryTab
-						{timeline}
-						loading={historyLoading}
-						onRefresh={() => {
-							historyFetched = false;
-							fetchHistory();
-						}}
-						onRollback={handleRollback}
-					/>
-				</div>
-			{:else if activeTab === 'diff'}
-				<div id="diff-panel" role="tabpanel" aria-labelledby="diff-tab">
-					<DiffTab
-						{diffs}
-						loading={diffsLoading}
-						error={diffsError}
-						timestamp={diffsTimestamp}
-						cached={diffsCached}
-						revision={diffsRevision}
-						onRefresh={() => {
-							diffsFetched = false;
-							fetchDiff(true);
-						}}
-					/>
-				</div>
-			{/if}
-		</div>
-
-		{#snippet failed(error, reset)}
-			<div id="{activeTab}-panel" role="tabpanel" aria-labelledby="{activeTab}-tab">
-				<ErrorDisplay
-					status={500}
-					message={error instanceof Error ? error.message : 'An unexpected error occurred'}
-					onRetry={reset}
-				/>
-			</div>
-		{/snippet}
-	</svelte:boundary>
+		<ResourceDetailTabPanel
+			{activeTab}
+			{resource}
+			resourceType={data.resourceType}
+			{conditions}
+			{resourceKey}
+			{events}
+			{eventsLoading}
+			eventsError={eventsError}
+			{logs}
+			{formattedLogs}
+			{logsLoading}
+			logsError={logsError}
+			{showRawLogs}
+			bind:logContainer
+			{timeline}
+			historyLoading={historyLoading}
+			{diffs}
+			diffsLoading={diffsLoading}
+			diffsError={diffsError}
+			diffsTimestamp={diffsTimestamp}
+			diffsCached={diffsCached}
+			diffsRevision={diffsRevision}
+			onRefreshEvents={refreshEvents}
+			onRefreshLogs={refreshLogs}
+			onToggleRawLogs={(value) => (showRawLogs = value)}
+			onRefreshHistory={refreshHistory}
+			onRollback={handleRollback}
+			onRefreshDiff={refreshDiff}
+		/>
 	{/key}
 </div>
 
