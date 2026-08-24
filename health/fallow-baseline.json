@@ -283,11 +283,6 @@
         "count": 1
       }
     },
-    "src/lib/server/admin-readiness.ts": {
-      "complexity_high": {
-        "count": 1
-      }
-    },
     "src/lib/server/audit.ts": {
       "crap_moderate": {
         "count": 1
