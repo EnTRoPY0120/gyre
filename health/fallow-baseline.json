@@ -668,11 +668,6 @@
         "count": 1
       }
     },
-    "src/routes/resources/[type]/+page.server.ts": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/routes/resources/[type]/+page.svelte": {
       "complexity_moderate": {
         "count": 1
