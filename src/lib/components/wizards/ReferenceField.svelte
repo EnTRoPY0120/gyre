@@ -8,6 +8,7 @@
 		type ReferenceOption
 	} from './reference-fetch';
 	import { getReferenceKeyAction } from './reference-keyboard';
+	import { getReferenceDisplayValue } from './reference-display';
 	import ReferenceFieldPopover from './ReferenceFieldPopover.svelte';
 
 	export type { ReferenceOption } from './reference-fetch';
@@ -75,16 +76,6 @@
 		loading = false;
 	}
 
-	function parseOptionKey(key: string) {
-		const firstSeparator = key.indexOf(':');
-		const secondSeparator = key.indexOf(':', firstSeparator + 1);
-		return {
-			kind: key.slice(0, firstSeparator),
-			namespace: key.slice(firstSeparator + 1, secondSeparator),
-			name: key.slice(secondSeparator + 1)
-		};
-	}
-
 	function optionMatchesCurrentValue(resource: Pick<ReferenceOption, 'name' | 'namespace'>): boolean {
 		return (
 			resource.name === value &&
@@ -144,23 +135,14 @@
 	});
 
 	const displayValue = $derived.by(() => {
-		if (!value) return placeholder;
-
-		if (selectedResource) {
-			return selectedResource.label;
-		}
-
-		if (selectedKey) {
-			const selectedIdentity = parseOptionKey(selectedKey);
-			if (
-				selectedIdentity.name === value &&
-				(!referenceNamespace || selectedIdentity.namespace === referenceNamespace)
-			) {
-				return selectedLabel;
-			}
-		}
-
-		return referenceNamespace ? `${value} (${referenceNamespace})` : value;
+		return getReferenceDisplayValue({
+			value,
+			placeholder,
+			selectedResource,
+			selectedKey,
+			selectedLabel,
+			referenceNamespace
+		});
 	});
 
 	$effect(() => {
