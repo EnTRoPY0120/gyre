@@ -207,7 +207,7 @@
       }
     },
     "src/lib/components/layout/NotificationDropdown.svelte": {
-      "complexity_high": {
+      "complexity_moderate": {
         "count": 1
       }
     },
@@ -912,7 +912,6 @@
     "src/lib/components/flux/VersionHistory.svelte:complexity",
     "src/lib/components/admin/ClusterHealthCheckModal.svelte:complexity",
     "src/lib/components/flux/resources/AlertDetail.svelte:complexity",
-    "src/routes/admin/audit-logs/+page.svelte:complexity",
-    "src/lib/components/layout/NotificationDropdown.svelte:complexity"
+    "src/routes/admin/audit-logs/+page.svelte:complexity"
   ]
 }
