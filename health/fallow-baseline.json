@@ -253,9 +253,6 @@
       }
     },
     "src/lib/components/wizards/ReferenceField.svelte": {
-      "crap_critical": {
-        "count": 1
-      },
       "crap_high": {
         "count": 1
       },
@@ -278,11 +275,6 @@
     },
     "src/lib/components/wizards/WizardFieldSections.svelte": {
       "complexity_critical": {
-        "count": 1
-      }
-    },
-    "src/lib/components/wizards/reference-fetch.ts": {
-      "crap_high": {
         "count": 1
       }
     },
@@ -474,11 +466,6 @@
       }
     },
     "src/lib/utils/error-normalization.ts": {
-      "crap_critical": {
-        "count": 1
-      }
-    },
-    "src/lib/utils/fetch.ts": {
       "crap_critical": {
         "count": 1
       }

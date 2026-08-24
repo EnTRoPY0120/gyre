@@ -28,6 +28,13 @@ export interface ReferenceFetchResult {
 	sawFailure: boolean;
 }
 
+export function getReferenceResourcesAfterFetch(
+	result: ReferenceFetchResult,
+	existingResources: ReferenceOption[]
+): ReferenceOption[] {
+	return result.resources.length > 0 || !result.sawFailure ? result.resources : existingResources;
+}
+
 export function isAbortError(error: unknown): boolean {
 	return error instanceof DOMException
 		? error.name === 'AbortError'

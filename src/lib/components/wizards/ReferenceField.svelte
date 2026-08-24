@@ -3,7 +3,13 @@
 	import { logger } from '$lib/utils/logger.js';
 	import { ChevronsUpDown } from '@lucide/svelte';
 	import { onMount } from 'svelte';
-	import { fetchReferenceResources, isAbortError, type ReferenceOption } from './reference-fetch';
+	import {
+		fetchReferenceResources,
+		getReferenceResourcesAfterFetch,
+		isAbortError,
+		type ReferenceFetchResult,
+		type ReferenceOption
+	} from './reference-fetch';
 	import { getReferenceKeyAction } from './reference-keyboard';
 	import ReferenceResourceMenu from './ReferenceResourceMenu.svelte';
 
@@ -88,6 +94,34 @@
 			resource.name === value &&
 			(!referenceNamespace || (resource.namespace ?? '') === referenceNamespace)
 		);
+	}
+
+	function isCurrentFetch(fetchId: number): boolean {
+		return fetchId === fetchRequestId;
+	}
+
+	function clearEmptyFetch(fetchId: number) {
+		if (!isCurrentFetch(fetchId)) return;
+		resources = [];
+		loading = false;
+		activeFetchController = null;
+	}
+
+	function commitFetchResult(fetchId: number, result: ReferenceFetchResult) {
+		if (!isCurrentFetch(fetchId)) return;
+		resources = getReferenceResourcesAfterFetch(result, resources);
+	}
+
+	function logFetchError(fetchId: number, err: unknown) {
+		if (isCurrentFetch(fetchId) && !isAbortError(err)) {
+			logger.error(err, 'Failed to fetch resources:');
+		}
+	}
+
+	function finishFetch(fetchId: number) {
+		if (!isCurrentFetch(fetchId)) return;
+		activeFetchController = null;
+		loading = false;
 	}
 
 	// Resolve the actual resource types to fetch
@@ -175,29 +209,18 @@
 		const currentFetchId = ++fetchRequestId;
 
 		if (activeReferenceTypes.length === 0) {
-			if (currentFetchId === fetchRequestId) {
-				resources = [];
-				loading = false;
-				activeFetchController = null;
-			}
+			clearEmptyFetch(currentFetchId);
 			return;
 		}
 
 		loading = true;
 		try {
-			if (currentFetchId === fetchRequestId) {
-				const result = await fetchReferenceResources(activeReferenceTypes, resources, controller.signal);
-				if (result.resources.length > 0 || !result.sawFailure) resources = result.resources;
-			}
+			const result = await fetchReferenceResources(activeReferenceTypes, resources, controller.signal);
+			commitFetchResult(currentFetchId, result);
 		} catch (err) {
-			if (currentFetchId === fetchRequestId && !isAbortError(err)) {
-				logger.error(err, 'Failed to fetch resources:');
-			}
+			logFetchError(currentFetchId, err);
 		} finally {
-			if (currentFetchId === fetchRequestId) {
-				activeFetchController = null;
-				loading = false;
-			}
+			finishFetch(currentFetchId);
 		}
 	}
 
