@@ -188,6 +188,26 @@ describe('filterResources', () => {
 		const result = filterResources(resources, { ...defaultFilterState, labels: 'app=nonexistent' });
 		expect(result).toHaveLength(0);
 	});
+
+	test('search tags filter by namespace and status', () => {
+		expect(
+			filterResources(resources, { ...defaultFilterState, search: 'ns:flux-system' })
+		).toHaveLength(2);
+		expect(
+			filterResources(resources, { ...defaultFilterState, search: 'namespace:default' })[0].metadata
+				.name
+		).toBe('repo-c');
+		expect(
+			filterResources(resources, { ...defaultFilterState, search: 'status:FAILED' })[0].metadata
+				.name
+		).toBe('repo-b');
+	});
+
+	test('unknown search tags do not exclude resources', () => {
+		expect(
+			filterResources(resources, { ...defaultFilterState, search: 'owner:platform' })
+		).toHaveLength(4);
+	});
 });
 
 // ---------------------------------------------------------------------------
