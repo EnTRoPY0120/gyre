@@ -7,6 +7,7 @@
 	import { eventsStore } from '$lib/stores/events.svelte';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import { preferences } from '$lib/stores/preferences.svelte';
+	import { buildEventStorageScope, hasEventConnectionChanged } from '$lib/stores/layout-sync.js';
 	import { page } from '$app/stores';
 	import { Toaster } from 'svelte-sonner';
 	import { onDestroy } from 'svelte';
@@ -47,23 +48,10 @@
 		}
 		clusterStore.setCurrent(data.health.currentClusterId || IN_CLUSTER_ID);
 		clusterStore.setError(data.health.error ?? null);
-
-		if (data.user?.preferences?.notifications) {
-			preferences.setNotifications(data.user.preferences.notifications);
-		} else {
-			preferences.setNotifications(undefined);
-		}
-
-		eventsStore.setStorageScope({
-			clusterId: data.health.currentClusterId || IN_CLUSTER_ID,
-			userIdentity: data.user
-				? JSON.stringify({
-						id: data.user.id,
-						role: data.user.role,
-						username: data.user.username
-					})
-				: null
-		});
+		preferences.setNotifications(data.user?.preferences?.notifications);
+		eventsStore.setStorageScope(
+			buildEventStorageScope(data.health.currentClusterId, data.user)
+		);
 	});
 
 	// Connect to SSE when cluster is connected
@@ -72,7 +60,7 @@
 	$effect(() => {
 		const isConnected = data.health.connected;
 		const clusterId = data.health.currentClusterId || IN_CLUSTER_ID;
-		if (isConnected !== prevConnected || clusterId !== prevClusterId) {
+		if (hasEventConnectionChanged(isConnected, clusterId, prevConnected, prevClusterId)) {
 			eventsStore.disconnect();
 			if (isConnected) {
 				eventsStore.connect();
