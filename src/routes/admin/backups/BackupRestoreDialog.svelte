@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { AlertTriangle, HardDrive, Loader2 } from '@lucide/svelte';
+	import { modalFocusTrap } from '$lib/utils/focus-trap';
 
 	let {
 		open,
@@ -23,36 +24,13 @@
 		if (!open) return;
 
 		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === 'Escape' && !restoring) {
-				onCancel();
-			}
-
-			if (e.key === 'Tab' && modalContainer) {
-				const focusables = modalContainer.querySelectorAll<HTMLElement>(
-					'button:not([disabled]), [href], input, [tabindex]:not([tabindex="-1"])'
-				);
-				const first = focusables[0];
-				const last = focusables[focusables.length - 1];
-
-				if (e.shiftKey && document.activeElement === first) {
-					e.preventDefault();
-					last?.focus();
-				} else if (!e.shiftKey && document.activeElement === last) {
-					e.preventDefault();
-					first?.focus();
-				}
-			}
+			if (e.key === 'Escape' && !restoring) onCancel();
 		};
 
 		window.addEventListener('keydown', handleKeyDown);
-		const focusTimer = setTimeout(() => {
-			const firstButton = modalContainer?.querySelector('button:not([disabled])') as HTMLElement;
-			firstButton?.focus();
-		}, 0);
 
 		return () => {
 			window.removeEventListener('keydown', handleKeyDown);
-			clearTimeout(focusTimer);
 		};
 	});
 </script>
@@ -64,6 +42,7 @@
 		aria-modal="true"
 		aria-labelledby="restore-modal-title"
 		bind:this={modalContainer}
+		use:modalFocusTrap
 	>
 		<div
 			class="mx-4 w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-800 p-6 shadow-2xl"
