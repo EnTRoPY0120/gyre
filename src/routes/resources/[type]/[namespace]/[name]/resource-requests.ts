@@ -1,5 +1,15 @@
+import type { K8sEvent, ReconciliationEntry } from '$lib/types/resource';
+
+export interface ResourceEventsResponse {
+	events: K8sEvent[];
+}
+
 export interface ResourceLogsResponse {
 	logs: string;
+}
+
+export interface ResourceHistoryResponse {
+	timeline: ReconciliationEntry[];
 }
 
 export interface ResourceRollbackRequest {
@@ -35,6 +45,26 @@ function isAbortError(error: unknown): boolean {
 	return error instanceof Error && error.name === 'AbortError';
 }
 
+/** Load resource events and keep aborts separate from user-visible failures. */
+export async function loadResourceEvents(
+	url: string,
+	signal: AbortSignal,
+	fetcher: typeof fetch = fetch
+): Promise<ResourceLoadResult<ResourceEventsResponse>> {
+	try {
+		const response = await fetcher(url, { signal });
+		if (!response.ok) {
+			return { error: { message: `Failed to fetch events: ${response.statusText}` } };
+		}
+
+		const body = (await response.json()) as { events?: K8sEvent[] };
+		return { response: { events: body.events || [] } };
+	} catch (error) {
+		if (isAbortError(error)) return { aborted: true };
+		return { error: { message: error instanceof Error ? error.message : 'Failed to load events' } };
+	}
+}
+
 /** Load controller logs and keep aborts separate from user-visible failures. */
 export async function loadResourceLogs(
 	url: string,
@@ -56,6 +86,28 @@ export async function loadResourceLogs(
 	} catch (error) {
 		if (isAbortError(error)) return { aborted: true };
 		return { error: { message: error instanceof Error ? error.message : 'Failed to load logs' } };
+	}
+}
+
+/** Load reconciliation history and keep aborts separate from user-visible failures. */
+export async function loadResourceHistory(
+	url: string,
+	signal: AbortSignal,
+	fetcher: typeof fetch = fetch
+): Promise<ResourceLoadResult<ResourceHistoryResponse>> {
+	try {
+		const response = await fetcher(url, { signal });
+		if (!response.ok) {
+			return { error: { message: `Failed to fetch history: ${response.statusText}` } };
+		}
+
+		const body = (await response.json()) as { timeline?: ReconciliationEntry[] };
+		return { response: { timeline: body.timeline || [] } };
+	} catch (error) {
+		if (isAbortError(error)) return { aborted: true };
+		return {
+			error: { message: error instanceof Error ? error.message : 'Failed to load history' }
+		};
 	}
 }
 

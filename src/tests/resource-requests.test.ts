@@ -1,8 +1,43 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
+	loadResourceEvents,
+	loadResourceHistory,
 	loadResourceLogs,
 	requestResourceRollback
 } from '../routes/resources/[type]/[namespace]/[name]/resource-requests.js';
+
+describe('resource detail loaders', () => {
+	test('loads events and history with the abort signal', async () => {
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(new Response(JSON.stringify({ events: [] }), { status: 200 }))
+			.mockResolvedValueOnce(new Response(JSON.stringify({ timeline: [] }), { status: 200 }));
+		const signal = new AbortController().signal;
+
+		await expect(loadResourceEvents('/events', signal, fetcher)).resolves.toEqual({
+			response: { events: [] }
+		});
+		await expect(loadResourceHistory('/history', signal, fetcher)).resolves.toEqual({
+			response: { timeline: [] }
+		});
+		expect(fetcher).toHaveBeenNthCalledWith(1, '/events', { signal });
+		expect(fetcher).toHaveBeenNthCalledWith(2, '/history', { signal });
+	});
+
+	test('normalizes event and history failures', async () => {
+		const fetcher = vi
+			.fn()
+			.mockResolvedValueOnce(new Response('', { status: 503, statusText: 'Unavailable' }))
+			.mockRejectedValueOnce(new Error('Network unavailable'));
+
+		await expect(
+			loadResourceEvents('/events', new AbortController().signal, fetcher)
+		).resolves.toEqual({ error: { message: 'Failed to fetch events: Unavailable' } });
+		await expect(
+			loadResourceHistory('/history', new AbortController().signal, fetcher)
+		).resolves.toEqual({ error: { message: 'Network unavailable' } });
+	});
+});
 
 describe('loadResourceLogs', () => {
 	test('passes the abort signal and returns normalized logs', async () => {

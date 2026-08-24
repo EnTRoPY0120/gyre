@@ -14,7 +14,12 @@
 	import type { DiffError } from '$lib/components/resources/tabs/DiffTab.svelte';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
 	import { loadResourceDiff } from './diff-request';
-	import { loadResourceLogs, requestResourceRollback } from './resource-requests';
+	import {
+		loadResourceEvents,
+		loadResourceHistory,
+		loadResourceLogs,
+		requestResourceRollback
+	} from './resource-requests';
 	import { matchesResourceEvent } from './resource-event-match';
 	import ResourceDetailHeader from '$lib/components/resources/ResourceDetailHeader.svelte';
 	import ResourceDetailTabPanel from '$lib/components/resources/ResourceDetailTabPanel.svelte';
@@ -164,21 +169,20 @@
 		const signal = getNewAbortSignal();
 		eventsLoading = true;
 		eventsError = null;
-		try {
-			const response = await fetch(
-				resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/events`),
-				{ signal }
-			);
-			if (!response.ok) throw new Error(`Failed to fetch events: ${response.statusText}`);
-			const result = await response.json();
-			events = result.events || [];
-			eventsFetched = true;
-		} catch (err) {
-			if ((err as Error).name === 'AbortError') return;
-			eventsError = err instanceof Error ? err.message : 'Failed to load events';
-		} finally {
+		const result = await loadResourceEvents(
+			resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/events`),
+			signal
+		);
+		if ('aborted' in result) {
 			eventsLoading = false;
+			return;
 		}
+		if ('error' in result) eventsError = result.error.message;
+		else {
+			events = result.response.events;
+			eventsFetched = true;
+		}
+		eventsLoading = false;
 	}
 
 	async function fetchLogs() {
@@ -206,21 +210,20 @@
 		if (historyFetched) return;
 		const signal = getNewAbortSignal();
 		historyLoading = true;
-		try {
-			const response = await fetch(
-				resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/history`),
-				{ signal }
-			);
-			if (!response.ok) throw new Error(`Failed to fetch history: ${response.statusText}`);
-			const result = await response.json();
-			timeline = result.timeline || [];
-			historyFetched = true;
-		} catch (err) {
-			if ((err as Error).name === 'AbortError') return;
-			toast.error('Failed to load history');
-		} finally {
+		const result = await loadResourceHistory(
+			resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/history`),
+			signal
+		);
+		if ('aborted' in result) {
 			historyLoading = false;
+			return;
 		}
+		if ('error' in result) toast.error('Failed to load history');
+		else {
+			timeline = result.response.timeline;
+			historyFetched = true;
+		}
+		historyLoading = false;
 	}
 
 	async function fetchDiff(force = false) {
