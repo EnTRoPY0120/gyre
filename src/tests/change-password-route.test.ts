@@ -181,4 +181,18 @@ describe('change-password route credential handling', () => {
 			}
 		});
 	});
+
+	test('returns actionable 500 when the credential hash is missing outside the cluster', async () => {
+		authState.credentialAccount = { id: 'cred-1' };
+		authState.credentialHash = null;
+		authState.isInClusterAdmin = false;
+
+		await expect(POST(buildEvent())).rejects.toMatchObject({
+			status: 500,
+			body: {
+				message:
+					'Account configuration error: credential password hash missing for this user. Contact your administrator.'
+			}
+		});
+	});
 });

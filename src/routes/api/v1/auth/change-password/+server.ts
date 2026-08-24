@@ -5,9 +5,6 @@ import type { RequestHandler } from './$types';
 import {
 	addPasswordHistory,
 	clearRequiresPasswordChange,
-	getCredentialAccount,
-	getCredentialPasswordHash,
-	isInClusterAdmin,
 	isPasswordInHistory,
 	verifyPassword
 } from '$lib/server/auth';
@@ -15,6 +12,7 @@ import { applyBetterAuthCookies, getBetterAuth } from '$lib/server/auth/better-a
 import { logAudit } from '$lib/server/audit';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { assertPasswordStrength } from '$lib/server/auth/password-validation.js';
+import { requireCredentialPasswordHash } from './credential-password';
 
 export const _metadata = {
 	POST: {
@@ -100,38 +98,7 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 			});
 		}
 
-		// Distinguish between a missing credential row (data integrity issue) and
-		// the in-cluster admin path, where getCredentialPasswordHash intentionally
-		// returns null so the Kubernetes secret remains the source of truth.
-		const credentialAccount = await getCredentialAccount(locals.user.id);
-		const currentCredentialHash = await getCredentialPasswordHash(locals.user.id);
-		if (!currentCredentialHash) {
-			if (!credentialAccount) {
-				logger.error(
-					{ userId: locals.user.id },
-					'[Auth] Local user is missing a credential account'
-				);
-				throw error(500, {
-					message:
-						'Account configuration error: credential account missing for this user. Contact your administrator.'
-				});
-			}
-
-			if (isInClusterAdmin(locals.user)) {
-				throw error(403, {
-					message:
-						'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
-				});
-			}
-			logger.error(
-				{ userId: locals.user.id, credentialAccountId: credentialAccount.id },
-				'[Auth] Local user credential account has no password hash'
-			);
-			throw error(500, {
-				message:
-					'Account configuration error: credential password hash missing for this user. Contact your administrator.'
-			});
-		}
+		const currentCredentialHash = await requireCredentialPasswordHash(locals.user);
 
 		assertPasswordStrength(newPassword);
 
