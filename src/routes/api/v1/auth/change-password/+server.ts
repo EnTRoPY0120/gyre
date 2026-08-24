@@ -13,6 +13,49 @@ import { logAudit } from '$lib/server/audit';
 import { checkRateLimit } from '$lib/server/rate-limiter';
 import { assertPasswordStrength } from '$lib/server/auth/password-validation.js';
 import { requireCredentialPasswordHash } from './credential-password';
+import { validatePasswordChangeInput } from './validation';
+import type { User } from '$lib/server/db/schema.js';
+
+async function ensureCurrentPasswordValid(
+	user: User,
+	currentPassword: string,
+	currentCredentialHash: string,
+	ipAddress?: string
+): Promise<void> {
+	const isCurrentValid = await verifyPassword(currentPassword, currentCredentialHash);
+	if (isCurrentValid) return;
+
+	await logAudit(user, 'password_change_failed', {
+		success: false,
+		ipAddress,
+		details: { reason: 'invalid_current_password' }
+	});
+	throw error(401, { message: 'Current password is incorrect' });
+}
+
+async function ensurePasswordIsNotReused(
+	user: User,
+	newPassword: string,
+	currentCredentialHash: string,
+	ipAddress?: string
+): Promise<void> {
+	const isSamePassword = await verifyPassword(newPassword, currentCredentialHash);
+	if (isSamePassword) {
+		throw error(400, { message: 'New password must be different from current password' });
+	}
+
+	const isReused = await isPasswordInHistory(user.id, newPassword);
+	if (!isReused) return;
+
+	await logAudit(user, 'password_change_failed', {
+		success: false,
+		ipAddress,
+		details: { reason: 'password_reuse_attempt' }
+	});
+	throw error(400, {
+		message: 'New password cannot be the same as a recently used password'
+	});
+}
 
 export const _metadata = {
 	POST: {
@@ -88,9 +131,8 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 		const { currentPassword, newPassword } = body;
 
 		// Validate inputs
-		if (!currentPassword || !newPassword) {
-			throw error(400, { message: 'Current password and new password are required' });
-		}
+		const inputError = validatePasswordChangeInput(currentPassword, newPassword);
+		if (inputError) throw error(400, { message: inputError });
 
 		if (locals.user.isLocal === false) {
 			throw error(403, {
@@ -102,37 +144,13 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders, cookie
 
 		assertPasswordStrength(newPassword);
 
-		// Verify current password using the hash already in hand — no second DB read.
 		const { user } = locals;
-		const isCurrentValid = await verifyPassword(currentPassword, currentCredentialHash);
+		const ipAddress = locals.session?.ipAddress || undefined;
+		// Verify current password using the hash already in hand — no second DB read.
+		await ensureCurrentPasswordValid(user, currentPassword, currentCredentialHash, ipAddress);
 
-		if (!isCurrentValid) {
-			await logAudit(user, 'password_change_failed', {
-				success: false,
-				ipAddress: locals.session?.ipAddress || undefined,
-				details: { reason: 'invalid_current_password' }
-			});
-			throw error(401, { message: 'Current password is incorrect' });
-		}
-
-		// Prevent using same password
-		const isSamePassword = await verifyPassword(newPassword, currentCredentialHash);
-		if (isSamePassword) {
-			throw error(400, { message: 'New password must be different from current password' });
-		}
-
-		// Check password history
-		const isReused = await isPasswordInHistory(user.id, newPassword);
-		if (isReused) {
-			await logAudit(user, 'password_change_failed', {
-				success: false,
-				ipAddress: locals.session?.ipAddress || undefined,
-				details: { reason: 'password_reuse_attempt' }
-			});
-			throw error(400, {
-				message: 'New password cannot be the same as a recently used password'
-			});
-		}
+		// Prevent using the same or a recently used password.
+		await ensurePasswordIsNotReused(user, newPassword, currentCredentialHash, ipAddress);
 
 		// Record current password in history BEFORE rotating. addPasswordHistory is
 		// idempotent for (user.id, currentCredentialHash), so retries do not crowd

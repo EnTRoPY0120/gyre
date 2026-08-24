@@ -653,11 +653,6 @@
         "count": 1
       }
     },
-    "src/routes/api/v1/auth/change-password/+server.ts": {
-      "crap_critical": {
-        "count": 1
-      }
-    },
     "src/routes/api/v1/auth/login/+server.ts": {
       "complexity_moderate": {
         "count": 1
@@ -761,9 +756,9 @@
     "src/lib/server/auth/oauth/url-security.ts:high impact",
     "src/lib/components/wizards/ArrayField.svelte:complexity",
     "src/lib/server/auth/sso-claims.ts:high impact",
+    "src/lib/utils/focus-trap.ts:high impact",
     "src/lib/components/CommandPalette.svelte:complexity",
     "src/lib/components/wizards/WizardField.svelte:complexity",
-    "src/lib/utils/focus-trap.ts:high impact",
     "src/lib/components/flux/ResourceTable.svelte:complexity",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/resources/KustomizationDetail.svelte:complexity",
