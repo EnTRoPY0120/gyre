@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import type { AdminReadinessStatus, AdminReadinessSummary } from '$lib/types/admin-readiness';
+	import { getReadinessSummaryText } from './admin-readiness-summary';
 
 	interface Props {
 		adminReadiness?: AdminReadinessSummary;
@@ -26,18 +27,6 @@
 			return 'border-amber-500/25 bg-amber-500/5';
 		}
 		return 'border-destructive/25 bg-destructive/5';
-	}
-
-	function summaryText(summary: AdminReadinessSummary): string {
-		if (summary.actionRequiredCount > 0) {
-			const verb = summary.actionRequiredCount === 1 ? 'requires' : 'require';
-			return `${summary.actionRequiredCount} step${summary.actionRequiredCount === 1 ? '' : 's'} ${verb} action now.`;
-		}
-		if (summary.attentionCount > 0) {
-			const verb = summary.attentionCount === 1 ? 'needs' : 'need';
-			return `${summary.attentionCount} step${summary.attentionCount === 1 ? '' : 's'} ${verb} attention.`;
-		}
-		return 'All readiness checks are healthy.';
 	}
 
 	function badgeLabel(status: AdminReadinessStatus): string {
@@ -72,7 +61,7 @@
 							System setup status
 						</h2>
 						<p class="mt-2 max-w-2xl text-sm text-muted-foreground">
-							{summaryText(adminReadiness)}
+							{getReadinessSummaryText(adminReadiness)}
 						</p>
 					</div>
 				</div>
