@@ -1,6 +1,9 @@
 import { parseRoleMappingInput, type RoleMapping } from '$lib/auth/role-mapping';
 import { logger } from '$lib/server/logger.js';
 
+type SsoRole = 'admin' | 'editor' | 'viewer';
+const ROLE_PRIORITY: SsoRole[] = ['admin', 'editor', 'viewer'];
+
 export function parseRoleMappingSafe(value: unknown, providerId: string): RoleMapping | null {
 	try {
 		return parseRoleMappingInput(value);
@@ -14,40 +17,48 @@ export function mapRoleFromGroups(
 	groups: string[],
 	roleMapping: string | null,
 	defaultRole: string
-): 'admin' | 'editor' | 'viewer' {
+): SsoRole {
+	const safeDefaultRole = getSafeDefaultRole(defaultRole);
+	if (!roleMapping) return safeDefaultRole;
+
+	const mapping = parseRoleMappingForGroups(roleMapping);
+	return findMappedRole(groups, mapping) ?? safeDefaultRole;
+}
+
+function getSafeDefaultRole(defaultRole: string): Exclude<SsoRole, 'admin'> {
 	const normalizedDefault = defaultRole.trim().toLowerCase();
-	let safeDefaultRole: 'editor' | 'viewer';
 	if (normalizedDefault === 'admin') {
 		logger.warn(
 			'[Security] SSO provider defaultRole is "admin"; restricting fallback to "editor" to prevent privilege escalation. Assign admin via explicit group mapping.'
 		);
-		safeDefaultRole = 'editor';
-	} else if (normalizedDefault === 'editor') {
-		safeDefaultRole = 'editor';
-	} else if (normalizedDefault === 'viewer') {
-		safeDefaultRole = 'viewer';
-	} else {
-		logger.warn(
-			`[Security] SSO provider defaultRole has unrecognised value "${defaultRole}"; falling back to least-privilege "viewer".`
-		);
-		safeDefaultRole = 'viewer';
+		return 'editor';
 	}
+	if (normalizedDefault === 'editor') return 'editor';
+	if (normalizedDefault === 'viewer') return 'viewer';
 
-	if (!roleMapping) return safeDefaultRole;
+	logger.warn(
+		`[Security] SSO provider defaultRole has unrecognised value "${defaultRole}"; falling back to least-privilege "viewer".`
+	);
+	return 'viewer';
+}
 
-	let mapping: Record<string, string[]>;
+function parseRoleMappingForGroups(roleMapping: string): RoleMapping | null {
 	try {
-		mapping = JSON.parse(roleMapping);
+		return parseRoleMappingInput(roleMapping);
 	} catch (error) {
 		logger.error(error, 'Failed to parse role mapping:');
-		return safeDefaultRole;
+		return null;
 	}
+}
 
-	for (const role of ['admin', 'editor', 'viewer'] as const) {
-		if (Array.isArray(mapping[role]) && groups.some((group) => mapping[role].includes(group))) {
+function findMappedRole(groups: string[], mapping: RoleMapping | null): SsoRole | null {
+	if (!mapping) return null;
+
+	for (const role of ROLE_PRIORITY) {
+		if (mapping[role]?.some((mappedGroup) => groups.includes(mappedGroup))) {
 			return role;
 		}
 	}
 
-	return safeDefaultRole;
+	return null;
 }
