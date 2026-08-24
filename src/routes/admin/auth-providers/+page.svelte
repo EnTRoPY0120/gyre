@@ -1,9 +1,8 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
 	import type { PageData } from './$types';
-	import AuthProviderForm from '$lib/components/admin/AuthProviderForm.svelte';
 	import AuthProviderList from '$lib/components/admin/AuthProviderList.svelte';
-	import AuthProviderDeleteDialog from '$lib/components/admin/AuthProviderDeleteDialog.svelte';
+	import AuthProviderModals from '$lib/components/admin/AuthProviderModals.svelte';
 	import {
 		DEFAULT_ROLE_MAPPING_TEMPLATE,
 		parseRoleMappingInput,
@@ -255,39 +254,18 @@
 	/>
 </div>
 
-{#if showCreateModal}
-	<AuthProviderForm
-		bind:formData
-		bind:roleMappingError
-		mode="create"
-		error={error}
-		success={success}
-		loading={loading}
-		onSubmit={handleCreate}
-		onClose={closeModals}
-	/>
-{/if}
-
-{#if showEditModal && selectedProvider}
-	<AuthProviderForm
-		bind:formData
-		bind:roleMappingError
-		mode="edit"
-		providerName={selectedProvider.name}
-		error={error}
-		success={success}
-		loading={loading}
-		onSubmit={handleUpdate}
-		onClose={closeModals}
-	/>
-{/if}
-
-{#if showDeleteModal && selectedProvider}
-	<AuthProviderDeleteDialog
-		provider={selectedProvider as AuthProviderSummary}
-		{error}
-		{loading}
-		onClose={closeModals}
-		onDelete={handleDelete}
-	/>
-{/if}
+<AuthProviderModals
+	showCreate={showCreateModal}
+	showEdit={showEditModal}
+	showDelete={showDeleteModal}
+	selectedProvider={selectedProvider as AuthProviderSummary | null}
+	bind:formData
+	bind:roleMappingError
+	{error}
+	{success}
+	{loading}
+	onCreate={handleCreate}
+	onUpdate={handleUpdate}
+	onDelete={handleDelete}
+	onClose={closeModals}
+/>
