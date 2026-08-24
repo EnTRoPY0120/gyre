@@ -197,11 +197,6 @@
         "count": 4
       }
     },
-    "src/lib/components/resources/tabs/OverviewTab.svelte": {
-      "complexity_high": {
-        "count": 1
-      }
-    },
     "src/lib/components/wizards/ArrayField.svelte": {
       "crap_moderate": {
         "count": 1
