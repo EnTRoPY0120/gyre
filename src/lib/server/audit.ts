@@ -1,5 +1,5 @@
 import { logger } from './logger.js';
-import { eq, desc, asc, and, lt, sql, count } from 'drizzle-orm';
+import { lt, sql, count } from 'drizzle-orm';
 import { getDbSync, type NewAuditLog } from './db/index.js';
 import { auditLogs } from './db/schema.js';
 import type { User } from './db/schema.js';
@@ -10,6 +10,8 @@ import {
 	getCutoffDate,
 	getRandomJitterMs
 } from './utils/time.js';
+import { buildAuditLogQuery, type AuditLogQueryOptions } from './audit-query.js';
+export type { AuditLogSortBy, AuditLogSortOrder } from './audit-query.js';
 
 // Substring keywords: any field whose name contains one of these (case-insensitive) is redacted.
 // This catches exact names as well as variants like jwt_secret, dbPassword, myToken, etc.
@@ -171,59 +173,16 @@ export async function logClusterChange(
 	});
 }
 
-export type AuditLogSortBy = 'date' | 'action';
-export type AuditLogSortOrder = 'asc' | 'desc';
 type AuditLogWithUser = typeof auditLogs.$inferSelect & { user: User | null };
 
 /**
  * Get paginated audit logs with sorting and filtering
  */
-export async function getAuditLogsPaginated(options: {
-	userId?: string;
-	action?: string;
-	success?: boolean;
-	limit?: number;
-	offset?: number;
-	sortBy?: AuditLogSortBy;
-	sortOrder?: AuditLogSortOrder;
-}): Promise<{ logs: AuditLogWithUser[]; total: number }> {
+export async function getAuditLogsPaginated(
+	options: AuditLogQueryOptions
+): Promise<{ logs: AuditLogWithUser[]; total: number }> {
 	const db = getDbSync();
-	const {
-		userId,
-		action,
-		success,
-		limit = 50,
-		offset = 0,
-		sortBy = 'date',
-		sortOrder = 'desc'
-	} = options;
-
-	// Build where conditions
-	const conditions = [];
-
-	if (userId) {
-		conditions.push(eq(auditLogs.userId, userId));
-	}
-
-	if (action) {
-		conditions.push(eq(auditLogs.action, action));
-	}
-
-	if (success !== undefined) {
-		conditions.push(eq(auditLogs.success, success));
-	}
-
-	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-	// Build sort expression
-	const sortDir = sortOrder === 'asc' ? asc : desc;
-	let orderBy;
-	if (sortBy === 'action') {
-		orderBy = [sortDir(auditLogs.action), desc(auditLogs.createdAt)];
-	} else {
-		// 'date' is the default
-		orderBy = [sortDir(auditLogs.createdAt)];
-	}
+	const { whereClause, orderBy, limit, offset } = buildAuditLogQuery(options);
 
 	const [totalResult, logs] = await Promise.all([
 		db.select({ count: count() }).from(auditLogs).where(whereClause),

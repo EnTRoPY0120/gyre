@@ -288,14 +288,6 @@
         "count": 1
       }
     },
-    "src/lib/server/audit.ts": {
-      "crap_high": {
-        "count": 1
-      },
-      "crap_moderate": {
-        "count": 1
-      }
-    },
     "src/lib/server/auth/better-auth.ts": {
       "complexity_moderate": {
         "count": 1
