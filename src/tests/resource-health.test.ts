@@ -4,7 +4,7 @@ import { afterAll, describe, expect, test, vi } from 'vitest';
 vi.mock('$app/environment', () => ({ dev: false }));
 vi.mock('$env/dynamic/public', () => ({ env: {} }));
 
-import { getResourceHealth } from '../lib/utils/flux.js';
+import { formatTimestamp, getResourceHealth } from '../lib/utils/flux.js';
 import type { K8sCondition } from '../lib/server/kubernetes/flux/types.js';
 
 // For filtering tests, use dynamic import to ensure mocks are applied first
@@ -119,6 +119,32 @@ describe('getResourceHealth', () => {
 	test('no matching conditions returns unknown', () => {
 		const conditions = [makeCondition('SomeOtherCondition', 'True')];
 		expect(getResourceHealth(conditions)).toBe('unknown');
+	});
+});
+
+describe('formatTimestamp', () => {
+	test('formats each age bucket and handles missing timestamps', () => {
+		vi.useFakeTimers();
+		try {
+			const now = new Date('2026-08-24T12:00:00.000Z');
+			vi.setSystemTime(now);
+			const cases = [
+				[undefined, 'Never'],
+				['2026-08-24T11:59:30.000Z', '30s ago'],
+				['2026-08-24T11:58:00.000Z', '2m ago'],
+				['2026-08-24T10:00:00.000Z', '2h ago'],
+				['2026-08-22T12:00:00.000Z', '2d ago'],
+				['2026-08-10T12:00:00.000Z', '2w ago'],
+				['2026-06-24T12:00:00.000Z', '2mo ago'],
+				['2024-08-24T12:00:00.000Z', '2y ago']
+			] as const;
+
+			for (const [timestamp, expected] of cases) {
+				expect(formatTimestamp(timestamp)).toBe(expected);
+			}
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 });
 
