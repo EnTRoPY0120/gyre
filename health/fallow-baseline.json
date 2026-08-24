@@ -187,12 +187,14 @@
         "count": 1
       }
     },
-    "src/lib/components/resources/tabs/LogsTab.svelte": {
-      "complexity_high": {
-        "count": 1
-      },
+    "src/lib/components/resources/tabs/LogsContent.svelte": {
       "crap_moderate": {
-        "count": 5
+        "count": 1
+      }
+    },
+    "src/lib/components/resources/tabs/LogsTab.svelte": {
+      "crap_moderate": {
+        "count": 4
       }
     },
     "src/lib/components/resources/tabs/OverviewTab.svelte": {
