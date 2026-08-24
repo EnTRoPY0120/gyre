@@ -59,59 +59,52 @@ async function hasUsers(): Promise<boolean> {
 	}
 }
 
-/**
- * Create default admin if no users exist
- * - In-cluster mode: Uses K8s secret for password
- * - Local development: Uses ADMIN_PASSWORD env var or generates a password
- */
-export async function createDefaultAdminIfNeeded(options?: {
+function createAdminUser(requiresPasswordChange: boolean): NewUser {
+	return {
+		id: generateUserId(),
+		username: 'admin',
+		name: 'admin',
+		role: 'admin',
+		email: 'admin@gyre.local',
+		active: true,
+		requiresPasswordChange
+	};
+}
+
+function insertAdminUser(password: string | null, requiresPasswordChange: boolean): void {
+	const db = getDbSync();
+	const newUser = createAdminUser(requiresPasswordChange);
+	db.transaction((tx) => {
+		tx.insert(users).values(newUser).run();
+		tx.insert(accounts)
+			.values({
+				id: generateUserId(),
+				providerId: 'credential',
+				accountId: newUser.id,
+				userId: newUser.id,
+				password
+			})
+			.run();
+	});
+}
+
+async function createInClusterAdmin(): Promise<string> {
+	const password = await loadOrCreateInClusterAdmin();
+	if (!password) {
+		throw new Error(
+			'Initial admin secret could not be loaded or created. Fix the in-cluster secret name, namespace, or RBAC permissions and restart Gyre.'
+		);
+	}
+
+	// Keep a credential account row for symmetry with local mode while leaving
+	// the Kubernetes secret as the sole password source of truth.
+	insertAdminUser(null, false);
+	return password;
+}
+
+async function createLocalAdmin(options?: {
 	persistSetupToken?: (password: string) => string | void;
-}): Promise<{
-	password: string | null;
-	mode: string;
-}> {
-	const hasAnyUsers = await hasUsers();
-
-	if (hasAnyUsers) {
-		return { password: null, mode: isInClusterMode() ? 'in-cluster' : 'local' };
-	}
-
-	// In-cluster mode: Use K8s secret
-	if (isInClusterMode()) {
-		const password = await loadOrCreateInClusterAdmin();
-		if (!password) {
-			throw new Error(
-				'Initial admin secret could not be loaded or created. Fix the in-cluster secret name, namespace, or RBAC permissions and restart Gyre.'
-			);
-		}
-		const db = getDbSync();
-		const newUser: NewUser = {
-			id: generateUserId(),
-			username: 'admin',
-			name: 'admin',
-			role: 'admin',
-			email: 'admin@gyre.local',
-			active: true,
-			requiresPasswordChange: false
-		};
-		db.transaction((tx) => {
-			tx.insert(users).values(newUser).run();
-			// Keep a credential account row for symmetry with local mode while
-			// leaving the Kubernetes secret as the sole password source of truth.
-			tx.insert(accounts)
-				.values({
-					id: generateUserId(),
-					providerId: 'credential',
-					accountId: newUser.id,
-					userId: newUser.id,
-					password: null
-				})
-				.run();
-		});
-		return { password, mode: 'in-cluster' };
-	}
-
-	// Local development mode: Use env var or generate password
+}): Promise<string> {
 	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
 	if (process.env.ADMIN_PASSWORD) {
 		validateAdminPasswordStrength(
@@ -131,40 +124,41 @@ export async function createDefaultAdminIfNeeded(options?: {
 		throw error;
 	}
 	pendingSetupCleanup = true;
-	if (persistedSetupTokenFile) {
-		setSetupTokenFile(persistedSetupTokenFile);
-	}
+	if (persistedSetupTokenFile) setSetupTokenFile(persistedSetupTokenFile);
 
 	try {
-		const db = getDbSync();
 		const passwordHash = await hashPassword(password);
-		const newUser: NewUser = {
-			id: generateUserId(),
-			username: 'admin',
-			name: 'admin',
-			role: 'admin',
-			email: 'admin@gyre.local',
-			active: true,
-			requiresPasswordChange: true
-		};
-		db.transaction((tx) => {
-			tx.insert(users).values(newUser).run();
-			tx.insert(accounts)
-				.values({
-					id: generateUserId(),
-					providerId: 'credential',
-					accountId: newUser.id,
-					userId: newUser.id,
-					password: passwordHash
-				})
-				.run();
-		});
+		insertAdminUser(passwordHash, true);
 	} catch (error) {
 		cleanupSetupTokenFile();
 		throw error;
 	}
 
-	return { password, mode: 'local' };
+	return password;
+}
+
+/**
+ * Create default admin if no users exist
+ * - In-cluster mode: Uses K8s secret for password
+ * - Local development: Uses ADMIN_PASSWORD env var or generates a password
+ */
+export async function createDefaultAdminIfNeeded(options?: {
+	persistSetupToken?: (password: string) => string | void;
+}): Promise<{
+	password: string | null;
+	mode: string;
+}> {
+	const hasAnyUsers = await hasUsers();
+
+	if (hasAnyUsers) {
+		return { password: null, mode: isInClusterMode() ? 'in-cluster' : 'local' };
+	}
+
+	if (isInClusterMode()) {
+		return { password: await createInClusterAdmin(), mode: 'in-cluster' };
+	}
+
+	return { password: await createLocalAdmin(options), mode: 'local' };
 }
 
 /**
