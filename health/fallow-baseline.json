@@ -500,14 +500,6 @@
         "count": 1
       }
     },
-    "src/lib/utils/focus-trap.ts": {
-      "crap_critical": {
-        "count": 1
-      },
-      "crap_high": {
-        "count": 2
-      }
-    },
     "src/lib/utils/logger-redaction.ts": {
       "complexity_moderate": {
         "count": 1
@@ -771,7 +763,7 @@
     "src/lib/server/auth/sso-claims.ts:high impact",
     "src/lib/components/CommandPalette.svelte:complexity",
     "src/lib/components/wizards/WizardField.svelte:complexity",
-    "src/lib/utils/focus-trap.ts:untested risk",
+    "src/lib/utils/focus-trap.ts:high impact",
     "src/lib/components/flux/ResourceTable.svelte:complexity",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/resources/KustomizationDetail.svelte:complexity",

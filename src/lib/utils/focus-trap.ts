@@ -10,6 +10,30 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
 	);
 }
 
+export function getInitialFocusTarget(
+	node: HTMLElement,
+	labelledElement: HTMLElement | null
+): HTMLElement {
+	const initialFocusSelector = node.getAttribute('data-initial-focus');
+	const initialFocusElement = initialFocusSelector
+		? (node.querySelector<HTMLElement>(initialFocusSelector) ?? null)
+		: null;
+	return initialFocusElement ?? getFocusableElements(node)[0] ?? labelledElement ?? node;
+}
+
+export function makeLabelledElementFocusable(
+	focusTarget: HTMLElement,
+	labelledElement: HTMLElement | null
+): void {
+	if (
+		focusTarget === labelledElement &&
+		labelledElement &&
+		!labelledElement.hasAttribute('tabindex')
+	) {
+		labelledElement.tabIndex = -1;
+	}
+}
+
 export function modalFocusTrap(node: HTMLElement) {
 	let previousActiveElement: HTMLElement | null =
 		typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
@@ -20,20 +44,8 @@ export function modalFocusTrap(node: HTMLElement) {
 			labelledBy && typeof document !== 'undefined'
 				? (document.getElementById(labelledBy) as HTMLElement | null)
 				: null;
-		const initialFocusSelector = node.getAttribute('data-initial-focus');
-		const initialFocusElement = initialFocusSelector
-			? (node.querySelector<HTMLElement>(initialFocusSelector) ?? null)
-			: null;
-		const focusTarget =
-			initialFocusElement ?? getFocusableElements(node)[0] ?? labelledElement ?? node;
-
-		if (
-			focusTarget === labelledElement &&
-			labelledElement &&
-			!labelledElement.hasAttribute('tabindex')
-		) {
-			labelledElement.tabIndex = -1;
-		}
+		const focusTarget = getInitialFocusTarget(node, labelledElement);
+		makeLabelledElementFocusable(focusTarget, labelledElement);
 
 		focusTarget.focus();
 	};
