@@ -7,6 +7,7 @@
 	} from '$lib/components/auth/PasswordChangeForm.svelte';
 	import { changePasswordSchema } from '$lib/utils/validation';
 	import { getCsrfToken } from '$lib/utils/csrf';
+	import { submitPasswordChange } from '$lib/auth/password-change-flow';
 	import type { PageData } from './$types';
 
 	let { data } = $props<{ data: PageData }>();
@@ -15,7 +16,7 @@
 
 	const isFirstLogin = $derived(data.isFirstLogin);
 
-async function handleSubmit({ currentPassword, newPassword, confirmPassword }: PasswordChangeValues) {
+	async function handleSubmit({ currentPassword, newPassword, confirmPassword }: PasswordChangeValues) {
 		loading = true;
 
 		// Client-side validation with Zod
@@ -33,20 +34,10 @@ async function handleSubmit({ currentPassword, newPassword, confirmPassword }: P
 		}
 
 		try {
-			const response = await fetch('/api/v1/auth/change-password', {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-				body: JSON.stringify({
-					currentPassword,
-					newPassword
-				})
-			});
-
-			const result = await response.json();
-
-			if (!response.ok) {
-				throw new Error(result.message || 'Failed to change password');
-			}
+			await submitPasswordChange(
+				{ currentPassword, newPassword },
+				getCsrfToken()
+			);
 
 			toast.success('Password changed successfully!');
 
