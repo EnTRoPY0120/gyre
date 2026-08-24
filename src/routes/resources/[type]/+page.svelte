@@ -6,7 +6,6 @@
 	import { preferences } from '$lib/stores/preferences.svelte';
 	import { eventsStore } from '$lib/stores/events.svelte';
 	import { onMount, untrack } from 'svelte';
-	import { getResourceHealth } from '$lib/utils/flux';
 	import { createAutoRefresh } from '$lib/utils/polling.svelte';
 	import {
 		filterResources,
@@ -26,6 +25,7 @@
 	import type { FluxResource } from '$lib/types/flux';
 	import { SORT_FIELDS, type SortBy } from '$lib/config/sorting';
 	import { FilterX, ArrowUpDown, ArrowUp, ArrowDown } from '@lucide/svelte';
+	import { getResourceStats } from './resource-stats';
 
 	interface Props {
 		data: {
@@ -129,45 +129,7 @@
 	const hasActiveFilters = $derived(checkActiveFilters(filters));
 
 	// Calculate statistics from filtered resources
-	const stats = $derived.by(() => {
-		const resources = filteredResources;
-		let healthy = 0;
-		let progressing = 0;
-		let failed = 0;
-		let suspended = 0;
-
-		for (const resource of resources) {
-			const health = getResourceHealth(
-				resource.status?.conditions,
-				resource.spec?.suspend as boolean | undefined,
-				resource.status?.observedGeneration,
-				resource.metadata?.generation
-			);
-
-			switch (health) {
-				case 'healthy':
-					healthy++;
-					break;
-				case 'progressing':
-					progressing++;
-					break;
-				case 'failed':
-					failed++;
-					break;
-				case 'suspended':
-					suspended++;
-					break;
-			}
-		}
-
-		return {
-			total: resources.length,
-			healthy,
-			progressing,
-			failed,
-			suspended
-		};
-	});
+	const stats = $derived(getResourceStats(filteredResources));
 
 	function handleResourceClick(resource: FluxResource) {
 		const namespace = resource.metadata.namespace || 'default';
