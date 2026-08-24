@@ -486,11 +486,8 @@
       }
     },
     "src/lib/stores/events.svelte.ts": {
-      "crap_critical": {
-        "count": 1
-      },
       "crap_high": {
-        "count": 2
+        "count": 3
       },
       "crap_moderate": {
         "count": 3

@@ -7,6 +7,15 @@ export interface NotificationState {
 	messagePreview: string;
 }
 
+export interface NotificationCandidate {
+	clusterId: string;
+	resourceKey: string;
+	type: NotificationMessage['type'];
+	currentState: NotificationState;
+	previousState: NotificationState | undefined;
+	isDuplicate: boolean;
+}
+
 export interface StoredNotificationState {
 	entries: Array<[string, NotificationState]>;
 	sessionId?: string;
@@ -154,6 +163,40 @@ export function isDuplicateNotification(
 	return (
 		event.type === 'MODIFIED' && JSON.stringify(currentState) === JSON.stringify(previousState)
 	);
+}
+
+/** Prepare notification identity and state without mutating the store or storage. */
+export function prepareNotification(
+	event: ResourceEvent,
+	previousStates: Map<string, NotificationState>,
+	shouldShowNotification: (
+		resourceType: string,
+		namespace: string,
+		type: NotificationMessage['type']
+	) => boolean,
+	messagePreviewLength: number,
+	defaultClusterId: string
+): NotificationCandidate | null {
+	if (!event.resource || !event.resourceType) return null;
+
+	const type = getNotificationType(event);
+	const namespace = event.resource.metadata.namespace;
+	if (!shouldShowNotification(event.resourceType, namespace, type)) return null;
+
+	const clusterId = event.clusterId || defaultClusterId;
+	const resourceKey = getNotificationKey(event, clusterId);
+	if (!resourceKey) return null;
+
+	const currentState = getNotificationState(event, messagePreviewLength);
+	const previousState = previousStates.get(resourceKey);
+	return {
+		clusterId,
+		resourceKey,
+		type,
+		currentState,
+		previousState,
+		isDuplicate: isDuplicateNotification(event, currentState, previousState)
+	};
 }
 
 export function buildNotification(

@@ -24,12 +24,9 @@ import type {
 	StatusCallback
 } from './events/types.js';
 import {
-	getNotificationKey,
-	getNotificationState,
-	getNotificationType,
 	getEventControlAction,
-	isDuplicateNotification,
 	buildNotification,
+	prepareNotification,
 	parseStoredNotificationState,
 	type EventControlAction,
 	type NotificationState
@@ -353,37 +350,35 @@ class RealtimeStore {
 	}
 
 	private addNotification(event: ResourceEvent) {
-		if (!event.resource || !event.resourceType) return;
+		const candidate = prepareNotification(
+			event,
+			this.lastNotificationState,
+			(resourceType, namespace, type) =>
+				preferences.shouldShowNotification(resourceType, namespace, type),
+			MESSAGE_PREVIEW_LENGTH,
+			IN_CLUSTER_ID
+		);
+		if (!candidate) return;
 
-		const type = getNotificationType(event);
-		const namespace = event.resource.metadata.namespace;
-		if (!preferences.shouldShowNotification(event.resourceType, namespace, type)) return;
-
-		const clusterId = event.clusterId || IN_CLUSTER_ID;
-		const resourceKey = getNotificationKey(event, clusterId);
-		if (!resourceKey) return;
-		const currentStateObj: NotificationState = getNotificationState(event, MESSAGE_PREVIEW_LENGTH);
-		const previousState = this.lastNotificationState.get(resourceKey);
-
-		if (isDuplicateNotification(event, currentStateObj, previousState)) {
+		if (candidate.isDuplicate) {
 			logger.debug(
-				`[Notification] Skipping duplicate for ${resourceKey}: state unchanged (revision: ${currentStateObj.revision || 'none'})`
+				`[Notification] Skipping duplicate for ${candidate.resourceKey}: state unchanged (revision: ${candidate.currentState.revision || 'none'})`
 			);
 			return;
 		}
 
-		this.lastNotificationState.set(resourceKey, currentStateObj);
-		if (previousState) {
+		this.lastNotificationState.set(candidate.resourceKey, candidate.currentState);
+		if (candidate.previousState) {
 			logger.debug(
-				`[Notification] State change for ${resourceKey}: revision "${previousState.revision || 'none'}" -> "${currentStateObj.revision || 'none'}", ready: ${currentStateObj.readyStatus}`
+				`[Notification] State change for ${candidate.resourceKey}: revision "${candidate.previousState.revision || 'none'}" -> "${candidate.currentState.revision || 'none'}", ready: ${candidate.currentState.readyStatus}`
 			);
 		} else {
 			logger.debug(
-				`[Notification] New notification for ${resourceKey}: ${event.type}, revision: ${currentStateObj.revision || 'none'}`
+				`[Notification] New notification for ${candidate.resourceKey}: ${event.type}, revision: ${candidate.currentState.revision || 'none'}`
 			);
 		}
 
-		const notification = buildNotification(event, clusterId, type);
+		const notification = buildNotification(event, candidate.clusterId, candidate.type);
 		this.notifications = [notification, ...this.notifications.slice(0, MAX_NOTIFICATIONS - 1)];
 		this.saveToStorage();
 	}

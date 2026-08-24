@@ -8,6 +8,7 @@ import {
 	getNotificationType,
 	getEventControlAction,
 	isDuplicateNotification,
+	prepareNotification,
 	parseStoredNotificationState
 } from '../lib/stores/events/helpers.js';
 import type { ResourceEvent } from '../lib/stores/events/types.js';
@@ -105,5 +106,30 @@ describe('notification helpers', () => {
 		});
 		expect(notification.id).toEqual(expect.any(String));
 		expect(notification.timestamp).toEqual(expect.any(Date));
+	});
+
+	test('prepares eligible notification candidates without mutating state', () => {
+		const states = new Map();
+		const candidate = prepareNotification(event, states, () => true, 20, 'in-cluster');
+
+		expect(candidate).toMatchObject({
+			clusterId: 'cluster-a',
+			resourceKey: 'cluster-a/Kustomization/flux-system/app',
+			type: 'warning',
+			isDuplicate: false
+		});
+		expect(states).toHaveLength(0);
+	});
+
+	test('filters ineligible events and identifies duplicate modifications', () => {
+		const states = new Map();
+		const currentState = getNotificationState(event, 20);
+		states.set('cluster-a/Kustomization/flux-system/app', currentState);
+
+		expect(prepareNotification(event, states, () => false, 20, 'in-cluster')).toBeNull();
+		expect(prepareNotification(event, states, () => true, 20, 'in-cluster')).toMatchObject({
+			isDuplicate: true,
+			previousState: currentState
+		});
 	});
 });
