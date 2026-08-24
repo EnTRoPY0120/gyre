@@ -453,14 +453,16 @@
       }
     },
     "src/routes/admin/backups/+page.svelte": {
-      "complexity_moderate": {
-        "count": 1
-      },
       "crap_high": {
-        "count": 2
+        "count": 1
       },
       "crap_moderate": {
         "count": 3
+      }
+    },
+    "src/routes/admin/backups/BackupRestoreDialog.svelte": {
+      "crap_high": {
+        "count": 1
       }
     },
     "src/routes/admin/clusters/+page.server.ts": {

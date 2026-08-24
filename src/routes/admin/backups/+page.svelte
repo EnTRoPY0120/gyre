@@ -1,27 +1,13 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import { invalidateAll } from '$app/navigation';
-	import {
-		Download,
-		Trash2,
-		Plus,
-		Upload,
-		HardDrive,
-		AlertTriangle,
-		Loader2,
-		Lock,
-		LockOpen
-	} from '@lucide/svelte';
 	import { formatDistanceToNow } from 'date-fns';
-	import Icon from '$lib/components/ui/Icon.svelte';
 	import { getCsrfToken } from '$lib/utils/csrf';
-
-	interface BackupMetadata {
-		filename: string;
-		sizeBytes: number;
-		createdAt: string;
-		encrypted: boolean;
-	}
+	import BackupInfoCards from './BackupInfoCards.svelte';
+	import BackupPageHeader from './BackupPageHeader.svelte';
+	import BackupRestoreDialog from './BackupRestoreDialog.svelte';
+	import BackupTable from './BackupTable.svelte';
+	import type { BackupMetadata } from './backup-types';
 
 	let { data } = $props<{
 		data: { backups: BackupMetadata[] };
@@ -33,45 +19,6 @@
 	let showRestoreConfirm = $state(false);
 	let restoreFile = $state<File | null>(null);
 	let restoreInput = $state<HTMLInputElement | null>(null);
-	let modalContainer = $state<HTMLElement | null>(null);
-
-	// Handle Escape key to close modal
-	$effect(() => {
-		if (showRestoreConfirm) {
-			const handleKeyDown = (e: KeyboardEvent) => {
-				if (e.key === 'Escape' && !restoring) {
-					cancelRestore();
-				}
-
-				// Simple focus trap
-				if (e.key === 'Tab' && modalContainer) {
-					const focusables = modalContainer.querySelectorAll<HTMLElement>(
-						'button:not([disabled]), [href], input, [tabindex]:not([tabindex="-1"])'
-					);
-					const first = focusables[0];
-					const last = focusables[focusables.length - 1];
-
-					if (e.shiftKey && document.activeElement === first) {
-						e.preventDefault();
-						last.focus();
-					} else if (!e.shiftKey && document.activeElement === last) {
-						e.preventDefault();
-						first.focus();
-					}
-				}
-			};
-
-			window.addEventListener('keydown', handleKeyDown);
-
-			// Initial focus
-			setTimeout(() => {
-				const firstButton = modalContainer?.querySelector('button:not([disabled])') as HTMLElement;
-				firstButton?.focus();
-			}, 0);
-
-			return () => window.removeEventListener('keydown', handleKeyDown);
-		}
-	});
 
 	function formatBytes(bytes: number): string {
 		if (bytes === 0) return '0 B';
@@ -149,6 +96,10 @@
 		}
 	}
 
+	function handleRestoreClick() {
+		restoreInput?.click();
+	}
+
 	function handleFileSelect(event: Event) {
 		const input = event.target as HTMLInputElement;
 		if (input.files && input.files.length > 0) {
@@ -164,9 +115,6 @@
 		try {
 			const formData = new FormData();
 			formData.append('file', restoreFile);
-
-			// Use X-CSRF-Token header instead of a hidden _csrf form field because
-			// the body is a multipart FormData with a large file blob.
 			const response = await fetch('/api/v1/admin/backups/restore', {
 				method: 'POST',
 				headers: { 'X-CSRF-Token': getCsrfToken() },
@@ -199,233 +147,29 @@
 </script>
 
 <div class="space-y-6">
-	<!-- Header -->
-	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-		<div>
-			<h1 class="text-2xl font-bold text-white">Database Backups</h1>
-			<p class="text-slate-400">Create, download, and restore SQLite database backups</p>
-		</div>
-		<div class="flex gap-2">
-			<button
-				onclick={createBackup}
-				disabled={creating}
-				class="flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
-			>
-				{#if creating}
-					<Loader2 size={16} class="animate-spin" />
-					Creating...
-				{:else}
-					<Plus size={16} />
-					Create Backup
-				{/if}
-			</button>
-			<label
-				class="flex cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-800/50 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700/50"
-			>
-				<Upload size={16} />
-				Restore
-				<input
-					bind:this={restoreInput}
-					type="file"
-					accept=".db,.db.enc"
-					class="hidden"
-					onchange={handleFileSelect}
-				/>
-			</label>
-		</div>
-	</div>
-
-	<!-- Restore Confirmation Modal -->
-	{#if showRestoreConfirm}
-		<div
-			class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-			role="dialog"
-			aria-modal="true"
-			aria-labelledby="restore-modal-title"
-			bind:this={modalContainer}
-		>
-			<div
-				class="mx-4 w-full max-w-md rounded-2xl border border-slate-700/50 bg-slate-800 p-6 shadow-2xl"
-			>
-				<div class="mb-4 flex items-center gap-3">
-					<div
-						class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-500"
-					>
-						<AlertTriangle size={20} />
-					</div>
-					<h2 id="restore-modal-title" class="text-lg font-bold text-white">
-						Confirm Database Restore
-					</h2>
-				</div>
-				<div class="mb-6 space-y-3">
-					<p class="text-sm text-slate-300">
-						This will <strong class="text-amber-400">replace the current database</strong> with the
-						uploaded file. A safety backup will be created automatically before restoring.
-					</p>
-					{#if restoreFile}
-						<div
-							class="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-sm"
-						>
-							<HardDrive size={14} class="text-slate-400" />
-							<span class="font-mono text-slate-300">{restoreFile.name}</span>
-							<span class="ml-auto text-slate-500">{formatBytes(restoreFile.size)}</span>
-						</div>
-					{/if}
-					<p class="text-xs text-slate-500">
-						The application may need to be restarted after restore for changes to take full effect.
-					</p>
-				</div>
-				<div class="flex justify-end gap-3">
-					<button
-						onclick={cancelRestore}
-						disabled={restoring}
-						class="rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700/50 disabled:opacity-50"
-					>
-						Cancel
-					</button>
-					<button
-						onclick={confirmRestore}
-						disabled={restoring}
-						class="flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
-					>
-						{#if restoring}
-							<Loader2 size={14} class="animate-spin" />
-							Restoring...
-						{:else}
-							Restore Database
-						{/if}
-					</button>
-				</div>
-			</div>
-		</div>
-	{/if}
-
-	<!-- Backups Table -->
-	<div class="overflow-hidden rounded-xl border border-slate-700/50 bg-slate-800/50">
-		<div class="overflow-x-auto">
-			<table class="w-full text-left text-sm">
-				<thead>
-					<tr class="border-b border-slate-700/50 bg-slate-900/30">
-						<th class="px-4 py-3 font-medium text-slate-400">Filename</th>
-						<th class="px-4 py-3 font-medium text-slate-400">Size</th>
-						<th class="px-4 py-3 font-medium text-slate-400">Created</th>
-						<th class="px-4 py-3 font-medium text-slate-400">Encryption</th>
-						<th class="px-4 py-3 text-right font-medium text-slate-400">Actions</th>
-					</tr>
-				</thead>
-				<tbody class="divide-y divide-slate-700/50">
-					{#each data.backups as backup (backup.filename)}
-						<tr class="transition-colors hover:bg-slate-700/30">
-							<td class="px-4 py-3">
-								<div class="flex items-center gap-2">
-									<HardDrive size={14} class="text-slate-500" />
-									<span class="font-mono text-sm text-white">{backup.filename}</span>
-								</div>
-							</td>
-							<td class="px-4 py-3">
-								<span class="text-slate-300">{formatBytes(backup.sizeBytes)}</span>
-							</td>
-							<td class="px-4 py-3">
-								<div class="flex flex-col">
-									<span class="text-slate-300"
-										>{new Date(backup.createdAt).toLocaleString()}</span
-									>
-									<span class="text-[10px] text-slate-500 uppercase"
-										>{formatTimestamp(backup.createdAt)}</span
-									>
-								</div>
-							</td>
-							<td class="px-4 py-3">
-								{#if backup.encrypted}
-									<div class="flex items-center gap-1.5 text-emerald-400">
-										<Lock size={13} />
-										<span class="text-xs font-medium">AES-256-GCM</span>
-									</div>
-								{:else}
-									<div class="flex items-center gap-1.5 text-amber-500">
-										<LockOpen size={13} />
-										<span class="text-xs font-medium">Unencrypted</span>
-									</div>
-								{/if}
-							</td>
-							<td class="px-4 py-3">
-								<div class="flex items-center justify-end gap-1">
-									<button
-										onclick={() => downloadBackup(backup.filename)}
-										class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700/50 hover:text-amber-400"
-										aria-label={`Download ${backup.filename}`}
-										title="Download"
-									>
-										<Download size={16} />
-									</button>
-									<button
-										onclick={() => deleteBackupFile(backup.filename)}
-										disabled={deletingFilename === backup.filename}
-										class="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
-										aria-label={`Delete ${backup.filename}`}
-										title="Delete"
-									>
-										{#if deletingFilename === backup.filename}
-											<Loader2 size={16} class="animate-spin" />
-										{:else}
-											<Trash2 size={16} />
-										{/if}
-									</button>
-								</div>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
-
-		{#if data.backups.length === 0}
-			<div class="flex flex-col items-center justify-center py-20 text-slate-500">
-				<Icon name="database" size={48} class="mb-4 opacity-20" />
-				<p class="mb-1 font-medium text-slate-400">No backups yet</p>
-				<p class="text-sm">Create your first backup to get started</p>
-			</div>
-		{/if}
-	</div>
-
-	<!-- Info Cards -->
-	<div class="grid gap-6 md:grid-cols-3">
-		<div
-			class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-900/20"
-		>
-			<h3 class="font-semibold text-blue-900 dark:text-blue-100">On-Demand Backups</h3>
-			<p class="mt-2 text-sm text-blue-800 dark:text-blue-200">
-				Create a snapshot of the current SQLite database at any time. Backups are stored locally and
-				a maximum of 10 are retained. Older backups are automatically pruned.
-			</p>
-		</div>
-
-		<div
-			class="rounded-lg border border-purple-200 bg-purple-50 p-4 dark:border-purple-900 dark:bg-purple-900/20"
-		>
-			<h3 class="font-semibold text-purple-900 dark:text-purple-100">Restore from Backup</h3>
-			<p class="mt-2 text-sm text-purple-800 dark:text-purple-200">
-				Upload a previously downloaded backup file to restore the database. A safety backup is
-				always created before restoring. Accepted formats: <code class="font-mono">.db</code>
-				(unencrypted) and <code class="font-mono">.db.enc</code> (AES-256-GCM encrypted).
-			</p>
-		</div>
-
-		<div
-			class="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-900/20"
-		>
-			<h3 class="font-semibold text-emerald-900 dark:text-emerald-100">Encryption at Rest</h3>
-			<p class="mt-2 text-sm text-emerald-800 dark:text-emerald-200">
-				Set <code class="rounded bg-emerald-100 px-1 dark:bg-emerald-900">BACKUP_ENCRYPTION_KEY</code>
-				to a 64-character hex string to enable AES-256-GCM encryption. Generate a key with:
-				<code class="mt-1 block rounded bg-emerald-100 px-1 dark:bg-emerald-900"
-					>openssl rand -hex 32</code
-				>
-			</p>
-			<p class="mt-2 text-xs text-emerald-700 dark:text-emerald-400">
-				⚠️ Changing the key renders existing encrypted backups unreadable. Decrypt and re-encrypt
-				them before rotating.
-			</p>
-		</div>
-	</div>
+	<BackupPageHeader creating={creating} onCreate={createBackup} onRestore={handleRestoreClick} />
+	<input
+		bind:this={restoreInput}
+		type="file"
+		accept=".db,.db.enc"
+		class="hidden"
+		onchange={handleFileSelect}
+	/>
+	<BackupRestoreDialog
+		open={showRestoreConfirm}
+		file={restoreFile}
+		{restoring}
+		onCancel={cancelRestore}
+		onConfirm={confirmRestore}
+		{formatBytes}
+	/>
+	<BackupTable
+		backups={data.backups}
+		{deletingFilename}
+		{formatBytes}
+		{formatTimestamp}
+		onDownload={downloadBackup}
+		onDelete={deleteBackupFile}
+	/>
+	<BackupInfoCards />
 </div>
