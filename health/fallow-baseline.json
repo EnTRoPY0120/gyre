@@ -164,11 +164,6 @@
         "count": 1
       }
     },
-    "src/lib/components/flux/resources/OCIRepositoryDetail.svelte": {
-      "complexity_high": {
-        "count": 1
-      }
-    },
     "src/lib/components/flux/resources/ReceiverDetail.svelte": {
       "complexity_moderate": {
         "count": 1
