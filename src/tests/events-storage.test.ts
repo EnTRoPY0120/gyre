@@ -35,7 +35,7 @@ const logger = {
 	error: vi.fn()
 };
 
-describe('notification storage', () => {
+describe('notification storage restoration', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
@@ -79,6 +79,12 @@ describe('notification storage', () => {
 		expect(values.has(keys.notifications)).toBe(false);
 		expect(values.has(keys.state)).toBe(false);
 		expect(logger.error).toHaveBeenCalledOnce();
+	});
+});
+
+describe('notification storage persistence', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
 	});
 
 	test('persists the bounded notification list and state session', () => {
