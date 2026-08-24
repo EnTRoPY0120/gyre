@@ -66,6 +66,70 @@ async function markSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promis
 	});
 }
 
+function isNotFoundError(error: unknown): boolean {
+	return (error as { code?: number }).code === 404;
+}
+
+async function loadExistingAdminPassword(
+	api: k8s.CoreV1Api,
+	namespace: string
+): Promise<string | null> {
+	try {
+		const result = await api.readNamespacedSecret({
+			name: ADMIN_SECRET_NAME,
+			namespace
+		});
+		const passwordBase64 = result.data?.['password'];
+
+		if (!passwordBase64) {
+			return null;
+		}
+
+		const password = Buffer.from(passwordBase64, 'base64').toString('utf-8');
+		inClusterAdminPasswordHash = await hashPassword(password);
+		inClusterFirstLoginDone = await isSecretConsumed(api, namespace);
+		return password;
+	} catch (error: unknown) {
+		if (isNotFoundError(error)) {
+			return null;
+		}
+		throw error;
+	}
+}
+
+async function createInitialAdminPassword(api: k8s.CoreV1Api, namespace: string): Promise<string> {
+	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
+	if (process.env.ADMIN_PASSWORD) {
+		validateAdminPasswordStrength(process.env.ADMIN_PASSWORD, true);
+	}
+
+	inClusterAdminPasswordHash = await hashPassword(password);
+
+	const secret: k8s.V1Secret = {
+		apiVersion: 'v1',
+		kind: 'Secret',
+		metadata: {
+			name: ADMIN_SECRET_NAME,
+			namespace,
+			labels: {
+				'app.kubernetes.io/managed-by': 'gyre',
+				'gyre.io/secret-type': 'initial-admin-password'
+			}
+		},
+		stringData: {
+			password
+		}
+	};
+
+	await api.createNamespacedSecret({
+		namespace,
+		body: secret
+	});
+	logger.info(`Created initial admin secret in namespace "${namespace}"`);
+
+	return password;
+}
+
 /**
  * Load or create in-cluster admin password from Kubernetes secret
  * - If secret exists and has password: load it
@@ -77,66 +141,10 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 		const api = await createK8sClient();
 		const namespace = getCurrentNamespace();
 
-		// Check if secret already exists
-		try {
-			const result = await api.readNamespacedSecret({
-				name: ADMIN_SECRET_NAME,
-				namespace
-			});
-			const passwordBase64 = result.data?.['password'];
-
-			if (passwordBase64) {
-				const password = Buffer.from(passwordBase64, 'base64').toString('utf-8');
-				// Hash and store for authentication
-				inClusterAdminPasswordHash = await hashPassword(password);
-
-				// Check if already consumed
-				inClusterFirstLoginDone = await isSecretConsumed(api, namespace);
-
-				return password;
-			}
-		} catch (error: unknown) {
-			// Secret doesn't exist, will create it below
-			const k8sError = error as Error & { code?: number };
-			if (k8sError.code !== 404) {
-				throw error;
-			}
-		}
-
-		// Generate new password
-		// Use ADMIN_PASSWORD from env if provided, otherwise generate a strong one
-		const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
-		if (process.env.ADMIN_PASSWORD) {
-			validateAdminPasswordStrength(process.env.ADMIN_PASSWORD, true);
-		}
-
-		// Hash for storage
-		inClusterAdminPasswordHash = await hashPassword(password);
-
-		// Create the secret
-		const secret: k8s.V1Secret = {
-			apiVersion: 'v1',
-			kind: 'Secret',
-			metadata: {
-				name: ADMIN_SECRET_NAME,
-				namespace,
-				labels: {
-					'app.kubernetes.io/managed-by': 'gyre',
-					'gyre.io/secret-type': 'initial-admin-password'
-				}
-			},
-			stringData: {
-				password: password
-			}
-		};
-
-		await api.createNamespacedSecret({
-			namespace,
-			body: secret
-		});
-		logger.info(`Created initial admin secret in namespace "${namespace}"`);
-
-		return password;
+		return (
+			(await loadExistingAdminPassword(api, namespace)) ??
+			(await createInitialAdminPassword(api, namespace))
+		);
 	} catch (error) {
 		logger.error(
 			error,
