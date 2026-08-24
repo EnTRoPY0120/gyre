@@ -440,11 +440,6 @@
         "count": 1
       }
     },
-    "src/lib/server/kubernetes/flux/logs.ts": {
-      "crap_critical": {
-        "count": 1
-      }
-    },
     "src/lib/server/kubernetes/kubeconfig-provider.ts": {
       "crap_moderate": {
         "count": 1
