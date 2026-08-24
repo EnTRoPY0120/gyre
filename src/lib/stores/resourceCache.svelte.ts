@@ -3,8 +3,8 @@ import { eventsStore } from './events.svelte';
 import { clusterStore } from './cluster.svelte';
 import { resolveResourceRouteType } from '$lib/config/resources';
 import type { FluxResource } from '$lib/types/flux';
-import { fetchWithRetry } from '$lib/utils/fetch';
 import { logger } from '$lib/utils/logger.js';
+import { fetchResourceDetail, fetchResourceList } from './resource-cache-requests.js';
 
 const MAX_RESOURCE_ENTRIES = 500;
 const MAX_LIST_ENTRIES = 100;
@@ -172,17 +172,7 @@ class ResourceCacheStore {
 			? `/api/v1/flux/${encodeURIComponent(normalizedType)}?namespace=${encodeURIComponent(namespace)}`
 			: `/api/v1/flux/${encodeURIComponent(normalizedType)}`;
 		try {
-			const res = await fetchWithRetry(url);
-			if (!res.ok) {
-				if (res.status >= 400 && res.status < 500) {
-					this.setList(normalizedType, [], namespace);
-					return [];
-				}
-
-				throw new Error(`Failed to fetch ${normalizedType} list: ${res.status}`);
-			}
-			const data = await res.json();
-			const items = data.items || [];
+			const items = await fetchResourceList(url, normalizedType);
 			this.setList(normalizedType, items, namespace);
 			return items;
 		} catch (err) {
@@ -195,18 +185,15 @@ class ResourceCacheStore {
 		const normalizedType = this.normalizeType(type);
 		const staleEntry = this.getCachedResourceEntry(normalizedType, namespace, name);
 		try {
-			const res = await fetchWithRetry(
-				`/api/v1/flux/${encodeURIComponent(normalizedType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`
+			const resource = await fetchResourceDetail(
+				`/api/v1/flux/${encodeURIComponent(normalizedType)}/${encodeURIComponent(namespace)}/${encodeURIComponent(name)}`,
+				normalizedType,
+				`${namespace}/${name}`
 			);
-			if (!res.ok) {
-				if (res.status >= 400 && res.status < 500) {
-					this.invalidateResource(normalizedType, namespace, name);
-					return null;
-				}
-
-				throw new Error(`Failed to fetch ${normalizedType}/${namespace}/${name}: ${res.status}`);
+			if (!resource) {
+				this.invalidateResource(normalizedType, namespace, name);
+				return null;
 			}
-			const resource = await res.json();
 			this.setResource(normalizedType, namespace, name, resource);
 			return resource;
 		} catch (err) {

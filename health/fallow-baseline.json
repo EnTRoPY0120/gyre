@@ -459,11 +459,8 @@
       }
     },
     "src/lib/stores/resourceCache.svelte.ts": {
-      "crap_high": {
-        "count": 2
-      },
       "crap_moderate": {
-        "count": 1
+        "count": 3
       }
     },
     "src/lib/stores/theme.svelte.ts": {
