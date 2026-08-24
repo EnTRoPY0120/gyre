@@ -725,9 +725,6 @@
       }
     },
     "src/tests/helpers/module-stubs.ts": {
-      "crap_critical": {
-        "count": 1
-      },
       "crap_moderate": {
         "count": 1
       }
