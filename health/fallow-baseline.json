@@ -288,12 +288,23 @@
         "count": 1
       }
     },
+    "src/lib/server/audit.ts": {
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
     "src/lib/server/auth/better-auth.ts": {
       "complexity_moderate": {
         "count": 1
       }
     },
     "src/lib/server/auth/bootstrap-admin.ts": {
+      "crap_high": {
+        "count": 1
+      },
       "crap_moderate": {
         "count": 1
       }
@@ -357,7 +368,7 @@
         "count": 1
       },
       "crap_high": {
-        "count": 1
+        "count": 2
       },
       "crap_moderate": {
         "count": 2
@@ -381,12 +392,20 @@
         "count": 1
       }
     },
+    "src/lib/server/kubernetes/error-classification.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
     "src/lib/server/kubernetes/error-handler.ts": {
       "crap_moderate": {
         "count": 1
       }
     },
     "src/lib/server/kubernetes/errors.ts": {
+      "crap_high": {
+        "count": 1
+      },
       "crap_moderate": {
         "count": 1
       }
@@ -462,11 +481,6 @@
     },
     "src/lib/utils/csrf.ts": {
       "crap_moderate": {
-        "count": 1
-      }
-    },
-    "src/lib/utils/error-normalization.ts": {
-      "crap_critical": {
         "count": 1
       }
     },
@@ -648,7 +662,7 @@
       }
     },
     "src/routes/api/v1/auth/change-password/+server.ts": {
-      "crap_high": {
+      "crap_critical": {
         "count": 1
       }
     },
