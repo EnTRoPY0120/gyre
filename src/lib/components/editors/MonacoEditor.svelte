@@ -8,6 +8,7 @@ import { defineMonacoThemes } from './monacoTheme';
 import { registerFluxLanguageFeatures } from './fluxCompletions';
 import { registerFluxValidation } from './yamlValidator';
 import MonacoEditorFallback from './MonacoEditorFallback.svelte';
+import { getMonacoWorker } from './monaco-workers';
 
 	// Props
 	interface Props {
@@ -67,36 +68,7 @@ import MonacoEditorFallback from './MonacoEditorFallback.svelte';
 
 				// Configure Monaco environment - bundle workers via Vite for same-origin serving
 				self.MonacoEnvironment = {
-					getWorker: async function (_moduleId: string, label: string) {
-						if (label === 'json') {
-							const { default: JsonWorker } = await import(
-								'monaco-editor/language/json/json.worker?worker'
-							);
-							return new JsonWorker();
-						}
-						if (label === 'css' || label === 'scss' || label === 'less') {
-							const { default: CssWorker } = await import(
-								'monaco-editor/language/css/css.worker?worker'
-							);
-							return new CssWorker();
-						}
-						if (label === 'html' || label === 'handlebars' || label === 'razor') {
-							const { default: HtmlWorker } = await import(
-								'monaco-editor/language/html/html.worker?worker'
-							);
-							return new HtmlWorker();
-						}
-						if (label === 'typescript' || label === 'javascript') {
-							const { default: TsWorker } = await import(
-								'monaco-editor/language/typescript/ts.worker?worker'
-							);
-							return new TsWorker();
-						}
-						const { default: EditorWorker } = await import(
-							'monaco-editor/editor/editor.worker?worker'
-						);
-						return new EditorWorker();
-					}
+					getWorker: getMonacoWorker
 				};
 
 				// Create editor instance
