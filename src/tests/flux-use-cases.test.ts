@@ -6,6 +6,7 @@ import {
 	getDiffCacheControl,
 	validateKustomizationArtifactPath
 } from '../lib/server/flux/use-cases/resource-diff.js';
+import { getDesiredResourceComparison } from '../lib/server/flux/use-cases/resource-diff-helpers.js';
 import { parseHistoryQuery } from '../lib/server/flux/use-cases/history.js';
 import { parseRollbackRequestBody } from '../lib/server/flux/use-cases/rollback.js';
 import {
@@ -126,6 +127,44 @@ describe('Flux diff use-case helpers', () => {
 				status: { ready: true }
 			})
 		).toEqual({ metadata: { name: 'app' } });
+	});
+
+	test('normalizes desired resource identity and namespace fallbacks', () => {
+		expect(
+			getDesiredResourceComparison(
+				{
+					apiVersion: 'apps/v1',
+					kind: 'Ingress',
+					metadata: { name: 'web' }
+				},
+				{ namespace: 'default', spec: { targetNamespace: 'edge' } }
+			)
+		).toEqual({
+			kind: 'Ingress',
+			name: 'web',
+			namespace: 'edge',
+			group: 'apps',
+			version: 'v1',
+			plural: 'ingresses'
+		});
+
+		expect(
+			getDesiredResourceComparison(
+				{ apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: 'config', namespace: 'app' } },
+				{ namespace: 'default', spec: {} }
+			)
+		).toMatchObject({ namespace: 'app', group: '', version: 'v1', plural: 'configmaps' });
+	});
+
+	test('ignores incomplete desired resource documents', () => {
+		const params = { namespace: 'default', spec: {} };
+		expect(getDesiredResourceComparison({ kind: 'ConfigMap' }, params)).toBeNull();
+		expect(
+			getDesiredResourceComparison(
+				{ apiVersion: 'v1', kind: 'ConfigMap', metadata: { name: 42 } },
+				params
+			)
+		).toBeNull();
 	});
 });
 

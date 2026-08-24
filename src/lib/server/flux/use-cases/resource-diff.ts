@@ -2,7 +2,7 @@ import { logger } from '$lib/server/logger.js';
 import { error } from '@sveltejs/kit';
 import { getFluxResource, getKubeConfig, type ReqCache } from '$lib/server/kubernetes/client';
 import { validateFluxArtifactUrl } from '$lib/server/kubernetes/flux/artifact-url-security';
-import { FLUX_RESOURCES, type FluxResourceType } from '$lib/server/kubernetes/flux/resources';
+import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import type { FluxResource } from '$lib/server/kubernetes/flux/types';
 import * as k8s from '@kubernetes/client-node';
 import * as yaml from 'js-yaml';
@@ -13,6 +13,10 @@ import https from 'node:https';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+import {
+	getDesiredResourceComparison,
+	type DesiredResourceComparison
+} from './resource-diff-helpers.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -168,19 +172,6 @@ export function cleanDiffObject(obj: unknown): unknown {
 	}
 	delete cleaned.status;
 	return cleaned;
-}
-
-function pluralForKind(kind: string): string {
-	const fluxDefs = Object.values(FLUX_RESOURCES) as Array<{ kind: string; plural: string }>;
-	const fluxDef = fluxDefs.find((resource) => resource.kind === kind);
-	if (fluxDef) return fluxDef.plural;
-
-	let plural = `${kind.toLowerCase()}s`;
-	if (kind.toLowerCase().endsWith('y')) plural = `${kind.toLowerCase().slice(0, -1)}ies`;
-	else if (kind.toLowerCase().endsWith('s')) plural = `${kind.toLowerCase()}es`;
-	if (kind === 'Ingress') plural = 'ingresses';
-	if (kind === 'Endpoints') plural = 'endpoints';
-	return plural;
 }
 
 export async function downloadArtifact(url: string, timeoutMs = 15000): Promise<Buffer> {
@@ -367,35 +358,6 @@ async function compareDesiredResources(params: {
 	);
 
 	return diffs.filter((diff): diff is FluxDiffEntry => diff !== null);
-}
-
-type DesiredResourceComparison = {
-	kind: string;
-	name: string;
-	namespace: string;
-	group: string;
-	version: string;
-	plural: string;
-};
-
-function getDesiredResourceComparison(
-	desired: Record<string, unknown>,
-	params: { namespace: string; spec: Record<string, unknown> }
-): DesiredResourceComparison | null {
-	if (!desired || !desired.kind || !desired.metadata) return null;
-
-	const kind = desired.kind as string;
-	const metadata = desired.metadata as { name: string; namespace?: string };
-	const apiVersion = desired.apiVersion as string;
-	const [group, version] = apiVersion.includes('/') ? apiVersion.split('/') : ['', apiVersion];
-	return {
-		kind,
-		name: metadata.name,
-		namespace: metadata.namespace || (params.spec.targetNamespace as string) || params.namespace,
-		group,
-		version,
-		plural: pluralForKind(kind)
-	};
 }
 
 async function getLiveResource(
