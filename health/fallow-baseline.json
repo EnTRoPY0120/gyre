@@ -240,10 +240,12 @@
       }
     },
     "src/lib/components/wizards/ArrayField.svelte": {
-      "complexity_critical": {
-        "count": 1
-      },
       "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/lib/components/wizards/ArrayFieldObjectItem.svelte": {
+      "complexity_high": {
         "count": 1
       }
     },
@@ -697,9 +699,9 @@
   },
   "runtime_coverage_findings": [],
   "target_keys": [
+    "src/lib/components/wizards/ArrayFieldObjectItem.svelte:complexity",
     "src/lib/utils/csrf.ts:high impact",
     "src/lib/server/auth/oauth/url-security.ts:high impact",
-    "src/lib/components/wizards/ArrayField.svelte:complexity",
     "src/lib/server/auth/sso-claims.ts:high impact",
     "src/lib/utils/focus-trap.ts:high impact",
     "src/lib/components/CommandPalette.svelte:complexity",
