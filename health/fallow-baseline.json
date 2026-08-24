@@ -75,20 +75,17 @@
         "count": 2
       }
     },
+    "src/lib/components/editors/flux-yaml-validation.ts": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    },
     "src/lib/components/editors/fluxCompletions.ts": {
       "crap_critical": {
         "count": 2
       },
       "crap_high": {
         "count": 1
-      }
-    },
-    "src/lib/components/editors/yamlValidator.ts": {
-      "complexity_critical": {
-        "count": 2
-      },
-      "crap_critical": {
-        "count": 2
       }
     },
     "src/lib/components/flux/ActionButtons.svelte": {
@@ -891,7 +888,6 @@
     "src/lib/components/flux/ResourceTable.svelte:complexity",
     "src/lib/components/layout/ClusterSwitcher.svelte:complexity",
     "src/lib/components/flux/resources/KustomizationDetail.svelte:complexity",
-    "src/lib/components/editors/yamlValidator.ts:complexity",
     "src/lib/components/wizards/WizardFieldSections.svelte:complexity",
     "src/lib/components/layout/SidebarPrimaryNav.svelte:complexity",
     "src/lib/components/flux/VersionHistory.svelte:complexity",
