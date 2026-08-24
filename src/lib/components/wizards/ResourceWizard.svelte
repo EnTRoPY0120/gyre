@@ -12,6 +12,8 @@
 		validateHelmReleaseResourceValues as validateWizardHelmReleaseResourceValues,
 		validateWizardField
 	} from './field-validation';
+	import { createResourceFromWizard } from './resource-submit';
+	import { getWizardValueAtPath, inferVirtualFieldValue } from './wizard-values';
 
 	// Kubernetes name/namespace validation — RFC 1123 DNS label, max 63 chars.
 	// Kept in sync with K8S_NAME_REGEX in src/lib/server/validation.ts.
@@ -86,7 +88,7 @@
 			const values: Record<string, unknown> = {};
 
 			template.fields.forEach((field) => {
-				values[field.name] = coerceFieldValue(field, getValueAtPath(parsed, field.path));
+				values[field.name] = coerceFieldValue(field, getWizardValueAtPath(parsed, field.path));
 
 				// Apply default namespace
 				if (field.name === 'namespace' && defaultNamespace) {
@@ -94,7 +96,7 @@
 				}
 
 				if (field.virtual) {
-					const manifestValue = inferVirtualFieldValue(field, parsed);
+					const manifestValue = inferVirtualFieldValue(field, template.fields, parsed);
 					if (manifestValue !== undefined) {
 						values[field.name] = manifestValue;
 					} else if (values[field.name] === undefined && field.default !== undefined) {
@@ -172,7 +174,7 @@
 
 			template.fields.forEach((field) => {
 				if (field.virtual) {
-					const manifestValue = inferVirtualFieldValue(field, parsed);
+				const manifestValue = inferVirtualFieldValue(field, template.fields, parsed);
 					if (manifestValue !== undefined) {
 						values[field.name] = manifestValue;
 					} else if (values[field.name] === undefined && field.default !== undefined) {
@@ -181,7 +183,7 @@
 					return;
 				}
 
-				values[field.name] = coerceFieldValue(field, getValueAtPath(parsed, field.path));
+				values[field.name] = coerceFieldValue(field, getWizardValueAtPath(parsed, field.path));
 			});
 			formValues = values;
 		} catch (err) {
@@ -191,44 +193,6 @@
 				yamlError = 'Invalid YAML syntax';
 			}
 		}
-	}
-
-	function getValueAtPath(source: Record<string, unknown>, path: string): unknown {
-		const segments = path.split('.');
-		let current: unknown = source;
-
-		for (const segment of segments) {
-			if (!current || typeof current !== 'object') {
-				return undefined;
-			}
-			current = (current as Record<string, unknown>)[segment];
-		}
-
-		return current;
-	}
-
-	function hasPopulatedValue(value: unknown): boolean {
-		return (
-			value !== undefined &&
-			value !== null &&
-			value !== '' &&
-			(!Array.isArray(value) || value.length > 0)
-		);
-	}
-
-	function inferVirtualFieldValue(
-		field: TemplateField,
-		source: Record<string, unknown>
-	): string | undefined {
-		for (const candidate of template.fields) {
-			if (candidate.virtual || candidate.showIf?.field !== field.name) continue;
-			if (!hasPopulatedValue(getValueAtPath(source, candidate.path))) continue;
-
-			const showIfValue = candidate.showIf.value;
-			return Array.isArray(showIfValue) ? showIfValue[0] : showIfValue;
-		}
-
-		return undefined;
 	}
 
 	function coerceFieldValue(field: TemplateField, value: unknown): unknown {
@@ -306,20 +270,7 @@
 			const parsed = parse(currentYaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
-			const response = await fetch(`/api/v1/flux/${template.plural}`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-				body: JSON.stringify(parsed)
-			});
-
-			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Failed to create resource');
-			}
-
-			const createdResource = (await response.json()) as {
-				metadata?: { namespace?: string; name?: string };
-			};
+			const createdResource = await createResourceFromWizard(template.plural, parsed, getCsrfToken());
 
 			success = true;
 

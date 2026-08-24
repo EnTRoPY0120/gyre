@@ -262,7 +262,7 @@
     },
     "src/lib/components/wizards/ResourceWizard.svelte": {
       "crap_high": {
-        "count": 5
+        "count": 3
       },
       "crap_moderate": {
         "count": 4
