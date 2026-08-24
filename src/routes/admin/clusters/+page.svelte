@@ -6,13 +6,12 @@
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import AdminConfirmDialog from '$lib/components/admin/AdminConfirmDialog.svelte';
-	import ClusterCard from '$lib/components/admin/ClusterCard.svelte';
+	import ClusterCollection from '$lib/components/admin/ClusterCollection.svelte';
 	import ClusterCreateModal from '$lib/components/admin/ClusterCreateModal.svelte';
 	import ClusterHealthCheckModal from '$lib/components/admin/ClusterHealthCheckModal.svelte';
 	import type { ClusterSummary } from '$lib/components/admin/cluster-types';
 	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
-	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
-	import type { ClusterHealthCheck, HealthCheckResult } from '$lib/server/clusters';
+		import type { ClusterHealthCheck, HealthCheckResult } from '$lib/server/clusters';
 
 	let { data, form } = $props<{
 		data: {
@@ -223,39 +222,16 @@
 		</div>
 	{/if}
 
-	<!-- Clusters Grid -->
-	{#if data.clusters.length > 0}
-		<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-			{#each data.clusters as cluster (cluster.id)}
-				<ClusterCard
-					{cluster}
-					onDelete={openDeleteModal}
-					onHealthCheck={openHealthCheckModal}
-				/>
-			{/each}
-		</div>
-
-		<!-- Pagination -->
-		<Pagination total={data.total} limit={data.limit} offset={data.offset} onPageChange={handlePageChange} />
-	{:else}
-		<div class="rounded-xl border border-slate-700/50 bg-slate-800/50 p-12 text-center">
-			<div class="mb-4 flex justify-center">
-				<div class="flex h-16 w-16 items-center justify-center rounded-full bg-slate-700">
-					<svg class="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-						/>
-					</svg>
-				</div>
-			</div>
-			<h3 class="mb-2 text-lg font-medium text-white">No clusters configured</h3>
-			<p class="mb-6 text-slate-400">Add your first Kubernetes cluster by uploading a kubeconfig</p>
-			<Button onclick={openCreateModal}>Add Cluster</Button>
-		</div>
-	{/if}
+	<ClusterCollection
+		clusters={data.clusters}
+		total={data.total}
+		limit={data.limit}
+		offset={data.offset}
+		onPageChange={handlePageChange}
+		onAdd={openCreateModal}
+		onDelete={openDeleteModal}
+		onHealthCheck={openHealthCheckModal}
+	/>
 
 	<!-- Create Cluster Modal -->
 	{#if showCreateModal}
