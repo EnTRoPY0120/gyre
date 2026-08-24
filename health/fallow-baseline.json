@@ -377,11 +377,6 @@
         "count": 2
       }
     },
-    "src/lib/server/clusters/health.ts": {
-      "crap_critical": {
-        "count": 1
-      }
-    },
     "src/lib/server/clusters/migration.ts": {
       "complexity_moderate": {
         "count": 1
