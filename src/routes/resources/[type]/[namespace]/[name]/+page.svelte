@@ -2,7 +2,6 @@
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/stores';
-	import { resolveResourceRouteType } from '$lib/config/resources';
 	import { eventsStore } from '$lib/stores/events.svelte';
 	import { createAutoRefresh } from '$lib/utils/polling.svelte';
 	import { onMount, untrack } from 'svelte';
@@ -20,7 +19,6 @@
 	import type {
 		K8sEvent,
 		ResourceDiff,
-		DiffResponse,
 		ReconciliationEntry
 	} from '$lib/types/resource';
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
@@ -30,6 +28,8 @@
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
 	import ErrorDisplay from '$lib/components/ui/ErrorDisplay.svelte';
 	import { getCsrfToken } from '$lib/utils/csrf';
+	import { loadResourceDiff } from './diff-request';
+import { matchesResourceEvent } from './resource-event-match';
 
 	interface Props {
 		data: {
@@ -65,20 +65,7 @@
 	// Real-time updates via SSE
 	onMount(() => {
 		const unsubscribe = eventsStore.onEvent((event) => {
-			const eventKind =
-				typeof event.resource === 'object' && event.resource !== null && 'kind' in event.resource
-					? String((event.resource as { kind?: string }).kind ?? '')
-					: '';
-			const resolvedEventType =
-				resolveResourceRouteType(event.resourceType ?? '') ??
-				resolveResourceRouteType(eventKind);
-
-			if (
-				event.resource &&
-				event.resource.metadata.name === data.name &&
-				event.resource.metadata.namespace === data.namespace &&
-				resolvedEventType === data.resourceType
-			) {
+			if (matchesResourceEvent(event, data.resourceType, data.namespace, data.name)) {
 				invalidate(`flux:resource:${data.resourceType}:${data.namespace}:${data.name}`);
 			}
 		});
@@ -278,24 +265,16 @@
 		diffsError = null;
 		try {
 			const url = new URL(resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`), window.location.origin);
-			if (force) url.searchParams.set('force', 'true');
-			const res = await fetch(url.toString(), { signal });
-			if (!res.ok) {
-				const errData = await res.json().catch(() => ({} as { code?: string; message?: string }));
-				diffsError = { code: errData.code, message: errData.message || res.statusText };
+			const result = await loadResourceDiff(url.toString(), force, signal);
+			if ('aborted' in result) return;
+			if ('error' in result) {
+				diffsError = result.error;
 				return;
 			}
-			const result: DiffResponse = await res.json();
-			diffs = result.diffs || [];
-			diffsTimestamp = result.timestamp || null;
-			diffsRevision = result.revision || null;
+			diffs = result.response.diffs || [];
+			diffsTimestamp = result.response.timestamp || null;
+			diffsRevision = result.response.revision || null;
 			diffsFetched = true;
-		} catch (err) {
-			if ((err as Error).name === 'AbortError') return;
-			diffsError = {
-				code: undefined,
-				message: err instanceof Error ? err.message : 'Failed to load diff'
-			};
 		} finally {
 			diffsLoading = false;
 		}
