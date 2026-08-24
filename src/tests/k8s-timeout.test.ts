@@ -134,6 +134,16 @@ describe('handleK8sError — existing error classification', () => {
 		expect(handleK8sError(err, 'list')).toBeInstanceOf(ClusterUnavailableError);
 	});
 
+	test('maps legacy response status codes', () => {
+		const err = Object.assign(new Error('Not Found'), { response: { statusCode: 404 } });
+		expect(handleK8sError(err, 'get resource')).toBeInstanceOf(ResourceNotFoundError);
+	});
+
+	test('maps HTTP 504 to ClusterUnavailableError', () => {
+		const err = Object.assign(new Error('Gateway Timeout'), { code: 504 });
+		expect(handleK8sError(err, 'list')).toBeInstanceOf(ClusterUnavailableError);
+	});
+
 	test('maps unknown errors to KubernetesError', () => {
 		expect(handleK8sError(new Error('some weird error'), 'list')).toBeInstanceOf(KubernetesError);
 	});

@@ -436,7 +436,7 @@
       }
     },
     "src/lib/server/kubernetes/error-handler.ts": {
-      "crap_critical": {
+      "crap_moderate": {
         "count": 1
       }
     },
