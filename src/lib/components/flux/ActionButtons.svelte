@@ -5,9 +5,6 @@
 	import EditResourceModal from '$lib/components/flux/EditResourceModal.svelte';
 	import DeleteResourceModal from '$lib/components/flux/DeleteResourceModal.svelte';
 	import {
-		buildOptimisticResource,
-		isOptimisticAction,
-		resolveResourceActionFeedback,
 		type ActionFeedbackTone,
 		type ResourceAction
 	} from './action-feedback';
@@ -15,9 +12,9 @@
 	import { resourceCache } from '$lib/stores/resourceCache.svelte';
 	import { sanitizeResource } from '$lib/utils/kubernetes';
 	import { logger } from '$lib/utils/logger.js';
-import * as yaml from 'js-yaml';
+	import * as yaml from 'js-yaml';
 	import { getCsrfToken } from '$lib/utils/csrf';
-	import { executeResourceAction } from './resource-action';
+	import { executeOptimisticResourceAction } from './resource-action';
 	import ResourceActionControls from './ResourceActionControls.svelte';
 
 	let {
@@ -90,37 +87,21 @@ import * as yaml from 'js-yaml';
 		isLoading = true;
 		feedback = null;
 
-		// Store original for rollback
-		const originalResource = JSON.parse(JSON.stringify(resource));
-
-		// Optimistic update for suspend/resume
-		if (isOptimisticAction(action)) {
-			resourceCache.setResource(type, namespace, name, buildOptimisticResource(resource, action));
-		}
-
-		const { mutationError, invalidateError } = await executeResourceAction(
-			{ type, namespace, name, action, csrfToken: getCsrfToken() },
-			`flux:resource:${type}:${namespace}:${name}`,
-			(key) => invalidate(key),
-			(retry) => {
+		const { feedback: actionFeedback } = await executeOptimisticResourceAction({
+			request: { type, namespace, name, action, csrfToken: getCsrfToken() },
+			resource,
+			cacheKey: `flux:resource:${type}:${namespace}:${name}`,
+			invalidateResource: (key) => invalidate(key),
+			scheduleRetry: (retry) => {
 				if (retryTimeout) clearTimeout(retryTimeout);
 				retryTimeout = setTimeout(() => {
 					retry().finally(() => {
 						retryTimeout = null;
-				});
-			}, 1500);
-			}
-		);
-
-		const actionFeedback = resolveResourceActionFeedback({
-			action,
-			mutationError,
-			invalidateError
+					});
+				}, 1500);
+			},
+			setResource: (nextResource) => resourceCache.setResource(type, namespace, name, nextResource)
 		});
-
-		if (actionFeedback.rollbackOptimistic && isOptimisticAction(action)) {
-			resourceCache.setResource(type, namespace, name, originalResource);
-		}
 
 		if (actionFeedback.tone && actionFeedback.message) {
 			showTimedFeedback(actionFeedback.tone, actionFeedback.message);

@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
 	executeResourceAction,
+	executeOptimisticResourceAction,
 	postResourceAction
 } from '../lib/components/flux/resource-action.js';
 
@@ -11,6 +12,13 @@ const request = {
 	action: 'reconcile' as const,
 	csrfToken: 'csrf-token'
 };
+
+const resource = {
+	apiVersion: 'source.toolkit.fluxcd.io/v1',
+	kind: 'GitRepository',
+	metadata: { name: 'source', namespace: 'flux-system' },
+	spec: { suspend: false }
+} as never;
 
 describe('postResourceAction', () => {
 	test('encodes resource identity and sends the CSRF token', async () => {
@@ -80,5 +88,52 @@ describe('postResourceAction', () => {
 			invalidateError: new Error('Refresh failed')
 		});
 		expect(scheduleRetry).toHaveBeenCalledWith(expect.any(Function));
+	});
+});
+
+describe('executeOptimisticResourceAction', () => {
+	test('applies and rolls back an optimistic suspend when mutation fails', async () => {
+		const setResource = vi.fn();
+		const fetcher = vi
+			.fn()
+			.mockResolvedValue(
+				new Response(JSON.stringify({ message: 'Mutation failed' }), { status: 500 })
+			);
+
+		const result = await executeOptimisticResourceAction({
+			request: { ...request, action: 'suspend' },
+			resource,
+			cacheKey: 'key',
+			invalidateResource: vi.fn(),
+			scheduleRetry: vi.fn(),
+			setResource,
+			fetcher
+		});
+
+		expect(result.feedback).toMatchObject({ rollbackOptimistic: true, tone: 'error' });
+		expect(setResource).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({ spec: { suspend: true } })
+		);
+		expect(setResource).toHaveBeenNthCalledWith(2, resource);
+	});
+
+	test('does not apply an optimistic update for reconcile', async () => {
+		const setResource = vi.fn();
+		const invalidateResource = vi.fn().mockResolvedValue(undefined);
+		const fetcher = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+
+		await executeOptimisticResourceAction({
+			request,
+			resource,
+			cacheKey: 'key',
+			invalidateResource,
+			scheduleRetry: vi.fn(),
+			setResource,
+			fetcher
+		});
+
+		expect(setResource).not.toHaveBeenCalled();
+		expect(invalidateResource).toHaveBeenCalledWith('key');
 	});
 });

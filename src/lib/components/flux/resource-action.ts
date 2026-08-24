@@ -1,4 +1,11 @@
-import type { ResourceAction } from './action-feedback';
+import {
+	buildOptimisticResource,
+	isOptimisticAction,
+	resolveResourceActionFeedback,
+	type ResourceAction,
+	type ResourceActionFeedback
+} from './action-feedback';
+import type { FluxResource } from '$lib/types/flux';
 
 export interface ResourceActionRequest {
 	type: string;
@@ -11,6 +18,20 @@ export interface ResourceActionRequest {
 export interface ResourceActionExecution {
 	mutationError: Error | null;
 	invalidateError: Error | null;
+}
+
+export interface OptimisticResourceActionOptions {
+	request: ResourceActionRequest;
+	resource: FluxResource;
+	cacheKey: string;
+	invalidateResource: (key: string) => Promise<unknown>;
+	scheduleRetry: (retry: () => Promise<void>) => void;
+	setResource: (resource: FluxResource) => void;
+	fetcher?: typeof fetch;
+}
+
+export interface OptimisticResourceActionResult extends ResourceActionExecution {
+	feedback: ResourceActionFeedback;
 }
 
 /** Execute a Flux resource action and normalize the endpoint's error contract. */
@@ -61,4 +82,35 @@ export async function executeResourceAction(
 	}
 
 	return { mutationError, invalidateError };
+}
+
+/** Apply an optimistic suspend/resume update and roll it back when mutation fails. */
+export async function executeOptimisticResourceAction({
+	request,
+	resource,
+	cacheKey,
+	invalidateResource,
+	scheduleRetry,
+	setResource,
+	fetcher
+}: OptimisticResourceActionOptions): Promise<OptimisticResourceActionResult> {
+	const originalResource = JSON.parse(JSON.stringify(resource)) as FluxResource;
+	const optimistic = isOptimisticAction(request.action);
+	if (optimistic) {
+		setResource(buildOptimisticResource(resource, request.action));
+	}
+
+	const execution = await executeResourceAction(
+		request,
+		cacheKey,
+		invalidateResource,
+		scheduleRetry,
+		fetcher
+	);
+	const feedback = resolveResourceActionFeedback({ ...execution, action: request.action });
+	if (feedback.rollbackOptimistic && optimistic) {
+		setResource(originalResource);
+	}
+
+	return { ...execution, feedback };
 }
