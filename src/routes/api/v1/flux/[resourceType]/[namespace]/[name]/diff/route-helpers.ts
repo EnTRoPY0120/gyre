@@ -66,7 +66,8 @@ export function handleDiffRouteError(err: unknown): never {
 
 	logger.error(err, 'Diff error:');
 	const { status, message: clientMessage } = classifyDiffError(err);
-	const code =
-		status === 503 ? 'ServiceUnavailable' : status === 400 ? 'BadRequest' : 'InternalServerError';
+	let code = 'InternalServerError';
+	if (status === 503) code = 'ServiceUnavailable';
+	else if (status === 400) code = 'BadRequest';
 	throw error(status, { message: clientMessage, code });
 }
