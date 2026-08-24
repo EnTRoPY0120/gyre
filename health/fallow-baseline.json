@@ -288,6 +288,11 @@
         "count": 1
       }
     },
+    "src/lib/server/audit.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
     "src/lib/server/auth/better-auth.ts": {
       "complexity_moderate": {
         "count": 1
@@ -329,9 +334,6 @@
     },
     "src/lib/server/auth/seed-provider-helpers.ts": {
       "complexity_moderate": {
-        "count": 1
-      },
-      "crap_high": {
         "count": 1
       }
     },
@@ -473,20 +475,19 @@
         "count": 1
       }
     },
+    "src/lib/utils/fetch.ts": {
+      "crap_critical": {
+        "count": 1
+      }
+    },
     "src/lib/utils/filtering.ts": {
       "crap_high": {
         "count": 1
       }
     },
-    "src/lib/utils/flux.ts": {
-      "complexity_high": {
-        "count": 1
-      },
+    "src/lib/utils/focus-trap.ts": {
       "crap_high": {
-        "count": 1
-      },
-      "crap_moderate": {
-        "count": 1
+        "count": 2
       }
     },
     "src/lib/utils/logger-redaction.ts": {
@@ -637,6 +638,11 @@
         "count": 1
       }
     },
+    "src/routes/api/v1/auth/change-password/+server.ts": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
     "src/routes/api/v1/auth/login/+server.ts": {
       "complexity_moderate": {
         "count": 1
@@ -724,7 +730,6 @@
   },
   "runtime_coverage_findings": [],
   "target_keys": [
-    "src/lib/utils/flux.ts:high impact",
     "src/lib/utils/csrf.ts:high impact",
     "src/lib/server/auth/oauth/url-security.ts:high impact",
     "src/lib/components/wizards/ArrayField.svelte:complexity",

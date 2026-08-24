@@ -1,5 +1,10 @@
 import type { K8sCondition } from '$lib/types/flux';
 import type { ResourceHealth } from '$lib/types/view';
+import {
+	evaluateHealthConditions,
+	hasTrueCondition,
+	isGenerationBehind
+} from './resource-health.js';
 
 // Re-export for external use
 export type { ResourceHealth } from '$lib/types/view';
@@ -17,53 +22,16 @@ export function getResourceHealth(
 
 	if (!conditions || conditions.length === 0) return 'unknown';
 
-	// 1. Check for Stalled/Failed conditions (highest priority)
-	const stalled = conditions.find((c) => c.type === 'Stalled' || c.type === 'Failed');
-	if (stalled?.status === 'True') return 'failed';
+	if (hasTrueCondition(conditions, ['Stalled', 'Failed'])) return 'failed';
 
-	// 2. Check observedGeneration vs generation
-	// If generation is known and observedGeneration is behind, it's progressing
-	if (
-		generation !== undefined &&
-		observedGeneration !== undefined &&
-		observedGeneration < generation
-	) {
-		return 'progressing';
-	}
+	if (isGenerationBehind(observedGeneration, generation)) return 'progressing';
 
-	// 3. Check for Ready/Healthy indicators
-	// Priority order: Ready, Healthy, Succeeded, Available
-	const healthTypes = ['Ready', 'Healthy', 'Succeeded', 'Available'];
-	for (const type of healthTypes) {
-		const condition = conditions.find((c) => c.type === type);
-		if (condition) {
-			if (condition.status === 'True') return 'healthy';
-			if (condition.status === 'False') {
-				// Some resources use Ready=False with Progressing reason
-				if (
-					condition.reason === 'Progressing' ||
-					condition.reason === 'ProgressingWithRetry' ||
-					condition.reason === 'DependencyNotReady' ||
-					condition.reason === 'ReconciliationInProgress'
-				) {
-					return 'progressing';
-				}
-				// If it's False but not a known progressing reason, it's failed
-				// (unless another condition says otherwise, but usually Ready is authoritative)
-				return 'failed';
-			}
-			if (condition.status === 'Unknown') return 'progressing';
-		}
-	}
+	const health = evaluateHealthConditions(conditions);
+	if (health) return health;
 
-	// 4. Check Reconciling condition
-	const reconciling = conditions.find((c) => c.type === 'Reconciling');
-	if (reconciling?.status === 'True') return 'progressing';
+	if (hasTrueCondition(conditions, ['Reconciling'])) return 'progressing';
 
-	// 5. Special case for some resources that might not have the above
-	// but have some other indicator of success
-	const validated = conditions.find((c) => c.type === 'Validated' || c.type === 'Valid');
-	if (validated?.status === 'True') return 'healthy';
+	if (hasTrueCondition(conditions, ['Validated', 'Valid'])) return 'healthy';
 
 	return 'unknown';
 }
