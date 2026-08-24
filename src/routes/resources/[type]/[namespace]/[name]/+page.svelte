@@ -13,7 +13,7 @@
 	import type { K8sEvent, ReconciliationEntry, ResourceDiff } from '$lib/types/resource';
 	import type { DiffError } from '$lib/components/resources/tabs/DiffTab.svelte';
 	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
-	import { loadResourceDiff } from './diff-request';
+	import { loadResourceDiff, type ResourceDiffLoadResult } from './diff-request';
 	import {
 		loadResourceEvents,
 		loadResourceHistory,
@@ -236,19 +236,23 @@
 				resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`),
 				window.location.origin
 			);
-			const result = await loadResourceDiff(url.toString(), force, signal);
-			if ('aborted' in result) return;
-			if ('error' in result) {
-				diffsError = result.error;
-				return;
-			}
-			diffs = result.response.diffs || [];
-			diffsTimestamp = result.response.timestamp || null;
-			diffsRevision = result.response.revision || null;
-			diffsFetched = true;
+			applyDiffResult(await loadResourceDiff(url.toString(), force, signal));
 		} finally {
 			diffsLoading = false;
 		}
+	}
+
+	function applyDiffResult(result: ResourceDiffLoadResult): void {
+		if ('aborted' in result) return;
+		if ('error' in result) {
+			diffsError = result.error;
+			return;
+		}
+
+		diffs = result.response.diffs || [];
+		diffsTimestamp = result.response.timestamp || null;
+		diffsRevision = result.response.revision || null;
+		diffsFetched = true;
 	}
 
 	function handleRollback(historyId: string, revision: string | null) {
@@ -312,6 +316,21 @@
 		void fetchDiff(true);
 	}
 
+	const activeTabLoaders: Partial<Record<TabId, () => void>> = {
+		events: () => {
+			if (!eventsFetched) void fetchEvents();
+		},
+		logs: () => {
+			if (!logsFetched) void fetchLogs();
+		},
+		history: () => {
+			if (!historyFetched) void fetchHistory();
+		},
+		diff: () => {
+			if (!diffsFetched) void fetchDiff();
+		}
+	};
+
 	$effect(() => {
 		void data.name;
 		void data.namespace;
@@ -347,10 +366,7 @@
 		void data.namespace;
 		void data.resourceType;
 		untrack(() => {
-			if (tab === 'events' && !eventsFetched) void fetchEvents();
-			if (tab === 'logs' && !logsFetched) void fetchLogs();
-			if (tab === 'history' && !historyFetched) void fetchHistory();
-			if (tab === 'diff' && !diffsFetched) void fetchDiff();
+			activeTabLoaders[tab]?.();
 		});
 	});
 
