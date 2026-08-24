@@ -354,76 +354,116 @@ async function compareDesiredResources(params: {
 	const customApi = config.makeApiClient(k8s.CustomObjectsApi);
 
 	const diffs = await Promise.all(
-		desiredResources.map(async (desired): Promise<FluxDiffEntry | null> => {
-			if (!desired || !desired.kind || !desired.metadata) return null;
-
-			const kind = desired.kind as string;
-			const metadata = desired.metadata as { name: string; namespace?: string };
-			const resName = metadata.name;
-			const resNamespace =
-				metadata.namespace || (params.spec.targetNamespace as string) || params.namespace;
-			const apiVersion = desired.apiVersion as string;
-			const [group, version] = apiVersion.includes('/') ? apiVersion.split('/') : ['', apiVersion];
-			const plural = pluralForKind(kind);
-
-			try {
-				let liveState: unknown = null;
-				try {
-					liveState = await customApi.getNamespacedCustomObject({
-						group,
-						version,
-						namespace: resNamespace,
-						plural,
-						name: resName
-					});
-				} catch {
-					// Resource doesn't exist.
-				}
-
-				let dryRunState: unknown = null;
-				try {
-					dryRunState = await customApi.patchNamespacedCustomObject(
-						{
-							group,
-							version,
-							namespace: resNamespace,
-							plural,
-							name: resName,
-							body: desired as object,
-							dryRun: 'All',
-							fieldManager: 'gyre-drift-check',
-							force: true
-						},
-						{
-							headers: { 'Content-Type': 'application/apply-patch+yaml' }
-						} as Record<string, unknown>
-					);
-				} catch {
-					dryRunState = desired;
-				}
-
-				return {
-					kind,
-					name: resName,
-					namespace: resNamespace,
-					desired: yaml.dump(cleanDiffObject(dryRunState)),
-					live: liveState ? yaml.dump(cleanDiffObject(liveState)) : null
-				};
-			} catch (err) {
-				logger.error(err, 'Error diffing resource', { kind, name: resName });
-				return {
-					kind,
-					name: resName,
-					namespace: resNamespace,
-					desired: yaml.dump(desired),
-					live: null,
-					error: (err as Error).message
-				};
-			}
-		})
+		desiredResources.map((desired) => compareDesiredResource(desired, params, customApi))
 	);
 
 	return diffs.filter((diff): diff is FluxDiffEntry => diff !== null);
+}
+
+type DesiredResourceComparison = {
+	kind: string;
+	name: string;
+	namespace: string;
+	group: string;
+	version: string;
+	plural: string;
+};
+
+function getDesiredResourceComparison(
+	desired: Record<string, unknown>,
+	params: { namespace: string; spec: Record<string, unknown> }
+): DesiredResourceComparison | null {
+	if (!desired || !desired.kind || !desired.metadata) return null;
+
+	const kind = desired.kind as string;
+	const metadata = desired.metadata as { name: string; namespace?: string };
+	const apiVersion = desired.apiVersion as string;
+	const [group, version] = apiVersion.includes('/') ? apiVersion.split('/') : ['', apiVersion];
+	return {
+		kind,
+		name: metadata.name,
+		namespace: metadata.namespace || (params.spec.targetNamespace as string) || params.namespace,
+		group,
+		version,
+		plural: pluralForKind(kind)
+	};
+}
+
+async function getLiveResource(
+	customApi: k8s.CustomObjectsApi,
+	comparison: DesiredResourceComparison
+): Promise<unknown | null> {
+	try {
+		return await customApi.getNamespacedCustomObject({
+			group: comparison.group,
+			version: comparison.version,
+			namespace: comparison.namespace,
+			plural: comparison.plural,
+			name: comparison.name
+		});
+	} catch {
+		return null;
+	}
+}
+
+async function getDryRunResource(
+	customApi: k8s.CustomObjectsApi,
+	comparison: DesiredResourceComparison,
+	desired: Record<string, unknown>
+): Promise<unknown> {
+	try {
+		return await customApi.patchNamespacedCustomObject(
+			{
+				group: comparison.group,
+				version: comparison.version,
+				namespace: comparison.namespace,
+				plural: comparison.plural,
+				name: comparison.name,
+				body: desired as object,
+				dryRun: 'All',
+				fieldManager: 'gyre-drift-check',
+				force: true
+			},
+			{
+				headers: { 'Content-Type': 'application/apply-patch+yaml' }
+			} as Record<string, unknown>
+		);
+	} catch {
+		return desired;
+	}
+}
+
+async function compareDesiredResource(
+	desired: Record<string, unknown>,
+	params: { namespace: string; spec: Record<string, unknown> },
+	customApi: k8s.CustomObjectsApi
+): Promise<FluxDiffEntry | null> {
+	const comparison = getDesiredResourceComparison(desired, params);
+	if (!comparison) return null;
+
+	try {
+		const [liveState, dryRunState] = await Promise.all([
+			getLiveResource(customApi, comparison),
+			getDryRunResource(customApi, comparison, desired)
+		]);
+		return {
+			kind: comparison.kind,
+			name: comparison.name,
+			namespace: comparison.namespace,
+			desired: yaml.dump(cleanDiffObject(dryRunState)),
+			live: liveState ? yaml.dump(cleanDiffObject(liveState)) : null
+		};
+	} catch (err) {
+		logger.error(err, 'Error diffing resource', { kind: comparison.kind, name: comparison.name });
+		return {
+			kind: comparison.kind,
+			name: comparison.name,
+			namespace: comparison.namespace,
+			desired: yaml.dump(desired),
+			live: null,
+			error: (err as Error).message
+		};
+	}
 }
 
 export async function runFluxResourceDiff({
