@@ -1,3 +1,5 @@
+import { getFocusTrapAction } from './focus-trap-logic.js';
+
 const FOCUSABLE_SELECTOR =
 	'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -51,24 +53,22 @@ export function modalFocusTrap(node: HTMLElement) {
 	};
 
 	const handleKeydown = (event: KeyboardEvent) => {
-		if (event.key !== 'Tab') return;
-
 		const focusables = getFocusableElements(node);
-		if (focusables.length === 0) {
-			event.preventDefault();
+		const action = getFocusTrapAction(
+			event.key,
+			focusables.length,
+			event.shiftKey,
+			focusables.indexOf(document.activeElement as HTMLElement)
+		);
+		if (action === 'ignore') return;
+
+		event.preventDefault();
+		if (action === 'focus-container') {
 			node.focus();
-			return;
-		}
-
-		const first = focusables[0];
-		const last = focusables[focusables.length - 1];
-
-		if (event.shiftKey && document.activeElement === first) {
-			event.preventDefault();
-			last.focus();
-		} else if (!event.shiftKey && document.activeElement === last) {
-			event.preventDefault();
-			first.focus();
+		} else if (action === 'focus-first') {
+			focusables[0]?.focus();
+		} else if (action === 'focus-last') {
+			focusables.at(-1)?.focus();
 		}
 	};
 
