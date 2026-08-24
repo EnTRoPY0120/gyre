@@ -24,8 +24,42 @@ describe('wizard field validation', () => {
 
 	test('validates required and numeric range rules', () => {
 		expect(validateWizardField(numberField, undefined, true)).toBe('Replicas is required');
+		expect(validateWizardField(numberField, 0, true)).toBeNull();
+		expect(validateWizardField(numberField, -1, true)).toBe('Replicas must be at least 1');
 		expect(validateWizardField(numberField, 4, true)).toBe('Replicas must be at most 3');
 		expect(validateWizardField(numberField, 2, false)).toBeNull();
+	});
+
+	test('validates safe patterns and preserves custom messages', () => {
+		const field: TemplateField = {
+			name: 'hostname',
+			label: 'Hostname',
+			path: 'spec.hostname',
+			type: 'string',
+			validation: { pattern: '^[a-z]+$', message: 'Use lowercase letters only' }
+		};
+		expect(validateWizardField(field, 'valid', true)).toBeNull();
+		expect(validateWizardField(field, 'INVALID', true)).toBe('Use lowercase letters only');
+		expect(validateWizardField(field, '', true)).toBeNull();
+	});
+
+	test('rejects invalid and unsafe regular expressions', () => {
+		const invalid = {
+			...numberField,
+			type: 'string' as const,
+			validation: { pattern: '[' }
+		};
+		const unsafe = {
+			...numberField,
+			type: 'string' as const,
+			validation: { pattern: '(a+)+$' }
+		};
+		expect(validateWizardField(invalid, 'value', true)).toBe(
+			'Invalid validation pattern for Replicas'
+		);
+		expect(validateWizardField(unsafe, 'value', true)).toBe(
+			'Invalid validation pattern for Replicas'
+		);
 	});
 
 	test('detects conflicting HelmRelease resource values', () => {

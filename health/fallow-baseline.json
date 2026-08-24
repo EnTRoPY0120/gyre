@@ -289,14 +289,6 @@
         "count": 1
       }
     },
-    "src/lib/components/wizards/field-validation.ts": {
-      "complexity_high": {
-        "count": 1
-      },
-      "crap_high": {
-        "count": 1
-      }
-    },
     "src/lib/components/wizards/reference-fetch.ts": {
       "crap_high": {
         "count": 1

@@ -14,6 +14,33 @@ export function coerceWizardFieldValue(field: TemplateField, value: unknown): un
 	return undefined;
 }
 
+function validatePattern(field: TemplateField, value: string): string | null {
+	const pattern = field.validation?.pattern;
+	if (!pattern) return null;
+
+	try {
+		if (!safeRegex(pattern)) return `Invalid validation pattern for ${field.label}`;
+		if (!new RegExp(pattern).test(value)) {
+			return field.validation?.message || `Invalid format for ${field.label}`;
+		}
+	} catch {
+		return `Invalid validation pattern for ${field.label}`;
+	}
+
+	return null;
+}
+
+function validateNumberRange(field: TemplateField, value: number): string | null {
+	const validation = field.validation;
+	if (validation?.min !== undefined && value < validation.min) {
+		return `${field.label} must be at least ${validation.min}`;
+	}
+	if (validation?.max !== undefined && value > validation.max) {
+		return `${field.label} must be at most ${validation.max}`;
+	}
+	return null;
+}
+
 export function validateWizardField(
 	field: TemplateField,
 	value: unknown,
@@ -26,24 +53,12 @@ export function validateWizardField(
 	if (!value) return null;
 
 	if (field.validation?.pattern && typeof value === 'string') {
-		try {
-			if (!safeRegex(field.validation.pattern))
-				return `Invalid validation pattern for ${field.label}`;
-			if (!new RegExp(field.validation.pattern).test(value)) {
-				return field.validation.message || `Invalid format for ${field.label}`;
-			}
-		} catch {
-			return `Invalid validation pattern for ${field.label}`;
-		}
+		const patternError = validatePattern(field, value);
+		if (patternError) return patternError;
 	}
 
 	if (field.type === 'number' && typeof value === 'number') {
-		if (field.validation?.min !== undefined && value < field.validation.min) {
-			return `${field.label} must be at least ${field.validation.min}`;
-		}
-		if (field.validation?.max !== undefined && value > field.validation.max) {
-			return `${field.label} must be at most ${field.validation.max}`;
-		}
+		return validateNumberRange(field, value);
 	}
 
 	return null;
