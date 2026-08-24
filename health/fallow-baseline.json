@@ -214,11 +214,6 @@
         "count": 4
       }
     },
-    "src/lib/components/wizards/WizardField.svelte": {
-      "complexity_moderate": {
-        "count": 1
-      }
-    },
     "src/lib/components/wizards/reference-keyboard.ts": {
       "complexity_moderate": {
         "count": 1
