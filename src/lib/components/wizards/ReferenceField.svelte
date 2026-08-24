@@ -1,8 +1,5 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
 	import { logger } from '$lib/utils/logger.js';
-	import { ChevronsUpDown } from '@lucide/svelte';
-	import { onMount } from 'svelte';
 	import {
 		fetchReferenceResources,
 		getReferenceResourcesAfterFetch,
@@ -11,7 +8,7 @@
 		type ReferenceOption
 	} from './reference-fetch';
 	import { getReferenceKeyAction } from './reference-keyboard';
-	import ReferenceResourceMenu from './ReferenceResourceMenu.svelte';
+	import ReferenceFieldPopover from './ReferenceFieldPopover.svelte';
 
 	export type { ReferenceOption } from './reference-fetch';
 
@@ -62,7 +59,6 @@
 	let resources = $state<ReferenceOption[]>([]);
 	let searchQuery = $state('');
 	let focusedIndex = $state(-1);
-	let container: HTMLDivElement | undefined = $state();
 	let searchInput: HTMLInputElement | undefined = $state();
 	let selectedKey = $state<string | null>(null);
 	let selectedLabel = $state('');
@@ -275,57 +271,23 @@
 		return selectedResource?.key === resource.key;
 	}
 
-	// Close on click outside
-	onMount(() => {
-		const handleClickOutside = (event: MouseEvent) => {
-			if (container && !container.contains(event.target as Node)) {
-				open = false;
-			}
-		};
-
-		document.addEventListener('click', handleClickOutside);
-		return () => {
-			document.removeEventListener('click', handleClickOutside);
-		};
-	});
 </script>
 
-<div
-	role="presentation"
-	class="relative w-full"
-	bind:this={container}
-	tabindex="-1"
-	onkeydown={handleKeydown}
->
-	<button
-		{id}
-		type="button"
-		class={cn(
-			'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-			error && 'border-red-500'
-		)}
-		onclick={handleToggle}
-		{disabled}
-		role="combobox"
-		aria-controls={open ? 'resource-listbox' : undefined}
-		aria-expanded={open}
-		aria-haspopup="listbox"
-	>
-		<span class={cn('truncate', !value && 'text-muted-foreground')}>
-			{displayValue}
-		</span>
-		<ChevronsUpDown class="ml-2 h-4 w-4 shrink-0 opacity-50" />
-	</button>
-
-	{#if open}
-		<ReferenceResourceMenu
-			{loading}
-			{filteredResources}
-			{focusedIndex}
-			{isSelectedResource}
-			bind:searchQuery
-			bind:searchInput
-			onSelect={handleSelect}
-		/>
-	{/if}
-</div>
+<ReferenceFieldPopover
+	{id}
+	{value}
+	{displayValue}
+	{open}
+	{loading}
+	{filteredResources}
+	{focusedIndex}
+	{isSelectedResource}
+	bind:searchQuery
+	bind:searchInput
+	{disabled}
+	{error}
+	onToggle={handleToggle}
+	onClose={() => (open = false)}
+	onKeydown={handleKeydown}
+	onSelect={handleSelect}
+/>
