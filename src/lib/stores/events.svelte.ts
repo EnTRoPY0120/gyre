@@ -28,11 +28,11 @@ import {
 	buildNotification,
 	prepareNotification,
 	type NotificationCandidate,
-	parseStoredNotificationState,
 	type EventControlAction,
 	type NotificationState
 } from './events/helpers.js';
 import { createEventSource } from './events/connection.js';
+import { loadNotificationStorage, saveNotificationStorage } from './events/storage.js';
 
 function hashStorageUserIdentity(value: string): string {
 	let hash = 0xcbf29ce484222325n;
@@ -122,66 +122,24 @@ class RealtimeStore {
 
 	private loadFromStorage() {
 		const keys = this.getStorageKeys();
-		try {
-			// Load notifications for the current cluster
-			const storedNotifications = localStorage.getItem(keys.notifications);
-			if (storedNotifications) {
-				const parsed = JSON.parse(storedNotifications);
-				// Convert timestamp strings back to Date objects and ensure clusterId exists
-				this.notifications = parsed.map((n: NotificationMessage) => ({
-					...n,
-					clusterId: n.clusterId || IN_CLUSTER_ID,
-					timestamp: new Date(n.timestamp)
-				}));
-			}
-
-			// Load notification state cache (handles legacy string format and current object format)
-			const storedState = localStorage.getItem(keys.state);
-			if (storedState) {
-				const parsed = JSON.parse(storedState);
-				const restoredState = parseStoredNotificationState(parsed);
-				this.lastNotificationState = new Map(restoredState.entries);
-				if (restoredState.sessionId) this.lastServerSessionId = restoredState.sessionId;
-			}
-		} catch (err) {
-			logger.error(err, '[Storage] Failed to load persisted notifications:');
-			// Clear corrupted data
-			localStorage.removeItem(keys.notifications);
-			localStorage.removeItem(keys.state);
-		}
+		const restored = loadNotificationStorage(localStorage, keys, logger);
+		this.notifications = restored.notifications;
+		this.lastNotificationState = new Map(restored.state.entries);
+		if (restored.state.sessionId) this.lastServerSessionId = restored.state.sessionId;
 	}
 
 	private saveToStorage() {
 		if (typeof window === 'undefined') return;
 
-		const keys = this.getStorageKeys();
-		try {
-			// Save only the most recent notifications to avoid localStorage quota issues.
-			const toSave = this.notifications.slice(0, MAX_NOTIFICATIONS);
-			localStorage.setItem(keys.notifications, JSON.stringify(toSave));
-
-			// Save notification state cache with sessionId for cross-reload desync detection
-			const stateArray = Array.from(this.lastNotificationState.entries());
-			localStorage.setItem(
-				keys.state,
-				JSON.stringify({ sessionId: this.lastServerSessionId, entries: stateArray })
-			);
-		} catch (err) {
-			if (err instanceof DOMException && err.name === 'QuotaExceededError') {
-				try {
-					const reduced = this.notifications.slice(0, Math.floor(MAX_NOTIFICATIONS / 2));
-					localStorage.removeItem(keys.state);
-					localStorage.setItem(keys.notifications, JSON.stringify(reduced));
-					logger.warn('[Storage] localStorage quota exceeded, saved reduced notification set');
-				} catch {
-					localStorage.removeItem(keys.notifications);
-					localStorage.removeItem(keys.state);
-					logger.warn('[Storage] localStorage quota exceeded, cleared notifications storage');
-				}
-			} else {
-				logger.error(err, '[Storage] Failed to persist notifications:');
-			}
-		}
+		saveNotificationStorage({
+			storage: localStorage,
+			keys: this.getStorageKeys(),
+			notifications: this.notifications,
+			state: this.lastNotificationState,
+			sessionId: this.lastServerSessionId,
+			logger,
+			maxNotifications: MAX_NOTIFICATIONS
+		});
 	}
 
 	private canReconnectAfterServerShutdown(): boolean {
