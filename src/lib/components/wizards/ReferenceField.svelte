@@ -9,6 +9,7 @@
 	} from './reference-fetch';
 	import { getReferenceKeyAction, type ReferenceKeyAction } from './reference-keyboard';
 	import { getReferenceDisplayValue } from './reference-display';
+	import { resolveReferenceTypes } from './reference-types';
 	import ReferenceFieldPopover from './ReferenceFieldPopover.svelte';
 
 	export type { ReferenceOption } from './reference-fetch';
@@ -37,21 +38,12 @@
 		onValueChange?: (value: string, selection?: ReferenceOption) => void;
 	} = $props();
 
-	function getInitialReferenceTypes(): string[] {
-		if (referenceTypeField) {
-			const typeFromField = formValues[referenceTypeField];
-			return typeFromField ? [String(typeFromField)] : [];
-		}
-		if (Array.isArray(referenceType)) return referenceType;
-		return referenceType ? [referenceType] : [];
-	}
-
 	function getInitialReferenceNamespace(): string {
 		return referenceNamespace;
 	}
 
 	function getInitialReferenceTypeKey(): string {
-		return getInitialReferenceTypes().join('\u0000');
+		return resolveReferenceTypes(referenceType, referenceTypeField, formValues).join('\u0000');
 	}
 
 	let open = $state(false);
@@ -127,7 +119,9 @@
 	}
 
 	// Resolve the actual resource types to fetch
-	const activeReferenceTypes = $derived.by(() => getInitialReferenceTypes());
+	const activeReferenceTypes = $derived.by(() =>
+		resolveReferenceTypes(referenceType, referenceTypeField, formValues)
+	);
 
 	const filteredResources = $derived.by(() => {
 		const query = searchQuery.trim().toLowerCase();
