@@ -76,6 +76,34 @@ async function checkApiReachability(kc: k8s.KubeConfig): Promise<HealthCheckResu
 	}
 }
 
+async function checkKubernetesVersion(
+	kc: k8s.KubeConfig
+): Promise<{ check: HealthCheckResult; version?: string }> {
+	const versionStart = Date.now();
+	try {
+		const versionApi = makeApiClientWithTimeout(kc, k8s.VersionApi, OPERATION_TIMEOUTS.get);
+		const version = (await versionApi.getCode()).gitVersion;
+		return {
+			check: {
+				name: 'Kubernetes Version',
+				passed: true,
+				message: `Cluster version detected: ${version}`,
+				duration: Date.now() - versionStart
+			},
+			version
+		};
+	} catch {
+		return {
+			check: {
+				name: 'Kubernetes Version',
+				passed: false,
+				message: 'Connected, but failed to retrieve detailed version info',
+				duration: Date.now() - versionStart
+			}
+		};
+	}
+}
+
 async function checkAuthAndVersion(
 	kc: k8s.KubeConfig
 ): Promise<{ checks: HealthCheckResult[]; version?: string; error?: string }> {
@@ -104,26 +132,9 @@ async function checkAuthAndVersion(
 			duration: Date.now() - authStart
 		});
 
-		const versionStart = Date.now();
-		try {
-			const versionApi = makeApiClientWithTimeout(kc, k8s.VersionApi, OPERATION_TIMEOUTS.get);
-			const version = (await versionApi.getCode()).gitVersion;
-			checks.push({
-				name: 'Kubernetes Version',
-				passed: true,
-				message: `Cluster version detected: ${version}`,
-				duration: Date.now() - versionStart
-			});
-			return { checks, version };
-		} catch {
-			checks.push({
-				name: 'Kubernetes Version',
-				passed: false,
-				message: 'Connected, but failed to retrieve detailed version info',
-				duration: Date.now() - versionStart
-			});
-			return { checks };
-		}
+		const versionResult = await checkKubernetesVersion(kc);
+		checks.push(versionResult.check);
+		return { checks, version: versionResult.version };
 	} catch (authError) {
 		const error = authError instanceof Error ? authError.message : 'Authentication error';
 		const failure = describeAuthenticationFailure(error);
@@ -137,6 +148,16 @@ async function checkAuthAndVersion(
 		});
 		return { checks, error: failure.details };
 	}
+}
+
+function buildHealthDiagnostics(
+	checks: HealthCheckResult[],
+	authResult: { checks: HealthCheckResult[]; version?: string; error?: string }
+): ClusterHealthDiagnostics {
+	const allChecks = [...checks, ...authResult.checks];
+	return authResult.error
+		? { connected: false, checks: allChecks, error: authResult.error }
+		: { connected: true, checks: allChecks, kubernetesVersion: authResult.version };
 }
 
 export async function runClusterHealthChecks(
@@ -153,15 +174,9 @@ export async function runClusterHealthChecks(
 	} catch {
 		// The API is reachable when this throws; use the auth check for a precise diagnosis.
 		const authResult = await checkAuthAndVersion(kc);
-		checks.push(...authResult.checks);
-		return authResult.error
-			? { connected: false, checks, error: authResult.error }
-			: { connected: true, checks, kubernetesVersion: authResult.version };
+		return buildHealthDiagnostics(checks, authResult);
 	}
 
 	const authResult = await checkAuthAndVersion(kc);
-	checks.push(...authResult.checks);
-	return authResult.error
-		? { connected: false, checks, error: authResult.error }
-		: { connected: true, checks, kubernetesVersion: authResult.version };
+	return buildHealthDiagnostics(checks, authResult);
 }

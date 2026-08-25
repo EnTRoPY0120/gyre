@@ -1,12 +1,31 @@
-import { describe, expect, test } from 'vitest';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
+import * as k8s from '@kubernetes/client-node';
+
+const mocks = vi.hoisted(() => ({
+	makeApiClientWithTimeout: vi.fn()
+}));
+
+vi.mock('../lib/server/kubernetes/client-factory.js', () => mocks);
+
 import {
 	describeAuthenticationFailure,
 	describeReachabilityError,
 	isAuthenticationRelatedError
 } from '../lib/server/clusters/health-helpers.js';
-import { checkKubeconfigParse } from '../lib/server/clusters/health-checks.js';
+import {
+	checkKubeconfigParse,
+	runClusterHealthChecks
+} from '../lib/server/clusters/health-checks.js';
+
+const kubeconfig = {
+	getCurrentUser: vi.fn().mockReturnValue(null)
+} as unknown as import('@kubernetes/client-node').KubeConfig;
 
 describe('cluster health diagnostics', () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
 	test('classifies authentication and authorization failures', () => {
 		expect(isAuthenticationRelatedError('request failed with 401')).toBe(true);
 		expect(isAuthenticationRelatedError('connection refused')).toBe(false);
@@ -57,5 +76,73 @@ users:
 			passed: false,
 			message: 'Failed to parse kubeconfig'
 		});
+	});
+
+	test('reports a reachable cluster and its Kubernetes version', async () => {
+		mocks.makeApiClientWithTimeout.mockImplementation((_kc, apiClass) => {
+			if (apiClass === k8s.CoreV1Api) {
+				return {
+					getAPIResources: vi.fn().mockResolvedValue({}),
+					listNamespace: vi.fn().mockResolvedValue({})
+				};
+			}
+			return { getCode: vi.fn().mockResolvedValue({ gitVersion: 'v1.30.0' }) };
+		});
+
+		const result = await runClusterHealthChecks(kubeconfig);
+
+		expect(result).toMatchObject({ connected: true, kubernetesVersion: 'v1.30.0' });
+		expect(result.checks).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ name: 'API Server Reachability', passed: true }),
+				expect.objectContaining({ name: 'Authentication', passed: true }),
+				expect.objectContaining({ name: 'Kubernetes Version', passed: true })
+			])
+		);
+	});
+
+	test('returns an authentication diagnostic when namespace access fails', async () => {
+		mocks.makeApiClientWithTimeout.mockImplementation((_kc, apiClass) => {
+			if (apiClass === k8s.CoreV1Api) {
+				return {
+					getAPIResources: vi.fn().mockRejectedValue(new Error('Forbidden')),
+					listNamespace: vi.fn().mockRejectedValue(new Error('Forbidden'))
+				};
+			}
+			return { getCode: vi.fn() };
+		});
+
+		const result = await runClusterHealthChecks(kubeconfig);
+
+		expect(result).toMatchObject({ connected: false });
+		expect(result.error).toContain('Authorization failed');
+		expect(result.checks).toEqual(
+			expect.arrayContaining([expect.objectContaining({ name: 'Authorization', passed: false })])
+		);
+	});
+
+	test('keeps the connection healthy when version lookup is unavailable', async () => {
+		mocks.makeApiClientWithTimeout.mockImplementation((_kc, apiClass) => {
+			if (apiClass === k8s.CoreV1Api) {
+				return {
+					getAPIResources: vi.fn().mockResolvedValue({}),
+					listNamespace: vi.fn().mockResolvedValue({})
+				};
+			}
+			return { getCode: vi.fn().mockRejectedValue(new Error('version unavailable')) };
+		});
+
+		const result = await runClusterHealthChecks(kubeconfig);
+
+		expect(result).toMatchObject({ connected: true });
+		expect(result.checks).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					name: 'Kubernetes Version',
+					passed: false,
+					message: 'Connected, but failed to retrieve detailed version info'
+				})
+			])
+		);
 	});
 });
