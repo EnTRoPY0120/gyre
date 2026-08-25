@@ -148,29 +148,35 @@
 		});
 	});
 
+	function syncReferenceNamespace(currentNamespace: string) {
+		lastSelectedValue = value;
+		if (open) {
+			cancelActiveFetch();
+			void fetchResources();
+		}
+		lastReferenceNamespace = currentNamespace;
+	}
+
+	function syncReferenceType(currentReferenceType: string) {
+		cancelActiveFetch();
+		selectedKey = null;
+		selectedLabel = '';
+		lastSelectedValue = value;
+		resources = [];
+		lastReferenceType = currentReferenceType;
+		if (open) void fetchResources();
+	}
+
 	$effect(() => {
 		const currentNamespace = referenceNamespace;
 		const currentReferenceType = activeReferenceTypes.join('\u0000');
 
 		if (currentNamespace !== lastReferenceNamespace) {
-			lastSelectedValue = value;
-			if (open) {
-				cancelActiveFetch();
-				void fetchResources();
-			}
-			lastReferenceNamespace = currentNamespace;
+			syncReferenceNamespace(currentNamespace);
 		}
 
 		if (currentReferenceType !== lastReferenceType) {
-			cancelActiveFetch();
-			selectedKey = null;
-			selectedLabel = '';
-			lastSelectedValue = value;
-			resources = [];
-			lastReferenceType = currentReferenceType;
-			if (open) {
-				void fetchResources();
-			}
+			syncReferenceType(currentReferenceType);
 		}
 	});
 
