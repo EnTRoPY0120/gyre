@@ -5,6 +5,8 @@ import {
 	createFluxResourceReadMetadata,
 	fluxResourceParamsSchema
 } from '../lib/server/openapi/flux-route-metadata.js';
+import { createRegistry, generateOpenApiSpec } from '../lib/server/openapi.js';
+import { registerApiRoutes, toOpenApiPath } from '../lib/server/openapi-route.js';
 
 describe('Flux route metadata helpers', () => {
 	test('shared param schema includes resourceType, namespace, and name', () => {
@@ -42,5 +44,32 @@ describe('Flux route metadata helpers', () => {
 		expect(metadata.responses[200].description).toBe('Flux resource details');
 		expect(metadata.responses[200].content['application/json'].schema).toBe(responseSchema);
 		expect(metadata.responses[500]).toEqual({ description: 'Internal server error' });
+	});
+
+	test('converts Svelte route parameters into OpenAPI paths', () => {
+		expect(toOpenApiPath('/src/routes/api/v1/flux/[resourceType]/+server.ts')).toBe(
+			'/api/v1/flux/{resourceType}'
+		);
+	});
+
+	test('registers only metadata-bearing routes with normalized methods', () => {
+		const registry = createRegistry();
+		registerApiRoutes(registry, {
+			'/src/routes/api/v1/resources/[id]/+server.ts': {
+				_metadata: {
+					GET: {
+						summary: 'Read resource',
+						responses: { 200: { description: 'Resource returned' } }
+					}
+				}
+			},
+			'/src/routes/api/v1/internal/+server.ts': {}
+		});
+
+		const spec = generateOpenApiSpec(registry);
+		expect(spec.paths['/api/v1/resources/{id}']).toMatchObject({
+			get: { summary: 'Read resource' }
+		});
+		expect(spec.paths['/api/v1/internal']).toBeUndefined();
 	});
 });
