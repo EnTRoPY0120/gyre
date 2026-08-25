@@ -1,28 +1,17 @@
 import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import {
-	listUsersPaginated,
-	getUserById,
-	hasManagedPassword,
-	updateUser,
-	deleteUser,
-	updateUserPassword
-} from '$lib/server/auth';
+import { listUsersPaginated, updateUser, deleteUser } from '$lib/server/auth';
 import { logUserManagement } from '$lib/server/audit';
-import { tryCheckRateLimit } from '$lib/server/rate-limiter';
 import { createUserAndLog, type UserCreateInput } from './create-user';
+import { resetPasswordAction } from './reset-password';
 import { parseAdminPagination } from '../pagination';
 import {
 	getRequiredFormString,
 	requireAdminFormUser,
 	serializePagination
 } from '../server-helpers';
-import {
-	validatePasswordResetInput,
-	validateUserCreateInput,
-	validateUserUpdateInput
-} from './action-validation';
+import { validateUserCreateInput, validateUserUpdateInput } from './action-validation';
 import type { User } from '$lib/server/db/schema';
 
 function readUserCreateInput(formData: FormData): UserCreateInput {
@@ -72,17 +61,6 @@ function buildUserUpdates(
 	return updates;
 }
 
-async function getPasswordResetError(userId: string): Promise<string | null> {
-	const targetUser = await getUserById(userId);
-	if (targetUser && targetUser.isLocal === false) {
-		return 'Cannot reset password for SSO users';
-	}
-	if (targetUser && !(await hasManagedPassword(targetUser.id))) {
-		return 'The in-cluster admin password is managed via the Kubernetes secret and cannot be reset here';
-	}
-	return null;
-}
-
 async function updateUserAndLog(
 	user: User,
 	userId: string,
@@ -110,19 +88,6 @@ async function deleteUserAndLog(user: User, userId: string, username: string) {
 	} catch (error) {
 		logger.error(error, 'Error deleting user:');
 		return fail(500, { error: 'Failed to delete user' });
-	}
-}
-
-async function resetUserPasswordAndLog(user: User, userId: string, newPassword: string) {
-	try {
-		await updateUserPassword(userId, newPassword);
-		await logUserManagement(user, 'update', userId, 'password-reset', {
-			passwordReset: true
-		});
-		return { success: true };
-	} catch (error) {
-		logger.error(error, 'Error resetting password:');
-		return fail(500, { error: 'Failed to reset password' });
 	}
 }
 
@@ -191,28 +156,5 @@ export const actions: Actions = {
 	 * Reset user password
 	 * Only works for local users (not SSO users)
 	 */
-	resetPassword: async (event) => {
-		const { request, locals } = event;
-		const user = requireAdminFormUser(locals);
-		if ('status' in user) return user;
-
-		const rateLimit = tryCheckRateLimit(event, `admin-reset:${user.id}`, 10, 15 * 60 * 1000);
-		if (rateLimit.limited) {
-			return fail(429, {
-				error: `Too many password reset attempts. Try again in ${rateLimit.retryAfter} seconds.`
-			});
-		}
-
-		const formData = await request.formData();
-		const userId = formData.get('userId') as string;
-		const newPassword = formData.get('newPassword') as string;
-
-		const validationError = validatePasswordResetInput(userId, newPassword);
-		if (validationError) return fail(400, { error: validationError });
-
-		const targetError = await getPasswordResetError(userId);
-		if (targetError) return fail(400, { error: targetError });
-
-		return resetUserPasswordAndLog(user, userId, newPassword);
-	}
+	resetPassword: resetPasswordAction
 };
