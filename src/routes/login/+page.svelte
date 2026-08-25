@@ -3,12 +3,13 @@
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
 	import LoginPanel from '$lib/components/auth/LoginPanel.svelte';
-	import {
-		getLoginErrorState,
+import {
+	getLoginErrorState,
 		getPostLoginRedirect,
 		submitLogin,
-		validateLoginCredentials
-	} from '$lib/auth/login-flow';
+	validateLoginCredentials
+} from '$lib/auth/login-flow';
+import { getLoginQueryFeedback } from '$lib/auth/login-feedback';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -27,18 +28,17 @@
 	let hasAnyAuth = $derived(showLocalLogin || showProviders);
 
 	$effect(() => {
-		const loggedOut = page.url.searchParams.get('loggedOut');
-		const errorParam = page.url.searchParams.get('error');
+		const feedback = getLoginQueryFeedback(page.url.searchParams);
 
-		if (loggedOut === 'true') {
+		if (feedback.loggedOut) {
 			toast.success('Successfully logged out');
 		}
 
-		if (errorParam) {
-			toast.error(decodeURIComponent(errorParam));
+		if (feedback.errorMessage) {
+			toast.error(feedback.errorMessage);
 		}
 
-		if (loggedOut === 'true' || errorParam) {
+		if (feedback.shouldClear) {
 			const url = new URL(window.location.href);
 			url.searchParams.delete('loggedOut');
 			url.searchParams.delete('error');
