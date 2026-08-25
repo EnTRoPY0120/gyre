@@ -1,6 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
-import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { subscribe, type SSEEvent } from '$lib/server/events.js';
 import { logger } from '$lib/server/logger.js';
 import { sseConnectionsRejectedTotal } from '$lib/server/metrics.js';
@@ -15,6 +14,7 @@ import {
 	requireClusterWideRead
 } from '$lib/server/http/guards.js';
 import { flushSseEventQueue } from './sse-queue.js';
+import { getEventConnectionContext, type EventConnectionContext } from './connection-context.js';
 
 export const _metadata = {
 	GET: {
@@ -34,31 +34,6 @@ export const _metadata = {
 		}
 	}
 };
-
-interface EventConnectionContext {
-	clusterId: string;
-	sessionId: string;
-	userId: string;
-}
-
-function getEventConnectionContext(
-	user: { id: string | number },
-	locals: App.Locals,
-	getClientAddress: () => string
-): EventConnectionContext {
-	const rawSessionId = locals.session?.id;
-	if (!rawSessionId) {
-		logger.warn(
-			'[SSE] Authenticated user has no session ID; falling back to IP for connection limiting'
-		);
-	}
-
-	return {
-		clusterId: locals.cluster ?? IN_CLUSTER_ID,
-		sessionId: rawSessionId ?? getClientAddress(),
-		userId: String(user.id)
-	};
-}
 
 function acquireEventConnection(context: EventConnectionContext): {
 	clusterId: string;
@@ -84,7 +59,18 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 
 	await requireClusterWideRead(locals);
 
-	const connectionContext = getEventConnectionContext(user, locals, getClientAddress);
+	const rawSessionId = locals.session?.id;
+	if (!rawSessionId) {
+		logger.warn(
+			'[SSE] Authenticated user has no session ID; falling back to IP for connection limiting'
+		);
+	}
+	const connectionContext = getEventConnectionContext(
+		user.id,
+		locals.cluster,
+		rawSessionId,
+		getClientAddress
+	);
 	const { clusterId, release } = acquireEventConnection(connectionContext);
 	// Shared cleanup ref so both start() and cancel() can invoke the same teardown.
 	// start() is called synchronously during ReadableStream construction, so
