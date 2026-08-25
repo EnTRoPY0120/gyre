@@ -113,6 +113,7 @@ import { syncEditorValue } from './monaco-value-sync';
 		});
 	}
 
+	// fallow-ignore-next-line complexity
 	async function initializeEditor(container: HTMLDivElement): Promise<void> {
 		try {
 			const monacoModule = await import('monaco-editor');

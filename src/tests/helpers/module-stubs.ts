@@ -246,6 +246,7 @@ export function createKubernetesErrorsModuleStub(
 	}
 
 	class StubResourceNotFoundError extends StubKubernetesError {
+		// fallow-ignore-next-line complexity
 		constructor(resourceType: string, namespace?: string, name?: string) {
 			const identifier =
 				namespace && name ? `${namespace}/${name}` : namespace || name || 'resources';
