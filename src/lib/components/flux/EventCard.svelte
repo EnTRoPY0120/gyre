@@ -3,6 +3,13 @@
 
 	let { event }: { event: K8sEvent } = $props();
 
+	const relativeTimeUnits = [
+		{ maxSeconds: 60, divisor: 1, suffix: 's' },
+		{ maxSeconds: 3600, divisor: 60, suffix: 'm' },
+		{ maxSeconds: 86400, divisor: 3600, suffix: 'h' },
+		{ maxSeconds: 604800, divisor: 86400, suffix: 'd' }
+	];
+
 	function formatEventTime(timestamp: string | null): string {
 		if (!timestamp) return 'Unknown';
 
@@ -10,14 +17,10 @@
 		const eventTime = new Date(timestamp);
 		const diffMs = now.getTime() - eventTime.getTime();
 		const diffSeconds = Math.floor(diffMs / 1000);
-		const diffMinutes = Math.floor(diffSeconds / 60);
-		const diffHours = Math.floor(diffMinutes / 60);
-		const diffDays = Math.floor(diffHours / 24);
-
-		if (diffSeconds < 60) return `${diffSeconds}s ago`;
-		if (diffMinutes < 60) return `${diffMinutes}m ago`;
-		if (diffHours < 24) return `${diffHours}h ago`;
-		if (diffDays < 7) return `${diffDays}d ago`;
+		const relativeTime = relativeTimeUnits.find((unit) => diffSeconds < unit.maxSeconds);
+		if (relativeTime) {
+			return `${Math.floor(diffSeconds / relativeTime.divisor)}${relativeTime.suffix} ago`;
+		}
 
 		return eventTime.toLocaleDateString();
 	}

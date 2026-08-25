@@ -22,19 +22,16 @@
 		logContainer?: HTMLDivElement | null;
 	} = $props();
 
+	const levelClasses: Record<string, string> = {
+		ERROR: 'text-red-400 font-bold',
+		FATAL: 'text-red-400 font-bold',
+		WARN: 'text-yellow-400 font-bold',
+		WARNING: 'text-yellow-400 font-bold',
+		DEBUG: 'text-blue-400'
+	};
+
 	function getLevelClass(level: string) {
-		switch (level) {
-			case 'ERROR':
-			case 'FATAL':
-				return 'text-red-400 font-bold';
-			case 'WARN':
-			case 'WARNING':
-				return 'text-yellow-400 font-bold';
-			case 'DEBUG':
-				return 'text-blue-400';
-			default:
-				return 'text-green-400';
-		}
+		return levelClasses[level] ?? 'text-green-400';
 	}
 </script>
 

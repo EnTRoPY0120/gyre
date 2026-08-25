@@ -49,17 +49,16 @@ export function isConnectionErrorCode(errorCode: string | undefined): boolean {
 
 /** Convert a Kubernetes HTTP status into the public domain error used by callers. */
 export function mapKubernetesStatus(status: number, operation: string): Error {
-	switch (status) {
-		case 404:
-			return new ResourceNotFoundError(operation);
-		case 401:
-			return new AuthenticationError(`Authentication failed: ${operation}`);
-		case 403:
-			return new AuthorizationError(`Permission denied: ${operation}`);
-		case 503:
-		case 504:
-			return new ClusterUnavailableError(`Kubernetes cluster is unavailable (${status})`);
-		default:
-			return new KubernetesError(`Kubernetes API error (${status})`, status, 'ApiError');
-	}
+	const statusErrors: Record<number, () => Error> = {
+		404: () => new ResourceNotFoundError(operation),
+		401: () => new AuthenticationError(`Authentication failed: ${operation}`),
+		403: () => new AuthorizationError(`Permission denied: ${operation}`),
+		503: () => new ClusterUnavailableError(`Kubernetes cluster is unavailable (${status})`),
+		504: () => new ClusterUnavailableError(`Kubernetes cluster is unavailable (${status})`)
+	};
+
+	return (
+		statusErrors[status]?.() ??
+		new KubernetesError(`Kubernetes API error (${status})`, status, 'ApiError')
+	);
 }

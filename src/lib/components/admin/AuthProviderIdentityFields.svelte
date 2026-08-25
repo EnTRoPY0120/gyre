@@ -12,21 +12,16 @@
 		idPrefix: string;
 	} = $props();
 
+	const providerTypeNames: Record<string, string> = {
+		oidc: 'OIDC',
+		'oauth2-google': 'Google OAuth',
+		'oauth2-github': 'GitHub OAuth',
+		'oauth2-gitlab': 'GitLab OAuth',
+		'oauth2-generic': 'Generic OAuth2'
+	};
+
 	function getProviderTypeName(type: string): string {
-		switch (type) {
-			case 'oidc':
-				return 'OIDC';
-			case 'oauth2-google':
-				return 'Google OAuth';
-			case 'oauth2-github':
-				return 'GitHub OAuth';
-			case 'oauth2-gitlab':
-				return 'GitLab OAuth';
-			case 'oauth2-generic':
-				return 'Generic OAuth2';
-			default:
-				return type;
-		}
+		return providerTypeNames[type] ?? type;
 	}
 </script>
 

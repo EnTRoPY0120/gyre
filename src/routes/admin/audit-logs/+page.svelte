@@ -24,6 +24,25 @@
 	let searchQuery = $state('');
 	let debouncedQuery = $state('');
 
+	const actionColorRules = [
+		{
+			matches: (action: string) => action.startsWith('write'),
+			className: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+		},
+		{
+			matches: (action: string) => action.startsWith('delete') || action.startsWith('rbac:delete'),
+			className: 'text-red-400 bg-red-500/10 border-red-500/20'
+		},
+		{
+			matches: (action: string) => action === 'login',
+			className: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+		},
+		{
+			matches: (action: string) => action.startsWith('user:'),
+			className: 'text-blue-400 bg-blue-500/10 border-blue-500/20'
+		}
+	];
+
 	$effect(() => {
 		const query = searchQuery;
 		if (query === '') {
@@ -44,13 +63,10 @@
 	}
 
 	function getActionColor(action: string) {
-		if (action.startsWith('write')) return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
-		if (action.startsWith('delete') || action.startsWith('rbac:delete')) {
-			return 'text-red-400 bg-red-500/10 border-red-500/20';
-		}
-		if (action === 'login') return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
-		if (action.startsWith('user:')) return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
-		return 'text-slate-400 bg-slate-500/10 border-slate-500/20';
+		return (
+			actionColorRules.find((rule) => rule.matches(action))?.className ??
+			'text-slate-400 bg-slate-500/10 border-slate-500/20'
+		);
 	}
 
 	function formatTimestamp(date: Date) {
