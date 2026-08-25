@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { rollbackResource } from '$lib/server/kubernetes/flux/history';
-import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 import {
 	logPrivilegedMutationFailure,
@@ -10,6 +10,7 @@ import {
 	requireFluxResourceWrite
 } from '$lib/server/http/guards.js';
 import { parseRollbackRequestBody } from '$lib/server/flux/use-cases/rollback.js';
+import { sanitizeRollbackError } from '$lib/server/flux/use-cases/rollback-errors.js';
 
 export const _metadata = {
 	POST: {
@@ -126,7 +127,7 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 				targetRevision: revision,
 				targetHistoryId: historyId
 			},
-			error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
+			error: sanitizeRollbackError(err)
 		});
 
 		handleApiError(err, `Failed to perform rollback for ${context.name}`);
