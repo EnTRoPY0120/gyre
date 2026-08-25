@@ -3,12 +3,7 @@ import { logger } from '$lib/server/logger.js';
 import { createCluster } from '$lib/server/clusters';
 import { logClusterChange } from '$lib/server/audit';
 import type { User } from '$lib/server/db/schema';
-
-export interface ClusterCreateInput {
-	name: string;
-	description: string;
-	kubeconfig: string;
-}
+import type { ClusterCreateInput } from './create-validation';
 
 type CreateClusterDependencies = {
 	createCluster: typeof createCluster;

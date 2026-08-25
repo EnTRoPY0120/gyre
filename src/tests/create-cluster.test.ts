@@ -1,8 +1,6 @@
 import { describe, expect, test, vi } from 'vitest';
-import {
-	createClusterAndLog,
-	type ClusterCreateInput
-} from '../routes/admin/clusters/create-cluster.js';
+import { createClusterAndLog } from '../routes/admin/clusters/create-cluster.js';
+import type { ClusterCreateInput } from '../routes/admin/clusters/create-validation.js';
 import type { User } from '../lib/server/db/schema.js';
 
 const actor = { id: 'admin-1' } as User;
