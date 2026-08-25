@@ -99,15 +99,21 @@
 		}
 	}
 
+	function isSaveShortcut(e: KeyboardEvent): boolean {
+		return (e.ctrlKey || e.metaKey) && e.key === 's';
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === 'Escape' && !saving) {
+		if (e.key === 'Escape') {
+			if (saving) return;
 			e.preventDefault();
 			open = false;
 			onClose();
+			return;
 		}
-		if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+		if (isSaveShortcut(e)) {
 			e.preventDefault();
-			handleSave();
+			void handleSave();
 		}
 	}
 

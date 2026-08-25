@@ -7,7 +7,7 @@
 		type ReferenceFetchResult,
 		type ReferenceOption
 	} from './reference-fetch';
-	import { getReferenceKeyAction } from './reference-keyboard';
+	import { getReferenceKeyAction, type ReferenceKeyAction } from './reference-keyboard';
 	import { getReferenceDisplayValue } from './reference-display';
 	import ReferenceFieldPopover from './ReferenceFieldPopover.svelte';
 
@@ -43,8 +43,7 @@
 			return typeFromField ? [String(typeFromField)] : [];
 		}
 		if (Array.isArray(referenceType)) return referenceType;
-		if (referenceType) return [referenceType];
-		return [];
+		return referenceType ? [referenceType] : [];
 	}
 
 	function getInitialReferenceNamespace(): string {
@@ -228,6 +227,24 @@
 		onValueChange?.(resource.name, resource);
 	}
 
+	function applyReferenceKeyAction(action: ReferenceKeyAction, index?: number): void {
+		const handlers: Record<ReferenceKeyAction['type'], (index?: number) => void> = {
+			toggle: () => handleToggle(),
+			move: (nextIndex) => {
+				focusedIndex = nextIndex as number;
+			},
+			select: (selectedIndex) => {
+				handleSelect(filteredResources[selectedIndex as number]);
+			},
+			close: () => {
+				open = false;
+			},
+			none: () => {}
+		};
+
+		handlers[action.type](index);
+	}
+
 	function handleKeydown(e: KeyboardEvent) {
 		const action = getReferenceKeyAction(
 			e.key,
@@ -236,21 +253,7 @@
 			filteredResources.length
 		);
 		if (action.preventDefault) e.preventDefault();
-
-		switch (action.type) {
-			case 'toggle':
-				handleToggle();
-				break;
-			case 'move':
-				focusedIndex = action.index;
-				break;
-			case 'select':
-				handleSelect(filteredResources[action.index]);
-				break;
-			case 'close':
-				open = false;
-				break;
-		}
+		applyReferenceKeyAction(action, 'index' in action ? action.index : undefined);
 	}
 
 	function isSelectedResource(resource: ReferenceOption): boolean {

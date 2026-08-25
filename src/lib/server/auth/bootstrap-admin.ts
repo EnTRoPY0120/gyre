@@ -24,23 +24,30 @@ export function setSetupTokenFile(filePath: string): void {
 	setupTokenFilePath = filePath;
 }
 
+function clearSetupTokenState(): void {
+	setupTokenFilePath = null;
+	pendingSetupCleanup = false;
+}
+
+function handleSetupTokenCleanupError(error: unknown, filePath: string): void {
+	if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+		clearSetupTokenState();
+		return;
+	}
+	logger.error(
+		{ err: error, filePath },
+		'[Auth] Failed to remove setup token file; manual removal may be required'
+	);
+}
+
 export function cleanupSetupTokenFile(): void {
 	if (!pendingSetupCleanup || setupTokenFilePath === null) return;
 	const filePath = setupTokenFilePath;
 	try {
 		unlinkSync(filePath);
-		setupTokenFilePath = null;
-		pendingSetupCleanup = false;
+		clearSetupTokenState();
 	} catch (err) {
-		if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-			setupTokenFilePath = null;
-			pendingSetupCleanup = false;
-		} else {
-			logger.error(
-				{ err, filePath },
-				'[Auth] Failed to remove setup token file; manual removal may be required'
-			);
-		}
+		handleSetupTokenCleanupError(err, filePath);
 	}
 }
 

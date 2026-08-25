@@ -1,8 +1,9 @@
 import type { UserPreferences } from '$lib/types/user';
 
 export type NotificationPreferences = NonNullable<UserPreferences['notifications']>;
+export type NormalizedNotificationPreferences = Required<NotificationPreferences>;
 
-export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+export const DEFAULT_NOTIFICATION_PREFERENCES: NormalizedNotificationPreferences = {
 	enabled: true,
 	resourceTypes: [],
 	namespaces: [],
@@ -11,7 +12,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 
 export function normalizeNotificationPreferences(
 	prefs: UserPreferences['notifications']
-): NotificationPreferences {
+): NormalizedNotificationPreferences {
 	return {
 		enabled: prefs?.enabled ?? true,
 		resourceTypes: prefs?.resourceTypes ?? [],

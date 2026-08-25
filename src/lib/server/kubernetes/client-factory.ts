@@ -5,15 +5,18 @@ import * as https from 'https';
 import { URL } from 'url';
 import { _createTimeoutMiddleware } from './timeouts.js';
 
+function normalizeResponseHeader(value: string | string[] | undefined): string | undefined {
+	if (Array.isArray(value)) return value.join(', ');
+	if (value === undefined) return undefined;
+	return String(value);
+}
+
 function createResponseContext(res: http.IncomingMessage, chunks: Buffer[]): k8s.ResponseContext {
 	const buffer = Buffer.concat(chunks);
 	const responseHeaders: Record<string, string> = {};
 	for (const [key, value] of Object.entries(res.headers)) {
-		if (Array.isArray(value)) {
-			responseHeaders[key] = value.join(', ');
-		} else if (value !== undefined) {
-			responseHeaders[key] = String(value);
-		}
+		const normalizedValue = normalizeResponseHeader(value);
+		if (normalizedValue !== undefined) responseHeaders[key] = normalizedValue;
 	}
 
 	return new k8s.ResponseContext(res.statusCode ?? 0, responseHeaders, {

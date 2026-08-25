@@ -4,6 +4,7 @@ import {
 	getLogRegexState,
 	type LogFilterOptions
 } from '../lib/components/resources/tabs/logs-tab-filters.js';
+import { formatLogLine } from '../lib/components/resources/log-formatting.js';
 import type { FormattedLogLine } from '../lib/components/resources/tabs/logs-tab-types.js';
 
 const lines: FormattedLogLine[] = [
@@ -69,5 +70,18 @@ describe('filterFormattedLogs', () => {
 		expect(
 			filterFormattedLogs(lines, filterOptions({ useRegex: true, searchQuery: '[', regex: null }))
 		).toEqual([]);
+	});
+});
+
+describe('formatLogLine', () => {
+	test('normalizes structured log messages and levels', () => {
+		expect(formatLogLine('{"level":"warn","message":"retrying"}')).toMatchObject({
+			level: 'WARN',
+			msg: 'retrying'
+		});
+	});
+
+	test('preserves malformed lines as informational text', () => {
+		expect(formatLogLine('{')).toEqual({ ts: '', level: 'INFO', msg: '{', full: '{' });
 	});
 });

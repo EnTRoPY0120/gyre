@@ -24,6 +24,7 @@
 	import ResourceDetailHeader from '$lib/components/resources/ResourceDetailHeader.svelte';
 	import ResourceDetailTabPanel from '$lib/components/resources/ResourceDetailTabPanel.svelte';
 	import ResourceDetailTabs from '$lib/components/resources/ResourceDetailTabs.svelte';
+	import { formatLogLine } from '$lib/components/resources/log-formatting';
 
 	interface Props {
 		data: {
@@ -109,22 +110,7 @@
 	let pendingRollback = $state<{ historyId: string; revision: string | null } | null>(null);
 
 	const formattedLogs = $derived(
-		logs
-			.split('\n')
-			.filter((line) => line.trim())
-			.map((line) => {
-				try {
-					const parsed = JSON.parse(line);
-					return {
-						ts: parsed.ts ? new Date(parsed.ts).toLocaleTimeString() : '',
-						level: (parsed.level || 'info').toUpperCase(),
-						msg: parsed.msg || parsed.message || line,
-						full: line
-					};
-				} catch {
-					return { ts: '', level: 'INFO', msg: line, full: line };
-				}
-			})
+		logs.split('\n').filter((line) => line.trim()).map(formatLogLine)
 	);
 
 	$effect(() => {

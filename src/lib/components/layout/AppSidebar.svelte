@@ -26,14 +26,9 @@
 		const wasMobile = isMobile;
 		isMobile = window.innerWidth < 1024;
 
-		// If we just crossed the breakpoint
-		if (wasMobile !== isMobile) {
-			if (isMobile && $sidebarOpen) {
-				sidebarOpen.set(false);
-			} else if (!isMobile && !$sidebarOpen) {
-				// We don't necessarily want to force it open on desktop,
-				// but many apps do. Let's keep it as is for now.
-			}
+		// Close an open sidebar when crossing into the mobile breakpoint.
+		if (wasMobile !== isMobile && isMobile && $sidebarOpen) {
+			sidebarOpen.set(false);
 		}
 	}
 
