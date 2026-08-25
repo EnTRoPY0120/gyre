@@ -7,13 +7,9 @@ import { logger } from '$lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import {
-	setSettings,
-	SETTINGS_KEYS,
-	isSettingOverriddenByEnv,
-	SETTING_ENV_OVERRIDES
-} from '$lib/server/settings';
+import { setSettings } from '$lib/server/settings';
 import { serializePublicSettings } from '$lib/server/settings/serialization';
+import { normalizeSettingsPayload } from './settings-payload.js';
 import {
 	enforceUserRateLimitPreset,
 	logPrivilegedMutationSuccess,
@@ -82,96 +78,6 @@ export const _metadata = {
 		}
 	}
 };
-
-const PUBLIC_SETTING_MAP = {
-	localLoginEnabled: SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED,
-	allowSignup: SETTINGS_KEYS.AUTH_ALLOW_SIGNUP,
-	domainAllowlist: SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST,
-	auditRetentionDays: SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS
-} as const;
-
-type PublicSettingKey = keyof typeof PUBLIC_SETTING_MAP;
-
-function normalizeSettingsPayload(body: unknown): {
-	requestedKeys: string[];
-	updates: Array<{ key: string; value: string }>;
-} {
-	if (!body || typeof body !== 'object' || Array.isArray(body)) {
-		throw error(400, { message: 'Invalid request body' });
-	}
-
-	const requestedKeys = Object.keys(body);
-	const unknownKeys = requestedKeys.filter((key) => !(key in PUBLIC_SETTING_MAP));
-	if (unknownKeys.length > 0) {
-		throw error(400, { message: `Unknown setting field(s): ${unknownKeys.join(', ')}` });
-	}
-
-	const payload = body as Record<string, unknown>;
-	const updates: Array<{ key: string; value: string }> = [];
-
-	if ('localLoginEnabled' in payload) {
-		if (typeof payload.localLoginEnabled !== 'boolean') {
-			throw error(400, { message: 'localLoginEnabled must be a boolean' });
-		}
-		updates.push({
-			key: SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED,
-			value: String(payload.localLoginEnabled)
-		});
-	}
-
-	if ('allowSignup' in payload) {
-		if (typeof payload.allowSignup !== 'boolean') {
-			throw error(400, { message: 'allowSignup must be a boolean' });
-		}
-		updates.push({ key: SETTINGS_KEYS.AUTH_ALLOW_SIGNUP, value: String(payload.allowSignup) });
-	}
-
-	if ('domainAllowlist' in payload) {
-		if (!Array.isArray(payload.domainAllowlist)) {
-			throw error(400, { message: 'domainAllowlist must be an array of strings' });
-		}
-		if (!payload.domainAllowlist.every((domain) => typeof domain === 'string')) {
-			throw error(400, { message: 'domainAllowlist entries must be strings' });
-		}
-		const domains = payload.domainAllowlist
-			.map((domain) => domain.trim().toLowerCase())
-			.filter((domain) => domain.length > 0);
-		const uniqueDomains = [...new Set(domains)];
-		updates.push({
-			key: SETTINGS_KEYS.AUTH_DOMAIN_ALLOWLIST,
-			value: JSON.stringify(uniqueDomains)
-		});
-	}
-
-	if ('auditRetentionDays' in payload) {
-		if (
-			typeof payload.auditRetentionDays !== 'number' ||
-			!Number.isFinite(payload.auditRetentionDays)
-		) {
-			throw error(400, { message: 'auditRetentionDays must be a finite number' });
-		}
-		const retention = Math.floor(payload.auditRetentionDays);
-		if (retention < 1 || retention > 3650) {
-			throw error(400, { message: 'auditRetentionDays must be between 1 and 3650' });
-		}
-		updates.push({ key: SETTINGS_KEYS.AUDIT_LOG_RETENTION_DAYS, value: String(retention) });
-	}
-
-	const lockedFields = requestedKeys.filter((key) =>
-		isSettingOverriddenByEnv(PUBLIC_SETTING_MAP[key as PublicSettingKey])
-	);
-	if (lockedFields.length > 0) {
-		const details = lockedFields.map((key) => {
-			const settingKey = PUBLIC_SETTING_MAP[key as PublicSettingKey];
-			return `${key} (${SETTING_ENV_OVERRIDES[settingKey]})`;
-		});
-		throw error(409, {
-			message: `Setting field(s) are locked by environment variable: ${details.join(', ')}`
-		});
-	}
-
-	return { requestedKeys, updates };
-}
 
 /**
  * GET /api/admin/settings

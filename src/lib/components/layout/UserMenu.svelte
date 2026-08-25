@@ -5,6 +5,7 @@
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import UserMenuDropdown from './UserMenuDropdown.svelte';
 	import type { UserMenuUser } from './user-menu-types';
+	import { applyUserMenuKeyAction, getUserMenuKeyAction } from './user-menu-keyboard';
 
 	interface Props {
 		user: UserMenuUser | null;
@@ -21,29 +22,6 @@
 
 	// Compute the list of focusable menu items dynamically
 	const menuItemCount = $derived(isLocalUser ? 3 : 2); // Role, [ChangePassword], Logout
-
-	type MenuKeyAction =
-		| { type: 'move'; index: number }
-		| { type: 'close'; restoreFocus: boolean; preventDefault: boolean }
-		| { type: 'ignore' };
-
-	const MENU_KEY_ACTIONS: Record<
-		string,
-		(index: number, itemCount: number) => Exclude<MenuKeyAction, { type: 'ignore' }>
-	> = {
-		ArrowDown: (index, itemCount) => ({ type: 'move', index: (index + 1) % itemCount }),
-		ArrowUp: (index, itemCount) => ({
-			type: 'move',
-			index: index <= 0 ? itemCount - 1 : index - 1
-		}),
-		Escape: () => ({ type: 'close', restoreFocus: true, preventDefault: true }),
-		Tab: () => ({ type: 'close', restoreFocus: false, preventDefault: false })
-	};
-
-	function getMenuKeyAction(key: string, open: boolean, index: number, itemCount: number): MenuKeyAction {
-		if (!open) return { type: 'ignore' };
-		return MENU_KEY_ACTIONS[key]?.(index, itemCount) ?? { type: 'ignore' };
-	}
 
 	async function handleLogout() {
 		logoutError = null;
@@ -96,20 +74,15 @@
 	}
 
 	function handleMenuKeydown(e: KeyboardEvent) {
-		const action = getMenuKeyAction(e.key, isOpen, selectedIndex, menuItemCount);
-		switch (action.type) {
-			case 'move':
-				e.preventDefault();
-				selectedIndex = action.index;
-				focusItem(action.index);
-				break;
-			case 'close':
-				if (action.preventDefault) e.preventDefault();
-				closeMenu(action.restoreFocus);
-				break;
-			case 'ignore':
-				break;
-		}
+		const action = getUserMenuKeyAction(e.key, isOpen, selectedIndex, menuItemCount);
+		applyUserMenuKeyAction(action, {
+			preventDefault: () => e.preventDefault(),
+			move: (index) => {
+				selectedIndex = index;
+				focusItem(index);
+			},
+			close: (restoreFocus) => closeMenu(restoreFocus)
+		});
 	}
 
 	function focusItem(index: number) {
