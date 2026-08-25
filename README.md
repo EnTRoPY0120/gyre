@@ -18,7 +18,7 @@
 - 🌐 **Multi-Cluster** - Manage multiple Kubernetes clusters
 - 🔐 **Built-in Security** - RBAC plus local login, GitHub, Google, GitLab, and generic OIDC/OAuth2 auth support
 - ⚡ **Real-time Updates** - Live resource monitoring via SSE
-- 📊 **Complete FluxCD Support** - All resource types supported
+- 📊 **GitOps Toolkit Resources** - Manage all 13 supported resources, including Flux image automation
 
 [See full feature list →](https://entropy0120.github.io/gyre/features)
 
@@ -35,7 +35,7 @@ The most natural way to install Gyre is by using Flux itself. Add this `HelmRele
 
 ```yaml
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
   name: gyre
@@ -93,13 +93,14 @@ docker run \
     -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e BETTER_AUTH_SECRET=$(openssl rand -hex 32) \
+    -e GYRE_METRICS_TOKEN=$(openssl rand -hex 32) \
     -v gyre-data:/data \
     -v ~/.kube/config:/app/.kube/config:ro \
     -p 3000:3000 \
     ghcr.io/entropy0120/gyre:latest
 ```
 
-_Note: Make sure your current context points to a valid cluster with Flux installed. Omit `ADMIN_PASSWORD` to let Gyre generate one, or set a strong password that satisfies the app password policy._
+_Note: Make sure your current context points to a valid cluster with Flux installed. The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or set a strong password that satisfies the app password policy. Generate the encryption keys once per environment and persist them securely; changing them can make stored data unreadable._
 
 ### Option 4: Local Demo Script
 

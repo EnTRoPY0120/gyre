@@ -74,6 +74,16 @@ GET /api/v1/auth/{providerId}/callback
 GET /api/v1/flux/{resourceType}?limit=50&offset=0&sortBy=name&sortOrder=asc
 ```
 
+The cluster-wide endpoint requires explicit cluster-wide read permission.
+
+### List Resources in a Namespace
+
+```http
+GET /api/v1/flux/{resourceType}/{namespace}
+```
+
+The namespace-scoped endpoint returns all resources of the requested type in that namespace and requires read permission for that resource type and namespace.
+
 ### Create Resource
 
 ```http
@@ -176,7 +186,19 @@ POST /api/v1/admin/k8s/clear-client-pool
 
 `PATCH /api/v1/admin/settings` is all-or-nothing. Unknown fields, invalid value types, invalid `auditRetentionDays`, and non-string `domainAllowlist` entries return `400` without persisting any setting. Settings locked by environment variables return `409` and name the locked field and owning env var instead of being silently ignored.
 
-## User Preferences
+## User Endpoints
+
+### Active Cluster
+
+These endpoints require an authenticated user. `GET` returns the current cluster selection and selectable clusters. `PUT` selects a cluster using a JSON body such as `{ "clusterId": "production" }`. `DELETE` clears the selection and returns to the in-cluster context.
+
+```http
+GET /api/v1/user/cluster
+PUT /api/v1/user/cluster
+DELETE /api/v1/user/cluster
+```
+
+### UI Preferences
 
 ```http
 POST /api/v1/user/preferences

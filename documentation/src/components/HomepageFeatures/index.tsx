@@ -41,12 +41,12 @@ const FeatureList: FeatureItem[] = [
 		)
 	},
 	{
-		title: 'Complete FluxCD Support',
+		title: 'GitOps Toolkit Resources',
 		icon: '⚡',
 		description: (
 			<>
-				Full support for all FluxCD resources including Kustomizations, HelmReleases, Sources, and
-				Notifications. Everything you need in one place.
+				Manage all 13 supported resources across Flux source, Kustomize, Helm, notification, and
+				image automation APIs from one interface.
 			</>
 		)
 	},

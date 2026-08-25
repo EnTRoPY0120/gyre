@@ -27,7 +27,7 @@ The most natural way to install Gyre is by using Flux itself. Add this `HelmRele
 
 ```yaml
 ---
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
   name: gyre
@@ -89,6 +89,7 @@ docker run \
     -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32) \
     -e BETTER_AUTH_SECRET=$(openssl rand -hex 32) \
+    -e GYRE_METRICS_TOKEN=$(openssl rand -hex 32) \
     -v gyre-data:/data \
     -v ~/.kube/config:/app/.kube/config:ro \
     -p 3000:3000 \
@@ -96,7 +97,7 @@ docker run \
 ```
 
 :::tip
-Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. `BETTER_AUTH_SECRET` is the session secret and may be regenerated on each deploy if you accept invalidating active sessions. `GYRE_ENCRYPTION_KEY`, `AUTH_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY` are data-encryption keys: generate them once per environment, store them securely, and rotate them only with a migration plan to avoid making existing gyre-data unreadable.
+The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. `BETTER_AUTH_SECRET` is the session secret and may be regenerated on each deploy if you accept invalidating active sessions. `GYRE_ENCRYPTION_KEY`, `AUTH_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY` are data-encryption keys: generate them once per environment, store them securely, and rotate them only with a migration plan to avoid making existing gyre-data unreadable.
 :::
 
 ### Option 4: Local Demo Script

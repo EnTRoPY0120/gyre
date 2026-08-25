@@ -24,6 +24,8 @@ The main dashboard provides a high-level view of cluster health and Flux resourc
 
 ### Supported FluxCD Resources
 
+Gyre manages these 13 supported GitOps Toolkit resources:
+
 **Source Controller:**
 
 - GitRepositories
@@ -45,6 +47,12 @@ The main dashboard provides a high-level view of cluster health and Flux resourc
 - Alerts
 - Providers
 - Receivers
+
+**Image Automation Controllers:**
+
+- ImageRepositories
+- ImagePolicies
+- ImageUpdateAutomations
 
 ### Resource Views
 
@@ -243,6 +251,7 @@ Create new resources with guided forms:
 - `/api/v1/flux/*` - Flux resource operations
 - `/api/v1/events` - SSE stream for real-time updates
 - `/api/v1/admin/*` - Admin settings, backups, and auth provider management
+- `/api/v1/user/cluster` - Get, select, or clear the active cluster
 - `/api/v1/user/preferences` - User-level UI preferences
 
 ## Security
