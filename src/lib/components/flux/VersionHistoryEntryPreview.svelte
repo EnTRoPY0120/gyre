@@ -10,20 +10,27 @@
 		expanded: boolean;
 		onToggle: () => void;
 	} = $props();
+
+	let hasPreview = $derived(Boolean(entry.readyReason || entry.readyMessage || entry.errorMessage));
+	let readyMessagePreview = $derived(entry.readyMessage?.substring(0, 100));
+	let errorMessagePreview = $derived(
+		!entry.readyMessage ? entry.errorMessage?.substring(0, 100) : undefined
+	);
+	let showToggle = $derived(Boolean((entry.readyMessage?.length ?? 0) > 100 || entry.errorMessage));
 </script>
 
-{#if entry.readyReason || entry.readyMessage || entry.errorMessage}
+{#if hasPreview}
 	<p class="mt-2 text-sm text-gray-700 dark:text-gray-300">
 		{#if entry.readyReason}
 			<span class="font-medium">{entry.readyReason}:</span>
 		{/if}
-		{#if entry.readyMessage}
-			{entry.readyMessage?.substring(0, 100)}
+		{#if readyMessagePreview}
+			{readyMessagePreview}
 		{/if}
-		{#if entry.errorMessage && !entry.readyMessage}
-			<span class="text-red-600 dark:text-red-400">{entry.errorMessage.substring(0, 100)}</span>
+		{#if errorMessagePreview}
+			<span class="text-red-600 dark:text-red-400">{errorMessagePreview}</span>
 		{/if}
-		{#if (entry.readyMessage && entry.readyMessage.length > 100) || entry.errorMessage}
+		{#if showToggle}
 			<button
 				onclick={onToggle}
 				class="ml-1 text-primary hover:underline"
