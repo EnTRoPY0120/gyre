@@ -3,8 +3,9 @@
 	import { Plus, Trash2 } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import type { ReferenceOption } from './reference-fetch';
-import ArrayFieldObjectItem from './ArrayFieldObjectItem.svelte';
+	import ArrayFieldObjectItem from './ArrayFieldObjectItem.svelte';
 	import type { TemplateField } from '$lib/templates';
+	import { synchronizeArrayFieldItems, type ArrayFieldItem } from './array-field-items';
 
 	let {
 		value = $bindable([]),
@@ -23,19 +24,13 @@ import ArrayFieldObjectItem from './ArrayFieldObjectItem.svelte';
 	} = $props();
 
 	// Internal state with stable IDs for the each loop
-	let items = $state<{ id: string; val: unknown }[]>([]);
+	let items = $state<ArrayFieldItem[]>([]);
 
 	// Synchronize items with external value changes
 	$effect(() => {
-		const newItems = value.map((v, i) => {
-			const existingItem = items[i];
-			// If value at this index is the same as internal val, keep the ID
-			if (existingItem && JSON.stringify(existingItem.val) === JSON.stringify(v)) {
-				return existingItem;
-			}
-			// Otherwise create a new entry (preferring existing ID if structure matches)
-			return { id: existingItem?.id || Math.random().toString(36).substring(2, 11), val: v };
-		});
+		const newItems = synchronizeArrayFieldItems(value, items, () =>
+			Math.random().toString(36).substring(2, 11)
+		);
 
 		if (JSON.stringify(newItems.map((i) => i.val)) !== JSON.stringify(items.map((i) => i.val))) {
 			items = newItems;

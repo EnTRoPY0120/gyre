@@ -17,6 +17,7 @@ import {
 	getDesiredResourceComparison,
 	type DesiredResourceComparison
 } from './resource-diff-helpers.js';
+import { getSourceControllerPodName } from './source-controller-pod.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -225,20 +226,6 @@ export async function downloadArtifact(url: string, timeoutMs = 15000): Promise<
 			reject(new Error(`Request timeout after ${timeoutMs}ms`));
 		});
 	});
-}
-
-function getSourceControllerPodName(pods: k8s.V1PodList, namespace: string): string {
-	const pod = pods.items?.[0];
-	if (!pod) {
-		throw new Error(`No source-controller pod found in ${namespace} namespace`);
-	}
-
-	const podName = pod.metadata?.name;
-	if (!podName) {
-		throw new Error('source-controller pod has no name');
-	}
-
-	return podName;
 }
 
 function normalizeProxyResponse(response: Buffer | string): Buffer {

@@ -18,6 +18,7 @@ import {
 	parseBatchOperationRequestBody,
 	validateBatchResource
 } from '../lib/server/flux/use-cases/batch-operation.js';
+import { getSourceControllerPodName } from '../lib/server/flux/use-cases/source-controller-pod.js';
 import { MAX_BATCH_SIZE } from '../lib/server/config/limits.js';
 
 function jsonRequest(body: unknown) {
@@ -42,6 +43,21 @@ function expectHttpError(errorPromise: Promise<unknown>, status: number, message
 }
 
 describe('Flux diff use-case helpers', () => {
+	test('selects the source-controller pod and reports malformed pod lists', () => {
+		expect(
+			getSourceControllerPodName(
+				{ items: [{ metadata: { name: 'source-controller-1' } }] },
+				'flux-system'
+			)
+		).toBe('source-controller-1');
+		expect(() => getSourceControllerPodName({ items: [] }, 'flux-system')).toThrow(
+			'No source-controller pod found in flux-system namespace'
+		);
+		expect(() => getSourceControllerPodName({ items: [{ metadata: {} }] }, 'flux-system')).toThrow(
+			'source-controller pod has no name'
+		);
+	});
+
 	test('selects the existing cache-control values', () => {
 		expect(getDiffCacheControl(false)).toBe('max-age=60, private');
 		expect(getDiffCacheControl(true)).toBe('no-store, private');

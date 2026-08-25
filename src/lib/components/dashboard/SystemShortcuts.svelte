@@ -3,19 +3,16 @@
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { resourceGroups } from '$lib/config/resources';
+	import { getSystemShortcut } from './system-shortcuts';
 
-	// Helper to find primary route and icon for a group name
-	function getShortcut(groupName: string, fallbackRoute: string, fallbackIcon: string) {
-		const group = resourceGroups.find((g) => g.name === groupName);
-		return {
-			route: group?.primaryRoute ? `/resources/${group.primaryRoute}` : fallbackRoute,
-			icon: group?.icon || fallbackIcon
-		};
-	}
-
-	const sourcesShortcut = getShortcut('Sources', '/resources/gitrepositories', 'git-branch');
-	const kustomizeShortcut = getShortcut('Kustomize', '/resources/kustomizations', 'file-cog');
-	const helmShortcut = getShortcut('Helm', '/resources/helmreleases', 'ship');
+	const sourcesShortcut = getSystemShortcut(resourceGroups, 'Sources', '/resources/gitrepositories', 'git-branch');
+	const kustomizeShortcut = getSystemShortcut(
+		resourceGroups,
+		'Kustomize',
+		'/resources/kustomizations',
+		'file-cog'
+	);
+	const helmShortcut = getSystemShortcut(resourceGroups, 'Helm', '/resources/helmreleases', 'ship');
 	const isAdmin = $derived($page.data.user?.role === 'admin');
 </script>
 
