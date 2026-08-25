@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Icon from '$lib/components/ui/Icon.svelte';
+	import CommandPaletteHighlight from './CommandPaletteHighlight.svelte';
 	import type { SearchResult } from './CommandPaletteTypes';
 
 	let {
@@ -13,6 +14,12 @@
 		onSelect: () => void;
 		onHover: () => void;
 	} = $props();
+
+	let labelHighlightClass = $derived(result.labelKeyword ? 'text-amber-300' : 'text-sky-300');
+	let descriptionHighlightClass = $derived(
+		result.descKeyword ? 'text-amber-400' : 'text-sky-400'
+	);
+	let descriptionClass = $derived(selected ? 'text-zinc-400' : 'text-zinc-500');
 </script>
 
 <button
@@ -27,33 +34,17 @@
 	<Icon name={result.item.icon} size={16} class="shrink-0 opacity-70" />
 	<div class="flex flex-1 flex-col gap-0.5 text-left">
 		<span class="font-medium">
-			{#each result.labelSegments as segment}
-				{#if segment.highlighted}
-					<mark
-						class="rounded-sm bg-transparent px-0 font-semibold not-italic {result.labelKeyword
-							? 'text-amber-300'
-							: 'text-sky-300'}"
-						>{segment.text}</mark
-					>
-				{:else}
-					{segment.text}
-				{/if}
-			{/each}
+			<CommandPaletteHighlight
+				segments={result.labelSegments}
+				highlightedClass="font-semibold {labelHighlightClass}"
+			/>
 		</span>
 		{#if result.item.description && result.descSegments}
-			<span class="text-xs {selected ? 'text-zinc-400' : 'text-zinc-500'}">
-				{#each result.descSegments as segment}
-					{#if segment.highlighted}
-						<mark
-							class="rounded-sm bg-transparent px-0 not-italic {result.descKeyword
-								? 'text-amber-400'
-								: 'text-sky-400'}"
-							>{segment.text}</mark
-						>
-					{:else}
-						{segment.text}
-					{/if}
-				{/each}
+			<span class="text-xs {descriptionClass}">
+				<CommandPaletteHighlight
+					segments={result.descSegments}
+					highlightedClass={descriptionHighlightClass}
+				/>
 			</span>
 		{/if}
 	</div>
