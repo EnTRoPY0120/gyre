@@ -1,10 +1,16 @@
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
 	buildWizardFormValues,
 	getWizardValueAtPath,
-	inferVirtualFieldValue
+	inferVirtualFieldValue,
+	mergeWizardFormValues
 } from '../lib/components/wizards/wizard-values.js';
+import {
+	getWizardYamlError,
+	removeEmptyWizardFieldValue
+} from '../lib/components/wizards/wizard-yaml.js';
 import type { ResourceTemplate, TemplateField } from '../lib/templates/types.js';
+import { parseDocument } from 'yaml';
 
 const fields: TemplateField[] = [
 	{
@@ -92,5 +98,51 @@ describe('buildWizardFormValues', () => {
 			refType: 'tag',
 			fallback: 'default-value'
 		});
+	});
+});
+
+describe('mergeWizardFormValues', () => {
+	test('updates concrete values and preserves virtual defaults', () => {
+		const values = mergeWizardFormValues(
+			template,
+			{ metadata: {}, spec: { ref: { branch: 'main' } } },
+			{ fallback: undefined, untouched: 'keep' }
+		);
+
+		expect(values).toMatchObject({
+			gitBranch: 'main',
+			refType: 'branch',
+			fallback: 'default-value'
+		});
+		expect(values.untouched).toBe('keep');
+	});
+});
+
+describe('wizard YAML policies', () => {
+	test('formats YAML parser errors for the editor', () => {
+		const document = parseDocument('[');
+		const yamlError = document.errors[0];
+		expect(getWizardYamlError(yamlError)).toMatch(/^YAML Syntax Error:/);
+		expect(getWizardYamlError(new Error('other'))).toBe('Invalid YAML syntax');
+	});
+
+	test('removes optional verification and numeric fields when empty', () => {
+		const doc = { deleteIn: vi.fn() };
+		const verifyField = {
+			name: 'verifyMode',
+			path: 'spec.verify.mode',
+			type: 'string'
+		} as TemplateField;
+		const numberField = {
+			name: 'replicas',
+			path: 'spec.replicas',
+			type: 'number'
+		} as TemplateField;
+
+		expect(removeEmptyWizardFieldValue(doc, verifyField, '')).toBe(true);
+		expect(removeEmptyWizardFieldValue(doc, numberField, undefined)).toBe(true);
+		expect(doc.deleteIn).toHaveBeenNthCalledWith(1, ['spec', 'verify']);
+		expect(doc.deleteIn).toHaveBeenNthCalledWith(2, ['spec', 'replicas']);
+		expect(removeEmptyWizardFieldValue(doc, numberField, 2)).toBe(false);
 	});
 });

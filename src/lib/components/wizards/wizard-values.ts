@@ -58,6 +58,31 @@ export function buildWizardFormValues(
 	return values;
 }
 
+/** Merge values parsed from edited YAML into the current wizard form state. */
+export function mergeWizardFormValues(
+	template: ResourceTemplate,
+	source: Record<string, unknown>,
+	currentValues: Record<string, unknown>
+): Record<string, unknown> {
+	const values: Record<string, unknown> = { ...currentValues };
+
+	for (const field of template.fields) {
+		if (field.virtual) {
+			const manifestValue = inferVirtualFieldValue(field, template.fields, source);
+			if (manifestValue !== undefined) {
+				values[field.name] = manifestValue;
+			} else if (values[field.name] === undefined && field.default !== undefined) {
+				values[field.name] = field.default;
+			}
+			continue;
+		}
+
+		values[field.name] = coerceWizardFieldValue(field, getWizardValueAtPath(source, field.path));
+	}
+
+	return values;
+}
+
 /** Infer a virtual selector from the first populated field that controls it. */
 export function inferVirtualFieldValue(
 	field: TemplateField,

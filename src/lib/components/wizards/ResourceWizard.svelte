@@ -5,7 +5,7 @@
 	import WizardPreview from '$lib/components/wizards/WizardPreview.svelte';
 	import type { ResourceTemplate, TemplateField } from '$lib/templates';
 	import { logger } from '$lib/utils/logger.js';
-	import { parse, parseDocument, YAMLError } from 'yaml';
+	import { parse, parseDocument } from 'yaml';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import {
 		coerceWizardFieldValue,
@@ -15,9 +15,9 @@
 	import { createResourceFromWizard, getWizardResourceRedirect } from './resource-submit';
 	import {
 		buildWizardFormValues,
-		getWizardValueAtPath,
-		inferVirtualFieldValue
+		mergeWizardFormValues
 	} from './wizard-values';
+import { getWizardYamlError, removeEmptyWizardFieldValue } from './wizard-yaml';
 
 	let {
 		template,
@@ -70,11 +70,7 @@
 				parse(currentYaml);
 				yamlError = null;
 			} catch (err) {
-				if (err instanceof YAMLError) {
-					yamlError = `YAML Syntax Error: ${err.message}`;
-				} else {
-					yamlError = 'Invalid YAML syntax';
-				}
+				yamlError = getWizardYamlError(err);
 			}
 		}
 	});
@@ -142,16 +138,7 @@
 		field: TemplateField,
 		value: unknown
 	): boolean {
-		const path = field.path.split('.');
-		if (field.name === 'verifyMode' && value === '') {
-			doc.deleteIn(path.slice(0, -1));
-			return true;
-		}
-		if (field.type === 'number' && value === undefined) {
-			doc.deleteIn(path);
-			return true;
-		}
-		return false;
+			return removeEmptyWizardFieldValue(doc, field, value);
 	}
 
 	// Synchronize form values when YAML changes (YAML -> Wizard)
@@ -159,28 +146,9 @@
 		try {
 			const parsed = parse(currentYaml) as Record<string, unknown>;
 			yamlError = null;
-			const values: Record<string, unknown> = { ...formValues };
-
-			template.fields.forEach((field) => {
-				if (field.virtual) {
-				const manifestValue = inferVirtualFieldValue(field, template.fields, parsed);
-					if (manifestValue !== undefined) {
-						values[field.name] = manifestValue;
-					} else if (values[field.name] === undefined && field.default !== undefined) {
-						values[field.name] = field.default;
-					}
-					return;
-				}
-
-				values[field.name] = coerceFieldValue(field, getWizardValueAtPath(parsed, field.path));
-			});
-			formValues = values;
+			formValues = mergeWizardFormValues(template, parsed, formValues);
 		} catch (err) {
-			if (err instanceof YAMLError) {
-				yamlError = `YAML Syntax Error: ${err.message}`;
-			} else {
-				yamlError = 'Invalid YAML syntax';
-			}
+			yamlError = getWizardYamlError(err);
 		}
 	}
 
