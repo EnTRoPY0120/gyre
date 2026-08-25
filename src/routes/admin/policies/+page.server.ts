@@ -3,8 +3,6 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
 	getAllPoliciesPaginated,
-	createPolicy,
-	deletePolicy,
 	getAllUserPolicies,
 	bindPolicyToUser,
 	unbindPolicyFromUser,
@@ -20,15 +18,11 @@ import {
 	serializePagination
 } from '../server-helpers';
 import type { User } from '$lib/server/db/schema';
-
-interface PolicyCreateFormInput {
-	name: string;
-	description: string;
-	role: 'admin' | 'editor' | 'viewer';
-	action: RbacAction;
-	resourceType: string;
-	namespacePattern: string;
-}
+import {
+	createPolicyAndLog,
+	deletePolicyAndLog,
+	type PolicyCreateFormInput
+} from './policy-actions';
 
 function readPolicyCreateInput(formData: FormData): PolicyCreateFormInput {
 	return {
@@ -39,31 +33,6 @@ function readPolicyCreateInput(formData: FormData): PolicyCreateFormInput {
 		resourceType: formData.get('resourceType') as string,
 		namespacePattern: formData.get('namespacePattern') as string
 	};
-}
-
-async function createPolicyAndLog(user: User, input: PolicyCreateFormInput) {
-	try {
-		const policyId = await createPolicy({
-			name: input.name,
-			description: input.description || undefined,
-			role: input.role,
-			action: input.action,
-			resourceType: input.resourceType || undefined,
-			namespacePattern: input.namespacePattern || undefined
-		});
-
-		await logRbacChange(user, 'create', input.name, undefined, {
-			role: input.role,
-			action: input.action,
-			resourceType: input.resourceType,
-			namespacePattern: input.namespacePattern
-		});
-
-		return { success: true, policyId };
-	} catch (error) {
-		logger.error(error, 'Error creating policy:');
-		return fail(500, { error: 'Failed to create policy' });
-	}
 }
 
 async function bindPolicyAndLog(user: User, userId: string, policyId: string, policyName: string) {
@@ -168,16 +137,7 @@ export const actions: Actions = {
 		if (typeof policyId !== 'string') return policyId;
 		const policyName = formData.get('policyName') as string;
 
-		try {
-			await deletePolicy(policyId);
-
-			await logRbacChange(user, 'delete', policyName || 'unknown', undefined, { policyId });
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error deleting policy:');
-			return fail(500, { error: 'Failed to delete policy' });
-		}
+		return deletePolicyAndLog(user, policyId, policyName);
 	},
 
 	/**
