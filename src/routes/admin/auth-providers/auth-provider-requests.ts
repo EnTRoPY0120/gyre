@@ -1,4 +1,6 @@
 import { getCsrfToken } from '$lib/utils/csrf';
+import type { AuthProviderFormData } from '$lib/components/admin/auth-provider';
+import { buildAuthProviderUpdates, normalizeRoleMappingForSave } from './form-helpers';
 
 function getMessageFromResponseData(data: unknown, fallbackMessage: string): string {
 	const message = (data as { message?: unknown } | null)?.message;
@@ -34,4 +36,25 @@ export async function requestAuthProviderMutation(
 	if (response.ok) return;
 
 	throw new Error(await getMutationErrorMessage(response, fallbackMessage));
+}
+
+type AuthProviderMutationRequester = typeof requestAuthProviderMutation;
+
+export async function updateAuthProvider(
+	providerId: string,
+	formData: AuthProviderFormData,
+	request: AuthProviderMutationRequester = requestAuthProviderMutation
+): Promise<void> {
+	const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
+	const updates = buildAuthProviderUpdates(formData, roleMapping);
+
+	await request(
+		`/api/v1/admin/auth-providers/${providerId}`,
+		{
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(updates)
+		},
+		'Failed to update provider'
+	);
 }

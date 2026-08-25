@@ -15,7 +15,7 @@
 		type AuthProviderSummary
 	} from '$lib/components/admin/auth-provider';
 	import { logger } from '$lib/utils/logger.js';
-	import { requestAuthProviderMutation } from './auth-provider-requests';
+import { requestAuthProviderMutation, updateAuthProvider } from './auth-provider-requests';
 	import {
 		buildAuthProviderCreateBody,
 		buildAuthProviderUpdates,
@@ -119,14 +119,7 @@
 		loading = true;
 
 		try {
-			const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
-			const updates = buildAuthProviderUpdates(formData, roleMapping);
-
-			await requestAuthProviderMutation(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(updates)
-			}, 'Failed to update provider');
+			await updateAuthProvider(selectedProvider.id, formData);
 
 			success = 'Provider updated successfully';
 			await invalidateAll();
