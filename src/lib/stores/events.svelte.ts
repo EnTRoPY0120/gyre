@@ -26,6 +26,7 @@ import type {
 import {
 	getEventControlAction,
 	buildNotification,
+	getNotificationStateChangeMessage,
 	prepareNotification,
 	type NotificationCandidate,
 	type EventControlAction,
@@ -344,15 +345,7 @@ class RealtimeStore {
 	}
 
 	private logNotificationStateChange(event: ResourceEvent, candidate: NotificationCandidate) {
-		if (candidate.previousState) {
-			logger.debug(
-				`[Notification] State change for ${candidate.resourceKey}: revision "${candidate.previousState.revision || 'none'}" -> "${candidate.currentState.revision || 'none'}", ready: ${candidate.currentState.readyStatus}`
-			);
-		} else {
-			logger.debug(
-				`[Notification] New notification for ${candidate.resourceKey}: ${event.type}, revision: ${candidate.currentState.revision || 'none'}`
-			);
-		}
+		logger.debug(getNotificationStateChangeMessage(event, candidate));
 	}
 
 	private storeNotification(event: ResourceEvent, candidate: NotificationCandidate) {

@@ -4,6 +4,7 @@ import {
 	getNotificationKey,
 	getNotificationMessage,
 	getNotificationState,
+	getNotificationStateChangeMessage,
 	getNotificationTitle,
 	getNotificationType,
 	getEventControlAction,
@@ -131,5 +132,23 @@ describe('notification helpers', () => {
 			isDuplicate: true,
 			previousState: currentState
 		});
+	});
+
+	test('formats new and changed notification state log messages', () => {
+		const currentState = getNotificationState(event, 20);
+		const newCandidate = prepareNotification(event, new Map(), () => true, 20, 'in-cluster');
+		expect(newCandidate).not.toBeNull();
+		if (!newCandidate) throw new Error('Expected a notification candidate');
+		expect(getNotificationStateChangeMessage(event, newCandidate)).toBe(
+			'[Notification] New notification for cluster-a/Kustomization/flux-system/app: MODIFIED, revision: none'
+		);
+
+		const changedCandidate = {
+			...newCandidate,
+			previousState: { ...currentState, revision: 'rev-1' }
+		};
+		expect(getNotificationStateChangeMessage(event, changedCandidate)).toContain(
+			'[Notification] State change for cluster-a/Kustomization/flux-system/app: revision "rev-1" -> "none"'
+		);
 	});
 });

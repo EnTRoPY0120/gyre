@@ -199,6 +199,17 @@ export function prepareNotification(
 	};
 }
 
+export function getNotificationStateChangeMessage(
+	event: ResourceEvent,
+	candidate: NotificationCandidate
+): string {
+	if (candidate.previousState) {
+		return `[Notification] State change for ${candidate.resourceKey}: revision "${candidate.previousState.revision || 'none'}" -> "${candidate.currentState.revision || 'none'}", ready: ${candidate.currentState.readyStatus}`;
+	}
+
+	return `[Notification] New notification for ${candidate.resourceKey}: ${event.type}, revision: ${candidate.currentState.revision || 'none'}`;
+}
+
 export function buildNotification(
 	event: ResourceEvent,
 	clusterId: string,
