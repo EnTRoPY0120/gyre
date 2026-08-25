@@ -86,6 +86,93 @@ export const _metadata = {
 	}
 };
 
+function requireBackupFile(formData: FormData): File {
+	const file = formData.get('file');
+	if (!file || !(file instanceof File)) {
+		throw error(400, { message: 'No file uploaded', code: 'BadRequest' });
+	}
+
+	return file;
+}
+
+function validateBackupFile(file: File): void {
+	if (!isAllowedBackupExtension(file.name)) {
+		throw error(400, {
+			message: 'Invalid file type. Only .db and .db.enc files are accepted.',
+			code: 'BadRequest'
+		});
+	}
+
+	// Browsers may omit the type or send application/octet-stream, but reject
+	// content types that cannot represent a SQLite backup.
+	if (!isAllowedBackupMimeType(file.type)) {
+		throw error(400, {
+			message: 'Invalid content type. Expected a binary database file.',
+			code: 'BadRequest'
+		});
+	}
+
+	if (file.size > REQUEST_LIMITS.BACKUP_RESTORE) {
+		throw error(413, {
+			message: `File too large. Maximum size is ${formatSize(REQUEST_LIMITS.BACKUP_RESTORE)}, received ${formatSize(file.size)}`,
+			code: 'PayloadTooLarge'
+		});
+	}
+}
+
+async function restoreBackupFile(file: File) {
+	const buffer = Buffer.from(await file.arrayBuffer());
+	const restoreBuffer = getDecryptedBackupBufferFromBuffer(file.name, buffer);
+	return await restoreFromBuffer(restoreBuffer);
+}
+
+async function writeRestoreAudit(
+	user: Awaited<ReturnType<typeof requirePrivilegedAdminPermission>>,
+	file: File,
+	result: Awaited<ReturnType<typeof restoreFromBuffer>>
+): Promise<void> {
+	try {
+		await logPrivilegedMutationSuccess({
+			action: 'backup:restore',
+			user,
+			resourceType: 'DatabaseBackup',
+			name: sanitizeFilename(file.name),
+			details: {
+				uploadedSize: file.size,
+				restoredSize: result.sizeBytes
+			}
+		});
+	} catch (auditErr) {
+		logger.warn(auditErr, 'Failed to write backup restore audit event');
+	}
+}
+
+function isClientError(errorValue: unknown): errorValue is { status: number } {
+	if (errorValue === null || typeof errorValue !== 'object' || !('status' in errorValue)) {
+		return false;
+	}
+
+	const status = (errorValue as { status: unknown }).status;
+	return typeof status === 'number' && status >= 400 && status < 500;
+}
+
+function throwRestoreError(restoreError: unknown): never {
+	if (restoreError instanceof BackupError) {
+		logger.error(restoreError, 'Backup restore error:');
+		const code = restoreError.status === 400 ? 'BadRequest' : 'InternalServerError';
+		const message =
+			code !== 'InternalServerError' ? restoreError.message : 'Failed to restore backup';
+		throw error(restoreError.status, { message, code });
+	}
+
+	if (isClientError(restoreError)) {
+		throw restoreError;
+	}
+
+	logger.error(restoreError, 'Failed to restore backup:');
+	throw error(500, { message: 'Failed to restore backup', code: 'InternalServerError' });
+}
+
 export const POST: RequestHandler = async ({ locals, request, setHeaders }) => {
 	const user = await requirePrivilegedAdminPermission(
 		{ ...locals, cluster: undefined },
@@ -94,58 +181,10 @@ export const POST: RequestHandler = async ({ locals, request, setHeaders }) => {
 	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
 	try {
-		const formData = await request.formData();
-		const file = formData.get('file');
-
-		if (!file || !(file instanceof File)) {
-			throw error(400, { message: 'No file uploaded', code: 'BadRequest' });
-		}
-
-		// Validate file extension
-		if (!isAllowedBackupExtension(file.name)) {
-			throw error(400, {
-				message: 'Invalid file type. Only .db and .db.enc files are accepted.',
-				code: 'BadRequest'
-			});
-		}
-
-		// Validate MIME type — only allow known SQLite backup content types
-		// (browsers may omit the type or send application/octet-stream)
-		if (!isAllowedBackupMimeType(file.type)) {
-			throw error(400, {
-				message: 'Invalid content type. Expected a binary database file.',
-				code: 'BadRequest'
-			});
-		}
-
-		// Validate file size
-		if (file.size > REQUEST_LIMITS.BACKUP_RESTORE) {
-			throw error(413, {
-				message: `File too large. Maximum size is ${formatSize(REQUEST_LIMITS.BACKUP_RESTORE)}, received ${formatSize(file.size)}`,
-				code: 'PayloadTooLarge'
-			});
-		}
-
-		const arrayBuffer = await file.arrayBuffer();
-		const buffer = Buffer.from(arrayBuffer);
-		const restoreBuffer = getDecryptedBackupBufferFromBuffer(file.name, buffer);
-
-		const result = await restoreFromBuffer(restoreBuffer);
-
-		try {
-			await logPrivilegedMutationSuccess({
-				action: 'backup:restore',
-				user,
-				resourceType: 'DatabaseBackup',
-				name: sanitizeFilename(file.name),
-				details: {
-					uploadedSize: file.size,
-					restoredSize: result.sizeBytes
-				}
-			});
-		} catch (auditErr) {
-			logger.warn(auditErr, 'Failed to write backup restore audit event');
-		}
+		const file = requireBackupFile(await request.formData());
+		validateBackupFile(file);
+		const result = await restoreBackupFile(file);
+		await writeRestoreAudit(user, file, result);
 
 		return json({
 			success: true,
@@ -154,20 +193,6 @@ export const POST: RequestHandler = async ({ locals, request, setHeaders }) => {
 			backup: result
 		});
 	} catch (err) {
-		if (err instanceof BackupError) {
-			logger.error(err, 'Backup restore error:');
-			const code = err.status === 400 ? 'BadRequest' : 'InternalServerError';
-			const message = code !== 'InternalServerError' ? err.message : 'Failed to restore backup';
-			throw error(err.status, { message, code });
-		}
-		const status =
-			err !== null && typeof err === 'object' && 'status' in err
-				? (err as { status: unknown }).status
-				: undefined;
-		if (typeof status === 'number' && status >= 400 && status < 500) {
-			throw err;
-		}
-		logger.error(err, 'Failed to restore backup:');
-		throw error(500, { message: 'Failed to restore backup', code: 'InternalServerError' });
+		throwRestoreError(err);
 	}
 };
