@@ -9,7 +9,7 @@ export type DesiredResourceComparison = {
 	plural: string;
 };
 
-export function pluralForKind(kind: string): string {
+function pluralForKind(kind: string): string {
 	const fluxDefs = Object.values(FLUX_RESOURCES) as Array<{ kind: string; plural: string }>;
 	const fluxDef = fluxDefs.find((resource) => resource.kind === kind);
 	if (fluxDef) return fluxDef.plural;

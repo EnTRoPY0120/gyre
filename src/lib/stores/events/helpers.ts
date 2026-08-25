@@ -125,7 +125,7 @@ export function getNotificationMessage(event: ResourceEvent): string {
 		: `${name} in ${namespace}`;
 }
 
-export function getRevisionFromResource(resource: ResourceEvent['resource']): string | undefined {
+function getRevisionFromResource(resource: ResourceEvent['resource']): string | undefined {
 	if (!resource?.status) return undefined;
 	const status = resource.status as Record<string, unknown>;
 	return (

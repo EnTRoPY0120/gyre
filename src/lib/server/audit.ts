@@ -201,6 +201,7 @@ export async function getAuditLogsPaginated(
 /**
  * Clean up old audit logs based on retention policy
  */
+// fallow-ignore-next-line unused-export -- dynamically imported by audit cleanup tests
 export async function cleanupOldAuditLogs(): Promise<number> {
 	try {
 		const db = getDbSync();
