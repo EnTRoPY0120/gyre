@@ -117,6 +117,7 @@ The referenced secret must provide:
 | `GYRE_POLL_INTERVAL_MS`                | Kubernetes polling interval                    | `5000`                                          |
 | `GYRE_HEARTBEAT_INTERVAL_MS`           | SSE heartbeat interval                         | `30000`                                         |
 | `GYRE_DASHBOARD_CACHE_TTL_MS`          | Dashboard cache TTL                            | `30000`                                         |
+| `GYRE_ADMIN_READINESS_CACHE_TTL_MS`    | Admin-readiness dependency cache TTL           | `10000`                                         |
 | `GYRE_SETTLING_PERIOD_MS`              | Settling period for ADDED events               | `30000`                                         |
 | `GYRE_SETTINGS_CACHE_TTL_MS`           | Settings cache TTL                             | `30000`                                         |
 | `GYRE_MAX_LOCAL_BACKUPS`               | Max local backups retained                     | `10`                                            |
@@ -125,7 +126,7 @@ The referenced secret must provide:
 | `GYRE_SSE_MAX_CONNECTIONS_PER_USER`    | Max SSE connections per user                   | `5`                                             |
 | `GYRE_SSE_CONNECTION_TIMEOUT_MS`       | SSE connection lifetime (`0` disables timeout) | `0`                                             |
 
-### Auth Settings Overrides
+### Settings Overrides
 
 | Variable                                                     | Description                                                      |
 | ------------------------------------------------------------ | ---------------------------------------------------------------- |
@@ -134,6 +135,7 @@ The referenced secret must provide:
 | `GYRE_AUTH_DOMAIN_ALLOWLIST`                                 | JSON array of allowed signup domains                             |
 | `GYRE_AUTH_PROVIDERS`                                        | JSON array used to seed auth providers (no `clientSecret` field) |
 | `GYRE_AUTH_PROVIDER_<SANITIZED_PROVIDER_NAME>_CLIENT_SECRET` | Per-provider secret input for seeded providers                   |
+| `GYRE_AUDIT_LOG_RETENTION_DAYS`                              | Audit-log retention period in days (default: `90`)               |
 
 ## Helm-to-Env Mapping
 

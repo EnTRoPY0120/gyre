@@ -12,7 +12,7 @@ Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit. It provid
 
 **Deployment**: Production is Helm/GitOps-first and in-cluster. Local out-of-cluster mode is supported for development/testing. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
 
-**Current Status**: Core functionality complete with dashboard, all FluxCD resources, real-time updates, multi-cluster support, authentication/RBAC, Monaco Editor integration, and comprehensive resource templates with complete FluxCD CRD field coverage.
+**Current Status**: Core functionality includes a dashboard, management for all 13 supported GitOps Toolkit resources, real-time updates, multi-cluster support, authentication/RBAC, Monaco Editor integration, and guided resource templates.
 
 ## Common Commands
 
@@ -87,8 +87,18 @@ pnpm preview         # Preview production build locally
 
 # Docker build
 docker build -t gyre:local .
-docker run -p 3000:3000 -v $(pwd)/data:/data gyre:local
+docker run \
+    -e AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32) \
+    -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
+    -e BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32) \
+    -e BETTER_AUTH_SECRET=$(openssl rand -hex 32) \
+    -e GYRE_METRICS_TOKEN=$(openssl rand -hex 32) \
+    -v $(pwd)/data:/data \
+    -p 3000:3000 \
+    gyre:local
 ```
+
+The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Persist the three encryption keys across container restarts if you need to retain encrypted application data.
 
 ### Kind Helper Scripts
 

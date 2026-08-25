@@ -3,7 +3,7 @@
 Sources from an OCI registry.
 
 - **Group**: `source.toolkit.fluxcd.io`
-- **Version**: `v1beta2`
+- **Version**: `v1`
 
 ## Fields
 
@@ -19,7 +19,7 @@ Sources from an OCI registry.
 ## Example
 
 ```yaml
-apiVersion: source.toolkit.fluxcd.io/v1beta2
+apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
   name: example
