@@ -35,6 +35,45 @@ const BACKUP_STATUS_CODES: Record<number, string> = {
 	500: 'InternalServerError'
 };
 
+function downloadHeaders(filename: string, size: number): HeadersInit {
+	const safeFilename = filename.replace(/["\\\r\n]/g, '');
+	return {
+		'Content-Type': 'application/x-sqlite3',
+		'Content-Disposition': `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+		'Content-Length': String(size)
+	};
+}
+
+function createEncryptedDownloadResponse(filename: string): Response {
+	const buffer = getDecryptedBackupBuffer(filename);
+	if (!buffer) throw error(404, { message: 'Backup not found', code: 'NotFound' });
+
+	const safeFilename = filename.replace(/\.enc$/, '');
+	return new Response(buffer as unknown as BodyInit, {
+		status: 200,
+		headers: downloadHeaders(safeFilename, buffer.byteLength)
+	});
+}
+
+function createPlainDownloadResponse(filename: string): Response {
+	const filePath = getBackupPath(filename);
+	if (!filePath) throw error(404, { message: 'Backup not found', code: 'NotFound' });
+
+	const stat = statSync(filePath);
+	const stream = createReadStream(filePath);
+	const safeFilename = basename(filePath);
+	return new Response(stream as unknown as ReadableStream, {
+		status: 200,
+		headers: downloadHeaders(safeFilename, stat.size)
+	});
+}
+
+function createDownloadResponse(filename: string): Response {
+	return filename.endsWith('.db.enc')
+		? createEncryptedDownloadResponse(filename)
+		: createPlainDownloadResponse(filename);
+}
+
 export const _metadata = {
 	GET: {
 		summary: 'Download database backup',
@@ -95,61 +134,14 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	}
 
 	try {
-		if (filename.endsWith('.db.enc')) {
-			// Encrypted: buffer entirely so GCM auth tag can be verified before returning plaintext
-			const buffer = getDecryptedBackupBuffer(filename);
-			if (!buffer) {
-				throw error(404, { message: 'Backup not found', code: 'NotFound' });
-			}
-
-			const safeFilename = filename.replace(/\.enc$/, '');
-			const encodedFilename = encodeURIComponent(safeFilename);
-			const response = new Response(buffer as unknown as BodyInit, {
-				status: 200,
-				headers: {
-					'Content-Type': 'application/x-sqlite3',
-					'Content-Disposition': `attachment; filename="${safeFilename.replace(/["\\\r\n]/g, '')}"; filename*=UTF-8''${encodedFilename}`,
-					'Content-Length': String(buffer.byteLength)
-				}
-			});
-
-			await logPrivilegedMutationSuccess({
-				action: 'backup:download',
-				user,
-				resourceType: 'DatabaseBackup',
-				name: filename
-			});
-
-			return response;
-		} else {
-			// Unencrypted: stream directly for memory efficiency
-			const filePath = getBackupPath(filename);
-			if (!filePath) {
-				throw error(404, { message: 'Backup not found', code: 'NotFound' });
-			}
-
-			const stat = statSync(filePath);
-			const stream = createReadStream(filePath);
-			const safeFilename = basename(filePath);
-			const encodedFilename = encodeURIComponent(safeFilename);
-			const response = new Response(stream as unknown as ReadableStream, {
-				status: 200,
-				headers: {
-					'Content-Type': 'application/x-sqlite3',
-					'Content-Disposition': `attachment; filename="${safeFilename.replace(/["\\\r\n]/g, '')}"; filename*=UTF-8''${encodedFilename}`,
-					'Content-Length': String(stat.size)
-				}
-			});
-
-			await logPrivilegedMutationSuccess({
-				action: 'backup:download',
-				user,
-				resourceType: 'DatabaseBackup',
-				name: filename
-			});
-
-			return response;
-		}
+		const response = createDownloadResponse(filename);
+		await logPrivilegedMutationSuccess({
+			action: 'backup:download',
+			user,
+			resourceType: 'DatabaseBackup',
+			name: filename
+		});
+		return response;
 	} catch (err) {
 		await logPrivilegedMutationFailure({
 			action: 'backup:download',
