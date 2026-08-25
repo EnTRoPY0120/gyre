@@ -176,6 +176,58 @@ function validateSpecField(
 	validateEnumField(item, key, kind, fieldPath, content, markers, errorSeverity);
 }
 
+function validateSpecItem(
+	item: unknown,
+	kind: string,
+	content: string,
+	markers: Monaco.editor.IMarkerData[],
+	errorSeverity: number,
+	warnSeverity: number,
+	specPair: Pair,
+	parentPath: string
+): string | undefined {
+	if (!isPair(item) || !isScalar(item.key)) return undefined;
+
+	const key = String(item.key.value);
+	const fieldPath = parentPath ? `${parentPath}.${key}` : key;
+	validateSpecField(item, key, kind, fieldPath, content, markers, errorSeverity);
+
+	if (isMap(item.value)) {
+		validateSpecMap(
+			item.value,
+			kind,
+			content,
+			markers,
+			errorSeverity,
+			warnSeverity,
+			specPair,
+			fieldPath
+		);
+	}
+
+	return key;
+}
+
+function validateRequiredSpecFields(
+	kind: string,
+	presentKeys: Set<string>,
+	content: string,
+	markers: Monaco.editor.IMarkerData[],
+	warnSeverity: number,
+	specPair: Pair
+): void {
+	for (const required of KIND_REQUIRED_SPEC[kind] ?? []) {
+		if (presentKeys.has(required)) continue;
+		const marker = pairKeyMarker(
+			content,
+			specPair,
+			`Missing required spec field: "${required}"`,
+			warnSeverity
+		);
+		if (marker) markers.push(marker);
+	}
+}
+
 function validateSpecMap(
 	specMap: YAMLMap,
 	kind: string,
@@ -189,39 +241,21 @@ function validateSpecMap(
 	const presentKeys = new Set<string>();
 
 	for (const item of specMap.items) {
-		if (!isPair(item) || !isScalar(item.key)) continue;
-		const key = String(item.key.value);
-		presentKeys.add(key);
-
-		const fieldPath = parentPath ? `${parentPath}.${key}` : key;
-		validateSpecField(item, key, kind, fieldPath, content, markers, errorSeverity);
-
-		if (isMap(item.value)) {
-			validateSpecMap(
-				item.value,
-				kind,
-				content,
-				markers,
-				errorSeverity,
-				warnSeverity,
-				specPair,
-				fieldPath
-			);
-		}
+		const key = validateSpecItem(
+			item,
+			kind,
+			content,
+			markers,
+			errorSeverity,
+			warnSeverity,
+			specPair,
+			parentPath
+		);
+		if (key !== undefined) presentKeys.add(key);
 	}
 
-	if (!parentPath) {
-		for (const required of KIND_REQUIRED_SPEC[kind] ?? []) {
-			if (presentKeys.has(required)) continue;
-			const marker = pairKeyMarker(
-				content,
-				specPair,
-				`Missing required spec field: "${required}"`,
-				warnSeverity
-			);
-			if (marker) markers.push(marker);
-		}
-	}
+	if (!parentPath)
+		validateRequiredSpecFields(kind, presentKeys, content, markers, warnSeverity, specPair);
 }
 
 type ManifestFields = {
