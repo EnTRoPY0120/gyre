@@ -3,7 +3,6 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
 	getAllClustersPaginated,
-	createCluster,
 	updateCluster,
 	deleteCluster,
 	testClusterConnection,
@@ -14,18 +13,12 @@ import { invalidateDashboardCache } from '$lib/server/dashboard-cache';
 import { clearClientPool } from '$lib/server/kubernetes/client.js';
 import { parseAdminPagination } from '../pagination';
 import { validateClusterCreateInput } from './create-validation';
+import { createClusterAndLog, type ClusterCreateInput } from './create-cluster';
 import {
 	getRequiredFormString,
 	requireAdminFormUser,
 	serializePagination
 } from '../server-helpers';
-import type { User } from '$lib/server/db/schema';
-
-interface ClusterCreateInput {
-	name: string;
-	description: string;
-	kubeconfig: string;
-}
 
 function readClusterCreateInput(formData: FormData): ClusterCreateInput {
 	return {
@@ -33,30 +26,6 @@ function readClusterCreateInput(formData: FormData): ClusterCreateInput {
 		description: formData.get('description') as string,
 		kubeconfig: formData.get('kubeconfig') as string
 	};
-}
-
-async function createClusterAndLog(user: User, input: ClusterCreateInput) {
-	try {
-		const cluster = await createCluster({
-			name: input.name,
-			description: input.description || undefined,
-			kubeconfig: input.kubeconfig,
-			isLocal: true
-		});
-
-		await logClusterChange(user, 'create', input.name, {
-			clusterId: cluster.id,
-			contextCount: cluster.contextCount
-		});
-
-		return { success: true, cluster };
-	} catch (error) {
-		logger.error(error, 'Error creating cluster:');
-		if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
-			return fail(400, { error: 'A cluster with this name already exists' });
-		}
-		return fail(500, { error: 'Failed to create cluster' });
-	}
 }
 
 /**
