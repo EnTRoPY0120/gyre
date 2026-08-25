@@ -21,7 +21,8 @@ function createResponseContext(res: http.IncomingMessage, chunks: Buffer[]): k8s
 
 	return new k8s.ResponseContext(res.statusCode ?? 0, responseHeaders, {
 		binary: async () => buffer,
-		text: async () => buffer.toString('utf-8')
+		text: async () => buffer.toString('utf-8'),
+		stream: () => null
 	});
 }
 
@@ -68,7 +69,7 @@ class NodeHttpLibrary implements k8s.PromiseHttpLibrary {
 			const transport = url.protocol === 'https:' ? https : http;
 			const body = request.getBody();
 			const headers = { ...request.getHeaders() };
-			const agent = request.getAgent();
+			const agent = url.protocol === 'https:' ? httpsAgent : httpAgent;
 
 			const req = transport.request(
 				url,
@@ -138,7 +139,6 @@ export function makeApiClientWithTimeout<T extends k8s.ApiType>(
 	const cluster = kubeConfig.getCurrentCluster();
 	if (!cluster) throw new Error('No active cluster!');
 	const baseServerConfig = new k8s.ServerConfiguration(cluster.server, {});
-	const agent = cluster.server.startsWith('https:') ? httpsAgent : httpAgent;
 
 	const config = k8s.createConfiguration({
 		baseServer: baseServerConfig,
@@ -147,9 +147,6 @@ export function makeApiClientWithTimeout<T extends k8s.ApiType>(
 		promiseMiddleware: [
 			{
 				pre: async (ctx: k8s.RequestContext) => {
-					if (!ctx.getAgent()) {
-						ctx.setAgent(agent);
-					}
 					return _createTimeoutMiddleware(timeoutMs).pre(ctx);
 				},
 				post: async (ctx: k8s.ResponseContext) => ctx

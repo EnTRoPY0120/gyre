@@ -1,4 +1,3 @@
-import * as k8s from '@kubernetes/client-node';
 import {
 	AuthenticationError,
 	AuthorizationError,
@@ -24,11 +23,7 @@ type KubernetesErrorShape = Error & {
 
 /** Detect the timeout shapes emitted by fetch and @kubernetes/client-node. */
 export function isKubernetesAbortError(error: Error): boolean {
-	return (
-		error.name === 'AbortError' ||
-		error instanceof k8s.AbortError ||
-		(error as { type?: string }).type === 'aborted'
-	);
+	return error.name === 'AbortError' || (error as { type?: string }).type === 'aborted';
 }
 
 /** Read the compatible network code and HTTP status fields from a Kubernetes error. */
