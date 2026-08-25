@@ -2,7 +2,12 @@
 	import { theme, type Theme } from '$lib/stores/theme.svelte';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import { Sun, Moon, Monitor, Check } from '@lucide/svelte';
-	import { getThemeButtonKeyAction, getThemeMenuItemKeyAction } from './theme-keyboard';
+	import {
+		applyThemeButtonKeyAction,
+		applyThemeMenuItemKeyAction,
+		getThemeButtonKeyAction,
+		getThemeMenuItemKeyAction
+	} from './theme-keyboard';
 
 	const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
 		{ value: 'light', label: 'Light', icon: Sun },
@@ -53,42 +58,38 @@
 			themeOptions.length,
 			getInitialIndex()
 		);
-		if (action.preventDefault) e.preventDefault();
-
-		switch (action.type) {
-			case 'open':
+		applyThemeButtonKeyAction(action, {
+			preventDefault: () => e.preventDefault(),
+			open: (index) => {
 				isOpen = true;
-				selectedIndex = action.index;
+				selectedIndex = index;
 				$effect.pre(() => {
 					if (isOpen && selectedIndex >= 0) focusMenuButton(selectedIndex);
 				});
-				break;
-			case 'move':
-				selectedIndex = action.index;
-				focusMenuButton(selectedIndex);
-				break;
-			case 'close':
+			},
+			move: (index) => {
+				selectedIndex = index;
+				focusMenuButton(index);
+			},
+			close: () => {
 				isOpen = false;
-				break;
-		}
+			}
+		});
 	}
 
 	function handleMenuItemKeydown(e: KeyboardEvent, option: Theme, index: number) {
 		const action = getThemeMenuItemKeyAction(e.key, themeOptions.length, selectedIndex);
-		if (action.preventDefault) e.preventDefault();
-
-		switch (action.type) {
-			case 'select':
-				selectTheme(option);
-				break;
-			case 'move':
-				selectedIndex = action.index;
-				focusMenuButton(selectedIndex);
-				break;
-			case 'close':
+		applyThemeMenuItemKeyAction(action, {
+			preventDefault: () => e.preventDefault(),
+			select: () => selectTheme(option),
+			move: (nextIndex) => {
+				selectedIndex = nextIndex;
+				focusMenuButton(nextIndex);
+			},
+			close: () => {
 				isOpen = false;
-				break;
-		}
+			}
+		});
 	}
 </script>
 

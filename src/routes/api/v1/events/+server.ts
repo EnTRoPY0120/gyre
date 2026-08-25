@@ -15,6 +15,7 @@ import {
 } from '$lib/server/http/guards.js';
 import { flushSseEventQueue } from './sse-queue.js';
 import { getEventConnectionContext, type EventConnectionContext } from './connection-context.js';
+import { createSseCleanup } from './stream-cleanup.js';
 
 export const _metadata = {
 	GET: {
@@ -85,27 +86,11 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 			let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 			let unsubscribe: () => void;
 
-			// Idempotency guard: cleanup may be triggered from multiple paths
-			// (abort signal, ReadableStream cancel(), SHUTDOWN event, buffer overflow).
-			// Without this flag, release() would be called multiple times, corrupting
-			// the per-session/per-user connection slot count.
-			let isCleanedUp = false;
-			const cleanup = () => {
-				if (isCleanedUp) return;
-				isCleanedUp = true;
-				release();
-				unsubscribe?.();
-				if (timeoutHandle) {
-					clearTimeout(timeoutHandle);
-					timeoutHandle = null;
-				}
-				try {
-					controller.close();
-				} catch {
-					// Controller may already be closed
-				}
-			};
-
+			const cleanupController = createSseCleanup({
+				release,
+				close: () => controller.close()
+			});
+			const { cleanup } = cleanupController;
 			cleanupRef = cleanup;
 
 			const EVENT_BUFFER_LIMIT = 100;
@@ -132,6 +117,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 						cleanup();
 					}
 				}, clusterId);
+				cleanupController.setUnsubscribe(unsubscribe);
 
 				// Optional per-connection timeout: send SHUTDOWN and close the stream
 				// so the client reconnects. Disabled when SSE_CONNECTION_TIMEOUT_MS === 0.
@@ -151,6 +137,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 						}
 						cleanup();
 					}, SSE_CONNECTION_TIMEOUT_MS);
+					cleanupController.setTimeoutHandle(timeoutHandle);
 				}
 
 				// Handle client disconnect

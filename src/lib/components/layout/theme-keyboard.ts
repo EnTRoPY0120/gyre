@@ -5,6 +5,20 @@ export type ThemeKeyAction =
 	| { type: 'select'; preventDefault: true }
 	| { type: 'none'; preventDefault: false };
 
+export interface ThemeButtonKeyActionHandlers {
+	preventDefault: () => void;
+	open: (index: number) => void;
+	move: (index: number) => void;
+	close: () => void;
+}
+
+export interface ThemeMenuItemKeyActionHandlers {
+	preventDefault: () => void;
+	select: () => void;
+	move: (index: number) => void;
+	close: () => void;
+}
+
 export function getThemeButtonKeyAction(
 	key: string,
 	isOpen: boolean,
@@ -53,4 +67,40 @@ export function getThemeMenuItemKeyAction(
 	if (key === 'Escape') return { type: 'close', preventDefault: true };
 	if (key === 'Tab') return { type: 'close', preventDefault: false };
 	return { type: 'none', preventDefault: false };
+}
+
+export function applyThemeButtonKeyAction(
+	action: ThemeKeyAction,
+	handlers: ThemeButtonKeyActionHandlers
+): void {
+	if (action.preventDefault) handlers.preventDefault();
+	switch (action.type) {
+		case 'open':
+			handlers.open(action.index);
+			break;
+		case 'move':
+			handlers.move(action.index);
+			break;
+		case 'close':
+			handlers.close();
+			break;
+	}
+}
+
+export function applyThemeMenuItemKeyAction(
+	action: ThemeKeyAction,
+	handlers: ThemeMenuItemKeyActionHandlers
+): void {
+	if (action.preventDefault) handlers.preventDefault();
+	switch (action.type) {
+		case 'select':
+			handlers.select();
+			break;
+		case 'move':
+			handlers.move(action.index);
+			break;
+		case 'close':
+			handlers.close();
+			break;
+	}
 }

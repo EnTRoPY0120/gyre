@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import {
+	applyThemeButtonKeyAction,
+	applyThemeMenuItemKeyAction,
 	getThemeButtonKeyAction,
 	getThemeMenuItemKeyAction
 } from '../lib/components/layout/theme-keyboard.js';
@@ -31,5 +33,28 @@ describe('theme keyboard actions', () => {
 			type: 'close',
 			preventDefault: false
 		});
+	});
+
+	test('dispatches button and menu actions to side-effect callbacks', () => {
+		const calls: string[] = [];
+		applyThemeButtonKeyAction(
+			{ type: 'open', index: 1, preventDefault: true },
+			{
+				preventDefault: () => calls.push('prevent'),
+				open: (index) => calls.push(`open:${index}`),
+				move: (index) => calls.push(`move:${index}`),
+				close: () => calls.push('close')
+			}
+		);
+		applyThemeMenuItemKeyAction(
+			{ type: 'select', preventDefault: true },
+			{
+				preventDefault: () => calls.push('prevent'),
+				select: () => calls.push('select'),
+				move: (index) => calls.push(`menu-move:${index}`),
+				close: () => calls.push('menu-close')
+			}
+		);
+		expect(calls).toEqual(['prevent', 'open:1', 'prevent', 'select']);
 	});
 });
