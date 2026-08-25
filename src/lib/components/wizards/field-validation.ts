@@ -1,7 +1,5 @@
-import { parse } from 'yaml';
 import safeRegex from 'safe-regex2';
-import type { ResourceTemplate, TemplateField } from '$lib/templates';
-import { logger } from '$lib/utils/logger.js';
+import type { TemplateField } from '$lib/templates';
 
 export function coerceWizardFieldValue(field: TemplateField, value: unknown): unknown {
 	if (field.type !== 'number') return value;
@@ -59,43 +57,6 @@ export function validateWizardField(
 
 	if (field.type === 'number' && typeof value === 'number') {
 		return validateNumberRange(field, value);
-	}
-
-	return null;
-}
-
-export function validateHelmReleaseResourceValues(
-	template: ResourceTemplate,
-	formValues: Record<string, unknown>
-): string | null {
-	if (template.kind !== 'HelmRelease') return null;
-
-	const structuredResourceFields = [
-		'resourceLimitsCpu',
-		'resourceLimitsMemory',
-		'resourceRequestsCpu',
-		'resourceRequestsMemory'
-	];
-	if (!structuredResourceFields.some((fieldName) => Boolean(formValues[fieldName]))) return null;
-
-	const values = formValues.values;
-	if (!values) return null;
-
-	try {
-		const parsedValues =
-			typeof values === 'string'
-				? (parse(values) as Record<string, unknown> | null)
-				: (values as Record<string, unknown>);
-		if (
-			parsedValues &&
-			typeof parsedValues === 'object' &&
-			!Array.isArray(parsedValues) &&
-			'resources' in parsedValues
-		) {
-			return 'Remove resources from Values before using structured resource fields.';
-		}
-	} catch (error) {
-		logger.warn(error, 'Failed to parse HelmRelease values while checking resource conflicts');
 	}
 
 	return null;

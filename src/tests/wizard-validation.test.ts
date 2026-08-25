@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'vitest';
 import {
 	coerceWizardFieldValue,
-	validateHelmReleaseResourceValues,
 	validateWizardField
 } from '../lib/components/wizards/field-validation.js';
+import { validateHelmReleaseResourceValues } from '../lib/components/wizards/helm-release-validation.js';
 import type { ResourceTemplate, TemplateField } from '../lib/templates/types.js';
 
 const numberField: TemplateField = {

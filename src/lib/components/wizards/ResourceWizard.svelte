@@ -7,11 +7,8 @@
 	import { logger } from '$lib/utils/logger.js';
 	import { parse, parseDocument } from 'yaml';
 	import { getCsrfToken } from '$lib/utils/csrf';
-	import {
-		coerceWizardFieldValue,
-		validateHelmReleaseResourceValues as validateWizardHelmReleaseResourceValues,
-		validateWizardField
-	} from './field-validation';
+	import { coerceWizardFieldValue, validateWizardField } from './field-validation';
+	import { validateHelmReleaseResourceValues as validateWizardHelmReleaseResourceValues } from './helm-release-validation';
 	import { createResourceFromWizard, getWizardResourceRedirect } from './resource-submit';
 import {
 	buildWizardFormValues,
