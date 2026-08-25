@@ -12,6 +12,7 @@
 	import type { CommandItem, SearchResult } from './CommandPaletteTypes';
 	import { highlightText } from './command-palette-highlighting';
 	import { buildCommandItems } from './command-palette-items';
+	import { getCommandPaletteKeyAction } from './command-palette-keyboard';
 
 	let open = $state(false);
 	let searchQuery = $state('');
@@ -97,16 +98,14 @@
 	}
 
 	function handleInputKeydown(event: KeyboardEvent) {
-		if (event.key === 'ArrowDown') {
-			event.preventDefault();
-			selectedIndex = Math.min(selectedIndex + 1, filteredItems.length - 1);
+		const action = getCommandPaletteKeyAction(event.key, selectedIndex, filteredItems.length);
+		if (!action.preventDefault) return;
+
+		event.preventDefault();
+		if (action.type === 'move') {
+			selectedIndex = action.index;
 			void scrollSelectedIntoView();
-		} else if (event.key === 'ArrowUp') {
-			event.preventDefault();
-			selectedIndex = Math.max(selectedIndex - 1, 0);
-			void scrollSelectedIntoView();
-		} else if (event.key === 'Enter') {
-			event.preventDefault();
+		} else if (action.type === 'select') {
 			const result = filteredItems[selectedIndex];
 			if (result) handleSelect(result.item);
 		}

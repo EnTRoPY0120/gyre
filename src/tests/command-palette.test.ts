@@ -2,6 +2,7 @@ import { describe, test, expect } from 'vitest';
 import { commandPaletteOpen } from '../lib/stores/commandPalette.js';
 import { highlightText } from '../lib/components/command-palette-highlighting.js';
 import { buildCommandItems, getResourceIcon } from '../lib/components/command-palette-items.js';
+import { getCommandPaletteKeyAction } from '../lib/components/command-palette-keyboard.js';
 import { resourceGroups } from '../lib/config/resources.js';
 
 // Helper: read current store value synchronously via subscribe
@@ -130,5 +131,36 @@ describe('command palette items', () => {
 
 		expect(items.some((item) => item.id === 'nav-create')).toBe(false);
 		expect(getResourceIcon('unknown')).toBe('file');
+	});
+});
+
+describe('command palette keyboard actions', () => {
+	test('clamps navigation at both list boundaries', () => {
+		expect(getCommandPaletteKeyAction('ArrowDown', 0, 3)).toEqual({
+			type: 'move',
+			index: 1,
+			preventDefault: true
+		});
+		expect(getCommandPaletteKeyAction('ArrowDown', 2, 3)).toEqual({
+			type: 'move',
+			index: 2,
+			preventDefault: true
+		});
+		expect(getCommandPaletteKeyAction('ArrowUp', 0, 3)).toEqual({
+			type: 'move',
+			index: 0,
+			preventDefault: true
+		});
+	});
+
+	test('selects on Enter and ignores unrelated keys', () => {
+		expect(getCommandPaletteKeyAction('Enter', 1, 3)).toEqual({
+			type: 'select',
+			preventDefault: true
+		});
+		expect(getCommandPaletteKeyAction('Escape', 1, 3)).toEqual({
+			type: 'none',
+			preventDefault: false
+		});
 	});
 });
