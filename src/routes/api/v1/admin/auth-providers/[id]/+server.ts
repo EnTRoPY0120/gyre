@@ -19,6 +19,7 @@ import {
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
 } from '$lib/server/http/guards.js';
+import { handleAuthProviderLoadError } from '../auth-provider-route-errors.js';
 
 export const _metadata = {
 	GET: {
@@ -146,10 +147,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		return json({ provider: sanitizedProvider });
 	} catch (err) {
-		if (isHttpError(err) || isRedirect(err)) throw err;
-
-		logger.error(err, 'Failed to get auth provider:');
-		throw error(500, { message: 'Failed to load provider' });
+		handleAuthProviderLoadError(err);
 	}
 };
 
