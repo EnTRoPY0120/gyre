@@ -84,12 +84,19 @@ OCI Helm registries require an explicit version. Check the [latest release](http
 If you want to try the UI without installing it inside your cluster, you can run it locally connected to your `kubeconfig`. Make sure your current Kubernetes context points to a cluster with Flux installed.
 
 ```bash
+# Run once per environment. Keep this file for future container recreations.
+if [ ! -f .env.gyre ]; then
+    (umask 077; {
+        echo "AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+        echo "GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+        echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+        echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)"
+        echo "GYRE_METRICS_TOKEN=$(openssl rand -hex 32)"
+    } > .env.gyre)
+fi
+
 docker run \
-    -e AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32) \
-    -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
-    -e BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32) \
-    -e BETTER_AUTH_SECRET=$(openssl rand -hex 32) \
-    -e GYRE_METRICS_TOKEN=$(openssl rand -hex 32) \
+    --env-file .env.gyre \
     -v gyre-data:/data \
     -v ~/.kube/config:/app/.kube/config:ro \
     -p 3000:3000 \
@@ -97,7 +104,7 @@ docker run \
 ```
 
 :::tip
-The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. `BETTER_AUTH_SECRET` is the session secret and may be regenerated on each deploy if you accept invalidating active sessions. `GYRE_ENCRYPTION_KEY`, `AUTH_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY` are data-encryption keys: generate them once per environment, store them securely, and rotate them only with a migration plan to avoid making existing gyre-data unreadable.
+The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. Store `.env.gyre` securely and back it up with the `gyre-data` volume. Reuse it whenever you recreate the container; rotate data-encryption keys only with a migration plan to avoid making existing data unreadable.
 :::
 
 ### Option 4: Local Demo Script
