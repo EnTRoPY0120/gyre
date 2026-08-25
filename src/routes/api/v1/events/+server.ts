@@ -14,6 +14,7 @@ import {
 	requireAuthenticatedUser,
 	requireClusterWideRead
 } from '$lib/server/http/guards.js';
+import { flushSseEventQueue } from './sse-queue.js';
 
 export const _metadata = {
 	GET: {
@@ -124,16 +125,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 			const EVENT_BUFFER_LIMIT = 100;
 			const eventQueue: Uint8Array[] = [];
 
-			const attemptFlush = () => {
-				while (eventQueue.length > 0 && (controller.desiredSize ?? 1) > 0) {
-					try {
-						controller.enqueue(eventQueue.shift()!);
-					} catch {
-						cleanup();
-						return;
-					}
-				}
-			};
+			const attemptFlush = () => flushSseEventQueue(eventQueue, controller, cleanup);
 			attemptFlushRef = attemptFlush;
 
 			try {
