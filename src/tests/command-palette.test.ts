@@ -1,8 +1,11 @@
-import { describe, test, expect } from 'vitest';
+import { describe, test, expect, vi } from 'vitest';
 import { commandPaletteOpen } from '../lib/stores/commandPalette.js';
 import { highlightText } from '../lib/components/command-palette-highlighting.js';
 import { buildCommandItems, getResourceIcon } from '../lib/components/command-palette-items.js';
-import { getCommandPaletteKeyAction } from '../lib/components/command-palette-keyboard.js';
+import {
+	applyCommandPaletteKeyAction,
+	getCommandPaletteKeyAction
+} from '../lib/components/command-palette-keyboard.js';
 import { resourceGroups } from '../lib/config/resources.js';
 
 // Helper: read current store value synchronously via subscribe
@@ -162,5 +165,29 @@ describe('command palette keyboard actions', () => {
 			type: 'none',
 			preventDefault: false
 		});
+	});
+
+	test('applies move and select actions while ignoring unrelated actions', () => {
+		const moved: number[] = [];
+		const selected = vi.fn();
+
+		applyCommandPaletteKeyAction(
+			{ type: 'move', index: 2, preventDefault: true },
+			(index) => moved.push(index),
+			selected
+		);
+		applyCommandPaletteKeyAction(
+			{ type: 'select', preventDefault: true },
+			(index) => moved.push(index),
+			selected
+		);
+		applyCommandPaletteKeyAction(
+			{ type: 'none', preventDefault: false },
+			(index) => moved.push(index),
+			selected
+		);
+
+		expect(moved).toEqual([2]);
+		expect(selected).toHaveBeenCalledOnce();
 	});
 });

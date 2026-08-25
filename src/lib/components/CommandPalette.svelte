@@ -12,7 +12,10 @@
 	import type { CommandItem, SearchResult } from './CommandPaletteTypes';
 	import { highlightText } from './command-palette-highlighting';
 	import { buildCommandItems } from './command-palette-items';
-	import { getCommandPaletteKeyAction } from './command-palette-keyboard';
+import {
+	applyCommandPaletteKeyAction,
+	getCommandPaletteKeyAction
+} from './command-palette-keyboard';
 
 	let open = $state(false);
 	let searchQuery = $state('');
@@ -102,16 +105,18 @@
 		if (!action.preventDefault) return;
 
 		event.preventDefault();
-		if (action.type === 'move') {
-			selectedIndex = action.index;
-			void scrollSelectedIntoView();
-		} else if (action.type === 'select') {
-			const result = filteredItems[selectedIndex];
-			if (result) handleSelect(result.item);
-		}
+		applyCommandPaletteKeyAction(
+			action,
+			(index) => {
+				selectedIndex = index;
+				void scrollSelectedIntoView();
+			},
+			() => handleSelect(filteredItems[selectedIndex]?.item)
+		);
 	}
 
-	function handleSelect(item: CommandItem) {
+	function handleSelect(item: CommandItem | undefined) {
+		if (!item) return;
 		open = false;
 		searchQuery = '';
 		if (item.action) item.action();

@@ -3,6 +3,15 @@ export type CommandPaletteKeyAction =
 	| { type: 'select'; preventDefault: true }
 	| { type: 'none'; preventDefault: false };
 
+export function applyCommandPaletteKeyAction(
+	action: CommandPaletteKeyAction,
+	onMove: (index: number) => void,
+	onSelect: () => void
+): void {
+	if (action.type === 'move') onMove(action.index);
+	if (action.type === 'select') onSelect();
+}
+
 export function getCommandPaletteKeyAction(
 	key: string,
 	selectedIndex: number,
