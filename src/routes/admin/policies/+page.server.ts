@@ -3,23 +3,64 @@ import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
 	getAllPoliciesPaginated,
-	createPolicy,
-	deletePolicy,
 	getAllUserPolicies,
 	bindPolicyToUser,
 	unbindPolicyFromUser,
-	isValidNamespacePattern
+	type RbacAction
 } from '$lib/server/rbac';
-import type { RbacAction } from '$lib/server/rbac';
 import { listUsers } from '$lib/server/auth';
 import { logRbacChange } from '$lib/server/audit';
 import { parseAdminPagination } from '../pagination';
+import { validatePolicyCreateInput } from './create-validation';
 import {
 	getRequiredFormString,
 	requireAdminFormUser,
-	serializePagination,
-	validateLength
+	serializePagination
 } from '../server-helpers';
+import type { User } from '$lib/server/db/schema';
+import {
+	createPolicyAndLog,
+	deletePolicyAndLog,
+	type PolicyCreateFormInput
+} from './policy-actions';
+
+function readPolicyCreateInput(formData: FormData): PolicyCreateFormInput {
+	return {
+		name: formData.get('name') as string,
+		description: formData.get('description') as string,
+		role: formData.get('role') as PolicyCreateFormInput['role'],
+		action: formData.get('action') as RbacAction,
+		resourceType: formData.get('resourceType') as string,
+		namespacePattern: formData.get('namespacePattern') as string
+	};
+}
+
+async function bindPolicyAndLog(user: User, userId: string, policyId: string, policyName: string) {
+	try {
+		await bindPolicyToUser(userId, policyId);
+		await logRbacChange(user, 'bind', policyName || 'unknown', userId, { policyId });
+		return { success: true };
+	} catch (error) {
+		logger.error(error, 'Error binding policy:');
+		return fail(500, { error: 'Failed to bind policy to user' });
+	}
+}
+
+async function unbindPolicyAndLog(
+	user: User,
+	userId: string,
+	policyId: string,
+	policyName: string
+) {
+	try {
+		await unbindPolicyFromUser(userId, policyId);
+		await logRbacChange(user, 'unbind', policyName || 'unknown', userId, { policyId });
+		return { success: true };
+	} catch (error) {
+		logger.error(error, 'Error unbinding policy:');
+		return fail(500, { error: 'Failed to unbind policy from user' });
+	}
+}
 
 /**
  * Load function for RBAC policy management page
@@ -71,56 +112,17 @@ export const actions: Actions = {
 		const user = requireAdminFormUser(locals);
 		if ('status' in user) return user;
 
-		const formData = await request.formData();
-		const name = formData.get('name') as string;
-		const description = formData.get('description') as string;
-		const role = formData.get('role') as 'admin' | 'editor' | 'viewer';
-		const action = formData.get('action') as RbacAction;
-		const resourceType = formData.get('resourceType') as string;
-		const namespacePattern = formData.get('namespacePattern') as string;
+		const input = readPolicyCreateInput(await request.formData());
 
-		// Validation
-		if (!name || !role || !action) {
-			return fail(400, { error: 'Name, role, and action are required' });
-		}
-
-		const nameLengthError = validateLength(name, {
-			min: 3,
-			max: 100,
-			minMessage: 'Policy name must be at least 3 characters',
-			maxMessage: 'Policy name must be at most 100 characters'
+		const validationError = validatePolicyCreateInput({
+			name: input.name,
+			role: input.role,
+			action: input.action,
+			namespacePattern: input.namespacePattern
 		});
-		if (nameLengthError) return nameLengthError;
+		if (validationError) return fail(400, { error: validationError });
 
-		if (namespacePattern && !isValidNamespacePattern(namespacePattern)) {
-			return fail(400, {
-				error:
-					'Invalid namespace pattern: must contain only lowercase alphanumeric characters, hyphens, and wildcards (* ?)'
-			});
-		}
-
-		try {
-			const policyId = await createPolicy({
-				name,
-				description: description || undefined,
-				role,
-				action,
-				resourceType: resourceType || undefined,
-				namespacePattern: namespacePattern || undefined
-			});
-
-			await logRbacChange(user, 'create', name, undefined, {
-				role,
-				action,
-				resourceType,
-				namespacePattern
-			});
-
-			return { success: true, policyId };
-		} catch (error) {
-			logger.error(error, 'Error creating policy:');
-			return fail(500, { error: 'Failed to create policy' });
-		}
+		return createPolicyAndLog(user, input);
 	},
 
 	/**
@@ -135,16 +137,7 @@ export const actions: Actions = {
 		if (typeof policyId !== 'string') return policyId;
 		const policyName = formData.get('policyName') as string;
 
-		try {
-			await deletePolicy(policyId);
-
-			await logRbacChange(user, 'delete', policyName || 'unknown', undefined, { policyId });
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error deleting policy:');
-			return fail(500, { error: 'Failed to delete policy' });
-		}
+		return deletePolicyAndLog(user, policyId, policyName);
 	},
 
 	/**
@@ -163,16 +156,7 @@ export const actions: Actions = {
 			return fail(400, { error: 'User ID and Policy ID are required' });
 		}
 
-		try {
-			await bindPolicyToUser(userId, policyId);
-
-			await logRbacChange(user, 'bind', policyName || 'unknown', userId, { policyId });
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error binding policy:');
-			return fail(500, { error: 'Failed to bind policy to user' });
-		}
+		return bindPolicyAndLog(user, userId, policyId, policyName);
 	},
 
 	/**
@@ -191,15 +175,6 @@ export const actions: Actions = {
 			return fail(400, { error: 'User ID and Policy ID are required' });
 		}
 
-		try {
-			await unbindPolicyFromUser(userId, policyId);
-
-			await logRbacChange(user, 'unbind', policyName || 'unknown', userId, { policyId });
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error unbinding policy:');
-			return fail(500, { error: 'Failed to unbind policy from user' });
-		}
+		return unbindPolicyAndLog(user, userId, policyId, policyName);
 	}
 };

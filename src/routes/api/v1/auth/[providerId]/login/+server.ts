@@ -10,11 +10,10 @@
  * 5. Redirect user to IdP authorization URL
  */
 
-import { logger } from '$lib/server/logger.js';
-import { redirect, error, isHttpError, isRedirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
-import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
+import { createOAuthLoginUrl, handleOAuthLoginError } from './oauth-login-flow.js';
 
 export const _metadata = {
 	GET: {
@@ -45,12 +44,7 @@ export const _metadata = {
 		}
 	}
 };
-import { generateState, generateCodeVerifier } from '$lib/server/auth/pkce';
-import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
-
-// State cookie TTL: 10 minutes (enough time to complete OAuth flow)
-const STATE_COOKIE_MAX_AGE = 60 * 10;
 
 /**
  * GET /api/auth/[providerId]/login
@@ -72,50 +66,8 @@ export const GET: RequestHandler = async (event) => {
 			);
 		}
 
-		// Get provider configuration and create OAuth client
-		const provider = await getOAuthProvider(providerId);
-
-		// Generate CSRF protection state
-		const state = generateState();
-
-		// Store the one-time state in an httpOnly cookie so the callback can verify
-		// the browser that started the flow without depending on unstable IP/UA data.
-		cookies.set(`oauth_state_${providerId}`, state, {
-			...DEFAULT_COOKIE_OPTIONS,
-			maxAge: STATE_COOKIE_MAX_AGE
-		});
-
-		// Always generate PKCE — mandatory regardless of provider config
-		const codeVerifier = generateCodeVerifier();
-		cookies.set(`oauth_verifier_${providerId}`, codeVerifier, {
-			...DEFAULT_COOKIE_OPTIONS,
-			maxAge: STATE_COOKIE_MAX_AGE
-		});
-
-		// Get authorization URL from provider
-		const authUrl = await provider.getAuthorizationUrl(state, codeVerifier);
-
-		// Redirect to IdP for authentication
-		throw redirect(302, authUrl.toString());
+		throw redirect(302, await createOAuthLoginUrl(providerId, cookies));
 	} catch (err) {
-		if (isHttpError(err) || isRedirect(err)) {
-			throw err;
-		}
-
-		logger.error(err, 'OAuth login error:');
-
-		// Handle OAuth-specific errors
-		if (err instanceof OAuthError) {
-			if (err.code === 'PROVIDER_NOT_FOUND') {
-				throw error(404, { message: 'Authentication provider not found' });
-			}
-			if (err.code === 'PROVIDER_DISABLED') {
-				throw error(403, { message: 'Authentication provider is disabled' });
-			}
-			throw error(500, { message: `OAuth error: ${err.message}` });
-		}
-
-		// Generic error
-		throw error(500, { message: 'Failed to initiate login' });
+		handleOAuthLoginError(err);
 	}
 };

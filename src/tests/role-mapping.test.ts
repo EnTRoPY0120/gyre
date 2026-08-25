@@ -4,6 +4,7 @@ import {
 	parseRoleMappingInput,
 	stringifyRoleMappingForForm
 } from '../lib/auth/role-mapping.js';
+import { mapRoleFromGroups } from '../lib/server/auth/role-mapping.js';
 
 describe('parseRoleMappingInput', () => {
 	test('accepts object input', () => {
@@ -51,5 +52,30 @@ describe('stringifyRoleMappingForForm', () => {
 
 	test('falls back to the default template when parsing fails', () => {
 		expect(stringifyRoleMappingForForm(42)).toBe(DEFAULT_ROLE_MAPPING_TEMPLATE);
+	});
+});
+
+describe('mapRoleFromGroups', () => {
+	test('restricts unsafe and unknown default roles', () => {
+		expect(mapRoleFromGroups([], null, 'admin')).toBe('editor');
+		expect(mapRoleFromGroups([], null, 'unknown')).toBe('viewer');
+		expect(mapRoleFromGroups([], null, 'EDITOR')).toBe('editor');
+	});
+
+	test('uses the highest-priority matching group mapping', () => {
+		const mapping = JSON.stringify({
+			admin: ['platform-admins'],
+			editor: ['developers'],
+			viewer: ['auditors']
+		});
+
+		expect(mapRoleFromGroups(['auditors'], mapping, 'viewer')).toBe('viewer');
+		expect(mapRoleFromGroups(['developers'], mapping, 'viewer')).toBe('editor');
+		expect(mapRoleFromGroups(['developers', 'platform-admins'], mapping, 'viewer')).toBe('admin');
+	});
+
+	test('falls back safely when the role mapping is malformed or empty', () => {
+		expect(mapRoleFromGroups(['platform-admins'], '{invalid', 'editor')).toBe('editor');
+		expect(mapRoleFromGroups(['platform-admins'], 'null', 'viewer')).toBe('viewer');
 	});
 });

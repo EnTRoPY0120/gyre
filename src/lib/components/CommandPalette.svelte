@@ -7,30 +7,15 @@
 	import { resourceGroups } from '$lib/config/resources';
 	import Fuse from 'fuse.js';
 	import { commandPaletteOpen } from '$lib/stores/commandPalette';
-
-	interface CommandItem {
-		id: string;
-		label: string;
-		description?: string;
-		icon: string;
-		href?: string;
-		action?: () => void;
-		category: string;
-		keywords?: string[];
-	}
-
-	interface HighlightSegment {
-		text: string;
-		highlighted: boolean;
-	}
-
-	interface SearchResult {
-		item: CommandItem;
-		labelSegments: HighlightSegment[];
-		descSegments: HighlightSegment[] | null;
-		labelKeyword: boolean;
-		descKeyword: boolean;
-	}
+	import CommandPaletteFooter from './CommandPaletteFooter.svelte';
+	import CommandPaletteResults from './CommandPaletteResults.svelte';
+	import type { CommandItem, SearchResult } from './CommandPaletteTypes';
+	import { buildCommandItems } from './command-palette-items';
+import { buildCommandPaletteSearchResult } from './command-palette-search';
+import {
+	applyCommandPaletteKeyAction,
+	getCommandPaletteKeyAction
+} from './command-palette-keyboard';
 
 	let open = $state(false);
 	let searchQuery = $state('');
@@ -42,120 +27,88 @@
 	const isAdmin = $derived(userRole === 'admin');
 	const canCreate = $derived(userRole === 'admin' || userRole === 'editor');
 
-	const allItems = $derived.by(() => {
-		const items: CommandItem[] = [];
-		items.push({ id: 'nav-dashboard', label: 'Dashboard', description: 'View cluster overview and status', icon: 'dashboard', href: '/', category: 'Navigation' });
-		if (canCreate) items.push({ id: 'nav-create', label: 'Create Resource', description: 'Create a new FluxCD resource', icon: 'plus', href: '/create', category: 'Navigation', keywords: ['new', 'add'] });
+	const allItems = $derived.by(() => buildCommandItems(resourceGroups, { isAdmin, canCreate }));
 
-		for (const group of resourceGroups) {
-			for (const resource of group.resources) {
-				items.push({ id: `resource-${resource.type}`, label: resource.displayName, description: resource.description, icon: getResourceIcon(resource.type), href: `/resources/${resource.type}`, category: 'Resources', keywords: [group.name, resource.kind] });
-			}
-		}
-
-		if (isAdmin) {
-			items.push(
-				{ id: 'admin-users', label: 'Manage Users', description: 'View and manage user accounts', icon: 'users', href: '/admin/users', category: 'Admin' },
-				{ id: 'admin-clusters', label: 'Manage Clusters', description: 'Configure multi-cluster access', icon: 'server', href: '/admin/clusters', category: 'Admin' },
-				{ id: 'admin-auth-providers', label: 'Auth Providers', description: 'Configure SSO and OAuth providers', icon: 'key', href: '/admin/auth-providers', category: 'Admin' },
-				{ id: 'admin-settings', label: 'Settings', description: 'Application settings and configuration', icon: 'settings', href: '/admin/settings', category: 'Admin' },
-				{ id: 'admin-policies', label: 'RBAC Policies', description: 'Manage role-based access control', icon: 'shield-check', href: '/admin/policies', category: 'Admin' }
-			);
-		}
-		return items;
+	const fuse = new Fuse<CommandItem>([], {
+		keys: [
+			{ name: 'label', weight: 2 },
+			{ name: 'description', weight: 1 },
+			{ name: 'category', weight: 0.5 },
+			{ name: 'keywords', weight: 1.5 }
+		],
+		threshold: 0.4,
+		includeScore: true,
+		includeMatches: true
 	});
-
-	const fuse = new Fuse<CommandItem>([], { keys: [{ name: 'label', weight: 2 }, { name: 'description', weight: 1 }, { name: 'category', weight: 0.5 }, { name: 'keywords', weight: 1.5 }], threshold: 0.4, includeScore: true, includeMatches: true });
-	$effect(() => { fuse.setCollection(allItems); });
+	$effect(() => fuse.setCollection(allItems));
 
 	const filteredItems = $derived.by((): SearchResult[] => {
 		if (searchQuery.trim() === '') {
 			return allItems.map((item) => ({
 				item,
 				labelSegments: [{ text: item.label, highlighted: false }],
-				descSegments: item.description ? [{ text: item.description, highlighted: false }] : null,
+				descSegments: item.description
+					? [{ text: item.description, highlighted: false }]
+					: null,
 				labelKeyword: false,
 				descKeyword: false
 			}));
 		}
-		return fuse.search(searchQuery).map((r) => {
-			const labelMatch = r.matches?.find((m) => m.key === 'label');
-			const descMatch = r.matches?.find((m) => m.key === 'description');
-			return {
-				item: r.item,
-				// Fuse.js types indices as ReadonlyArray<RangeTuple> but the exported type is wider; assert to match our signature.
-				labelSegments: highlightText(r.item.label, labelMatch?.indices as readonly [number, number][] | undefined),
-				descSegments: r.item.description
-					? highlightText(r.item.description, descMatch?.indices as readonly [number, number][] | undefined)
-					: null,
-				labelKeyword: isKeywordMatch(r.item.label, searchQuery),
-				descKeyword: isKeywordMatch(r.item.description ?? '', searchQuery)
-			};
-		});
+		return fuse.search(searchQuery).map((result) =>
+			buildCommandPaletteSearchResult(
+				result.item,
+				result.matches?.find((match) => match.key === 'label')?.indices as
+					| readonly [number, number][]
+					| undefined,
+				result.matches?.find((match) => match.key === 'description')?.indices as
+					| readonly [number, number][]
+					| undefined,
+				searchQuery
+			)
+		);
 	});
 
-	// Group for display only
 	const groupedItems = $derived.by(() => {
 		const groups = new Map<string, SearchResult[]>();
 		for (const result of filteredItems) {
-			const cat = result.item.category;
-			if (!groups.has(cat)) groups.set(cat, []);
-			groups.get(cat)!.push(result);
+			const category = result.item.category;
+			if (!groups.has(category)) groups.set(category, []);
+			groups.get(category)!.push(result);
 		}
 		return groups;
 	});
 
-	function highlightText(text: string, indices?: readonly [number, number][]): HighlightSegment[] {
-		if (!indices || indices.length === 0) return [{ text, highlighted: false }];
-		const segments: HighlightSegment[] = [];
-		let lastIndex = 0;
-		for (const [start, end] of indices) {
-			if (start > lastIndex) segments.push({ text: text.slice(lastIndex, start), highlighted: false });
-			segments.push({ text: text.slice(start, end + 1), highlighted: true });
-			lastIndex = end + 1;
-		}
-		if (lastIndex < text.length) segments.push({ text: text.slice(lastIndex), highlighted: false });
-		return segments;
-	}
-
-	function isKeywordMatch(text: string, query: string): boolean {
-		const trimmed = query.trim().toLowerCase();
-		return trimmed.length > 0 && text.toLowerCase().includes(trimmed);
-	}
-
-	// Reset selection when search changes
 	$effect(() => {
-		void filteredItems; // depend on filtered list
+		void filteredItems;
 		selectedIndex = 0;
 	});
 
-	// Scroll selected item into view when navigating with keyboard
 	async function scrollSelectedIntoView() {
 		await tick();
 		listEl?.querySelector('[data-selected]')?.scrollIntoView({ block: 'nearest' });
 	}
 
-	function handleInputKeydown(e: KeyboardEvent) {
-		if (e.key === 'ArrowDown') {
-			e.preventDefault();
-			selectedIndex = Math.min(selectedIndex + 1, filteredItems.length - 1);
-			scrollSelectedIntoView();
-		} else if (e.key === 'ArrowUp') {
-			e.preventDefault();
-			selectedIndex = Math.max(selectedIndex - 1, 0);
-			scrollSelectedIntoView();
-		} else if (e.key === 'Enter') {
-			e.preventDefault();
-			const result = filteredItems[selectedIndex];
-			if (result) handleSelect(result.item);
-		}
+	function handleInputKeydown(event: KeyboardEvent) {
+		const action = getCommandPaletteKeyAction(event.key, selectedIndex, filteredItems.length);
+		if (!action.preventDefault) return;
+
+		event.preventDefault();
+		applyCommandPaletteKeyAction(
+			action,
+			(index) => {
+				selectedIndex = index;
+				void scrollSelectedIntoView();
+			},
+			() => handleSelect(filteredItems[selectedIndex]?.item)
+		);
 	}
 
-	function handleSelect(item: CommandItem) {
+	function handleSelect(item: CommandItem | undefined) {
+		if (!item) return;
 		open = false;
 		searchQuery = '';
 		if (item.action) item.action();
-		else if (item.href) goto(item.href);
+		else if (item.href) void goto(item.href);
 	}
 
 	function handleOpenChange(isOpen: boolean) {
@@ -164,49 +117,43 @@
 			selectedIndex = 0;
 			commandPaletteOpen.close();
 		} else {
-			tick().then(() => inputEl?.focus());
+			void tick().then(() => inputEl?.focus());
 		}
 	}
 
-	function handleKeydown(e: KeyboardEvent) {
-		if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-			e.preventDefault();
+	function handleKeydown(event: KeyboardEvent) {
+		if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+			event.preventDefault();
 			open = !open;
 		}
 	}
 
-	function getResourceIcon(type: string): string {
-		const iconMap: Record<string, string> = { gitrepositories: 'git-branch', helmrepositories: 'library', helmcharts: 'package', buckets: 'bucket', ocirepositories: 'cloud', kustomizations: 'file-cog', helmreleases: 'ship', alerts: 'shield-alert', providers: 'radio', receivers: 'activity' };
-		return iconMap[type] || 'file';
-	}
-
 	$effect(() => {
 		window.addEventListener('keydown', handleKeydown);
-		const unsubscribe = commandPaletteOpen.subscribe((v) => { untrack(() => { if (v && !open) open = true; }); });
-
+		const unsubscribe = commandPaletteOpen.subscribe((value) => {
+			untrack(() => {
+				if (value && !open) open = true;
+			});
+		});
 		return () => {
 			window.removeEventListener('keydown', handleKeydown);
 			unsubscribe();
 		};
 	});
 
-	// Precompute item id → flat index once per groupedItems change (O(n) total vs O(n²) per render)
 	const flatIndexMap = $derived.by(() => {
 		const map = new Map<string, number>();
-		let idx = 0;
+		let index = 0;
 		for (const [, results] of groupedItems) {
-			for (const result of results) {
-				map.set(result.item.id, idx++);
-			}
+			for (const result of results) map.set(result.item.id, index++);
 		}
 		return map;
 	});
 </script>
 
 <Dialog.Dialog bind:open onOpenChange={handleOpenChange}>
-	<Dialog.Content class="p-0 shadow-2xl max-w-2xl">
+	<Dialog.Content class="max-w-2xl p-0 shadow-2xl">
 		<div class="flex h-full w-full flex-col overflow-hidden rounded-lg bg-zinc-900 text-zinc-50">
-			<!-- Search input -->
 			<div class="flex items-center border-b border-zinc-800 px-3">
 				<Icon name="search" size={18} class="mr-2 shrink-0 opacity-50" />
 				<input
@@ -219,86 +166,17 @@
 					spellcheck={false}
 				/>
 			</div>
-
-			<!-- Results -->
-			<div bind:this={listEl} class="max-h-[500px] overflow-y-auto overflow-x-hidden">
-				{#if filteredItems.length === 0}
-					<p class="py-6 text-center text-sm text-zinc-500">No results found.</p>
-				{:else}
-					{#each [...groupedItems.entries()] as [category, results], gi (category)}
-						{#if gi > 0}
-							<div class="mx-2 my-1 h-px bg-zinc-800"></div>
-						{/if}
-						<div class="px-2 pb-1 pt-2 text-xs font-semibold text-zinc-500">
-							{category} <span class="text-zinc-600">({results.length})</span>
-						</div>
-						{#each results as result, i (result.item.id)}
-							{@const item = result.item}
-							{@const idx = flatIndexMap.get(result.item.id) ?? 0}
-							{@const isSelected = selectedIndex === idx}
-							<button
-								type="button"
-								data-selected={isSelected ? '' : undefined}
-								class="relative flex w-full cursor-pointer select-none items-center gap-2 rounded-md px-2 py-2 text-sm outline-none transition-colors {isSelected ? 'bg-zinc-800 text-zinc-50' : 'text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-50'}"
-								onclick={() => handleSelect(item)}
-								onmouseenter={() => { selectedIndex = idx; }}
-							>
-								<Icon name={item.icon} size={16} class="shrink-0 opacity-70" />
-								<div class="flex flex-1 flex-col gap-0.5 text-left">
-									<span class="font-medium">
-										{#each result.labelSegments as seg}
-											{#if seg.highlighted}
-												<mark class="rounded-sm bg-transparent px-0 not-italic font-semibold {result.labelKeyword ? 'text-amber-300' : 'text-sky-300'}">{seg.text}</mark>
-											{:else}
-												{seg.text}
-											{/if}
-										{/each}
-									</span>
-									{#if item.description && result.descSegments}
-										<span class="text-xs {isSelected ? 'text-zinc-400' : 'text-zinc-500'}">
-											{#each result.descSegments as seg}
-												{#if seg.highlighted}
-													<mark class="rounded-sm bg-transparent px-0 not-italic {result.descKeyword ? 'text-amber-400' : 'text-sky-400'}">{seg.text}</mark>
-												{:else}
-													{seg.text}
-												{/if}
-											{/each}
-										</span>
-									{/if}
-								</div>
-								<kbd class="hidden h-5 shrink-0 items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium text-zinc-400 sm:flex">
-									<span class="text-xs">↵</span>
-								</kbd>
-							</button>
-						{/each}
-					{/each}
-				{/if}
+			<div bind:this={listEl}>
+				<CommandPaletteResults
+					{filteredItems}
+					{groupedItems}
+					{flatIndexMap}
+					{selectedIndex}
+					onSelect={handleSelect}
+					onHover={(index) => (selectedIndex = index)}
+				/>
 			</div>
-
-			<!-- Footer -->
-			<div class="flex items-center justify-between border-t border-zinc-800 px-3 py-2 text-xs text-zinc-500">
-				<div class="flex items-center gap-4">
-					<div class="flex items-center gap-1.5">
-						<kbd class="flex h-5 items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium">↑↓</kbd>
-						<span>Navigate</span>
-					</div>
-					<div class="flex items-center gap-1.5">
-						<kbd class="flex h-5 items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium">↵</kbd>
-						<span>Select</span>
-					</div>
-					<div class="flex items-center gap-1.5">
-						<kbd class="flex h-5 items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium">ESC</kbd>
-						<span>Close</span>
-					</div>
-				</div>
-				<div class="flex items-center gap-1.5">
-					<span>Press</span>
-					<kbd class="flex h-5 items-center gap-1 rounded border border-zinc-700 bg-zinc-800 px-1.5 font-mono text-[10px] font-medium">
-						{#if typeof navigator !== 'undefined' && ((navigator as any).userAgentData?.platform ?? navigator.platform)?.toLowerCase().includes('mac')}⌘K{:else}Ctrl+K{/if}
-					</kbd>
-					<span>anytime</span>
-				</div>
-			</div>
+			<CommandPaletteFooter />
 		</div>
 	</Dialog.Content>
 </Dialog.Dialog>

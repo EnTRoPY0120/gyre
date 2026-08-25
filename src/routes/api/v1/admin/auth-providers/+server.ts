@@ -101,6 +101,133 @@ function generateProviderId(): string {
 	return randomBytes(16).toString('hex');
 }
 
+type ProviderRequestBody = {
+	name?: string;
+	type?: NewAuthProvider['type'];
+	enabled?: boolean;
+	clientId?: string;
+	clientSecret?: string;
+	issuerUrl?: string;
+	authorizationUrl?: string;
+	tokenUrl?: string;
+	userInfoUrl?: string;
+	jwksUrl?: string;
+	autoProvision?: boolean;
+	defaultRole?: NewAuthProvider['defaultRole'];
+	roleMapping?: unknown;
+	roleClaim?: string;
+	usernameClaim?: string;
+	emailClaim?: string;
+	usePkce?: boolean;
+	scopes?: string;
+};
+
+type ProviderInput = {
+	name: string;
+	type: NonNullable<NewAuthProvider['type']>;
+	enabled: boolean;
+	clientId: string;
+	clientSecret: string;
+	issuerUrl?: string;
+	authorizationUrl?: string;
+	tokenUrl?: string;
+	userInfoUrl?: string;
+	jwksUrl?: string;
+	autoProvision: boolean;
+	defaultRole: NonNullable<NewAuthProvider['defaultRole']>;
+	roleMapping: Record<string, string[]> | null;
+	roleClaim: string;
+	usernameClaim: string;
+	emailClaim: string;
+	usePkce: boolean;
+	scopes: string;
+};
+
+function parseValidatedRoleMapping(roleMapping: unknown): Record<string, string[]> | null {
+	try {
+		return parseRoleMappingInput(roleMapping);
+	} catch (parseError) {
+		throw error(400, {
+			message:
+				parseError instanceof Error
+					? parseError.message
+					: 'roleMapping must be an object mapping role names to arrays of group strings'
+		});
+	}
+}
+
+function parseProviderInput(body: unknown): ProviderInput {
+	const {
+		name,
+		type,
+		enabled = true,
+		clientId,
+		clientSecret,
+		issuerUrl,
+		authorizationUrl,
+		tokenUrl,
+		userInfoUrl,
+		jwksUrl,
+		autoProvision = true,
+		defaultRole = 'viewer',
+		roleMapping,
+		roleClaim = 'groups',
+		usernameClaim = 'preferred_username',
+		emailClaim = 'email',
+		usePkce = true,
+		scopes = 'openid profile email'
+	} = body as ProviderRequestBody;
+
+	if (!name || !type || !clientId || !clientSecret) {
+		throw error(400, { message: 'Missing required fields' });
+	}
+
+	return {
+		name,
+		type,
+		enabled,
+		clientId,
+		clientSecret,
+		issuerUrl,
+		authorizationUrl,
+		tokenUrl,
+		userInfoUrl,
+		jwksUrl,
+		autoProvision,
+		defaultRole,
+		roleMapping: parseValidatedRoleMapping(roleMapping),
+		roleClaim,
+		usernameClaim,
+		emailClaim,
+		usePkce,
+		scopes
+	};
+}
+
+function buildProvider(input: ProviderInput): NewAuthProvider {
+	return {
+		id: generateProviderId(),
+		name: input.name,
+		type: input.type,
+		enabled: input.enabled,
+		clientId: input.clientId,
+		clientSecretEncrypted: encryptSecret(input.clientSecret),
+		issuerUrl: input.issuerUrl || null,
+		authorizationUrl: input.authorizationUrl || null,
+		tokenUrl: input.tokenUrl || null,
+		userInfoUrl: input.userInfoUrl || null,
+		jwksUrl: input.jwksUrl || null,
+		autoProvision: input.autoProvision,
+		defaultRole: input.defaultRole,
+		roleMapping: input.roleMapping ? JSON.stringify(input.roleMapping) : null,
+		roleClaim: input.roleClaim,
+		usernameClaim: input.usernameClaim,
+		emailClaim: input.emailClaim,
+		usePkce: input.usePkce,
+		scopes: input.scopes
+	};
+}
+
 /**
  * GET /api/admin/auth-providers
  * List all auth providers (admin only)
@@ -137,72 +264,8 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
 	try {
-		const body = await request.json();
-
-		// Extract and validate provider data
-		const {
-			name,
-			type,
-			enabled = true,
-			clientId,
-			clientSecret, // Plain text secret (will be encrypted)
-			issuerUrl,
-			authorizationUrl,
-			tokenUrl,
-			userInfoUrl,
-			jwksUrl,
-			autoProvision = true,
-			defaultRole = 'viewer',
-			roleMapping,
-			roleClaim = 'groups',
-			usernameClaim = 'preferred_username',
-			emailClaim = 'email',
-			usePkce = true,
-			scopes = 'openid profile email'
-		} = body;
-
-		// Validate required fields
-		if (!name || !type || !clientId || !clientSecret) {
-			throw error(400, { message: 'Missing required fields' });
-		}
-
-		let validatedRoleMapping: Record<string, string[]> | null = null;
-		try {
-			validatedRoleMapping = parseRoleMappingInput(roleMapping);
-		} catch (parseError) {
-			throw error(400, {
-				message:
-					parseError instanceof Error
-						? parseError.message
-						: 'roleMapping must be an object mapping role names to arrays of group strings'
-			});
-		}
-
-		// Encrypt client secret
-		const clientSecretEncrypted = encryptSecret(clientSecret);
-
-		// Create new provider
-		const newProvider: NewAuthProvider = {
-			id: generateProviderId(),
-			name,
-			type,
-			enabled,
-			clientId,
-			clientSecretEncrypted,
-			issuerUrl: issuerUrl || null,
-			authorizationUrl: authorizationUrl || null,
-			tokenUrl: tokenUrl || null,
-			userInfoUrl: userInfoUrl || null,
-			jwksUrl: jwksUrl || null,
-			autoProvision,
-			defaultRole,
-			roleMapping: validatedRoleMapping ? JSON.stringify(validatedRoleMapping) : null,
-			roleClaim,
-			usernameClaim,
-			emailClaim,
-			usePkce,
-			scopes
-		};
+		const input = parseProviderInput(await request.json());
+		const newProvider = buildProvider(input);
 
 		// Validate provider configuration
 		const validation = validateProviderConfig(newProvider);
@@ -225,14 +288,14 @@ export const POST: RequestHandler = async ({ request, locals, setHeaders }) => {
 			}
 		});
 
-		logger.info(`Created new auth provider: ${name} (${type})`);
+		logger.info(`Created new auth provider: ${input.name} (${input.type})`);
 
 		return json({
 			success: true,
 			provider: {
 				...newProvider,
 				clientSecretEncrypted: '***', // Don't send back to client
-				roleMapping: validatedRoleMapping
+				roleMapping: input.roleMapping
 			}
 		});
 	} catch (err) {

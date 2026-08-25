@@ -2,6 +2,7 @@
 import { dev } from '$app/environment';
 
 import { env } from '$env/dynamic/public';
+import { redactSensitiveFields } from './logger-redaction.js';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
 
@@ -21,45 +22,6 @@ const currentLevelNum = LOG_LEVELS[currentLevel];
 
 function shouldLog(level: LogLevel): boolean {
 	return currentLevelNum <= LOG_LEVELS[level];
-}
-
-const SENSITIVE_KEYS =
-	/^(password|token|secret|authorization|cookie|email|apiKey|bearer|credential|accessToken|refreshToken|clientSecret)$/i;
-
-function redactSensitiveFields(value: unknown, visited: WeakSet<object> = new WeakSet()): unknown {
-	if (value === null || value === undefined) return value;
-	if (Array.isArray(value)) {
-		if (visited.has(value)) return '[Circular]';
-		visited.add(value);
-		const result = value.map((item) => redactSensitiveFields(item, visited));
-		visited.delete(value);
-		return result;
-	}
-	if (value instanceof Error) {
-		if (visited.has(value)) return '[Circular]';
-		visited.add(value);
-		const result: Record<string, unknown> = {
-			name: value.name,
-			message: value.message,
-			stack: value.stack
-		};
-		for (const [k, v] of Object.entries(value)) {
-			result[k] = SENSITIVE_KEYS.test(k) ? '[REDACTED]' : redactSensitiveFields(v, visited);
-		}
-		visited.delete(value);
-		return result;
-	}
-	if (typeof value === 'object') {
-		if (visited.has(value)) return '[Circular]';
-		visited.add(value);
-		const result: Record<string, unknown> = {};
-		for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-			result[k] = SENSITIVE_KEYS.test(k) ? '[REDACTED]' : redactSensitiveFields(v, visited);
-		}
-		visited.delete(value);
-		return result;
-	}
-	return value;
 }
 
 function formatBrowserLog(level: LogLevel, args: unknown[]): unknown[] {

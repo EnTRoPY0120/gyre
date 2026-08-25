@@ -2,45 +2,21 @@ import { browser } from '$app/environment';
 import type { UserPreferences } from '$lib/types/user';
 import type { ViewPreferences } from '$lib/types/view';
 import { safeGetItem, safeSetItem, safeRemoveItem } from '$lib/utils/storage';
+import {
+	DEFAULT_NOTIFICATION_PREFERENCES,
+	normalizeNotificationPreferences,
+	shouldShowNotification
+} from './notification-preferences';
+import {
+	DEFAULT_VIEW_PREFERENCES,
+	ITEMS_PER_PAGE_OPTIONS,
+	sanitizeViewPrefs
+} from './view-preferences';
+
+export { ITEMS_PER_PAGE_OPTIONS } from './view-preferences';
 
 type CodeFormat = 'yaml' | 'json';
-
-export const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 0] as const;
 type ValidItemsPerPage = (typeof ITEMS_PER_PAGE_OPTIONS)[number];
-
-const DEFAULT_VIEW_PREFERENCES: ViewPreferences = {
-	viewMode: 'table',
-	showNamespace: true,
-	compactMode: false,
-	autoRefresh: false,
-	refreshInterval: 30,
-	itemsPerPage: 10
-};
-
-function sanitizeViewPrefs(raw: unknown): ViewPreferences {
-	const r = raw as Record<string, unknown>;
-	return {
-		viewMode:
-			r.viewMode === 'table' || r.viewMode === 'grid'
-				? r.viewMode
-				: DEFAULT_VIEW_PREFERENCES.viewMode,
-		showNamespace:
-			typeof r.showNamespace === 'boolean'
-				? r.showNamespace
-				: DEFAULT_VIEW_PREFERENCES.showNamespace,
-		compactMode:
-			typeof r.compactMode === 'boolean' ? r.compactMode : DEFAULT_VIEW_PREFERENCES.compactMode,
-		autoRefresh:
-			typeof r.autoRefresh === 'boolean' ? r.autoRefresh : DEFAULT_VIEW_PREFERENCES.autoRefresh,
-		refreshInterval:
-			typeof r.refreshInterval === 'number'
-				? Math.max(5, Math.min(300, r.refreshInterval))
-				: DEFAULT_VIEW_PREFERENCES.refreshInterval,
-		itemsPerPage: ITEMS_PER_PAGE_OPTIONS.includes(r.itemsPerPage as ValidItemsPerPage)
-			? (r.itemsPerPage as number)
-			: DEFAULT_VIEW_PREFERENCES.itemsPerPage
-	};
-}
 
 function createPreferencesStore() {
 	// --- View Preferences ---
@@ -67,10 +43,7 @@ function createPreferencesStore() {
 
 	// --- Notifications ---
 	let _notifications = $state<NonNullable<UserPreferences['notifications']>>({
-		enabled: true,
-		resourceTypes: [],
-		namespaces: [],
-		events: ['success', 'failure', 'warning', 'info', 'error']
+		...DEFAULT_NOTIFICATION_PREFERENCES
 	});
 
 	// Helper to persist view preferences
@@ -153,49 +126,10 @@ function createPreferencesStore() {
 			return _notifications;
 		},
 		setNotifications(prefs: UserPreferences['notifications']) {
-			if (!prefs) {
-				_notifications = {
-					enabled: true,
-					resourceTypes: [],
-					namespaces: [],
-					events: ['success', 'failure', 'warning', 'info', 'error']
-				};
-				return;
-			}
-			_notifications = {
-				enabled: prefs.enabled ?? true,
-				resourceTypes: prefs.resourceTypes ?? [],
-				namespaces: prefs.namespaces ?? [],
-				events: prefs.events ?? ['success', 'failure', 'warning', 'info', 'error']
-			};
+			_notifications = normalizeNotificationPreferences(prefs);
 		},
 		shouldShowNotification(resourceType: string, namespace: string, type: string): boolean {
-			if (!_notifications.enabled) return false;
-
-			if (
-				_notifications.resourceTypes &&
-				_notifications.resourceTypes.length > 0 &&
-				!_notifications.resourceTypes.includes(resourceType)
-			) {
-				return false;
-			}
-
-			if (
-				_notifications.namespaces &&
-				_notifications.namespaces.length > 0 &&
-				!_notifications.namespaces.includes(namespace)
-			) {
-				return false;
-			}
-
-			if (_notifications.events && !_notifications.events.includes(type as any)) {
-				if (type === 'error' && _notifications.events.includes('failure')) {
-					return true;
-				}
-				return false;
-			}
-
-			return true;
+			return shouldShowNotification(_notifications, resourceType, namespace, type);
 		}
 	};
 }

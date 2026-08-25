@@ -2,6 +2,23 @@ import tailwindcss from '@tailwindcss/vite';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, loadEnv } from 'vite';
 
+const VENDOR_CHUNK_RULES = [
+	['monaco-editor', 'monaco-editor'],
+	['@lucide/svelte', 'vendor-icons'],
+	['bits-ui', 'vendor-ui'],
+	['/svelte/', 'vendor-svelte'],
+	['@sveltejs', 'vendor-svelte'],
+	['drizzle-orm', 'vendor-db'],
+	['yaml', 'vendor-yaml'],
+	['js-yaml', 'vendor-yaml']
+] as const;
+
+function getVendorChunk(id: string): string | undefined {
+	if (!id.includes('node_modules')) return;
+
+	return VENDOR_CHUNK_RULES.find(([dependency]) => id.includes(dependency))?.[1] ?? 'vendor';
+}
+
 export default defineConfig(({ mode }) => {
 	// Load .env vars and inject them into process.env so server-side code
 	// that reads process.env directly (e.g. backup.ts, auth/crypto.ts) works
@@ -15,7 +32,7 @@ export default defineConfig(({ mode }) => {
 			environment: 'node',
 			include: ['src/tests/**/*.test.ts'],
 			fileParallelism: false,
-			isolate: false
+			isolate: true
 		},
 		server: {
 			fs: {
@@ -39,18 +56,7 @@ export default defineConfig(({ mode }) => {
 			chunkSizeWarningLimit: 4300,
 			rolldownOptions: {
 				output: {
-					manualChunks: (id) => {
-						if (!id.includes('node_modules')) return;
-
-						if (id.includes('monaco-editor')) return 'monaco-editor';
-						if (id.includes('@lucide/svelte')) return 'vendor-icons';
-						if (id.includes('bits-ui')) return 'vendor-ui';
-						if (id.includes('/svelte/') || id.includes('@sveltejs')) return 'vendor-svelte';
-						if (id.includes('drizzle-orm')) return 'vendor-db';
-						if (id.includes('yaml') || id.includes('js-yaml')) return 'vendor-yaml';
-
-						return 'vendor';
-					}
+					manualChunks: getVendorChunk
 				}
 			}
 		}

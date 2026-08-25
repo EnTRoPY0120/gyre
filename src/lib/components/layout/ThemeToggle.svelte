@@ -2,6 +2,12 @@
 	import { theme, type Theme } from '$lib/stores/theme.svelte';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import { Sun, Moon, Monitor, Check } from '@lucide/svelte';
+	import {
+		applyThemeButtonKeyAction,
+		applyThemeMenuItemKeyAction,
+		getThemeButtonKeyAction,
+		getThemeMenuItemKeyAction
+	} from './theme-keyboard';
 
 	const themeOptions: { value: Theme; label: string; icon: typeof Sun }[] = [
 		{ value: 'light', label: 'Light', icon: Sun },
@@ -45,51 +51,53 @@
 	}
 
 	function handleButtonKeydown(e: KeyboardEvent) {
-		if (e.key === ' ' || e.key === 'Enter') {
-			e.preventDefault();
-			if (!isOpen) {
+		const action = getThemeButtonKeyAction(
+			e.key,
+			isOpen,
+			selectedIndex,
+			themeOptions.length,
+			getInitialIndex()
+		);
+		applyThemeButtonKeyAction(action, {
+			preventDefault: () => e.preventDefault(),
+			open: (index) => {
 				isOpen = true;
-				selectedIndex = getInitialIndex();
-				// Focus the menu item after the menu opens
+				selectedIndex = index;
 				$effect.pre(() => {
-					if (isOpen && selectedIndex >= 0) {
-						focusMenuButton(selectedIndex);
-					}
+					if (isOpen && selectedIndex >= 0) focusMenuButton(selectedIndex);
 				});
-			} else {
+			},
+			move: (index) => {
+				selectedIndex = index;
+				focusMenuButton(index);
+			},
+			close: () => {
 				isOpen = false;
 			}
-		} else if (e.key === 'ArrowDown' && isOpen) {
-			e.preventDefault();
-			selectedIndex = (selectedIndex + 1) % themeOptions.length;
-			focusMenuButton(selectedIndex);
-		} else if (e.key === 'ArrowUp' && isOpen) {
-			e.preventDefault();
-			selectedIndex = (selectedIndex - 1 + themeOptions.length) % themeOptions.length;
-			focusMenuButton(selectedIndex);
-		} else if (e.key === 'Escape') {
-			isOpen = false;
-		}
+		});
 	}
 
 	function handleMenuItemKeydown(e: KeyboardEvent, option: Theme, index: number) {
-		if (e.key === 'Enter' || e.key === ' ') {
-			e.preventDefault();
-			selectTheme(option);
-		} else if (e.key === 'ArrowDown') {
-			e.preventDefault();
-			selectedIndex = (selectedIndex + 1) % themeOptions.length;
-			focusMenuButton(selectedIndex);
-		} else if (e.key === 'ArrowUp') {
-			e.preventDefault();
-			selectedIndex = (selectedIndex - 1 + themeOptions.length) % themeOptions.length;
-			focusMenuButton(selectedIndex);
-		} else if (e.key === 'Escape') {
-			e.preventDefault();
-			isOpen = false;
-		} else if (e.key === 'Tab') {
-			isOpen = false;
+		const action = getThemeMenuItemKeyAction(e.key, themeOptions.length, selectedIndex);
+		applyThemeMenuItemKeyAction(action, {
+			preventDefault: () => e.preventDefault(),
+			select: () => selectTheme(option),
+			move: (nextIndex) => {
+				selectedIndex = nextIndex;
+				focusMenuButton(nextIndex);
+			},
+			close: () => {
+				isOpen = false;
+			}
+		});
+	}
+
+	function getMenuItemClass(option: Theme, index: number): string {
+		if (theme.theme === option || selectedIndex === index) {
+			return 'bg-accent text-accent-foreground';
 		}
+
+		return 'text-muted-foreground hover:bg-accent hover:text-accent-foreground';
 	}
 </script>
 
@@ -123,13 +131,7 @@
 			{#each themeOptions as option, index (option.value)}
 				<button
 					type="button"
-					class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors {theme.theme ===
-					option.value
-						? 'bg-accent text-accent-foreground'
-						: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'} {selectedIndex ===
-					index
-						? 'bg-accent text-accent-foreground'
-						: ''}"
+					class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors {getMenuItemClass(option.value, index)}"
 					onclick={() => selectTheme(option.value)}
 					onkeydown={(e) => handleMenuItemKeydown(e, option.value, index)}
 					role="menuitem"

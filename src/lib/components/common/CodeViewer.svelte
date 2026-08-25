@@ -3,8 +3,9 @@
 	import { toYaml, toJson, copyToClipboard } from '$lib/utils/format';
 	import { cn } from '$lib/utils';
 	import { Check, Copy, FileCode, Download } from '@lucide/svelte';
-	import { downloadFile, formatResourceForExport } from '$lib/utils/export';
+	import { downloadFile } from '$lib/utils/export';
 	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
+	import { getCodeViewerDownload, type CodeViewerFormat } from './code-viewer-download';
 
 	let {
 		data,
@@ -22,6 +23,8 @@
 	const formattedCode = $derived(preferences.format === 'yaml' ? toYaml(data) : toJson(data));
 	const language = $derived(preferences.format as 'yaml' | 'json');
 
+	const FORMAT_SHORTCUTS: Record<string, CodeViewerFormat> = { j: 'json', y: 'yaml' };
+
 	async function handleCopy() {
 		const success = await copyToClipboard(formattedCode);
 		if (success) {
@@ -31,26 +34,21 @@
 	}
 
 	function handleDownload() {
-		const format = preferences.format;
-		const exported = formatResourceForExport(data, format);
-		const content = format === 'json' ? exported : toYaml(exported);
-		const metadata = data.metadata as { name?: string } | undefined;
-		const name = metadata?.name || 'resource';
-		downloadFile(
-			content,
-			`${name}.${format}`,
-			format === 'json' ? 'application/json' : 'text/yaml'
-		);
+		const download = getCodeViewerDownload(data, preferences.format);
+		downloadFile(download.content, download.filename, download.contentType);
 	}
 
-	function handleKeydown(e: KeyboardEvent) {
-		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'j') {
-			e.preventDefault();
-			preferences.setFormat('json');
-		} else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-			e.preventDefault();
-			preferences.setFormat('yaml');
-		}
+	function getFormatShortcut(event: KeyboardEvent): CodeViewerFormat | null {
+		if (!event.ctrlKey && !event.metaKey) return null;
+		return FORMAT_SHORTCUTS[event.key.toLowerCase()] ?? null;
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		const format = getFormatShortcut(event);
+		if (!format) return;
+
+		event.preventDefault();
+		preferences.setFormat(format);
 	}
 </script>
 

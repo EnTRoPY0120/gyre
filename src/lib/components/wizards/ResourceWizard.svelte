@@ -1,22 +1,24 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import YamlEditor from '$lib/components/editors/YamlEditor.svelte';
-	import ArrayField from '$lib/components/wizards/ArrayField.svelte';
-	import ReferenceField from '$lib/components/wizards/ReferenceField.svelte';
-	import FieldHelp from '$lib/components/wizards/FieldHelp.svelte';
+	import WizardContent from '$lib/components/wizards/WizardContent.svelte';
+	import WizardHeader from '$lib/components/wizards/WizardHeader.svelte';
+	import WizardPreview from '$lib/components/wizards/WizardPreview.svelte';
 	import type { ResourceTemplate, TemplateField } from '$lib/templates';
-	import { cn } from '$lib/utils';
 	import { logger } from '$lib/utils/logger.js';
-	import { Loader2, Check, AlertCircle, Code, ListChecks, ChevronDown } from '@lucide/svelte';
-	import * as Select from '$lib/components/ui/select';
-	import { parse, parseDocument, YAMLError } from 'yaml';
+	import { parse, parseDocument } from 'yaml';
 	import { getCsrfToken } from '$lib/utils/csrf';
-	import safeRegex from 'safe-regex2';
-
-	// Kubernetes name/namespace validation — RFC 1123 DNS label, max 63 chars.
-	// Kept in sync with K8S_NAME_REGEX in src/lib/server/validation.ts.
-	const K8S_NAME_RE = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
+	import {
+		coerceWizardFieldValue,
+		validateHelmReleaseResourceValues as validateWizardHelmReleaseResourceValues,
+		validateWizardField
+	} from './field-validation';
+	import { createResourceFromWizard, getWizardResourceRedirect } from './resource-submit';
+import {
+	buildWizardFormValues,
+	mergeWizardFormValues
+} from './wizard-values';
+import { getWizardYamlError, removeEmptyWizardFieldValue } from './wizard-yaml';
+import { getReferenceNamespaceUpdate } from './reference-namespace';
 
 	let {
 		template,
@@ -69,11 +71,7 @@
 				parse(currentYaml);
 				yamlError = null;
 			} catch (err) {
-				if (err instanceof YAMLError) {
-					yamlError = `YAML Syntax Error: ${err.message}`;
-				} else {
-					yamlError = 'Invalid YAML syntax';
-				}
+				yamlError = getWizardYamlError(err);
 			}
 		}
 	});
@@ -84,26 +82,7 @@
 			const parsed = parse(template.yaml) as Record<string, unknown> & {
 				metadata?: { namespace?: string; name?: string };
 			};
-			const values: Record<string, unknown> = {};
-
-			template.fields.forEach((field) => {
-				values[field.name] = coerceFieldValue(field, getValueAtPath(parsed, field.path));
-
-				// Apply default namespace
-				if (field.name === 'namespace' && defaultNamespace) {
-					values[field.name] = defaultNamespace;
-				}
-
-				if (field.virtual) {
-					const manifestValue = inferVirtualFieldValue(field, parsed);
-					if (manifestValue !== undefined) {
-						values[field.name] = manifestValue;
-					} else if (values[field.name] === undefined && field.default !== undefined) {
-						values[field.name] = field.default;
-					}
-				}
-			});
-			formValues = values;
+			formValues = buildWizardFormValues(template, parsed, defaultNamespace);
 			hasInitializedFormValues = true;
 		} catch (err) {
 			logger.error(err, 'Failed to parse initial YAML');
@@ -124,39 +103,7 @@
 	function updateYamlFromForm() {
 		try {
 			const doc = parseDocument(currentYaml || template.yaml);
-
-			template.fields.forEach((field) => {
-				if (field.virtual) return;
-
-				if (!shouldShowField(field)) {
-					const visibleFieldWithSamePath = template.fields.some(
-						(candidate) =>
-							candidate !== field &&
-							!candidate.virtual &&
-							candidate.path === field.path &&
-							shouldShowField(candidate)
-					);
-					if (!visibleFieldWithSamePath) {
-						doc.deleteIn(field.path.split('.'));
-					}
-					return;
-				}
-
-				const value = coerceFieldValue(field, formValues[field.name]);
-				const path = field.path.split('.');
-
-				if (field.name === 'verifyMode' && value === '') {
-					doc.deleteIn(path.slice(0, -1));
-					return;
-				}
-
-				if (field.type === 'number' && value === undefined) {
-					doc.deleteIn(path);
-					return;
-				}
-
-				doc.setIn(path, value);
-			});
+			template.fields.forEach((field) => applyFieldToYaml(doc, field));
 
 			currentYaml = doc.toString();
 		} catch (err) {
@@ -164,93 +111,50 @@
 		}
 	}
 
+	function applyFieldToYaml(doc: ReturnType<typeof parseDocument>, field: TemplateField) {
+		if (field.virtual || removeHiddenField(doc, field)) return;
+
+		const value = coerceFieldValue(field, formValues[field.name]);
+		if (removeEmptyFieldValue(doc, field, value)) return;
+
+		doc.setIn(field.path.split('.'), value);
+	}
+
+	function removeHiddenField(doc: ReturnType<typeof parseDocument>, field: TemplateField): boolean {
+		if (shouldShowField(field)) return false;
+
+		const visibleFieldWithSamePath = template.fields.some(
+			(candidate) =>
+				candidate !== field &&
+				!candidate.virtual &&
+				candidate.path === field.path &&
+				shouldShowField(candidate)
+		);
+		if (!visibleFieldWithSamePath) doc.deleteIn(field.path.split('.'));
+		return true;
+	}
+
+	function removeEmptyFieldValue(
+		doc: ReturnType<typeof parseDocument>,
+		field: TemplateField,
+		value: unknown
+	): boolean {
+			return removeEmptyWizardFieldValue(doc, field, value);
+	}
+
 	// Synchronize form values when YAML changes (YAML -> Wizard)
 	function updateFormFromYaml() {
 		try {
 			const parsed = parse(currentYaml) as Record<string, unknown>;
 			yamlError = null;
-			const values: Record<string, unknown> = { ...formValues };
-
-			template.fields.forEach((field) => {
-				if (field.virtual) {
-					const manifestValue = inferVirtualFieldValue(field, parsed);
-					if (manifestValue !== undefined) {
-						values[field.name] = manifestValue;
-					} else if (values[field.name] === undefined && field.default !== undefined) {
-						values[field.name] = field.default;
-					}
-					return;
-				}
-
-				values[field.name] = coerceFieldValue(field, getValueAtPath(parsed, field.path));
-			});
-			formValues = values;
+			formValues = mergeWizardFormValues(template, parsed, formValues);
 		} catch (err) {
-			if (err instanceof YAMLError) {
-				yamlError = `YAML Syntax Error: ${err.message}`;
-			} else {
-				yamlError = 'Invalid YAML syntax';
-			}
+			yamlError = getWizardYamlError(err);
 		}
-	}
-
-	function getValueAtPath(source: Record<string, unknown>, path: string): unknown {
-		const segments = path.split('.');
-		let current: unknown = source;
-
-		for (const segment of segments) {
-			if (!current || typeof current !== 'object') {
-				return undefined;
-			}
-			current = (current as Record<string, unknown>)[segment];
-		}
-
-		return current;
-	}
-
-	function hasPopulatedValue(value: unknown): boolean {
-		return (
-			value !== undefined &&
-			value !== null &&
-			value !== '' &&
-			(!Array.isArray(value) || value.length > 0)
-		);
-	}
-
-	function inferVirtualFieldValue(
-		field: TemplateField,
-		source: Record<string, unknown>
-	): string | undefined {
-		for (const candidate of template.fields) {
-			if (candidate.virtual || candidate.showIf?.field !== field.name) continue;
-			if (!hasPopulatedValue(getValueAtPath(source, candidate.path))) continue;
-
-			const showIfValue = candidate.showIf.value;
-			return Array.isArray(showIfValue) ? showIfValue[0] : showIfValue;
-		}
-
-		return undefined;
 	}
 
 	function coerceFieldValue(field: TemplateField, value: unknown): unknown {
-		if (field.type !== 'number') {
-			return value;
-		}
-
-		if (value === '' || value === null || value === undefined) {
-			return undefined;
-		}
-
-		if (typeof value === 'number') {
-			return Number.isFinite(value) ? value : undefined;
-		}
-
-		if (typeof value === 'string') {
-			const parsedValue = Number(value);
-			return Number.isFinite(parsedValue) ? parsedValue : undefined;
-		}
-
-		return undefined;
+		return coerceWizardFieldValue(field, value);
 	}
 
 	function ensureTemplateField(field: TemplateField): TemplateField {
@@ -295,16 +199,43 @@
 		setFieldValue(fallbackField, value);
 	}
 
-	async function handleSubmit() {
-		// Check for YAML syntax errors first
-		if (yamlError) {
-			error = yamlError;
-			return;
-		}
-
-		// Validate form before submitting (only in wizard mode)
+	function getSubmitValidationError(): string | null {
+		if (yamlError) return yamlError;
 		if (mode === 'wizard' && !validateForm()) {
-			error = 'Please fix validation errors before submitting';
+			return 'Please fix validation errors before submitting';
+		}
+		return null;
+	}
+
+	function prepareWizardSubmission(): void {
+		if (mode !== 'wizard') return;
+
+		template.fields.forEach((field) => {
+			if (field.type === 'number') commitFieldValue(field);
+		});
+		updateYamlFromForm();
+	}
+
+	async function createSubmittedResource(): Promise<Awaited<ReturnType<typeof createResourceFromWizard>>> {
+		prepareWizardSubmission();
+		const parsed = parse(currentYaml) as Record<string, unknown> & {
+			metadata?: { namespace?: string; name?: string };
+		};
+		return createResourceFromWizard(template.plural, parsed, getCsrfToken());
+	}
+
+	function scheduleResourceRedirect(
+		createdResource: Awaited<ReturnType<typeof createResourceFromWizard>>
+	): void {
+		setTimeout(() => {
+			void goto(getWizardResourceRedirect(template.plural, createdResource));
+		}, 1500);
+	}
+
+	async function handleSubmit() {
+		const validationError = getSubmitValidationError();
+		if (validationError) {
+			error = validationError;
 			return;
 		}
 
@@ -312,44 +243,10 @@
 		error = null;
 
 		try {
-			if (mode === 'wizard') {
-				template.fields.forEach((field) => {
-					if (field.type === 'number') {
-						commitFieldValue(field);
-					}
-				});
-				updateYamlFromForm();
-			}
-
-			const parsed = parse(currentYaml) as Record<string, unknown> & {
-				metadata?: { namespace?: string; name?: string };
-			};
-			const response = await fetch(`/api/v1/flux/${template.plural}`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-				body: JSON.stringify(parsed)
-			});
-
-			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Failed to create resource');
-			}
-
-			const createdResource = (await response.json()) as {
-				metadata?: { namespace?: string; name?: string };
-			};
+			const createdResource = await createSubmittedResource();
 
 			success = true;
-
-			setTimeout(() => {
-				const ns = createdResource.metadata?.namespace;
-				const name = createdResource.metadata?.name;
-				if (ns && name && K8S_NAME_RE.test(ns) && K8S_NAME_RE.test(name)) {
-					void goto(`/resources/${template.plural}/${ns}/${name}`);
-				} else {
-					void goto(`/resources/${template.plural}`);
-				}
-			}, 1500);
+			scheduleResourceRedirect(createdResource);
 		} catch (err) {
 			error = (err as Error).message;
 		} finally {
@@ -376,16 +273,13 @@
 	) {
 		setFieldValue(field, nextValue);
 
-		if (!field.referenceNamespaceField) return;
-		if (selection?.namespace === undefined) return;
+		const namespaceUpdate = getReferenceNamespaceUpdate(field, selection, template.fields);
+		if (!namespaceUpdate) return;
 
-		const namespaceField = template.fields.find(
-			(candidate) => candidate.name === field.referenceNamespaceField
-		);
-		if (namespaceField) {
-			setFieldValue(namespaceField, selection.namespace);
+		if (namespaceUpdate.field) {
+			setFieldValue(namespaceUpdate.field, namespaceUpdate.value);
 		} else {
-			setFieldValueByName(field.referenceNamespaceField, selection.namespace);
+			setFieldValueByName(namespaceUpdate.fieldName, namespaceUpdate.value);
 		}
 	}
 
@@ -431,49 +325,7 @@
 
 	// Validate a single field
 	function validateField(field: (typeof template.fields)[0]): string | null {
-		const value = formValues[field.name];
-
-		// Skip validation if field is not visible
-		if (!shouldShowField(field)) {
-			return null;
-		}
-
-		// Required field validation
-		if (field.required && (value === undefined || value === null || value === '')) {
-			return `${field.label} is required`;
-		}
-
-		// Skip further validation if field is empty and not required
-		if (!value) {
-			return null;
-		}
-
-		// Custom pattern validation
-		if (field.validation?.pattern && typeof value === 'string') {
-			try {
-				if (!safeRegex(field.validation.pattern)) {
-					return `Invalid validation pattern for ${field.label}`;
-				}
-				const regex = new RegExp(field.validation.pattern);
-				if (!regex.test(value)) {
-					return field.validation.message || `Invalid format for ${field.label}`;
-				}
-			} catch {
-				return `Invalid validation pattern for ${field.label}`;
-			}
-		}
-
-		// Number range validation
-		if (field.type === 'number' && typeof value === 'number') {
-			if (field.validation?.min !== undefined && value < field.validation.min) {
-				return `${field.label} must be at least ${field.validation.min}`;
-			}
-			if (field.validation?.max !== undefined && value > field.validation.max) {
-				return `${field.label} must be at most ${field.validation.max}`;
-			}
-		}
-
-		return null;
+		return validateWizardField(field, formValues[field.name], shouldShowField(field));
 	}
 
 	// Validate all fields
@@ -506,40 +358,7 @@
 	}
 
 	function validateHelmReleaseResourceValues(): string | null {
-		if (template.kind !== 'HelmRelease') return null;
-
-		const structuredResourceFields = [
-			'resourceLimitsCpu',
-			'resourceLimitsMemory',
-			'resourceRequestsCpu',
-			'resourceRequestsMemory'
-		];
-		if (!structuredResourceFields.some((fieldName) => Boolean(formValues[fieldName]))) {
-			return null;
-		}
-
-		const values = formValues.values;
-		if (!values) return null;
-
-		try {
-			const parsedValues =
-				typeof values === 'string'
-					? (parse(values) as Record<string, unknown> | null)
-					: (values as Record<string, unknown>);
-			if (
-				parsedValues &&
-				typeof parsedValues === 'object' &&
-				!Array.isArray(parsedValues) &&
-				'resources' in parsedValues
-			) {
-				return 'Remove resources from Values before using structured resource fields.';
-			}
-		} catch (err) {
-			logger.warn(err, 'Failed to parse HelmRelease values while checking resource conflicts');
-			return null;
-		}
-
-		return null;
+		return validateWizardHelmReleaseResourceValues(template, formValues);
 	}
 
 	// Check if form is valid (derived)
@@ -571,395 +390,38 @@
 </script>
 
 <div class="flex flex-col gap-6">
-	<!-- Head -->
-	<div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-		<div>
-			<h2 class="text-xl font-bold">{template.name} Creation</h2>
-			<p class="text-sm text-muted-foreground">{template.description}</p>
-		</div>
-
-		<div class="flex items-center gap-2">
-			<div class="flex shrink-0 rounded-lg border border-border bg-card p-1">
-				<button
-					class={cn(
-						'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-						mode === 'wizard' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent'
-					)}
-					onclick={() => toggleMode('wizard')}
-				>
-					<ListChecks size={16} />
-					Form
-				</button>
-				<button
-					class={cn(
-						'flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-						mode === 'yaml' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-accent'
-					)}
-					onclick={() => toggleMode('yaml')}
-				>
-					<Code size={16} />
-					Edit as YAML
-				</button>
-			</div>
-		</div>
-	</div>
+	<WizardHeader {template} {mode} onToggleMode={toggleMode} />
 
 	<!-- Content -->
 	<div class="grid gap-8 lg:grid-cols-[1fr_400px]">
 		<!-- Primary Content -->
-		<div
-			class={cn(
-				'rounded-xl border border-border bg-card/60 backdrop-blur-sm',
-				mode === 'yaml' && 'min-h-[500px]'
-			)}
-		>
-			{#if mode === 'wizard'}
-				<div class="divide-y divide-border">
-					{#if template.sections}
-						{#each template.sections as section (section.id)}
-							{@const sectionFields = fieldsBySection[section.id] || []}
-							{#if sectionFields.length > 0}
-								<div class="p-6">
-									<button
-										onclick={() => toggleSection(section.id)}
-										class="mb-4 flex w-full items-center justify-between text-left"
-									>
-										<div>
-											<h3 class="text-base font-semibold">{section.title}</h3>
-											{#if section.description}
-												<p class="text-sm text-muted-foreground">{section.description}</p>
-											{/if}
-										</div>
-										{#if section.collapsible}
-											<ChevronDown
-												size={20}
-												class={cn(
-													'text-muted-foreground transition-transform',
-													expandedSections[section.id] ? 'rotate-180' : ''
-												)}
-											/>
-										{/if}
-									</button>
-
-									{#if expandedSections[section.id]}
-										<div class="grid gap-6">
-											{#each sectionFields as field (field.name)}
-												{#if shouldShowField(field)}
-													<div class="flex flex-col gap-1.5">
-														<div class="flex items-center gap-2">
-															<label
-																for="field-{field.name}"
-																class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-															>
-																{field.label}
-																{#if field.required}<span class="text-red-500">*</span>{/if}
-															</label>
-															<FieldHelp helpText={field.helpText} docsUrl={field.docsUrl} />
-														</div>
-
-														{#if field.type === 'select'}
-															<Select.Root
-																type="single"
-																value={formValues[field.name] as string}
-																onValueChange={(v) => setFieldValue(field, v)}
-															>
-																<Select.Trigger
-																	id="field-{field.name}"
-																	class={cn(
-																		'w-full',
-																		validationErrors[field.name] && 'border-red-500'
-																	)}
-																>
-																	<Select.Value placeholder="Select {field.label}">
-																		{field.options?.find(
-																			(o) => String(o.value) === String(formValues[field.name])
-																		)?.label ||
-																			formValues[field.name] ||
-																			`Select ${field.label}`}
-																	</Select.Value>
-																</Select.Trigger>
-																<Select.Content>
-																	{#each field.options || [] as opt (opt.value)}
-																		<Select.Item value={opt.value}>{opt.label}</Select.Item>
-																	{/each}
-																</Select.Content>
-															</Select.Root>
-														{:else if field.type === 'boolean'}
-															<div class="flex items-center gap-2">
-																<input
-																	id="field-{field.name}"
-																	type="checkbox"
-																	checked={Boolean(formValues[field.name])}
-																	onchange={(event) =>
-																		setFieldValue(field, (event.currentTarget as HTMLInputElement).checked)}
-																	class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-																/>
-																<span class="text-sm text-muted-foreground"
-																	>{field.description || ''}</span
-																>
-															</div>
-														{:else if field.type === 'textarea'}
-															<textarea
-																id="field-{field.name}"
-																value={String(formValues[field.name] ?? '')}
-																oninput={(event) =>
-																	setFieldValue(field, (event.currentTarget as HTMLTextAreaElement).value)}
-																placeholder={field.placeholder || field.description}
-																rows="4"
-																class={cn(
-																	'flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-																	validationErrors[field.name] && 'border-red-500'
-																)}
-															></textarea>
-														{:else if field.type === 'array'}
-															{#if !formValues[field.name]}
-																{(formValues[field.name] = [])}
-															{/if}
-															<ArrayField
-																bind:value={formValues[field.name] as unknown[]}
-																itemType={field.arrayItemType || 'string'}
-																itemFields={field.arrayItemFields || []}
-																placeholder={field.placeholder}
-																error={validationErrors[field.name]}
-															/>
-														{:else if field.referenceType || field.referenceTypeField}
-											<ReferenceField
-												id="field-{field.name}"
-												bind:value={formValues[field.name] as string}
-												referenceType={field.referenceType}
-												referenceTypeField={field.referenceTypeField}
-												referenceNamespace={field.referenceNamespaceField
-													? String(formValues[field.referenceNamespaceField] ?? '')
-													: ''}
-												{formValues}
-												placeholder={field.placeholder || field.description}
-												error={validationErrors[field.name]}
-												onValueChange={(nextValue, selection) =>
-													handleReferenceValueChange(field, nextValue, selection)}
-											/>
-														{:else}
-															<input
-																id="field-{field.name}"
-																type={field.type === 'number' ? 'number' : 'text'}
-																value={String(formValues[field.name] ?? '')}
-																oninput={(event) =>
-																	setFieldValue(field, (event.currentTarget as HTMLInputElement).value)}
-																onblur={() => {
-																	if (field.type === 'number') {
-																		commitFieldValue(field);
-																	}
-																}}
-																placeholder={field.placeholder || field.description}
-																class={cn(
-																	'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-																	validationErrors[field.name] && 'border-red-500'
-																)}
-															/>
-														{/if}
-
-														{#if validationErrors[field.name]}
-															<p class="text-xs text-red-500">{validationErrors[field.name]}</p>
-														{:else if field.description && field.type !== 'boolean'}
-															<p class="text-xs text-muted-foreground">{field.description}</p>
-														{/if}
-													</div>
-												{/if}
-											{/each}
-										</div>
-									{/if}
-								</div>
-							{/if}
-						{/each}
-					{:else}
-						<!-- Fallback for templates without sections -->
-						<div class="p-6">
-							<div class="grid gap-6">
-								{#each template.fields as field (field.name)}
-									{#if shouldShowField(field)}
-										<div class="flex flex-col gap-1.5">
-											<div class="flex items-center gap-2">
-												<label
-													for="field-{field.name}"
-													class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-												>
-													{field.label}
-													{#if field.required}<span class="text-red-500">*</span>{/if}
-												</label>
-												<FieldHelp helpText={field.helpText} docsUrl={field.docsUrl} />
-											</div>
-
-											{#if field.type === 'select'}
-												<Select.Root
-													type="single"
-													value={formValues[field.name] as string}
-													onValueChange={(v) => setFieldValue(field, v)}
-												>
-													<Select.Trigger
-														id="field-{field.name}"
-														class={cn(
-															'w-full',
-															validationErrors[field.name] && 'border-red-500'
-														)}
-													>
-														<Select.Value placeholder="Select {field.label}" />
-													</Select.Trigger>
-													<Select.Content>
-														{#each field.options || [] as opt (opt.value)}
-															<Select.Item value={opt.value}>{opt.label}</Select.Item>
-														{/each}
-													</Select.Content>
-												</Select.Root>
-											{:else if field.type === 'boolean'}
-												<div class="flex items-center gap-2">
-													<input
-														id="field-{field.name}"
-														type="checkbox"
-														checked={Boolean(formValues[field.name])}
-														onchange={(event) =>
-															setFieldValue(field, (event.currentTarget as HTMLInputElement).checked)}
-														class="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-													/>
-													<span class="text-sm text-muted-foreground"
-														>{field.description || ''}</span
-													>
-												</div>
-											{:else if field.type === 'textarea'}
-												<textarea
-													id="field-{field.name}"
-													value={String(formValues[field.name] ?? '')}
-													oninput={(event) =>
-														setFieldValue(field, (event.currentTarget as HTMLTextAreaElement).value)}
-													placeholder={field.placeholder || field.description}
-													rows="4"
-													class={cn(
-														'flex w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-														validationErrors[field.name] && 'border-red-500'
-													)}
-												></textarea>
-											{:else if field.type === 'array'}
-												{#if !formValues[field.name]}
-													{(formValues[field.name] = [])}
-												{/if}
-												<ArrayField
-													bind:value={formValues[field.name] as unknown[]}
-													itemType={field.arrayItemType || 'string'}
-													itemFields={field.arrayItemFields || []}
-													placeholder={field.placeholder}
-													error={validationErrors[field.name]}
-												/>
-											{:else if field.referenceType || field.referenceTypeField}
-										<ReferenceField
-											id="field-{field.name}"
-											bind:value={formValues[field.name] as string}
-											referenceType={field.referenceType}
-											referenceTypeField={field.referenceTypeField}
-											referenceNamespace={field.referenceNamespaceField
-												? String(formValues[field.referenceNamespaceField] ?? '')
-												: ''}
-											{formValues}
-											placeholder={field.placeholder || field.description}
-											error={validationErrors[field.name]}
-											onValueChange={(nextValue, selection) =>
-												handleReferenceValueChange(field, nextValue, selection)}
-										/>
-											{:else}
-												<input
-													id="field-{field.name}"
-													type={field.type === 'number' ? 'number' : 'text'}
-													value={String(formValues[field.name] ?? '')}
-													oninput={(event) =>
-														setFieldValue(field, (event.currentTarget as HTMLInputElement).value)}
-													onblur={() => {
-														if (field.type === 'number') {
-															commitFieldValue(field);
-														}
-													}}
-													placeholder={field.placeholder || field.description}
-													class={cn(
-														'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50',
-														validationErrors[field.name] && 'border-red-500'
-													)}
-												/>
-											{/if}
-
-											{#if validationErrors[field.name]}
-												<p class="text-xs text-red-500">{validationErrors[field.name]}</p>
-											{:else if field.description && field.type !== 'boolean'}
-												<p class="text-xs text-muted-foreground">{field.description}</p>
-											{/if}
-										</div>
-									{/if}
-								{/each}
-							</div>
-						</div>
-					{/if}
-				</div>
-			{:else}
-				<YamlEditor
-					bind:value={currentYaml}
-					onCopy={copyYaml}
-					{copySuccess}
-					error={yamlError}
-					className="h-full min-h-[500px]"
-				/>
-			{/if}
-		</div>
+		<WizardContent
+			{mode}
+			{template}
+			{fieldsBySection}
+			{expandedSections}
+			{formValues}
+			{validationErrors}
+			{shouldShowField}
+			bind:currentYaml
+			{copySuccess}
+			yamlError={yamlError}
+			onCopy={copyYaml}
+			onToggleSection={toggleSection}
+			onSetFieldValue={setFieldValue}
+			onReferenceValueChange={handleReferenceValueChange}
+			onCommit={commitFieldValue}
+		/>
 
 		<!-- Sidebar / Preview -->
-		<div class="flex flex-col gap-6">
-			<div class="rounded-xl border border-border bg-card/60 p-6 backdrop-blur-sm">
-				<h3 class="mb-4 font-semibold">Ready to Create?</h3>
-				<p class="mb-6 text-sm text-muted-foreground">
-					This will create a new {template.kind} in your cluster. Make sure the configuration is correct.
-				</p>
-
-				<Button
-					class="w-full"
-					size="lg"
-					disabled={isSubmitting || success || (mode === 'wizard' && !isFormValid)}
-					onclick={handleSubmit}
-				>
-					{#if isSubmitting}
-						<Loader2 class="mr-2 h-4 w-4 animate-spin" />
-						Creating...
-					{:else if success}
-						<Check class="mr-2 h-4 w-4" />
-						Created!
-					{:else}
-						Create {template.kind}
-					{/if}
-				</Button>
-
-				{#if error}
-					<div
-						class="mt-4 flex items-start gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-500"
-					>
-						<AlertCircle class="mt-0.5 shrink-0" size={16} />
-						<span>{error}</span>
-					</div>
-				{/if}
-			</div>
-
-			<!-- Quick Help -->
-			<div class="rounded-xl border border-border bg-muted/30 p-6">
-				<h4 class="mb-2 text-sm font-semibold">Tips</h4>
-				<ul class="space-y-2 text-xs leading-relaxed text-muted-foreground">
-					<li class="flex gap-2">
-						<span class="text-primary">•</span>
-						<span
-							>Use <strong>Form mode</strong> for guided configuration with all available fields</span
-						>
-					</li>
-					<li class="flex gap-2">
-						<span class="text-primary">•</span>
-						<span>Switch to <strong>Edit as YAML</strong> for direct manifest editing</span>
-					</li>
-					<li class="flex gap-2">
-						<span class="text-primary">•</span>
-						<span>Click <strong>Copy YAML</strong> to copy the generated manifest</span>
-					</li>
-				</ul>
-			</div>
-		</div>
+		<WizardPreview
+			{template}
+			{mode}
+			{isSubmitting}
+			{success}
+			{isFormValid}
+			{error}
+			onSubmit={handleSubmit}
+		/>
 	</div>
 </div>

@@ -19,8 +19,13 @@ import {
 } from '$lib/server/kubernetes/flux/resources.js';
 import { logger } from '$lib/server/logger.js';
 import { getResourceStatus } from '$lib/utils/relationships.js';
+import {
+	DEFAULT_FLUX_VERSION,
+	getFluxDeploymentVersion,
+	getFluxNamespaceVersion
+} from './version-helpers.js';
 
-export const DEFAULT_FLUX_VERSION = 'v2.x.x';
+export { DEFAULT_FLUX_VERSION } from './version-helpers.js';
 
 const MAX_CONNECTION_CACHE_SIZE = 20;
 const CONNECTION_CACHE_TTL = 30 * 1000;
@@ -92,6 +97,50 @@ function pruneConnectionCache() {
 	}
 }
 
+type DeploymentApi = {
+	listNamespacedDeployment: (options: { namespace: string }) => Promise<{
+		items?: k8s.V1Deployment[];
+	}>;
+};
+
+type NamespaceApi = {
+	readNamespace: (options: { name: string }) => Promise<k8s.V1Namespace>;
+};
+
+async function listFluxDeployments(
+	appsApi: DeploymentApi,
+	namespace: string
+): Promise<k8s.V1Deployment[] | null> {
+	try {
+		const response = await appsApi.listNamespacedDeployment({ namespace });
+		return response.items ?? [];
+	} catch (err) {
+		if (isNotFoundError(err)) {
+			logger.warn({ err }, 'Flux namespace/deployments not found; using default Flux version');
+			return null;
+		}
+		logger.warn({ err }, 'Failed to list Flux deployments');
+		throw err;
+	}
+}
+
+async function readFluxNamespaceVersion(
+	coreApi: NamespaceApi,
+	namespace: string
+): Promise<{ version: string }> {
+	try {
+		const namespaceResponse = await coreApi.readNamespace({ name: namespace });
+		return { version: getFluxNamespaceVersion(namespaceResponse.metadata?.labels) };
+	} catch (err) {
+		if (isNotFoundError(err)) {
+			logger.warn({ err }, 'Flux namespace not found while reading version label');
+			return { version: DEFAULT_FLUX_VERSION };
+		}
+		logger.warn({ err }, 'Failed to read Flux namespace while determining version');
+		throw err;
+	}
+}
+
 export async function getFluxHealthSummary({
 	locals,
 	includeDetails
@@ -147,53 +196,16 @@ export async function getFluxHealthSummary({
 export async function getFluxInstalledVersion({ locals }: { locals: App.Locals }) {
 	try {
 		const config = await getKubeConfig(locals.cluster);
-		const appsApi = config.makeApiClient(k8s.AppsV1Api);
 		const namespace = 'flux-system';
+		const appsApi = config.makeApiClient(k8s.AppsV1Api);
+		const deployments = await listFluxDeployments(appsApi, namespace);
+		if (deployments === null) return { version: DEFAULT_FLUX_VERSION };
+
+		const deploymentVersion = getFluxDeploymentVersion(deployments);
+		if (deploymentVersion) return { version: deploymentVersion };
+
 		const coreApi = config.makeApiClient(k8s.CoreV1Api);
-
-		let deployments: k8s.V1Deployment[] = [];
-		try {
-			const response = await appsApi.listNamespacedDeployment({ namespace });
-			deployments = response.items ?? [];
-		} catch (err) {
-			if (isNotFoundError(err)) {
-				logger.warn({ err }, 'Flux namespace/deployments not found; using default Flux version');
-				return { version: DEFAULT_FLUX_VERSION };
-			}
-			logger.warn({ err }, 'Failed to list Flux deployments');
-			throw err;
-		}
-
-		if (deployments.length > 0) {
-			const fluxDeployment = deployments.find(
-				(deployment) =>
-					deployment.metadata?.labels?.['app.kubernetes.io/part-of'] === 'flux' ||
-					deployment.metadata?.name?.includes('source-controller')
-			);
-
-			const version =
-				fluxDeployment?.metadata?.labels?.['app.kubernetes.io/version'] ||
-				deployments[0].metadata?.labels?.['app.kubernetes.io/version'];
-
-			if (version) {
-				return { version };
-			}
-		}
-
-		try {
-			const namespaceResponse = await coreApi.readNamespace({ name: namespace });
-			return {
-				version:
-					namespaceResponse.metadata?.labels?.['app.kubernetes.io/version'] || DEFAULT_FLUX_VERSION
-			};
-		} catch (err) {
-			if (isNotFoundError(err)) {
-				logger.warn({ err }, 'Flux namespace not found while reading version label');
-				return { version: DEFAULT_FLUX_VERSION };
-			}
-			logger.warn({ err }, 'Failed to read Flux namespace while determining version');
-			throw err;
-		}
+		return readFluxNamespaceVersion(coreApi, namespace);
 	} catch (err) {
 		handleApiError(err, 'Error fetching Flux version');
 	}

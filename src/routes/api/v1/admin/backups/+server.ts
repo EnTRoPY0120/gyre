@@ -146,16 +146,19 @@ import {
 export const GET: RequestHandler = async ({ locals }) => {
 	const clusterId = locals.cluster || 'in-cluster';
 	await requirePrivilegedAdminPermission({ ...locals, cluster: clusterId }, 'DatabaseBackup');
+	return listBackupsResponse();
+};
 
+function listBackupsResponse(): Response {
 	try {
 		const backups = listBackups();
 		return json({ backups });
-	} catch (err) {
-		if (err && typeof err === 'object' && 'status' in err) throw err;
-		logger.error(err, 'Failed to list backups:');
+	} catch (cause) {
+		if (isHttpError(cause)) throw cause;
+		logger.error(cause, 'Failed to list backups:');
 		throw error(500, { message: 'Failed to list backups', code: 'InternalServerError' });
 	}
-};
+}
 
 /**
  * POST /api/admin/backups
@@ -168,7 +171,36 @@ export const POST: RequestHandler = async ({ locals, setHeaders }) => {
 		'DatabaseBackup'
 	);
 	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
+	return createBackupResponse(user);
+};
 
+type PrivilegedBackupUser = Parameters<typeof logPrivilegedMutationSuccess>[0]['user'];
+
+function isHttpError(value: unknown): value is { status: number } {
+	return !!value && typeof value === 'object' && 'status' in value;
+}
+
+async function handleBackupMutationFailure(
+	cause: unknown,
+	user: PrivilegedBackupUser,
+	action: 'backup:create' | 'backup:delete',
+	name: string,
+	logMessage: string,
+	errorMessage: string
+): Promise<never> {
+	if (isHttpError(cause)) throw cause;
+	await logPrivilegedMutationFailure({
+		action,
+		user,
+		resourceType: 'DatabaseBackup',
+		name,
+		error: cause
+	});
+	logger.error(cause, logMessage);
+	throw error(500, { message: errorMessage, code: 'InternalServerError' });
+}
+
+async function createBackupResponse(user: PrivilegedBackupUser): Promise<Response> {
 	try {
 		const backup = await createBackup();
 
@@ -181,19 +213,47 @@ export const POST: RequestHandler = async ({ locals, setHeaders }) => {
 		});
 
 		return json({ backup }, { status: 201 });
-	} catch (err) {
-		if (err && typeof err === 'object' && 'status' in err) throw err;
-		await logPrivilegedMutationFailure({
-			action: 'backup:create',
+	} catch (cause) {
+		return handleBackupMutationFailure(
+			cause,
 			user,
-			resourceType: 'DatabaseBackup',
-			name: 'new',
-			error: err
-		});
-		logger.error(err, 'Failed to create backup:');
-		throw error(500, { message: 'Failed to create backup', code: 'InternalServerError' });
+			'backup:create',
+			'new',
+			'Failed to create backup:',
+			'Failed to create backup'
+		);
 	}
-};
+}
+
+function getBackupFilename(url: URL): string {
+	const filename = url.searchParams.get('filename');
+	if (!filename) {
+		throw error(400, { message: 'Missing filename parameter', code: 'BadRequest' });
+	}
+
+	if (!BACKUP_FILENAME_RE.test(filename)) {
+		throw error(400, { message: 'Invalid backup filename', code: 'BadRequest' });
+	}
+
+	return filename;
+}
+
+async function deleteBackupAndRecord(
+	filename: string,
+	user: Parameters<typeof logPrivilegedMutationSuccess>[0]['user']
+): Promise<void> {
+	const deleted = deleteBackup(filename);
+	if (!deleted) {
+		throw error(404, { message: 'Backup not found', code: 'NotFound' });
+	}
+
+	await logPrivilegedMutationSuccess({
+		action: 'backup:delete',
+		user,
+		resourceType: 'DatabaseBackup',
+		name: filename
+	});
+}
 
 /**
  * DELETE /api/admin/backups?filename=...
@@ -207,41 +267,25 @@ export const DELETE: RequestHandler = async ({ locals, url, setHeaders }) => {
 	);
 	enforceUserRateLimitPreset({ setHeaders }, locals, 'admin');
 
-	const filename = url.searchParams.get('filename');
-	if (!filename) {
-		throw error(400, { message: 'Missing filename parameter', code: 'BadRequest' });
-	}
-
-	if (!BACKUP_FILENAME_RE.test(filename)) {
-		throw error(400, { message: 'Invalid backup filename', code: 'BadRequest' });
-	}
-
-	try {
-		const deleted = deleteBackup(filename);
-		if (!deleted) {
-			throw error(404, { message: 'Backup not found', code: 'NotFound' });
-		}
-
-		await logPrivilegedMutationSuccess({
-			action: 'backup:delete',
-			user,
-			resourceType: 'DatabaseBackup',
-			name: filename
-		});
-
-		return json({ success: true });
-	} catch (err) {
-		if (err && typeof err === 'object' && 'status' in err) {
-			throw err;
-		}
-		await logPrivilegedMutationFailure({
-			action: 'backup:delete',
-			user,
-			resourceType: 'DatabaseBackup',
-			name: filename,
-			error: err
-		});
-		logger.error(err, 'Failed to delete backup:');
-		throw error(500, { message: 'Failed to delete backup', code: 'InternalServerError' });
-	}
+	const filename = getBackupFilename(url);
+	return deleteBackupResponse(filename, user);
 };
+
+async function deleteBackupResponse(
+	filename: string,
+	user: PrivilegedBackupUser
+): Promise<Response> {
+	try {
+		await deleteBackupAndRecord(filename, user);
+		return json({ success: true });
+	} catch (cause) {
+		return handleBackupMutationFailure(
+			cause,
+			user,
+			'backup:delete',
+			filename,
+			'Failed to delete backup:',
+			'Failed to delete backup'
+		);
+	}
+}

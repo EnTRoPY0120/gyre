@@ -1,14 +1,16 @@
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import { z } from '$lib/server/openapi';
 import type { RequestHandler } from './$types';
 import { rollbackResource } from '$lib/server/kubernetes/flux/history';
-import { handleApiError, sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
+import { handleApiError } from '$lib/server/kubernetes/errors.js';
 import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
 import {
 	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
 	requireFluxResourceWrite
 } from '$lib/server/http/guards.js';
+import { parseRollbackRequestBody } from '$lib/server/flux/use-cases/rollback.js';
+import { sanitizeRollbackError } from '$lib/server/flux/use-cases/rollback-errors.js';
 
 export const _metadata = {
 	POST: {
@@ -75,46 +77,9 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 	validateK8sNamespace(namespace);
 	validateK8sName(name);
 
-	let revision: string | undefined;
-	let historyId: string | undefined;
-	let dryRun = false;
-
-	try {
-		const body = await request.json();
-		if (body.revision !== undefined && typeof body.revision !== 'string') {
-			throw error(400, { message: 'revision must be a string' });
-		}
-		if (body.historyId !== undefined && typeof body.historyId !== 'string') {
-			throw error(400, { message: 'historyId must be a string' });
-		}
-		if (body.dryRun !== undefined && typeof body.dryRun !== 'boolean') {
-			throw error(400, { message: 'dryRun must be a boolean' });
-		}
-		revision = body.revision;
-		historyId = body.historyId;
-		dryRun = body.dryRun === true;
-	} catch (err) {
-		if (err && typeof err === 'object' && 'status' in err) throw err;
-		throw error(400, { message: 'Invalid JSON payload' });
-	}
-
-	// Enforce max length (schema validates on OpenAPI side; check here for direct calls)
-	if (revision && revision.length > 500) {
-		throw error(400, { message: 'revision exceeds maximum length of 500 characters' });
-	}
-	if (historyId && historyId.length > 500) {
-		throw error(400, { message: 'historyId exceeds maximum length of 500 characters' });
-	}
-
-	// Either revision or historyId must be provided
-	if (!revision && !historyId) {
-		throw error(400, { message: 'Either revision or historyId is required for rollback' });
-	}
+	const { dryRun, historyId, revision, target } = await parseRollbackRequestBody(request);
 
 	const context = await requireFluxResourceWrite(locals, params);
-
-	// Use historyId if provided, otherwise use revision
-	const target = historyId || revision || '';
 
 	try {
 		const result = await rollbackResource(
@@ -162,7 +127,7 @@ export const POST: RequestHandler = async ({ params, locals, request, getClientA
 				targetRevision: revision,
 				targetHistoryId: historyId
 			},
-			error: sanitizeK8sErrorMessage(err instanceof Error ? err.message : String(err))
+			error: sanitizeRollbackError(err)
 		});
 
 		handleApiError(err, `Failed to perform rollback for ${context.name}`);

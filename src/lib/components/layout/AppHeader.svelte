@@ -1,15 +1,15 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
-	import { getResourceInfo } from '$lib/config/resources';
-	import ThemeToggle from './ThemeToggle.svelte';
+import { page } from '$app/stores';
+import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
+import ThemeToggle from './ThemeToggle.svelte';
 	import NotificationBell from './NotificationBell.svelte';
 	import ClusterSwitcher from './ClusterSwitcher.svelte';
 	import UserMenu from './UserMenu.svelte';
 	import { ChevronRight, Menu, Search } from '@lucide/svelte';
 	import { sidebarOpen } from '$lib/stores/sidebar';
-	import { commandPaletteOpen } from '$lib/stores/commandPalette';
-	import { cn } from '$lib/utils';
+import { commandPaletteOpen } from '$lib/stores/commandPalette';
+import { cn } from '$lib/utils';
+import { buildBreadcrumbs } from './breadcrumbs';
 
 	interface Props {
 		health?: {
@@ -34,55 +34,7 @@
 	}: Props = $props();
 
 	// Build breadcrumbs from current path
-	const breadcrumbs = $derived.by(() => {
-		const pathname = $page.url.pathname;
-		const parts = pathname.split('/').filter(Boolean);
-		const crumbs: { label: string; href: string }[] = [];
-
-		if (parts.length === 0) {
-			return [{ label: 'Dashboard', href: '/' }];
-		}
-
-		crumbs.push({ label: 'Dashboard', href: '/' });
-
-		if (parts[0] === 'resources' && parts[1]) {
-			const resourceInfo = getResourceInfo(parts[1]);
-			const displayName = resourceInfo?.displayName || parts[1];
-			crumbs.push({ label: displayName, href: `/resources/${parts[1]}` });
-
-			if (parts[2] && parts[3]) {
-				// Detail page: /resources/[type]/[namespace]/[name]
-				const name = parts[3];
-				crumbs.push({
-					label: `${parts[2]}/${name}`,
-					href: `/resources/${parts[1]}/${parts[2]}/${parts[3]}`
-				});
-			}
-		} else if (parts[0] === 'admin') {
-			crumbs.push({ label: 'Administration', href: '/admin' });
-			if (parts[1]) {
-				const adminLabels: Record<string, string> = {
-					users: 'Users',
-					clusters: 'Clusters',
-					'auth-providers': 'Auth Providers',
-					policies: 'Policies'
-				};
-				crumbs.push({
-					label: adminLabels[parts[1]] || parts[1],
-					href: `/admin/${parts[1]}`
-				});
-			}
-		} else if (parts[0] === 'create') {
-			crumbs.push({ label: 'Create Resource', href: '/create' });
-			if (parts[1]) {
-				crumbs.push({ label: parts[1], href: `/create/${parts[1]}` });
-			}
-		} else if (parts[0] === 'change-password') {
-			crumbs.push({ label: 'Change Password', href: '/change-password' });
-		}
-
-		return crumbs;
-	});
+	const breadcrumbs = $derived(buildBreadcrumbs($page.url.pathname));
 </script>
 
 <header

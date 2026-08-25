@@ -7,6 +7,7 @@
 	import { toast } from 'svelte-sonner';
 	import { getCsrfToken } from '$lib/utils/csrf';
 	import { logger } from '$lib/utils/logger.js';
+	import { normalizeNotificationPreferences } from '$lib/stores/notification-preferences';
 
 	// Resource types from flux types or just hardcode common ones
 	const resourceTypes = [
@@ -37,20 +38,16 @@
 	);
 	let namespaceInput = $state(preferences.notifications.namespaces?.join(', ') ?? '');
 
-	$effect(() => {
-		if (!isDirty) {
-			enabled = preferences.notifications.enabled ?? true;
-			selectedResourceTypes = preferences.notifications.resourceTypes ?? [];
-			selectedEventTypes = preferences.notifications.events ?? [
-				'success',
-				'failure',
-				'warning',
-				'info',
-				'error'
-			];
-			namespaceInput = preferences.notifications.namespaces?.join(', ') ?? '';
-		}
-	});
+	function syncNotificationForm() {
+		if (isDirty) return;
+		const notificationPrefs = normalizeNotificationPreferences(preferences.notifications);
+		enabled = notificationPrefs.enabled;
+		selectedResourceTypes = notificationPrefs.resourceTypes;
+		selectedEventTypes = notificationPrefs.events;
+		namespaceInput = notificationPrefs.namespaces.join(', ');
+	}
+
+	$effect(syncNotificationForm);
 
 	async function savePreferences() {
 		loading = true;

@@ -24,6 +24,7 @@ vi.mock('../lib/server/db/index.js', () => ({
 import {
 	checkClusterWideReadPermission,
 	checkPermission,
+	createPolicy,
 	isAdmin,
 	requirePermission,
 	RbacError
@@ -123,6 +124,43 @@ describe('isAdmin', () => {
 
 	test('returns false for editor role', () => {
 		expect(isAdmin(makeUser('u', 'editor'))).toBe(false);
+	});
+});
+
+describe('createPolicy', () => {
+	beforeEach(() => {
+		state.db = setupInMemoryDb();
+	});
+
+	test('persists a policy with nullable optional fields normalized', async () => {
+		const id = await createPolicy({
+			name: 'viewer-read',
+			role: 'viewer',
+			action: 'read'
+		});
+
+		const [stored] = await state.db!.select().from(schema.rbacPolicies);
+		expect(id).toBe(stored?.id);
+		expect(stored).toMatchObject({
+			name: 'viewer-read',
+			description: null,
+			resourceType: null,
+			namespacePattern: null,
+			clusterId: null,
+			isActive: true
+		});
+	});
+
+	test('rejects unsafe namespace patterns before writing a policy', async () => {
+		await expect(
+			createPolicy({
+				name: 'unsafe',
+				role: 'viewer',
+				action: 'read',
+				namespacePattern: '../../etc/passwd'
+			})
+		).rejects.toThrow('Invalid namespace pattern');
+		expect(await state.db!.select().from(schema.rbacPolicies)).toHaveLength(0);
 	});
 });
 

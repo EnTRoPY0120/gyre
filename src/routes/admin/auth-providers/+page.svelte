@@ -1,23 +1,30 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import type { PageData } from './$types';
+	import AuthProviderList from '$lib/components/admin/AuthProviderList.svelte';
+	import AuthProviderModals from '$lib/components/admin/AuthProviderModals.svelte';
 	import {
 		DEFAULT_ROLE_MAPPING_TEMPLATE,
-		parseRoleMappingInput,
 		stringifyRoleMappingForForm
 	} from '$lib/auth/role-mapping';
-	import type { PageData } from './$types';
-	import * as Select from '$lib/components/ui/select';
-	import { getCsrfToken } from '$lib/utils/csrf';
-	import { modalFocusTrap } from '$lib/utils/focus-trap';
+	import {
+		createEmptyAuthProviderFormData,
+		type AuthProviderFormData,
+		type AuthProviderRole,
+		type AuthProviderType,
+		type AuthProviderSummary
+	} from '$lib/components/admin/auth-provider';
 	import { logger } from '$lib/utils/logger.js';
-
-	type ProviderType =
-		| 'oidc'
-		| 'oauth2-github'
-		| 'oauth2-google'
-		| 'oauth2-gitlab'
-		| 'oauth2-generic';
-	type UserRole = 'admin' | 'editor' | 'viewer';
+import {
+	getAuthProviderErrorMessage,
+	requestAuthProviderMutation,
+	updateAuthProvider
+} from './auth-provider-requests';
+	import {
+		buildAuthProviderCreateBody,
+		buildAuthProviderUpdates,
+		normalizeRoleMappingForSave
+	} from './form-helpers';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -25,79 +32,38 @@
 	let showCreateModal = $state(false);
 	let showEditModal = $state(false);
 	let showDeleteModal = $state(false);
-	let selectedProvider = $state<(typeof providers)[0] | null>(null);
+	let selectedProvider = $state<(typeof providers)[number] | null>(null);
 	let error = $state('');
 	let success = $state('');
 	let loading = $state(false);
 	let roleMappingError = $state('');
-
-	$effect(() => {
-		const mapping = formData.roleMapping?.trim();
-		if (!mapping) {
-			roleMappingError = '';
-			return;
-		}
-
-		try {
-			parseRoleMappingInput(mapping);
-			roleMappingError = '';
-		} catch (e) {
-			roleMappingError = e instanceof Error ? e.message : 'Role mapping is invalid';
-		}
-	});
-
-	// Form fields
-	let formData = $state({
-		name: '',
-		type: 'oidc' as ProviderType,
-		enabled: true,
-		clientId: '',
-		clientSecret: '',
-		issuerUrl: '',
-		autoProvision: true,
-		defaultRole: 'viewer' as UserRole,
-		roleMapping: DEFAULT_ROLE_MAPPING_TEMPLATE,
-		roleClaim: 'groups',
-		usernameClaim: 'preferred_username',
-		emailClaim: 'email',
-		usePkce: true,
-		scopes: 'openid profile email'
+	let formData = $state<AuthProviderFormData>({
+		...createEmptyAuthProviderFormData(),
+		roleMapping: DEFAULT_ROLE_MAPPING_TEMPLATE
 	});
 
 	function openCreateModal() {
-		// Reset form
 		formData = {
-			name: '',
-			type: 'oidc',
-			enabled: true,
-			clientId: '',
-			clientSecret: '',
-			issuerUrl: '',
-			autoProvision: true,
-			defaultRole: 'viewer',
-			roleMapping: DEFAULT_ROLE_MAPPING_TEMPLATE,
-			roleClaim: 'groups',
-			usernameClaim: 'preferred_username',
-			emailClaim: 'email',
-			usePkce: true,
-			scopes: 'openid profile email'
+			...createEmptyAuthProviderFormData(),
+			roleMapping: DEFAULT_ROLE_MAPPING_TEMPLATE
 		};
+		roleMappingError = '';
 		error = '';
 		success = '';
 		showCreateModal = true;
 	}
 
-	function openEditModal(provider: (typeof providers)[0]) {
+	function openEditModal(provider: (typeof providers)[number]) {
 		selectedProvider = provider;
 		formData = {
 			name: provider.name,
-			type: provider.type as ProviderType,
+			type: provider.type as AuthProviderType,
 			enabled: provider.enabled,
 			clientId: provider.clientId,
-			clientSecret: '', // Don't populate secret
+			clientSecret: '',
 			issuerUrl: provider.issuerUrl || '',
 			autoProvision: provider.autoProvision,
-			defaultRole: provider.defaultRole as UserRole,
+			defaultRole: provider.defaultRole as AuthProviderRole,
 			roleMapping: stringifyRoleMappingForForm(provider.roleMapping, DEFAULT_ROLE_MAPPING_TEMPLATE),
 			roleClaim: provider.roleClaim,
 			usernameClaim: provider.usernameClaim,
@@ -105,12 +71,13 @@
 			usePkce: provider.usePkce,
 			scopes: provider.scopes
 		};
+		roleMappingError = '';
 		error = '';
 		success = '';
 		showEditModal = true;
 	}
 
-	function openDeleteModal(provider: (typeof providers)[0]) {
+	function openDeleteModal(provider: (typeof providers)[number]) {
 		selectedProvider = provider;
 		error = '';
 		success = '';
@@ -124,24 +91,6 @@
 		selectedProvider = null;
 	}
 
-	function normalizeRoleMappingForSave(value: string) {
-		const trimmed = value.trim();
-		if (!trimmed || trimmed === DEFAULT_ROLE_MAPPING_TEMPLATE.trim()) {
-			return null;
-		}
-
-		try {
-			const parsed = parseRoleMappingInput(trimmed);
-			if (!parsed) {
-				return null;
-			}
-
-			return Object.values(parsed).every((groups) => groups.length === 0) ? null : parsed;
-		} catch {
-			return null;
-		}
-	}
-
 	async function handleCreate() {
 		if (roleMappingError) return;
 		error = '';
@@ -150,24 +99,18 @@
 
 		try {
 			const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
-			const { roleMapping: _roleMapping, ...providerData } = formData;
-			const body = roleMapping === null ? providerData : { ...providerData, roleMapping };
-			const response = await fetch('/api/v1/admin/auth-providers', {
+			const body = buildAuthProviderCreateBody(formData, roleMapping);
+			await requestAuthProviderMutation('/api/v1/admin/auth-providers', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(body)
-			});
-
-			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Failed to create provider');
-			}
+			}, 'Failed to create provider');
 
 			success = 'Provider created successfully';
 			await invalidateAll();
 			setTimeout(closeModals, 1000);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create provider';
+			error = getAuthProviderErrorMessage(err, 'Failed to create provider');
 		} finally {
 			loading = false;
 		}
@@ -175,51 +118,18 @@
 
 	async function handleUpdate() {
 		if (!selectedProvider || roleMappingError) return;
-
 		error = '';
 		success = '';
 		loading = true;
 
 		try {
-			const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
-			// Only send changed fields
-			const updates: Record<string, unknown> = {
-				name: formData.name,
-				type: formData.type,
-				enabled: formData.enabled,
-				clientId: formData.clientId,
-				issuerUrl: formData.issuerUrl,
-				autoProvision: formData.autoProvision,
-				defaultRole: formData.defaultRole,
-				roleMapping,
-				roleClaim: formData.roleClaim,
-				usernameClaim: formData.usernameClaim,
-				emailClaim: formData.emailClaim,
-				usePkce: formData.usePkce,
-				scopes: formData.scopes
-			};
-
-			// Only include secret if changed
-			if (formData.clientSecret) {
-				updates.clientSecret = formData.clientSecret;
-			}
-
-			const response = await fetch(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-				body: JSON.stringify(updates)
-			});
-
-			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Failed to update provider');
-			}
+			await updateAuthProvider(selectedProvider.id, formData);
 
 			success = 'Provider updated successfully';
 			await invalidateAll();
 			setTimeout(closeModals, 1000);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update provider';
+			error = getAuthProviderErrorMessage(err, 'Failed to update provider');
 		} finally {
 			loading = false;
 		}
@@ -227,44 +137,32 @@
 
 	async function handleDelete() {
 		if (!selectedProvider) return;
-
 		error = '';
 		success = '';
 		loading = true;
 
 		try {
-			const response = await fetch(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
+			await requestAuthProviderMutation(`/api/v1/admin/auth-providers/${selectedProvider.id}`, {
 				method: 'DELETE',
-				headers: { 'X-CSRF-Token': getCsrfToken() }
-			});
-
-			if (!response.ok) {
-				const data = await response.json();
-				throw new Error(data.message || 'Failed to delete provider');
-			}
+			}, 'Failed to delete provider');
 
 			success = 'Provider deleted successfully';
 			await invalidateAll();
 			setTimeout(closeModals, 1000);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete provider';
+			error = getAuthProviderErrorMessage(err, 'Failed to delete provider');
 		} finally {
 			loading = false;
 		}
 	}
 
-	async function toggleEnabled(provider: (typeof providers)[0]) {
+	async function toggleEnabled(provider: (typeof providers)[number]) {
 		try {
-			const response = await fetch(`/api/v1/admin/auth-providers/${provider.id}`, {
+			await requestAuthProviderMutation(`/api/v1/admin/auth-providers/${provider.id}`, {
 				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ enabled: !provider.enabled })
-			});
-
-			if (!response.ok) {
-				throw new Error('Failed to toggle provider');
-			}
-
+			}, 'Failed to toggle provider');
 			await invalidateAll();
 		} catch (err) {
 			logger.error(err, 'Failed to toggle provider:');
@@ -272,25 +170,19 @@
 	}
 
 	function getProviderTypeName(type: string): string {
-		switch (type) {
-			case 'oidc':
-				return 'OIDC';
-			case 'oauth2-google':
-				return 'Google OAuth';
-			case 'oauth2-github':
-				return 'GitHub OAuth';
-			case 'oauth2-gitlab':
-				return 'GitLab OAuth';
-			case 'oauth2-generic':
-				return 'Generic OAuth2';
-			default:
-				return type;
-		}
+		return (
+			{
+				oidc: 'OIDC',
+				'oauth2-google': 'Google OAuth',
+				'oauth2-github': 'GitHub OAuth',
+				'oauth2-gitlab': 'GitLab OAuth',
+				'oauth2-generic': 'Generic OAuth2'
+			} satisfies Record<string, string>
+		)[type] ?? type;
 	}
 </script>
 
 <div class="space-y-6">
-	<!-- Header -->
 	<div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
 		<div>
 			<h1 class="text-2xl font-bold text-slate-100">SSO Providers</h1>
@@ -308,755 +200,28 @@
 		</button>
 	</div>
 
-	<!-- Providers List -->
-	{#if providers.length === 0}
-		<div class="rounded-lg border border-slate-700 bg-slate-800/50 p-12 text-center">
-			<div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-slate-700">
-				<svg class="h-6 w-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-					<path
-						stroke-linecap="round"
-						stroke-linejoin="round"
-						stroke-width="2"
-						d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-					/>
-				</svg>
-			</div>
-			<h3 class="mt-4 text-lg font-medium text-slate-200">No SSO providers configured</h3>
-			<p class="mt-2 text-sm text-slate-400">
-				Get started by adding your first authentication provider
-			</p>
-			<button
-				type="button"
-				onclick={openCreateModal}
-				class="mt-4 rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-slate-900 transition-colors hover:bg-amber-400"
-			>
-				Add Provider
-			</button>
-		</div>
-	{:else}
-		<div class="grid gap-4">
-			{#each providers as provider (provider.id)}
-				<div
-					class="rounded-lg border border-slate-700 bg-slate-800/50 p-6 transition-colors hover:border-slate-600"
-				>
-					<div class="flex items-start justify-between">
-						<div class="flex-1">
-							<div class="flex items-center gap-3">
-								<h3 class="text-lg font-semibold text-slate-100">{provider.name}</h3>
-								<span
-									class="rounded-full px-2.5 py-0.5 text-xs font-medium {provider.enabled
-										? 'bg-green-500/10 text-green-400'
-										: 'bg-slate-600/20 text-slate-400'}"
-								>
-									{provider.enabled ? 'Enabled' : 'Disabled'}
-								</span>
-								<span
-									class="rounded-full bg-slate-700 px-2.5 py-0.5 text-xs font-medium text-slate-300"
-								>
-									{getProviderTypeName(provider.type)}
-								</span>
-							</div>
-
-							<div class="mt-4 grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
-								<div>
-									<span class="text-slate-400">Client ID:</span>
-									<span class="ml-2 font-mono text-slate-300">{provider.clientId}</span>
-								</div>
-								{#if provider.issuerUrl}
-									<div>
-										<span class="text-slate-400">Issuer:</span>
-										<span class="ml-2 text-slate-300">{provider.issuerUrl}</span>
-									</div>
-								{/if}
-								<div>
-									<span class="text-slate-400">Auto-provision:</span>
-									<span class="ml-2 text-slate-300">{provider.autoProvision ? 'Yes' : 'No'}</span>
-								</div>
-								<div>
-									<span class="text-slate-400">Default Role:</span>
-									<span class="ml-2 text-slate-300 capitalize">{provider.defaultRole}</span>
-								</div>
-								<div>
-									<span class="text-slate-400">PKCE:</span>
-									<span class="ml-2 text-slate-300"
-										>{provider.usePkce ? 'Enabled' : 'Disabled'}</span
-									>
-								</div>
-								<div>
-									<span class="text-slate-400">Scopes:</span>
-									<span class="ml-2 font-mono text-xs text-slate-300">{provider.scopes}</span>
-								</div>
-							</div>
-						</div>
-
-						<div class="flex items-center gap-2">
-							<!-- Toggle Enabled/Disabled -->
-							<button
-								type="button"
-								onclick={() => toggleEnabled(provider)}
-								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
-								title={provider.enabled ? 'Disable' : 'Enable'}
-								aria-label={`${provider.enabled ? 'Disable' : 'Enable'} provider ${provider.name}`}
-							>
-								{#if provider.enabled}
-									<svg
-										class="h-5 w-5 text-green-400"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
-								{:else}
-									<svg
-										class="h-5 w-5 text-slate-400"
-										fill="none"
-										viewBox="0 0 24 24"
-										stroke="currentColor"
-									>
-										<path
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											stroke-width="2"
-											d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-										/>
-									</svg>
-								{/if}
-							</button>
-
-							<!-- Edit Button -->
-							<button
-								type="button"
-								onclick={() => openEditModal(provider)}
-								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
-								title="Edit"
-								aria-label={`Edit provider ${provider.name}`}
-							>
-								<svg
-									class="h-5 w-5 text-slate-400"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-									/>
-								</svg>
-							</button>
-
-							<!-- Delete Button -->
-							<button
-								type="button"
-								onclick={() => openDeleteModal(provider)}
-								class="rounded-lg p-2 transition-colors hover:bg-slate-700"
-								title="Delete"
-								aria-label={`Delete provider ${provider.name}`}
-							>
-								<svg
-									class="h-5 w-5 text-red-400"
-									fill="none"
-									viewBox="0 0 24 24"
-									stroke="currentColor"
-								>
-									<path
-										stroke-linecap="round"
-										stroke-linejoin="round"
-										stroke-width="2"
-										d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-									/>
-								</svg>
-							</button>
-						</div>
-					</div>
-				</div>
-			{/each}
-		</div>
-	{/if}
+	<AuthProviderList
+		providers={providers as AuthProviderSummary[]}
+		{getProviderTypeName}
+		onAdd={openCreateModal}
+		onToggle={toggleEnabled}
+		onEdit={openEditModal}
+		onDelete={openDeleteModal}
+	/>
 </div>
 
-<!-- Create Modal -->
-{#if showCreateModal}
-	<div
-		use:modalFocusTrap
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
-		role="dialog"
-		aria-modal="true"
-		tabindex="-1"
-		aria-labelledby="create-provider-title"
-		onclick={(e) => e.target === e.currentTarget && closeModals()}
-		onkeydown={(e) => e.key === 'Escape' && closeModals()}
-	>
-		<div
-			class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-lg"
-		>
-			<div class="mb-6 flex items-center justify-between">
-				<h2 id="create-provider-title" class="text-xl font-bold text-slate-100">Add SSO Provider</h2>
-				<button
-					type="button"
-					aria-label="Close"
-					onclick={closeModals}
-					class="text-slate-400 hover:text-slate-300"
-				>
-					<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M6 18L18 6M6 6l12 12"
-						/>
-					</svg>
-				</button>
-			</div>
-
-			{#if error}
-				<div
-					class="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
-				>
-					{error}
-				</div>
-			{/if}
-
-			{#if success}
-				<div
-					class="mb-4 rounded-lg border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-400"
-				>
-					{success}
-				</div>
-			{/if}
-
-			<form
-				onsubmit={(e) => {
-					e.preventDefault();
-					handleCreate();
-				}}
-				class="space-y-4"
-			>
-				<!-- Basic Settings -->
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<label for="provider-name" class="mb-1 block text-sm font-medium text-slate-300"
-							>Provider Name</label
-						>
-						<input
-							id="provider-name"
-							type="text"
-							bind:value={formData.name}
-							placeholder="e.g., Company Okta"
-							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-						/>
-					</div>
-					<div>
-						<label for="provider-type" class="mb-1 block text-sm font-medium text-slate-300"
-							>Provider Type</label
-						>
-						<Select.Root
-							type="single"
-							value={formData.type}
-							onValueChange={(v) => (formData.type = v as ProviderType)}
-						>
-							<Select.Trigger id="provider-type" class="w-full">
-								<Select.Value placeholder="Select Provider Type">
-									{getProviderTypeName(formData.type)}
-								</Select.Value>
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="oidc">OIDC (Generic)</Select.Item>
-								<Select.Item value="oauth2-google">Google OAuth</Select.Item>
-								<Select.Item value="oauth2-github">GitHub OAuth</Select.Item>
-								<Select.Item value="oauth2-gitlab">GitLab OAuth</Select.Item>
-								<Select.Item value="oauth2-generic">Generic OAuth2</Select.Item>
-							</Select.Content>
-						</Select.Root>
-					</div>
-				</div>
-
-				<!-- OAuth Credentials -->
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<label for="client-id" class="mb-1 block text-sm font-medium text-slate-300"
-							>Client ID</label
-						>
-						<input
-							id="client-id"
-							type="text"
-							bind:value={formData.clientId}
-							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-						/>
-					</div>
-					<div>
-						<label for="client-secret" class="mb-1 block text-sm font-medium text-slate-300"
-							>Client Secret</label
-						>
-						<input
-							id="client-secret"
-							type="password"
-							bind:value={formData.clientSecret}
-							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-						/>
-					</div>
-				</div>
-
-				<!-- OIDC/GitLab Settings -->
-				{#if formData.type === 'oidc' ||
-					formData.type === 'oauth2-generic' ||
-					formData.type === 'oauth2-gitlab'}
-					<div>
-						<label for="issuer-url" class="mb-1 block text-sm font-medium text-slate-300">
-							{formData.type === 'oauth2-gitlab' ? 'GitLab Instance URL' : 'Issuer URL'}
-						</label>
-						<input
-							id="issuer-url"
-							type="url"
-							bind:value={formData.issuerUrl}
-							placeholder={formData.type === 'oauth2-gitlab'
-								? 'https://gitlab.com'
-								: 'https://example.com'}
-							required={formData.type !== 'oauth2-gitlab'}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-						/>
-						{#if formData.type === 'oauth2-gitlab'}
-							<p class="mt-1 text-xs text-slate-400">Leave empty to use gitlab.com</p>
-						{/if}
-					</div>
-				{/if}
-
-				<!-- Provisioning Settings -->
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<label class="flex items-center gap-2 text-sm font-medium text-slate-300">
-							<input
-								id="auto-provision"
-								type="checkbox"
-								bind:checked={formData.autoProvision}
-								class="rounded"
-							/>
-							Auto-provision users
-						</label>
-					</div>
-					<div>
-						<label for="default-role" class="mb-1 block text-sm font-medium text-slate-300"
-							>Default Role</label
-						>
-						<Select.Root
-							type="single"
-							value={formData.defaultRole}
-							onValueChange={(v) => (formData.defaultRole = v as UserRole)}
-						>
-							<Select.Trigger id="default-role" class="w-full">
-								<Select.Value placeholder="Select Default Role">
-									<span class="capitalize">{formData.defaultRole}</span>
-								</Select.Value>
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="viewer">Viewer</Select.Item>
-								<Select.Item value="editor">Editor</Select.Item>
-								<Select.Item value="admin">Admin</Select.Item>
-							</Select.Content>
-						</Select.Root>
-					</div>
-				</div>
-
-				<!-- Advanced Settings -->
-				<details class="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
-					<summary class="cursor-pointer text-sm font-medium text-slate-300"
-						>Advanced Settings</summary
-					>
-					<div class="mt-4 space-y-4">
-						<div>
-							<label for="scopes" class="mb-1 block text-sm font-medium text-slate-300"
-								>Scopes</label
-							>
-							<input
-								id="scopes"
-								type="text"
-								bind:value={formData.scopes}
-								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-							/>
-						</div>
-						<div>
-							<label for="role-mapping" class="mb-1 block text-sm font-medium text-slate-300"
-								>Role Mapping (JSON)</label
-							>
-							<textarea
-								id="role-mapping"
-								bind:value={formData.roleMapping}
-								rows="6"
-								class="w-full rounded-lg border {roleMappingError
-									? 'border-red-500 focus:ring-red-500/20'
-									: 'border-slate-600 focus:border-amber-500 focus:ring-amber-500/20'} bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:ring-2 focus:outline-none"
-							></textarea>
-							{#if roleMappingError}
-								<p class="mt-1 text-xs text-red-400">{roleMappingError}</p>
-							{/if}
-						</div>
-						<div class="flex flex-col gap-1">
-							<div class="flex items-center gap-2">
-								<input
-									id="use-pkce"
-									type="checkbox"
-									bind:checked={formData.usePkce}
-									disabled={formData.type === 'oauth2-gitlab'}
-									class="rounded disabled:opacity-50"
-								/>
-								<label
-									for="use-pkce"
-									class="text-sm text-slate-300 {formData.type === 'oauth2-gitlab'
-										? 'opacity-50'
-										: ''}"
-								>
-									Enable PKCE (Recommended)
-								</label>
-							</div>
-							{#if formData.type === 'oauth2-gitlab'}
-								<p class="text-xs text-amber-400/80">
-									PKCE is not supported by the GitLab provider and will be ignored.
-								</p>
-							{/if}
-						</div>
-					</div>
-				</details>
-
-				<!-- Actions -->
-				<div class="flex gap-3 pt-4">
-					<button
-						type="submit"
-						disabled={loading || !!roleMappingError}
-						class="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-900 transition-colors hover:bg-amber-400 disabled:opacity-50"
-					>
-						{loading ? 'Creating...' : 'Create Provider'}
-					</button>
-					<button
-						type="button"
-						onclick={closeModals}
-						class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 transition-colors hover:bg-slate-700"
-					>
-						Cancel
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
-<!-- Edit Modal (similar structure to Create) -->
-{#if showEditModal && selectedProvider}
-	<div
-		use:modalFocusTrap
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
-		role="dialog"
-		aria-modal="true"
-		tabindex="-1"
-		aria-labelledby="edit-provider-title"
-		onclick={(e) => e.target === e.currentTarget && closeModals()}
-		onkeydown={(e) => e.key === 'Escape' && closeModals()}
-	>
-		<div
-			class="h-full w-full overflow-y-auto border border-slate-700 bg-slate-800 p-6 sm:h-auto sm:max-h-[90vh] sm:max-w-2xl sm:rounded-lg"
-		>
-			<div class="mb-6 flex items-center justify-between">
-				<h2 id="edit-provider-title" class="text-xl font-bold text-slate-100">
-					Edit Provider: {selectedProvider.name}
-				</h2>
-				<button
-					type="button"
-					aria-label="Close"
-					onclick={closeModals}
-					class="text-slate-400 hover:text-slate-300"
-				>
-					<svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							stroke-width="2"
-							d="M6 18L18 6M6 6l12 12"
-						/>
-					</svg>
-				</button>
-			</div>
-
-			{#if error}
-				<div
-					class="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
-				>
-					{error}
-				</div>
-			{/if}
-
-			{#if success}
-				<div
-					class="mb-4 rounded-lg border border-green-500/20 bg-green-500/10 p-3 text-sm text-green-400"
-				>
-					{success}
-				</div>
-			{/if}
-
-			<form
-				onsubmit={(e) => {
-					e.preventDefault();
-					handleUpdate();
-				}}
-				class="space-y-4"
-			>
-				<!-- Basic Settings -->
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<label for="edit-provider-name" class="mb-1 block text-sm font-medium text-slate-300"
-							>Provider Name</label
-						>
-						<input
-							id="edit-provider-name"
-							type="text"
-							bind:value={formData.name}
-							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-						/>
-					</div>
-					<div>
-						<label for="edit-provider-type" class="mb-1 block text-sm font-medium text-slate-300"
-							>Provider Type</label
-						>
-						<Select.Root
-							type="single"
-							value={formData.type}
-							onValueChange={(v) => (formData.type = v as ProviderType)}
-						>
-							<Select.Trigger id="edit-provider-type" class="w-full">
-								<Select.Value placeholder="Select Provider Type">
-									{getProviderTypeName(formData.type)}
-								</Select.Value>
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="oidc">OIDC (Generic)</Select.Item>
-								<Select.Item value="oauth2-google">Google OAuth</Select.Item>
-								<Select.Item value="oauth2-github">GitHub OAuth</Select.Item>
-								<Select.Item value="oauth2-gitlab">GitLab OAuth</Select.Item>
-								<Select.Item value="oauth2-generic">Generic OAuth2</Select.Item>
-							</Select.Content>
-						</Select.Root>
-					</div>
-				</div>
-
-				<!-- OAuth Credentials -->
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<label for="edit-client-id" class="mb-1 block text-sm font-medium text-slate-300"
-							>Client ID</label
-						>
-						<input
-							id="edit-client-id"
-							type="text"
-							bind:value={formData.clientId}
-							required
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-						/>
-					</div>
-					<div>
-						<label for="edit-client-secret" class="mb-1 block text-sm font-medium text-slate-300">
-							Client Secret
-						</label>
-						<input
-							id="edit-client-secret"
-							type="password"
-							bind:value={formData.clientSecret}
-							placeholder="Leave blank to keep current"
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-						/>
-					</div>
-				</div>
-
-				<!-- OIDC/GitLab Settings -->
-				{#if formData.type === 'oidc' ||
-					formData.type === 'oauth2-generic' ||
-					formData.type === 'oauth2-gitlab'}
-					<div>
-						<label for="edit-issuer-url" class="mb-1 block text-sm font-medium text-slate-300">
-							{formData.type === 'oauth2-gitlab' ? 'GitLab Instance URL' : 'Issuer URL'}
-						</label>
-						<input
-							id="edit-issuer-url"
-							type="url"
-							bind:value={formData.issuerUrl}
-							placeholder={formData.type === 'oauth2-gitlab'
-								? 'https://gitlab.com'
-								: 'https://example.com'}
-							required={formData.type !== 'oauth2-gitlab'}
-							class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white placeholder-slate-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-						/>
-					</div>
-				{/if}
-
-				<!-- Provisioning Settings -->
-				<div class="grid grid-cols-2 gap-4">
-					<div>
-						<label class="flex items-center gap-2 text-sm font-medium text-slate-300">
-							<input
-								id="edit-auto-provision"
-								type="checkbox"
-								bind:checked={formData.autoProvision}
-								class="rounded"
-							/>
-							Auto-provision users
-						</label>
-					</div>
-					<div>
-						<label for="edit-default-role" class="mb-1 block text-sm font-medium text-slate-300"
-							>Default Role</label
-						>
-						<Select.Root
-							type="single"
-							value={formData.defaultRole}
-							onValueChange={(v) => (formData.defaultRole = v as UserRole)}
-						>
-							<Select.Trigger id="edit-default-role" class="w-full">
-								<Select.Value placeholder="Select Default Role">
-									<span class="capitalize">{formData.defaultRole}</span>
-								</Select.Value>
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="viewer">Viewer</Select.Item>
-								<Select.Item value="editor">Editor</Select.Item>
-								<Select.Item value="admin">Admin</Select.Item>
-							</Select.Content>
-						</Select.Root>
-					</div>
-				</div>
-
-				<!-- Advanced Settings -->
-				<details class="rounded-lg border border-slate-700 bg-slate-900/50 p-4">
-					<summary class="cursor-pointer text-sm font-medium text-slate-300"
-						>Advanced Settings</summary
-					>
-					<div class="mt-4 space-y-4">
-						<div>
-							<label for="edit-scopes" class="mb-1 block text-sm font-medium text-slate-300"
-								>Scopes</label
-							>
-							<input
-								id="edit-scopes"
-								type="text"
-								bind:value={formData.scopes}
-								class="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 focus:outline-none"
-							/>
-						</div>
-						<div>
-							<label for="edit-role-mapping" class="mb-1 block text-sm font-medium text-slate-300"
-								>Role Mapping (JSON)</label
-							>
-							<textarea
-								id="edit-role-mapping"
-								bind:value={formData.roleMapping}
-								rows="6"
-								class="w-full rounded-lg border {roleMappingError
-									? 'border-red-500 focus:ring-red-500/20'
-									: 'border-slate-600 focus:border-amber-500 focus:ring-amber-500/20'} bg-slate-700 px-3 py-2 font-mono text-sm text-white focus:ring-2 focus:outline-none"
-							></textarea>
-							{#if roleMappingError}
-								<p class="mt-1 text-xs text-red-400">{roleMappingError}</p>
-							{/if}
-						</div>
-						<div class="flex flex-col gap-1">
-							<div class="flex items-center gap-2">
-								<input
-									id="edit-use-pkce"
-									type="checkbox"
-									bind:checked={formData.usePkce}
-									disabled={formData.type === 'oauth2-gitlab'}
-									class="rounded disabled:opacity-50"
-								/>
-								<label
-									for="edit-use-pkce"
-									class="text-sm text-slate-300 {formData.type === 'oauth2-gitlab'
-										? 'opacity-50'
-										: ''}"
-									>Enable PKCE (Recommended)</label
-								>
-							</div>
-							{#if formData.type === 'oauth2-gitlab'}
-								<p class="text-xs text-amber-400/80">
-									PKCE is not supported by the GitLab provider and will be ignored.
-								</p>
-							{/if}
-						</div>
-					</div>
-				</details>
-
-				<div class="flex gap-3 pt-4">
-					<button
-						type="submit"
-						disabled={loading || !!roleMappingError}
-						class="flex-1 rounded-lg bg-amber-500 px-4 py-2 font-medium text-slate-900 transition-colors hover:bg-amber-400 disabled:opacity-50"
-					>
-						{loading ? 'Updating...' : 'Update Provider'}
-					</button>
-					<button
-						type="button"
-						onclick={closeModals}
-						class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 transition-colors hover:bg-slate-700"
-					>
-						Cancel
-					</button>
-				</div>
-			</form>
-		</div>
-	</div>
-{/if}
-
-<!-- Delete Confirmation Modal -->
-{#if showDeleteModal && selectedProvider}
-	<div
-		use:modalFocusTrap
-		class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-		role="dialog"
-		aria-modal="true"
-		tabindex="-1"
-		aria-labelledby="delete-provider-title"
-		aria-describedby="delete-provider-description"
-		onclick={(e) => e.target === e.currentTarget && closeModals()}
-		onkeydown={(e) => e.key === 'Escape' && closeModals()}
-	>
-		<div class="w-full max-w-md rounded-lg border border-slate-700 bg-slate-800 p-6">
-			<h2 id="delete-provider-title" class="text-xl font-bold text-slate-100">Delete Provider</h2>
-			<p id="delete-provider-description" class="mt-4 text-sm text-slate-300">
-				Are you sure you want to delete <strong>{selectedProvider.name}</strong>? This action cannot
-				be undone and will affect all users linked to this provider.
-			</p>
-
-			{#if error}
-				<div
-					class="mt-4 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-400"
-				>
-					{error}
-				</div>
-			{/if}
-
-			<div class="mt-6 flex gap-3">
-				<button
-					type="button"
-					onclick={handleDelete}
-					disabled={loading}
-					class="flex-1 rounded-lg bg-red-500 px-4 py-2 font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-50"
-				>
-					{loading ? 'Deleting...' : 'Delete'}
-				</button>
-				<button
-					type="button"
-					onclick={closeModals}
-					class="rounded-lg border border-slate-600 px-4 py-2 text-slate-300 transition-colors hover:bg-slate-700"
-				>
-					Cancel
-				</button>
-			</div>
-		</div>
-	</div>
-{/if}
+<AuthProviderModals
+	showCreate={showCreateModal}
+	showEdit={showEditModal}
+	showDelete={showDeleteModal}
+	selectedProvider={selectedProvider as AuthProviderSummary | null}
+	bind:formData
+	bind:roleMappingError
+	{error}
+	{success}
+	{loading}
+	onCreate={handleCreate}
+	onUpdate={handleUpdate}
+	onDelete={handleDelete}
+	onClose={closeModals}
+/>

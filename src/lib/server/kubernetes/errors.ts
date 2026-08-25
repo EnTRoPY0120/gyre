@@ -1,5 +1,13 @@
 import { logger } from '../logger.js';
 import { error } from '@sveltejs/kit';
+import {
+	createConfigurationErrorResponse,
+	createGenericErrorResponse,
+	createHttpErrorResponse,
+	createKubernetesErrorResponse,
+	isHttpErrorLike,
+	type ErrorHttpResponse
+} from './error-response.js';
 
 /**
  * Custom error types for Kubernetes operations
@@ -143,55 +151,20 @@ export function handleApiError(err: unknown, contextMessage = 'Kubernetes API er
 /**
  * Convert error to HTTP response
  */
-export function errorToHttpResponse(error: unknown): {
-	status: number;
-	body: { error: string; message?: string; code?: string };
-} {
+export function errorToHttpResponse(error: unknown): ErrorHttpResponse {
 	if (error instanceof KubernetesError) {
-		return {
-			status: error.code,
-			body: {
-				error: sanitizeK8sErrorMessage(error.message),
-				code: error.reason
-			}
-		};
+		return createKubernetesErrorResponse(error, sanitizeK8sErrorMessage);
 	}
 
 	if (error instanceof ConfigurationError) {
-		return {
-			status: 500,
-			body: {
-				error: 'Configuration error',
-				code: 'ConfigurationError'
-			}
-		};
+		return createConfigurationErrorResponse();
 	}
 
 	// SvelteKit HttpError (thrown via error()) has status + body properties
-	if (
-		typeof error === 'object' &&
-		error !== null &&
-		'status' in error &&
-		'body' in error &&
-		typeof (error as { status: unknown }).status === 'number'
-	) {
-		const httpError = error as { status: number; body: { message?: string; code?: string } };
-		return {
-			status: httpError.status,
-			body: {
-				error: httpError.body?.message ?? 'An unexpected error occurred',
-				message: httpError.body?.message,
-				code: httpError.body?.code
-			}
-		};
+	if (isHttpErrorLike(error)) {
+		return createHttpErrorResponse(error);
 	}
 
 	// For all other errors, return a generic message to prevent leaking sensitive info
-	return {
-		status: 500,
-		body: {
-			error: 'An unexpected error occurred',
-			code: 'InternalServerError'
-		}
-	};
+	return createGenericErrorResponse();
 }

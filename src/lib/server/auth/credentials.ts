@@ -25,17 +25,17 @@ function prunePasswordHistoryInTx(tx: Tx, userId: string): void {
 // Pre-computed dummy hash for constant-time comparisons (prevents timing-based enumeration)
 const DUMMY_HASH: Promise<string> = bcrypt.hash('__dummy_password_for_timing__', SALT_ROUNDS);
 
+function isInClusterAdminUser(user: Pick<User, 'username'>): boolean {
+	return normalizeUsername(user.username) === 'admin' && isInClusterMode();
+}
+
 export async function getCredentialPasswordHash(userId: string): Promise<string | null> {
 	const db = await getDb();
 	const user = await db.query.users.findFirst({
 		where: eq(users.id, userId)
 	});
 
-	if (!user) {
-		return null;
-	}
-
-	if (normalizeUsername(user.username) === 'admin' && isInClusterMode()) {
+	if (!user || isInClusterAdminUser(user)) {
 		return null;
 	}
 
@@ -133,6 +133,64 @@ export async function isPasswordInHistory(
 	return false;
 }
 
+function archivePasswordHistoryInTx(
+	tx: Tx,
+	userId: string,
+	currentCredentialHash: string | null,
+	now: number
+): void {
+	if (!currentCredentialHash) {
+		return;
+	}
+
+	// Archive the old hash and prune history atomically with the password update
+	// so a crash between the two operations cannot leave the DB in a partial state.
+	tx.insert(passwordHistory)
+		.values({
+			id: generateUserId(),
+			userId,
+			passwordHash: currentCredentialHash,
+			createdAtMs: now
+		})
+		.onConflictDoNothing()
+		.run();
+
+	prunePasswordHistoryInTx(tx, userId);
+}
+
+function updateUserPasswordInTx(tx: Tx, id: string, newPasswordHash: string, now: number): void {
+	const existingUser = tx.select({ id: users.id }).from(users).where(eq(users.id, id)).get();
+
+	if (!existingUser) {
+		throw new Error('User not found');
+	}
+
+	const currentCredential = tx
+		.select({ password: accounts.password })
+		.from(accounts)
+		.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
+		.get();
+	archivePasswordHistoryInTx(tx, id, currentCredential?.password || null, now);
+
+	const updatedCredentialAccount = tx
+		.update(accounts)
+		.set({ password: newPasswordHash, updatedAt: new Date() })
+		.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
+		.run();
+
+	if (updatedCredentialAccount.changes === 0) {
+		tx.insert(accounts)
+			.values({
+				id: generateUserId(),
+				providerId: 'credential',
+				accountId: id,
+				userId: id,
+				password: newPasswordHash
+			})
+			.run();
+	}
+}
+
 export async function updateUserPassword(id: string, newPassword: string): Promise<void> {
 	const db = await getDb();
 
@@ -140,52 +198,5 @@ export async function updateUserPassword(id: string, newPassword: string): Promi
 	const newPasswordHash = await hashPassword(newPassword);
 	const now = Date.now();
 
-	await db.transaction((tx) => {
-		const existingUser = tx.select({ id: users.id }).from(users).where(eq(users.id, id)).get();
-
-		if (!existingUser) {
-			throw new Error('User not found');
-		}
-
-		const currentCredential = tx
-			.select({ password: accounts.password })
-			.from(accounts)
-			.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
-			.get();
-		const currentCredentialHash = currentCredential?.password || null;
-
-		// Archive the old hash and prune history atomically with the password update
-		// so a crash between the two operations cannot leave the DB in a partial state.
-		if (currentCredentialHash) {
-			tx.insert(passwordHistory)
-				.values({
-					id: generateUserId(),
-					userId: id,
-					passwordHash: currentCredentialHash,
-					createdAtMs: now
-				})
-				.onConflictDoNothing()
-				.run();
-
-			prunePasswordHistoryInTx(tx, id);
-		}
-
-		const updatedCredentialAccount = tx
-			.update(accounts)
-			.set({ password: newPasswordHash, updatedAt: new Date() })
-			.where(and(eq(accounts.userId, id), eq(accounts.providerId, 'credential')))
-			.run();
-
-		if (updatedCredentialAccount.changes === 0) {
-			tx.insert(accounts)
-				.values({
-					id: generateUserId(),
-					providerId: 'credential',
-					accountId: id,
-					userId: id,
-					password: newPasswordHash
-				})
-				.run();
-		}
-	});
+	await db.transaction((tx) => updateUserPasswordInTx(tx, id, newPasswordHash, now));
 }

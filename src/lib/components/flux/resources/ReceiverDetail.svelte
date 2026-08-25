@@ -77,7 +77,8 @@
 		</dl>
 	</div>
 
-	<!-- Webhook Path -->
+	{#snippet webhookSection()}
+		<!-- Webhook Path -->
 	{#if webhookPath}
 		<div
 			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
@@ -91,8 +92,12 @@
 			</div>
 		</div>
 	{/if}
+	{/snippet}
 
-	<!-- Watched Events -->
+	{@render webhookSection()}
+
+	{#snippet watchedEventsSection()}
+		<!-- Watched Events -->
 	{#if events && events.length > 0}
 		<div
 			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
@@ -109,8 +114,12 @@
 			</div>
 		</div>
 	{/if}
+	{/snippet}
 
-	<!-- Watched Resources -->
+	{@render watchedEventsSection()}
+
+	{#snippet watchedResourcesSection()}
+		<!-- Watched Resources -->
 	{#if resources && resources.length > 0}
 		<div
 			class="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
@@ -139,4 +148,7 @@
 			</div>
 		</div>
 	{/if}
+	{/snippet}
+
+	{@render watchedResourcesSection()}
 </div>

@@ -4,6 +4,11 @@ import { getCustomObjectsApi } from '../client.js';
 import type { FluxResourceType } from './resources.js';
 import { getReconciliationHistory } from './reconciliation-tracker.js';
 import { getResourceDef } from './resources.js';
+import {
+	buildRollbackPatch,
+	findRollbackHistoryEntry,
+	parseRollbackSnapshot
+} from './rollback-helpers.js';
 
 /**
  * Rollback a FluxCD resource to a previous state
@@ -29,34 +34,8 @@ export async function rollbackResource(
 	// 1. Fetch history entry to get spec snapshot
 	const history = await getReconciliationHistory(type, namespace, name, clusterId);
 
-	// Find the history entry by revision or ID
-	const historyEntry = history.find(
-		(entry) => entry.id === revisionOrHistoryId || entry.revision === revisionOrHistoryId
-	);
-
-	if (!historyEntry) {
-		throw new Error(
-			`No history entry found for revision/ID: ${revisionOrHistoryId}. Cannot rollback.`
-		);
-	}
-
-	if (!historyEntry.specSnapshot) {
-		throw new Error(`History entry ${revisionOrHistoryId} has no spec snapshot. Cannot rollback.`);
-	}
-
-	// 2. Parse the spec snapshot
-	let spec;
-	try {
-		spec = JSON.parse(historyEntry.specSnapshot);
-	} catch (error) {
-		logger.error(
-			error,
-			`[Rollback] Failed to parse spec snapshot for history entry ${historyEntry.id}`
-		);
-		throw new Error(
-			`Invalid spec snapshot in history entry ${revisionOrHistoryId}. Cannot rollback.`
-		);
-	}
+	const historyEntry = findRollbackHistoryEntry(history, revisionOrHistoryId);
+	const spec = parseRollbackSnapshot(historyEntry, revisionOrHistoryId);
 
 	// 3. Get resource definition
 	const resourceDef = getResourceDef(type);
@@ -64,18 +43,7 @@ export async function rollbackResource(
 		throw new Error(`Unknown resource type: ${type}`);
 	}
 
-	// 4. Prepare the patch: update spec and add reconciliation annotation
-	const now = new Date().toISOString();
-	const patch = {
-		spec,
-		metadata: {
-			annotations: {
-				'reconcile.fluxcd.io/requestedAt': now,
-				'gyre.io/rolledBackFrom': historyEntry.revision || 'unknown',
-				'gyre.io/rolledBackAt': now
-			}
-		}
-	};
+	const patch = buildRollbackPatch(spec, historyEntry.revision);
 
 	// 5. If dry-run, return the patch without applying it
 	if (dryRun) {

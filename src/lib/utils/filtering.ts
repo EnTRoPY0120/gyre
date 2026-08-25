@@ -23,6 +23,26 @@ export const defaultFilterState: FilterState = {
 	useRegex: false
 };
 
+function matchesSearchTag(resource: FluxResource, key: string, value: string): boolean {
+	if (key === 'ns' || key === 'namespace') {
+		return resource.metadata?.namespace === value;
+	}
+	if (key === 'status') {
+		const health = getResourceHealth(
+			resource.status?.conditions,
+			resource.spec?.suspend as boolean | undefined,
+			resource.status?.observedGeneration,
+			resource.metadata?.generation
+		);
+		return health.toLowerCase() === value.toLowerCase();
+	}
+	return true;
+}
+
+function matchesSearchTags(resource: FluxResource, tags: Record<string, string>): boolean {
+	return Object.entries(tags).every(([key, value]) => matchesSearchTag(resource, key, value));
+}
+
 /**
  * Filter resources based on the current filter state
  */
@@ -40,23 +60,7 @@ export function filterResources(resources: FluxResource[], filters: FilterState)
 
 		// Apply tag-based filters from search query if any
 		if (Object.keys(parsed.tags).length > 0) {
-			results = results.filter((item) => {
-				return Object.entries(parsed.tags).every(([key, value]) => {
-					if (key === 'ns' || key === 'namespace') {
-						return item.metadata?.namespace === value;
-					}
-					if (key === 'status') {
-						const health = getResourceHealth(
-							item.status?.conditions,
-							item.spec?.suspend as boolean | undefined,
-							item.status?.observedGeneration,
-							item.metadata?.generation
-						);
-						return health.toLowerCase() === value.toLowerCase();
-					}
-					return true;
-				});
-			});
+			results = results.filter((item) => matchesSearchTags(item, parsed.tags));
 		}
 	}
 

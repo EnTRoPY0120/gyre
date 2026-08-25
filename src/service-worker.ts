@@ -32,56 +32,63 @@ self.addEventListener('activate', (event) => {
 	extendableEvent.waitUntil(deleteOldCaches());
 });
 
+function isStaticAsset(pathname: string): boolean {
+	return (
+		!pathname.startsWith('/api/') &&
+		(ASSETS.includes(pathname) ||
+			pathname.startsWith('/_app/') ||
+			/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/.test(pathname))
+	);
+}
+
+async function getCachedAsset(cache: Cache, pathname: string): Promise<Response | undefined> {
+	if (!ASSETS.includes(pathname)) return undefined;
+	return cache.match(pathname);
+}
+
+async function fetchAndCache(
+	request: Request,
+	cache: Cache,
+	event: FetchEvent,
+	pathname: string
+): Promise<Response> {
+	const response = await fetch(request);
+
+	// if we're offline, fetch can return a value that looks like it's 'ok' but has status 0.
+	// that's not a real response, so throwback to the catch
+	if (!(response instanceof Response)) {
+		throw new Error('invalid response from fetch');
+	}
+
+	if (response.status === 200 && isStaticAsset(pathname)) {
+		event.waitUntil(cache.put(request, response.clone()));
+	}
+
+	return response;
+}
+
+async function respond(event: FetchEvent): Promise<Response> {
+	const url = new URL(event.request.url);
+	const cache = await caches.open(CACHE);
+	const cachedAsset = await getCachedAsset(cache, url.pathname);
+
+	if (cachedAsset) return cachedAsset;
+
+	try {
+		return await fetchAndCache(event.request, cache, event, url.pathname);
+	} catch (error) {
+		const cachedResponse = await cache.match(event.request);
+
+		if (cachedResponse) return cachedResponse;
+
+		// if there's no cache, then it's a real error
+		throw error;
+	}
+}
+
 self.addEventListener('fetch', (event) => {
 	const fetchEvent = event as FetchEvent;
 	// ignore POST requests etc
 	if (fetchEvent.request.method !== 'GET') return;
-
-	async function respond() {
-		const url = new URL(fetchEvent.request.url);
-		const cache = await caches.open(CACHE);
-
-		// `build`/`files` can always be served from the cache
-		if (ASSETS.includes(url.pathname)) {
-			const response = await cache.match(url.pathname);
-
-			if (response) {
-				return response;
-			}
-		}
-
-		// for everything else, try the network first, but fall back to the cache if we're offline
-		try {
-			const response = await fetch(fetchEvent.request);
-
-			// if we're offline, fetch can return a value that looks like it's 'ok' but has status 0.
-			// that's not a real response, so throwback to the catch
-			if (!(response instanceof Response)) {
-				throw new Error('invalid response from fetch');
-			}
-
-			const isStaticAsset =
-				!url.pathname.startsWith('/api/') &&
-				(ASSETS.includes(url.pathname) ||
-					url.pathname.startsWith('/_app/') ||
-					/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/.test(url.pathname));
-
-			if (response.status === 200 && isStaticAsset) {
-				fetchEvent.waitUntil(cache.put(fetchEvent.request, response.clone()));
-			}
-
-			return response;
-		} catch (err) {
-			const response = await cache.match(fetchEvent.request);
-
-			if (response) {
-				return response;
-			}
-
-			// if there's no cache, then it's a real error
-			throw err;
-		}
-	}
-
-	fetchEvent.respondWith(respond());
+	fetchEvent.respondWith(respond(fetchEvent));
 });

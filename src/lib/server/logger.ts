@@ -59,6 +59,50 @@ function sanitizeLogMessage(msg: string): string {
 	return msg.replace(/[\x00-\x1f\x7f]/g, ' ').trim();
 }
 
+function getActiveLogger(): pino.Logger {
+	const store = requestContext.getStore();
+	if (!store) return pinoLogger;
+	if (!store.logger) store.logger = pinoLogger.child({ requestId: store.requestId });
+	return store.logger;
+}
+
+function logSingleArgument(activeLogger: pino.Logger, level: pino.Level, arg: unknown) {
+	if (typeof arg === 'string') return activeLogger[level](sanitizeLogMessage(arg));
+	return activeLogger[level](arg);
+}
+
+function logStringFirst(activeLogger: pino.Logger, level: pino.Level, args: unknown[]) {
+	const objects = args.slice(1).filter((arg: unknown) => arg !== null && typeof arg === 'object');
+	if (objects.length === 0) return activeLogger[level](sanitizeLogMessage(args[0] as string));
+
+	const errorObj = objects.find((obj: unknown) => obj instanceof Error);
+	const nonErrorObjects = objects.filter((obj: unknown) => !(obj instanceof Error));
+	const meta = errorObj
+		? { err: errorObj, ...Object.assign({}, ...nonErrorObjects) }
+		: Object.assign({}, ...objects);
+	return activeLogger[level](meta, sanitizeLogMessage(args[0] as string));
+}
+
+function logObjectFirst(activeLogger: pino.Logger, level: pino.Level, args: unknown[]) {
+	if (args.length === 2) {
+		if (typeof args[1] === 'string') {
+			return activeLogger[level](args[0], sanitizeLogMessage(args[1]));
+		}
+		if (typeof args[1] === 'object' && args[1] !== null) {
+			return activeLogger[level](Object.assign({}, args[0], args[1]));
+		}
+		return activeLogger[level](args[0]);
+	}
+
+	const extras = args.slice(2).filter((arg: unknown) => arg !== null && typeof arg === 'object');
+	const meta =
+		args[0] instanceof Error
+			? { err: args[0], ...Object.assign({}, ...extras) }
+			: Object.assign({}, args[0], ...extras);
+	const msg = typeof args[1] === 'string' ? sanitizeLogMessage(args[1]) : undefined;
+	return activeLogger[level](meta, msg);
+}
+
 /**
  * Internal logging helper to handle multiple signature variants:
  * - `log(level, [error_or_context])`
@@ -70,49 +114,10 @@ function sanitizeLogMessage(msg: string): string {
  */
 function log(level: pino.Level, args: unknown[]) {
 	if (args.length === 0) return;
-	const store = requestContext.getStore();
-	let activeLogger: pino.Logger;
-	if (store) {
-		if (!store.logger) store.logger = pinoLogger.child({ requestId: store.requestId });
-		activeLogger = store.logger;
-	} else {
-		activeLogger = pinoLogger;
-	}
-	if (args.length === 1) {
-		if (typeof args[0] === 'string') return activeLogger[level](sanitizeLogMessage(args[0]));
-		return activeLogger[level](args[0]);
-	}
-	if (typeof args[0] === 'string') {
-		// String-first: treat as message, merge remaining objects as metadata
-		const objects = args.slice(1).filter((a: unknown) => a !== null && typeof a === 'object');
-		if (objects.length === 0) return activeLogger[level](sanitizeLogMessage(args[0]));
-		// Separate Error objects from other metadata to preserve stack traces
-		const errorObj = objects.find((obj: unknown) => obj instanceof Error);
-		const nonErrorObjects = objects.filter((obj: unknown) => !(obj instanceof Error));
-		const meta = errorObj
-			? { err: errorObj, ...Object.assign({}, ...nonErrorObjects) }
-			: Object.assign({}, ...objects);
-		return activeLogger[level](meta, sanitizeLogMessage(args[0]));
-	}
-	if (args.length === 2) {
-		if (typeof args[1] === 'string') {
-			// Second arg is a message
-			return activeLogger[level](args[0], sanitizeLogMessage(args[1]));
-		} else if (typeof args[1] === 'object' && args[1] !== null) {
-			// Second arg is metadata - merge with first arg
-			const meta = Object.assign({}, args[0], args[1]);
-			return activeLogger[level](meta);
-		}
-		return activeLogger[level](args[0]);
-	}
-	// 3+ args with non-string first arg: merge extra context objects
-	const extras = args.slice(2).filter((a: unknown) => a !== null && typeof a === 'object');
-	const meta =
-		args[0] instanceof Error
-			? { err: args[0], ...Object.assign({}, ...extras) }
-			: Object.assign({}, args[0], ...extras);
-	const msg = typeof args[1] === 'string' ? sanitizeLogMessage(args[1]) : undefined;
-	return activeLogger[level](meta, msg);
+	const activeLogger = getActiveLogger();
+	if (args.length === 1) return logSingleArgument(activeLogger, level, args[0]);
+	if (typeof args[0] === 'string') return logStringFirst(activeLogger, level, args);
+	return logObjectFirst(activeLogger, level, args);
 }
 
 /**

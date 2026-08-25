@@ -1,20 +1,6 @@
 import { env } from '$env/dynamic/private';
 import type { PageServerLoad } from './$types';
-
-function formatEnvironment(nodeEnv: string | undefined): string | null {
-	if (!nodeEnv) return null;
-
-	switch (nodeEnv.toLowerCase()) {
-		case 'development':
-			return 'Development';
-		case 'production':
-			return 'Production';
-		case 'test':
-			return 'Test';
-		default:
-			return nodeEnv;
-	}
-}
+import { formatEnvironment } from './page-helpers.js';
 
 /**
  * Load function for admin settings landing page

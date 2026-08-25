@@ -19,19 +19,66 @@ function isHttpErrorLike(error: unknown): error is { status: number } {
 	);
 }
 
-export const load: LayoutServerLoad = async ({ locals, depends }) => {
-	depends('gyre:layout');
+type LayoutHealth = {
+	connected: boolean;
+	currentClusterId: string;
+	currentClusterName: string;
+	availableClusters: ClusterOption[];
+	error?: string;
+};
 
-	const selectedClusterId = locals.cluster ?? IN_CLUSTER_ID;
-	let health: {
-		connected: boolean;
-		currentClusterId: string;
-		currentClusterName: string;
-		availableClusters: ClusterOption[];
-		error?: string;
+function getHealthErrorMessage(error: unknown): string {
+	if (isHttpErrorLike(error)) {
+		return 'Failed to retrieve cluster health status';
+	}
+
+	return error instanceof Error ? error.message : 'Failed to connect to cluster API';
+}
+
+function markSelectedClusterConnected(
+	clusters: ClusterOption[],
+	selectedClusterId: string,
+	connected: boolean
+): ClusterOption[] {
+	return clusters.map((cluster) => ({
+		...cluster,
+		connected: cluster.id === selectedClusterId ? connected : false
+	}));
+}
+
+function markClustersDisconnected(clusters: ClusterOption[]): ClusterOption[] {
+	return clusters.map((cluster) => ({ ...cluster, connected: false }));
+}
+
+function createHealth(
+	selectedClusterId: string,
+	availableClusters: ClusterOption[],
+	connected: boolean,
+	error?: string
+): LayoutHealth {
+	const selectedCluster = availableClusters.find((cluster) => cluster.id === selectedClusterId);
+	return {
+		connected,
+		currentClusterId: selectedClusterId,
+		currentClusterName: selectedCluster?.name ?? selectedClusterId,
+		availableClusters,
+		error
 	};
+}
+
+async function getFallbackClusters(currentContext: string | null): Promise<ClusterOption[]> {
+	try {
+		return markClustersDisconnected(await getSelectableClusters(currentContext));
+	} catch {
+		return [];
+	}
+}
+
+async function loadClusterHealth(
+	locals: App.Locals,
+	selectedClusterId: string
+): Promise<LayoutHealth> {
 	let currentContext: string | null = null;
-	let availableClusters: ClusterOption[] = [];
 
 	try {
 		const healthData = await getFluxHealthSummary({
@@ -39,54 +86,38 @@ export const load: LayoutServerLoad = async ({ locals, depends }) => {
 			includeDetails: Boolean(locals.user)
 		});
 		currentContext = healthData.kubernetes?.currentContext ?? null;
-		availableClusters = await getSelectableClusters(currentContext);
 		const connected = healthData.kubernetes?.connected ?? healthData.status === 'healthy';
-		availableClusters = availableClusters.map((cluster) => ({
-			...cluster,
-			connected: cluster.id === selectedClusterId ? connected : false
-		}));
-		const selectedCluster = availableClusters.find((cluster) => cluster.id === selectedClusterId);
-
-		health = {
-			connected,
-			currentClusterId: selectedClusterId,
-			currentClusterName: selectedCluster?.name ?? selectedClusterId,
-			availableClusters,
-			error: undefined
-		};
+		const availableClusters = markSelectedClusterConnected(
+			await getSelectableClusters(currentContext),
+			selectedClusterId,
+			connected
+		);
+		return createHealth(selectedClusterId, availableClusters, connected);
 	} catch (error) {
-		try {
-			availableClusters = await getSelectableClusters(currentContext);
-			availableClusters = availableClusters.map((cluster) => ({
-				...cluster,
-				connected: false
-			}));
-		} catch {
-			availableClusters = [];
-		}
-		const selectedCluster = availableClusters.find((cluster) => cluster.id === selectedClusterId);
-		health = {
-			connected: false,
-			currentClusterId: selectedClusterId,
-			currentClusterName: selectedCluster?.name ?? selectedClusterId,
-			availableClusters,
-			error: isHttpErrorLike(error)
-				? 'Failed to retrieve cluster health status'
-				: error instanceof Error
-					? error.message
-					: 'Failed to connect to cluster API'
-		};
+		const availableClusters = await getFallbackClusters(currentContext);
+		return createHealth(selectedClusterId, availableClusters, false, getHealthErrorMessage(error));
 	}
+}
 
-	let fluxVersion = DEFAULT_FLUX_VERSION;
+async function loadFluxVersion(locals: App.Locals): Promise<string> {
 	if (locals.user) {
 		try {
 			await requireClusterWideRead(locals);
-			fluxVersion = (await getFluxInstalledVersion({ locals })).version;
+			return (await getFluxInstalledVersion({ locals })).version;
 		} catch {
-			fluxVersion = DEFAULT_FLUX_VERSION;
+			return DEFAULT_FLUX_VERSION;
 		}
 	}
+
+	return DEFAULT_FLUX_VERSION;
+}
+
+export const load: LayoutServerLoad = async ({ locals, depends }) => {
+	depends('gyre:layout');
+
+	const selectedClusterId = locals.cluster ?? IN_CLUSTER_ID;
+	const health = await loadClusterHealth(locals, selectedClusterId);
+	const fluxVersion = await loadFluxVersion(locals);
 
 	return {
 		health,

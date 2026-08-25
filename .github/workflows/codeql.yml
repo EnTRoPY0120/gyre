@@ -20,6 +20,11 @@ on:
     - cron: '0 0 * * 1'
   workflow_dispatch:
 
+# Keep only the newest analysis for a branch or pull request.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze Code

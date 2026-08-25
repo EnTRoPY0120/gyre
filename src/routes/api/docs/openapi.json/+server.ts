@@ -1,5 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import { generateOpenApiSpec, createRegistry } from '$lib/server/openapi';
+import { registerApiRoutes } from '$lib/server/openapi-route';
 import type { RequestHandler } from './$types';
 import { requirePermission } from '$lib/server/rbac';
 
@@ -15,28 +16,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 	await requirePermission(locals.user, 'read');
 
 	const registry = createRegistry();
-
-	for (const [path, module] of Object.entries(apiRoutes)) {
-		const metadata = (module as any)._metadata;
-		if (!metadata) continue;
-
-		// Convert file path to API path
-		// Example: /src/routes/api/auth/login/+server.ts -> /api/auth/login
-		// Example: /src/routes/api/flux/[resourceType]/+server.ts -> /api/flux/{resourceType}
-		let apiPath = path
-			.replace('/src/routes', '')
-			.replace('/+server.ts', '')
-			.replace(/\[(\w+)\]/g, '{$1}'); // Convert [param] to {param}
-
-		// Register each method defined in metadata
-		for (const [method, config] of Object.entries(metadata)) {
-			registry.registerPath({
-				method: method.toLowerCase() as any,
-				path: apiPath,
-				...(config as any)
-			});
-		}
-	}
+	registerApiRoutes(registry, apiRoutes);
 
 	return json(generateOpenApiSpec(registry));
 };

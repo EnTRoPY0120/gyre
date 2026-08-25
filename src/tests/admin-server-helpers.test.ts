@@ -5,6 +5,7 @@ import {
 	serializePagination,
 	validateLength
 } from '../routes/admin/server-helpers.js';
+import { formatEnvironment } from '../routes/admin/page-helpers.js';
 
 describe('admin server helpers', () => {
 	test('admin guard returns 403 for missing or non-admin users', () => {
@@ -51,5 +52,13 @@ describe('admin server helpers', () => {
 			offset: 0,
 			search: 'a'
 		});
+	});
+
+	test('formats known environments and preserves unknown values', () => {
+		expect(formatEnvironment(undefined)).toBeNull();
+		expect(formatEnvironment('development')).toBe('Development');
+		expect(formatEnvironment('PRODUCTION')).toBe('Production');
+		expect(formatEnvironment('test')).toBe('Test');
+		expect(formatEnvironment('staging')).toBe('staging');
 	});
 });

@@ -7,6 +7,16 @@
 	}
 
 	let { conditions }: Props = $props();
+
+	function getConditionStatusClass(status: K8sCondition['status']): string {
+		if (status === 'True') {
+			return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+		}
+		if (status === 'False') {
+			return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+		}
+		return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+	}
 </script>
 
 <div>
@@ -23,12 +33,7 @@
 									{condition.type}
 								</h4>
 								<span
-									class="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider {condition.status ===
-									'True'
-										? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-										: condition.status === 'False'
-											? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
-											: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}"
+									class="inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider {getConditionStatusClass(condition.status)}"
 								>
 									{condition.status}
 								</span>

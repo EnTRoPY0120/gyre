@@ -5,6 +5,7 @@ import { theme } from '$lib/stores/theme.svelte';
 import { logger } from '$lib/utils/logger.js';
 import type * as Monaco from 'monaco-editor';
 import { defineMonacoThemes } from './monacoTheme';
+import { getMonacoWorker } from './monaco-workers';
 
 	// Props
 	interface Props {
@@ -38,87 +39,94 @@ import { defineMonacoThemes } from './monacoTheme';
 	let loading = $state(true);
 	let error = $state<string | null>(null);
 
+	function createDiffEditorInstance(
+		monacoModule: typeof Monaco,
+		container: HTMLDivElement
+	): Monaco.editor.IStandaloneDiffEditor {
+		return monacoModule.editor.createDiffEditor(container, {
+			theme: theme.resolvedTheme === 'dark' ? 'gyre-dark' : 'gyre-light',
+			readOnly: readonly,
+			automaticLayout: true,
+			minimap: { enabled: minimap },
+			lineNumbers,
+			scrollBeyondLastLine: false,
+			fontSize: 14,
+			lineHeight: 22,
+			fontFamily:
+				"'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace",
+			fontLigatures: true,
+			wordWrap: 'on',
+			wrappingIndent: 'indent',
+			renderLineHighlight: 'all',
+			scrollbar: {
+				vertical: 'visible',
+				horizontal: 'visible',
+				useShadows: false,
+				verticalScrollbarSize: 10,
+				horizontalScrollbarSize: 10
+			},
+			originalEditable: false,
+			renderSideBySide: true
+		});
+	}
+
+	function configureMonacoEnvironment(): void {
+		if (!self.MonacoEnvironment) {
+			self.MonacoEnvironment = { getWorker: getMonacoWorker };
+		}
+	}
+
+	function createDiffModels(monacoModule: typeof Monaco): void {
+		originalModel = monacoModule.editor.createModel(original, language);
+		modifiedModel = monacoModule.editor.createModel(modified, language);
+
+		diffEditor?.setModel({
+			original: originalModel,
+			modified: modifiedModel
+		});
+	}
+
+	async function initializeDiffEditor(container: HTMLDivElement): Promise<void> {
+		try {
+			const monacoModule = await import('monaco-editor');
+			monaco = monacoModule;
+			defineMonacoThemes(monacoModule);
+			configureMonacoEnvironment();
+			diffEditor = createDiffEditorInstance(monacoModule, container);
+			createDiffModels(monacoModule);
+			loading = false;
+		} catch (err) {
+			logger.error(err, 'Failed to load Monaco Diff Editor:');
+			error = err instanceof Error ? err.message : 'Failed to load diff editor';
+			loading = false;
+		}
+	}
+
+	function disposeDiffEditor(): void {
+		originalModel?.dispose();
+		modifiedModel?.dispose();
+		diffEditor?.dispose();
+	}
+
+	type DiffEditorModel = NonNullable<
+		ReturnType<Monaco.editor.IStandaloneDiffEditor['getModel']>
+	>;
+
+	function updateDiffModels(models: DiffEditorModel): void {
+		if (original !== models.original.getValue()) {
+			models.original.setValue(original);
+		}
+		if (modified !== models.modified.getValue()) {
+			models.modified.setValue(modified);
+		}
+	}
+
 	// Initialize Monaco Diff Editor
 	onMount(() => {
 		if (!browser || !containerEl) return;
 
-		(async () => {
-			try {
-				const monacoModule = await import('monaco-editor');
-				monaco = monacoModule;
-
-				// Register custom Gyre themes
-				defineMonacoThemes(monaco);
-
-				// Configure Monaco environment if not already done
-				if (!self.MonacoEnvironment) {
-					self.MonacoEnvironment = {
-						getWorker: async function (_moduleId: string, label: string) {
-							if (label === 'json') {
-								const { default: JsonWorker } = await import(
-									'monaco-editor/language/json/json.worker?worker'
-								);
-								return new JsonWorker();
-							}
-							const { default: EditorWorker } = await import(
-								'monaco-editor/editor/editor.worker?worker'
-							);
-							return new EditorWorker();
-						}
-					};
-				}
-
-				// Create diff editor instance
-				diffEditor = monaco.editor.createDiffEditor(containerEl, {
-					theme: theme.resolvedTheme === 'dark' ? 'gyre-dark' : 'gyre-light',
-					readOnly: readonly,
-					automaticLayout: true,
-					minimap: { enabled: minimap },
-					lineNumbers: lineNumbers,
-					scrollBeyondLastLine: false,
-					fontSize: 14,
-					lineHeight: 22,
-					fontFamily:
-						"'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace",
-					fontLigatures: true,
-					wordWrap: 'on',
-					wrappingIndent: 'indent',
-					renderLineHighlight: 'all',
-					scrollbar: {
-						vertical: 'visible',
-						horizontal: 'visible',
-						useShadows: false,
-						verticalScrollbarSize: 10,
-						horizontalScrollbarSize: 10
-					},
-					originalEditable: false,
-					renderSideBySide: true
-				});
-
-				// Create models and store references for cleanup
-				originalModel = monaco.editor.createModel(original, language);
-				modifiedModel = monaco.editor.createModel(modified, language);
-
-				diffEditor.setModel({
-					original: originalModel,
-					modified: modifiedModel
-				});
-
-				loading = false;
-			} catch (err) {
-				logger.error(err, 'Failed to load Monaco Diff Editor:');
-				error = err instanceof Error ? err.message : 'Failed to load diff editor';
-				loading = false;
-			}
-		})();
-
-		// Cleanup on unmount
-		return () => {
-			// Dispose models and editor
-			originalModel?.dispose();
-			modifiedModel?.dispose();
-			diffEditor?.dispose();
-		};
+		void initializeDiffEditor(containerEl);
+		return disposeDiffEditor;
 	});
 
 	// Update models when props change
@@ -126,14 +134,7 @@ import { defineMonacoThemes } from './monacoTheme';
 		if (!diffEditor || !monaco) return;
 
 		const models = diffEditor.getModel();
-		if (models) {
-			if (original !== models.original.getValue()) {
-				models.original.setValue(original);
-			}
-			if (modified !== models.modified.getValue()) {
-				models.modified.setValue(modified);
-			}
-		}
+		if (models) updateDiffModels(models);
 	});
 
 	// Update theme when it changes

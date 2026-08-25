@@ -21,6 +21,12 @@ import { validateDatabaseUrl, validateBackupDir } from './db/path-validation.js'
 import { tmpdir } from 'node:os';
 import Database from 'better-sqlite3';
 import { aesGcmEncrypt, aesGcmDecrypt, IV_LENGTH, AUTH_TAG_LENGTH } from './aes-gcm.js';
+import { BackupError } from './backup-errors.js';
+import {
+	validateBackupSchema,
+	validateRestoreBuffer,
+	validateRestoredDatabase
+} from './backup-restore.js';
 
 import { MAX_LOCAL_BACKUPS } from './config/constants.js';
 import { closeDb } from './db/index.js';
@@ -43,18 +49,7 @@ logger.info(`[Backup] Backup directory: ${backupDir}`);
 export const BACKUP_FILENAME_RE =
 	/^gyre-backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.db(\.enc)?$/;
 
-/**
- * Custom error for backup operations with HTTP status support
- */
-export class BackupError extends Error {
-	constructor(
-		message: string,
-		public status: number = 500
-	) {
-		super(message);
-		this.name = 'BackupError';
-	}
-}
+export { BackupError } from './backup-errors.js';
 
 export interface BackupMetadata {
 	filename: string;
@@ -339,23 +334,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 	const tempPath = join(dirname(databaseUrl), `_restore-temp-${Date.now()}.db`);
 
 	try {
-		// Validate the buffer is a valid SQLite database (exact 16-byte header check)
-		const magic = buffer.subarray(0, 16).toString('ascii');
-		if (magic !== 'SQLite format 3\0') {
-			throw new BackupError('Invalid file: not a valid SQLite database', 400);
-		}
-
-		// Validate SQLite page size (bytes 16-17): must be power of 2 between 512 and 65536
-		if (buffer.length < 18) {
-			throw new BackupError('Invalid file: SQLite header is too short to read page size', 400);
-		}
-		const pageSize =
-			buffer[16] === 0 && buffer[17] === 1
-				? 65536 // special encoding for 65536
-				: buffer.readUInt16BE(16);
-		if (pageSize < 512 || pageSize > 65536 || (pageSize & (pageSize - 1)) !== 0) {
-			throw new BackupError('Invalid file: SQLite page size is not a valid power of 2', 400);
-		}
+		validateRestoreBuffer(buffer);
 
 		// Create a safety backup before restoring — abort if this fails
 		let safetyBackup: BackupMetadata;
@@ -375,50 +354,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 		// Open and validate the uploaded DB has the expected schema
 		const testDb = new Database(tempPath, { readonly: true });
 		try {
-			// Check for essential tables
-			const tables = testDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
-				name: string;
-			}[];
-			const tableNames = tables.map((t) => t.name);
-
-			const requiredTables = [
-				'users',
-				'sessions',
-				'verifications',
-				'app_settings',
-				'clusters',
-				'cluster_contexts',
-				'audit_logs',
-				'rbac_policies',
-				'rbac_bindings',
-				'auth_providers'
-			];
-			const missing = requiredTables.filter((t) => !tableNames.includes(t));
-			if (missing.length > 0) {
-				throw new BackupError(
-					`Invalid backup: missing required tables: ${missing.join(', ')}`,
-					400
-				);
-			}
-
-			if (!tableNames.includes('accounts')) {
-				throw new BackupError(
-					'Invalid backup: missing required auth account data table: accounts',
-					400
-				);
-			}
-
-			// Check users table has expected columns
-			const userCols = testDb.prepare('PRAGMA table_info(users)').all() as { name: string }[];
-			const userColNames = userCols.map((c) => c.name);
-			const requiredUserCols = ['id', 'username', 'role'];
-			const missingCols = requiredUserCols.filter((c) => !userColNames.includes(c));
-			if (missingCols.length > 0) {
-				throw new BackupError(
-					`Invalid backup: users table missing columns: ${missingCols.join(', ')}`,
-					400
-				);
-			}
+			validateBackupSchema(testDb);
 		} finally {
 			testDb.close();
 		}
@@ -464,17 +400,7 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 		// Verify the restored database passes integrity check
 		const verifyDb = new Database(databaseUrl, { readonly: true });
 		try {
-			const result = verifyDb.prepare('PRAGMA integrity_check').get() as {
-				integrity_check: string;
-			};
-			if (result.integrity_check !== 'ok') {
-				throw new BackupError(
-					`Restored database failed integrity check: ${result.integrity_check}. ` +
-						`The pre-restore database was preserved as safety backup "${safetyBackup.filename}" in the backup directory. ` +
-						`Restore that file to recover the previous database.`,
-					500
-				);
-			}
+			validateRestoredDatabase(verifyDb, safetyBackup.filename);
 		} finally {
 			verifyDb.close();
 		}

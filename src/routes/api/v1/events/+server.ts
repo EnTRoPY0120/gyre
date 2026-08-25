@@ -1,6 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
-import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { subscribe, type SSEEvent } from '$lib/server/events.js';
 import { logger } from '$lib/server/logger.js';
 import { sseConnectionsRejectedTotal } from '$lib/server/metrics.js';
@@ -14,6 +13,9 @@ import {
 	requireAuthenticatedUser,
 	requireClusterWideRead
 } from '$lib/server/http/guards.js';
+import { flushSseEventQueue } from './sse-queue.js';
+import { getEventConnectionContext, type EventConnectionContext } from './connection-context.js';
+import { createSseCleanup } from './stream-cleanup.js';
 
 export const _metadata = {
 	GET: {
@@ -34,28 +36,13 @@ export const _metadata = {
 	}
 };
 
-export const GET: RequestHandler = async ({ request, locals, getClientAddress }) => {
-	const user = requireAuthenticatedUser(locals);
-
-	const clusterId = locals.cluster ?? IN_CLUSTER_ID;
-
-	await requireClusterWideRead(locals);
-
-	// Enforce per-session and per-user concurrent connection limits.
-	// Session ID is preferred over client IP because IP addresses can be shared
-	// across many users (NAT, VPN, corporate proxies).
-	const rawSessionId = locals.session?.id;
-	if (!rawSessionId) {
-		logger.warn(
-			'[SSE] Authenticated user has no session ID; falling back to IP for connection limiting'
-		);
-	}
-	const sessionId = rawSessionId ?? getClientAddress();
-	const userId = String(user.id);
-
+function acquireEventConnection(context: EventConnectionContext): {
+	clusterId: string;
+	release: () => void;
+} {
 	const connectionResult = acquireSseConnectionSlot({
-		sessionId,
-		userId,
+		sessionId: context.sessionId,
+		userId: context.userId,
 		maxPerSession: SSE_MAX_CONNECTIONS_PER_SESSION,
 		maxPerUser: SSE_MAX_CONNECTIONS_PER_USER
 	});
@@ -65,7 +52,27 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 		return error(429, { message: connectionResult.reason });
 	}
 
-	const { release } = connectionResult;
+	return { clusterId: context.clusterId, release: connectionResult.release };
+}
+
+export const GET: RequestHandler = async ({ request, locals, getClientAddress }) => {
+	const user = requireAuthenticatedUser(locals);
+
+	await requireClusterWideRead(locals);
+
+	const rawSessionId = locals.session?.id;
+	if (!rawSessionId) {
+		logger.warn(
+			'[SSE] Authenticated user has no session ID; falling back to IP for connection limiting'
+		);
+	}
+	const connectionContext = getEventConnectionContext(
+		user.id,
+		locals.cluster,
+		rawSessionId,
+		getClientAddress
+	);
+	const { clusterId, release } = acquireEventConnection(connectionContext);
 	// Shared cleanup ref so both start() and cancel() can invoke the same teardown.
 	// start() is called synchronously during ReadableStream construction, so
 	// cleanupRef is always populated before cancel() can fire.
@@ -79,42 +86,17 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 			let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 			let unsubscribe: () => void;
 
-			// Idempotency guard: cleanup may be triggered from multiple paths
-			// (abort signal, ReadableStream cancel(), SHUTDOWN event, buffer overflow).
-			// Without this flag, release() would be called multiple times, corrupting
-			// the per-session/per-user connection slot count.
-			let isCleanedUp = false;
-			const cleanup = () => {
-				if (isCleanedUp) return;
-				isCleanedUp = true;
-				release();
-				unsubscribe?.();
-				if (timeoutHandle) {
-					clearTimeout(timeoutHandle);
-					timeoutHandle = null;
-				}
-				try {
-					controller.close();
-				} catch {
-					// Controller may already be closed
-				}
-			};
-
+			const cleanupController = createSseCleanup({
+				release,
+				close: () => controller.close()
+			});
+			const { cleanup } = cleanupController;
 			cleanupRef = cleanup;
 
 			const EVENT_BUFFER_LIMIT = 100;
 			const eventQueue: Uint8Array[] = [];
 
-			const attemptFlush = () => {
-				while (eventQueue.length > 0 && (controller.desiredSize ?? 1) > 0) {
-					try {
-						controller.enqueue(eventQueue.shift()!);
-					} catch {
-						cleanup();
-						return;
-					}
-				}
-			};
+			const attemptFlush = () => flushSseEventQueue(eventQueue, controller, cleanup);
 			attemptFlushRef = attemptFlush;
 
 			try {
@@ -135,6 +117,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 						cleanup();
 					}
 				}, clusterId);
+				cleanupController.setUnsubscribe(unsubscribe);
 
 				// Optional per-connection timeout: send SHUTDOWN and close the stream
 				// so the client reconnects. Disabled when SSE_CONNECTION_TIMEOUT_MS === 0.
@@ -154,6 +137,7 @@ export const GET: RequestHandler = async ({ request, locals, getClientAddress })
 						}
 						cleanup();
 					}, SSE_CONNECTION_TIMEOUT_MS);
+					cleanupController.setTimeoutHandle(timeoutHandle);
 				}
 
 				// Handle client disconnect

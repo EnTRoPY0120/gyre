@@ -1,5 +1,41 @@
 import { logger } from './logger.js';
 
+interface RetryOptions {
+	maxRetries: number;
+	initialDelay: number;
+	retryOnStatus: number[];
+	fetchFn: typeof fetch;
+	logger: { warn: (msg: string) => void };
+}
+
+function retryDelay(initialDelay: number, attempt: number): number {
+	return initialDelay * Math.pow(2, attempt);
+}
+
+async function waitForRetry(delay: number): Promise<void> {
+	await new Promise((resolve) => setTimeout(resolve, delay));
+}
+
+async function retryAfterResponse(
+	response: Response,
+	attempt: number,
+	options: RetryOptions
+): Promise<void> {
+	const delay = retryDelay(options.initialDelay, attempt);
+	options.logger.warn(
+		`Fetch attempt ${attempt + 1} failed with status ${response.status}. Retrying in ${delay}ms...`
+	);
+	await waitForRetry(delay);
+}
+
+async function retryAfterNetworkError(attempt: number, options: RetryOptions): Promise<void> {
+	const delay = retryDelay(options.initialDelay, attempt);
+	options.logger.warn(
+		`Fetch attempt ${attempt + 1} failed with network error. Retrying in ${delay}ms...`
+	);
+	await waitForRetry(delay);
+}
+
 /**
  * Fetch with exponential backoff retry logic for resilience
  */
@@ -23,49 +59,46 @@ export async function fetchWithRetry(
 		fetchFn = typeof window !== 'undefined' ? window.fetch : fetch,
 		logger: customLogger
 	} = options;
-
-	const log = customLogger ?? logger;
+	const retryOptions: RetryOptions = {
+		maxRetries,
+		initialDelay,
+		retryOnStatus,
+		fetchFn,
+		logger: customLogger ?? logger
+	};
 
 	let lastResponse: Response | undefined;
 	let lastError: unknown;
 
-	for (let attempt = 0; attempt <= maxRetries; attempt++) {
+	for (let attempt = 0; attempt <= retryOptions.maxRetries; attempt++) {
 		try {
 			// Use provided fetch function or global fetch
-			const response = await fetchFn(input, init);
+			const response = await retryOptions.fetchFn(input, init);
 			lastResponse = response;
 
 			// If response is successful or shouldn't be retried, return it
-			if (response.ok || !retryOnStatus.includes(response.status)) {
+			if (
+				response.ok ||
+				!retryOptions.retryOnStatus.includes(response.status) ||
+				attempt === retryOptions.maxRetries
+			) {
 				return response;
 			}
 
-			// It's a retryable status code
-			if (attempt < maxRetries) {
-				const delay = initialDelay * Math.pow(2, attempt);
-				log.warn(
-					`Fetch attempt ${attempt + 1} failed with status ${response.status}. Retrying in ${delay}ms...`
-				);
-				await new Promise((resolve) => setTimeout(resolve, delay));
-				continue;
-			}
+			await retryAfterResponse(response, attempt, retryOptions);
 		} catch (error) {
 			lastError = error;
 
 			// Always retry on network errors (fetch throws for network errors)
-			if (attempt < maxRetries) {
-				const delay = initialDelay * Math.pow(2, attempt);
-				log.warn(
-					`Fetch attempt ${attempt + 1} failed with network error. Retrying in ${delay}ms...`
-				);
-				await new Promise((resolve) => setTimeout(resolve, delay));
-				continue;
-			}
+			if (attempt === retryOptions.maxRetries) break;
+			await retryAfterNetworkError(attempt, retryOptions);
 		}
 	}
 
 	if (lastResponse) {
 		return lastResponse;
 	}
-	throw lastError;
+	const finalError =
+		lastError instanceof Error ? lastError : new Error(String(lastError ?? 'Fetch failed'));
+	throw finalError;
 }

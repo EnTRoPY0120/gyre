@@ -1,5 +1,5 @@
 import { logger } from './logger.js';
-import { eq, desc, asc, and, lt, sql, count } from 'drizzle-orm';
+import { lt, sql, count } from 'drizzle-orm';
 import { getDbSync, type NewAuditLog } from './db/index.js';
 import { auditLogs } from './db/schema.js';
 import type { User } from './db/schema.js';
@@ -10,6 +10,8 @@ import {
 	getCutoffDate,
 	getRandomJitterMs
 } from './utils/time.js';
+import { buildAuditLogQuery, type AuditLogQueryOptions } from './audit-query.js';
+export type { AuditLogSortBy, AuditLogSortOrder } from './audit-query.js';
 
 // Substring keywords: any field whose name contains one of these (case-insensitive) is redacted.
 // This catches exact names as well as variants like jwt_secret, dbPassword, myToken, etc.
@@ -29,6 +31,16 @@ const SENSITIVE_PATTERNS = [
 	'signingkey',
 	'signing_key'
 ];
+
+export interface AuditLogOptions {
+	resourceType?: string;
+	resourceName?: string;
+	namespace?: string;
+	clusterId?: string;
+	details?: Record<string, unknown>;
+	success?: boolean;
+	ipAddress?: string;
+}
 
 export function redactSensitiveFields(obj: Record<string, unknown>): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
@@ -51,39 +63,37 @@ export function redactSensitiveFields(obj: Record<string, unknown>): Record<stri
 	return result;
 }
 
+/** Build the persisted audit record while keeping secret-bearing details redacted. */
+export function buildAuditLogEntry(
+	user: User | null,
+	action: string,
+	options: AuditLogOptions = {}
+): NewAuditLog {
+	return {
+		id: crypto.randomUUID(),
+		userId: user?.id || null,
+		action,
+		resourceType: options.resourceType || null,
+		resourceName: options.resourceName || null,
+		namespace: options.namespace || null,
+		clusterId: options.clusterId || null,
+		details: options.details ? JSON.stringify(redactSensitiveFields(options.details)) : null,
+		success: options.success ?? true,
+		ipAddress: options.ipAddress || null
+	};
+}
+
 /**
  * Log an audit event
  */
 export async function logAudit(
 	user: User | null,
 	action: string,
-	options: {
-		resourceType?: string;
-		resourceName?: string;
-		namespace?: string;
-		clusterId?: string;
-		details?: Record<string, unknown>;
-		success?: boolean;
-		ipAddress?: string;
-	} = {}
+	options: AuditLogOptions = {}
 ): Promise<void> {
 	try {
 		const db = getDbSync();
-
-		const logEntry: NewAuditLog = {
-			id: crypto.randomUUID(),
-			userId: user?.id || null,
-			action,
-			resourceType: options.resourceType || null,
-			resourceName: options.resourceName || null,
-			namespace: options.namespace || null,
-			clusterId: options.clusterId || null,
-			details: options.details ? JSON.stringify(redactSensitiveFields(options.details)) : null,
-			success: options.success ?? true,
-			ipAddress: options.ipAddress || null
-		};
-
-		await db.insert(auditLogs).values(logEntry);
+		await db.insert(auditLogs).values(buildAuditLogEntry(user, action, options));
 	} catch (error) {
 		// Don't throw - audit logging should never break the main flow
 		logger.error(error, 'Failed to write audit log:');
@@ -163,59 +173,16 @@ export async function logClusterChange(
 	});
 }
 
-export type AuditLogSortBy = 'date' | 'action';
-export type AuditLogSortOrder = 'asc' | 'desc';
 type AuditLogWithUser = typeof auditLogs.$inferSelect & { user: User | null };
 
 /**
  * Get paginated audit logs with sorting and filtering
  */
-export async function getAuditLogsPaginated(options: {
-	userId?: string;
-	action?: string;
-	success?: boolean;
-	limit?: number;
-	offset?: number;
-	sortBy?: AuditLogSortBy;
-	sortOrder?: AuditLogSortOrder;
-}): Promise<{ logs: AuditLogWithUser[]; total: number }> {
+export async function getAuditLogsPaginated(
+	options: AuditLogQueryOptions
+): Promise<{ logs: AuditLogWithUser[]; total: number }> {
 	const db = getDbSync();
-	const {
-		userId,
-		action,
-		success,
-		limit = 50,
-		offset = 0,
-		sortBy = 'date',
-		sortOrder = 'desc'
-	} = options;
-
-	// Build where conditions
-	const conditions = [];
-
-	if (userId) {
-		conditions.push(eq(auditLogs.userId, userId));
-	}
-
-	if (action) {
-		conditions.push(eq(auditLogs.action, action));
-	}
-
-	if (success !== undefined) {
-		conditions.push(eq(auditLogs.success, success));
-	}
-
-	const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-	// Build sort expression
-	const sortDir = sortOrder === 'asc' ? asc : desc;
-	let orderBy;
-	if (sortBy === 'action') {
-		orderBy = [sortDir(auditLogs.action), desc(auditLogs.createdAt)];
-	} else {
-		// 'date' is the default
-		orderBy = [sortDir(auditLogs.createdAt)];
-	}
+	const { whereClause, orderBy, limit, offset } = buildAuditLogQuery(options);
 
 	const [totalResult, logs] = await Promise.all([
 		db.select({ count: count() }).from(auditLogs).where(whereClause),
@@ -234,7 +201,7 @@ export async function getAuditLogsPaginated(options: {
 /**
  * Clean up old audit logs based on retention policy
  */
-async function cleanupOldAuditLogs(): Promise<number> {
+export async function cleanupOldAuditLogs(): Promise<number> {
 	try {
 		const db = getDbSync();
 		const retentionDays = await getAuditLogRetentionDays();

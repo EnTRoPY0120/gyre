@@ -24,23 +24,30 @@ export function setSetupTokenFile(filePath: string): void {
 	setupTokenFilePath = filePath;
 }
 
+function clearSetupTokenState(): void {
+	setupTokenFilePath = null;
+	pendingSetupCleanup = false;
+}
+
+function handleSetupTokenCleanupError(error: unknown, filePath: string): void {
+	if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+		clearSetupTokenState();
+		return;
+	}
+	logger.error(
+		{ err: error, filePath },
+		'[Auth] Failed to remove setup token file; manual removal may be required'
+	);
+}
+
 export function cleanupSetupTokenFile(): void {
 	if (!pendingSetupCleanup || setupTokenFilePath === null) return;
 	const filePath = setupTokenFilePath;
 	try {
 		unlinkSync(filePath);
-		setupTokenFilePath = null;
-		pendingSetupCleanup = false;
+		clearSetupTokenState();
 	} catch (err) {
-		if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-			setupTokenFilePath = null;
-			pendingSetupCleanup = false;
-		} else {
-			logger.error(
-				{ err, filePath },
-				'[Auth] Failed to remove setup token file; manual removal may be required'
-			);
-		}
+		handleSetupTokenCleanupError(err, filePath);
 	}
 }
 
@@ -57,6 +64,95 @@ async function hasUsers(): Promise<boolean> {
 		// Table doesn't exist yet - no users
 		return false;
 	}
+}
+
+function createAdminUser(requiresPasswordChange: boolean): NewUser {
+	return {
+		id: generateUserId(),
+		username: 'admin',
+		name: 'admin',
+		role: 'admin',
+		email: 'admin@gyre.local',
+		active: true,
+		requiresPasswordChange
+	};
+}
+
+function insertAdminUser(password: string | null, requiresPasswordChange: boolean): void {
+	const db = getDbSync();
+	const newUser = createAdminUser(requiresPasswordChange);
+	db.transaction((tx) => {
+		tx.insert(users).values(newUser).run();
+		tx.insert(accounts)
+			.values({
+				id: generateUserId(),
+				providerId: 'credential',
+				accountId: newUser.id,
+				userId: newUser.id,
+				password
+			})
+			.run();
+	});
+}
+
+async function createInClusterAdmin(): Promise<string> {
+	const password = await loadOrCreateInClusterAdmin();
+	if (!password) {
+		throw new Error(
+			'Initial admin secret could not be loaded or created. Fix the in-cluster secret name, namespace, or RBAC permissions and restart Gyre.'
+		);
+	}
+
+	// Keep a credential account row for symmetry with local mode while leaving
+	// the Kubernetes secret as the sole password source of truth.
+	insertAdminUser(null, false);
+	return password;
+}
+
+function getLocalAdminPassword(): string {
+	const configuredPassword = process.env.ADMIN_PASSWORD;
+	if (!configuredPassword) return generateStrongPassword();
+
+	validateAdminPasswordStrength(configuredPassword, process.env.NODE_ENV === 'production');
+	return configuredPassword;
+}
+
+function persistLocalSetupToken(
+	password: string,
+	persistSetupToken?: (password: string) => string | void
+): void {
+	let persistedSetupTokenFile: string | undefined;
+	try {
+		persistedSetupTokenFile = persistSetupToken?.(password) ?? undefined;
+	} catch (error) {
+		logger.error(
+			error,
+			'Failed to persist local setup token before admin creation. Fix filesystem permissions for the local setup token path and restart Gyre.'
+		);
+		throw error;
+	}
+
+	pendingSetupCleanup = true;
+	if (persistedSetupTokenFile) setSetupTokenFile(persistedSetupTokenFile);
+}
+
+async function persistLocalAdmin(password: string): Promise<void> {
+	try {
+		const passwordHash = await hashPassword(password);
+		insertAdminUser(passwordHash, true);
+	} catch (error) {
+		cleanupSetupTokenFile();
+		throw error;
+	}
+}
+
+async function createLocalAdmin(options?: {
+	persistSetupToken?: (password: string) => string | void;
+}): Promise<string> {
+	const password = getLocalAdminPassword();
+	persistLocalSetupToken(password, options?.persistSetupToken);
+	await persistLocalAdmin(password);
+	return password;
 }
 
 /**
@@ -76,95 +172,11 @@ export async function createDefaultAdminIfNeeded(options?: {
 		return { password: null, mode: isInClusterMode() ? 'in-cluster' : 'local' };
 	}
 
-	// In-cluster mode: Use K8s secret
 	if (isInClusterMode()) {
-		const password = await loadOrCreateInClusterAdmin();
-		if (!password) {
-			throw new Error(
-				'Initial admin secret could not be loaded or created. Fix the in-cluster secret name, namespace, or RBAC permissions and restart Gyre.'
-			);
-		}
-		const db = getDbSync();
-		const newUser: NewUser = {
-			id: generateUserId(),
-			username: 'admin',
-			name: 'admin',
-			role: 'admin',
-			email: 'admin@gyre.local',
-			active: true,
-			requiresPasswordChange: false
-		};
-		db.transaction((tx) => {
-			tx.insert(users).values(newUser).run();
-			// Keep a credential account row for symmetry with local mode while
-			// leaving the Kubernetes secret as the sole password source of truth.
-			tx.insert(accounts)
-				.values({
-					id: generateUserId(),
-					providerId: 'credential',
-					accountId: newUser.id,
-					userId: newUser.id,
-					password: null
-				})
-				.run();
-		});
-		return { password, mode: 'in-cluster' };
+		return { password: await createInClusterAdmin(), mode: 'in-cluster' };
 	}
 
-	// Local development mode: Use env var or generate password
-	const password = process.env.ADMIN_PASSWORD || generateStrongPassword();
-	if (process.env.ADMIN_PASSWORD) {
-		validateAdminPasswordStrength(
-			process.env.ADMIN_PASSWORD,
-			process.env.NODE_ENV === 'production'
-		);
-	}
-
-	let persistedSetupTokenFile: string | undefined;
-	try {
-		persistedSetupTokenFile = options?.persistSetupToken?.(password) ?? undefined;
-	} catch (error) {
-		logger.error(
-			error,
-			'Failed to persist local setup token before admin creation. Fix filesystem permissions for the local setup token path and restart Gyre.'
-		);
-		throw error;
-	}
-	pendingSetupCleanup = true;
-	if (persistedSetupTokenFile) {
-		setSetupTokenFile(persistedSetupTokenFile);
-	}
-
-	try {
-		const db = getDbSync();
-		const passwordHash = await hashPassword(password);
-		const newUser: NewUser = {
-			id: generateUserId(),
-			username: 'admin',
-			name: 'admin',
-			role: 'admin',
-			email: 'admin@gyre.local',
-			active: true,
-			requiresPasswordChange: true
-		};
-		db.transaction((tx) => {
-			tx.insert(users).values(newUser).run();
-			tx.insert(accounts)
-				.values({
-					id: generateUserId(),
-					providerId: 'credential',
-					accountId: newUser.id,
-					userId: newUser.id,
-					password: passwordHash
-				})
-				.run();
-		});
-	} catch (error) {
-		cleanupSetupTokenFile();
-		throw error;
-	}
-
-	return { password, mode: 'local' };
+	return { password: await createLocalAdmin(options), mode: 'local' };
 }
 
 /**

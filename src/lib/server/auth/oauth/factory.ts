@@ -10,11 +10,21 @@ import { OIDCProvider } from './providers/oidc';
 import { GitHubProvider } from './providers/github';
 import { GitLabProvider } from './providers/gitlab';
 import { GoogleProvider } from './providers/google';
-import { getIssuerUrlValidationError } from './url-security';
 import { getDb } from '$lib/server/db';
 import { authProviders } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
-import { parseRoleMappingInput } from '$lib/auth/role-mapping';
+export { validateProviderConfig } from './provider-config-validation.js';
+
+type ProviderOptions = { config: AuthProvider; redirectUri?: string };
+type ProviderFactory = (options: ProviderOptions) => IOAuthProvider;
+
+const providerFactories: Record<string, ProviderFactory> = {
+	[ProviderType.OIDC]: (options) => new OIDCProvider(options),
+	[ProviderType.OAUTH2_GITHUB]: (options) => new GitHubProvider(options),
+	[ProviderType.OAUTH2_GOOGLE]: (options) => new GoogleProvider(options),
+	[ProviderType.OAUTH2_GITLAB]: (options) => GitLabProvider(options),
+	[ProviderType.OAUTH2_GENERIC]: (options) => new OIDCProvider(options)
+};
 
 /**
  * Create an OAuth provider instance from configuration
@@ -25,28 +35,11 @@ import { parseRoleMappingInput } from '$lib/auth/role-mapping';
  */
 function createOAuthProvider(config: AuthProvider, redirectUri?: string): IOAuthProvider {
 	const options = { config, redirectUri };
-
-	switch (config.type) {
-		case ProviderType.OIDC:
-			return new OIDCProvider(options);
-
-		case ProviderType.OAUTH2_GITHUB:
-			return new GitHubProvider(options);
-
-		case ProviderType.OAUTH2_GOOGLE:
-			return new GoogleProvider(options);
-
-		case ProviderType.OAUTH2_GITLAB:
-			return GitLabProvider(options);
-
-		case ProviderType.OAUTH2_GENERIC:
-			// Generic OAuth2 falls back to OIDC provider
-			// (most modern OAuth2 providers support OIDC discovery)
-			return new OIDCProvider(options);
-
-		default:
-			throw new OAuthError(`Unknown provider type: ${config.type}`, 'UNKNOWN_PROVIDER_TYPE');
+	const factory = providerFactories[config.type];
+	if (!factory) {
+		throw new OAuthError(`Unknown provider type: ${config.type}`, 'UNKNOWN_PROVIDER_TYPE');
 	}
+	return factory(options);
 }
 
 /**
@@ -101,78 +94,4 @@ export async function getOAuthProvider(
 	}
 
 	return createOAuthProvider(config, redirectUri);
-}
-
-/**
- * Validate provider configuration
- * Checks for required fields based on provider type
- *
- * @param config - Provider configuration to validate
- * @returns Validation result with errors if any
- */
-export function validateProviderConfig(config: Partial<AuthProvider>): {
-	valid: boolean;
-	errors: string[];
-} {
-	const errors: string[] = [];
-
-	// Required fields for all providers
-	if (!config.name?.trim()) {
-		errors.push('Name is required');
-	}
-	if (!config.type) {
-		errors.push('Provider type is required');
-	}
-	if (!config.clientId?.trim()) {
-		errors.push('Client ID is required');
-	}
-	if (!config.clientSecretEncrypted?.trim()) {
-		errors.push('Client Secret is required');
-	}
-
-	// Type-specific validation
-	if (config.type === ProviderType.OIDC || config.type === ProviderType.OAUTH2_GENERIC) {
-		const issuerUrl = config.issuerUrl?.trim();
-		if (!issuerUrl) {
-			errors.push('Issuer URL is required for this provider');
-		} else {
-			const validationError = getIssuerUrlValidationError(issuerUrl);
-			if (validationError) {
-				errors.push(validationError);
-			}
-		}
-	}
-
-	// Validate scopes
-	if (config.scopes) {
-		const scopes = config.scopes.split(' ').filter(Boolean);
-		if (scopes.length === 0) {
-			errors.push('At least one scope is required');
-		}
-	}
-
-	// Validate role mapping JSON if provided
-	if (config.roleMapping) {
-		try {
-			parseRoleMappingInput(config.roleMapping);
-		} catch (error) {
-			errors.push(error instanceof Error ? error.message : 'Role mapping must be valid JSON');
-		}
-	}
-
-	// Validate claim paths
-	if (config.roleClaim && !/^[\w.]+$/.test(config.roleClaim)) {
-		errors.push('Role claim path contains invalid characters');
-	}
-	if (config.usernameClaim && !/^[\w.]+$/.test(config.usernameClaim)) {
-		errors.push('Username claim path contains invalid characters');
-	}
-	if (config.emailClaim && !/^[\w.]+$/.test(config.emailClaim)) {
-		errors.push('Email claim path contains invalid characters');
-	}
-
-	return {
-		valid: errors.length === 0,
-		errors
-	};
 }

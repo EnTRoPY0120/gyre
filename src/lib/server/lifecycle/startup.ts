@@ -16,20 +16,11 @@ import { scheduleAuditLogCleanup } from '../audit.js';
 import { validateStartupSecurity } from './security-validation.js';
 import { getCurrentNamespace } from '../kubernetes/namespace.js';
 
-/**
- * Initialize Gyre on startup
- * - Creates database tables if they don't exist
- * - Creates default admin user if no users exist
- * - Logs deployment mode
- */
-export async function initializeGyre(): Promise<void> {
+function logDeploymentMode(): boolean {
+	const isInCluster = Boolean(process.env.KUBERNETES_SERVICE_HOST);
 	logger.info('='.repeat(60));
 	logger.info('  Gyre - FluxCD Dashboard');
 	logger.info('='.repeat(60));
-
-	// Log deployment mode
-	const isInCluster = !!process.env.KUBERNETES_SERVICE_HOST;
-	const isProd = process.env.NODE_ENV === 'production';
 
 	if (isInCluster) {
 		logger.info('📦 Deployment Mode: In-Cluster');
@@ -39,20 +30,22 @@ export async function initializeGyre(): Promise<void> {
 		logger.info('   Using local kubeconfig for cluster access');
 	}
 
-	validateStartupSecurity(isProd);
+	return isInCluster;
+}
 
-	// Initialize database connection and tables
+function initializeDatabase(): void {
 	logger.info('\n🗄️  Initializing database...');
 	try {
 		getDbSync();
-		initDatabase(); // Create tables if they don't exist
+		initDatabase();
 		logger.info('   ✓ Database connection established');
 	} catch (error) {
 		logger.error(error, '   ✗ Failed to connect to database');
 		throw error;
 	}
+}
 
-	// Migrate kubeconfigs to new encryption format if needed (must run after DB is initialized)
+async function migrateClusterEncryption(): Promise<void> {
 	try {
 		const { migrated, failed } = await migrateKubeconfigs();
 		if (migrated > 0) {
@@ -63,10 +56,53 @@ export async function initializeGyre(): Promise<void> {
 		}
 	} catch (error) {
 		logger.error(error, '   ✗ Failed to migrate kubeconfigs');
-		// Don't throw here, as the app can still function with old encryption if migration fails
+		// The app can still function with old encryption if migration fails.
+	}
+}
+
+function persistLocalSetupToken(token: string): string {
+	const tokenFile = join(tmpdir(), `gyre-setup-token-${Date.now()}.txt`);
+	try {
+		writeFileSync(tokenFile, token, { mode: 0o600, flag: 'wx' });
+		return tokenFile;
+	} catch (writeErr) {
+		logger.error(writeErr, '   ✗ Failed to write setup token file');
+		throw writeErr;
+	}
+}
+
+function logInitialAdminDetails(mode: string, tokenFile: string | null): void {
+	logger.info('   ⚠️  FIRST TIME SETUP - INITIAL ADMIN PASSWORD:');
+	logger.info('   ' + '='.repeat(50));
+	logger.info('   Username: admin');
+
+	if (mode === 'in-cluster') {
+		const namespace = getCurrentNamespace();
+		logger.info('   Password has been securely stored in a Kubernetes secret.');
+		logger.info('   ' + '='.repeat(50));
+		logger.info('   \n   📋 To retrieve the password, run:');
+		logger.info(
+			`   kubectl get secret gyre-initial-admin-secret -n ${namespace} -o jsonpath='{.data.password}' | base64 -d`
+		);
+		logger.info('\n   ⚠️  Please change this password after first login!');
+		logger.info('   After first login, the secret will be marked as consumed.');
+		return;
 	}
 
-	// Create default admin if needed
+	if (!tokenFile) {
+		throw new Error('Setup token file was not created before admin persistence');
+	}
+
+	setSetupTokenFile(tokenFile);
+	logger.warn('   ⚠️  WARNING: Container or terminal logs may capture plaintext passwords.');
+	logger.warn('   The setup token has been written to a restricted file (mode 0600).');
+	logger.info(`   Token file: ${tokenFile}`);
+	logger.info('   ' + '='.repeat(50));
+	logger.info('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
+	logger.info("   ⚠️  Please read the token from the file above - it won't be shown again!");
+}
+
+async function setupAuthentication(isInCluster: boolean): Promise<void> {
 	logger.info('\n👤 Setting up authentication...');
 	try {
 		let tokenFile: string | null = null;
@@ -74,54 +110,22 @@ export async function initializeGyre(): Promise<void> {
 			persistSetupToken: isInCluster
 				? undefined
 				: (token) => {
-						tokenFile = join(tmpdir(), `gyre-setup-token-${Date.now()}.txt`);
-						try {
-							writeFileSync(tokenFile, token, { mode: 0o600, flag: 'wx' });
-							return tokenFile;
-						} catch (writeErr) {
-							logger.error(writeErr, '   ✗ Failed to write setup token file');
-							throw writeErr;
-						}
+						tokenFile = persistLocalSetupToken(token);
+						return tokenFile;
 					}
 		});
 
 		if (setupToken) {
-			logger.info('   ⚠️  FIRST TIME SETUP - INITIAL ADMIN PASSWORD:');
-			logger.info('   ' + '='.repeat(50));
-			logger.info('   Username: admin');
-
-			if (mode === 'in-cluster') {
-				// In-cluster mode: show K8s secret command
-				const namespace = getCurrentNamespace();
-				logger.info('   Password has been securely stored in a Kubernetes secret.');
-				logger.info('   ' + '='.repeat(50));
-				logger.info('   \n   📋 To retrieve the password, run:');
-				logger.info(
-					`   kubectl get secret gyre-initial-admin-secret -n ${namespace} -o jsonpath='{.data.password}' | base64 -d`
-				);
-				logger.info('\n   ⚠️  Please change this password after first login!');
-				logger.info('   After first login, the secret will be marked as consumed.');
-			} else {
-				if (!tokenFile) {
-					throw new Error('Setup token file was not created before admin persistence');
-				}
-				// Register the file path so auth.ts can remove it after first login.
-				setSetupTokenFile(tokenFile);
-				logger.warn('   ⚠️  WARNING: Container or terminal logs may capture plaintext passwords.');
-				logger.warn('   The setup token has been written to a restricted file (mode 0600).');
-				logger.info(`   Token file: ${tokenFile}`);
-				logger.info('   ' + '='.repeat(50));
-				logger.info('\n   💡 For local development, you can also set ADMIN_PASSWORD env var');
-				logger.info("   ⚠️  Please read the token from the file above - it won't be shown again!");
-			}
+			logInitialAdminDetails(mode, tokenFile);
 		}
 		logger.info('   ✓ Authentication ready');
 	} catch (error) {
 		logger.error(error, '   ✗ Failed to setup authentication');
 		throw error;
 	}
+}
 
-	// Initialize default RBAC policies
+async function setupRbacPolicies(): Promise<void> {
 	logger.info('\n🔐 Setting up RBAC policies...');
 	try {
 		await initializeDefaultPolicies();
@@ -140,8 +144,9 @@ export async function initializeGyre(): Promise<void> {
 		logger.error(error, '   ✗ Failed to setup RBAC policies');
 		throw error;
 	}
+}
 
-	// Seed auth settings and providers from environment
+async function seedAuthenticationConfiguration(): Promise<void> {
 	logger.info('\n🔑 Setting up authentication settings...');
 	try {
 		await seedAuthSettings();
@@ -157,8 +162,9 @@ export async function initializeGyre(): Promise<void> {
 		logger.error(error, '   ✗ Failed to seed auth settings');
 		throw error;
 	}
+}
 
-	// Schedule reconciliation history cleanup
+function scheduleDataCleanup(): void {
 	logger.info('\n🧹 Setting up data cleanup...');
 	try {
 		scheduleCleanup();
@@ -167,8 +173,27 @@ export async function initializeGyre(): Promise<void> {
 		logger.info('   ✓ Cleanup schedulers initialized');
 	} catch (error) {
 		logger.error(error, '   ✗ Failed to schedule cleanup');
-		// Don't throw - app can still work without cleanup
+		// The app can still work without cleanup.
 	}
+}
+
+/**
+ * Initialize Gyre on startup
+ * - Creates database tables if they don't exist
+ * - Creates default admin user if no users exist
+ * - Logs deployment mode
+ */
+export async function initializeGyre(): Promise<void> {
+	const isInCluster = logDeploymentMode();
+	const isProd = process.env.NODE_ENV === 'production';
+
+	validateStartupSecurity(isProd);
+	initializeDatabase();
+	await migrateClusterEncryption();
+	await setupAuthentication(isInCluster);
+	await setupRbacPolicies();
+	await seedAuthenticationConfiguration();
+	scheduleDataCleanup();
 
 	logger.info('\n' + '='.repeat(60));
 	logger.info('  Gyre is ready!');

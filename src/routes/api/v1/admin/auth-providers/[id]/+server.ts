@@ -10,16 +10,16 @@ import { z } from '$lib/server/openapi';
 import { authProviderSchema } from '$lib/server/auth/schemas';
 import type { RequestHandler } from './$types';
 import { getDb } from '$lib/server/db';
-import { parseRoleMappingInput } from '$lib/auth/role-mapping';
 import { parseRoleMappingSafe } from '$lib/server/auth/role-mapping';
 import { accounts, authProviders } from '$lib/server/db/schema';
-import { encryptSecret } from '$lib/server/auth/crypto';
 import { validateProviderConfig } from '$lib/server/auth/oauth';
+import { buildAuthProviderUpdate } from '$lib/server/auth/provider-updates.js';
 import { eq } from 'drizzle-orm';
 import {
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
 } from '$lib/server/http/guards.js';
+import { handleAuthProviderLoadError } from '../auth-provider-route-errors.js';
 
 export const _metadata = {
 	GET: {
@@ -147,10 +147,7 @@ export const GET: RequestHandler = async ({ params, locals }) => {
 
 		return json({ provider: sanitizedProvider });
 	} catch (err) {
-		if (isHttpError(err) || isRedirect(err)) throw err;
-
-		logger.error(err, 'Failed to get auth provider:');
-		throw error(500, { message: 'Failed to load provider' });
+		handleAuthProviderLoadError(err);
 	}
 };
 
@@ -173,46 +170,8 @@ export const PATCH: RequestHandler = async ({ params, request, locals }) => {
 			throw error(404, { message: 'Provider not found' });
 		}
 
-		const body = await request.json();
-		// Build applied update object (only include known, provided fields)
-		const appliedUpdate: Record<string, unknown> = {};
-
-		// Update fields if provided
-		if (body.name !== undefined) appliedUpdate.name = body.name;
-		if (body.type !== undefined) appliedUpdate.type = body.type;
-		if (body.enabled !== undefined) appliedUpdate.enabled = body.enabled;
-		if (body.clientId !== undefined) appliedUpdate.clientId = body.clientId;
-		if (body.issuerUrl !== undefined) appliedUpdate.issuerUrl = body.issuerUrl;
-		if (body.authorizationUrl !== undefined) appliedUpdate.authorizationUrl = body.authorizationUrl;
-		if (body.tokenUrl !== undefined) appliedUpdate.tokenUrl = body.tokenUrl;
-		if (body.userInfoUrl !== undefined) appliedUpdate.userInfoUrl = body.userInfoUrl;
-		if (body.jwksUrl !== undefined) appliedUpdate.jwksUrl = body.jwksUrl;
-		if (body.autoProvision !== undefined) appliedUpdate.autoProvision = body.autoProvision;
-		if (body.defaultRole !== undefined) appliedUpdate.defaultRole = body.defaultRole;
-		if (body.roleMapping !== undefined) {
-			try {
-				const parsedRoleMapping = parseRoleMappingInput(body.roleMapping);
-				appliedUpdate.roleMapping = parsedRoleMapping ? JSON.stringify(parsedRoleMapping) : null;
-			} catch (parseError) {
-				throw error(400, {
-					message:
-						parseError instanceof Error
-							? parseError.message
-							: 'roleMapping must be an object mapping role names to arrays of group strings'
-				});
-			}
-		}
-		if (body.roleClaim !== undefined) appliedUpdate.roleClaim = body.roleClaim;
-		if (body.usernameClaim !== undefined) appliedUpdate.usernameClaim = body.usernameClaim;
-		if (body.emailClaim !== undefined) appliedUpdate.emailClaim = body.emailClaim;
-		if (body.usePkce !== undefined) appliedUpdate.usePkce = body.usePkce;
-		if (body.scopes !== undefined) appliedUpdate.scopes = body.scopes;
-
-		// Handle client secret separately (needs encryption)
-		if (typeof body.clientSecret === 'string' && body.clientSecret.trim().length > 0) {
-			appliedUpdate.clientSecretEncrypted = encryptSecret(body.clientSecret);
-		}
-		const changedKeys = Object.keys(appliedUpdate).filter((key) => key !== 'clientSecretEncrypted');
+		const body = (await request.json()) as Record<string, unknown>;
+		const { appliedUpdate, changedKeys } = buildAuthProviderUpdate(body);
 		const updatePayload: Record<string, unknown> = { ...appliedUpdate, updatedAt: new Date() };
 
 		// Validate updated configuration

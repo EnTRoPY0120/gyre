@@ -8,7 +8,6 @@ import { randomBytes } from 'node:crypto';
 import { logger } from '$lib/server/logger.js';
 import { getDb, getDbSync, schema } from '$lib/server/db';
 import { DEFAULT_COOKIE_OPTIONS, IS_PROD } from '$lib/server/config';
-import { encryptSecret } from '$lib/server/auth/crypto';
 import { accounts, users, type Session, type User } from '$lib/server/db/schema';
 import {
 	MAX_SESSIONS_PER_USER,
@@ -19,6 +18,7 @@ import {
 } from '$lib/server/auth';
 import type { OAuthTokens } from '$lib/server/auth/oauth';
 import { and, eq } from 'drizzle-orm';
+import { buildOAuthAccountData } from './oauth-account.js';
 
 const BETTER_AUTH_BASE_PATH = '/api/v1/auth';
 const BETTER_AUTH_SESSION_COOKIE_NAME = 'gyre_session';
@@ -314,38 +314,13 @@ export async function ensureBetterAuthOAuthAccount(
 		where: and(eq(accounts.providerId, providerId), eq(accounts.accountId, providerUserId))
 	});
 
-	const accountData = {
+	const accountData = buildOAuthAccountData(
 		userId,
 		providerId,
-		accountId: providerUserId,
-		accessToken: null,
-		refreshToken: null,
-		idToken: null,
-		accessTokenExpiresAt:
-			tokens?.expiresIn != null
-				? new Date(Date.now() + tokens.expiresIn * 1000)
-				: (existingAccount?.accessTokenExpiresAt ?? null),
-		scope: tokens?.scope ?? existingAccount?.scope ?? null,
-		lastLoginAt: new Date(),
-		accessTokenEncrypted: tokens?.accessToken
-			? encryptSecret(tokens.accessToken)
-			: (((existingAccount as Record<string, unknown> | undefined)?.accessTokenEncrypted as
-					| string
-					| null
-					| undefined) ?? null),
-		refreshTokenEncrypted: tokens?.refreshToken
-			? encryptSecret(tokens.refreshToken)
-			: (((existingAccount as Record<string, unknown> | undefined)?.refreshTokenEncrypted as
-					| string
-					| null
-					| undefined) ?? null),
-		idTokenEncrypted: tokens?.idToken
-			? encryptSecret(tokens.idToken)
-			: (((existingAccount as Record<string, unknown> | undefined)?.idTokenEncrypted as
-					| string
-					| null
-					| undefined) ?? null)
-	};
+		providerUserId,
+		tokens,
+		existingAccount
+	);
 
 	if (existingAccount) {
 		await ctx.internalAdapter.updateAccount(existingAccount.id, accountData);

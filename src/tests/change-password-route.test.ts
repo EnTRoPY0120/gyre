@@ -12,7 +12,11 @@ function createAuthState() {
 	return {
 		credentialAccount: { id: 'cred-1' } as { id: string } | null,
 		credentialHash: 'stored-hash' as string | null,
-		isInClusterAdmin: false
+		isInClusterAdmin: false,
+		currentPasswordValid: true,
+		newPasswordMatchesCurrent: false,
+		passwordIsReused: false,
+		events: [] as string[]
 	};
 }
 
@@ -93,9 +97,13 @@ beforeEach(async () => {
 
 	vi.doMock('$lib/server/auth', () => ({
 		SESSION_DURATION_DAYS: 30,
-		addPasswordHistory: async () => {},
+		addPasswordHistory: async () => {
+			authState.events.push('history');
+		},
 		authenticateUser: async () => null,
-		clearRequiresPasswordChange: async () => {},
+		clearRequiresPasswordChange: async () => {
+			authState.events.push('clear-password-change');
+		},
 		cleanupSetupTokenFile: () => {},
 		deleteUserSessions: async () => {},
 		getCredentialAccount: async () => authState.credentialAccount,
@@ -103,9 +111,14 @@ beforeEach(async () => {
 		getUserByUsername: async () => null,
 		hasManagedPassword: async () => true,
 		isInClusterAdmin: () => authState.isInClusterAdmin,
-		isPasswordInHistory: async () => false,
+		isPasswordInHistory: async () => authState.passwordIsReused,
 		normalizeUsername: (username: string) => username,
-		verifyPassword: async () => true
+		verifyPassword: async (password: string) => {
+			authState.events.push(`verify:${password}`);
+			return password === 'CurrentPassword123!'
+				? authState.currentPasswordValid
+				: authState.newPasswordMatchesCurrent;
+		}
 	}));
 
 	const betterAuthModuleStub = {
@@ -120,9 +133,10 @@ beforeEach(async () => {
 		ensureBetterAuthOAuthAccount: async () => {},
 		getBetterAuth: () => ({
 			api: {
-				changePassword: async () => ({
-					headers: new Headers()
-				}),
+				changePassword: async () => {
+					authState.events.push('better-auth-change');
+					return { headers: new Headers() };
+				},
 				signOut: async () => ({
 					headers: new Headers()
 				})
@@ -137,7 +151,9 @@ beforeEach(async () => {
 
 	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
 	vi.doMock('$lib/server/audit', () => ({
-		logAudit: async () => {}
+		logAudit: async (_user: User, event: string) => {
+			authState.events.push(`audit:${event}`);
+		}
 	}));
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
 	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
@@ -154,6 +170,37 @@ afterEach(() => {
 });
 
 describe('change-password route credential handling', () => {
+	test('records the old hash before rotation and clears the first-login flag after success', async () => {
+		const response = await POST(buildEvent());
+
+		expect(response.status).toBe(200);
+		expect(await response.json()).toEqual({
+			success: true,
+			message: 'Password changed successfully'
+		});
+		expect(authState.events).toEqual([
+			'verify:CurrentPassword123!',
+			'verify:NewPassword123!',
+			'history',
+			'better-auth-change',
+			'audit:password_changed',
+			'clear-password-change'
+		]);
+	});
+
+	test('audits an invalid current password without rotating credentials', async () => {
+		authState.currentPasswordValid = false;
+
+		await expect(POST(buildEvent())).rejects.toMatchObject({
+			status: 401,
+			body: { message: 'Current password is incorrect' }
+		});
+		expect(authState.events).toEqual([
+			'verify:CurrentPassword123!',
+			'audit:password_change_failed'
+		]);
+	});
+
 	test('returns actionable 500 when the credential account row is missing', async () => {
 		authState.credentialAccount = null;
 		authState.credentialHash = null;
@@ -178,6 +225,20 @@ describe('change-password route credential handling', () => {
 			body: {
 				message:
 					'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
+			}
+		});
+	});
+
+	test('returns actionable 500 when the credential hash is missing outside the cluster', async () => {
+		authState.credentialAccount = { id: 'cred-1' };
+		authState.credentialHash = null;
+		authState.isInClusterAdmin = false;
+
+		await expect(POST(buildEvent())).rejects.toMatchObject({
+			status: 500,
+			body: {
+				message:
+					'Account configuration error: credential password hash missing for this user. Contact your administrator.'
 			}
 		});
 	});
