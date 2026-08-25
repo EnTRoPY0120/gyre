@@ -9,6 +9,7 @@ import { registerFluxLanguageFeatures } from './fluxCompletions';
 import { registerFluxValidation } from './yamlValidator';
 import MonacoEditorFallback from './MonacoEditorFallback.svelte';
 import { getMonacoWorker } from './monaco-workers';
+import { syncEditorValue } from './monaco-value-sync';
 
 	// Props
 	interface Props {
@@ -156,21 +157,7 @@ import { getMonacoWorker } from './monaco-workers';
 
 	// Update editor value when prop changes externally
 	$effect(() => {
-		if (!editor || !monaco) return;
-
-		const currentValue = editor.getValue();
-		if (value !== currentValue) {
-			// Preserve cursor position and scroll
-			const position = editor.getPosition();
-			const scrollTop = editor.getScrollTop();
-
-			editor.setValue(value);
-
-			if (position) {
-				editor.setPosition(position);
-			}
-			editor.setScrollTop(scrollTop);
-		}
+		if (editor) syncEditorValue(editor, value);
 	});
 
 	// Update theme when it changes
