@@ -22,6 +22,86 @@ import {
 const DUMMY_HASH: Promise<string> = hashPassword('__dummy_password_for_timing__');
 import { checkRateLimit, accountLockout } from '$lib/server/rate-limiter';
 
+type LoginRequestBody = { username?: string; password?: string };
+
+async function parseLoginCredentials(request: Request) {
+	const body = (await request.json()) as LoginRequestBody;
+	const { username, password } = body;
+
+	if (!username || !password) {
+		throw error(400, { message: 'Username and password are required' });
+	}
+
+	const canonicalUsername = normalizeUsername(username);
+	if (!canonicalUsername) {
+		throw error(401, { message: 'Invalid username or password' });
+	}
+
+	return { canonicalUsername, password };
+}
+
+function enforceLoginLimits(
+	canonicalUsername: string,
+	getClientAddress: () => string,
+	setHeaders: (headers: Record<string, string>) => void
+) {
+	const ipAddress = getClientAddress();
+	checkRateLimit({ setHeaders }, `login:ip:${ipAddress}`, 5, 60 * 1000);
+
+	const lockoutStatus = accountLockout.check(canonicalUsername);
+	if (lockoutStatus.locked) {
+		setHeaders({ 'Retry-After': lockoutStatus.retryAfter.toString() });
+		throw error(429, {
+			message: `Account locked due to too many failed attempts. Try again in ${lockoutStatus.retryAfter} seconds.`
+		});
+	}
+
+	return ipAddress;
+}
+
+async function authenticateKnownUser(
+	canonicalUsername: string,
+	password: string,
+	ipAddress: string
+) {
+	const existingUser = await getUserByUsername(canonicalUsername);
+	if (!existingUser) {
+		await verifyPassword(password, await DUMMY_HASH);
+		accountLockout.recordFailure(canonicalUsername, 5);
+		await logLogin(null, false, ipAddress, 'user_not_found');
+		throw error(401, { message: 'Invalid username or password' });
+	}
+
+	if (!existingUser.active) {
+		await verifyPassword(password, await DUMMY_HASH);
+		accountLockout.recordFailure(canonicalUsername, 5);
+		await logLogin(existingUser, false, ipAddress, 'account_disabled');
+		throw error(401, { message: 'Invalid username or password' });
+	}
+
+	const user = await authenticateUser(canonicalUsername, password);
+	if (!user) {
+		accountLockout.recordFailure(canonicalUsername, 5);
+		await logLogin(existingUser, false, ipAddress, 'invalid_password');
+		throw error(401, { message: 'Invalid username or password' });
+	}
+
+	return user;
+}
+
+async function revokeExistingSession(
+	cookies: Parameters<typeof getBetterAuthSessionCookieValue>[0]
+) {
+	const existingSessionCookie = getBetterAuthSessionCookieValue(cookies);
+	if (!existingSessionCookie) return;
+
+	try {
+		await revokeBetterAuthSessionByCookieValue(existingSessionCookie);
+	} catch (err) {
+		logger.warn(err, '[Auth] Failed to revoke pre-existing session during login');
+	}
+}
+
 export const _metadata = {
 	POST: {
 		summary: 'Authenticate user and create session',
@@ -115,73 +195,14 @@ export const POST: RequestHandler = async (event) => {
 			throw error(403, { message: 'Local username/password sign-in is disabled.' });
 		}
 
-		const body = await request.json();
-		const { username, password } = body;
-
-		if (!username || !password) {
-			throw error(400, { message: 'Username and password are required' });
-		}
-
-		// Normalize username to a canonical form (lowercase, trimmed)
-		const canonicalUsername = normalizeUsername(username);
-
-		// Validation: short-circuit if normalized username is empty
-		if (!canonicalUsername) {
-			throw error(401, { message: 'Invalid username or password' });
-		}
-
-		// Rate limit: 5 attempts per 1 minute per IP
-		const ipAddress = getClientAddress();
-		const limitKey = `login:ip:${ipAddress}`;
-		checkRateLimit({ setHeaders }, limitKey, 5, 60 * 1000);
-
-		// Check account lockout
-		const lockoutStatus = accountLockout.check(canonicalUsername);
-		if (lockoutStatus.locked) {
-			setHeaders({
-				'Retry-After': lockoutStatus.retryAfter.toString()
-			});
-			throw error(429, {
-				message: `Account locked due to too many failed attempts. Try again in ${lockoutStatus.retryAfter} seconds.`
-			});
-		}
-
-		// Check if user exists first to give better error message
-		const existingUser = await getUserByUsername(canonicalUsername);
-		if (!existingUser) {
-			// Dummy verification to mitigate timing attacks
-			await verifyPassword(password, await DUMMY_HASH);
-
-			accountLockout.recordFailure(canonicalUsername, 5);
-			await logLogin(null, false, ipAddress, 'user_not_found');
-			throw error(401, { message: 'Invalid username or password' });
-		}
-
-		if (!existingUser.active) {
-			await verifyPassword(password, await DUMMY_HASH);
-			accountLockout.recordFailure(canonicalUsername, 5);
-			await logLogin(existingUser, false, ipAddress, 'account_disabled');
-			throw error(401, { message: 'Invalid username or password' });
-		}
-
-		const user = await authenticateUser(canonicalUsername, password);
-		if (!user) {
-			accountLockout.recordFailure(canonicalUsername, 5);
-			await logLogin(existingUser, false, ipAddress, 'invalid_password');
-			throw error(401, { message: 'Invalid username or password' });
-		}
+		const { canonicalUsername, password } = await parseLoginCredentials(request);
+		const ipAddress = enforceLoginLimits(canonicalUsername, getClientAddress, setHeaders);
+		const user = await authenticateKnownUser(canonicalUsername, password, ipAddress);
 
 		// Reset lockout on successful login
 		accountLockout.recordSuccess(canonicalUsername);
 
-		const existingSessionCookie = getBetterAuthSessionCookieValue(cookies);
-		if (existingSessionCookie) {
-			try {
-				await revokeBetterAuthSessionByCookieValue(existingSessionCookie);
-			} catch (err) {
-				logger.warn(err, '[Auth] Failed to revoke pre-existing session during login');
-			}
-		}
+		await revokeExistingSession(cookies);
 
 		await createBetterAuthSessionForUser(cookies, user.id, {
 			ipAddress,
