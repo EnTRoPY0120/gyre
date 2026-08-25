@@ -2,6 +2,7 @@
 	import { toast } from 'svelte-sonner';
 	import type { PageData } from './$types';
 	import { getCsrfToken } from '$lib/utils/csrf';
+	import { saveAdminSettings } from './settings-request';
 	import SettingsForm from './SettingsForm.svelte';
 	import SettingsInfoCards from './SettingsInfoCards.svelte';
 
@@ -29,26 +30,10 @@
 	async function saveSettings() {
 		saving = true;
 		try {
-			const domains = domainAllowlistText
-				.split(',')
-				.map((d: string) => d.trim().toLowerCase())
-				.filter((d: string) => d.length > 0);
-
-			const response = await fetch('/api/v1/admin/settings', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() },
-				body: JSON.stringify({
-					localLoginEnabled,
-					allowSignup,
-					domainAllowlist: domains,
-					auditRetentionDays
-				})
-			});
-
-			if (!response.ok) {
-				const error = await response.json();
-				throw new Error(error.message || 'Failed to save settings');
-			}
+			await saveAdminSettings(
+				{ localLoginEnabled, allowSignup, domainAllowlistText, auditRetentionDays },
+				getCsrfToken()
+			);
 
 			toast.success('Settings saved successfully');
 			isDirty = false;
