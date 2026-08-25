@@ -27,108 +27,115 @@ type OverviewResult = {
 	suspended: number;
 };
 
+function aggregateOverviewResults(overviewResults: OverviewResult[]) {
+	const countsByKind = new Map<string, Omit<GroupCountValue, 'error'>>();
+
+	for (const result of overviewResults) {
+		const existing = countsByKind.get(result.type);
+		if (existing) {
+			existing.total += result.total;
+			existing.healthy += result.healthy;
+			existing.failed += result.failed;
+			existing.suspended += result.suspended;
+			continue;
+		}
+
+		countsByKind.set(result.type, {
+			total: result.total,
+			healthy: result.healthy,
+			failed: result.failed,
+			suspended: result.suspended
+		});
+	}
+
+	return countsByKind;
+}
+
+function buildGroupCounts(overviewData: {
+	results?: unknown;
+	partialFailure?: boolean;
+}): GroupCounts {
+	const overviewResults = (overviewData.results ?? []) as OverviewResult[];
+	const countsByKind = aggregateOverviewResults(overviewResults);
+	const successfulTypes = new Set(countsByKind.keys());
+	const groupCounts: GroupCounts = {};
+
+	for (const group of resourceGroups) {
+		const groupCount = group.resources.reduce(
+			(counts, resource) => {
+				const resourceCount = countsByKind.get(resource.kind);
+				if (!resourceCount) {
+					return counts;
+				}
+
+				counts.total += resourceCount.total;
+				counts.healthy += resourceCount.healthy;
+				counts.failed += resourceCount.failed;
+				counts.suspended += resourceCount.suspended;
+				return counts;
+			},
+			{ total: 0, healthy: 0, failed: 0, suspended: 0 }
+		);
+
+		groupCounts[group.name] = {
+			...groupCount,
+			error:
+				overviewData.partialFailure === true &&
+				group.resources.some((resource) => !successfulTypes.has(resource.kind))
+		};
+	}
+
+	return groupCounts;
+}
+
+async function fetchGroupCounts(
+	locals: App.Locals,
+	requestedCluster: string
+): Promise<GroupCounts> {
+	try {
+		await requireClusterWideRead(locals);
+	} catch (error) {
+		if (!isPermissionErrorLike(error)) {
+			throw error;
+		}
+		return EMPTY_GROUP_COUNTS;
+	}
+
+	const user = locals.user;
+	if (!user) {
+		return EMPTY_GROUP_COUNTS;
+	}
+
+	const cacheKey = getDashboardCacheKey({
+		userId: user.id,
+		role: user.role,
+		clusterId: requestedCluster
+	});
+	const cached = getDashboardCache(cacheKey);
+	if (cached !== null) {
+		return cached as GroupCounts;
+	}
+
+	let overviewData;
+	try {
+		overviewData = await getFluxOverviewSummary({ locals });
+	} catch (error) {
+		if (!isPermissionErrorLike(error)) {
+			throw error;
+		}
+		return EMPTY_GROUP_COUNTS;
+	}
+
+	const groupCounts = buildGroupCounts(overviewData);
+	setDashboardCache(cacheKey, groupCounts);
+	return groupCounts;
+}
+
 export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 	// Get health data from parent layout
 	const parentData = await parent();
 	const requestedCluster = locals.cluster ?? IN_CLUSTER_ID;
 	const isAdmin = locals.user?.role === 'admin';
-
-	// Function to fetch data (can be returned as a promise to be streamed)
-	const fetchGroupCounts = async () => {
-		try {
-			await requireClusterWideRead(locals);
-		} catch (error) {
-			if (!isPermissionErrorLike(error)) {
-				throw error;
-			}
-			return EMPTY_GROUP_COUNTS;
-		}
-
-		const user = locals.user;
-		if (!user) {
-			return EMPTY_GROUP_COUNTS;
-		}
-
-		// Scope cache by user, role, and canonical cluster ID.
-		const cacheKey = getDashboardCacheKey({
-			userId: user.id,
-			role: user.role,
-			clusterId: requestedCluster
-		});
-		const cached = getDashboardCache(cacheKey);
-
-		// Return cached data if still valid
-		if (cached !== null) {
-			return cached as GroupCounts;
-		}
-
-		let overviewData;
-		try {
-			overviewData = await getFluxOverviewSummary({ locals });
-		} catch (error) {
-			if (!isPermissionErrorLike(error)) {
-				throw error;
-			}
-			return EMPTY_GROUP_COUNTS;
-		}
-
-		const overviewResults = (overviewData.results ?? []) as OverviewResult[];
-		const countsByKind = new Map<string, Omit<GroupCountValue, 'error'>>();
-
-		for (const result of overviewResults) {
-			const existing = countsByKind.get(result.type);
-			if (existing) {
-				existing.total += result.total;
-				existing.healthy += result.healthy;
-				existing.failed += result.failed;
-				existing.suspended += result.suspended;
-				continue;
-			}
-
-			countsByKind.set(result.type, {
-				total: result.total,
-				healthy: result.healthy,
-				failed: result.failed,
-				suspended: result.suspended
-			});
-		}
-
-		// Build set of resource types that succeeded (absent types errored)
-		const successfulTypes = new Set(countsByKind.keys());
-
-		// Map overview results back to resourceGroups structure
-		const groupCounts: GroupCounts = {};
-
-		for (const group of resourceGroups) {
-			let groupTotal = 0;
-			let groupHealthy = 0;
-			let groupFailed = 0;
-			let groupSuspended = 0;
-
-			for (const resInfo of group.resources) {
-				const resResult = countsByKind.get(resInfo.kind);
-				if (resResult) {
-					groupTotal += resResult.total;
-					groupHealthy += resResult.healthy;
-					groupFailed += resResult.failed;
-					groupSuspended += resResult.suspended;
-				}
-			}
-
-			groupCounts[group.name] = {
-				total: groupTotal,
-				healthy: groupHealthy,
-				failed: groupFailed,
-				suspended: groupSuspended,
-				error:
-					overviewData.partialFailure === true &&
-					group.resources.some((r) => !successfulTypes.has(r.kind))
-			};
-		}
-
-		setDashboardCache(cacheKey, groupCounts);
-		return groupCounts;
-	};
 
 	setHeaders({
 		'Cache-Control': `private, max-age=${Math.floor(DASHBOARD_CACHE_TTL_MS / 1000)}`
@@ -145,7 +152,7 @@ export const load: PageServerLoad = async ({ locals, parent, setHeaders }) => {
 		health: parentData.health,
 		adminReadiness,
 		streamed: {
-			groupCounts: fetchGroupCounts()
+			groupCounts: fetchGroupCounts(locals, requestedCluster)
 		}
 	};
 };
