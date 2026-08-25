@@ -11,6 +11,7 @@
 		createBackupRequest,
 		deleteBackupRequest,
 		downloadBackupRequest,
+		getBackupRequestErrorMessage,
 		restoreBackupRequest
 	} from './backup-requests';
 	import type { BackupMetadata } from './backup-types';
@@ -45,7 +46,7 @@
 			toast.success(`Backup created: ${result.backup.filename}`);
 			await invalidateAll();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to create backup');
+			toast.error(getBackupRequestErrorMessage(err, 'Failed to create backup'));
 		} finally {
 			creating = false;
 		}
@@ -64,7 +65,7 @@
 			URL.revokeObjectURL(url);
 			toast.success('Download started');
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to download backup');
+			toast.error(getBackupRequestErrorMessage(err, 'Failed to download backup'));
 		}
 	}
 
@@ -75,7 +76,7 @@
 			toast.success('Backup deleted');
 			await invalidateAll();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to delete backup');
+			toast.error(getBackupRequestErrorMessage(err, 'Failed to delete backup'));
 		} finally {
 			deletingFilename = null;
 		}
@@ -105,7 +106,7 @@
 			if (restoreInput) restoreInput.value = '';
 			await invalidateAll();
 		} catch (err) {
-			toast.error(err instanceof Error ? err.message : 'Failed to restore backup');
+			toast.error(getBackupRequestErrorMessage(err, 'Failed to restore backup'));
 		} finally {
 			restoring = false;
 		}

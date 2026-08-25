@@ -8,6 +8,10 @@ interface BackupRestoreResult {
 	message: string;
 }
 
+export function getBackupRequestErrorMessage(error: unknown, fallback: string): string {
+	return error instanceof Error ? error.message : fallback;
+}
+
 async function getBackupErrorMessage(response: Response, fallback: string): Promise<string> {
 	const data = await response.json().catch(() => null);
 	const message = (data as { message?: unknown } | null)?.message;

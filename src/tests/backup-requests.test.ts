@@ -3,10 +3,18 @@ import {
 	createBackupRequest,
 	deleteBackupRequest,
 	downloadBackupRequest,
+	getBackupRequestErrorMessage,
 	restoreBackupRequest
 } from '../routes/admin/backups/backup-requests.js';
 
 describe('backup request policies', () => {
+	test('uses known backup errors and safe fallbacks for unknown errors', () => {
+		expect(getBackupRequestErrorMessage(new Error('restore failed'), 'fallback')).toBe(
+			'restore failed'
+		);
+		expect(getBackupRequestErrorMessage('restore failed', 'fallback')).toBe('fallback');
+	});
+
 	test('creates a backup with the CSRF token', async () => {
 		const fetcher = vi
 			.fn()
