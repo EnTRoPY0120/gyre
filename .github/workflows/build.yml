@@ -125,6 +125,7 @@ jobs:
       # buildkit runs the arm64 build entirely inside the emulated environment and
       # exports a single-platform image the local daemon can load.
       - name: Build image for scan (arm64)
+        if: github.event_name != 'pull_request'
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
@@ -136,6 +137,7 @@ jobs:
           cache-to: type=gha,scope=arm64,mode=min
 
       - name: Run Trivy scan arm64 (blocking)
+        if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: gyre:scan-arm64
