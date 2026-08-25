@@ -4,8 +4,9 @@
 	import type { FluxResource } from '$lib/types/flux';
 	import BulkActionsToolbar from './BulkActionsToolbar.svelte';
 	import ResourceTableBody from './ResourceTableBody.svelte';
-	import ResourceTableHeader from './ResourceTableHeader.svelte';
-	import ResourceTablePagination from './ResourceTablePagination.svelte';
+import ResourceTableHeader from './ResourceTableHeader.svelte';
+import ResourceTablePagination from './ResourceTablePagination.svelte';
+import { isResourceSelectionTarget } from './resource-row-click';
 
 	const MIN_PAGE_SIZE = Math.min(...ITEMS_PER_PAGE_OPTIONS.filter((size) => size > 0));
 
@@ -66,13 +67,7 @@
 	);
 
 	function handleRowClick(resource: FluxResource, event: MouseEvent) {
-		const target = event.target as HTMLElement;
-		if (
-			(target instanceof HTMLInputElement && target.type === 'checkbox') ||
-			target.closest('input[type="checkbox"]')
-		) {
-			return;
-		}
+		if (isResourceSelectionTarget(event.target)) return;
 		onRowClick?.(resource);
 	}
 
