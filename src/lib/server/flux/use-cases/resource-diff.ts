@@ -228,11 +228,12 @@ export async function downloadArtifact(url: string, timeoutMs = 15000): Promise<
 }
 
 function getSourceControllerPodName(pods: k8s.V1PodList, namespace: string): string {
-	if (!pods.items || pods.items.length === 0) {
+	const pod = pods.items?.[0];
+	if (!pod) {
 		throw new Error(`No source-controller pod found in ${namespace} namespace`);
 	}
 
-	const podName = pods.items[0].metadata?.name;
+	const podName = pod.metadata?.name;
 	if (!podName) {
 		throw new Error('source-controller pod has no name');
 	}
@@ -303,7 +304,7 @@ async function fetchArtifactWithFallback(params: {
 	}
 }
 
-async function extractArtifact(tempDir: string, buffer: Buffer): Promise<void> {
+export function validateGzipArtifact(buffer: Buffer): void {
 	if (buffer.length < 2) {
 		throw new Error(`Downloaded content too small (${buffer.length} bytes)`);
 	}
@@ -315,10 +316,9 @@ async function extractArtifact(tempDir: string, buffer: Buffer): Promise<void> {
 				`Content preview: ${text}`
 		);
 	}
+}
 
-	const artifactPath = join(tempDir, 'artifact.tar.gz');
-	await writeFile(artifactPath, buffer);
-
+async function validateTarArchive(artifactPath: string): Promise<void> {
 	try {
 		await execFileAsync('tar', ['-tzf', artifactPath], {
 			timeout: 5000,
@@ -330,6 +330,15 @@ async function extractArtifact(tempDir: string, buffer: Buffer): Promise<void> {
 			`Downloaded file is not a valid tar.gz archive: ${(tarCheckErr as Error).message}`
 		);
 	}
+}
+
+async function extractArtifact(tempDir: string, buffer: Buffer): Promise<void> {
+	validateGzipArtifact(buffer);
+
+	const artifactPath = join(tempDir, 'artifact.tar.gz');
+	await writeFile(artifactPath, buffer);
+
+	await validateTarArchive(artifactPath);
 
 	await execFileAsync('tar', ['-C', tempDir, '-xzf', artifactPath], {
 		timeout: 30000,

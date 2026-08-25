@@ -4,6 +4,7 @@ import {
 	assertReadySourceArtifact,
 	cleanDiffObject,
 	getDiffCacheControl,
+	validateGzipArtifact,
 	validateKustomizationArtifactPath
 } from '../lib/server/flux/use-cases/resource-diff.js';
 import { getDesiredResourceComparison } from '../lib/server/flux/use-cases/resource-diff-helpers.js';
@@ -127,6 +128,12 @@ describe('Flux diff use-case helpers', () => {
 				status: { ready: true }
 			})
 		).toEqual({ metadata: { name: 'app' } });
+	});
+
+	test('rejects malformed downloaded artifacts before extraction', () => {
+		expect(() => validateGzipArtifact(Buffer.from([0x1f]))).toThrow('Downloaded content too small');
+		expect(() => validateGzipArtifact(Buffer.from('not-a-gzip'))).toThrow('not a gzip archive');
+		expect(() => validateGzipArtifact(Buffer.from([0x1f, 0x8b]))).not.toThrow();
 	});
 
 	test('normalizes desired resource identity and namespace fallbacks', () => {
