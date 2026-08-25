@@ -7,6 +7,7 @@
 import ResourceTableHeader from './ResourceTableHeader.svelte';
 import ResourceTablePagination from './ResourceTablePagination.svelte';
 import { isResourceSelectionTarget } from './resource-row-click';
+	import { getResourceTableRowHeight } from './resource-row-height';
 
 	const MIN_PAGE_SIZE = Math.min(...ITEMS_PER_PAGE_OPTIONS.filter((size) => size > 0));
 
@@ -127,8 +128,8 @@ import { isResourceSelectionTarget } from './resource-row-click';
 		void resources;
 		if (!tbodyEl) return;
 		const rows = tbodyEl.querySelectorAll<HTMLElement>('tr.group');
-		if (rows.length >= 2) rowHeight = rows[1].offsetTop - rows[0].offsetTop;
-		else if (rows.length === 1 && rows[0].offsetHeight > 0) rowHeight = rows[0].offsetHeight;
+		const measuredRowHeight = getResourceTableRowHeight(rows);
+		if (measuredRowHeight !== undefined) rowHeight = measuredRowHeight;
 	});
 
 	$effect(() => {
