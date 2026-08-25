@@ -5,13 +5,13 @@ import {
 	listUsersPaginated,
 	getUserById,
 	hasManagedPassword,
-	createUser,
 	updateUser,
 	deleteUser,
 	updateUserPassword
 } from '$lib/server/auth';
 import { logUserManagement } from '$lib/server/audit';
 import { tryCheckRateLimit } from '$lib/server/rate-limiter';
+import { createUserAndLog, type UserCreateInput } from './create-user';
 import { parseAdminPagination } from '../pagination';
 import {
 	getRequiredFormString,
@@ -25,13 +25,6 @@ import {
 } from './action-validation';
 import type { User } from '$lib/server/db/schema';
 
-interface UserCreateInput {
-	username: string;
-	email: string;
-	role: 'admin' | 'editor' | 'viewer';
-	password: string;
-}
-
 function readUserCreateInput(formData: FormData): UserCreateInput {
 	return {
 		username: formData.get('username') as string,
@@ -39,30 +32,6 @@ function readUserCreateInput(formData: FormData): UserCreateInput {
 		role: formData.get('role') as UserCreateInput['role'],
 		password: formData.get('password') as string
 	};
-}
-
-async function createUserAndLog(user: User, input: UserCreateInput) {
-	try {
-		const newUser = await createUser(
-			input.username,
-			input.password,
-			input.role,
-			input.email || undefined
-		);
-
-		await logUserManagement(user, 'create', newUser.id, newUser.username, {
-			role: input.role,
-			email: input.email
-		});
-
-		return { success: true, user: newUser };
-	} catch (error) {
-		logger.error(error, 'Error creating user:');
-		if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
-			return fail(400, { error: 'Failed to create user' });
-		}
-		return fail(500, { error: 'Failed to create user' });
-	}
 }
 
 /**
