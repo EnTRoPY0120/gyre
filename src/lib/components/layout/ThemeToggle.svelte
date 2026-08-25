@@ -91,6 +91,14 @@
 			}
 		});
 	}
+
+	function getMenuItemClass(option: Theme, index: number): string {
+		if (theme.theme === option || selectedIndex === index) {
+			return 'bg-accent text-accent-foreground';
+		}
+
+		return 'text-muted-foreground hover:bg-accent hover:text-accent-foreground';
+	}
 </script>
 
 <svelte:document onclick={handleClickOutside} />
@@ -123,13 +131,7 @@
 			{#each themeOptions as option, index (option.value)}
 				<button
 					type="button"
-					class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors {theme.theme ===
-					option.value
-						? 'bg-accent text-accent-foreground'
-						: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'} {selectedIndex ===
-					index
-						? 'bg-accent text-accent-foreground'
-						: ''}"
+					class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors {getMenuItemClass(option.value, index)}"
 					onclick={() => selectTheme(option.value)}
 					onkeydown={(e) => handleMenuItemKeydown(e, option.value, index)}
 					role="menuitem"
