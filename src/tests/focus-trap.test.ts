@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { modalFocusTrap } from '../lib/utils/focus-trap.js';
 import {
 	getInitialFocusTarget,
-	makeLabelledElementFocusable,
-	modalFocusTrap
-} from '../lib/utils/focus-trap.js';
+	makeLabelledElementFocusable
+} from '../lib/utils/focus-trap-dom.js';
 
 function element(overrides: Partial<HTMLElement> = {}): HTMLElement {
 	return {
