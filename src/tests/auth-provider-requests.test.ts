@@ -1,6 +1,20 @@
 import { describe, expect, test, vi } from 'vitest';
 import { createEmptyAuthProviderFormData } from '../lib/components/admin/auth-provider.js';
-import { updateAuthProvider } from '../routes/admin/auth-providers/auth-provider-requests.js';
+import {
+	getAuthProviderErrorMessage,
+	updateAuthProvider
+} from '../routes/admin/auth-providers/auth-provider-requests.js';
+
+describe('getAuthProviderErrorMessage', () => {
+	test('preserves Error messages and provides a safe fallback for unknown failures', () => {
+		expect(getAuthProviderErrorMessage(new Error('provider unavailable'), 'Update failed')).toBe(
+			'provider unavailable'
+		);
+		expect(getAuthProviderErrorMessage('provider unavailable', 'Update failed')).toBe(
+			'Update failed'
+		);
+	});
+});
 
 describe('updateAuthProvider', () => {
 	test('submits the edit payload without replacing a blank client secret', async () => {

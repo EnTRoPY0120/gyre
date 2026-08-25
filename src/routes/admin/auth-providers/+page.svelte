@@ -15,7 +15,11 @@
 		type AuthProviderSummary
 	} from '$lib/components/admin/auth-provider';
 	import { logger } from '$lib/utils/logger.js';
-import { requestAuthProviderMutation, updateAuthProvider } from './auth-provider-requests';
+import {
+	getAuthProviderErrorMessage,
+	requestAuthProviderMutation,
+	updateAuthProvider
+} from './auth-provider-requests';
 	import {
 		buildAuthProviderCreateBody,
 		buildAuthProviderUpdates,
@@ -106,7 +110,7 @@ import { requestAuthProviderMutation, updateAuthProvider } from './auth-provider
 			await invalidateAll();
 			setTimeout(closeModals, 1000);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to create provider';
+			error = getAuthProviderErrorMessage(err, 'Failed to create provider');
 		} finally {
 			loading = false;
 		}
@@ -125,7 +129,7 @@ import { requestAuthProviderMutation, updateAuthProvider } from './auth-provider
 			await invalidateAll();
 			setTimeout(closeModals, 1000);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to update provider';
+			error = getAuthProviderErrorMessage(err, 'Failed to update provider');
 		} finally {
 			loading = false;
 		}
@@ -146,7 +150,7 @@ import { requestAuthProviderMutation, updateAuthProvider } from './auth-provider
 			await invalidateAll();
 			setTimeout(closeModals, 1000);
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Failed to delete provider';
+			error = getAuthProviderErrorMessage(err, 'Failed to delete provider');
 		} finally {
 			loading = false;
 		}

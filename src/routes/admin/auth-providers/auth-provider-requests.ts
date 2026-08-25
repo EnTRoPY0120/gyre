@@ -8,6 +8,10 @@ function getMessageFromResponseData(data: unknown, fallbackMessage: string): str
 	return message || fallbackMessage;
 }
 
+export function getAuthProviderErrorMessage(err: unknown, fallbackMessage: string): string {
+	return err instanceof Error ? err.message : fallbackMessage;
+}
+
 async function getMutationErrorMessage(
 	response: Response,
 	fallbackMessage: string
