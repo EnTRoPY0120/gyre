@@ -7,6 +7,12 @@
 	import BackupPageHeader from './BackupPageHeader.svelte';
 	import BackupRestoreDialog from './BackupRestoreDialog.svelte';
 	import BackupTable from './BackupTable.svelte';
+	import {
+		createBackupRequest,
+		deleteBackupRequest,
+		downloadBackupRequest,
+		restoreBackupRequest
+	} from './backup-requests';
 	import type { BackupMetadata } from './backup-types';
 
 	let { data } = $props<{
@@ -35,15 +41,7 @@
 	async function createBackup() {
 		creating = true;
 		try {
-			const response = await fetch('/api/v1/admin/backups', {
-				method: 'POST',
-				headers: { 'X-CSRF-Token': getCsrfToken() }
-			});
-			if (!response.ok) {
-				const err = await response.json();
-				throw new Error(err.message || 'Failed to create backup');
-			}
-			const result = await response.json();
+			const result = await createBackupRequest(getCsrfToken());
 			toast.success(`Backup created: ${result.backup.filename}`);
 			await invalidateAll();
 		} catch (err) {
@@ -55,13 +53,7 @@
 
 	async function downloadBackup(filename: string) {
 		try {
-			const response = await fetch(
-				`/api/v1/admin/backups/download?filename=${encodeURIComponent(filename)}`
-			);
-			if (!response.ok) {
-				throw new Error('Failed to download backup');
-			}
-			const blob = await response.blob();
+			const blob = await downloadBackupRequest(filename);
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement('a');
 			a.href = url;
@@ -79,14 +71,7 @@
 	async function deleteBackupFile(filename: string) {
 		deletingFilename = filename;
 		try {
-			const response = await fetch(`/api/v1/admin/backups?filename=${encodeURIComponent(filename)}`, {
-				method: 'DELETE',
-				headers: { 'X-CSRF-Token': getCsrfToken() }
-			});
-			if (!response.ok) {
-				const err = await response.json();
-				throw new Error(err.message || 'Failed to delete backup');
-			}
+			await deleteBackupRequest(filename, getCsrfToken());
 			toast.success('Backup deleted');
 			await invalidateAll();
 		} catch (err) {
@@ -94,23 +79,6 @@
 		} finally {
 			deletingFilename = null;
 		}
-	}
-
-	async function requestBackupRestore(file: File): Promise<{ message: string }> {
-		const formData = new FormData();
-		formData.append('file', file);
-		const response = await fetch('/api/v1/admin/backups/restore', {
-			method: 'POST',
-			headers: { 'X-CSRF-Token': getCsrfToken() },
-			body: formData
-		});
-
-		if (!response.ok) {
-			const err = await response.json();
-			throw new Error(err.message || 'Failed to restore backup');
-		}
-
-		return response.json();
 	}
 
 	function handleRestoreClick() {
@@ -130,7 +98,7 @@
 
 		restoring = true;
 		try {
-			const result = await requestBackupRestore(restoreFile);
+			const result = await restoreBackupRequest(restoreFile, getCsrfToken());
 			toast.success(result.message);
 			showRestoreConfirm = false;
 			restoreFile = null;
