@@ -28,6 +28,8 @@
 		onRowClick: (resource: FluxResource, event: MouseEvent) => void;
 		onToggleSelection: (resource: FluxResource) => void;
 	} = $props();
+
+	let displayedResources = $derived(showAll ? virtualRows : paginatedResources);
 </script>
 
 <tbody class="divide-y divide-border/40" bind:this={tbodyEl}>
@@ -46,13 +48,13 @@
 				</div>
 			</td>
 		</tr>
-	{:else if showAll}
-		{#if topSpacerHeight > 0}
+	{:else}
+		{#if showAll && topSpacerHeight > 0}
 			<tr style="height: {topSpacerHeight}px" aria-hidden="true">
 				<td colspan={showNamespace ? 6 : 5}></td>
 			</tr>
 		{/if}
-		{#each virtualRows as resource (resource.metadata.uid || '')}
+		{#each displayedResources as resource (resource.metadata.uid || '')}
 			<ResourceTableRow
 				{resource}
 				{showNamespace}
@@ -61,20 +63,10 @@
 				onToggleSelection={() => onToggleSelection(resource)}
 			/>
 		{/each}
-		{#if bottomSpacerHeight > 0}
+		{#if showAll && bottomSpacerHeight > 0}
 			<tr style="height: {bottomSpacerHeight}px" aria-hidden="true">
 				<td colspan={showNamespace ? 6 : 5}></td>
 			</tr>
 		{/if}
-	{:else}
-		{#each paginatedResources as resource (resource.metadata.uid || '')}
-			<ResourceTableRow
-				{resource}
-				{showNamespace}
-				selected={!!resource.metadata.uid && selectedResourceIds.has(resource.metadata.uid)}
-				onRowClick={(event) => onRowClick(resource, event)}
-				onToggleSelection={() => onToggleSelection(resource)}
-			/>
-		{/each}
 	{/if}
 </tbody>
