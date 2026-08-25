@@ -200,7 +200,7 @@ export function cleanDiffObject(obj: unknown): unknown {
 	return cleaned;
 }
 
-export async function downloadArtifact(url: string, timeoutMs = 15000): Promise<Buffer> {
+async function downloadArtifact(url: string, timeoutMs = 15000): Promise<Buffer> {
 	return new Promise((resolve, reject) => {
 		const parsedUrl = new URL(url);
 		const client = parsedUrl.protocol === 'https:' ? https : http;
