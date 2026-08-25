@@ -13,11 +13,12 @@
 		validateWizardField
 	} from './field-validation';
 	import { createResourceFromWizard, getWizardResourceRedirect } from './resource-submit';
-	import {
-		buildWizardFormValues,
-		mergeWizardFormValues
-	} from './wizard-values';
+import {
+	buildWizardFormValues,
+	mergeWizardFormValues
+} from './wizard-values';
 import { getWizardYamlError, removeEmptyWizardFieldValue } from './wizard-yaml';
+import { getReferenceNamespaceUpdate } from './reference-namespace';
 
 	let {
 		template,
@@ -272,16 +273,13 @@ import { getWizardYamlError, removeEmptyWizardFieldValue } from './wizard-yaml';
 	) {
 		setFieldValue(field, nextValue);
 
-		if (!field.referenceNamespaceField) return;
-		if (selection?.namespace === undefined) return;
+		const namespaceUpdate = getReferenceNamespaceUpdate(field, selection, template.fields);
+		if (!namespaceUpdate) return;
 
-		const namespaceField = template.fields.find(
-			(candidate) => candidate.name === field.referenceNamespaceField
-		);
-		if (namespaceField) {
-			setFieldValue(namespaceField, selection.namespace);
+		if (namespaceUpdate.field) {
+			setFieldValue(namespaceUpdate.field, namespaceUpdate.value);
 		} else {
-			setFieldValueByName(field.referenceNamespaceField, selection.namespace);
+			setFieldValueByName(namespaceUpdate.fieldName, namespaceUpdate.value);
 		}
 	}
 
