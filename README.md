@@ -88,19 +88,26 @@ _Check the [latest release](https://github.com/entropy0120/gyre/releases/latest)
 Want to try the UI without installing it in your cluster? Run it locally connected to your `kubeconfig`:
 
 ```bash
+# Run once per environment. Keep this file for future container recreations.
+if [ ! -f .env.gyre ]; then
+    (umask 077; {
+        echo "AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+        echo "GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+        echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+        echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)"
+        echo "GYRE_METRICS_TOKEN=$(openssl rand -hex 32)"
+    } > .env.gyre)
+fi
+
 docker run \
-    -e AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32) \
-    -e GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32) \
-    -e BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32) \
-    -e BETTER_AUTH_SECRET=$(openssl rand -hex 32) \
-    -e GYRE_METRICS_TOKEN=$(openssl rand -hex 32) \
+    --env-file .env.gyre \
     -v gyre-data:/data \
     -v ~/.kube/config:/app/.kube/config:ro \
     -p 3000:3000 \
     ghcr.io/entropy0120/gyre:latest
 ```
 
-_Note: Make sure your current context points to a valid cluster with Flux installed. The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or set a strong password that satisfies the app password policy. Generate the encryption keys once per environment and persist them securely; changing them can make stored data unreadable._
+_Note: Make sure your current context points to a valid cluster with Flux installed. The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or set a strong password that satisfies the app password policy. Store `.env.gyre` securely and back it up with the `gyre-data` volume. Reuse it whenever you recreate the container; changing an encryption key can make stored data unreadable._
 
 ### Option 4: Local Demo Script
 
