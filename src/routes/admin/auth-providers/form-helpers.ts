@@ -43,3 +43,11 @@ export function buildAuthProviderUpdates(
 
 	return updates;
 }
+
+export function buildAuthProviderCreateBody(
+	formData: AuthProviderFormData,
+	roleMapping: Record<string, string[]> | null
+): Record<string, unknown> {
+	const { roleMapping: _roleMapping, ...providerData } = formData;
+	return roleMapping === null ? providerData : { ...providerData, roleMapping };
+}

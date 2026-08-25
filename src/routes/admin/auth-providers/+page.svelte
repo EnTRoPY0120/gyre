@@ -16,7 +16,11 @@
 	} from '$lib/components/admin/auth-provider';
 	import { logger } from '$lib/utils/logger.js';
 	import { requestAuthProviderMutation } from './auth-provider-requests';
-	import { buildAuthProviderUpdates, normalizeRoleMappingForSave } from './form-helpers';
+	import {
+		buildAuthProviderCreateBody,
+		buildAuthProviderUpdates,
+		normalizeRoleMappingForSave
+	} from './form-helpers';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -91,8 +95,7 @@
 
 		try {
 			const roleMapping = normalizeRoleMappingForSave(formData.roleMapping);
-			const { roleMapping: _roleMapping, ...providerData } = formData;
-			const body = roleMapping === null ? providerData : { ...providerData, roleMapping };
+			const body = buildAuthProviderCreateBody(formData, roleMapping);
 			await requestAuthProviderMutation('/api/v1/admin/auth-providers', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
