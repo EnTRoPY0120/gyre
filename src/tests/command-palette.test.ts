@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'vitest';
 import { commandPaletteOpen } from '../lib/stores/commandPalette.js';
+import { highlightText } from '../lib/components/command-palette-highlighting.js';
 
 // Helper: read current store value synchronously via subscribe
 function getValue(): boolean {
@@ -71,5 +72,25 @@ describe('commandPaletteOpen store', () => {
 		commandPaletteOpen.close();
 
 		expect(received.length).toBe(countBefore);
+	});
+});
+
+describe('highlightText', () => {
+	test('preserves unmatched text around ordered highlight ranges', () => {
+		expect(
+			highlightText('Kustomization', [
+				[0, 2],
+				[5, 7]
+			])
+		).toEqual([
+			{ text: 'Kus', highlighted: true },
+			{ text: 'to', highlighted: false },
+			{ text: 'miz', highlighted: true },
+			{ text: 'ation', highlighted: false }
+		]);
+	});
+
+	test('returns one unhighlighted segment when there are no ranges', () => {
+		expect(highlightText('Dashboard')).toEqual([{ text: 'Dashboard', highlighted: false }]);
 	});
 });

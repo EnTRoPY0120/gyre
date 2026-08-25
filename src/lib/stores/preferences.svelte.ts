@@ -2,7 +2,11 @@ import { browser } from '$app/environment';
 import type { UserPreferences } from '$lib/types/user';
 import type { ViewPreferences } from '$lib/types/view';
 import { safeGetItem, safeSetItem, safeRemoveItem } from '$lib/utils/storage';
-import { shouldShowNotification } from './notification-preferences';
+import {
+	DEFAULT_NOTIFICATION_PREFERENCES,
+	normalizeNotificationPreferences,
+	shouldShowNotification
+} from './notification-preferences';
 import {
 	DEFAULT_VIEW_PREFERENCES,
 	ITEMS_PER_PAGE_OPTIONS,
@@ -39,10 +43,7 @@ function createPreferencesStore() {
 
 	// --- Notifications ---
 	let _notifications = $state<NonNullable<UserPreferences['notifications']>>({
-		enabled: true,
-		resourceTypes: [],
-		namespaces: [],
-		events: ['success', 'failure', 'warning', 'info', 'error']
+		...DEFAULT_NOTIFICATION_PREFERENCES
 	});
 
 	// Helper to persist view preferences
@@ -125,21 +126,7 @@ function createPreferencesStore() {
 			return _notifications;
 		},
 		setNotifications(prefs: UserPreferences['notifications']) {
-			if (!prefs) {
-				_notifications = {
-					enabled: true,
-					resourceTypes: [],
-					namespaces: [],
-					events: ['success', 'failure', 'warning', 'info', 'error']
-				};
-				return;
-			}
-			_notifications = {
-				enabled: prefs.enabled ?? true,
-				resourceTypes: prefs.resourceTypes ?? [],
-				namespaces: prefs.namespaces ?? [],
-				events: prefs.events ?? ['success', 'failure', 'warning', 'info', 'error']
-			};
+			_notifications = normalizeNotificationPreferences(prefs);
 		},
 		shouldShowNotification(resourceType: string, namespace: string, type: string): boolean {
 			return shouldShowNotification(_notifications, resourceType, namespace, type);

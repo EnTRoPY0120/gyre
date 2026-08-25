@@ -15,6 +15,17 @@ import { authProviders } from '$lib/server/db/schema';
 import { eq } from 'drizzle-orm';
 export { validateProviderConfig } from './provider-config-validation.js';
 
+type ProviderOptions = { config: AuthProvider; redirectUri?: string };
+type ProviderFactory = (options: ProviderOptions) => IOAuthProvider;
+
+const providerFactories: Record<string, ProviderFactory> = {
+	[ProviderType.OIDC]: (options) => new OIDCProvider(options),
+	[ProviderType.OAUTH2_GITHUB]: (options) => new GitHubProvider(options),
+	[ProviderType.OAUTH2_GOOGLE]: (options) => new GoogleProvider(options),
+	[ProviderType.OAUTH2_GITLAB]: (options) => GitLabProvider(options),
+	[ProviderType.OAUTH2_GENERIC]: (options) => new OIDCProvider(options)
+};
+
 /**
  * Create an OAuth provider instance from configuration
  *
@@ -24,28 +35,11 @@ export { validateProviderConfig } from './provider-config-validation.js';
  */
 function createOAuthProvider(config: AuthProvider, redirectUri?: string): IOAuthProvider {
 	const options = { config, redirectUri };
-
-	switch (config.type) {
-		case ProviderType.OIDC:
-			return new OIDCProvider(options);
-
-		case ProviderType.OAUTH2_GITHUB:
-			return new GitHubProvider(options);
-
-		case ProviderType.OAUTH2_GOOGLE:
-			return new GoogleProvider(options);
-
-		case ProviderType.OAUTH2_GITLAB:
-			return GitLabProvider(options);
-
-		case ProviderType.OAUTH2_GENERIC:
-			// Generic OAuth2 falls back to OIDC provider
-			// (most modern OAuth2 providers support OIDC discovery)
-			return new OIDCProvider(options);
-
-		default:
-			throw new OAuthError(`Unknown provider type: ${config.type}`, 'UNKNOWN_PROVIDER_TYPE');
+	const factory = providerFactories[config.type];
+	if (!factory) {
+		throw new OAuthError(`Unknown provider type: ${config.type}`, 'UNKNOWN_PROVIDER_TYPE');
 	}
+	return factory(options);
 }
 
 /**

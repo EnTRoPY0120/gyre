@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+	normalizeNotificationPreferences,
 	shouldShowNotification,
 	type NotificationPreferences
 } from '../lib/stores/notification-preferences.js';
@@ -36,5 +37,15 @@ describe('shouldShowNotification', () => {
 		expect(
 			shouldShowNotification({ ...defaults, enabled: false }, 'Pod', 'default', 'success')
 		).toBe(false);
+	});
+});
+
+describe('normalizeNotificationPreferences', () => {
+	test('fills missing preferences with safe defaults', () => {
+		expect(normalizeNotificationPreferences(undefined)).toEqual(defaults);
+		expect(normalizeNotificationPreferences({ enabled: false })).toEqual({
+			...defaults,
+			enabled: false
+		});
 	});
 });

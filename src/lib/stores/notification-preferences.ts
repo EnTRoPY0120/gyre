@@ -2,6 +2,24 @@ import type { UserPreferences } from '$lib/types/user';
 
 export type NotificationPreferences = NonNullable<UserPreferences['notifications']>;
 
+export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+	enabled: true,
+	resourceTypes: [],
+	namespaces: [],
+	events: ['success', 'failure', 'warning', 'info', 'error']
+};
+
+export function normalizeNotificationPreferences(
+	prefs: UserPreferences['notifications']
+): NotificationPreferences {
+	return {
+		enabled: prefs?.enabled ?? true,
+		resourceTypes: prefs?.resourceTypes ?? [],
+		namespaces: prefs?.namespaces ?? [],
+		events: prefs?.events ?? DEFAULT_NOTIFICATION_PREFERENCES.events
+	};
+}
+
 /** Decide whether a resource event is allowed by the user's notification filters. */
 export function shouldShowNotification(
 	prefs: NotificationPreferences,

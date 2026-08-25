@@ -41,17 +41,11 @@
 			? deriveClusterRecoverySummary(form.healthCheck.checks)
 			: null
 	);
-	const healthCheckErrorSummary = $derived.by(() => {
-		if (!form?.healthCheck) {
-			return null;
-		}
-
-		return (
-			form.healthCheck.error ??
-			form.healthCheck.checks.find((check: HealthCheckResult) => !check.passed)?.message ??
-			null
-		);
-	});
+	const healthCheckErrorSummary = $derived(
+		form?.healthCheck?.error ??
+		form?.healthCheck?.checks.find((check: HealthCheckResult) => !check.passed)?.message ??
+		null
+	);
 
 	// Sync searchValue with data.search changes (e.g., back/forward navigation)
 	$effect.pre(() => {
