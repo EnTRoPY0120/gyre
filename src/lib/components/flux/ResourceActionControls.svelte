@@ -38,6 +38,7 @@
 		</span>
 	{/if}
 
+	{#snippet primaryActions()}
 	<ResourceActionPermission {canWrite} action="edit">
 		<Button
 			variant="outline"
@@ -69,7 +70,11 @@
 			<span class="hidden md:inline">Reconcile</span>
 		</Button>
 	</ResourceActionPermission>
+	{/snippet}
 
+	{@render primaryActions()}
+
+	{#snippet lifecycleAction()}
 	{#if isSuspended}
 		<ResourceActionPermission {canWrite} action="resume">
 			<Button
@@ -103,7 +108,11 @@
 			</Button>
 		</ResourceActionPermission>
 	{/if}
+	{/snippet}
 
+	{@render lifecycleAction()}
+
+	{#snippet destructiveAction()}
 	<ResourceActionPermission {canWrite} action="delete">
 		<Button
 			variant="ghost"
@@ -119,4 +128,7 @@
 			<span class="hidden md:inline">Delete</span>
 		</Button>
 	</ResourceActionPermission>
+	{/snippet}
+
+	{@render destructiveAction()}
 </div>
