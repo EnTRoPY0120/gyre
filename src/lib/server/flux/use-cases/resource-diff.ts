@@ -42,6 +42,24 @@ interface SourceRef {
 	namespace?: string;
 }
 
+const GENERATED_METADATA_FIELDS = [
+	'managedFields',
+	'generation',
+	'resourceVersion',
+	'uid',
+	'creationTimestamp',
+	'selfLink'
+];
+const GENERATED_ANNOTATION_FIELDS = [
+	'kubectl.kubernetes.io/last-applied-configuration',
+	'deployment.kubernetes.io/revision',
+	'kustomize.toolkit.fluxcd.io/reconcile'
+];
+const GENERATED_LABEL_FIELDS = [
+	'kustomize.toolkit.fluxcd.io/name',
+	'kustomize.toolkit.fluxcd.io/namespace'
+];
+
 export interface RunFluxResourceDiffParams {
 	clusterId: string | undefined;
 	fluxNamespace: string;
@@ -133,43 +151,50 @@ export function validateKustomizationArtifactPath(tempDir: string, specPath: unk
 	return kustomizePath;
 }
 
+function cleanMetadataAnnotations(metadata: Record<string, unknown>): void {
+	const annotations = metadata.annotations;
+	if (!annotations || typeof annotations !== 'object') {
+		return;
+	}
+
+	for (const field of GENERATED_ANNOTATION_FIELDS) {
+		delete (annotations as Record<string, unknown>)[field];
+	}
+	if (Object.keys(annotations).length === 0) {
+		delete metadata.annotations;
+	}
+}
+
+function cleanMetadataLabels(metadata: Record<string, unknown>): void {
+	const labels = metadata.labels;
+	if (!labels || typeof labels !== 'object') {
+		return;
+	}
+
+	for (const field of GENERATED_LABEL_FIELDS) {
+		delete (labels as Record<string, unknown>)[field];
+	}
+	if (Object.keys(labels).length === 0) {
+		delete metadata.labels;
+	}
+}
+
+function cleanMetadata(metadata: Record<string, unknown>): void {
+	for (const field of GENERATED_METADATA_FIELDS) {
+		delete metadata[field];
+	}
+	cleanMetadataAnnotations(metadata);
+	cleanMetadataLabels(metadata);
+}
+
 export function cleanDiffObject(obj: unknown): unknown {
-	if (!obj) return null;
+	if (!obj) {
+		return null;
+	}
+
 	const cleaned = JSON.parse(JSON.stringify(obj));
-	if (cleaned.metadata) {
-		const metadataFields = [
-			'managedFields',
-			'generation',
-			'resourceVersion',
-			'uid',
-			'creationTimestamp',
-			'selfLink'
-		];
-		for (const field of metadataFields) {
-			delete cleaned.metadata[field];
-		}
-
-		if (cleaned.metadata.annotations) {
-			const annotationFields = [
-				'kubectl.kubernetes.io/last-applied-configuration',
-				'deployment.kubernetes.io/revision',
-				'kustomize.toolkit.fluxcd.io/reconcile'
-			];
-			for (const annotation of annotationFields) {
-				delete cleaned.metadata.annotations[annotation];
-			}
-			if (Object.keys(cleaned.metadata.annotations).length === 0) {
-				delete cleaned.metadata.annotations;
-			}
-		}
-
-		if (cleaned.metadata.labels) {
-			delete cleaned.metadata.labels['kustomize.toolkit.fluxcd.io/name'];
-			delete cleaned.metadata.labels['kustomize.toolkit.fluxcd.io/namespace'];
-			if (Object.keys(cleaned.metadata.labels).length === 0) {
-				delete cleaned.metadata.labels;
-			}
-		}
+	if (cleaned.metadata && typeof cleaned.metadata === 'object') {
+		cleanMetadata(cleaned.metadata as Record<string, unknown>);
 	}
 	delete cleaned.status;
 	return cleaned;
