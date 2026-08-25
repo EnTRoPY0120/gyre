@@ -3,6 +3,7 @@ import {
 	AuthenticationError,
 	ConfigurationError,
 	KubernetesError,
+	ResourceNotFoundError,
 	errorToHttpResponse,
 	handleApiError
 } from '../lib/server/kubernetes/errors.js';
@@ -17,6 +18,19 @@ function captureThrown(callback: () => unknown): unknown {
 }
 
 describe('errorToHttpResponse', () => {
+	test('builds resource-not-found errors for each identifier shape', () => {
+		expect(new ResourceNotFoundError('Deployment', 'default', 'api')).toMatchObject({
+			message: 'Deployment not found: default/api',
+			code: 404,
+			reason: 'NotFound',
+			name: 'ResourceNotFoundError'
+		});
+		expect(new ResourceNotFoundError('Deployment', 'default').message).toBe(
+			'Deployment not found: default'
+		);
+		expect(new ResourceNotFoundError('Deployment').message).toBe('Deployment not found: resources');
+	});
+
 	test('maps Kubernetes errors and sanitizes their messages', () => {
 		const result = errorToHttpResponse(
 			new KubernetesError('Request failed at https://10.0.0.4/api?token=secret', 429, 'ApiError')
