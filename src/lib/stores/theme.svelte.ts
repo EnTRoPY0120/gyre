@@ -1,5 +1,6 @@
 import { browser } from '$app/environment';
 import { safeGetItem, safeSetItem } from '$lib/utils/storage';
+import { getStoredThemeValue } from './theme-storage';
 
 export type Theme = 'light' | 'dark' | 'system';
 
@@ -18,11 +19,7 @@ function getSystemTheme(): 'light' | 'dark' {
 
 function getStoredTheme(): Theme {
 	if (!browser) return DEFAULT_THEME;
-	const stored = safeGetItem(STORAGE_KEY);
-	if (stored === 'light' || stored === 'dark' || stored === 'system') {
-		return stored;
-	}
-	return DEFAULT_THEME;
+	return getStoredThemeValue(safeGetItem(STORAGE_KEY));
 }
 
 function resolveTheme(theme: Theme): 'light' | 'dark' {
