@@ -29,8 +29,8 @@ importers:
         specifier: ^8.4.1
         version: 8.5.0(zod@4.4.3)
       '@kubernetes/client-node':
-        specifier: ^1.4.0
-        version: 1.4.0
+        specifier: ^2.0.0
+        version: 2.0.0
       '@lucide/svelte':
         specifier: ^1.27.0
         version: 1.27.0(svelte@5.56.4)
@@ -2096,8 +2096,8 @@ packages:
     peerDependencies:
       tslib: '2'
 
-  '@kubernetes/client-node@1.4.0':
-    resolution: {integrity: sha512-Zge3YvF7DJi264dU1b3wb/GmzR99JhUpqTvp+VGHfwZT+g7EOOYNScDJNZwXy9cszyIGPIs0VHr+kk8e95qqrA==}
+  '@kubernetes/client-node@2.0.0':
+    resolution: {integrity: sha512-Jx2cRxEVb4XkDNiR/cg8SX9dH6ZHdMhKmZdQcfhn2vdBWHdb2ldwM0P3I0dK4msYhFmC6TCODsNHH144IpA06w==}
 
   '@leichtgewicht/ip-codec@2.0.5':
     resolution: {integrity: sha512-Vo+PSpZG2/fmgmiNzYK9qWRh8h/CHrwD0mo1h1DzL4yzHNSfWYujGTYsWGreD000gcgmZ7K4Ys6Tx9TxtsKdDw==}
@@ -3090,14 +3090,8 @@ packages:
   '@types/ms@2.1.0':
     resolution: {integrity: sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA==}
 
-  '@types/node-fetch@2.6.13':
-    resolution: {integrity: sha512-QGpRVpzSaUs30JBSGPjOg4Uveu384erbHBoT1zeONvyCfwQxIkUshLAOqN/k9EjGviPRmWTTe6aH2qySWKTVSw==}
-
   '@types/node@17.0.45':
     resolution: {integrity: sha512-w+tIMs3rq2afQdsPJlODhoUEKzFP1ayaoyl1CcnwtIlsVe7K7bA1NGm4s3PraqTLlXnbIN84zuBlxBWo1u9BLw==}
-
-  '@types/node@24.13.3':
-    resolution: {integrity: sha512-Dh8vAsV36ig5wa9OX4pXvMc9D3Veibfw2wix0CUwYODLD8nkj9UsLjASr49nPg+2eKzxhBV+v7L8pXvT4e639Q==}
 
   '@types/node@26.2.0':
     resolution: {integrity: sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg==}
@@ -3412,9 +3406,9 @@ packages:
     resolution: {integrity: sha512-XNAb/a6TCqou+TufU8/u11HCu9x1gYvOoxLwtlXgIqmkrYQADVv6ljyW2zwiPhHz9R1gItAWpuDrdJMmrOBFEA==}
     engines: {node: '>= 16.0.0'}
 
-  agent-base@7.1.4:
-    resolution: {integrity: sha512-MnA+YT8fwfJPgBx3m60MNqakm30XOkyIoH1y6huTQvC0PwZG7ki8NacLBcrPbNoo8vEZy7Jpuk7+jMO+CUovTQ==}
-    engines: {node: '>= 14'}
+  agent-base@9.0.0:
+    resolution: {integrity: sha512-TQf59BsZnytt8GdJKLPfUZ54g/iaUL2OWDSFCCvMOhsHduDQxO8xC4PNeyIkVcA5KwL2phPSv0douC0fgWzmnA==}
+    engines: {node: '>= 20'}
 
   aggregate-error@3.1.0:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
@@ -5853,15 +5847,6 @@ packages:
     resolution: {integrity: sha512-Z3lTE9pLaJF47NyMhd4ww1yFTAP8YhYI8SleJiHzM46Fgpm5cnNzSl9XfzFNqbaz+VlJrIj3fXQ4DeN1Rjm6cw==}
     engines: {node: '>=18'}
 
-  node-fetch@2.7.0:
-    resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
-    engines: {node: 4.x || >=6.0.0}
-    peerDependencies:
-      encoding: ^0.1.0
-    peerDependenciesMeta:
-      encoding:
-        optional: true
-
   node-releases@2.0.51:
     resolution: {integrity: sha512-wRNIrw4DmVLKQlbgOMdkMx27Wrpzes2hh5Jtbi2bjPd+4wJstWIqP5A+lscnqbm0xxmT5Bpg8Lec5ItEBwx6BQ==}
     engines: {node: '>=18'}
@@ -7008,9 +6993,9 @@ packages:
   sockjs@0.3.24:
     resolution: {integrity: sha512-GJgLTZ7vYb/JtPSSZ10hsOYIvEYsjbNU+zPdIHcUaWVNUEPivzxku31865sSSud0Da0W4lEeOPlmw93zLQchuQ==}
 
-  socks-proxy-agent@8.0.5:
-    resolution: {integrity: sha512-HehCEsotFqbPW9sJ8WVYB6UbmIMv7kUUORIF2Nncq4VQvBfNBLibW9YZR5dlYCSUhwcD628pRllm7n+E+YTzJw==}
-    engines: {node: '>= 14'}
+  socks-proxy-agent@10.1.0:
+    resolution: {integrity: sha512-WlMj/67cEJ6MDI1OcsnjuYKDNDoyPCCYZ249kuuXPiMDw9F8PXkVaQ7YWu3siTydfQ/4BEZcvGzu+aYvz7dDCQ==}
+    engines: {node: '>= 20'}
 
   socks@2.8.9:
     resolution: {integrity: sha512-LJhUYUvItdQ0LkJTmPeaEObWXAqFyfmP85x0tch/ez9cahmhlBBLbIqDFnvBnUJGagb0JbIQrkBs1wJ+yRYpEw==}
@@ -7325,9 +7310,6 @@ packages:
     resolution: {integrity: sha512-sf4i37nQ2LBx4m3wB74y+ubopq6W/dIzXg0FDGjsYnZHVa1Da8FH853wlL2gtUhg+xJXjfk3kUZS3BRoQeoQBQ==}
     engines: {node: '>=6'}
 
-  tr46@0.0.3:
-    resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
-
   tree-dump@1.1.0:
     resolution: {integrity: sha512-rMuvhU4MCDbcbnleZTFezWsaZXRFemSqAM+7jPnzUl1fo9w3YEKOxAeui0fz3OI4EU4hf23iyA7uQRVko+UaBA==}
     engines: {node: '>=10.0'}
@@ -7380,11 +7362,12 @@ packages:
     engines: {node: '>=16.20.0'}
     hasBin: true
 
-  undici-types@7.18.2:
-    resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
-
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
+
+  undici@8.10.0:
+    resolution: {integrity: sha512-HvltHd7avK13QIw/oLe4qoOLyoVSoafqJ2jYOrtMRBkbYT31eiBQ8O0ehRKZiEZCMEyLFQNIADpgCWC5fALvYQ==}
+    engines: {node: '>=22.19.0'}
 
   unicode-canonical-property-names-ecmascript@2.0.1:
     resolution: {integrity: sha512-dA8WbNeb2a6oQzAQ55YlT5vQAWGV9WXOsi3SskE3bcCdM0P4SDd+24zS/OCacdRq5BkdsRj9q3Pg6YyQoxIGqg==}
@@ -7598,9 +7581,6 @@ packages:
   web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
 
-  webidl-conversions@3.0.1:
-    resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
-
   webpack-bundle-analyzer@4.10.2:
     resolution: {integrity: sha512-vJptkMm9pk5si4Bv922ZbKLV8UTT4zib4FPgXMhgzUny0bfDDkLXAVQs3ly3fS4/TN9ROFtb0NFrm04UXFE/Vw==}
     engines: {node: '>= 10.13.0'}
@@ -7679,9 +7659,6 @@ packages:
   websocket-extensions@0.1.4:
     resolution: {integrity: sha512-OqedPIGOfsDlo31UNwYbCFMSaO9m9G/0faIHj5/dZFDMFqPTcx6UwqyOy3COEaEOg/9VsGIpdqn62W5KhoKSpg==}
     engines: {node: '>=0.8.0'}
-
-  whatwg-url@5.0.0:
-    resolution: {integrity: sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==}
 
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
@@ -10515,29 +10492,28 @@ snapshots:
       '@jsonjoy.com/codegen': 17.67.0(tslib@2.8.1)
       tslib: 2.8.1
 
-  '@kubernetes/client-node@1.4.0':
+  '@kubernetes/client-node@2.0.0':
     dependencies:
       '@types/js-yaml': 4.0.9
-      '@types/node': 24.13.3
-      '@types/node-fetch': 2.6.13
+      '@types/node': 26.2.0
       '@types/stream-buffers': 3.0.8
       form-data: 4.0.6
       hpagent: 1.2.0
       isomorphic-ws: 5.0.0(ws@8.21.0)
-      js-yaml: 4.3.1
+      js-yaml: 5.3.0
       jsonpath-plus: 10.4.0
-      node-fetch: 2.7.0
       openid-client: 6.8.4
       rfc4648: 1.5.4
-      socks-proxy-agent: 8.0.5
+      socks: 2.8.9
+      socks-proxy-agent: 10.1.0
       stream-buffers: 3.0.3
       tar-fs: 3.1.2
+      undici: 8.10.0
       ws: 8.21.0
     transitivePeerDependencies:
       - bare-abort-controller
       - bare-buffer
       - bufferutil
-      - encoding
       - react-native-b4a
       - supports-color
       - utf-8-validate
@@ -11368,16 +11344,7 @@ snapshots:
 
   '@types/ms@2.1.0': {}
 
-  '@types/node-fetch@2.6.13':
-    dependencies:
-      '@types/node': 26.2.0
-      form-data: 4.0.6
-
   '@types/node@17.0.45': {}
-
-  '@types/node@24.13.3':
-    dependencies:
-      undici-types: 7.18.2
 
   '@types/node@26.2.0':
     dependencies:
@@ -11675,7 +11642,7 @@ snapshots:
 
   address@2.0.3: {}
 
-  agent-base@7.1.4: {}
+  agent-base@9.0.0: {}
 
   aggregate-error@3.1.0:
     dependencies:
@@ -14358,10 +14325,6 @@ snapshots:
       emojilib: 2.4.0
       skin-tone: 2.0.0
 
-  node-fetch@2.7.0:
-    dependencies:
-      whatwg-url: 5.0.0
-
   node-releases@2.0.51: {}
 
   normalize-path@3.0.0: {}
@@ -15725,9 +15688,9 @@ snapshots:
       uuid: 14.0.0
       websocket-driver: 0.7.5
 
-  socks-proxy-agent@8.0.5:
+  socks-proxy-agent@10.1.0:
     dependencies:
-      agent-base: 7.1.4
+      agent-base: 9.0.0
       debug: 4.4.3
       socks: 2.8.9
     transitivePeerDependencies:
@@ -16047,8 +16010,6 @@ snapshots:
 
   totalist@3.0.1: {}
 
-  tr46@0.0.3: {}
-
   tree-dump@1.1.0(tslib@2.8.1):
     dependencies:
       tslib: 2.8.1
@@ -16110,9 +16071,9 @@ snapshots:
       '@typescript/typescript-win32-arm64': 7.0.2
       '@typescript/typescript-win32-x64': 7.0.2
 
-  undici-types@7.18.2: {}
-
   undici-types@8.3.0: {}
+
+  undici@8.10.0: {}
 
   unicode-canonical-property-names-ecmascript@2.0.1: {}
 
@@ -16294,8 +16255,6 @@ snapshots:
       minimalistic-assert: 1.0.1
 
   web-namespaces@2.0.1: {}
-
-  webidl-conversions@3.0.1: {}
 
   webpack-bundle-analyzer@4.10.2:
     dependencies:
@@ -16509,11 +16468,6 @@ snapshots:
       websocket-extensions: 0.1.4
 
   websocket-extensions@0.1.4: {}
-
-  whatwg-url@5.0.0:
-    dependencies:
-      tr46: 0.0.3
-      webidl-conversions: 3.0.1
 
   which@2.0.2:
     dependencies:

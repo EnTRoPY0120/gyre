@@ -1,5 +1,4 @@
 import { logger } from '../logger.js';
-import * as k8s from '@kubernetes/client-node';
 import {
 	AuthenticationError,
 	AuthorizationError,
@@ -24,11 +23,7 @@ export function handleK8sError(
 	if (error instanceof Error) {
 		// Detect AbortController-triggered timeouts (node-fetch surfaces these as
 		// AbortError or as a generic Error with name 'AbortError').
-		if (
-			error.name === 'AbortError' ||
-			error instanceof k8s.AbortError ||
-			(error as { type?: string }).type === 'aborted'
-		) {
+		if (error.name === 'AbortError' || (error as { type?: string }).type === 'aborted') {
 			return new KubernetesTimeoutError(operation, timeoutMs);
 		}
 
