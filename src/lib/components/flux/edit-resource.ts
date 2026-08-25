@@ -1,13 +1,19 @@
 import * as yaml from 'js-yaml';
 import type { K8sResource } from '$lib/types/kubernetes';
 
-interface UpdateResourceOptions {
+export interface UpdateResourceOptions {
 	resourceType: string;
 	namespace: string;
 	name: string;
 	yamlContent: string;
 	csrfToken: string;
 	fetcher?: typeof fetch;
+}
+
+interface SaveResourceEditOptions extends UpdateResourceOptions {
+	validationErrors: ReadonlyArray<{ severity: number }>;
+	afterSave: () => void | Promise<void>;
+	updater?: (options: UpdateResourceOptions) => Promise<void>;
 }
 
 /** Validate the editable resource contract before sending it to the API. */
@@ -81,4 +87,22 @@ export async function updateResource({
 	if (!response.ok) {
 		throw new Error(await getResourceUpdateError(response));
 	}
+}
+
+/** Validate and persist an edit, then run the modal's successful-save lifecycle. */
+export async function saveResourceEdit({
+	validationErrors,
+	afterSave,
+	updater = updateResource,
+	...request
+}: SaveResourceEditOptions): Promise<string | null> {
+	const resourceError = validateResourceYaml(request.yamlContent, request.name, request.namespace);
+	if (resourceError) return resourceError;
+	if (validationErrors.some((marker) => marker.severity === 8)) {
+		return 'Please fix YAML syntax errors before saving';
+	}
+
+	await updater(request);
+	await afterSave();
+	return null;
 }

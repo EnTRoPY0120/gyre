@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import {
 	getResourceUpdateError,
+	saveResourceEdit,
 	updateResource,
 	validateResourceYaml
 } from '../lib/components/flux/edit-resource.js';
@@ -107,5 +108,69 @@ describe('updateResource', () => {
 				fetcher
 			})
 		).rejects.toThrow('Update rejected');
+	});
+});
+
+describe('saveResourceEdit', () => {
+	test('rejects invalid resource content without invoking the updater', async () => {
+		const updater = vi.fn();
+
+		await expect(
+			saveResourceEdit({
+				resourceType: 'gitrepositories',
+				namespace: 'flux-system',
+				name: 'source',
+				yamlContent: 'kind: GitRepository',
+				csrfToken: 'csrf-token',
+				validationErrors: [],
+				afterSave: vi.fn(),
+				updater
+			})
+		).resolves.toBe('Invalid resource: missing required fields (apiVersion, kind, metadata)');
+		expect(updater).not.toHaveBeenCalled();
+	});
+
+	test('blocks saves while Monaco reports YAML syntax errors', async () => {
+		const updater = vi.fn();
+
+		await expect(
+			saveResourceEdit({
+				resourceType: 'gitrepositories',
+				namespace: 'flux-system',
+				name: 'source',
+				yamlContent: validYaml,
+				csrfToken: 'csrf-token',
+				validationErrors: [{ severity: 8 }],
+				afterSave: vi.fn(),
+				updater
+			})
+		).resolves.toBe('Please fix YAML syntax errors before saving');
+		expect(updater).not.toHaveBeenCalled();
+	});
+
+	test('runs the successful-save lifecycle after updating the resource', async () => {
+		const updater = vi.fn().mockResolvedValue(undefined);
+		const afterSave = vi.fn().mockResolvedValue(undefined);
+
+		await expect(
+			saveResourceEdit({
+				resourceType: 'gitrepositories',
+				namespace: 'flux-system',
+				name: 'source',
+				yamlContent: validYaml,
+				csrfToken: 'csrf-token',
+				validationErrors: [],
+				afterSave,
+				updater
+			})
+		).resolves.toBeNull();
+		expect(updater).toHaveBeenCalledWith({
+			resourceType: 'gitrepositories',
+			namespace: 'flux-system',
+			name: 'source',
+			yamlContent: validYaml,
+			csrfToken: 'csrf-token'
+		});
+		expect(afterSave).toHaveBeenCalledOnce();
 	});
 });
