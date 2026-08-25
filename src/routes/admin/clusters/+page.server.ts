@@ -1,19 +1,12 @@
 import { logger } from '$lib/server/logger.js';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import {
-	getAllClustersPaginated,
-	updateCluster,
-	deleteCluster,
-	testClusterConnection,
-	getClusterById
-} from '$lib/server/clusters';
+import { getAllClustersPaginated, testClusterConnection } from '$lib/server/clusters';
 import { logClusterChange } from '$lib/server/audit';
-import { invalidateDashboardCache } from '$lib/server/dashboard-cache';
-import { clearClientPool } from '$lib/server/kubernetes/client.js';
 import { parseAdminPagination } from '../pagination';
 import { validateClusterCreateInput } from './create-validation';
 import { createClusterAndLog, type ClusterCreateInput } from './create-cluster';
+import { deleteClusterAndLog, toggleClusterAndLog } from './cluster-actions';
 import {
 	getRequiredFormString,
 	requireAdminFormUser,
@@ -131,21 +124,7 @@ export const actions: Actions = {
 		const clusterId = getRequiredFormString(formData, 'clusterId', 'Cluster ID is required');
 		if (typeof clusterId !== 'string') return clusterId;
 		const isActive = formData.get('isActive') === 'true';
-
-		try {
-			const updated = await updateCluster(clusterId, { isActive });
-
-			if (updated) {
-				clearClientPool(clusterId);
-				invalidateDashboardCache(clusterId);
-				await logClusterChange(user, 'update', updated.name, { clusterId, isActive });
-			}
-
-			return { success: true, isActive };
-		} catch (error) {
-			logger.error(error, 'Error updating cluster:');
-			return fail(500, { error: 'Failed to update cluster' });
-		}
+		return toggleClusterAndLog(user, clusterId, isActive);
 	},
 
 	/**
@@ -159,22 +138,6 @@ export const actions: Actions = {
 		const clusterId = getRequiredFormString(formData, 'clusterId', 'Cluster ID is required');
 		if (typeof clusterId !== 'string') return clusterId;
 
-		try {
-			const existing = await getClusterById(clusterId);
-			if (!existing) {
-				return fail(404, { error: 'Cluster not found' });
-			}
-
-			await deleteCluster(clusterId);
-			clearClientPool(clusterId);
-			invalidateDashboardCache(clusterId);
-
-			await logClusterChange(user, 'delete', existing.name, { clusterId });
-
-			return { success: true };
-		} catch (error) {
-			logger.error(error, 'Error deleting cluster:');
-			return fail(500, { error: 'Failed to delete cluster' });
-		}
+		return deleteClusterAndLog(user, clusterId);
 	}
 };
