@@ -24,7 +24,8 @@
 	import ResourceDetailHeader from '$lib/components/resources/ResourceDetailHeader.svelte';
 	import ResourceDetailTabPanel from '$lib/components/resources/ResourceDetailTabPanel.svelte';
 	import ResourceDetailTabs from '$lib/components/resources/ResourceDetailTabs.svelte';
-	import { formatLogLine } from '$lib/components/resources/log-formatting';
+import { formatLogLine } from '$lib/components/resources/log-formatting';
+import { getTabTargetIndex } from '$lib/components/resources/tab-keyboard';
 
 	interface Props {
 		data: {
@@ -129,14 +130,6 @@
 		const validTab = getValidTab($page.url.searchParams.get('tab'));
 		if (activeTab !== validTab) activeTab = validTab;
 	});
-
-	function getTabTargetIndex(key: string, index: number, tabCount: number): number | null {
-		if (key === 'ArrowRight') return (index + 1) % tabCount;
-		if (key === 'ArrowLeft') return (index - 1 + tabCount) % tabCount;
-		if (key === 'Home') return 0;
-		if (key === 'End') return tabCount - 1;
-		return null;
-	}
 
 	function focusTab(event: KeyboardEvent, targetIndex: number): void {
 		((event.target as HTMLElement).parentElement?.children[targetIndex] as HTMLElement)?.focus();
