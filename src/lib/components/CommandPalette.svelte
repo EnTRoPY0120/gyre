@@ -11,6 +11,7 @@
 	import CommandPaletteResults from './CommandPaletteResults.svelte';
 	import type { CommandItem, SearchResult } from './CommandPaletteTypes';
 	import { highlightText } from './command-palette-highlighting';
+	import { buildCommandItems } from './command-palette-items';
 
 	let open = $state(false);
 	let searchQuery = $state('');
@@ -22,89 +23,7 @@
 	const isAdmin = $derived(userRole === 'admin');
 	const canCreate = $derived(userRole === 'admin' || userRole === 'editor');
 
-	const allItems = $derived.by(() => {
-		const items: CommandItem[] = [
-			{
-				id: 'nav-dashboard',
-				label: 'Dashboard',
-				description: 'View cluster overview and status',
-				icon: 'dashboard',
-				href: '/',
-				category: 'Navigation'
-			}
-		];
-		if (canCreate) {
-			items.push({
-				id: 'nav-create',
-				label: 'Create Resource',
-				description: 'Create a new FluxCD resource',
-				icon: 'plus',
-				href: '/create',
-				category: 'Navigation',
-				keywords: ['new', 'add']
-			});
-		}
-
-		for (const group of resourceGroups) {
-			for (const resource of group.resources) {
-				items.push({
-					id: `resource-${resource.type}`,
-					label: resource.displayName,
-					description: resource.description,
-					icon: getResourceIcon(resource.type),
-					href: `/resources/${resource.type}`,
-					category: 'Resources',
-					keywords: [group.name, resource.kind]
-				});
-			}
-		}
-
-		if (isAdmin) {
-			items.push(
-				{
-					id: 'admin-users',
-					label: 'Manage Users',
-					description: 'View and manage user accounts',
-					icon: 'users',
-					href: '/admin/users',
-					category: 'Admin'
-				},
-				{
-					id: 'admin-clusters',
-					label: 'Manage Clusters',
-					description: 'Configure multi-cluster access',
-					icon: 'server',
-					href: '/admin/clusters',
-					category: 'Admin'
-				},
-				{
-					id: 'admin-auth-providers',
-					label: 'Auth Providers',
-					description: 'Configure SSO and OAuth providers',
-					icon: 'key',
-					href: '/admin/auth-providers',
-					category: 'Admin'
-				},
-				{
-					id: 'admin-settings',
-					label: 'Settings',
-					description: 'Application settings and configuration',
-					icon: 'settings',
-					href: '/admin/settings',
-					category: 'Admin'
-				},
-				{
-					id: 'admin-policies',
-					label: 'RBAC Policies',
-					description: 'Manage role-based access control',
-					icon: 'shield-check',
-					href: '/admin/policies',
-					category: 'Admin'
-				}
-			);
-		}
-		return items;
-	});
+	const allItems = $derived.by(() => buildCommandItems(resourceGroups, { isAdmin, canCreate }));
 
 	const fuse = new Fuse<CommandItem>([], {
 		keys: [
@@ -215,22 +134,6 @@
 			event.preventDefault();
 			open = !open;
 		}
-	}
-
-	function getResourceIcon(type: string): string {
-		const iconMap: Record<string, string> = {
-			gitrepositories: 'git-branch',
-			helmrepositories: 'library',
-			helmcharts: 'package',
-			buckets: 'bucket',
-			ocirepositories: 'cloud',
-			kustomizations: 'file-cog',
-			helmreleases: 'ship',
-			alerts: 'shield-alert',
-			providers: 'radio',
-			receivers: 'activity'
-		};
-		return iconMap[type] || 'file';
 	}
 
 	$effect(() => {

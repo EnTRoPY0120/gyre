@@ -1,6 +1,8 @@
 import { describe, test, expect } from 'vitest';
 import { commandPaletteOpen } from '../lib/stores/commandPalette.js';
 import { highlightText } from '../lib/components/command-palette-highlighting.js';
+import { buildCommandItems, getResourceIcon } from '../lib/components/command-palette-items.js';
+import { resourceGroups } from '../lib/config/resources.js';
 
 // Helper: read current store value synchronously via subscribe
 function getValue(): boolean {
@@ -92,5 +94,41 @@ describe('highlightText', () => {
 
 	test('returns one unhighlighted segment when there are no ranges', () => {
 		expect(highlightText('Dashboard')).toEqual([{ text: 'Dashboard', highlighted: false }]);
+	});
+});
+
+describe('command palette items', () => {
+	test('includes creation and resource search metadata for editors', () => {
+		const items = buildCommandItems(resourceGroups, { isAdmin: false, canCreate: true });
+
+		expect(items.find((item) => item.id === 'nav-create')).toMatchObject({
+			href: '/create',
+			keywords: ['new', 'add']
+		});
+		expect(items.find((item) => item.id === 'resource-kustomizations')).toMatchObject({
+			category: 'Resources',
+			keywords: ['Kustomize', 'Kustomization']
+		});
+		expect(items.some((item) => item.category === 'Admin')).toBe(false);
+	});
+
+	test('adds the complete admin navigation only for admins', () => {
+		const items = buildCommandItems(resourceGroups, { isAdmin: true, canCreate: true });
+		const adminItems = items.filter((item) => item.category === 'Admin');
+
+		expect(adminItems.map((item) => item.id)).toEqual([
+			'admin-users',
+			'admin-clusters',
+			'admin-auth-providers',
+			'admin-settings',
+			'admin-policies'
+		]);
+	});
+
+	test('omits creation for viewers and falls back for unknown resource icons', () => {
+		const items = buildCommandItems(resourceGroups, { isAdmin: false, canCreate: false });
+
+		expect(items.some((item) => item.id === 'nav-create')).toBe(false);
+		expect(getResourceIcon('unknown')).toBe('file');
 	});
 });
