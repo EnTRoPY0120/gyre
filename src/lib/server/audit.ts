@@ -201,7 +201,7 @@ export async function getAuditLogsPaginated(
 /**
  * Clean up old audit logs based on retention policy
  */
-async function cleanupOldAuditLogs(): Promise<number> {
+export async function cleanupOldAuditLogs(): Promise<number> {
 	try {
 		const db = getDbSync();
 		const retentionDays = await getAuditLogRetentionDays();
