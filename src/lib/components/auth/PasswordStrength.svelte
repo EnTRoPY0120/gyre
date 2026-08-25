@@ -26,31 +26,39 @@
 	});
 </script>
 
+{#snippet strengthBars()}
+	<div class="strength-bars">
+		{#each Array(5) as _, i (i)}
+			<div class="strength-bar {i < score ? color : 'bg-slate-700'}"></div>
+		{/each}
+	</div>
+{/snippet}
+
+{#snippet requirementList()}
+	<div class="requirements-list">
+		{#each requirements as requirement (requirement.label)}
+			<div class="requirement-item">
+				{#if requirement.met}
+					<div class="req-icon met"><Check size={10} /></div>
+				{:else}
+					<div class="req-icon unmet"><X size={10} /></div>
+				{/if}
+				<span class={requirement.met ? 'text-slate-300' : 'text-slate-500'}>
+					{requirement.label}
+				</span>
+			</div>
+		{/each}
+	</div>
+{/snippet}
+
 {#if password.length > 0}
 	<div class="strength-indicator">
 		<div class="strength-header">
 			<span>Strength: {text}</span>
 			<span class={score >= 4 ? 'text-emerald-400' : 'text-slate-500'}>{score}/5</span>
 		</div>
-		<div class="strength-bars">
-			{#each Array(5) as _, i (i)}
-				<div class="strength-bar {i < score ? color : 'bg-slate-700'}"></div>
-			{/each}
-		</div>
-		<div class="requirements-list">
-			{#each requirements as requirement (requirement.label)}
-				<div class="requirement-item">
-					{#if requirement.met}
-						<div class="req-icon met"><Check size={10} /></div>
-					{:else}
-						<div class="req-icon unmet"><X size={10} /></div>
-					{/if}
-					<span class={requirement.met ? 'text-slate-300' : 'text-slate-500'}>
-						{requirement.label}
-					</span>
-				</div>
-			{/each}
-		</div>
+		{@render strengthBars()}
+		{@render requirementList()}
 	</div>
 {/if}
 
