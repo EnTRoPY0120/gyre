@@ -10,8 +10,8 @@
 	import CommandPaletteFooter from './CommandPaletteFooter.svelte';
 	import CommandPaletteResults from './CommandPaletteResults.svelte';
 	import type { CommandItem, SearchResult } from './CommandPaletteTypes';
-	import { highlightText } from './command-palette-highlighting';
 	import { buildCommandItems } from './command-palette-items';
+import { buildCommandPaletteSearchResult } from './command-palette-search';
 import {
 	applyCommandPaletteKeyAction,
 	getCommandPaletteKeyAction
@@ -54,25 +54,18 @@ import {
 				descKeyword: false
 			}));
 		}
-		return fuse.search(searchQuery).map((result) => {
-			const labelMatch = result.matches?.find((match) => match.key === 'label');
-			const descMatch = result.matches?.find((match) => match.key === 'description');
-			return {
-				item: result.item,
-				labelSegments: highlightText(
-					result.item.label,
-					labelMatch?.indices as readonly [number, number][] | undefined
-				),
-				descSegments: result.item.description
-					? highlightText(
-							result.item.description,
-							descMatch?.indices as readonly [number, number][] | undefined
-						)
-					: null,
-				labelKeyword: isKeywordMatch(result.item.label, searchQuery),
-				descKeyword: isKeywordMatch(result.item.description ?? '', searchQuery)
-			};
-		});
+		return fuse.search(searchQuery).map((result) =>
+			buildCommandPaletteSearchResult(
+				result.item,
+				result.matches?.find((match) => match.key === 'label')?.indices as
+					| readonly [number, number][]
+					| undefined,
+				result.matches?.find((match) => match.key === 'description')?.indices as
+					| readonly [number, number][]
+					| undefined,
+				searchQuery
+			)
+		);
 	});
 
 	const groupedItems = $derived.by(() => {
@@ -84,11 +77,6 @@ import {
 		}
 		return groups;
 	});
-
-	function isKeywordMatch(text: string, query: string): boolean {
-		const trimmed = query.trim().toLowerCase();
-		return trimmed.length > 0 && text.toLowerCase().includes(trimmed);
-	}
 
 	$effect(() => {
 		void filteredItems;

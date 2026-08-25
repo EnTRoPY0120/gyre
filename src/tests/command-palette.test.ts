@@ -1,6 +1,7 @@
 import { describe, test, expect, vi } from 'vitest';
 import { commandPaletteOpen } from '../lib/stores/commandPalette.js';
 import { highlightText } from '../lib/components/command-palette-highlighting.js';
+import { buildCommandPaletteSearchResult } from '../lib/components/command-palette-search.js';
 import { buildCommandItems, getResourceIcon } from '../lib/components/command-palette-items.js';
 import {
 	applyCommandPaletteKeyAction,
@@ -102,6 +103,31 @@ describe('highlightText', () => {
 });
 
 describe('command palette items', () => {
+	test('builds highlighted search results and keyword flags', () => {
+		const item = {
+			id: 'search-1',
+			label: 'Dashboard',
+			description: 'View cluster overview',
+			icon: 'dashboard',
+			category: 'Navigation'
+		};
+
+		expect(buildCommandPaletteSearchResult(item, [[0, 2]], [[5, 7]], 'dash')).toEqual({
+			item,
+			labelSegments: [
+				{ text: 'Das', highlighted: true },
+				{ text: 'hboard', highlighted: false }
+			],
+			descSegments: [
+				{ text: 'View ', highlighted: false },
+				{ text: 'clu', highlighted: true },
+				{ text: 'ster overview', highlighted: false }
+			],
+			labelKeyword: true,
+			descKeyword: false
+		});
+	});
+
 	test('includes creation and resource search metadata for editors', () => {
 		const items = buildCommandItems(resourceGroups, { isAdmin: false, canCreate: true });
 

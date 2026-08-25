@@ -7,7 +7,8 @@
 	import { eventsStore } from '$lib/stores/events.svelte';
 	import { clusterStore } from '$lib/stores/cluster.svelte';
 	import { preferences } from '$lib/stores/preferences.svelte';
-	import { buildEventStorageScope, hasEventConnectionChanged } from '$lib/stores/layout-sync.js';
+	import { hasEventConnectionChanged } from '$lib/stores/layout-sync.js';
+	import { syncLayoutStores } from '$lib/stores/layout-store-sync.js';
 	import { page } from '$app/stores';
 	import { Toaster } from 'svelte-sonner';
 	import { onDestroy } from 'svelte';
@@ -43,15 +44,14 @@
 
 	// Sync cluster store and preferences with layout data
 	$effect(() => {
-		if (data.health.availableClusters) {
-			clusterStore.setAvailable(data.health.availableClusters);
-		}
-		clusterStore.setCurrent(data.health.currentClusterId || IN_CLUSTER_ID);
-		clusterStore.setError(data.health.error ?? null);
-		preferences.setNotifications(data.user?.preferences?.notifications);
-		eventsStore.setStorageScope(
-			buildEventStorageScope(data.health.currentClusterId, data.user)
-		);
+		syncLayoutStores(data, {
+			setAvailable: (clusters) => clusterStore.setAvailable(clusters),
+			setCurrent: (clusterId) => clusterStore.setCurrent(clusterId),
+			setError: (message) => clusterStore.setError(message),
+			setNotifications: (notificationPreferences) =>
+				preferences.setNotifications(notificationPreferences),
+			setStorageScope: (scope) => eventsStore.setStorageScope(scope)
+		});
 	});
 
 	// Connect to SSE when cluster is connected
