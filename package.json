@@ -61,7 +61,7 @@
 		"@tailwindcss/vite": "^4.1.18",
 		"@types/better-sqlite3": "^7.6.13",
 		"@types/js-yaml": "^4.0.9",
-		"@types/node": "^25.9.1",
+		"@types/node": "^26.2.0",
 		"drizzle-kit": "^0.31.8",
 		"oxfmt": "^0.64.0",
 		"oxlint": "^1.68.0",
