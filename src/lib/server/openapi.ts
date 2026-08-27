@@ -4,6 +4,7 @@ import {
 	OpenAPIRegistry,
 	extendZodWithOpenApi
 } from '@asteasolutions/zod-to-openapi';
+import { GYRE_VERSION } from '$lib/config/version';
 
 extendZodWithOpenApi(z);
 
@@ -36,7 +37,7 @@ export function generateOpenApiSpec(registry: OpenAPIRegistry) {
 		openapi: '3.0.0',
 		info: {
 			title: 'Gyre API',
-			version: '0.6.0',
+			version: GYRE_VERSION,
 			description: 'Internal APIs for Gyre - FluxCD Web UI'
 		},
 		servers: [{ url: '/' }],
