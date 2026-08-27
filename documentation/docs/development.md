@@ -193,9 +193,9 @@ pnpm --dir documentation serve
 `charts/gyre/Chart.yaml` intentionally keeps placeholder versions; CI injects the release version during `helm package`.
 
 ```sh
-git add package.json documentation/package.json src/lib/server/openapi.ts documentation/docs/development.md
-git commit -m "chore: prepare v0.8.0-rc.1 release"
-git tag -a v0.8.0-rc.1 -m "Release v0.8.0-rc.1"
+git add -A
+git commit -m "chore: prepare v0.8.0-rc.2 release"
+git tag -a v0.8.0-rc.2 -m "Release v0.8.0-rc.2"
 git push origin main --tags
 ```
 

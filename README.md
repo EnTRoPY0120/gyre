@@ -44,7 +44,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
-    semver: '>=0.7.0'
+    tag: 0.8.0-rc.2
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -62,24 +62,13 @@ spec:
 ### Option 2: Helm
 
 ```bash
-kubectl create namespace flux-system --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic gyre-encryption -n flux-system \
-  --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
-  --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic gyre-metrics -n flux-system \
-  --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \
-  --dry-run=client -o yaml | kubectl apply -f -
-
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.0 \
+  --version 0.8.0-rc.2 \
   --namespace flux-system \
-  --create-namespace \
-  --set encryption.existingSecret=gyre-encryption \
-  --set metrics.existingSecret=gyre-metrics
+  --create-namespace
 ```
+
+The chart generates the encryption and metrics Secrets on first install and retains them across upgrades and uninstall. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
 
 _Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) for the current version._
 

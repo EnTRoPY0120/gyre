@@ -171,6 +171,9 @@ encryption:
   # Keys in secret should be named GYRE_ENCRYPTION_KEY, AUTH_ENCRYPTION_KEY,
   # BACKUP_ENCRYPTION_KEY, and BETTER_AUTH_SECRET
   existingSecret: "gyre-encryption"
+  # Generate the Secret automatically when existingSecret is not present.
+  # Existing Secrets are never overwritten and generated Secrets are retained on uninstall.
+  autoGenerate: true
   # Explicitly opt in to auto-creating a Secret from inline values.
   # Disabled by default. Set to true only for development/testing — inline values
   # are visible in `helm get values` and Helm release history.
@@ -219,8 +222,11 @@ auth:
 # Metrics and Monitoring
 metrics:
   enabled: true
-  # Existing secret containing GYRE_METRICS_TOKEN (required for chart-managed deployments)
+  # Existing secret containing GYRE_METRICS_TOKEN
   existingSecret: "gyre-metrics"
+  # Generate the Secret automatically when existingSecret is not present.
+  # Existing Secrets are never overwritten and generated Secrets are retained on uninstall.
+  autoGenerate: true
   serviceMonitor:
     enabled: false
     interval: 30s

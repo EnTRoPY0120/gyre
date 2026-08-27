@@ -59,7 +59,27 @@ describe('helm chart regressions', () => {
 		expect(source).toContain('BACKUP_ENCRYPTION_KEY');
 		expect(source).toContain('BETTER_AUTH_SECRET');
 		expect(source).toContain('GYRE_METRICS_TOKEN');
-		expect(source).toContain('metrics.existingSecret is required for Helm deployments');
+		expect(source).toContain(
+			'metrics.existingSecret is required unless metrics.autoGenerate is enabled'
+		);
+	});
+
+	test('encryption and metrics secrets are generated only when absent and retained', () => {
+		const encryption = readRepoFile('../charts/gyre/templates/secret-encryption.yaml');
+		const metrics = readRepoFile('../charts/gyre/templates/secret-metrics.yaml');
+
+		expect(encryption).toContain('lookup "v1" "Secret" .Release.Namespace $encryptionSecretName');
+		expect(encryption).toContain('.Values.encryption.autoGenerate');
+		expect(encryption).toContain('gyre.io/generated: "true"');
+		expect(encryption).toContain('helm.sh/resource-policy: keep');
+		expect(encryption).toContain('randAlphaNum 64 | sha256sum');
+		expect(encryption).toContain('Generated encryption Secret');
+
+		expect(metrics).toContain('lookup "v1" "Secret" .Release.Namespace $metricsSecretName');
+		expect(metrics).toContain('.Values.metrics.autoGenerate');
+		expect(metrics).toContain('gyre.io/generated: "true"');
+		expect(metrics).toContain('helm.sh/resource-policy: keep');
+		expect(metrics).toContain('GYRE_METRICS_TOKEN: {{ randAlphaNum 64 | b64enc | quote }}');
 	});
 
 	test('values and templates include deployability defaults for service account and body size limit', () => {
@@ -100,6 +120,7 @@ describe('helm chart regressions', () => {
 		);
 		expect(schema.properties.encryption.properties.backupKey.type).toBe('string');
 		expect(schema.properties.encryption.properties.betterAuthSecret.type).toBe('string');
+		expect(schema.properties.encryption.properties.autoGenerate.type).toBe('boolean');
 		expect(schema.properties.encryption.then.properties.backupKey.pattern).toBe(
 			'^[0-9a-fA-F]{64}$'
 		);
@@ -107,7 +128,8 @@ describe('helm chart regressions', () => {
 		expect(schema.properties.encryption.then.required).toContain('betterAuthSecret');
 		expect(schema.properties.auth.properties.providers.items.additionalProperties).toBe(false);
 		expect(schema.properties.auth.then.required).toContain('providersExistingSecret');
-		expect(schema.properties.metrics.properties.existingSecret.minLength).toBe(1);
+		expect(schema.properties.metrics.properties.existingSecret.type).toBe('string');
+		expect(schema.properties.metrics.properties.autoGenerate.type).toBe('boolean');
 		expect(
 			schema.properties.auth.properties.providers.items.properties.clientSecret
 		).toBeUndefined();

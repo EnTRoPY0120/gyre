@@ -22,6 +22,20 @@ Create a default fully qualified app name.
 {{- end }}
 
 {{/*
+Create the name of the Secret containing the encryption keys.
+*/}}
+{{- define "gyre.encryptionSecretName" -}}
+{{- .Values.encryption.existingSecret | default (printf "%s-encryption" (include "gyre.fullname" .)) -}}
+{{- end }}
+
+{{/*
+Create the name of the Secret containing the metrics token.
+*/}}
+{{- define "gyre.metricsSecretName" -}}
+{{- .Values.metrics.existingSecret | default (printf "%s-metrics" (include "gyre.fullname" .)) -}}
+{{- end }}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "gyre.chart" -}}

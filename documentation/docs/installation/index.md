@@ -25,7 +25,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
-    semver: '>=0.7.0'
+    tag: 0.8.0-rc.2
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -50,10 +50,12 @@ Helm is the standard way to install Gyre directly, as it provides easy configura
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.0 \
+  --version 0.8.0-rc.2 \
   --namespace flux-system \
   --create-namespace
 ```
+
+The chart generates the encryption and metrics Secrets on first install and retains them across upgrades and uninstall. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
 
 :::note
 OCI Helm registries require an explicit version. Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) for the current version number.
@@ -206,11 +208,11 @@ kubectl logs -n flux-system -l app.kubernetes.io/name=gyre
 
 To upgrade Gyre:
 
-Before upgrading, provision `BETTER_AUTH_SECRET` in your deployment secrets; pods will not start without it. It must be different from `AUTH_ENCRYPTION_KEY`, `GYRE_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY`. Changing this signing secret invalidates existing sessions, so users must sign in again.
+The chart preserves generated encryption and metrics Secrets across upgrades. If you use externally managed Secrets, ensure the encryption Secret contains `GYRE_ENCRYPTION_KEY`, `AUTH_ENCRYPTION_KEY`, `BACKUP_ENCRYPTION_KEY`, and `BETTER_AUTH_SECRET` before upgrading. `BETTER_AUTH_SECRET` must differ from the other encryption keys; changing it invalidates existing sessions.
 
 ```bash
 helm upgrade gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.0 \
+  --version 0.8.0-rc.2 \
   --namespace flux-system
 ```
 

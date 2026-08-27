@@ -120,14 +120,15 @@ The default liveness probe uses `/api/v1/health`. The default readiness probe us
 
 ## Metrics & Monitoring
 
-| Parameter                                 | Description                            | Default    |
-| ----------------------------------------- | -------------------------------------- | ---------- |
-| `metrics.enabled`                         | Enable application metrics             | `true`     |
-| `metrics.existingSecret`                  | Secret containing `GYRE_METRICS_TOKEN` | `""`       |
-| `metrics.serviceMonitor.enabled`          | Create a Prometheus ServiceMonitor     | `false`    |
-| `metrics.serviceMonitor.interval`         | Scraping interval                      | `30s`      |
-| `metrics.serviceMonitor.path`             | Metrics path                           | `/metrics` |
-| `metrics.serviceMonitor.additionalLabels` | Additional labels for ServiceMonitor   | `{}`       |
+| Parameter                                 | Description                            | Default        |
+| ----------------------------------------- | -------------------------------------- | -------------- |
+| `metrics.enabled`                         | Enable application metrics             | `true`         |
+| `metrics.existingSecret`                  | Secret containing `GYRE_METRICS_TOKEN` | `gyre-metrics` |
+| `metrics.autoGenerate`                    | Generate the metrics Secret if absent  | `true`         |
+| `metrics.serviceMonitor.enabled`          | Create a Prometheus ServiceMonitor     | `false`        |
+| `metrics.serviceMonitor.interval`         | Scraping interval                      | `30s`          |
+| `metrics.serviceMonitor.path`             | Metrics path                           | `/metrics`     |
+| `metrics.serviceMonitor.additionalLabels` | Additional labels for ServiceMonitor   | `{}`           |
 
 ## Network Policy
 
@@ -178,13 +179,14 @@ Helm config keys map to these runtime env vars:
 
 ## Encryption Configuration
 
-| Parameter                     | Description                             | Default |
-| ----------------------------- | --------------------------------------- | ------- |
-| `encryption.gyreKey`          | Key for encrypting cluster kubeconfigs  | `""`    |
-| `encryption.authKey`          | Key for encrypting OAuth client secrets | `""`    |
-| `encryption.backupKey`        | Key for encrypting backup files         | `""`    |
-| `encryption.betterAuthSecret` | Better Auth session signing secret      | `""`    |
-| `encryption.existingSecret`   | Existing secret with encryption keys    | `""`    |
+| Parameter                     | Description                              | Default           |
+| ----------------------------- | ---------------------------------------- | ----------------- |
+| `encryption.gyreKey`          | Key for encrypting cluster kubeconfigs   | `""`              |
+| `encryption.authKey`          | Key for encrypting OAuth client secrets  | `""`              |
+| `encryption.backupKey`        | Key for encrypting backup files          | `""`              |
+| `encryption.betterAuthSecret` | Better Auth session signing secret       | `""`              |
+| `encryption.existingSecret`   | Existing secret with encryption keys     | `gyre-encryption` |
+| `encryption.autoGenerate`     | Generate the encryption Secret if absent | `true`            |
 
 `encryption.existingSecret` must include all of:
 
@@ -192,6 +194,10 @@ Helm config keys map to these runtime env vars:
 - `AUTH_ENCRYPTION_KEY`
 - `BACKUP_ENCRYPTION_KEY`
 - `BETTER_AUTH_SECRET`
+
+When `encryption.autoGenerate` is enabled, the chart creates the referenced Secret if it does not exist. It generates all four keys, never overwrites an existing Secret, and retains a generated Secret when the Helm release is uninstalled. The same behavior applies to `metrics.autoGenerate` and `metrics.existingSecret`.
+
+Generated encryption keys are stored in Kubernetes and Helm release state. Back them up securely; losing them makes encrypted cluster credentials, OAuth secrets, and backups unreadable. Production installations may disable auto-generation and use Secrets managed by an external secret system.
 
 ## Auth Provider Secret Convention
 
@@ -211,18 +217,9 @@ Examples:
 
 ## Upgrade Procedure
 
-To upgrade Gyre:
+To upgrade Gyre, keep the existing encryption Secret and its values. When the chart manages the Secret, it preserves the generated values across upgrades. When using an externally managed Secret, ensure it contains all four required encryption keys before upgrading.
 
-Before upgrading to a version that requires `BETTER_AUTH_SECRET`, update the Kubernetes Secret used by the release and add `BETTER_AUTH_SECRET` first:
-
-```bash
-kubectl create secret generic gyre-secrets \
-  --namespace flux-system \
-  --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
-  --dry-run=client -o yaml | kubectl apply -f -
-```
-
-Production no longer falls back to `AUTH_ENCRYPTION_KEY`; pods will fail to start until `BETTER_AUTH_SECRET` is present. `security-config.ts` also requires `BETTER_AUTH_SECRET` to differ from `AUTH_ENCRYPTION_KEY`, `GYRE_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY`, so this upgrade invalidates existing Better Auth sessions and users must sign in again.
+`BETTER_AUTH_SECRET` must differ from `AUTH_ENCRYPTION_KEY`, `GYRE_ENCRYPTION_KEY`, and `BACKUP_ENCRYPTION_KEY`. Changing this signing secret invalidates existing Better Auth sessions, so users must sign in again.
 
 ```bash
 # Update Helm repository
