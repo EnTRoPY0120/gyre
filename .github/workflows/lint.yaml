@@ -6,9 +6,6 @@ on:
       - main
       - develop
   pull_request:
-    branches:
-      - main
-      - develop
   workflow_dispatch:
 
 # Keep only the newest verification run for a branch or pull request.
