@@ -29,7 +29,7 @@
 		"test:watch": "vitest"
 	},
 	"dependencies": {
-		"@asteasolutions/zod-to-openapi": "^8.4.1",
+		"@asteasolutions/zod-to-openapi": "^9.1.0",
 		"@kubernetes/client-node": "^2.0.0",
 		"@lucide/svelte": "^1.27.0",
 		"@sveltejs/kit": "^2.70.2",
