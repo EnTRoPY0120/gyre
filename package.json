@@ -55,7 +55,7 @@
 		"tailwind-variants": "^3.3.1",
 		"tailwindcss": "^4.3.3",
 		"yaml": "^2.9.0",
-		"zod": "^4.3.6"
+		"zod": "^4.5.4"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.12.4",
