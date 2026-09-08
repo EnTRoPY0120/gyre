@@ -1,3 +1,4 @@
+import { createLocalAccountIssuer, createOAuthAccountIssuer } from 'better-auth/db';
 import { logger } from '../../logger.js';
 import { sql } from 'drizzle-orm';
 import { addColumnsIgnoringDuplicates, runFlaggedMigration, type Db } from './helpers.js';
@@ -183,6 +184,7 @@ function createAccountsTable(db: Db, hasLegacyPasswordHashColumn: boolean): void
 			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
 			updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
 			provider_id TEXT NOT NULL,
+			issuer TEXT NOT NULL DEFAULT '',
 			account_id TEXT NOT NULL,
 			user_id TEXT NOT NULL,
 			access_token TEXT,
@@ -203,6 +205,7 @@ function createAccountsTable(db: Db, hasLegacyPasswordHashColumn: boolean): void
 	addColumnsIgnoringDuplicates(
 		db,
 		[
+			sql`ALTER TABLE accounts ADD COLUMN issuer TEXT NOT NULL DEFAULT ''`,
 			sql`ALTER TABLE accounts ADD COLUMN last_login_at INTEGER`,
 			sql`ALTER TABLE accounts ADD COLUMN access_token_encrypted TEXT`,
 			sql`ALTER TABLE accounts ADD COLUMN refresh_token_encrypted TEXT`,
@@ -214,14 +217,29 @@ function createAccountsTable(db: Db, hasLegacyPasswordHashColumn: boolean): void
 	if (hasLegacyPasswordHashColumn) {
 		db.run(sql`
 			INSERT OR IGNORE INTO accounts (
-				id, provider_id, account_id, user_id, password, created_at, updated_at
+				id, provider_id, issuer, account_id, user_id, password, created_at, updated_at
 			)
 			SELECT
-				'credential:' || id, 'credential', id, id, password_hash, created_at, updated_at
+				'credential:' || id, 'credential', 'local:credential', id, id, password_hash, created_at, updated_at
 			FROM users
 			WHERE is_local = 1 AND password_hash IS NOT NULL AND password_hash != ''
 		`);
 	}
+
+	// Better Auth 1.7 keys identities by issuer, including local password accounts.
+	// Gyre handles OAuth itself, so retain its provider-ID identity namespaces.
+	db.transaction((tx) => {
+		const legacyAccounts = tx.all<{ id: string; provider_id: string }>(
+			sql`SELECT id, provider_id FROM accounts WHERE issuer = ''`
+		);
+		for (const account of legacyAccounts) {
+			const issuer =
+				account.provider_id === 'credential'
+					? createLocalAccountIssuer(account.provider_id)
+					: createOAuthAccountIssuer(account.provider_id);
+			tx.run(sql`UPDATE accounts SET issuer = ${issuer} WHERE id = ${account.id}`);
+		}
+	});
 }
 
 function createVerificationsTable(db: Db): void {
@@ -281,6 +299,9 @@ function migrateLegacyUsers(db: Db): void {
 }
 
 function createAuthIndexes(db: Db): void {
+	db.run(
+		sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_accounts_issuer_account ON accounts (issuer, account_id)`
+	);
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at)`);
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions (user_id)`);
 	db.run(sql`CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_token ON sessions (token)`);

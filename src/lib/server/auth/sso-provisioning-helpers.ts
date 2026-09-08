@@ -1,3 +1,4 @@
+import { createOAuthAccountIssuer } from 'better-auth/db';
 import type { AuthProvider, NewAccount, NewUser, User } from '$lib/server/db/schema';
 import { generateUserId } from '$lib/server/auth';
 import { encryptSecret } from './crypto.js';
@@ -57,6 +58,7 @@ export function createSSOAccountRecord(
 		id: generateUserId(),
 		userId,
 		providerId,
+		issuer: createOAuthAccountIssuer(providerId),
 		accountId: userInfo.sub,
 		accessToken: null,
 		refreshToken: null,

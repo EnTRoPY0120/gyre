@@ -27,6 +27,7 @@ CREATE TABLE accounts (
 	created_at INTEGER NOT NULL DEFAULT (unixepoch()),
 	updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
 	provider_id TEXT NOT NULL,
+	issuer TEXT NOT NULL DEFAULT 'local:credential',
 	account_id TEXT NOT NULL,
 	user_id TEXT NOT NULL,
 	access_token TEXT,
@@ -121,6 +122,7 @@ describe('credential password management', () => {
 			.values({
 				id: 'account-1',
 				providerId: 'credential',
+				issuer: 'local:credential',
 				accountId: 'user-1',
 				userId: 'user-1',
 				password: 'old-hash'
@@ -137,6 +139,7 @@ describe('credential password management', () => {
 			.values({
 				id: 'account-1',
 				providerId: 'credential',
+				issuer: 'local:credential',
 				accountId: 'user-1',
 				userId: 'user-1',
 				password: 'old-hash'

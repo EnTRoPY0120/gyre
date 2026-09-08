@@ -1,3 +1,4 @@
+import { createLocalAccountIssuer } from 'better-auth/db';
 import { logger } from '../logger.js';
 import { getDbSync, type NewUser, type User } from '../db/index.js';
 import { accounts, users } from '../db/schema.js';
@@ -87,6 +88,7 @@ function insertAdminUser(password: string | null, requiresPasswordChange: boolea
 			.values({
 				id: generateUserId(),
 				providerId: 'credential',
+				issuer: createLocalAccountIssuer('credential'),
 				accountId: newUser.id,
 				userId: newUser.id,
 				password

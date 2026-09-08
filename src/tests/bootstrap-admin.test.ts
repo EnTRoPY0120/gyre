@@ -27,6 +27,7 @@ CREATE TABLE accounts (
 	created_at INTEGER NOT NULL DEFAULT (unixepoch()),
 	updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
 	provider_id TEXT NOT NULL,
+	issuer TEXT NOT NULL DEFAULT 'local:credential',
 	account_id TEXT NOT NULL,
 	user_id TEXT NOT NULL,
 	access_token TEXT,
@@ -116,6 +117,7 @@ describe('local admin bootstrap', () => {
 		expect(db.select().from(schema.accounts).all()).toEqual([
 			expect.objectContaining({
 				providerId: 'credential',
+				issuer: 'local:credential',
 				userId: 'generated-1',
 				password: 'hash:Generated-strong-password1!'
 			})

@@ -23,6 +23,7 @@ describe('buildOAuthAccountData', () => {
 		expect(data).toMatchObject({
 			userId: 'user-1',
 			providerId: 'github',
+			issuer: 'local:oauth:github',
 			accountId: 'provider-user-1',
 			accessTokenExpiresAt: new Date('2026-01-01T01:00:00.000Z'),
 			scope: 'read:user',

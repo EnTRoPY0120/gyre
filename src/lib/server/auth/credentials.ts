@@ -1,3 +1,4 @@
+import { createLocalAccountIssuer } from 'better-auth/db';
 import bcrypt from 'bcryptjs';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { getDb, type Account, type User } from '../db/index.js';
@@ -183,6 +184,7 @@ function updateUserPasswordInTx(tx: Tx, id: string, newPasswordHash: string, now
 			.values({
 				id: generateUserId(),
 				providerId: 'credential',
+				issuer: createLocalAccountIssuer('credential'),
 				accountId: id,
 				userId: id,
 				password: newPasswordHash
