@@ -62,6 +62,7 @@ export const accounts = sqliteTable(
 			.notNull()
 			.default(sql`(unixepoch())`),
 		providerId: text('provider_id').notNull(),
+		issuer: text('issuer').notNull(),
 		accountId: text('account_id').notNull(),
 		userId: text('user_id')
 			.notNull()
@@ -79,6 +80,7 @@ export const accounts = sqliteTable(
 		idTokenEncrypted: text('id_token_encrypted')
 	},
 	(table) => ({
+		issuerAccountIdx: uniqueIndex('idx_accounts_issuer_account').on(table.issuer, table.accountId),
 		providerAccountIdx: uniqueIndex('idx_accounts_provider_account').on(
 			table.providerId,
 			table.accountId

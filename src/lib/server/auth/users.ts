@@ -1,3 +1,4 @@
+import { createLocalAccountIssuer } from 'better-auth/db';
 import { eq, or, sql } from 'drizzle-orm';
 import { getDb, type NewUser, type User } from '../db/index.js';
 import { accounts, users } from '../db/schema.js';
@@ -32,6 +33,7 @@ export async function createUser(
 			.values({
 				id: generateUserId(),
 				providerId: 'credential',
+				issuer: createLocalAccountIssuer('credential'),
 				accountId: newUser.id,
 				userId: newUser.id,
 				password: passwordHash

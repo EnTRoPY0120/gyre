@@ -1,9 +1,11 @@
+import { createOAuthAccountIssuer } from 'better-auth/db';
 import type { OAuthTokens } from './oauth';
 import { encryptSecret } from './crypto';
 
 export interface OAuthAccountData {
 	userId: string;
 	providerId: string;
+	issuer: string;
 	accountId: string;
 	accessToken: null;
 	refreshToken: null;
@@ -46,6 +48,7 @@ export function buildOAuthAccountData(
 	return {
 		userId,
 		providerId,
+		issuer: createOAuthAccountIssuer(providerId),
 		accountId: providerUserId,
 		accessToken: null,
 		refreshToken: null,
