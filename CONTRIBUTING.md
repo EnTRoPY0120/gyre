@@ -8,7 +8,7 @@ Comprehensive contributing guidelines, including development setup, code standar
 
 ## Quick Start (DevContainer)
 
-The repository includes a devcontainer that installs Node.js 22.13+, `pnpm@11.1.0`, and Kubernetes tooling.
+The repository includes a devcontainer that installs Node.js 26, `pnpm@11.1.0`, and Kubernetes tooling.
 
 1. Open the repository in VS Code with the **Dev Containers** extension.
 2. Press `F1` → **"Dev Containers: Reopen in Container"**.

@@ -4,7 +4,7 @@ set -euo pipefail
 echo "Node: $(node --version)"
 echo "pnpm: $(pnpm --version)"
 
-node -e "const [major, minor] = process.versions.node.split('.').map(Number); if (major < 22 || (major === 22 && minor < 13)) { throw new Error('Node.js >=22.13 is required'); }"
+node -e "const [major] = process.versions.node.split('.').map(Number); if (major !== 26) { throw new Error('Node.js 26 is required in the dev container'); }"
 test "$(pnpm --version)" = "11.1.0"
 
 if command -v kubectl >/dev/null 2>&1; then
@@ -31,7 +31,7 @@ else
 	echo "flux: not installed"
 fi
 
-pnpm install --frozen-lockfile
+CI=true pnpm install --frozen-lockfile
 
 # Optional local cluster setup, run manually only when needed:
 # kind create cluster --name gyre

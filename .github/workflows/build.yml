@@ -28,7 +28,7 @@ env:
 
 jobs:
   build-and-push:
-    # Build arm64 natively; QEMU is still available for the amd64 target.
+    # Build arm64 natively; QEMU is used for the amd64 target.
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     permissions:
@@ -93,7 +93,8 @@ jobs:
         env:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
 
-      # Build into the local Docker daemon and scan before pushing.
+      # Build into the local Docker daemon and scan before pushing. Export the
+      # full build graph so the later multi-platform publish step can reuse it.
       # Trivy 0.50+ dropped the docker-archive: URI scheme; it resolves image
       # names via the local daemon, so load:true is required. The scan must pass
       # (exit-code: 1) before the push runs.
@@ -106,7 +107,7 @@ jobs:
           load: true
           tags: gyre:scan
           cache-from: type=gha
-          cache-to: type=gha,mode=min
+          cache-to: type=gha,mode=max
 
       - name: Run Trivy scan (blocking)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
@@ -119,10 +120,8 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore
 
-      # Build arm64 via QEMU emulation and scan before pushing so arm64-specific
-      # vulnerabilities are caught. The load:true flag works with QEMU because
-      # buildkit runs the arm64 build entirely inside the emulated environment and
-      # exports a single-platform image the local daemon can load.
+      # Build arm64 natively and scan before pushing so arm64-specific
+      # vulnerabilities are caught. This runner is arm64, so no emulation is used.
       - name: Build image for scan (arm64)
         if: github.event_name != 'pull_request'
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
@@ -133,7 +132,7 @@ jobs:
           load: true
           tags: gyre:scan-arm64
           cache-from: type=gha,scope=arm64
-          cache-to: type=gha,scope=arm64,mode=min
+          cache-to: type=gha,scope=arm64,mode=max
 
       - name: Run Trivy scan arm64 (blocking)
         if: github.event_name != 'pull_request'
@@ -160,7 +159,10 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
-          cache-from: type=gha
+          cache-from: |
+            type=gha
+            type=gha,scope=arm64
+          cache-to: type=gha,mode=max
           provenance: true
           sbom: true
 

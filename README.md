@@ -132,7 +132,7 @@ From a local checkout, run:
 
 For a standardized contributor environment, open the repository in VS Code with the Dev Containers extension and run **Dev Containers: Reopen in Container** from the command palette.
 
-The container uses Node.js 22.13+, installs `pnpm@11.1.0`, includes Kubernetes tooling (`kubectl`, `helm`, `kind`, and `flux`), and runs `pnpm install --frozen-lockfile` from `.devcontainer/post-create.sh`.
+The container uses Node.js 26, installs `pnpm@11.1.0`, includes Kubernetes tooling (`kubectl`, `helm`, `kind`, and `flux`), and runs `pnpm install --frozen-lockfile` from `.devcontainer/post-create.sh`.
 
 Start the app inside the container with:
 
