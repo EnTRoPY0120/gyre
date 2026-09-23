@@ -51,6 +51,8 @@ spec:
     namespace: flux-system
 ```
 
+The chart generates and retains the encryption and metrics Secrets automatically. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
+
 ### Option 2: Helm
 
 The standard way to install Gyre directly via Helm:
@@ -62,13 +64,11 @@ helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
   --create-namespace
 ```
 
-The chart generates the encryption and metrics Secrets on first install and retains them across upgrades and uninstall. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
+The chart generates and retains the encryption and metrics Secrets automatically. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
 
 :::note
 OCI Helm registries require an explicit version. Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) for the current version number.
 :::
-
-For RC installation instructions, see [Trying out an RC release](./installation#trying-out-an-rc-release).
 
 ### Option 3: Local Out-of-Cluster Testing (Docker)
 
@@ -85,17 +85,33 @@ if [ ! -f .env.gyre ]; then
         echo "GYRE_METRICS_TOKEN=$(openssl rand -hex 32)"
     } > .env.gyre)
 fi
+```
 
-docker run \
-    --env-file .env.gyre \
-    -v gyre-data:/data \
-    -v ~/.kube/config:/app/.kube/config:ro \
-    -p 3000:3000 \
-    ghcr.io/entropy0120/gyre:latest
+The container runs as UID 1001. To let it read a standard mode-0600 kubeconfig without changing the original file's permissions, use this command to mount a flattened temporary copy from a private directory:
+
+```bash
+(
+    set -e
+    kubeconfig_dir="$(mktemp -d)"
+    chmod 700 "$kubeconfig_dir"
+    cleanup_kubeconfig() {
+        rm -f "$kubeconfig_dir/config"
+        rmdir "$kubeconfig_dir"
+    }
+    trap cleanup_kubeconfig EXIT
+    kubectl config view --raw --flatten > "$kubeconfig_dir/config"
+    chmod 644 "$kubeconfig_dir/config"
+    docker run --rm \
+        --env-file .env.gyre \
+        -v gyre-data:/data \
+        -v "$kubeconfig_dir/config:/app/.kube/config:ro" \
+        -p 3000:3000 \
+        ghcr.io/entropy0120/gyre:latest
+)
 ```
 
 :::tip
-The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. Store `.env.gyre` securely and back it up with the `gyre-data` volume. Reuse it whenever you recreate the container; rotate data-encryption keys only with a migration plan to avoid making existing data unreadable.
+Make sure the API server address in the kubeconfig is reachable from Docker. The temporary kubeconfig copy stays in a host-private directory, is mounted read-only, and is removed when the container exits. The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. Store `.env.gyre` securely and back it up with the `gyre-data` volume. Reuse it whenever you recreate the container; rotate data-encryption keys only with a migration plan to avoid making existing data unreadable.
 :::
 
 ### Option 4: Local Demo Script

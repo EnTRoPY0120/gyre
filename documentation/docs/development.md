@@ -99,14 +99,27 @@ if [ ! -f .env.gyre ]; then
     } > .env.gyre)
 fi
 
-docker run \
-    --env-file .env.gyre \
-    -v $(pwd)/data:/data \
-    -p 3000:3000 \
-    gyre:local
+(
+    set -e
+    kubeconfig_dir="$(mktemp -d)"
+    chmod 700 "$kubeconfig_dir"
+    cleanup_kubeconfig() {
+        rm -f "$kubeconfig_dir/config"
+        rmdir "$kubeconfig_dir"
+    }
+    trap cleanup_kubeconfig EXIT
+    kubectl config view --raw --flatten > "$kubeconfig_dir/config"
+    chmod 644 "$kubeconfig_dir/config"
+    docker run --rm \
+        --env-file .env.gyre \
+        -v gyre-dev-data:/data \
+        -v "$kubeconfig_dir/config:/app/.kube/config:ro" \
+        -p 3000:3000 \
+        gyre:local
+)
 ```
 
-The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Store `.env.gyre` securely and back it up with the data directory. Reuse it whenever you recreate the container; changing an encryption key can make stored data unreadable.
+The container runs as UID 1001. The temporary kubeconfig copy is readable by that user, stays inside a host-private directory, is mounted read-only, and is removed when the container exits. Make sure the kubeconfig's API server address is reachable from Docker. The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Store `.env.gyre` securely and back it up with the `gyre-dev-data` volume. Reuse it whenever you recreate the container; changing an encryption key can make stored data unreadable.
 
 ### Kind Helper Scripts
 
@@ -194,8 +207,8 @@ pnpm --dir documentation serve
 
 ```sh
 git add -A
-git commit -m "chore: prepare v0.8.0-rc.2 release"
-git tag -a v0.8.0-rc.2 -m "Release v0.8.0-rc.2"
+git commit -m "chore: prepare v0.7.0 release"
+git tag -a v0.7.0 -m "Release v0.7.0"
 git push origin main --tags
 ```
 

@@ -76,7 +76,7 @@ if kubectl get secret "${ENCRYPTION_SECRET_NAME}" -n "${NAMESPACE}" >/dev/null 2
 fi
 
 encryption_missing_keys=()
-for key in GYRE_ENCRYPTION_KEY AUTH_ENCRYPTION_KEY BACKUP_ENCRYPTION_KEY; do
+for key in GYRE_ENCRYPTION_KEY AUTH_ENCRYPTION_KEY BACKUP_ENCRYPTION_KEY BETTER_AUTH_SECRET; do
 	if value="$(read_secret_value "${ENCRYPTION_SECRET_NAME}" "${key}")"; then
 		printf -v "${key}" '%s' "${value}"
 	else
@@ -97,6 +97,7 @@ if ! ${encryption_secret_exists}; then
 		--from-literal=GYRE_ENCRYPTION_KEY="${GYRE_ENCRYPTION_KEY}" \
 		--from-literal=AUTH_ENCRYPTION_KEY="${AUTH_ENCRYPTION_KEY}" \
 		--from-literal=BACKUP_ENCRYPTION_KEY="${BACKUP_ENCRYPTION_KEY}" \
+		--from-literal=BETTER_AUTH_SECRET="${BETTER_AUTH_SECRET}" \
 		--dry-run=client -o yaml | kubectl apply -f -
 elif [ "${#encryption_missing_keys[@]}" -gt 0 ]; then
 	echo "Adding missing encryption keys to '${ENCRYPTION_SECRET_NAME}': ${encryption_missing_keys[*]}"

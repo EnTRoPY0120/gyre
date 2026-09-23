@@ -27,24 +27,11 @@ Production usage is Helm/GitOps-first and in-cluster. Out-of-cluster mode is sup
 Get started with Gyre in minutes:
 
 ```bash
-kubectl create namespace flux-system --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic gyre-encryption -n flux-system \
-  --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
-  --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic gyre-metrics -n flux-system \
-  --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-# Install via Helm
+# Install via Helm. The chart generates the required encryption and metrics Secrets.
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
   --version 0.7.0 \
   --namespace flux-system \
-  --create-namespace \
-  --set encryption.existingSecret=gyre-encryption \
-  --set metrics.existingSecret=gyre-metrics
+  --create-namespace
 
 # Get admin password
 kubectl get secret gyre-initial-admin-secret \

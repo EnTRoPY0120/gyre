@@ -2,6 +2,8 @@ const PUBLIC_ROUTES = [
 	'/login',
 	'/api/health',
 	'/api/v1/health',
+	'/api/ready',
+	'/api/v1/ready',
 	'/api/auth/login',
 	'/api/v1/auth/login',
 	'/api/flux/health',
