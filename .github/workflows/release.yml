@@ -91,7 +91,7 @@ jobs:
           name: Release ${{ steps.tag.outputs.tag_name }}
           body_path: release_notes.md
           draft: false
-          prerelease: ${{ contains(steps.tag.outputs.tag_name, '-alpha') || contains(steps.tag.outputs.tag_name, '-beta') || contains(steps.tag.outputs.tag_name, '-rc') }}
+          prerelease: ${{ contains(steps.tag.outputs.tag_name, '-') }}
           generate_release_notes: true
 
       - name: Release Summary
