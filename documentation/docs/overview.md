@@ -40,6 +40,7 @@ kubectl create secret generic gyre-metrics -n flux-system \
 
 # Install via Helm
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
+  --version 0.7.0 \
   --namespace flux-system \
   --create-namespace \
   --set encryption.existingSecret=gyre-encryption \

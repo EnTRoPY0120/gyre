@@ -25,7 +25,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
-    tag: 0.8.0-rc.2
+    tag: 0.7.0
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -50,7 +50,7 @@ Helm is the standard way to install Gyre directly, as it provides easy configura
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.8.0-rc.2 \
+  --version 0.7.0 \
   --namespace flux-system \
   --create-namespace
 ```
@@ -71,7 +71,7 @@ Create a `values.yaml` file:
 # values.yaml
 image:
   repository: ghcr.io/entropy0120/gyre
-  tag: latest
+  tag: 0.7.0
   pullPolicy: IfNotPresent
 
 service:
@@ -108,6 +108,19 @@ helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
   --create-namespace \
   -f values.yaml
 ```
+
+## Trying out an RC release
+
+The current release candidate is `0.8.0-rc.2`. To test it with Helm, select the RC explicitly:
+
+```bash
+helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
+  --version 0.8.0-rc.2 \
+  --namespace flux-system \
+  --create-namespace
+```
+
+For FluxCD, set the `OCIRepository` `spec.ref.tag` to `0.8.0-rc.2`.
 
 ## Option 3: Local Out-of-Cluster Testing (Docker)
 
@@ -212,7 +225,7 @@ The chart preserves generated encryption and metrics Secrets across upgrades. If
 
 ```bash
 helm upgrade gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.8.0-rc.2 \
+  --version 0.7.0 \
   --namespace flux-system
 ```
 

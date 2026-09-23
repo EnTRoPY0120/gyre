@@ -36,7 +36,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
-    tag: 0.8.0-rc.2
+    tag: 0.7.0
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -57,7 +57,7 @@ The standard way to install Gyre directly via Helm:
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.8.0-rc.2 \
+  --version 0.7.0 \
   --namespace flux-system \
   --create-namespace
 ```
@@ -67,6 +67,8 @@ The chart generates the encryption and metrics Secrets on first install and reta
 :::note
 OCI Helm registries require an explicit version. Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) for the current version number.
 :::
+
+For RC installation instructions, see [Trying out an RC release](./installation#trying-out-an-rc-release).
 
 ### Option 3: Local Out-of-Cluster Testing (Docker)
 

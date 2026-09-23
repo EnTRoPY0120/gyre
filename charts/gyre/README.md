@@ -16,7 +16,7 @@ Comprehensive documentation for the Helm chart, including configuration options,
 ```bash
 # Install Gyre
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.8.0-rc.2 \
+  --version 0.7.0 \
   --namespace flux-system \
   --create-namespace
 ```
@@ -24,6 +24,17 @@ helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
 The chart generates the encryption and metrics Secrets on first install and retains them across upgrades and uninstall. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
 
 For more detailed configuration, please refer to the **[Helm Chart Reference](https://entropy0120.github.io/gyre/installation/helm-reference)**.
+
+## Trying out an RC release
+
+The current release candidate is `0.8.0-rc.2`. To test it, select the RC explicitly:
+
+```bash
+helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
+  --version 0.8.0-rc.2 \
+  --namespace flux-system \
+  --create-namespace
+```
 
 ## Support
 
