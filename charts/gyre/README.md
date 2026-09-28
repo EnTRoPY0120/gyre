@@ -16,7 +16,7 @@ Comprehensive documentation for the Helm chart, including configuration options,
 ```bash
 # Install Gyre
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.0 \
+  --version 0.7.1 \
   --namespace flux-system \
   --create-namespace
 ```

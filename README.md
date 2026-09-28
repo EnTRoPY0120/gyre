@@ -44,7 +44,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
-    tag: 0.7.0
+    tag: 0.7.1
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -65,7 +65,7 @@ The chart generates and retains the encryption and metrics Secrets automatically
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.0 \
+  --version 0.7.1 \
   --namespace flux-system \
   --create-namespace
 ```
