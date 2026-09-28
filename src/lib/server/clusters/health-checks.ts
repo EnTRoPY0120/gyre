@@ -50,7 +50,7 @@ export function checkKubeconfigParse(kubeconfig: string): {
 async function checkApiReachability(kc: k8s.KubeConfig): Promise<HealthCheckResult> {
 	const start = Date.now();
 	try {
-		const coreApi = makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.get);
+		const coreApi = await makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.get);
 		await coreApi.getAPIResources();
 		return {
 			name: 'API Server Reachability',
@@ -81,7 +81,7 @@ async function checkKubernetesVersion(
 ): Promise<{ check: HealthCheckResult; version?: string }> {
 	const versionStart = Date.now();
 	try {
-		const versionApi = makeApiClientWithTimeout(kc, k8s.VersionApi, OPERATION_TIMEOUTS.get);
+		const versionApi = await makeApiClientWithTimeout(kc, k8s.VersionApi, OPERATION_TIMEOUTS.get);
 		const version = (await versionApi.getCode()).gitVersion;
 		return {
 			check: {
@@ -111,7 +111,7 @@ async function checkAuthAndVersion(
 	const checks: HealthCheckResult[] = [];
 
 	try {
-		const coreApi = makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.list);
+		const coreApi = await makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.list);
 		await coreApi.listNamespace({ limit: 1 });
 
 		const currentUser = kc.getCurrentUser();

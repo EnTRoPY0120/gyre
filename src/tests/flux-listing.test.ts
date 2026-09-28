@@ -22,6 +22,51 @@ afterEach(() => {
 });
 
 describe('listFluxResources', () => {
+	test('returns successful empty results for every Flux resource type', async () => {
+		listClusterCustomObject.mockResolvedValue({
+			items: [],
+			metadata: { resourceVersion: 'rv-empty' }
+		});
+		const { listFluxResources } = await import('$lib/server/kubernetes/flux/listing.js');
+		const { getAllResourceTypes } = await import('$lib/server/kubernetes/flux/resources.js');
+
+		for (const resourceType of getAllResourceTypes()) {
+			const result = await listFluxResources(resourceType);
+
+			expect(result).toMatchObject({
+				items: [],
+				total: 0,
+				hasMore: false,
+				limit: 0,
+				metadata: { resourceVersion: 'rv-empty' }
+			});
+		}
+
+		expect(listClusterCustomObject).toHaveBeenCalledWith({
+			group: 'source.toolkit.fluxcd.io',
+			version: 'v1',
+			plural: 'ocirepositories'
+		});
+	});
+
+	test('returns a successful empty namespaced list', async () => {
+		listNamespacedCustomObject.mockResolvedValue({
+			items: [],
+			metadata: { resourceVersion: 'rv-empty' }
+		});
+		const { listFluxResourcesInNamespace } = await import('$lib/server/kubernetes/flux/listing.js');
+
+		const result = await listFluxResourcesInNamespace('OCIRepository', 'flux-system');
+
+		expect(result).toEqual({ items: [], metadata: { resourceVersion: 'rv-empty' } });
+		expect(listNamespacedCustomObject).toHaveBeenCalledWith({
+			group: 'source.toolkit.fluxcd.io',
+			version: 'v1',
+			namespace: 'flux-system',
+			plural: 'ocirepositories'
+		});
+	});
+
 	test('delegates the first unsorted page to Kubernetes native paging', async () => {
 		listClusterCustomObject.mockResolvedValue({
 			items: [{ metadata: { name: 'one' } }],
