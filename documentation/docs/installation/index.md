@@ -25,7 +25,7 @@ spec:
   interval: 1h
   url: oci://ghcr.io/entropy0120/charts/gyre
   ref:
-    tag: 0.7.0
+    tag: 0.7.1
 ---
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -50,7 +50,7 @@ Helm is the standard way to install Gyre directly, as it provides easy configura
 
 ```bash
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.0 \
+  --version 0.7.1 \
   --namespace flux-system \
   --create-namespace
 ```
@@ -71,7 +71,7 @@ Create a `values.yaml` file:
 # values.yaml
 image:
   repository: ghcr.io/entropy0120/gyre
-  tag: 0.7.0
+  tag: 0.7.1
   pullPolicy: IfNotPresent
 
 service:
@@ -228,7 +228,7 @@ The chart preserves generated encryption and metrics Secrets across upgrades. If
 
 ```bash
 helm upgrade gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.0 \
+  --version 0.7.1 \
   --namespace flux-system
 ```
 

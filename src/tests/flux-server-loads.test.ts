@@ -529,6 +529,35 @@ describe('migrated server loads', () => {
 		});
 	});
 
+	test('empty OCI repository lists render as an empty state without an error', async () => {
+		listResult = {
+			resourceType: 'OCIRepository',
+			result: {
+				items: [],
+				total: 0,
+				hasMore: false,
+				offset: 0,
+				limit: 0,
+				metadata: { resourceVersion: 'rv-empty' }
+			}
+		};
+		const { load } = await import('../routes/resources/[type]/+page.server.js');
+
+		const result = await load({
+			depends: () => {},
+			locals: { cluster: 'cluster-a', requestId: 'req-1', session: null, user: createUser() },
+			params: { type: 'ocirepositories' },
+			url: new URL('http://localhost/resources/ocirepositories')
+		} as Parameters<typeof load>[0]);
+
+		expect(result).toMatchObject({
+			resourceType: 'ocirepositories',
+			resources: [],
+			total: 0,
+			error: null
+		});
+	});
+
 	test('resource detail load calls the shared service and preserves 404/error semantics', async () => {
 		const { load } = await import('../routes/resources/[type]/[namespace]/[name]/+page.server.js');
 

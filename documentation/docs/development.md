@@ -207,8 +207,8 @@ pnpm --dir documentation serve
 
 ```sh
 git add -A
-git commit -m "chore: prepare v0.7.0 release"
-git tag -a v0.7.0 -m "Release v0.7.0"
+git commit -m "chore: prepare v0.7.1 release"
+git tag -a v0.7.1 -m "Release v0.7.1"
 git push origin main --tags
 ```
 

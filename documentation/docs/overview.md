@@ -29,7 +29,7 @@ Get started with Gyre in minutes:
 ```bash
 # Install via Helm. The chart generates the required encryption and metrics Secrets.
 helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.0 \
+  --version 0.7.1 \
   --namespace flux-system \
   --create-namespace
 
