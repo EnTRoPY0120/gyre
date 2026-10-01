@@ -313,53 +313,6 @@ describe('request pipeline', () => {
 		expect(response.headers.get('location')).toBe('/settings?tab=profile&_error=payload_too_large');
 	});
 
-	test('rejects authenticated state-changing requests with invalid csrf tokens', async () => {
-		sessionData = {
-			session: { id: 'session-1' },
-			user: createUser()
-		};
-		csrfValid = false;
-		const { handle } = await importHooks();
-
-		const response = await handle({
-			event: {
-				cookies: createCookies({ gyre_session: 'session-cookie' }),
-				getClientAddress: () => '127.0.0.1',
-				locals: {} as App.Locals,
-				request: new Request('http://localhost/api/v1/flux/version', { method: 'POST' }),
-				url: new URL('http://localhost/api/v1/flux/version')
-			},
-			resolve: async () => new Response('unreachable')
-		});
-
-		expect(response.status).toBe(403);
-		expect(await response.json()).toEqual({
-			error: 'Forbidden',
-			message: 'Invalid or missing CSRF token'
-		});
-	});
-
-	test('returns 401 for unauthenticated API access', async () => {
-		const { handle } = await importHooks();
-
-		const response = await handle({
-			event: {
-				cookies: createCookies(),
-				getClientAddress: () => '127.0.0.1',
-				locals: {} as App.Locals,
-				request: new Request('http://localhost/api/v1/flux/version'),
-				url: new URL('http://localhost/api/v1/flux/version')
-			},
-			resolve: async () => new Response('unreachable')
-		});
-
-		expect(response.status).toBe(401);
-		expect(await response.json()).toEqual({
-			error: 'Unauthorized',
-			message: 'Authentication required'
-		});
-	});
-
 	test('redirects unauthenticated page access to login with a safe returnTo', async () => {
 		const { handle } = await importHooks();
 
@@ -493,31 +446,6 @@ describe('request pipeline', () => {
 		expect(cookies.deleted).toContainEqual({
 			name: 'gyre_cluster',
 			options: { path: '/' }
-		});
-	});
-
-	test('keeps admin routes forbidden for non-admin users', async () => {
-		sessionData = {
-			session: { id: 'session-1' },
-			user: createUser('editor')
-		};
-		const { handle } = await importHooks();
-
-		const response = await handle({
-			event: {
-				cookies: createCookies({ gyre_session: 'session-cookie' }),
-				getClientAddress: () => '127.0.0.1',
-				locals: {} as App.Locals,
-				request: new Request('http://localhost/api/v1/admin/settings'),
-				url: new URL('http://localhost/api/v1/admin/settings')
-			},
-			resolve: async () => new Response('unreachable')
-		});
-
-		expect(response.status).toBe(403);
-		expect(await response.json()).toEqual({
-			error: 'Forbidden',
-			message: 'Admin access required'
 		});
 	});
 

@@ -1,14 +1,23 @@
 <script lang="ts">
 	import { Eye, EyeOff } from '@lucide/svelte';
+	import type { HTMLInputAttributes } from 'svelte/elements';
 
 	let {
 		id,
 		label,
-		value = $bindable('')
+		value = $bindable(''),
+		autocomplete,
+		placeholder = '••••••••',
+		required = true,
+		error
 	}: {
 		id: string;
 		label: string;
 		value: string;
+		autocomplete?: HTMLInputAttributes['autocomplete'];
+		placeholder?: string;
+		required?: boolean;
+		error?: string;
 	} = $props();
 
 	let visible = $state(false);
@@ -21,8 +30,12 @@
 			{id}
 			type={visible ? 'text' : 'password'}
 			bind:value
-			placeholder="••••••••"
-			required
+			{placeholder}
+			{autocomplete}
+			{required}
+			aria-invalid={error ? 'true' : undefined}
+			aria-describedby={error ? `${id}-error` : undefined}
+			class:field-error={error}
 		/>
 		<button
 			type="button"
@@ -37,6 +50,9 @@
 			{/if}
 		</button>
 	</div>
+	{#if error}
+		<span id="{id}-error" class="field-error-msg">{error}</span>
+	{/if}
 </div>
 
 <style>
@@ -74,6 +90,16 @@
 	.field input:focus {
 		border-color: rgba(251, 191, 36, 0.5);
 		box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.08);
+	}
+
+	.field input.field-error {
+		border-color: rgba(239, 68, 68, 0.5);
+		box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.06);
+	}
+
+	.field-error-msg {
+		font-size: 0.75rem;
+		color: #f87171;
 	}
 
 	.password-wrap {

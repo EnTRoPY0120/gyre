@@ -17,12 +17,8 @@ import { enforceGlobalRateLimit } from '$lib/server/request/rate-limit.js';
 import { enforceRequestSizeLimits } from '$lib/server/request/request-size.js';
 import { hydrateSessionLocals } from '$lib/server/request/session.js';
 
-const initializationBypassRoutes = new Set([
-	'/api/health',
-	'/api/v1/health',
-	'/api/ready',
-	'/api/v1/ready'
-]);
+const readinessRoutes = new Set(['/api/ready', '/api/v1/ready']);
+const initializationBypassRoutes = new Set(['/api/health', '/api/v1/health', ...readinessRoutes]);
 
 export const handle: Handle = async ({ event, resolve }) => {
 	const context = assignRequestContext(event);
@@ -37,6 +33,14 @@ export const handle: Handle = async ({ event, resolve }) => {
 		const rateLimitResponse = enforceGlobalRateLimit(event, isGyreInitialized());
 		if (rateLimitResponse) {
 			return finalizeResponse(event, rateLimitResponse, context);
+		}
+
+		if (
+			readinessRoutes.has(event.url.pathname) &&
+			getGyreInitializationStatus().state === 'not_started'
+		) {
+			// Start without blocking probes; initialization records and logs failures.
+			void ensureGyreInitialized().catch(() => {});
 		}
 
 		if (!bypassInitialization) {

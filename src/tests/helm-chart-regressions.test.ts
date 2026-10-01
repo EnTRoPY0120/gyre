@@ -1,145 +1,257 @@
-import { describe, expect, test } from 'vitest';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadAll } from 'js-yaml';
+import { describe, expect, test } from 'vitest';
 
 const TEST_DIR = dirname(fileURLToPath(import.meta.url));
+const CHART_DIR = resolve(TEST_DIR, '../../charts/gyre');
 
-function readRepoFile(relativePath: string): string {
-	return readFileSync(resolve(TEST_DIR, '..', relativePath), 'utf8');
+interface EnvironmentVariable {
+	name: string;
+	value?: string;
+	valueFrom?: {
+		configMapKeyRef?: { name: string; key: string };
+		secretKeyRef?: { name: string; key: string; optional?: boolean };
+	};
 }
 
-describe('helm chart regressions', () => {
-	test('clusterrole includes Flux image automation resources and read-only status rules', () => {
-		const source = readRepoFile('../charts/gyre/templates/clusterrole.yaml');
+interface RenderedManifest {
+	kind?: string;
+	metadata?: { name?: string; annotations?: Record<string, string> };
+	data?: Record<string, string>;
+	stringData?: Record<string, string>;
+	rules?: Array<{
+		apiGroups?: string[];
+		resources?: string[];
+		verbs?: string[];
+		resourceNames?: string[];
+	}>;
+	spec?: {
+		template?: {
+			spec?: { containers?: Array<{ env?: EnvironmentVariable[] }> };
+		};
+	};
+}
 
-		expect(source).toContain('apiGroups: ["image.toolkit.fluxcd.io"]');
-		expect(source).toContain('- imagerepositories');
-		expect(source).toContain('- imagepolicies');
-		expect(source).toContain('- imageupdateautomations');
-		expect(source).toContain('- imagerepositories/status');
-		expect(source).toContain('- imagepolicies/status');
-		expect(source).toContain('- imageupdateautomations/status');
-		expect(source).toContain('verbs: ["get", "list", "watch"]');
+function renderChart(overrides: string[] = []): RenderedManifest[] {
+	const args = ['template', 'gyre', CHART_DIR, '--namespace', 'gyre'];
+	for (const override of overrides) args.push('--set', override);
+
+	const output = execFileSync('helm', args, { encoding: 'utf8' });
+	return loadAll(output).filter((document): document is RenderedManifest => {
+		return document !== null && typeof document === 'object';
 	});
+}
 
-	test('role includes encryption.existingSecret alongside generated secret access', () => {
-		const source = readRepoFile('../charts/gyre/templates/role.yaml');
+function findManifest(manifests: RenderedManifest[], kind: string, name?: string) {
+	const manifest = manifests.find(
+		(candidate) =>
+			candidate.kind === kind && (name === undefined || candidate.metadata?.name === name)
+	);
+	expect(manifest, `Expected rendered ${kind}${name ? ` ${name}` : ''}`).toBeDefined();
+	return manifest!;
+}
 
-		expect(source).toContain('.Values.encryption.existingSecret');
-		expect(source).toContain('$generatedEncryptionSecretName');
-		expect(source).toContain('uniq $secretNames');
-	});
+function getContainerEnv(manifests: RenderedManifest[]): EnvironmentVariable[] {
+	const deployment = findManifest(manifests, 'Deployment', 'gyre');
+	const env = deployment.spec?.template?.spec?.containers?.[0]?.env;
+	expect(env, 'Expected rendered deployment container environment').toBeDefined();
+	return env!;
+}
 
-	test('admin secret reuses existing passwords with lookup and is no longer kept across uninstalls', () => {
-		const source = readRepoFile('../charts/gyre/templates/secret-admin.yaml');
+function readTemplate(relativePath: string): string {
+	return readFileSync(resolve(CHART_DIR, relativePath), 'utf8');
+}
 
-		expect(source).toContain('lookup "v1" "Secret" .Release.Namespace .Values.admin.secretName');
-		expect(source).toContain('b64dec');
-		expect(source).not.toContain('helm.sh/resource-policy');
-		expect(source).not.toContain('helm.sh/hook');
-	});
+function expectTemplateFailure(overrides: string[], message: string): void {
+	try {
+		renderChart(overrides);
+	} catch (error) {
+		const detail = error as Error & { stderr?: Buffer | string };
+		const output = `${detail.message}\n${detail.stderr?.toString() ?? ''}`;
+		expect(output).toContain(message);
+		return;
+	}
 
-	test('deployment uses shared provider-name sanitization and origin override support', () => {
-		const source = readRepoFile('../charts/gyre/templates/deployment.yaml');
+	throw new Error(`Expected helm template to fail with: ${message}`);
+}
 
-		expect(source).toContain('.Values.origin');
-		expect(source).toContain('.Values.gatewayApi.tls');
-		expect(source).toContain(
-			'auth.providersExistingSecret is required when auth.providers is non-empty'
+describe('Helm chart rendered regressions', () => {
+	test('default values render core configuration, Flux read access, and generated secrets', () => {
+		const manifests = renderChart();
+		const configMap = findManifest(manifests, 'ConfigMap', 'gyre-config');
+		const clusterRole = findManifest(manifests, 'ClusterRole', 'gyre');
+		const adminSecret = findManifest(manifests, 'Secret', 'gyre-initial-admin-secret');
+		const encryptionSecret = findManifest(manifests, 'Secret', 'gyre-encryption');
+		const metricsSecret = findManifest(manifests, 'Secret', 'gyre-metrics');
+		const env = getContainerEnv(manifests);
+
+		expect(configMap.data).toMatchObject({
+			BODY_SIZE_LIMIT: '500M',
+			GYRE_POLL_INTERVAL_MS: '5000'
+		});
+		expect(clusterRole.rules).toContainEqual(
+			expect.objectContaining({
+				apiGroups: ['image.toolkit.fluxcd.io'],
+				resources: expect.arrayContaining([
+					'imagerepositories/status',
+					'imagepolicies/status',
+					'imageupdateautomations/status'
+				]),
+				verbs: ['get', 'list', 'watch']
+			})
 		);
-		expect(source).toContain('contains forbidden field clientSecret');
-		expect(source).toContain('{{- $seen := dict }}');
-		expect(source).toContain('regexReplaceAll "[^A-Z0-9]" ($provider.name | upper) "_"');
-		expect(source).toContain('hasKey $seen $providerKey');
-		expect(source).toContain('index $seen $providerKey');
-		expect(source).toContain('GYRE_AUTH_PROVIDER_{{ $providerKey }}_CLIENT_SECRET');
-		expect(source).toContain('PROVIDER_{{ $providerKey }}_CLIENT_SECRET');
-		expect(source).toContain('optional: false');
-		expect(source).toContain('BACKUP_ENCRYPTION_KEY');
-		expect(source).toContain('BETTER_AUTH_SECRET');
-		expect(source).toContain('GYRE_METRICS_TOKEN');
-		expect(source).toContain(
-			'metrics.existingSecret is required unless metrics.autoGenerate is enabled'
+		expect(adminSecret.stringData?.password).toBeTruthy();
+		expect(adminSecret.metadata?.annotations?.['helm.sh/resource-policy']).toBeUndefined();
+		expect(adminSecret.metadata?.annotations?.['helm.sh/hook']).toBeUndefined();
+		expect(encryptionSecret.metadata?.annotations?.['helm.sh/resource-policy']).toBe('keep');
+		expect(encryptionSecret.data).toEqual(
+			expect.objectContaining({
+				GYRE_ENCRYPTION_KEY: expect.any(String),
+				AUTH_ENCRYPTION_KEY: expect.any(String),
+				BACKUP_ENCRYPTION_KEY: expect.any(String),
+				BETTER_AUTH_SECRET: expect.any(String)
+			})
 		);
-	});
-
-	test('encryption and metrics secrets are generated only when absent and retained', () => {
-		const encryption = readRepoFile('../charts/gyre/templates/secret-encryption.yaml');
-		const metrics = readRepoFile('../charts/gyre/templates/secret-metrics.yaml');
-
-		expect(encryption).toContain('lookup "v1" "Secret" .Release.Namespace $encryptionSecretName');
-		expect(encryption).toContain('.Values.encryption.autoGenerate');
-		expect(encryption).toContain('gyre.io/generated: "true"');
-		expect(encryption).toContain('helm.sh/resource-policy: keep');
-		expect(encryption).toContain('randAlphaNum 64 | sha256sum');
-		expect(encryption).toContain('Generated encryption Secret');
-
-		expect(metrics).toContain('lookup "v1" "Secret" .Release.Namespace $metricsSecretName');
-		expect(metrics).toContain('.Values.metrics.autoGenerate');
-		expect(metrics).toContain('gyre.io/generated: "true"');
-		expect(metrics).toContain('helm.sh/resource-policy: keep');
-		expect(metrics).toContain('GYRE_METRICS_TOKEN: {{ randAlphaNum 64 | b64enc | quote }}');
-	});
-
-	test('values and templates include deployability defaults for service account and body size limit', () => {
-		const values = readRepoFile('../charts/gyre/values.yaml');
-		const configMap = readRepoFile('../charts/gyre/templates/configmap.yaml');
-		const deployment = readRepoFile('../charts/gyre/templates/deployment.yaml');
-
-		expect(values).toContain('automount: true');
-		expect(values).toContain('bodySizeLimit: 500M');
-		expect(configMap).toContain('BODY_SIZE_LIMIT: {{ .Values.config.bodySizeLimit | quote }}');
-		expect(deployment).toContain('- name: BODY_SIZE_LIMIT');
-		expect(deployment).toContain('key: BODY_SIZE_LIMIT');
-		expect(deployment).toContain('$reservedAdditionalConfig');
-		expect(deployment).toContain('config.additionalConfig.%s is reserved');
-		expect(deployment).toContain('^GYRE_AUTH_PROVIDER_.*_CLIENT_SECRET$');
-		expect(deployment).toContain('"BETTER_AUTH_SECRET"');
-	});
-
-	test('values schema includes origin, gatewayApi.tls, and networkPolicy.egress.apiServer', () => {
-		const schema = JSON.parse(readRepoFile('../charts/gyre/values.schema.json'));
-
-		expect(schema.properties.origin.anyOf).toBeDefined();
-		expect(schema.properties.origin.anyOf[0].const).toBe('');
-		expect(schema.properties.origin.anyOf[1].pattern).toBe('^https?://\\S+$');
-		expect(schema.properties.gatewayApi.properties.tls.type).toBe('boolean');
-		expect(schema.properties.networkPolicy.properties.egress.properties.apiServer).toBeDefined();
+		expect(metricsSecret.metadata?.annotations?.['helm.sh/resource-policy']).toBe('keep');
+		expect(metricsSecret.data?.GYRE_METRICS_TOKEN).toBeTruthy();
 		expect(
-			schema.properties.networkPolicy.properties.egress.properties.apiServer.properties.ipBlocks
-				.items.type
-		).toBe('string');
+			env.find((entry) => entry.name === 'GYRE_ENCRYPTION_KEY')?.valueFrom?.secretKeyRef
+		).toEqual({ name: 'gyre-encryption', key: 'GYRE_ENCRYPTION_KEY', optional: false });
 		expect(
-			schema.properties.networkPolicy.properties.egress.properties.apiServer.properties.ports.items
-				.type
-		).toBe('integer');
-		expect(schema.properties.config.properties.bodySizeLimit.type).toBe('string');
-		expect(schema.properties.config.properties.bodySizeLimit.pattern).toBe(
-			'^(?:[0-9]+(?:[KMG])?|Infinity)$'
-		);
-		expect(schema.properties.encryption.properties.backupKey.type).toBe('string');
-		expect(schema.properties.encryption.properties.betterAuthSecret.type).toBe('string');
-		expect(schema.properties.encryption.properties.autoGenerate.type).toBe('boolean');
-		expect(schema.properties.encryption.then.properties.backupKey.pattern).toBe(
-			'^[0-9a-fA-F]{64}$'
-		);
-		expect(schema.properties.encryption.then.properties.betterAuthSecret.minLength).toBe(32);
-		expect(schema.properties.encryption.then.required).toContain('betterAuthSecret');
-		expect(schema.properties.auth.properties.providers.items.additionalProperties).toBe(false);
-		expect(schema.properties.auth.then.required).toContain('providersExistingSecret');
-		expect(schema.properties.metrics.properties.existingSecret.type).toBe('string');
-		expect(schema.properties.metrics.properties.autoGenerate.type).toBe('boolean');
-		expect(
-			schema.properties.auth.properties.providers.items.properties.clientSecret
-		).toBeUndefined();
+			env.find((entry) => entry.name === 'GYRE_METRICS_TOKEN')?.valueFrom?.secretKeyRef
+		).toEqual({ name: 'gyre-metrics', key: 'GYRE_METRICS_TOKEN', optional: false });
 	});
 
-	test('inline encryption secret template includes BACKUP_ENCRYPTION_KEY and BETTER_AUTH_SECRET', () => {
-		const source = readRepoFile('../charts/gyre/templates/secret-encryption.yaml');
-		expect(source).toContain('BACKUP_ENCRYPTION_KEY');
-		expect(source).toContain('.Values.encryption.backupKey');
-		expect(source).toContain('BETTER_AUTH_SECRET');
-		expect(source).toContain('.Values.encryption.betterAuthSecret');
+	test('external secrets and custom admin secret names are wired into rendered resources', () => {
+		const manifests = renderChart([
+			'encryption.existingSecret=external-encryption',
+			'encryption.autoGenerate=false',
+			'metrics.existingSecret=external-metrics',
+			'metrics.autoGenerate=false',
+			'admin.secretName=custom-admin-secret'
+		]);
+		const role = findManifest(manifests, 'Role', 'gyre-secrets');
+		const env = getContainerEnv(manifests);
+
+		expect(env.find((entry) => entry.name === 'GYRE_ADMIN_SECRET_NAME')?.value).toBe(
+			'custom-admin-secret'
+		);
+		expect(
+			findManifest(manifests, 'Secret', 'custom-admin-secret').stringData?.password
+		).toBeTruthy();
+		expect(
+			manifests.some(
+				(manifest) =>
+					manifest.kind === 'Secret' &&
+					['external-encryption', 'external-metrics'].includes(manifest.metadata?.name ?? '')
+			)
+		).toBe(false);
+		expect(role.rules?.flatMap((rule) => rule.resourceNames ?? [])).toEqual(
+			expect.arrayContaining(['custom-admin-secret', 'gyre-encryption', 'external-encryption'])
+		);
+		expect(
+			env.find((entry) => entry.name === 'GYRE_ENCRYPTION_KEY')?.valueFrom?.secretKeyRef?.name
+		).toBe('external-encryption');
+		expect(
+			env.find((entry) => entry.name === 'GYRE_METRICS_TOKEN')?.valueFrom?.secretKeyRef?.name
+		).toBe('external-metrics');
+	});
+
+	test('config.create=false omits the ConfigMap and its environment references', () => {
+		const manifests = renderChart(['config.create=false', 'admin.secretName=custom-admin-secret']);
+		const env = getContainerEnv(manifests);
+
+		expect(env.find((entry) => entry.name === 'GYRE_ADMIN_SECRET_NAME')?.value).toBe(
+			'custom-admin-secret'
+		);
+		expect(manifests.some((manifest) => manifest.kind === 'ConfigMap')).toBe(false);
+		expect(env.some((entry) => entry.valueFrom?.configMapKeyRef !== undefined)).toBe(false);
+	});
+
+	test.each([
+		[
+			['config.additionalConfig.GYRE_ADMIN_SECRET_NAME=shadow-admin'],
+			'GYRE_ADMIN_SECRET_NAME is reserved'
+		],
+		[
+			['config.additionalConfig.BETTER_AUTH_SECRET=shadow-secret'],
+			'BETTER_AUTH_SECRET is reserved'
+		],
+		[['config.additionalConfig.GYRE_AUTH_PROVIDER_SSO_CLIENT_SECRET=secret'], 'is reserved'],
+		[['encryption.allowInline=true', 'encryption.gyreKey=invalid'], 'encryption'],
+		[
+			['metrics.existingSecret=', 'metrics.autoGenerate=false'],
+			'metrics.existingSecret is required'
+		],
+		[
+			[
+				'auth.providers[0].name=sso',
+				'auth.providers[0].type=oidc',
+				'auth.providers[0].clientId=client'
+			],
+			'providersExistingSecret'
+		],
+		[
+			[
+				'auth.providersExistingSecret=oauth',
+				'auth.providers[0].name=sso',
+				'auth.providers[0].type=oidc',
+				'auth.providers[0].clientId=client',
+				'auth.providers[0].clientSecret=inline-secret'
+			],
+			'clientSecret'
+		],
+		[
+			[
+				'auth.providersExistingSecret=oauth',
+				'auth.providers[0].name=enterprise-sso',
+				'auth.providers[0].type=oidc',
+				'auth.providers[0].clientId=client',
+				'auth.providers[1].name=enterprise.sso',
+				'auth.providers[1].type=oidc',
+				'auth.providers[1].clientId=client'
+			],
+			'collides'
+		]
+	] as const)('rejects unsafe chart configuration %j', (overrides, message) => {
+		expectTemplateFailure([...overrides], message);
+	});
+
+	test('provider credentials come from sanitized Secret keys and preserve the configured origin', () => {
+		const env = getContainerEnv(
+			renderChart([
+				'origin=https://gyre.example.com',
+				'auth.providersExistingSecret=oauth',
+				'auth.providers[0].name=enterprise-sso',
+				'auth.providers[0].type=oidc',
+				'auth.providers[0].clientId=client'
+			])
+		);
+		expect(env.find((entry) => entry.name === 'ORIGIN')?.value).toBe('https://gyre.example.com');
+		expect(
+			env.find((entry) => entry.name === 'GYRE_AUTH_PROVIDER_ENTERPRISE_SSO_CLIENT_SECRET')
+				?.valueFrom?.secretKeyRef
+		).toEqual({
+			name: 'oauth',
+			key: 'PROVIDER_ENTERPRISE_SSO_CLIENT_SECRET',
+			optional: false
+		});
+		const providers = JSON.parse(env.find((entry) => entry.name === 'GYRE_AUTH_PROVIDERS')!.value!);
+		expect(providers).toEqual([{ name: 'enterprise-sso', type: 'oidc', clientId: 'client' }]);
+	});
+
+	test('generated Secret templates look up existing Secret names before rendering replacements', () => {
+		expect(readTemplate('templates/secret-admin.yaml')).toContain(
+			'lookup "v1" "Secret" .Release.Namespace .Values.admin.secretName'
+		);
+		expect(readTemplate('templates/secret-encryption.yaml')).toContain(
+			'lookup "v1" "Secret" .Release.Namespace $encryptionSecretName'
+		);
+		expect(readTemplate('templates/secret-metrics.yaml')).toContain(
+			'lookup "v1" "Secret" .Release.Namespace $metricsSecretName'
+		);
 	});
 });

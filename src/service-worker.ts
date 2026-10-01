@@ -1,94 +1,52 @@
 /// <reference types="@sveltejs/kit" />
 /// <reference lib="webworker" />
-import { build, files, version } from '$service-worker';
 
-const CACHE = `cache-${version}`;
+// Keep this retirement worker at the existing URL so installed versions can
+// update. New clients use ordinary HTTP caching and do not register a worker.
+const worker = self as unknown as ServiceWorkerGlobalScope;
 
-const ASSETS = [
-	...build, // the app itself
-	...files // everything in `static`
-];
+async function isLegacyGyreCache(cache: Cache): Promise<boolean> {
+	const manifestUrl = new URL('manifest.json', worker.registration.scope);
+	const response = await cache.match(manifestUrl.href);
+	if (!response) return false;
 
-self.addEventListener('install', (event) => {
-	const extendableEvent = event as ExtendableEvent;
-	// Create a new cache and add all files to it
-	async function addFilesToCache() {
-		const cache = await caches.open(CACHE);
-		await cache.addAll(ASSETS);
-	}
+	const manifest = await response.json();
+	if (manifest.name !== 'Gyre - FluxCD Dashboard' || manifest.short_name !== 'Gyre') return false;
 
-	extendableEvent.waitUntil(addFilesToCache());
-});
+	const assetPrefix = new URL('_app/', worker.registration.scope);
+	return (await cache.keys()).some((request) => {
+		const url = new URL(request.url);
+		return url.origin === assetPrefix.origin && url.pathname.startsWith(assetPrefix.pathname);
+	});
+}
 
-self.addEventListener('activate', (event) => {
-	const extendableEvent = event as ExtendableEvent;
-	// Remove previous cached data from disk
-	async function deleteOldCaches() {
-		for (const key of await caches.keys()) {
-			if (key !== CACHE) await caches.delete(key);
+async function clearLegacyGyreCaches(): Promise<void> {
+	// Old cache names were generic. Identify their contents before deleting;
+	// unrelated caches on the same origin must survive this upgrade.
+	for (const name of await caches.keys()) {
+		if (!name.startsWith('cache-')) continue;
+		try {
+			if (await isLegacyGyreCache(await caches.open(name))) await caches.delete(name);
+		} catch {
+			// An unreadable or malformed cache is not sufficient proof of ownership.
 		}
 	}
+}
 
-	extendableEvent.waitUntil(deleteOldCaches());
+worker.addEventListener('install', (event) => {
+	event.waitUntil(worker.skipWaiting());
 });
 
-function isStaticAsset(pathname: string): boolean {
-	return (
-		!pathname.startsWith('/api/') &&
-		(ASSETS.includes(pathname) ||
-			pathname.startsWith('/_app/') ||
-			/\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/.test(pathname))
+worker.addEventListener('activate', (event) => {
+	event.waitUntil(
+		(async () => {
+			await worker.clients.claim();
+			try {
+				await clearLegacyGyreCaches();
+			} catch {
+				// Storage failures must not prevent retirement of request interception.
+			}
+			await worker.registration.unregister();
+		})()
 	);
-}
-
-async function getCachedAsset(cache: Cache, pathname: string): Promise<Response | undefined> {
-	if (!ASSETS.includes(pathname)) return undefined;
-	return cache.match(pathname);
-}
-
-async function fetchAndCache(
-	request: Request,
-	cache: Cache,
-	event: FetchEvent,
-	pathname: string
-): Promise<Response> {
-	const response = await fetch(request);
-
-	// if we're offline, fetch can return a value that looks like it's 'ok' but has status 0.
-	// that's not a real response, so throwback to the catch
-	if (!(response instanceof Response)) {
-		throw new Error('invalid response from fetch');
-	}
-
-	if (response.status === 200 && isStaticAsset(pathname)) {
-		event.waitUntil(cache.put(request, response.clone()));
-	}
-
-	return response;
-}
-
-async function respond(event: FetchEvent): Promise<Response> {
-	const url = new URL(event.request.url);
-	const cache = await caches.open(CACHE);
-	const cachedAsset = await getCachedAsset(cache, url.pathname);
-
-	if (cachedAsset) return cachedAsset;
-
-	try {
-		return await fetchAndCache(event.request, cache, event, url.pathname);
-	} catch (error) {
-		const cachedResponse = await cache.match(event.request);
-
-		if (cachedResponse) return cachedResponse;
-
-		// if there's no cache, then it's a real error
-		throw error;
-	}
-}
-
-self.addEventListener('fetch', (event) => {
-	const fetchEvent = event as FetchEvent;
-	// ignore POST requests etc
-	if (fetchEvent.request.method !== 'GET') return;
-	fetchEvent.respondWith(respond(fetchEvent));
 });

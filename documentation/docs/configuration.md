@@ -98,17 +98,18 @@ The referenced secret must provide:
 
 ### Core Runtime Variables
 
-| Variable                | Description                                   | Default / Notes                                                          |
-| ----------------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
-| `DATABASE_URL`          | SQLite database path                          | `/data/gyre.db` in-cluster, `./data/gyre.db` local fallback              |
-| `GYRE_ENCRYPTION_KEY`   | Encryption key for stored kubeconfigs         | 64-char hex (32 bytes), required in production                           |
-| `AUTH_ENCRYPTION_KEY`   | Encryption key for auth/OAuth secrets         | 64-char hex (32 bytes), required in production                           |
-| `BETTER_AUTH_URL`       | Public app origin used for auth callback URLs | `http://localhost:5173` in `.env.example`                                |
-| `BETTER_AUTH_SECRET`    | Better Auth session signing secret            | Required in production; must be distinct from encryption keys            |
-| `ADMIN_PASSWORD`        | Optional initial admin password               | If unset, Gyre auto-generates; weak values fail in production/in-cluster |
-| `BACKUP_ENCRYPTION_KEY` | Backup-file encryption key                    | 64-char hex; required in production, optional in development             |
-| `NODE_ENV`              | Runtime mode                                  | `development` / `production`                                             |
-| `BODY_SIZE_LIMIT`       | Adapter-level max request body size           | Set to `>= 500M` for kubeconfig/backup uploads                           |
+| Variable                 | Description                                   | Default / Notes                                                          |
+| ------------------------ | --------------------------------------------- | ------------------------------------------------------------------------ |
+| `DATABASE_URL`           | SQLite database path                          | `/data/gyre.db` in-cluster, `./data/gyre.db` local fallback              |
+| `GYRE_ENCRYPTION_KEY`    | Encryption key for stored kubeconfigs         | 64-char hex (32 bytes), required in production                           |
+| `AUTH_ENCRYPTION_KEY`    | Encryption key for auth/OAuth secrets         | 64-char hex (32 bytes), required in production                           |
+| `BETTER_AUTH_URL`        | Public app origin used for auth callback URLs | `http://localhost:5173` in `.env.example`                                |
+| `BETTER_AUTH_SECRET`     | Better Auth session signing secret            | Required in production; must be distinct from encryption keys            |
+| `ADMIN_PASSWORD`         | Optional initial admin password               | If unset, Gyre auto-generates; weak values fail in production/in-cluster |
+| `GYRE_ADMIN_SECRET_NAME` | In-cluster admin password Secret name         | `gyre-initial-admin-secret`; set by Helm from `admin.secretName`         |
+| `BACKUP_ENCRYPTION_KEY`  | Backup-file encryption key                    | 64-char hex; required in production, optional in development             |
+| `NODE_ENV`               | Runtime mode                                  | `development` / `production`                                             |
+| `BODY_SIZE_LIMIT`        | Adapter-level max request body size           | Set to `>= 500M` for kubeconfig/backup uploads                           |
 
 ### Tunable Constants
 
@@ -119,7 +120,6 @@ The referenced secret must provide:
 | `GYRE_DASHBOARD_CACHE_TTL_MS`          | Dashboard cache TTL                            | `30000`                                         |
 | `GYRE_ADMIN_READINESS_CACHE_TTL_MS`    | Admin-readiness dependency cache TTL           | `10000`                                         |
 | `GYRE_SETTLING_PERIOD_MS`              | Settling period for ADDED events               | `30000`                                         |
-| `GYRE_SETTINGS_CACHE_TTL_MS`           | Settings cache TTL                             | `30000`                                         |
 | `GYRE_MAX_LOCAL_BACKUPS`               | Max local backups retained                     | `10`                                            |
 | `GYRE_METRICS_TOKEN`                   | Bearer token for `/metrics`                    | Required in production; optional in development |
 | `GYRE_SSE_MAX_CONNECTIONS_PER_SESSION` | Max SSE connections per session                | `3`                                             |
@@ -148,6 +148,7 @@ Helm values map directly to runtime env vars:
 | `config.dashboardCacheTtlMs` | `GYRE_DASHBOARD_CACHE_TTL_MS`   |
 | `config.settlingPeriodMs`    | `GYRE_SETTLING_PERIOD_MS`       |
 | `config.bodySizeLimit`       | `BODY_SIZE_LIMIT`               |
+| `admin.secretName`           | `GYRE_ADMIN_SECRET_NAME`        |
 | `auth.localLoginEnabled`     | `GYRE_AUTH_LOCAL_LOGIN_ENABLED` |
 | `auth.allowSignup`           | `GYRE_AUTH_ALLOW_SIGNUP`        |
 | `auth.domainAllowlist`       | `GYRE_AUTH_DOMAIN_ALLOWLIST`    |

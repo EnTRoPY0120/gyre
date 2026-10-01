@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types';
 import { redirect, error } from '@sveltejs/kit';
 import { GYRE_VERSION } from '$lib/config/version';
 import { hasManagedPassword } from '$lib/server/auth';
+import { ADMIN_SECRET_NAME } from '$lib/server/auth/constants.js';
 
 /**
  * Load function for change password page
@@ -30,8 +31,7 @@ export const load: PageServerLoad = async ({ url, locals }) => {
 	// admin out on next login. Password rotation must be done via the K8s secret.
 	if (!(await hasManagedPassword(locals.user.id))) {
 		throw error(403, {
-			message:
-				'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
+			message: `The in-cluster admin password is managed via the Kubernetes secret "${ADMIN_SECRET_NAME}". Update the secret to rotate the password.`
 		});
 	}
 

@@ -42,14 +42,29 @@
 {/if}
 
 <form onsubmit={submit} class="local-form">
-	<PasswordInput id="currentPassword" label="Current Password" bind:value={currentPassword} />
+	<PasswordInput
+		id="currentPassword"
+		label="Current Password"
+		bind:value={currentPassword}
+		autocomplete="current-password"
+	/>
 
 	<div class="field">
-		<PasswordInput id="newPassword" label="New Password" bind:value={newPassword} />
+		<PasswordInput
+			id="newPassword"
+			label="New Password"
+			bind:value={newPassword}
+			autocomplete="new-password"
+		/>
 		<PasswordStrength password={newPassword} />
 	</div>
 
-	<PasswordInput id="confirmPassword" label="Confirm New Password" bind:value={confirmPassword} />
+	<PasswordInput
+		id="confirmPassword"
+		label="Confirm New Password"
+		bind:value={confirmPassword}
+		autocomplete="new-password"
+	/>
 
 	<button type="submit" disabled={loading} class="submit-btn">
 		{#if loading}

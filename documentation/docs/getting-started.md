@@ -4,181 +4,27 @@ sidebar_position: 2
 
 # Getting Started
 
-This guide will help you get Gyre up and running in your Kubernetes cluster.
+Gyre is a web interface for Flux resources in Kubernetes. Production installs run in-cluster through Helm or Flux; local mode is intended for development and testing.
 
-Production installs are Helm/GitOps-first and in-cluster. Local out-of-cluster usage is for development/testing.
+## Install
 
-## Prerequisites
+Follow the [Installation guide](/installation) for Helm and GitOps setup, supported local workflows, and production access. The chart creates and retains encryption and metrics Secrets by default. For production, use externally managed Secrets when your deployment process requires them.
 
-Before you begin, ensure you have:
+## First login
 
-- Kubernetes cluster (1.24+)
-- Helm 3.x installed
-- FluxCD installed in your cluster
-- kubectl configured to access your cluster
+After the Gyre pod is ready, read the initial admin password from the configured Secret. The default name is `gyre-initial-admin-secret`; if you configured another name in Helm, set `GYRE_ADMIN_SECRET_NAME` in your shell to that same value before running the command.
 
-## Installation
-
-Gyre can be installed in several ways depending on your workflow.
-
-### Option 1: GitOps (Using FluxCD)
-
-The most natural way to install Gyre is by using Flux itself. Add this `HelmRelease` to your GitOps repository:
-
-```yaml
----
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: OCIRepository
-metadata:
-  name: gyre
-  namespace: flux-system
-spec:
-  interval: 1h
-  url: oci://ghcr.io/entropy0120/charts/gyre
-  ref:
-    tag: 0.7.1
----
-apiVersion: helm.toolkit.fluxcd.io/v2
-kind: HelmRelease
-metadata:
-  name: gyre
-  namespace: flux-system
-spec:
-  interval: 1h
-  chartRef:
-    kind: OCIRepository
-    name: gyre
-    namespace: flux-system
-```
-
-The chart generates and retains the encryption and metrics Secrets automatically. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
-
-### Option 2: Helm
-
-The standard way to install Gyre directly via Helm:
-
-```bash
-helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.1 \
-  --namespace flux-system \
-  --create-namespace
-```
-
-The chart generates and retains the encryption and metrics Secrets automatically. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
-
-:::note
-OCI Helm registries require an explicit version. Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) for the current version number.
-:::
-
-### Option 3: Local Out-of-Cluster Testing (Docker)
-
-If you want to try the UI without installing it inside your cluster, you can run it locally connected to your `kubeconfig`. Make sure your current Kubernetes context points to a cluster with Flux installed.
-
-```bash
-# Run once per environment. Keep this file for future container recreations.
-if [ ! -f .env.gyre ]; then
-    (umask 077; {
-        echo "AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32)"
-        echo "GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32)"
-        echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)"
-        echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)"
-        echo "GYRE_METRICS_TOKEN=$(openssl rand -hex 32)"
-    } > .env.gyre)
-fi
-```
-
-The container runs as UID 1001. To let it read a standard mode-0600 kubeconfig without changing the original file's permissions, use this command to mount a flattened temporary copy from a private directory:
-
-```bash
-(
-    set -e
-    kubeconfig_dir="$(mktemp -d)"
-    chmod 700 "$kubeconfig_dir"
-    cleanup_kubeconfig() {
-        rm -f "$kubeconfig_dir/config"
-        rmdir "$kubeconfig_dir"
-    }
-    trap cleanup_kubeconfig EXIT
-    kubectl config view --raw --flatten > "$kubeconfig_dir/config"
-    chmod 644 "$kubeconfig_dir/config"
-    docker run --rm \
-        --env-file .env.gyre \
-        -v gyre-data:/data \
-        -v "$kubeconfig_dir/config:/app/.kube/config:ro" \
-        -p 3000:3000 \
-        ghcr.io/entropy0120/gyre:latest
-)
-```
-
-:::tip
-Make sure the API server address in the kubeconfig is reachable from Docker. The temporary kubeconfig copy stays in a host-private directory, is mounted read-only, and is removed when the container exits. The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. Store `.env.gyre` securely and back it up with the `gyre-data` volume. Reuse it whenever you recreate the container; rotate data-encryption keys only with a migration plan to avoid making existing data unreadable.
-:::
-
-### Option 4: Local Demo Script
-
-Don't have a cluster yet? Spin up a local `kind` cluster with Flux and Gyre pre-installed using our demo script (it creates required Helm secrets automatically):
-
-```bash
-curl -sL https://raw.githubusercontent.com/entropy0120/gyre/main/scripts/demo.sh | bash
-```
-
-If you are developing from a local checkout, prefer:
-
-```bash
-./scripts/demo.sh
-```
-
-## Accessing Gyre
-
-### Port Forward (Development)
-
-```bash
+```sh
+kubectl get secret "${GYRE_ADMIN_SECRET_NAME:-gyre-initial-admin-secret}" -n flux-system \
+  -o jsonpath='{.data.password}' | base64 -d && echo
 kubectl port-forward -n flux-system svc/gyre 3000:80
 ```
 
-Then open http://localhost:3000
+Open http://localhost:3000 and sign in as `admin`. In-cluster admin passwords stay managed by the Kubernetes Secret; rotate one through the [troubleshooting steps](/troubleshooting#cannot-login). Local accounts can change their password from the account menu after signing in.
 
-### Production Access (Ingress / LoadBalancer)
-
-For production deployments, you should use an Ingress Controller or a LoadBalancer service. See the [Production Access & Ingress Guide](/installation/production-access) for detailed configuration examples for Nginx, Traefik, and more.
-
-## First Login
-
-1. Get the initial admin password:
-
-   ```bash
-   kubectl get secret gyre-initial-admin-secret \
-     -n flux-system \
-     -o jsonpath='{.data.password}' | base64 -d
-   ```
-
-2. Open Gyre in your browser
-3. Login with:
-   - **Username**: admin
-   - **Password**: (from step 1)
-
-4. Change the password immediately after first login
-
-## Next Steps
+## Next steps
 
 - [Configure Gyre](/configuration)
 - [Explore features](/features)
-- [Read the architecture guide](/architecture)
-
-## Troubleshooting
-
-If you encounter issues:
-
-1. Check pod status:
-
-   ```bash
-   kubectl get pods -n flux-system -l app.kubernetes.io/name=gyre
-   ```
-
-2. View logs:
-
-   ```bash
-   kubectl logs -n flux-system -l app.kubernetes.io/name=gyre
-   ```
-
-3. Check our [Troubleshooting guide](/troubleshooting)
+- [Create a Flux resource](/user-guide/resource-wizard)
+- [Troubleshoot an installation](/troubleshooting)

@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { User } from '../lib/server/db/schema.js';
 import { isPublicRoute } from '../lib/isPublicRoute.js';
+import { enforceAuthenticationGate } from '../lib/server/request/access.js';
+import { enforceCsrfProtection } from '../lib/server/request/csrf.js';
 import * as actualConfig from '../lib/server/config.js';
 import * as actualConstants from '../lib/server/config/constants.js';
 import * as actualMetrics from '../lib/server/metrics.js';
@@ -120,6 +122,56 @@ describe('hooks public auth route detection', () => {
 	test('does not treat other dynamic auth routes as public', () => {
 		expect(isPublicRoute('/api/v1/auth/enterprise-sso/logout')).toBe(false);
 		expect(isPublicRoute('/api/v1/auth/enterprise-sso/login/extra')).toBe(false);
+	});
+
+	test('does not treat API resource names ending in static extensions as public', () => {
+		expect(isPublicRoute('/api/v1/flux/gitrepositories/default/app.js')).toBe(false);
+		expect(isPublicRoute('/api/v1/flux/gitrepositories/default/app.js/extra')).toBe(false);
+		expect(isPublicRoute('/images/app.js')).toBe(true);
+		expect(isPublicRoute('/service-worker.js')).toBe(true);
+	});
+
+	test('API paths ending in asset extensions still require authentication and CSRF', async () => {
+		const url = new URL('http://localhost/api/v1/flux/gitrepositories/default/app.js');
+		const unauthenticated = enforceAuthenticationGate({
+			locals: { user: null } as App.Locals,
+			url
+		});
+		expect(unauthenticated?.status).toBe(401);
+
+		const csrfResponse = await enforceCsrfProtection({
+			locals: { session: { id: 'session-1' } } as App.Locals,
+			request: new Request(url, { method: 'POST' }),
+			url
+		});
+		expect(csrfResponse?.status).toBe(403);
+	});
+
+	test('API paths ending in asset extensions are included in global rate limiting', async () => {
+		const tryCheckRateLimit = vi.fn(() => ({
+			limited: true,
+			remaining: 0,
+			resetAt: Date.now(),
+			retryAfter: 30
+		}));
+		vi.doMock('$lib/server/rate-limiter.js', () => ({ tryCheckRateLimit }));
+		vi.doMock('$lib/server/rate-limiter', () => ({ tryCheckRateLimit }));
+
+		const { importFresh } = await import('./helpers/import-fresh');
+		const { enforceGlobalRateLimit } = await importFresh<
+			typeof import('../lib/server/request/rate-limit.js')
+		>('../lib/server/request/rate-limit.js?static-suffix');
+
+		const response = enforceGlobalRateLimit(
+			{
+				getClientAddress: () => '127.0.0.1',
+				url: new URL('http://localhost/api/v1/flux/gitrepositories/default/app.js')
+			},
+			true
+		);
+
+		expect(response?.status).toBe(429);
+		expect(tryCheckRateLimit).toHaveBeenCalledOnce();
 	});
 
 	test('requires exact matches for non-prefix public routes', () => {

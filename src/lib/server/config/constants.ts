@@ -62,11 +62,6 @@ export const MAX_LOCAL_BACKUPS = parseEnvInt('GYRE_MAX_LOCAL_BACKUPS', 10, { min
 // Caching
 // ---------------------------------------------------------------------------
 
-/** TTL for the in-memory settings cache (ms). env: GYRE_SETTINGS_CACHE_TTL_MS */
-export const SETTINGS_CACHE_TTL_MS = parseEnvInt('GYRE_SETTINGS_CACHE_TTL_MS', 30_000, {
-	min: 1_000
-});
-
 /** TTL for the dashboard resource-count cache (ms). env: GYRE_DASHBOARD_CACHE_TTL_MS */
 export const DASHBOARD_CACHE_TTL_MS = parseEnvInt('GYRE_DASHBOARD_CACHE_TTL_MS', 30_000, {
 	min: 1_000

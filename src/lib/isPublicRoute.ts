@@ -10,6 +10,7 @@ const PUBLIC_ROUTES = [
 	'/api/v1/flux/health',
 	'/metrics',
 	'/manifest.json',
+	'/robots.txt',
 	'/favicon.ico',
 	'/logo.svg'
 ];
@@ -18,8 +19,14 @@ export const STATIC_PATTERNS = [
 	/^\/_app\//,
 	/^\/fonts\//,
 	/^\/images\//,
-	/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/
+	/^\/(?:favicon\.svg|social-preview\.(?:svg|png)|manifest\.json|robots\.txt|service-worker\.js|favicon\.ico|logo\.svg)$/
 ];
+
+export function isStaticAssetPath(path: string): boolean {
+	// API resource names may contain dots (including extensions such as .js).
+	// Never classify an API path as a public static asset.
+	return !path.startsWith('/api/') && STATIC_PATTERNS.some((pattern) => pattern.test(path));
+}
 
 const PUBLIC_OAUTH_ROUTE_PATTERN = /^\/api(?:\/v1)?\/auth\/[^/]+\/(?:login|callback)\/?$/;
 
@@ -41,7 +48,7 @@ export function isPublicRoute(path: string): boolean {
 		return true;
 	}
 
-	if (STATIC_PATTERNS.some((pattern) => pattern.test(path))) {
+	if (isStaticAssetPath(path)) {
 		return true;
 	}
 

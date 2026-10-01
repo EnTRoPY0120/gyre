@@ -3,7 +3,6 @@ import {
 	generateStrongPassword,
 	hashPassword,
 	verifyPassword,
-	generateSessionId,
 	generateUserId
 } from '../lib/server/auth';
 
@@ -58,29 +57,6 @@ describe('Password Hashing', () => {
 		const hash = await hashPassword(password);
 		const result = await verifyPassword(password, hash);
 		expect(result).toBe(true);
-	});
-});
-
-describe('Session ID Generation', () => {
-	test('generates a 64 character hex string (32 bytes of randomness)', () => {
-		const sessionId = generateSessionId();
-		expect(sessionId).toHaveLength(64);
-		expect(sessionId).toMatch(/^[0-9a-f]{64}$/);
-	});
-
-	test('generates unique session IDs', () => {
-		const ids = new Set<string>();
-		for (let i = 0; i < 100; i++) {
-			ids.add(generateSessionId());
-		}
-		expect(ids.size).toBe(100);
-	});
-
-	test('session ID has sufficient entropy (32 bytes = 256 bits)', () => {
-		const sessionId = generateSessionId();
-		// 32 bytes = 64 hex chars
-		const byteLength = sessionId.length / 2;
-		expect(byteLength).toBe(32);
 	});
 });
 

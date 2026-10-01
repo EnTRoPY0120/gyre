@@ -1,5 +1,5 @@
 import { tryCheckRateLimit } from '$lib/server/rate-limiter.js';
-import { STATIC_PATTERNS } from '$lib/isPublicRoute.js';
+import { isStaticAssetPath } from '$lib/isPublicRoute.js';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export function enforceGlobalRateLimit(
@@ -7,7 +7,7 @@ export function enforceGlobalRateLimit(
 	initialized: boolean
 ): Response | null {
 	const path = event.url.pathname;
-	const isStaticAsset = STATIC_PATTERNS.some((pattern) => pattern.test(path));
+	const isStaticAsset = isStaticAssetPath(path);
 	const isHealthEndpoint =
 		path === '/api/health' ||
 		path === '/api/v1/health' ||

@@ -15,8 +15,8 @@ const state: {
 } = { db: null, sqlite: null };
 let cleanupExpiredSessions: AuthModule['cleanupExpiredSessions'];
 let deleteUserSessions: AuthModule['deleteUserSessions'];
-let generateSessionId: AuthModule['generateSessionId'];
 let generateUserId: AuthModule['generateUserId'];
+let nextSessionId = 0;
 
 const CREATE_USERS_TABLE = `
 	CREATE TABLE IF NOT EXISTS users (
@@ -74,7 +74,12 @@ async function insertUser(db: TestDb, overrides: Partial<typeof users.$inferInse
 	return id;
 }
 
-function insertSession(db: TestDb, userId: string, expiresAt: Date, id = generateSessionId()) {
+function insertSession(
+	db: TestDb,
+	userId: string,
+	expiresAt: Date,
+	id = `fixture-session-${++nextSessionId}`
+) {
 	db.insert(sessions)
 		.values({
 			id,
@@ -91,6 +96,7 @@ function daysFromNow(days: number) {
 }
 
 beforeEach(async () => {
+	nextSessionId = 0;
 	state.db = setupInMemoryDb();
 	vi.doMock('../lib/server/db/index.js', () => ({
 		getDb: async () => state.db,
@@ -108,7 +114,6 @@ beforeEach(async () => {
 	const authModule = await importFresh<AuthModule>('../lib/server/auth.js?sut');
 	cleanupExpiredSessions = authModule.cleanupExpiredSessions;
 	deleteUserSessions = authModule.deleteUserSessions;
-	generateSessionId = authModule.generateSessionId;
 	generateUserId = authModule.generateUserId;
 });
 

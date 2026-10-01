@@ -44,11 +44,6 @@ export function getRequestSizeLimit(path: string, method: string): number {
 	return REQUEST_LIMITS.JSON_API;
 }
 
-// Methods that carry a request body and must include a Content-Length header.
-// DELETE is excluded: it rarely carries a body and requiring Content-Length
-// would break standard DELETE requests.
-const _BODY_METHODS = new Set(['POST', 'PUT', 'PATCH']);
-
 /**
  * Validate request size from the Content-Length header.
  * Returns { valid: true } when valid. Returns { valid: false, reason: 'malformed',
@@ -56,16 +51,12 @@ const _BODY_METHODS = new Set(['POST', 'PUT', 'PATCH']);
  * Content-Length string. Returns { valid: false, reason: 'too_large', limit, size }
  * when the header exceeds the limit.
  *
- * A missing Content-Length header (e.g. chunked/streamed POST/PUT/PATCH) is
- * treated as valid here and falls through to handler-side parsed-body checks.
- *
- * Limitation: Content-Length can be spoofed. Route handlers must enforce
- * size limits on parsed bodies as a second line of defense.
+ * A missing Content-Length header is treated as valid here. The request hook
+ * separately enforces the same limit while streaming the body.
  */
 export function validateRequestSize(
 	contentLength: string | number | undefined,
-	limit: number,
-	_method: string
+	limit: number
 ):
 	| { valid: true }
 	| { valid: false; reason: 'malformed'; limit: number; value: string }

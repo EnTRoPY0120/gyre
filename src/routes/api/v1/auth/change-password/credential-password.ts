@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { User } from '$lib/server/db/schema.js';
 import { logger } from '$lib/server/logger.js';
+import { ADMIN_SECRET_NAME } from '$lib/server/auth/constants.js';
 import {
 	getCredentialAccount,
 	getCredentialPasswordHash,
@@ -29,8 +30,7 @@ export async function requireCredentialPasswordHash(user: User): Promise<string>
 
 	if (isInClusterAdmin(user)) {
 		throw error(403, {
-			message:
-				'The in-cluster admin password is managed via the Kubernetes secret "gyre-initial-admin-secret". Update the secret to rotate the password.'
+			message: `The in-cluster admin password is managed via the Kubernetes secret "${ADMIN_SECRET_NAME}". Update the secret to rotate the password.`
 		});
 	}
 
