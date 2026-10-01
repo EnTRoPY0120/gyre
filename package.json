@@ -26,7 +26,8 @@
 		"verify:repo": "pnpm verify && pnpm helm:check && pnpm scripts:check",
 		"verify:repo:ci": "pnpm verify:ci && pnpm docs:check && pnpm helm:check && pnpm scripts:check",
 		"test": "vitest run --exclude src/tests/k8s-timeout.test.ts && vitest run src/tests/k8s-timeout.test.ts",
-		"test:watch": "vitest"
+		"test:watch": "vitest",
+		"smoke:image": "node scripts/smoke-image.mjs"
 	},
 	"dependencies": {
 		"@asteasolutions/zod-to-openapi": "^9.1.0",
@@ -72,6 +73,7 @@
 		"jsdom": "^27.0.1",
 		"oxfmt": "^0.66.0",
 		"oxlint": "^1.79.0",
+		"playwright": "1.63.0",
 		"svelte-check": "^4.7.6",
 		"typescript": "^6.0.3",
 		"vite": "^8.2.2",

@@ -30,7 +30,7 @@ jobs:
   build-and-push:
     # Build arm64 natively; QEMU is used for the amd64 target.
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
@@ -146,7 +146,60 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore
 
-      # Push step skipped for pull requests — the scan above is sufficient.
+      - name: Set up Node.js, pnpm, and Playwright
+        uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+        with:
+          runtime: node@26.10.0
+          install: false
+          cache: true
+
+      - name: Install smoke dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Install pinned Kubernetes smoke tools
+        run: |
+          set -euo pipefail
+          tmpdir=$(mktemp -d)
+          trap 'rm -rf "$tmpdir"' EXIT
+          case "$(uname -m)" in
+            x86_64)
+              arch=amd64
+              kind_sha256=aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+              kubectl_sha256=629d3f410e09bf49b64ae7079f7f0bda1191efed311f7d37fdbab0ad5b0ec2b7
+              flux_sha256=b853df82adfd7736f580692f9f734473d571606307139f8fd20c2a80dd1ff473
+              ;;
+            aarch64)
+              arch=arm64
+              kind_sha256=20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2
+              kubectl_sha256=59f7ee8e477fae658447607dc3c8790ac17a1b016c01c622c12070e969e2d4e7
+              flux_sha256=f3e159af616ec0b9bd0a405c2185cf09d06b74652c1de3c7f377e8166826651a
+              ;;
+            *) echo "Unsupported runner architecture: $(uname -m)" >&2; exit 1 ;;
+          esac
+          curl -fsSLo "$tmpdir/kind" "https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-${arch}"
+          echo "$kind_sha256  $tmpdir/kind" | sha256sum --check --status
+          curl -fsSLo "$tmpdir/kubectl" "https://dl.k8s.io/release/v1.36.1/bin/linux/${arch}/kubectl"
+          echo "$kubectl_sha256  $tmpdir/kubectl" | sha256sum --check --status
+          curl -fsSLo "$tmpdir/flux.tar.gz" "https://github.com/fluxcd/flux2/releases/download/v2.9.5/flux_2.9.5_linux_${arch}.tar.gz"
+          echo "$flux_sha256  $tmpdir/flux.tar.gz" | sha256sum --check --status
+          tar -xzf "$tmpdir/flux.tar.gz" -C "$tmpdir" flux
+          sudo install -m 0755 "$tmpdir/kind" /usr/local/bin/kind
+          sudo install -m 0755 "$tmpdir/kubectl" /usr/local/bin/kubectl
+          sudo install -m 0755 "$tmpdir/flux" /usr/local/bin/flux
+          kind version
+          kubectl version --client
+          flux --version
+
+      - name: Smoke-test scanned amd64 image
+        run: pnpm smoke:image --image gyre:scan --platform linux/amd64
+
+      - name: Smoke-test scanned arm64 image
+        if: github.event_name != 'pull_request'
+        run: pnpm smoke:image --image gyre:scan-arm64 --platform linux/arm64
+
+      # Images are published only after blocking scans and packaged-image smoke tests pass.
       - name: Build and push Docker image
         id: build-and-push
         if: github.event_name != 'pull_request'
