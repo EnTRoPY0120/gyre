@@ -39,16 +39,16 @@ COPY documentation/package.json ./documentation/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
   pnpm install --frozen-lockfile
 
+# Deploy production dependencies from metadata before source changes can invalidate this layer.
+# Reuse the pnpm store mount so the deploy step does not download packages again.
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+  pnpm deploy --filter gyre --prod /prod
+
 # Copy source code
 COPY . .
 
 # Build the SvelteKit application
 RUN pnpm build
-
-# Create an isolated production dependency tree for the application workspace.
-# This avoids copying the shared workspace virtual store, which otherwise keeps
-# documentation and build-only packages in the runtime image.
-RUN pnpm deploy --filter gyre --prod /prod
 
 # =============================================================================
 # Stage 2: Runtime - Production image with security hardening
