@@ -4,6 +4,7 @@
 	import DiffTabError from './DiffTabError.svelte';
 	import DiffTabHeader from './DiffTabHeader.svelte';
 	import DiffTabLoading from './DiffTabLoading.svelte';
+	import { formatDiffExport } from './diff-export';
 
 	export interface DiffError {
 		code?: string;
@@ -25,12 +26,7 @@
 	function exportDiff() {
 		if (diffs.length === 0) return;
 
-		const content = diffs
-			.map(
-				(diff) =>
-					`--- ${diff.kind}/${diff.name} (${diff.namespace}) ---\nDesired:\n${diff.desired}\n\nLive:\n${diff.live || 'None'}\n`
-			)
-			.join('\n');
+		const content = formatDiffExport(diffs);
 
 		const blob = new Blob([content], { type: 'text/plain' });
 		const url = URL.createObjectURL(blob);

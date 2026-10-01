@@ -5,6 +5,7 @@ import { validateFluxArtifactUrl } from '$lib/server/kubernetes/flux/artifact-ur
 import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
 import type { FluxResource } from '$lib/server/kubernetes/flux/types';
 import * as k8s from '@kubernetes/client-node';
+import { setHeaderOptions } from '@kubernetes/client-node';
 import * as yaml from 'js-yaml';
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -410,26 +411,20 @@ async function getDryRunResource(
 	comparison: DesiredResourceComparison,
 	desired: Record<string, unknown>
 ): Promise<unknown> {
-	try {
-		return await customApi.patchNamespacedCustomObject(
-			{
-				group: comparison.group,
-				version: comparison.version,
-				namespace: comparison.namespace,
-				plural: comparison.plural,
-				name: comparison.name,
-				body: desired as object,
-				dryRun: 'All',
-				fieldManager: 'gyre-drift-check',
-				force: true
-			},
-			{
-				headers: { 'Content-Type': 'application/apply-patch+yaml' }
-			} as Record<string, unknown>
-		);
-	} catch {
-		return desired;
-	}
+	return await customApi.patchNamespacedCustomObject(
+		{
+			group: comparison.group,
+			version: comparison.version,
+			namespace: comparison.namespace,
+			plural: comparison.plural,
+			name: comparison.name,
+			body: desired as object,
+			dryRun: 'All',
+			fieldManager: 'gyre-drift-check',
+			force: true
+		},
+		setHeaderOptions('Content-Type', 'application/apply-patch+yaml')
+	);
 }
 
 async function compareDesiredResource(

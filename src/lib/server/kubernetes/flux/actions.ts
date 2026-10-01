@@ -1,4 +1,5 @@
 import { getCustomObjectsApi, handleK8sError } from '../client.js';
+import { setHeaderOptions } from '@kubernetes/client-node';
 import { getResourceDef, resolveFluxResourceType } from './resources.js';
 
 function requireResourceDef(resourceType: string) {
@@ -47,9 +48,7 @@ export async function toggleSuspendResource(
 				name,
 				body: patchBody
 			},
-			{
-				headers: { 'Content-Type': 'application/json-patch+json' }
-			} as Record<string, unknown>
+			setHeaderOptions('Content-Type', 'application/json-patch+json')
 		);
 	} catch (error) {
 		throw handleK8sError(error, `suspend/resume ${name}`);
@@ -92,9 +91,7 @@ export async function reconcileResource(
 				name,
 				body: patchBody
 			},
-			{
-				headers: { 'Content-Type': 'application/merge-patch+json' }
-			} as Record<string, unknown>
+			setHeaderOptions('Content-Type', 'application/merge-patch+json')
 		);
 	} catch (error) {
 		throw handleK8sError(error, `reconcile ${name}`);
