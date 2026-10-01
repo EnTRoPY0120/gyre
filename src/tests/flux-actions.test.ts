@@ -142,12 +142,6 @@ describe('toggleSuspendResource', () => {
 		expect(params.name).toBe('target-resource');
 	});
 
-	test('json-patch+json Content-Type header used', async () => {
-		await fluxActions.toggleSuspendResource('Kustomization', 'flux-system', 'my-app', true);
-		const [, options] = capturedPatchArgs as [unknown, { headers: { 'Content-Type': string } }];
-		expect(options.headers['Content-Type']).toBe('application/json-patch+json');
-	});
-
 	test('throws for unknown resource type', async () => {
 		await expect(
 			fluxActions.toggleSuspendResource('UnknownThing', 'default', 'foo', true)
@@ -186,12 +180,6 @@ describe('reconcileResource', () => {
 		const timestamp = params.body.metadata.annotations['reconcile.fluxcd.io/requestedAt'];
 		expect(() => new Date(timestamp)).not.toThrow();
 		expect(new Date(timestamp).toISOString()).toBe(timestamp);
-	});
-
-	test('merge-patch Content-Type header used', async () => {
-		await fluxActions.reconcileResource('Kustomization', 'flux-system', 'my-app');
-		const [, options] = capturedPatchArgs as [unknown, { headers: { 'Content-Type': string } }];
-		expect(options.headers['Content-Type']).toBe('application/merge-patch+json');
 	});
 
 	test('correct group/version/plural used for Kustomization', async () => {

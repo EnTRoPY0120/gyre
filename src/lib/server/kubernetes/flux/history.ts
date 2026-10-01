@@ -1,6 +1,7 @@
 import { normalizeClusterId } from '$lib/clusters/identity.js';
 import { logger } from '../../logger.js';
 import { getCustomObjectsApi } from '../client.js';
+import { setHeaderOptions } from '@kubernetes/client-node';
 import type { FluxResourceType } from './resources.js';
 import { getReconciliationHistory } from './reconciliation-tracker.js';
 import { getResourceDef } from './resources.js';
@@ -61,9 +62,7 @@ export async function rollbackResource(
 			name,
 			body: patch
 		},
-		{
-			headers: { 'Content-Type': 'application/merge-patch+json' }
-		} as Record<string, unknown>
+		setHeaderOptions('Content-Type', 'application/merge-patch+json')
 	);
 
 	logger.info(

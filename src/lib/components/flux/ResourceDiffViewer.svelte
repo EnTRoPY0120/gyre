@@ -2,14 +2,7 @@
 	import MonacoDiffEditor from '$lib/components/editors/MonacoDiffEditor.svelte';
 	import { FileDiff, CheckCircle2, PlusCircle } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
-
-	interface ResourceDiff {
-		kind: string;
-		name: string;
-		namespace: string;
-		desired: string;
-		live: string | null;
-	}
+	import type { ResourceDiff } from '$lib/types/resource';
 
 	let { diffs }: { diffs: ResourceDiff[] } = $props();
 
@@ -43,7 +36,14 @@
 							<span class="truncate text-xs font-semibold text-foreground">
 								{diff.name}
 							</span>
-							{#if !diff.live}
+							{#if diff.error}
+								<span
+									class="rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-medium text-destructive"
+									title={diff.error}
+								>
+									Preview failed
+								</span>
+							{:else if !diff.live}
 								<span title="New Resource">
 									<PlusCircle size={12} class="text-green-500" />
 								</span>
@@ -83,7 +83,13 @@
 					</div>
 				</div>
 
-				{#if !selectedDiff.live}
+					{#if selectedDiff.error}
+						<span
+							class="rounded-full bg-destructive/10 px-2.5 py-0.5 text-[10px] font-medium text-destructive"
+						>
+							Preview Failed
+						</span>
+					{:else if !selectedDiff.live}
 					<span
 						class="rounded-full bg-green-500/10 px-2.5 py-0.5 text-[10px] font-medium text-green-600 dark:text-green-400"
 					>
@@ -104,7 +110,15 @@
 				{/if}
 			</div>
 
-			<div class="flex-1 overflow-hidden">
+				{#if selectedDiff.error}
+					<div
+						role="alert"
+						class="border-b border-destructive/20 bg-destructive/5 px-4 py-2 text-xs text-destructive"
+					>
+						Server-side dry-run failed: {selectedDiff.error}
+					</div>
+				{/if}
+				<div class="flex-1 overflow-hidden">
 				<MonacoDiffEditor
 					original={selectedDiff.desired}
 					modified={selectedDiff.live || ''}
