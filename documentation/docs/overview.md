@@ -22,27 +22,9 @@ Production usage is Helm/GitOps-first and in-cluster. Out-of-cluster mode is sup
 🌐 **Multi-cluster** - Manage multiple Kubernetes clusters
 📊 **Dashboard** - Built-in overview cards for cluster health and Flux resource status
 
-## Quick Start
+## Get Started
 
-Get started with Gyre in minutes:
-
-```bash
-# Install via Helm. The chart generates the required encryption and metrics Secrets.
-helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.1 \
-  --namespace flux-system \
-  --create-namespace
-
-# Get admin password
-kubectl get secret gyre-initial-admin-secret \
-  -n flux-system \
-  -o jsonpath='{.data.password}' | base64 -d
-
-# Access via port-forward
-kubectl port-forward -n flux-system svc/gyre 3000:80
-```
-
-Then open http://localhost:3000 in your browser.
+See the [Installation guide](/installation) for Helm and GitOps setup, then follow [Getting Started](/getting-started) to access Gyre and sign in.
 
 ## Documentation Sections
 

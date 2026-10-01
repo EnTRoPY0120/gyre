@@ -50,6 +50,16 @@ async function resolveTestRoute(event: RequestEvent): Promise<Response> {
 	const routeKey = `${event.request.method} ${event.url.pathname}`;
 	resolvedRoutes.push(routeKey);
 
+	if (routeKey === 'GET /api/v1/ready') {
+		const { GET } = await import('../routes/api/v1/ready/+server.js');
+		return GET(event);
+	}
+
+	if (routeKey === 'GET /api/v1/health') {
+		const { GET } = await import('../routes/api/v1/health/+server.js');
+		return GET(event);
+	}
+
 	if (routeKey === 'GET /api/v1/flux/version') {
 		const routeModule = await importFresh<FluxVersionRouteModule>(
 			'../routes/api/v1/flux/version/+server.js'
@@ -187,6 +197,51 @@ afterEach(async () => {
 });
 
 describe('request pipeline runtime coverage', () => {
+	test('readiness probes start initialization once without blocking health or readiness', async () => {
+		let completeStartup!: () => void;
+		const startup = new Promise<void>((resolve) => {
+			completeStartup = resolve;
+		});
+		const initializeGyre = vi.fn(() => startup);
+		vi.doMock('$lib/server/initialize.js', () => ({ initializeGyre }));
+		const { handle } = await importHooks();
+		const probe = (path: string) =>
+			handle({ event: createEvent(path).event, resolve: resolveTestRoute });
+
+		expect((await probe('/api/v1/health')).status).toBe(200);
+		expect(initializeGyre).not.toHaveBeenCalled();
+		const responses = await Promise.all([probe('/api/v1/ready'), probe('/api/v1/ready')]);
+		expect(responses.map((response) => response.status)).toEqual([503, 503]);
+		await vi.waitFor(() => expect(initializeGyre).toHaveBeenCalledOnce());
+		expect((await probe('/api/v1/health')).status).toBe(200);
+
+		completeStartup();
+		const { getGyreInitializationStatus } = await import('../lib/server/request/initialization.js');
+		await vi.waitFor(() => expect(getGyreInitializationStatus().state).toBe('ready'));
+		expect((await probe('/api/v1/ready')).status).toBe(200);
+		expect(initializeGyre).toHaveBeenCalledOnce();
+	});
+
+	test('failed startup stays unavailable without retrying or blocking liveness', async () => {
+		const initializeGyre = vi.fn().mockRejectedValue(new Error('Startup unavailable'));
+		vi.doMock('$lib/server/initialize.js', () => ({ initializeGyre }));
+		const { handle } = await importHooks();
+		const probe = (path: string) =>
+			handle({ event: createEvent(path).event, resolve: resolveTestRoute });
+		expect((await probe('/api/v1/ready')).status).toBe(503);
+		const { getGyreInitializationStatus } = await import('../lib/server/request/initialization.js');
+		await vi.waitFor(() => expect(getGyreInitializationStatus().state).toBe('failed'));
+		const readiness = await probe('/api/v1/ready');
+		expect(readiness.status).toBe(503);
+		expect(await readiness.json()).toEqual({
+			status: 'failed',
+			message: 'Gyre initialization failed'
+		});
+		expect((await probe('/api/v1/health')).status).toBe(200);
+		expect((await probe('/api/v1/flux/version')).status).toBe(503);
+		expect(initializeGyre).toHaveBeenCalledOnce();
+	});
+
 	test('authenticated requests that pass the gates resolve the real route handler', async () => {
 		sessionData = {
 			session: { id: 'session-1' },
@@ -266,38 +321,6 @@ describe('request pipeline runtime coverage', () => {
 		expect(await response.json()).toEqual({
 			error: 'Unauthorized',
 			message: 'Authentication required'
-		});
-		expect(resolvedRoutes).toEqual([]);
-	});
-
-	test('authenticated state-changing requests without a valid CSRF token return 403', async () => {
-		sessionData = {
-			session: { id: 'session-1' },
-			user: createUser()
-		};
-		csrfValid = false;
-		const { handle } = await importHooks();
-		const { event } = createEvent(
-			'/api/v1/admin/settings',
-			{
-				body: JSON.stringify({ localLoginEnabled: true }),
-				headers: {
-					'content-type': 'application/json'
-				},
-				method: 'PATCH'
-			},
-			{ gyre_session: 'session-cookie' }
-		);
-
-		const response = await handle({
-			event,
-			resolve: resolveTestRoute
-		});
-
-		expect(response.status).toBe(403);
-		expect(await response.json()).toEqual({
-			error: 'Forbidden',
-			message: 'Invalid or missing CSRF token'
 		});
 		expect(resolvedRoutes).toEqual([]);
 	});

@@ -15,6 +15,7 @@ import { scheduleSessionCleanup } from '../auth/session-cleanup.js';
 import { scheduleAuditLogCleanup } from '../audit.js';
 import { validateStartupSecurity } from './security-validation.js';
 import { getCurrentNamespace } from '../kubernetes/namespace.js';
+import { ADMIN_SECRET_NAME } from '../auth/constants.js';
 
 function logDeploymentMode(): boolean {
 	const isInCluster = Boolean(process.env.KUBERNETES_SERVICE_HOST);
@@ -82,7 +83,7 @@ function logInitialAdminDetails(mode: string, tokenFile: string | null): void {
 		logger.info('   ' + '='.repeat(50));
 		logger.info('   \n   📋 To retrieve the password, run:');
 		logger.info(
-			`   kubectl get secret gyre-initial-admin-secret -n ${namespace} -o jsonpath='{.data.password}' | base64 -d`
+			`   kubectl get secret ${ADMIN_SECRET_NAME} -n ${namespace} -o jsonpath='{.data.password}' | base64 -d`
 		);
 		logger.info('\n   ⚠️  Please change this password after first login!');
 		logger.info('   After first login, the secret will be marked as consumed.');

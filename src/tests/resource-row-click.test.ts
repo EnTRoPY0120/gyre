@@ -1,48 +1,26 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import { isResourceSelectionTarget } from '../lib/components/flux/resource-row-click.js';
 
-class FakeElement {
-	type = '';
-	closest = vi.fn<(selector: string) => FakeElement | null>(() => null);
-}
-
-class FakeInputElement extends FakeElement {}
-
 describe('isResourceSelectionTarget', () => {
-	const previousHTMLElement = globalThis.HTMLElement;
-	const previousHTMLInputElement = globalThis.HTMLInputElement;
-
-	beforeEach(() => {
-		vi.stubGlobal('HTMLElement', FakeElement);
-		vi.stubGlobal('HTMLInputElement', FakeInputElement);
-	});
-
-	afterEach(() => {
-		vi.unstubAllGlobals();
-		if (previousHTMLElement !== undefined) vi.stubGlobal('HTMLElement', previousHTMLElement);
-		if (previousHTMLInputElement !== undefined) {
-			vi.stubGlobal('HTMLInputElement', previousHTMLInputElement);
-		}
-	});
-
 	test('recognizes checkbox inputs directly', () => {
-		const checkbox = new FakeInputElement();
+		const checkbox = document.createElement('input');
 		checkbox.type = 'checkbox';
+		const textInput = document.createElement('input');
+		textInput.type = 'text';
 
-		expect(isResourceSelectionTarget(checkbox as unknown as EventTarget)).toBe(true);
-		expect(isResourceSelectionTarget(new FakeInputElement() as unknown as EventTarget)).toBe(false);
+		expect(isResourceSelectionTarget(checkbox)).toBe(true);
+		expect(isResourceSelectionTarget(textInput)).toBe(false);
 	});
 
-	test('recognizes clicks on elements nested inside a checkbox', () => {
-		const checkbox = new FakeInputElement();
-		const nested = new FakeElement();
-		nested.closest.mockReturnValue(checkbox);
+	test('allows ordinary element targets and non-element events', () => {
+		const row = document.createElement('tr');
+		const nestedText = document.createElement('span');
+		row.append(nestedText);
+		const text = document.createTextNode('resource');
 
-		expect(isResourceSelectionTarget(nested as unknown as EventTarget)).toBe(true);
-	});
-
-	test('allows normal row targets and non-element events', () => {
-		expect(isResourceSelectionTarget(new FakeElement() as unknown as EventTarget)).toBe(false);
+		expect(isResourceSelectionTarget(row)).toBe(false);
+		expect(isResourceSelectionTarget(nestedText)).toBe(false);
+		expect(isResourceSelectionTarget(text)).toBe(false);
 		expect(isResourceSelectionTarget(null)).toBe(false);
 	});
 });

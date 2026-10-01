@@ -4,18 +4,28 @@ sidebar_position: 3
 
 # Installation
 
-Gyre can be installed in several ways depending on your environment and requirements.
+Production deployments run in-cluster. The Helm chart creates and retains encryption and metrics Secrets on first install. Keep these Secrets and persistent data across upgrades; changing encryption keys can make stored data unreadable. For production environments with managed secrets, configure `encryption.existingSecret` and `metrics.existingSecret`.
 
-:::tip
-For production environments, please refer to the [Production Access & Ingress Guide](./production-access.md) for detailed configuration examples.
-:::
+The example pins a chart version for reproducible installs. Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) and update the version as needed.
 
-## Option 1: GitOps (Using FluxCD)
+## Helm
 
-The most natural way to install Gyre is by using Flux itself. Add this `HelmRelease` to your GitOps repository:
+```sh
+helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
+  --version 0.7.1 \
+  --namespace flux-system \
+  --create-namespace
+```
+
+Use `helm upgrade` for subsequent chart updates. See the [Helm reference](./helm-reference.md) for values and the [production access guide](./production-access.md) for ingress and load balancers.
+
+For clusters that enforce NetworkPolicy, configure `networkPolicy.egress.apiServer` to match the API endpoint and allow the intended UI ingress through `networkPolicy.ingress`. Host-network or external API servers may need endpoint CIDRs in `networkPolicy.egress.apiServer.ipBlocks`.
+
+## Flux GitOps
+
+Add an `OCIRepository` and `HelmRelease` to the repository Flux reconciles. Set `ref.tag` to the release version:
 
 ```yaml
----
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: OCIRepository
 metadata:
@@ -40,208 +50,59 @@ spec:
     namespace: flux-system
 ```
 
-The chart generates and retains the encryption and metrics Secrets automatically. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
+## Local development and demos
 
-## Option 2: Helm Installation
+For app development, use the [Development Guide](../development.md). To try Gyre against an existing cluster in Docker, use a flattened temporary kubeconfig copy so the container's non-root user can read it without changing the original file permissions:
 
-Helm is the standard way to install Gyre directly, as it provides easy configuration and upgrades.
-
-### Basic Installation
-
-```bash
-helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.1 \
-  --namespace flux-system \
-  --create-namespace
-```
-
-The chart generates and retains the encryption and metrics Secrets automatically. For production, you can provide externally managed Secrets through `encryption.existingSecret` and `metrics.existingSecret`.
-
-:::note
-OCI Helm registries require an explicit version. Check the [latest release](https://github.com/entropy0120/gyre/releases/latest) for the current version number.
-:::
-
-For more detailed configuration options, see the [Helm Chart Reference](./helm-reference.md).
-
-### Custom Configuration
-
-Create a `values.yaml` file:
-
-```yaml
-# values.yaml
-image:
-  repository: ghcr.io/entropy0120/gyre
-  tag: 0.7.1
-  pullPolicy: IfNotPresent
-
-service:
-  type: ClusterIP
-  port: 80
-
-ingress:
-  enabled: true
-  className: nginx
-  hosts:
-    - host: gyre.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-
-resources:
-  limits:
-    cpu: 1000m
-    memory: 512Mi
-  requests:
-    cpu: 100m
-    memory: 128Mi
-
-persistence:
-  enabled: true
-  size: 1Gi
-```
-
-Install with custom values:
-
-```bash
-helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --namespace flux-system \
-  --create-namespace \
-  -f values.yaml
-```
-
-## Option 3: Local Out-of-Cluster Testing (Docker)
-
-If you want to try the UI without installing it inside your cluster, you can run it locally connected to your `kubeconfig`. Make sure your current Kubernetes context points to a cluster with Flux installed.
-
-```bash
-# Run once per environment. Keep this file for future container recreations.
+```sh
+# Create once and keep for container recreations.
 if [ ! -f .env.gyre ]; then
-    (umask 077; {
-        echo "AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32)"
-        echo "GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32)"
-        echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)"
-        echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)"
-        echo "GYRE_METRICS_TOKEN=$(openssl rand -hex 32)"
-    } > .env.gyre)
+  (umask 077; {
+    echo "AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+    echo "GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+    echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)"
+    echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)"
+    echo "GYRE_METRICS_TOKEN=$(openssl rand -hex 32)"
+  } > .env.gyre)
 fi
-```
 
-The container runs as UID 1001. To let it read a standard mode-0600 kubeconfig without changing the original file's permissions, use this command to mount a flattened temporary copy from a private directory:
-
-```bash
 (
-    set -e
-    kubeconfig_dir="$(mktemp -d)"
-    chmod 700 "$kubeconfig_dir"
-    cleanup_kubeconfig() {
-        rm -f "$kubeconfig_dir/config"
-        rmdir "$kubeconfig_dir"
-    }
-    trap cleanup_kubeconfig EXIT
-    kubectl config view --raw --flatten > "$kubeconfig_dir/config"
-    chmod 644 "$kubeconfig_dir/config"
-    docker run --rm \
-        --env-file .env.gyre \
-        -v gyre-data:/data \
-        -v "$kubeconfig_dir/config:/app/.kube/config:ro" \
-        -p 3000:3000 \
-        ghcr.io/entropy0120/gyre:latest
+  set -e
+  kubeconfig_dir="$(mktemp -d)"
+  chmod 700 "$kubeconfig_dir"
+  cleanup_kubeconfig() {
+    rm -f "$kubeconfig_dir/config"
+    rmdir "$kubeconfig_dir"
+  }
+  trap cleanup_kubeconfig EXIT
+  kubectl config view --raw --flatten > "$kubeconfig_dir/config"
+  chmod 644 "$kubeconfig_dir/config"
+  docker run --rm \
+    --env-file .env.gyre \
+    -v gyre-data:/data \
+    -v "$kubeconfig_dir/config:/app/.kube/config:ro" \
+    -p 3000:3000 \
+    ghcr.io/entropy0120/gyre:latest
 )
 ```
 
-:::tip
-Make sure the API server address in the kubeconfig is reachable from Docker. The temporary kubeconfig copy stays in a host-private directory, is mounted read-only, and is removed when the container exits. The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Omit `ADMIN_PASSWORD` to let Gyre generate one, or provide a strong password that satisfies the app password policy. Store `.env.gyre` securely and back it up with the `gyre-data` volume. Reuse it whenever you recreate the container; rotate data-encryption keys only with a migration plan to avoid making existing data unreadable.
-:::
+The production image requires `GYRE_METRICS_TOKEN`. Store `.env.gyre` and the `gyre-data` volume securely, reuse them when recreating the container, and ensure the Kubernetes API address is reachable from Docker. Changing encryption keys can make existing data unreadable.
 
-## Option 4: Local Demo Script
+To create a disposable `kind` cluster with Flux and Gyre, use the [demo script](https://github.com/entropy0120/gyre/blob/main/scripts/demo.sh):
 
-Don't have a cluster yet? Spin up a local `kind` cluster with Flux and Gyre pre-installed using our demo script:
-
-```bash
+```sh
 curl -sL https://raw.githubusercontent.com/entropy0120/gyre/main/scripts/demo.sh | bash
 ```
 
-## Configuration Options
+## Verify and access
 
-### Database
+Check pod status, then retrieve the initial admin password and port-forward the service:
 
-Gyre uses SQLite by default. For production, configure persistence:
-
-```yaml
-persistence:
-  enabled: true
-  storageClass: standard
-  size: 5Gi
-  accessMode: ReadWriteOnce
-```
-
-### Authentication
-
-Enable SSO/OAuth:
-
-```yaml
-auth:
-  providers:
-    - name: GitHub
-      type: oauth2-github
-      clientId: 'your-client-id'
-  providersExistingSecret: gyre-auth-provider-secrets
-```
-
-Provider objects are metadata-only. Store provider secrets in the referenced secret
-using keys like `PROVIDER_GITHUB_CLIENT_SECRET`.
-
-### Resources
-
-Adjust resource limits:
-
-```yaml
-resources:
-  limits:
-    cpu: 2000m
-    memory: 1Gi
-  requests:
-    cpu: 500m
-    memory: 256Mi
-```
-
-## Verification
-
-Check the installation:
-
-```bash
-# Check pod status
+```sh
 kubectl get pods -n flux-system -l app.kubernetes.io/name=gyre
-
-# Check service
-kubectl get svc -n flux-system gyre
-
-# View logs
-kubectl logs -n flux-system -l app.kubernetes.io/name=gyre
+kubectl get secret "${GYRE_ADMIN_SECRET_NAME:-gyre-initial-admin-secret}" -n flux-system \
+  -o jsonpath='{.data.password}' | base64 -d && echo
+kubectl port-forward -n flux-system svc/gyre 3000:80
 ```
 
-## Upgrading
-
-To upgrade Gyre:
-
-The chart preserves generated encryption and metrics Secrets across upgrades. If you use externally managed Secrets, ensure the encryption Secret contains `GYRE_ENCRYPTION_KEY`, `AUTH_ENCRYPTION_KEY`, `BACKUP_ENCRYPTION_KEY`, and `BETTER_AUTH_SECRET` before upgrading. `BETTER_AUTH_SECRET` must differ from the other encryption keys; changing it invalidates existing sessions.
-
-```bash
-helm upgrade gyre oci://ghcr.io/entropy0120/charts/gyre \
-  --version 0.7.1 \
-  --namespace flux-system
-```
-
-## Uninstallation
-
-To remove Gyre:
-
-```bash
-helm uninstall gyre --namespace flux-system
-```
-
-**Note:** This will not delete the PersistentVolumeClaim. To remove all data:
-
-```bash
-kubectl delete pvc -n flux-system -l app.kubernetes.io/name=gyre
-```
+Open http://localhost:3000 and sign in as `admin`. Set `admin.secretName` in Helm values when using a custom admin Secret name; the chart passes it to Gyre as `GYRE_ADMIN_SECRET_NAME`. Set the same variable in your local shell when running the `kubectl get secret` command above.

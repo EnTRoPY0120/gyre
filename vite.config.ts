@@ -13,6 +13,12 @@ const VENDOR_CHUNK_RULES = [
 	['js-yaml', 'vendor-yaml']
 ] as const;
 
+const DOM_TEST_FILES = [
+	'src/tests/focus-trap.test.ts',
+	'src/tests/resource-row-click.test.ts',
+	'src/tests/password-input.test.ts'
+];
+
 function getVendorChunk(id: string): string | undefined {
 	if (!id.includes('node_modules')) return;
 
@@ -29,10 +35,24 @@ export default defineConfig(({ mode }) => {
 	return {
 		plugins: [tailwindcss(), sveltekit()],
 		test: {
-			environment: 'node',
-			include: ['src/tests/**/*.test.ts'],
 			fileParallelism: false,
-			isolate: true
+			isolate: true,
+			projects: [
+				{
+					extends: true,
+					test: {
+						name: 'node',
+						environment: 'node',
+						include: ['src/tests/**/*.test.ts'],
+						exclude: DOM_TEST_FILES
+					}
+				},
+				{
+					extends: true,
+					resolve: { conditions: ['browser'] },
+					test: { name: 'dom', environment: 'jsdom', include: DOM_TEST_FILES }
+				}
+			]
 		},
 		server: {
 			fs: {

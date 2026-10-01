@@ -2,7 +2,6 @@ export * from './timeouts.js';
 export * from './client-factory.js';
 export * from './client-pool.js';
 export * from './kubeconfig-provider.js';
-export * from './secret-access.js';
 export * from './error-handler.js';
 export * from './flux/listing.js';
 export * from './flux/crud.js';

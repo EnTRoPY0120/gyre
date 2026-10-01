@@ -14,8 +14,7 @@ afterAll(() => {
 import {
 	OPERATION_TIMEOUTS,
 	clearClientPool,
-	gracefulShutdown,
-	auditLogSecretAccess
+	gracefulShutdown
 } from '../lib/server/kubernetes/client.js';
 import {
 	assertSupportedKubeConfigOptions,
@@ -146,35 +145,6 @@ describe('UUID Validation (RFC 4122)', () => {
 		expect(uuidRegex.test('not-a-uuid')).toBe(false);
 		expect(uuidRegex.test('550e8400-e29b-41d4-a716')).toBe(false);
 		expect(uuidRegex.test('550e8400-e29b-41d4-a716-446655440000-extra')).toBe(false);
-	});
-});
-
-// ---------------------------------------------------------------------------
-// Secret Audit Logging
-// ---------------------------------------------------------------------------
-
-describe('Secret Audit Logging', () => {
-	test('audit log function can be invoked', () => {
-		// Should not throw
-		expect(() => {
-			auditLogSecretAccess('get', 'Secret', 'default', 'my-secret', 'production');
-		}).not.toThrow();
-	});
-
-	test('audit log function works for list operations', () => {
-		// list operations may not have a name
-		expect(() => {
-			auditLogSecretAccess('list', 'Secret', 'default');
-		}).not.toThrow();
-	});
-
-	test('audit log function handles all operation types', () => {
-		const operations = ['get', 'list', 'create', 'update', 'delete', 'patch'] as const;
-		for (const op of operations) {
-			expect(() => {
-				auditLogSecretAccess(op, 'Secret', 'default', 'my-secret');
-			}).not.toThrow();
-		}
 	});
 });
 

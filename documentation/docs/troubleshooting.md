@@ -62,26 +62,30 @@ Common issues and their solutions.
 
 **Solutions**:
 
-1. Get admin password:
+1. Read the password from the configured admin Secret (default: `gyre-initial-admin-secret`):
 
    ```bash
-   kubectl get secret gyre-initial-admin-secret \
+   kubectl get secret "${GYRE_ADMIN_SECRET_NAME:-gyre-initial-admin-secret}" \
      -n flux-system \
-     -o jsonpath='{.data.password}' | base64 -d
+     -o jsonpath='{.data.password}' | base64 -d && echo
    ```
 
-2. Check if password was changed:
+2. If the password is no longer known, update the Secret. Enter a new strong password when prompted:
 
    ```bash
-   kubectl logs -n flux-system -l app.kubernetes.io/name=gyre | grep password
+   read -r -s -p 'New admin password: ' new_password
+   printf '\n'
+   printf '%s' "$new_password" | kubectl create secret generic \
+     "${GYRE_ADMIN_SECRET_NAME:-gyre-initial-admin-secret}" -n flux-system \
+     --from-file=password=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
+   unset new_password
+   kubectl rollout restart deployment/gyre -n flux-system
+   kubectl rollout status deployment/gyre -n flux-system
    ```
 
-3. Reset admin password (requires database access):
-   ```bash
-   kubectl exec -it -n flux-system \
-     deployment/gyre -- \
-     sh -c 'sqlite3 /data/gyre.db "UPDATE users SET password_hash = \"new_hash\" WHERE username = \"admin\";"'
-   ```
+   Gyre keeps the current Secret password hash in memory, so restart the deployment after changing the Secret. Adjust the namespace or deployment name if your release uses different values. Never edit the database password hash directly.
+
+For local deployments, `ADMIN_PASSWORD` is used only when the first local admin is created; changing it does not reset an existing account. An authenticated local admin can change their own password or reset another user's password in Gyre. There is no supported offline password reset command for a locked-out local database.
 
 ### OAuth Login Fails
 
@@ -281,15 +285,7 @@ Common issues and their solutions.
    kubectl get pvc -n flux-system
    ```
 
-2. Verify data exists:
-
-   ```bash
-   kubectl exec -it -n flux-system \
-     deployment/gyre -- \
-     sqlite3 /data/gyre.db ".tables"
-   ```
-
-3. Restore from backup if available
+2. Check Gyre's **Admin → Backups** page for an available database backup. Restore through the application or follow the [backup restore guide](/installation/helm-reference#restore-from-backup).
 
 ## Getting Help
 

@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { LogIn, Loader2, Eye, EyeOff } from '@lucide/svelte';
+	import { LogIn, Loader2 } from '@lucide/svelte';
+	import PasswordInput from './PasswordInput.svelte';
 
 	let {
 		username = $bindable(''),
@@ -15,7 +16,6 @@
 		onSubmit: (event: SubmitEvent) => void | Promise<void>;
 	} = $props();
 
-	let showPassword = $state(false);
 </script>
 
 <form onsubmit={onSubmit} class="local-form">
@@ -35,35 +35,13 @@
 		{/if}
 	</div>
 
-	<div class="field">
-		<label for="password">Password</label>
-		<div class="password-wrap">
-			<input
-				id="password"
-				type={showPassword ? 'text' : 'password'}
-				bind:value={password}
-				placeholder="••••••••"
-				required
-				autocomplete="current-password"
-				class:field-error={errors.password}
-			/>
-			<button
-				type="button"
-				onclick={() => (showPassword = !showPassword)}
-				class="eye-toggle"
-				aria-label={showPassword ? 'Hide password' : 'Show password'}
-			>
-				{#if showPassword}
-					<EyeOff size={16} />
-				{:else}
-					<Eye size={16} />
-				{/if}
-			</button>
-		</div>
-		{#if errors.password}
-			<span class="field-error-msg">{errors.password}</span>
-		{/if}
-	</div>
+	<PasswordInput
+		id="password"
+		label="Password"
+		bind:value={password}
+		autocomplete="current-password"
+		error={errors.password}
+	/>
 
 	<button type="submit" disabled={loading} class="submit-btn">
 		{#if loading}
@@ -127,33 +105,6 @@
 	.field-error-msg {
 		font-size: 0.75rem;
 		color: #f87171;
-	}
-
-	.password-wrap {
-		position: relative;
-	}
-
-	.password-wrap input {
-		padding-right: 2.5rem;
-	}
-
-	.eye-toggle {
-		position: absolute;
-		top: 50%;
-		right: 0.75rem;
-		transform: translateY(-50%);
-		background: none;
-		border: none;
-		cursor: pointer;
-		color: rgba(255, 255, 255, 0.3);
-		display: flex;
-		align-items: center;
-		padding: 0;
-		transition: color 0.15s ease;
-	}
-
-	.eye-toggle:hover {
-		color: rgba(255, 255, 255, 0.6);
 	}
 
 	.submit-btn {

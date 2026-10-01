@@ -13,14 +13,19 @@ let api: SecretApi;
 let hashPassword: ReturnType<typeof vi.fn>;
 let generateStrongPassword: ReturnType<typeof vi.fn>;
 let validateAdminPasswordStrength: ReturnType<typeof vi.fn>;
+let verifyPassword: ReturnType<typeof vi.fn>;
 let errorLog: ReturnType<typeof vi.fn>;
 let loadOrCreateInClusterAdmin: InClusterAdminModule['loadOrCreateInClusterAdmin'];
+let validateInClusterAdmin: InClusterAdminModule['validateInClusterAdmin'];
 let originalAdminPassword: string | undefined;
+let originalAdminSecretName: string | undefined;
 
 beforeEach(async () => {
 	vi.resetModules();
 	originalAdminPassword = process.env.ADMIN_PASSWORD;
+	originalAdminSecretName = process.env.GYRE_ADMIN_SECRET_NAME;
 	delete process.env.ADMIN_PASSWORD;
+	delete process.env.GYRE_ADMIN_SECRET_NAME;
 
 	api = {
 		readNamespacedSecret: vi.fn(),
@@ -30,6 +35,7 @@ beforeEach(async () => {
 	hashPassword = vi.fn(async (password: string) => `hash:${password}`);
 	generateStrongPassword = vi.fn(() => 'Generated-strong-password1!');
 	validateAdminPasswordStrength = vi.fn();
+	verifyPassword = vi.fn().mockResolvedValue(false);
 	errorLog = vi.fn();
 
 	vi.doMock('../lib/server/kubernetes/config.js', () => ({
@@ -40,7 +46,7 @@ beforeEach(async () => {
 		hashPassword,
 		normalizeUsername: (username: string) => username.toLowerCase().trim(),
 		validateAdminPasswordStrength,
-		verifyPassword: vi.fn()
+		verifyPassword
 	}));
 	vi.doMock('../lib/server/logger.js', () => ({
 		logger: {
@@ -50,14 +56,16 @@ beforeEach(async () => {
 		}
 	}));
 
-	loadOrCreateInClusterAdmin = (
-		await importFresh<InClusterAdminModule>('../lib/server/auth/in-cluster-admin.js')
-	).loadOrCreateInClusterAdmin;
+	const module = await importFresh<InClusterAdminModule>('../lib/server/auth/in-cluster-admin.js');
+	loadOrCreateInClusterAdmin = module.loadOrCreateInClusterAdmin;
+	validateInClusterAdmin = module.validateInClusterAdmin;
 });
 
 afterEach(() => {
 	if (originalAdminPassword === undefined) delete process.env.ADMIN_PASSWORD;
 	else process.env.ADMIN_PASSWORD = originalAdminPassword;
+	if (originalAdminSecretName === undefined) delete process.env.GYRE_ADMIN_SECRET_NAME;
+	else process.env.GYRE_ADMIN_SECRET_NAME = originalAdminSecretName;
 	vi.restoreAllMocks();
 	vi.resetModules();
 });
@@ -93,6 +101,69 @@ describe('in-cluster admin bootstrap', () => {
 				stringData: { password: 'Generated-strong-password1!' }
 			})
 		});
+	});
+
+	test('uses configured secret name when loading or creating the initial admin password', async () => {
+		process.env.GYRE_ADMIN_SECRET_NAME = 'custom-admin-password';
+		vi.resetModules();
+		const module = await importFresh<InClusterAdminModule>(
+			'../lib/server/auth/in-cluster-admin.js?custom-secret'
+		);
+		loadOrCreateInClusterAdmin = module.loadOrCreateInClusterAdmin;
+		validateInClusterAdmin = module.validateInClusterAdmin;
+		api.readNamespacedSecret.mockRejectedValue(
+			Object.assign(new Error('not found'), { code: 404 })
+		);
+
+		await expect(loadOrCreateInClusterAdmin()).resolves.toBe('Generated-strong-password1!');
+		expect(api.readNamespacedSecret).toHaveBeenCalledWith({
+			name: 'custom-admin-password',
+			namespace: 'default'
+		});
+		expect(api.createNamespacedSecret).toHaveBeenCalledWith({
+			namespace: 'default',
+			body: expect.objectContaining({
+				metadata: expect.objectContaining({ name: 'custom-admin-password' }),
+				stringData: { password: 'Generated-strong-password1!' }
+			})
+		});
+	});
+
+	test('uses configured secret name when marking the initial password consumed', async () => {
+		process.env.GYRE_ADMIN_SECRET_NAME = 'custom-admin-password';
+		vi.resetModules();
+		const module = await importFresh<InClusterAdminModule>(
+			'../lib/server/auth/in-cluster-admin.js?custom-secret-consumed'
+		);
+		loadOrCreateInClusterAdmin = module.loadOrCreateInClusterAdmin;
+		validateInClusterAdmin = module.validateInClusterAdmin;
+		api.readNamespacedSecret
+			.mockResolvedValueOnce({
+				data: { password: Buffer.from('existing-password').toString('base64') }
+			})
+			.mockResolvedValueOnce({ metadata: {} });
+		verifyPassword.mockResolvedValue(true);
+
+		await expect(loadOrCreateInClusterAdmin()).resolves.toBe('existing-password');
+		await expect(validateInClusterAdmin('existing-password')).resolves.toBe(true);
+		expect(api.readNamespacedSecret).toHaveBeenNthCalledWith(1, {
+			name: 'custom-admin-password',
+			namespace: 'default'
+		});
+		expect(api.readNamespacedSecret).toHaveBeenNthCalledWith(2, {
+			name: 'custom-admin-password',
+			namespace: 'default'
+		});
+		const [patchRequest, patchOptions] = api.patchNamespacedSecret.mock.calls[0];
+		expect(patchRequest).toEqual({
+			name: 'custom-admin-password',
+			namespace: 'default',
+			body: { metadata: { labels: { 'gyre.io/initial-password-consumed': 'true' } } }
+		});
+		expect(patchOptions.middlewareMergeStrategy).toBe('append');
+		const setHeaderParam = vi.fn();
+		await patchOptions.middleware[0].pre({ setHeaderParam } as never).toPromise();
+		expect(setHeaderParam).toHaveBeenCalledWith('Content-Type', 'application/merge-patch+json');
 	});
 
 	test('creates a password when the existing secret has no password data', async () => {

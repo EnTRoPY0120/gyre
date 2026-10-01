@@ -1,49 +1,32 @@
 # Contributing to Gyre
 
-Thank you for your interest in contributing to Gyre!
+Development setup, code conventions, testing guidance, and the pull request process are in the [Contributing Guide](https://entropy0120.github.io/gyre/contributing). Start with the [Development Guide](https://entropy0120.github.io/gyre/development) for environment setup.
 
-Comprehensive contributing guidelines, including development setup, code standards, commit message conventions, and pull request processes, have been moved to our documentation site:
+## Quick start
 
-**[📚 Contributing Guide](https://entropy0120.github.io/gyre/contributing)**
+The Dev Container installs the supported Node.js, pnpm, and Kubernetes tools. In VS Code, choose **Dev Containers: Reopen in Container**, then run:
 
-## Quick Start (DevContainer)
+```sh
+pnpm dev
+```
 
-The repository includes a devcontainer that installs Node.js 26, `pnpm@11.1.0`, and Kubernetes tooling.
+For a manual setup, use Node.js 22.13 or later and pnpm 11.1.0:
 
-1. Open the repository in VS Code with the **Dev Containers** extension.
-2. Press `F1` → **"Dev Containers: Reopen in Container"**.
-3. Wait for `.devcontainer/post-create.sh` to install dependencies.
-4. Inside the container, run:
-   ```bash
-   pnpm dev
-   ```
+```sh
+pnpm install
+pnpm dev
+```
 
-The host kubeconfig is mounted read-only from `~/.kube`; use an existing cluster or create one manually with `kind` and `flux` when needed.
+## Checks
 
-## Key Commands
+Run `pnpm verify:ci` for app checks and tests. Run `pnpm verify:repo:ci` for the full repository gate, including documentation, Helm, and shell scripts. Both commands check formatting without rewriting files.
 
-- `pnpm install` - Install dependencies
-- `pnpm dev` - Start development server
-- `pnpm verify` - App-only local gate (auto-format + lint + typecheck + build)
-- `pnpm verify:ci` - App-only strict gate (format:check + lint + typecheck + tests + build)
-- `pnpm docs:check` - Documentation typecheck + build
-- `pnpm helm:check` - Helm chart lint check
-- `pnpm scripts:check` - Shell script syntax check (`bash -n`)
-- `pnpm verify:repo` - Repo gate for app + Helm + shell scripts
-- `pnpm verify:repo:ci` - Full CI repo gate for app + docs + Helm + shell scripts
-- `pnpm test` - Full Vitest test suite (requires Helm on PATH for chart render regression tests)
+Add or update tests when a change affects observable behavior or guards a meaningful regression. Prefer a focused test at the useful integration boundary; avoid tests that only repeat implementation details or exercise trivial pass-through code. Kubernetes-dependent changes may also need a cluster check, as described in the [contributing guide](https://entropy0120.github.io/gyre/contributing).
 
-Tests run through Vitest on Node.js.
+## Pull requests
 
-## Questions?
-
-- Open an issue for questions.
-- Join discussions in existing issues and PRs.
+Use a short Conventional Commit subject, describe the behavior changed, and include the checks you ran in the pull request. Open an issue first for larger changes or behavior changes that need discussion.
 
 ## Code of Conduct
 
-Be respectful and constructive in all interactions. We welcome contributors of all experience levels and backgrounds.
-
----
-
-Thank you for contributing to Gyre! 🎉
+Be respectful and constructive. We welcome contributions from people with all levels of experience.

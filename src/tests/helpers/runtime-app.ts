@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,6 +10,8 @@ const METRICS_TOKEN = 'runtime-metrics-token';
 const PROD_SECRET = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 const BETTER_AUTH_SECRET = 'runtime-better-auth-secret-with-enough-entropy';
 const REPO_ROOT = process.cwd();
+const RUNTIME_BUILD_PATH = join(REPO_ROOT, 'build', 'index.js');
+const REUSE_BUILD_ENV = 'GYRE_TEST_REUSE_BUILD';
 const RUNTIME_TEMP_PREFIX = join(tmpdir(), 'runtime-app-');
 const READINESS_PROBE_TIMEOUT_MS = 1_500;
 const TERMINATION_GRACE_MS = 5_000;
@@ -56,6 +58,15 @@ function waitForExit(process: ChildProcess): Promise<number | null> {
 }
 
 async function runBuildOnce(): Promise<void> {
+	if (process.env[REUSE_BUILD_ENV] === '1') {
+		if (!existsSync(RUNTIME_BUILD_PATH)) {
+			throw new Error(
+				`${REUSE_BUILD_ENV}=1 requires a built runtime at ${RUNTIME_BUILD_PATH}; run pnpm build first`
+			);
+		}
+		return;
+	}
+
 	if (!buildPromise) {
 		buildPromise = (async () => {
 			const buildEnv = {
@@ -194,7 +205,7 @@ export async function getRuntimeApp(): Promise<RuntimeAppHandle> {
 			const backupDir = mkdtempSync(RUNTIME_TEMP_PREFIX);
 			const databasePath = join(tempDataDir, 'gyre.db');
 
-			const server = spawn('node', ['build/index.js'], {
+			const server = spawn('node', [RUNTIME_BUILD_PATH], {
 				cwd: REPO_ROOT,
 				env: {
 					...process.env,

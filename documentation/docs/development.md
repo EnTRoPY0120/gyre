@@ -2,327 +2,81 @@
 sidebar_position: 7
 ---
 
-# Development Guide
+# Development
 
-This guide provides technical information for developers working on the Gyre codebase.
+Gyre is a SvelteKit application backed by SQLite and Kubernetes APIs. Production runs in-cluster through Helm or Flux. Local out-of-cluster mode is for development and testing.
 
-## Project Overview
+## Set up
 
-Gyre is a modern, full-featured WebUI for FluxCD built with SvelteKit. It provides real-time monitoring, multi-cluster management, built-in RBAC, and comprehensive FluxCD resource management.
+The Dev Container is the recommended environment. In VS Code, open the repository in the Dev Containers extension and choose **Dev Containers: Reopen in Container**. It installs Node.js 26, pnpm 11.1.0, and Kubernetes tools.
 
-**Deployment**: Production is Helm/GitOps-first and in-cluster. Local out-of-cluster mode is supported for development/testing. Includes production-ready Helm chart, Docker image (published to ghcr.io/entropy0120/gyre), and GitHub Actions CI/CD pipeline.
-
-**Current Status**: Core functionality includes a dashboard, management for all 13 supported GitOps Toolkit resources, real-time updates, multi-cluster support, authentication/RBAC, Monaco Editor integration, and guided resource templates.
-
-## Common Commands
-
-### Development
-
-**DevContainer (Recommended):**
-
-The repository includes a devcontainer that installs Node.js 26, `pnpm@11.1.0`, and Kubernetes tooling.
-
-1. Open repository in VS Code with Dev Containers extension
-2. Press `F1` → "Dev Containers: Reopen in Container"
-3. Wait for `.devcontainer/post-create.sh` to install dependencies
+Start the app in the container:
 
 ```sh
-# Inside devcontainer, start development server
 pnpm dev
 ```
 
-The host kubeconfig is mounted read-only from `~/.kube`. Use an existing cluster or create a local kind cluster with FluxCD manually when needed:
+For a manual setup, install Node.js 22.13 or later and pnpm 11.1.0:
 
 ```sh
-kind create cluster
-flux install
-```
-
-**Manual Development:**
-
-```sh
-pnpm install          # Install dependencies
-pnpm dev              # Start development server
-pnpm dev -- --open    # Start dev server and open in browser
-```
-
-### Code Quality
-
-```sh
-pnpm verify          # Local gate: format + lint + typecheck + build
-pnpm verify:ci       # Strict app-only gate: format:check + lint + typecheck + tests + build
-pnpm docs:check      # Docs gate: Docusaurus typecheck + build
-pnpm helm:check      # Helm chart lint
-pnpm scripts:check   # Shell syntax checks (bash -n)
-pnpm verify:repo     # Repo gate: app + Helm + shell scripts
-pnpm verify:repo:ci  # Full CI gate: app + docs + Helm + shell scripts
-pnpm check:watch     # Type-check in watch mode
-pnpm lint:fix        # Auto-fix lint issues where possible
-pnpm format          # Format code
-pnpm fallow:health   # Report complexity and maintainability findings
-pnpm fallow:health:coverage  # Report Fallow findings with coverage-backed CRAP scores
-pnpm fallow:health:baseline   # Report findings that differ from the checked-in baseline
-```
-
-Fallow health is advisory and does not replace `pnpm verify:ci`. The checked-in
-[`health/fallow-baseline.json`](https://github.com/entropy0120/gyre/blob/main/health/fallow-baseline.json)
-captures the current report so refactors can distinguish existing findings from
-new ones. Regenerate it intentionally with:
-
-```sh
-pnpm exec fallow health --save-baseline health/fallow-baseline.json --report-only
-```
-
-The coverage-backed command runs the unit and integration tests with Vitest's
-Istanbul provider, excluding the adapter-node runtime smoke test and the
-separately-run Kubernetes timeout test, then passes `coverage/coverage-final.json`
-to Fallow for exact CRAP scores. The coverage directory is local-only and is
-ignored by Git.
-
-### Building & Testing
-
-```sh
-pnpm build           # Build SvelteKit application
-pnpm preview         # Preview production build locally
-
-# Docker build
-docker build -t gyre:local .
-
-# Run once per environment. Keep this file for future container recreations.
-if [ ! -f .env.gyre ]; then
-    (umask 077; {
-        echo "AUTH_ENCRYPTION_KEY=$(openssl rand -hex 32)"
-        echo "GYRE_ENCRYPTION_KEY=$(openssl rand -hex 32)"
-        echo "BACKUP_ENCRYPTION_KEY=$(openssl rand -hex 32)"
-        echo "BETTER_AUTH_SECRET=$(openssl rand -hex 32)"
-        echo "GYRE_METRICS_TOKEN=$(openssl rand -hex 32)"
-    } > .env.gyre)
-fi
-
-(
-    set -e
-    kubeconfig_dir="$(mktemp -d)"
-    chmod 700 "$kubeconfig_dir"
-    cleanup_kubeconfig() {
-        rm -f "$kubeconfig_dir/config"
-        rmdir "$kubeconfig_dir"
-    }
-    trap cleanup_kubeconfig EXIT
-    kubectl config view --raw --flatten > "$kubeconfig_dir/config"
-    chmod 644 "$kubeconfig_dir/config"
-    docker run --rm \
-        --env-file .env.gyre \
-        -v gyre-dev-data:/data \
-        -v "$kubeconfig_dir/config:/app/.kube/config:ro" \
-        -p 3000:3000 \
-        gyre:local
-)
-```
-
-The container runs as UID 1001. The temporary kubeconfig copy is readable by that user, stays inside a host-private directory, is mounted read-only, and is removed when the container exits. Make sure the kubeconfig's API server address is reachable from Docker. The production image requires `GYRE_METRICS_TOKEN` to protect `/metrics`. Store `.env.gyre` securely and back it up with the `gyre-dev-data` volume. Reuse it whenever you recreate the container; changing an encryption key can make stored data unreadable.
-
-### Kind Helper Scripts
-
-```sh
-# One-time local demo bootstrap (creates kind cluster, Flux, and Helm install)
-./scripts/demo.sh
-
-# Rebuild image and redeploy to an existing kind cluster
-# You can override IMAGE_NAME, IMAGE_TAG, KIND_CLUSTER, HELM_RELEASE, NAMESPACE, PORT,
-# ENCRYPTION_SECRET_NAME, and METRICS_SECRET_NAME via env vars.
-./scripts/redeploy-kind.sh
-```
-
-### Production Deployment (Helm Chart)
-
-```sh
-# Build Docker image
-docker build -t gyre:latest .
-
-# Create required chart secrets
-kubectl create namespace flux-system --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic gyre-encryption -n flux-system \
-  --from-literal=GYRE_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=AUTH_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=BACKUP_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
-  --from-literal=BETTER_AUTH_SECRET="$(openssl rand -hex 32)" \
-  --dry-run=client -o yaml | kubectl apply -f -
-kubectl create secret generic gyre-metrics -n flux-system \
-  --from-literal=GYRE_METRICS_TOKEN="$(openssl rand -hex 32)" \
-  --dry-run=client -o yaml | kubectl apply -f -
-
-# Install with Helm
-helm install gyre charts/gyre --namespace flux-system --create-namespace \
-  --set encryption.existingSecret=gyre-encryption \
-  --set metrics.existingSecret=gyre-metrics
-
-# Get admin password
-kubectl get secret gyre-initial-admin-secret -n flux-system -o jsonpath='{.data.password}' | base64 -d
-
-# Access via port-forward
-kubectl port-forward -n flux-system svc/gyre 3000:80
-```
-
-**Architecture**: Production uses in-cluster deployment with ServiceAccount authentication. Local out-of-cluster mode is for development/testing.
-
-### Database Management
-
-```sh
-pnpm drizzle-kit generate    # Generate migrations from schema changes
-pnpm drizzle-kit migrate     # Run migrations (production runs auto on startup)
-pnpm drizzle-kit studio      # Open database browser UI
-```
-
-**Database Location**: `./data/gyre.db` (development), `/data/gyre.db` (production container)
-
-### Documentation Site
-
-The project includes a Docusaurus documentation site at `entropy0120.github.io/gyre/`:
-
-```sh
-# Install dependencies from the repo root
 pnpm install
-
-# Start documentation dev server
-pnpm --dir documentation start
-
-# Build documentation
-pnpm --dir documentation build
-
-# Serve built docs locally
-pnpm --dir documentation serve
+pnpm dev
 ```
 
-**Important**: The root app and documentation site share the root `pnpm-lock.yaml` through the pnpm workspace. Documentation auto-deploys to GitHub Pages via `.github/workflows/docs-deploy.yml` on push to main.
+The app listens on port 3000. The Dev Container mounts the host kubeconfig read-only; use an existing Flux cluster or create a local one with `kind` and `flux`.
 
-### Release & Deployment
-
-**Creating a Release:**
-
-1. Update release versions in package metadata and release-facing docs.
-2. Commit changes.
-3. Create and push tag (triggers automated release workflow).
-
-`charts/gyre/Chart.yaml` intentionally keeps placeholder versions; CI injects the release version during `helm package`.
+## Quality checks
 
 ```sh
-git add -A
-git commit -m "chore: prepare v0.7.1 release"
-git tag -a v0.7.1 -m "Release v0.7.1"
-git push origin main --tags
+pnpm verify:ci       # App formatting, lint, types, tests, and build
+pnpm verify:repo:ci  # Full app, docs, Helm, and shell-script gate
+pnpm docs:check      # Typecheck and build the Docusaurus site
+pnpm helm:check      # Lint the Helm chart
+pnpm scripts:check   # Check shell syntax
 ```
 
-## Development Conventions
+`pnpm verify:repo:ci` is the full CI gate. `pnpm verify` formats files before checking; use the `:ci` commands for non-mutating checks.
 
-### Svelte 5 Runes
+Fallow reports code health separately from required checks. The checked-in [`health/fallow-baseline.json`](https://github.com/entropy0120/gyre/blob/main/health/fallow-baseline.json) tracks existing findings; `pnpm fallow:health:baseline` reports changes from that baseline. `pnpm fallow:health:coverage` runs coverage instrumentation and may take longer than the regular test suite.
 
-Always use Svelte 5 runes (`$state`, `$derived`, `$effect`, `$props`). Do **not** use legacy Svelte 4 syntax (e.g., `export let`, `$:`).
+## Local cluster helpers
 
-### Functional Server Logic
+```sh
+./scripts/demo.sh          # Create a local kind cluster, install Flux and Gyre
+./scripts/redeploy-kind.sh # Rebuild and redeploy to an existing kind cluster
+```
 
-Prefer functional modules and exports over class-based singletons. (e.g., see `src/lib/server/events.ts`).
+See [Installation](./installation/index.md) for published Helm/GitOps installs, the Docker-connected local mode, and production access. See [Troubleshooting](./troubleshooting.md) for runtime recovery steps.
 
-### Multi-Cluster Context
+## Data and migrations
 
-Multi-cluster support is implemented via `locals.cluster`.
+Development data is stored in `./data/gyre.db`; the container uses `/data/gyre.db`.
 
-- Every API request carries a cluster context (defaulting to `in-cluster`).
-- All Kubernetes client calls must `await` the asynchronous configuration loading and respect the provided context.
+```sh
+pnpm drizzle-kit generate # Generate migrations after schema changes
+pnpm drizzle-kit migrate  # Apply migrations locally
+pnpm drizzle-kit studio   # Open the database browser
+```
 
-### Security & RBAC
+Production runs migrations on startup. Review generated migrations before committing them.
 
-- **Authentication**: Most API routes require a valid session via `locals.user`.
-- **RBAC**: Use `checkPermission(user, action, resourceType, namespace, clusterId)` or `requirePermission` to enforce access control. Standardized across all `src/routes/api/v1` endpoints.
-- **Error Handling**: Use `throw error(status, message)` consistently in API routes.
+## Documentation site
 
-### Logging
+The Docusaurus site lives in `documentation/`. Its local editing and deployment instructions are in `documentation/README.md`. Run `pnpm docs:check` before submitting documentation changes.
 
-- **Error Logging**: Standardize on the error-first pattern: `logger.error(errorObject, 'Message')`. Always pass an Error object as the first argument to preserve stack traces.
-- **Frontend/Backend**: Use `logger` from `src/lib/utils/logger.ts` for frontend, and `src/lib/server/logger.ts` for backend.
-- **Lazy Evaluation**: For expensive log computations on the frontend, wrap the log call: `if (shouldLog('debug')) logger.debug(heavyComputation())`.
-- **Redaction Rules**: The backend logger automatically redacts sensitive fields like `password`, `token`, `secret`, `authorization`, `cookie`, `email`. Always avoid logging PII directly.
+## Release notes
 
-### Git & Contribution
+Releases are triggered by pushing a version tag. Update the package version and release-facing docs, commit the change, then create and push the tag. Chart metadata intentionally uses placeholder versions; CI injects the release version when packaging.
 
-- **Commits**: Follow [Conventional Commits](https://www.conventionalcommits.org/).
-- **Branches**: Use `type/description` naming (e.g., `feat/add-oidc-support`, `fix/rbac-bypass`).
-- **Tests**: Automated tests run through Vitest on Node.js and are part of the normal verification flow (`pnpm test`, `pnpm verify:ci`, `pnpm verify:repo:ci`).
+```sh
+git tag -a vX.Y.Z -m "Release vX.Y.Z"
+git push origin vX.Y.Z
+```
 
-## Important Implementation Notes
+## Conventions
 
-- **In-Cluster First**: Gyre is designed to run inside a Kubernetes cluster but supports local development via `~/.kube/config`.
-- **Atomic Context Switching**: Avoid global variables for Kubernetes configuration. Always use the request-scoped `KubeConfig` instances managed by the client cache.
+- Use Svelte 5 runes (`$state`, `$derived`, `$effect`, `$props`), not legacy Svelte syntax.
+- Keep server-only code in `src/lib/server/`; components should access it through SvelteKit loads or routes.
+- Use TailwindCSS v4 utilities and existing shared components.
 
-## Technical Implementation Details
-
-### Resource Creation Wizard (Templates)
-
-The `ResourceWizard` is a core component that allows users to create FluxCD resources through a multi-step form or direct YAML editing.
-
-#### Wizard Configuration
-
-Templates are defined in `src/lib/templates/index.ts`. Each `ResourceTemplate` includes:
-
-- `id`: Unique identifier
-- `title`: Display name
-- `description`: Short summary
-- `group`/`version`/`kind`: Kubernetes GVK
-- `sections`: Logical grouping of fields
-- `fields`: Individual form inputs with validation and help text
-
-#### Key Field Properties:
-
-- `path`: JSON path to the value in the manifest (e.g., `spec.interval`).
-- `required`: Boolean or function for conditional requirements.
-- `showIf`: Function to control field visibility based on other values.
-- `validation`: Regex pattern for field validation (e.g., Durations: `^([0-9]+(\.[0-9]+)?(s|m|h))+$`).
-- `referenceType`: Enable resource lookup in the wizard.
-
-#### Bidirectional Sync
-
-The `ResourceWizard` component manages the synchronization between the form state (`formValues`) and the raw YAML manifest using the `yaml` library's `parseDocument` and `setIn` methods to preserve comments.
-
-### Monaco Editor Integration
-
-The project uses Monaco Editor (VS Code's editor) for YAML/JSON editing throughout the application.
-
-**Components:**
-
-- `src/lib/components/editors/MonacoEditor.svelte` - Main Monaco wrapper component
-- `src/lib/components/editors/YamlEditor.svelte` - Legacy simple editor (kept for fallback)
-
-**Features:**
-
-- Syntax highlighting for YAML and JSON
-- Real-time validation with error markers
-- Bidirectional value binding with `$bindable()`
-- Theme synchronization with app theme (dark/light mode)
-- Graceful fallback to textarea if Monaco fails to load
-
-### SSO/OAuth Integration
-
-The project includes full SSO support via Arctic and OIDC:
-
-- **Providers supported**: GitHub, Google, GitLab, Generic OIDC/OAuth2
-- **Configuration**: Admin UI for provider setup (no restart required)
-- **User flow**: Login → OAuth redirect → Callback → Auto-provision user
-
-### SSE Notification System
-
-The real-time notification system uses Server-Sent Events (SSE) located in `src/routes/api/v1/events/+server.ts` with client store at `src/lib/stores/events.svelte.ts`.
-
-**Deduplication Strategy:**
-
-- Track notification state: `{revision, readyStatus, readyReason, messagePreview}`
-- Only trigger on meaningful changes (Revision change, Failure, Recovery)
-- 30s settling period for `ADDED` events to avoid initial sync spam
-- State persists in localStorage: `gyre_notifications` and `gyre_notification_state`
-
-## Common Development Gotchas
-
-1. **Server vs Client Code**: `$lib/server/` code ONLY runs server-side.
-2. **Svelte 5 Runes**: Use `$state()`, `$derived()`, `$effect()`, `$props()`.
-3. **Database Migrations**: Use `drizzle-kit generate` for schema changes.
-4. **ServiceAccount Permissions**: Update `charts/gyre/templates/role.yaml` and `charts/gyre/templates/clusterrole.yaml` for new resources.
-5. **Documentation Folder**: Uses pnpm through the root workspace.
-6. **Monaco Editor Lazy Loading**: Loaded via dynamic import. Always check `browser` environment.
+See [Contributing](./contributing.md) for route-scoped Kubernetes and permission handling, API authorization, and safe logging conventions.

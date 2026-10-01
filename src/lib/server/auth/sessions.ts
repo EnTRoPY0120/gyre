@@ -1,14 +1,8 @@
-import { randomBytes } from 'node:crypto';
 import { lte, eq } from 'drizzle-orm';
 import { logger } from '../logger.js';
 import { getDb } from '../db/index.js';
 import { sessions } from '../db/schema.js';
 import { sessionsCleanedUpTotal } from '../metrics.js';
-
-// Session ID generation
-export function generateSessionId(): string {
-	return randomBytes(32).toString('hex');
-}
 
 export async function deleteUserSessions(userId: string): Promise<void> {
 	const db = await getDb();

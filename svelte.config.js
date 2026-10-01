@@ -9,6 +9,7 @@ const config = {
 		// per-endpoint limits in hooks.server.ts apply within that cap, including for
 		// clients that omit Content-Length. See request-limits.ts for size constants.
 		adapter: adapter(),
+		serviceWorker: { register: false },
 		csp: {
 			// Use nonce mode so SvelteKit injects per-request nonces into its inline
 			// hydration scripts instead of relying on 'unsafe-inline'.

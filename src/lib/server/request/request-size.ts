@@ -95,7 +95,7 @@ export async function enforceRequestSizeLimits(event: RequestEvent): Promise<Res
 	const path = event.url.pathname;
 	const sizeLimit = getRequestSizeLimit(path, request.method);
 	const contentLength = request.headers.get('content-length') ?? undefined;
-	const sizeValidation = validateRequestSize(contentLength, sizeLimit, request.method);
+	const sizeValidation = validateRequestSize(contentLength, sizeLimit);
 
 	if (!sizeValidation.valid) {
 		if (sizeValidation.reason === 'malformed') {

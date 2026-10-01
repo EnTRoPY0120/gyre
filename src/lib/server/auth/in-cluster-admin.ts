@@ -9,8 +9,7 @@ import {
 	verifyPassword
 } from './passwords.js';
 import { getCurrentNamespace } from '../kubernetes/namespace.js';
-
-const ADMIN_SECRET_NAME = 'gyre-initial-admin-secret';
+import { ADMIN_SECRET_NAME } from './constants.js';
 
 let inClusterAdminPasswordHash: string | null = null;
 let inClusterFirstLoginDone = false;
@@ -51,19 +50,19 @@ async function isSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promise<
  * Mark the initial admin secret as consumed after first login
  */
 async function markSecretConsumed(api: k8s.CoreV1Api, namespace: string): Promise<void> {
-	// Patch the secret to add the consumed label using JSON Patch format
-	const patch = [
+	// Merge the label so externally managed Secrets without labels are supported.
+	await api.patchNamespacedSecret(
 		{
-			op: 'add',
-			path: '/metadata/labels/gyre.io~1initial-password-consumed',
-			value: 'true'
-		}
-	];
-	await api.patchNamespacedSecret({
-		name: ADMIN_SECRET_NAME,
-		namespace,
-		body: patch
-	});
+			name: ADMIN_SECRET_NAME,
+			namespace,
+			body: {
+				metadata: {
+					labels: { 'gyre.io/initial-password-consumed': 'true' }
+				}
+			}
+		},
+		k8s.setHeaderOptions('Content-Type', k8s.PatchStrategy.MergePatch)
+	);
 }
 
 function isNotFoundError(error: unknown): boolean {
@@ -148,7 +147,7 @@ export async function loadOrCreateInClusterAdmin(): Promise<string | null> {
 	} catch (error) {
 		logger.error(
 			error,
-			'Failed to setup in-cluster admin. Fix the gyre-initial-admin-secret name, namespace, or Kubernetes RBAC permissions and restart Gyre:'
+			`Failed to setup in-cluster admin. Fix the ${ADMIN_SECRET_NAME} secret name, namespace, or Kubernetes RBAC permissions and restart Gyre:`
 		);
 		throw error;
 	}
