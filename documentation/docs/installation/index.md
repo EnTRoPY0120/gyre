@@ -75,7 +75,7 @@ fi
     rmdir "$kubeconfig_dir"
   }
   trap cleanup_kubeconfig EXIT
-  kubectl config view --raw --flatten > "$kubeconfig_dir/config"
+  kubectl config view --raw --flatten --minify > "$kubeconfig_dir/config"
   chmod 644 "$kubeconfig_dir/config"
   docker run --rm \
     --env-file .env.gyre \
@@ -85,6 +85,8 @@ fi
     ghcr.io/entropy0120/gyre:latest
 )
 ```
+
+This example includes only the current Kubernetes context. For multiple clusters, set `KUBECONFIG` to a dedicated file containing only the contexts Gyre should manage and omit `--minify`.
 
 The production image requires `GYRE_METRICS_TOKEN`. Store `.env.gyre` and the `gyre-data` volume securely, reuse them when recreating the container, and ensure the Kubernetes API address is reachable from Docker. Changing encryption keys can make existing data unreadable.
 

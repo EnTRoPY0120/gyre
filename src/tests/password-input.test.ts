@@ -19,6 +19,7 @@ describe('password form DOM behavior', () => {
 			mount(PasswordInput, {
 				target,
 				props: {
+					value: '',
 					id: 'password',
 					label: 'Password',
 					autocomplete: 'current-password',
