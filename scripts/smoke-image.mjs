@@ -338,40 +338,7 @@ async function runtimeAndBrowser(image, platform) {
 			}
 		}
 	});
-
-	await waitFor(async () => {
-		const response = await getWithTimeout(`${baseUrl}/login`).catch(() => null);
-		if (!response) return false;
-		if (response.status === 503) return false;
-		return response.status === 200 && (await response.text()).includes('id="username"');
-	}, 'Login page did not become ready');
-	await page.goto(`${baseUrl}/login`, { waitUntil: 'networkidle' });
-	await page.locator('#username').fill('admin');
-	await page.locator('#password').fill(adminPassword);
-	await page.getByRole('button', { name: 'Sign In' }).click();
-	try {
-		await page.getByRole('heading', { name: 'Change Password' }).waitFor({ timeout: 15_000 });
-	} catch {
-		const visibleState = (await page.locator('body').innerText()).slice(0, 400);
-		fail(
-			`First login did not reach password change (login status ${loginStatuses.join(',') || 'missing'}; assets ${productionAssetResponses.join(',') || 'none'}; browser errors ${browserErrors.join('; ') || 'none'}; URL ${page.url()}; page: ${visibleState})`
-		);
-	}
-	await page.waitForLoadState('networkidle');
-	assert(
-		await page.getByText('Account Activated').isVisible(),
-		'First-login password rotation was not required'
-	);
-	const changedPassword = rememberSecret(`Smoke-${randomSecret(18)}!bB2`);
-	await page.getByLabel('Current Password').fill(adminPassword);
-	await page.getByLabel('New Password', { exact: true }).fill(changedPassword);
-	await page.getByLabel('Confirm New Password', { exact: true }).fill(changedPassword);
-	await page.getByRole('button', { name: 'Change Password' }).click();
-	try {
-		await page.waitForURL((url) => !url.pathname.startsWith('/change-password'), {
-			timeout: 15_000
-		});
-	} catch (error) {
+	const reportPasswordChangeFailure = async (stage, error) => {
 		let responseBodyWaitTimer;
 		await Promise.race([
 			passwordChangeResponseBody,
@@ -401,7 +368,72 @@ async function runtimeAndBrowser(image, platform) {
 			responseDetails = `request sent, pending for ${Date.now() - passwordChangeRequestStartedAt}ms`;
 		}
 		fail(
-			`Password change did not navigate away within 15000ms (${error instanceof Error ? error.message : String(error)}; API ${responseDetails}; URL ${page.url()}; page: ${visiblePageText || 'empty'}; button: ${buttonState}; browser/request errors: ${browserErrors.join('; ') || 'none'})`
+			`${stage} (${error instanceof Error ? error.message : String(error)}; API ${responseDetails}; URL ${page.url()}; page: ${visiblePageText || 'empty'}; button: ${buttonState}; browser/request errors: ${browserErrors.join('; ') || 'none'})`
+		);
+	};
+
+	await waitFor(async () => {
+		const response = await getWithTimeout(`${baseUrl}/login`).catch(() => null);
+		if (!response) return false;
+		if (response.status === 503) return false;
+		return response.status === 200 && (await response.text()).includes('id="username"');
+	}, 'Login page did not become ready');
+	await page.goto(`${baseUrl}/login`, { waitUntil: 'networkidle' });
+	await page.locator('#username').fill('admin');
+	await page.locator('#password').fill(adminPassword);
+	await page.getByRole('button', { name: 'Sign In' }).click();
+	try {
+		await page.getByRole('heading', { name: 'Change Password' }).waitFor({ timeout: 15_000 });
+	} catch {
+		const visibleState = (await page.locator('body').innerText()).slice(0, 400);
+		fail(
+			`First login did not reach password change (login status ${loginStatuses.join(',') || 'missing'}; assets ${productionAssetResponses.join(',') || 'none'}; browser errors ${browserErrors.join('; ') || 'none'}; URL ${page.url()}; page: ${visibleState})`
+		);
+	}
+	await page.waitForLoadState('networkidle');
+	assert(
+		await page.getByText('Account Activated').isVisible(),
+		'First-login password rotation was not required'
+	);
+	const changedPassword = rememberSecret(`Smoke-${randomSecret(18)}!bB2`);
+	await page.getByLabel('Current Password').fill(adminPassword);
+	await page.getByLabel('New Password', { exact: true }).fill(changedPassword);
+	await page.getByLabel('Confirm New Password', { exact: true }).fill(changedPassword);
+	let passwordChangeApiResponse;
+	try {
+		[passwordChangeApiResponse] = await Promise.all([
+			page.waitForResponse(
+				(response) =>
+					response.request().method() === 'POST' &&
+					new URL(response.url()).origin === baseUrl &&
+					new URL(response.url()).pathname === '/api/v1/auth/change-password',
+				{ timeout: timeoutMs }
+			),
+			page.getByRole('button', { name: 'Change Password' }).click()
+		]);
+	} catch (error) {
+		await reportPasswordChangeFailure(
+			'Password-change API response did not arrive after submit',
+			error
+		);
+	}
+	if (passwordChangeApiResponse.status() !== 200) {
+		await reportPasswordChangeFailure(
+			`Password-change API returned unexpected HTTP ${passwordChangeApiResponse.status()}`,
+			new Error('Expected HTTP 200')
+		);
+	}
+	console.log(
+		`Password-change API returned HTTP 200 in ${passwordChangeResponse?.elapsedMs ?? 'unknown'}ms.`
+	);
+	try {
+		await page.waitForURL((url) => !url.pathname.startsWith('/change-password'), {
+			timeout: 15_000
+		});
+	} catch (error) {
+		await reportPasswordChangeFailure(
+			'Password-change API succeeded but page navigation failed',
+			error
 		);
 	}
 	const passwordCheckContext = await browser.newContext();
