@@ -267,6 +267,9 @@ async function runtimeAndBrowser(image, platform) {
 	const browserErrors = [];
 	const productionAssetResponses = [];
 	const loginStatuses = [];
+	let passwordChangeRequestStartedAt;
+	let passwordChangeResponse;
+	let passwordChangeResponseBody = Promise.resolve();
 	page.on('pageerror', (error) => browserErrors.push(error.message));
 	page.on('console', (message) => {
 		if (message.type() !== 'error') return;
@@ -279,11 +282,48 @@ async function runtimeAndBrowser(image, platform) {
 			browserErrors.push(`${request.method()} ${request.url()} failed`);
 		}
 	});
+	page.on('request', (request) => {
+		const requestUrl = new URL(request.url());
+		if (request.method() === 'POST' && requestUrl.pathname === '/api/v1/auth/change-password') {
+			passwordChangeRequestStartedAt = Date.now();
+		}
+	});
 	page.on('response', (response) => {
-		if (new URL(response.url()).pathname === '/api/v1/auth/login')
-			loginStatuses.push(response.status());
-		if (new URL(response.url()).pathname.startsWith('/_app/')) {
-			const pathname = new URL(response.url()).pathname;
+		const responseUrl = new URL(response.url());
+		if (
+			response.request().method() === 'POST' &&
+			responseUrl.pathname === '/api/v1/auth/change-password'
+		) {
+			passwordChangeResponse = {
+				status: response.status(),
+				elapsedMs:
+					passwordChangeRequestStartedAt === undefined
+						? null
+						: Date.now() - passwordChangeRequestStartedAt,
+				errorMessage: undefined
+			};
+			if (!response.ok()) {
+				passwordChangeResponseBody = response
+					.text()
+					.then((body) => {
+						try {
+							const payload = JSON.parse(body);
+							let message;
+							if (typeof payload?.message === 'string') message = payload.message;
+							else if (typeof payload?.message?.message === 'string') {
+								message = payload.message.message;
+							}
+							if (message) passwordChangeResponse.errorMessage = redact(message).slice(0, 500);
+						} catch {
+							// The status remains useful when an error response is not JSON.
+						}
+					})
+					.catch(() => {});
+			}
+		}
+		if (responseUrl.pathname === '/api/v1/auth/login') loginStatuses.push(response.status());
+		if (responseUrl.pathname.startsWith('/_app/')) {
+			const pathname = responseUrl.pathname;
 			const contentType = response.headers()['content-type'] ?? '';
 			productionAssetResponses.push({ status: response.status(), contentType, pathname });
 			let expectedMime;
@@ -327,7 +367,43 @@ async function runtimeAndBrowser(image, platform) {
 	await page.getByLabel('New Password', { exact: true }).fill(changedPassword);
 	await page.getByLabel('Confirm New Password', { exact: true }).fill(changedPassword);
 	await page.getByRole('button', { name: 'Change Password' }).click();
-	await page.waitForURL((url) => !url.pathname.startsWith('/change-password'), { timeout: 15_000 });
+	try {
+		await page.waitForURL((url) => !url.pathname.startsWith('/change-password'), {
+			timeout: 15_000
+		});
+	} catch (error) {
+		let responseBodyWaitTimer;
+		await Promise.race([
+			passwordChangeResponseBody,
+			new Promise((resolve) => {
+				responseBodyWaitTimer = setTimeout(resolve, 4_000);
+			})
+		]).finally(() => clearTimeout(responseBodyWaitTimer));
+		const visiblePageText = redact(
+			(
+				await page
+					.locator('body')
+					.innerText({ timeout: 1_000 })
+					.catch(() => 'unavailable')
+			).trim()
+		).slice(0, 600);
+		const changePasswordButton = page.getByRole('button', { name: /Change Password|Updating/ });
+		const buttonState =
+			(await changePasswordButton.count()) === 0
+				? 'missing'
+				: `text=${redact((await changePasswordButton.innerText({ timeout: 1_000 }).catch(() => 'unavailable')).trim()).slice(0, 80)}, disabled=${await changePasswordButton.isDisabled({ timeout: 1_000 }).catch(() => 'unknown')}`;
+		let responseDetails;
+		if (passwordChangeResponse) {
+			responseDetails = `status=${passwordChangeResponse.status}, elapsed=${passwordChangeResponse.elapsedMs ?? 'unknown'}ms${passwordChangeResponse.errorMessage ? `, error=${passwordChangeResponse.errorMessage}` : ''}`;
+		} else if (passwordChangeRequestStartedAt === undefined) {
+			responseDetails = 'request not sent';
+		} else {
+			responseDetails = `request sent, pending for ${Date.now() - passwordChangeRequestStartedAt}ms`;
+		}
+		fail(
+			`Password change did not navigate away within 15000ms (${error instanceof Error ? error.message : String(error)}; API ${responseDetails}; URL ${page.url()}; page: ${visiblePageText || 'empty'}; button: ${buttonState}; browser/request errors: ${browserErrors.join('; ') || 'none'})`
+		);
+	}
 	const passwordCheckContext = await browser.newContext();
 	const oldPasswordResponse = await passwordCheckContext.request.post(
 		`${baseUrl}/api/v1/auth/login`,

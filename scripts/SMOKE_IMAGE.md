@@ -8,4 +8,4 @@ It next creates a uniquely named disposable Kind cluster, installs the Flux CRDs
 
 Requirements are Docker, Node and pnpm dependencies installed from the frozen lockfile, Chromium and its system dependencies (`pnpm exec playwright install --with-deps chromium`), Kind, kubectl, and Flux CLI. The caller needs permission to run Docker and create/delete Kind clusters. Random credentials and cluster config are kept in a private temporary directory; owned containers, child processes, and clusters are cleaned up on success, failure, SIGINT, and SIGTERM.
 
-The image workflow runs this against the scanned amd64 image on pull requests. On branch and release builds it also smoke-tests the scanned arm64 image before either image is published.
+The image workflow runs this against the scanned amd64 image on pull requests. On branch and release builds it also smoke-tests the scanned arm64 image before either image is published. To run both architectures without publishing, manually dispatch the workflow with `verification_only` enabled; it still runs both blocking scans and both smoke tests, then records a verification summary.
