@@ -1239,13 +1239,74 @@ async function clusterAndFlux(image, platform) {
 			''
 		].join('\n')
 	);
-	await page.goto(`${baseUrl}/admin/clusters`, { waitUntil: 'domcontentloaded' });
+	let clusterPageEventsResponse;
+	try {
+		[clusterPageEventsResponse] = await Promise.all([
+			page.waitForResponse(
+				(response) => {
+					const request = response.request();
+					const eventUrl = new URL(response.url());
+					const frame = request.frame();
+					const frameUrl = new URL(frame.url());
+					return (
+						request.method() === 'GET' &&
+						frame === page.mainFrame() &&
+						frameUrl.origin === baseUrl &&
+						frameUrl.pathname === '/admin/clusters' &&
+						eventUrl.origin === baseUrl &&
+						eventUrl.pathname === '/api/v1/events'
+					);
+				},
+				{ timeout: 30_000 }
+			),
+			page.goto(`${baseUrl}/admin/clusters`, { waitUntil: 'domcontentloaded' })
+		]);
+	} catch (error) {
+		const visiblePageText = redact(
+			(
+				await page
+					.locator('body')
+					.innerText({ timeout: 1_000 })
+					.catch(() => 'unavailable')
+			).trim()
+		).slice(0, 600);
+		fail(
+			`Cluster page did not establish its authenticated event stream (${error instanceof Error ? error.message : String(error)}; URL ${page.url()}; page: ${visiblePageText || 'empty'}; browser/request errors: ${redact(browserErrors.join('; ') || 'none')})`
+		);
+	}
+	const eventsContentType = clusterPageEventsResponse.headers()['content-type'] ?? '';
+	assert(
+		clusterPageEventsResponse.status() === 200,
+		`Cluster page event stream returned HTTP ${clusterPageEventsResponse.status()}`
+	);
+	assert(
+		/^text\/event-stream(?:\s*;|$)/i.test(eventsContentType),
+		`Cluster page event stream had unexpected Content-Type ${eventsContentType || 'missing'}`
+	);
 	await page.getByRole('button', { name: 'Add Cluster' }).first().click();
-	await page.getByLabel('Cluster Name').fill(`smoke-readonly-${suffix}`);
-	await page.getByLabel('Description (optional)').fill('Disposable read-only RBAC verification');
-	await page.locator('#kubeconfig').fill(readOnlyKubeconfig);
-	await page.getByRole('dialog').getByRole('button', { name: 'Add Cluster' }).click();
-	await page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 60_000 });
+	const createDialog = page.getByRole('dialog', { name: 'Add New Cluster' });
+	try {
+		await createDialog.waitFor({ state: 'visible', timeout: 10_000 });
+	} catch (error) {
+		const visiblePageText = redact(
+			(
+				await page
+					.locator('body')
+					.innerText({ timeout: 1_000 })
+					.catch(() => 'unavailable')
+			).trim()
+		).slice(0, 600);
+		fail(
+			`Cluster creation dialog did not open (${error instanceof Error ? error.message : String(error)}; URL ${page.url()}; page: ${visiblePageText || 'empty'}; browser/request errors: ${redact(browserErrors.join('; ') || 'none')})`
+		);
+	}
+	await createDialog.getByLabel('Cluster Name', { exact: true }).fill(`smoke-readonly-${suffix}`);
+	await createDialog
+		.getByLabel('Description (optional)', { exact: true })
+		.fill('Disposable read-only RBAC verification');
+	await createDialog.locator('#kubeconfig').fill(readOnlyKubeconfig);
+	await createDialog.getByRole('button', { name: 'Add Cluster', exact: true }).click();
+	await createDialog.waitFor({ state: 'hidden', timeout: 60_000 });
 	const selection = await api('/api/v1/user/cluster');
 	const readonlyCluster = selection.payload.selectableClusters?.find(
 		(cluster) => cluster.name === `smoke-readonly-${suffix}`

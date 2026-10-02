@@ -54,6 +54,7 @@ test
 tests
 __tests__
 coverage
+scripts/smoke-image.mjs
 
 # CI/CD (except Docker workflow)
 .github
