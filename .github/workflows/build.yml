@@ -336,7 +336,8 @@ jobs:
             const output = `### Docker Build Completed
 
             **Status:** Success
-            **Platform:** ${{ env.PLATFORMS }}
+            **Platform:** linux/amd64
+            **Checks:** Blocking vulnerability scan and packaged-image smoke test passed.
 
             ### Security Scan
             Trivy vulnerability scan completed. Check the workflow logs for details.
