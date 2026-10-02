@@ -907,7 +907,9 @@ async function clusterAndFlux(image, platform) {
 	});
 	page.on('requestfailed', (request) => {
 		if (new URL(request.url()).origin === baseUrl)
-			browserErrors.push(`${request.method()} ${request.url()} failed`);
+			browserErrors.push(
+				`${request.method()} ${redact(request.url())} failed (${request.resourceType()}, ${redact(request.failure()?.errorText ?? 'unknown error')}; page ${redact(page.url())})`
+			);
 	});
 	page.on('console', (message) => {
 		if (message.type() !== 'error') return;

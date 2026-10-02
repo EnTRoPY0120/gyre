@@ -54,11 +54,11 @@
 		});
 	});
 
-	// Connect to SSE when cluster is connected
+	// Connect to SSE on authenticated app pages when the cluster is connected
 	let prevConnected = false;
 	let prevClusterId = IN_CLUSTER_ID;
 	$effect(() => {
-		const isConnected = data.health.connected;
+		const isConnected = data.health.connected && Boolean(data.user) && !isAuthPage;
 		const clusterId = data.health.currentClusterId || IN_CLUSTER_ID;
 		if (hasEventConnectionChanged(isConnected, clusterId, prevConnected, prevClusterId)) {
 			eventsStore.disconnect();
