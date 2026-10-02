@@ -1305,8 +1305,180 @@ async function clusterAndFlux(image, platform) {
 		.getByLabel('Description (optional)', { exact: true })
 		.fill('Disposable read-only RBAC verification');
 	await createDialog.locator('#kubeconfig').fill(readOnlyKubeconfig);
-	await createDialog.getByRole('button', { name: 'Add Cluster', exact: true }).click();
-	await createDialog.waitFor({ state: 'hidden', timeout: 60_000 });
+	let clusterCreateRequestStartedAt;
+	let clusterCreateActionDetails;
+	const isClusterCreateActionRequest = (request) => {
+		const requestUrl = new URL(request.url());
+		return (
+			request.method() === 'POST' &&
+			requestUrl.origin === baseUrl &&
+			requestUrl.pathname === '/admin/clusters' &&
+			requestUrl.search === '?/create'
+		);
+	};
+	page.on('request', (request) => {
+		if (isClusterCreateActionRequest(request)) clusterCreateRequestStartedAt = Date.now();
+	});
+	const reportClusterCreateFailure = async (stage, error) => {
+		const withDiagnosticTimeout = async (promise, timeout, fallback) => {
+			let timer;
+			return Promise.race([
+				promise,
+				new Promise((resolve) => {
+					timer = setTimeout(() => resolve(fallback), timeout);
+				})
+			]).finally(() => clearTimeout(timer));
+		};
+		const readVisibleTextWithoutFormValues = async (locator, limit) =>
+			redact(
+				(
+					await withDiagnosticTimeout(
+						locator
+							.evaluateAll((elements) => {
+								const element = elements[0];
+								if (!element) return '';
+								const copy = element.cloneNode(true);
+								copy.querySelectorAll('input, textarea, select').forEach((field) => field.remove());
+								return copy.innerText || '';
+							})
+							.catch(() => 'unavailable'),
+						1_000,
+						'unavailable'
+					)
+				).trim()
+			).slice(0, limit);
+		const invalidFields = await withDiagnosticTimeout(
+			createDialog
+				.locator(':invalid')
+				.evaluateAll((elements) =>
+					elements.slice(0, 10).map((element) => ({
+						name: element.getAttribute('name') || element.id || element.tagName.toLowerCase(),
+						message: element.validationMessage
+					}))
+				)
+				.catch(() => []),
+			1_000,
+			[]
+		);
+		const safeInvalidFields = invalidFields.map(({ name, message }) => ({
+			name: redact(name).slice(0, 80),
+			message: redact(message).slice(0, 160)
+		}));
+		const visiblePageText = await readVisibleTextWithoutFormValues(page.locator('body'), 600);
+		const visibleDialogText = await readVisibleTextWithoutFormValues(createDialog, 400);
+		let actionDetails = 'request not sent';
+		if (clusterCreateActionDetails) {
+			actionDetails = `HTTP ${clusterCreateActionDetails.status} after ${clusterCreateActionDetails.elapsedMs ?? 'unknown'}ms, action=${clusterCreateActionDetails.actionType || 'unknown'}/${clusterCreateActionDetails.actionStatus ?? 'unknown'}, success=${clusterCreateActionDetails.success === true}${clusterCreateActionDetails.message ? `, message=${clusterCreateActionDetails.message}` : ''}`;
+		} else if (clusterCreateRequestStartedAt !== undefined) {
+			actionDetails = `POST sent, response pending for ${Date.now() - clusterCreateRequestStartedAt}ms`;
+		} else if (safeInvalidFields.length > 0) {
+			actionDetails = 'browser constraint validation prevented the POST';
+		}
+		const browserInvalidState =
+			safeInvalidFields.length > 0 ? JSON.stringify(safeInvalidFields) : 'none';
+		fail(
+			`${stage} (${redact(error instanceof Error ? error.message : String(error))}; action ${actionDetails}; invalid form fields: ${browserInvalidState}; URL ${page.url()}; page: ${visiblePageText || 'empty'}; dialog: ${visibleDialogText || 'unavailable'}; browser/request errors: ${redact(browserErrors.join('; ') || 'none')})`
+		);
+	};
+	let clusterCreateActionResponse;
+	try {
+		[clusterCreateActionResponse] = await Promise.all([
+			page.waitForResponse((response) => isClusterCreateActionRequest(response.request()), {
+				timeout: timeoutMs
+			}),
+			createDialog.getByRole('button', { name: 'Add Cluster', exact: true }).click()
+		]);
+	} catch (error) {
+		await reportClusterCreateFailure(
+			'Cluster create action response did not arrive after submit',
+			error
+		);
+	}
+	clusterCreateActionDetails = {
+		status: clusterCreateActionResponse.status(),
+		elapsedMs:
+			clusterCreateRequestStartedAt === undefined
+				? null
+				: Date.now() - clusterCreateRequestStartedAt,
+		actionType: undefined,
+		actionStatus: undefined,
+		success: false,
+		message: undefined
+	};
+	let actionBodyTimer;
+	let actionBodyText;
+	const actionBodyRead = clusterCreateActionResponse
+		.text()
+		.then((body) => {
+			actionBodyText = body.length <= 65_536 ? body : undefined;
+		})
+		.catch(() => {});
+	await Promise.race([
+		actionBodyRead,
+		new Promise((resolve) => {
+			actionBodyTimer = setTimeout(resolve, 4_000);
+		})
+	]).finally(() => clearTimeout(actionBodyTimer));
+	if (actionBodyText !== undefined) {
+		try {
+			const payload = JSON.parse(actionBodyText);
+			if (['success', 'failure', 'error', 'redirect'].includes(payload.type)) {
+				clusterCreateActionDetails.actionType = payload.type;
+			}
+			if (Number.isInteger(payload.status)) {
+				clusterCreateActionDetails.actionStatus = payload.status;
+			}
+			let message;
+			if (typeof payload.message === 'string') message = payload.message;
+			else if (typeof payload.error?.message === 'string') message = payload.error.message;
+			let actionData;
+			if (typeof payload.data === 'string') {
+				try {
+					actionData = JSON.parse(payload.data);
+				} catch {
+					// The action type and HTTP status remain useful if data is not plain JSON.
+				}
+			}
+			const rootScalar = (key) => {
+				const reference = actionData?.[0]?.[key];
+				if (Number.isInteger(reference) && reference >= 0 && reference < actionData.length) {
+					const value = actionData[reference];
+					if (value === null || ['string', 'boolean', 'number'].includes(typeof value))
+						return value;
+				}
+				if (reference === null || ['string', 'boolean', 'number'].includes(typeof reference)) {
+					return reference;
+				}
+				return undefined;
+			};
+			const actionError = rootScalar('error');
+			if (typeof actionError === 'string') message = actionError;
+			clusterCreateActionDetails.success =
+				payload.type === 'success' &&
+				clusterCreateActionDetails.actionStatus === 200 &&
+				rootScalar('success') === true;
+			if (message) clusterCreateActionDetails.message = redact(message).slice(0, 300);
+		} catch {
+			// Keep status and content type when a response is not JSON.
+		}
+	}
+	if (clusterCreateActionResponse.status() !== 200 || clusterCreateActionDetails.success !== true) {
+		await reportClusterCreateFailure(
+			'Cluster create action did not report success',
+			new Error('Expected HTTP 200 and a SvelteKit success result with success=true')
+		);
+	}
+	console.log(
+		`Cluster create action returned HTTP 200 success in ${clusterCreateActionDetails.elapsedMs ?? 'unknown'}ms.`
+	);
+	try {
+		await createDialog.waitFor({ state: 'hidden', timeout: 60_000 });
+	} catch (error) {
+		await reportClusterCreateFailure(
+			'Cluster create action succeeded but dialog did not close',
+			error
+		);
+	}
 	const selection = await api('/api/v1/user/cluster');
 	const readonlyCluster = selection.payload.selectableClusters?.find(
 		(cluster) => cluster.name === `smoke-readonly-${suffix}`
