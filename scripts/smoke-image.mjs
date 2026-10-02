@@ -2,6 +2,7 @@
 /* oxlint-disable no-console -- CLI progress and diagnostics belong on stdout/stderr. */
 import { execFileSync, spawn } from 'node:child_process';
 import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -183,6 +184,32 @@ async function waitFor(check, message, timeout = timeoutMs) {
 
 async function getWithTimeout(url) {
 	return fetch(url, { signal: AbortSignal.timeout(4000) });
+}
+
+async function reserveLoopbackPort() {
+	const server = createServer();
+	try {
+		await new Promise((resolve, reject) => {
+			server.once('error', reject);
+			server.listen(0, '127.0.0.1', resolve);
+		});
+		const address = server.address();
+		if (!address || typeof address === 'string') {
+			throw new Error('The loopback port reservation returned no TCP port');
+		}
+		return address.port;
+	} catch (error) {
+		throw new Error(
+			`Could not reserve a loopback port for the in-cluster fixture: ${error instanceof Error ? error.message : String(error)}`,
+			{ cause: error }
+		);
+	} finally {
+		if (server.listening) {
+			await new Promise((resolve, reject) => {
+				server.close((error) => (error ? reject(error) : resolve()));
+			});
+		}
+	}
 }
 
 async function checkLocalImage(image, platform) {
@@ -749,6 +776,8 @@ async function clusterAndFlux(image, platform) {
 		'-p',
 		JSON.stringify({ status: artifactStatus })
 	]);
+	const portForwardPort = await reserveLoopbackPort();
+	const baseUrl = `http://127.0.0.1:${portForwardPort}`;
 	const appDeployment = {
 		apiVersion: 'apps/v1',
 		kind: 'Deployment',
@@ -770,6 +799,7 @@ async function clusterAndFlux(image, platform) {
 							envFrom: [{ secretRef: { name: 'gyre-smoke-secrets' } }],
 							env: [
 								{ name: 'FLUX_SOURCE_CONTROLLER_SERVICE', value: 'smoke-artifacts' },
+								{ name: 'ORIGIN', value: baseUrl },
 								{ name: 'GYRE_SETTLING_PERIOD_MS', value: '0' },
 								{ name: 'GYRE_POLL_INTERVAL_MS', value: '1000' }
 							],
@@ -810,26 +840,54 @@ async function clusterAndFlux(image, platform) {
 		'port-forward',
 		'--address=127.0.0.1',
 		'service/gyre-smoke',
-		':3000'
+		`${portForwardPort}:3000`
 	];
 	owned.portForward = spawn('kubectl', portForwardArgs, { stdio: ['ignore', 'pipe', 'pipe'] });
 	owned.children.add(owned.portForward);
 	let forwardedPort = '';
+	let portForwardFailure = '';
+	let portForwardStdout = '';
+	let portForwardStderr = '';
+	let partialPortForwardLine = '';
 	owned.portForward.stdout.on('data', (chunk) => {
-		const match = /127\.0\.0\.1:(\d+)\s+->\s+3000/.exec(chunk.toString());
-		if (match) forwardedPort = match[1];
+		const output = partialPortForwardLine + chunk.toString();
+		portForwardStdout = (portForwardStdout + output).slice(-4000);
+		const lines = output.split(/\r?\n/);
+		partialPortForwardLine = lines.pop() ?? '';
+		if (lines.includes(`Forwarding from 127.0.0.1:${portForwardPort} -> 3000`)) {
+			forwardedPort = String(portForwardPort);
+		}
 	});
-	owned.portForward.once('close', () => owned.children.delete(owned.portForward));
-	await waitFor(
-		() => Boolean(forwardedPort),
-		'Could not establish the in-cluster application port-forward'
-	);
-	const baseUrl = `http://127.0.0.1:${forwardedPort}`;
-	await waitFor(
-		async () =>
-			(await getWithTimeout(`${baseUrl}/api/v1/health`).catch(() => null))?.status === 200,
-		'In-cluster application health check failed'
-	);
+	owned.portForward.stderr.on('data', (chunk) => {
+		portForwardStderr = (portForwardStderr + chunk.toString()).slice(-4000);
+	});
+	owned.portForward.once('error', (error) => {
+		portForwardFailure = `kubectl port-forward could not start: ${error.message}`;
+	});
+	owned.portForward.once('close', (code, signal) => {
+		owned.children.delete(owned.portForward);
+		portForwardFailure ||= `kubectl port-forward exited (code ${code ?? 'none'}, signal ${signal ?? 'none'})`;
+	});
+	try {
+		await waitFor(
+			() => Boolean(forwardedPort || portForwardFailure),
+			'Port-forward did not report readiness within 30 seconds',
+			30_000
+		);
+	} catch (error) {
+		fail(
+			`Could not establish the in-cluster application port-forward on reserved port ${portForwardPort}: ${error instanceof Error ? error.message : String(error)}; stdout ${redact(portForwardStdout || 'empty')}; stderr ${redact(portForwardStderr || 'empty')}`
+		);
+	}
+	if (portForwardFailure || forwardedPort !== String(portForwardPort)) {
+		fail(
+			`Could not establish the in-cluster application port-forward on reserved port ${portForwardPort}: ${portForwardFailure || 'expected forwarding line was not observed'}; stdout ${redact(portForwardStdout || 'empty')}; stderr ${redact(portForwardStderr || 'empty')}`
+		);
+	}
+	await waitFor(async () => {
+		if (portForwardFailure) fail(`In-cluster port-forward failed: ${portForwardFailure}`);
+		return (await getWithTimeout(`${baseUrl}/api/v1/health`).catch(() => null))?.status === 200;
+	}, 'In-cluster application health check failed');
 
 	browser = await chromium.launch({ headless: true });
 	const context = await browser.newContext();
@@ -860,7 +918,10 @@ async function clusterAndFlux(image, platform) {
 			text.startsWith('Failed to load resource:') &&
 			text.includes('403');
 		if (expectedPermissionDenial) expectedForbiddenConsoleSeen = true;
-		else if (!isExpectedBrowserConsoleError(text)) browserErrors.push(text);
+		else if (!isExpectedBrowserConsoleError(text)) {
+			const sourceUrl = message.location().url;
+			browserErrors.push(`${redact(text)}${sourceUrl ? ` (source ${redact(sourceUrl)})` : ''}`);
+		}
 	});
 	await waitFor(async () => {
 		const response = await getWithTimeout(`${baseUrl}/login`).catch(() => null);
