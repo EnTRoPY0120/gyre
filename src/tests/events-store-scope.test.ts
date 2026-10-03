@@ -85,3 +85,38 @@ describe('eventsStore.setStorageScope', () => {
 		expect(eventsStore.notifications).toEqual([]);
 	});
 });
+
+describe('eventsStore notification suppression', () => {
+	test('notify=false still reaches subscribers and a later default event stores a notification', () => {
+		const received: unknown[] = [];
+		const unsubscribe = eventsStore.onEvent((event) => received.push(event));
+		const event = {
+			type: 'MODIFIED' as const,
+			clusterId: 'cluster-a',
+			resourceType: 'GitRepository',
+			resource: {
+				metadata: { name: 'demo', namespace: 'flux-system', uid: 'uid-1' },
+				status: { conditions: [{ type: 'Ready', status: 'True', message: 'Ready' }] }
+			},
+			timestamp: '2026-01-01T00:00:00.000Z'
+		};
+
+		try {
+			(
+				eventsStore as unknown as {
+					handleMessage: (value: typeof event & { notify?: boolean }) => void;
+				}
+			).handleMessage({ ...event, notify: false });
+			expect(received).toHaveLength(1);
+			expect(eventsStore.notifications).toHaveLength(0);
+
+			(eventsStore as unknown as { handleMessage: (value: typeof event) => void }).handleMessage(
+				event
+			);
+			expect(received).toHaveLength(2);
+			expect(eventsStore.notifications).toHaveLength(1);
+		} finally {
+			unsubscribe();
+		}
+	});
+});
