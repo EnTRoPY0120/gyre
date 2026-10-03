@@ -1,7 +1,4 @@
-export function isResourceSelectionTarget(target: EventTarget | null): boolean {
-	const element = target instanceof HTMLElement ? target : null;
-	return (
-		(element instanceof HTMLInputElement && element.type === 'checkbox') ||
-		Boolean(element?.closest('input[type="checkbox"]'))
-	);
+export function isResourceRowInteractiveTarget(target: EventTarget | null): boolean {
+	const element = target instanceof Element ? target : null;
+	return Boolean(element?.closest('a, input[type="checkbox"]'));
 }

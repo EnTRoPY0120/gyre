@@ -4,7 +4,8 @@ import { afterAll, describe, expect, test, vi } from 'vitest';
 vi.mock('$app/environment', () => ({ dev: false }));
 vi.mock('$env/dynamic/public', () => ({ env: {} }));
 
-const { advancedSearch, parseQuery } = await import('../lib/utils/search.js');
+const { advancedSearch, parseQuery, validateResourceSearchRegex } =
+	await import('../lib/utils/search.js');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -182,5 +183,26 @@ describe('parseQuery', () => {
 		const longValue = 'x'.repeat(250);
 		const result = parseQuery(`ns:${longValue}`);
 		expect(result.tags.ns).toBe(longValue.slice(0, 200));
+	});
+});
+
+describe('resource regex validation', () => {
+	test('distinguishes malformed and performance-risk patterns', () => {
+		expect(validateResourceSearchRegex('[')).toEqual({
+			regex: null,
+			error: 'This regular expression is invalid.'
+		});
+		expect(validateResourceSearchRegex('(a{1,})+')).toEqual({
+			regex: null,
+			error: 'This pattern may cause performance issues.'
+		});
+	});
+
+	test('validates the parsed text using the same 500-character limit as search', () => {
+		const taggedPattern = `${'a'.repeat(500)}[ ns:default`;
+		expect(validateResourceSearchRegex(taggedPattern).error).toBeNull();
+		expect(validateResourceSearchRegex(`[${'a'.repeat(500)} ns:default`).error).toBe(
+			'This regular expression is invalid.'
+		);
 	});
 });

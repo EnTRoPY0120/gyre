@@ -1,20 +1,17 @@
 import { logger } from '../logger.js';
 import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
 import { listFluxResources } from '../kubernetes/client.js';
-import type { FluxResourceType } from '../kubernetes/flux/resources.js';
+import { getAllResourceTypes, type FluxResourceType } from '../kubernetes/flux/resources.js';
 import type { FluxResource, K8sCondition } from '../kubernetes/flux/types.js';
 import { resourcePollsTotal, resourceUpdatesTotal, fluxResourceStatusGauge } from '../metrics.js';
 import { captureReconciliation } from '../kubernetes/flux/reconciliation-tracker.js';
+import { getKubernetesErrorDetails } from '../kubernetes/error-classification.js';
 import { POLL_INTERVAL_MS, SETTLING_PERIOD_MS } from '../config/constants.js';
 import { broadcast } from './dispatcher.js';
 import { normalizeError, type ClusterContext } from './types.js';
 
-const WATCH_RESOURCES: FluxResourceType[] = [
-	'GitRepository',
-	'HelmRepository',
-	'Kustomization',
-	'HelmRelease'
-];
+const WATCH_RESOURCES: FluxResourceType[] = [...getAllResourceTypes()];
+const UNAVAILABLE_RESOURCE_COOLDOWN_MS = 60_000;
 
 export async function poll(context: ClusterContext) {
 	if (!context.isActive) return;
@@ -49,6 +46,13 @@ async function pollResourceType(
 	context: ClusterContext,
 	resourceType: FluxResourceType
 ): Promise<boolean> {
+	if (!context.isActive) return false;
+	const cooldownUntil = context.pollCooldowns.get(resourceType);
+	if (cooldownUntil !== undefined) {
+		if (Date.now() < cooldownUntil) return true;
+		context.pollCooldowns.delete(resourceType);
+	}
+
 	try {
 		// Pass clusterId to listFluxResources to get resources from the correct cluster
 		const resourceList = await listFluxResources(
@@ -67,10 +71,15 @@ async function pollResourceType(
 		resourcePollsTotal.labels(context.clusterId, resourceType, 'success').inc();
 	} catch (err) {
 		resourcePollsTotal.labels(context.clusterId, resourceType, 'error').inc();
+		const status = err instanceof Error ? getKubernetesErrorDetails(err).status : undefined;
+		if (context.isActive && (status === 403 || status === 404)) {
+			context.pollCooldowns.set(resourceType, Date.now() + UNAVAILABLE_RESOURCE_COOLDOWN_MS);
+		}
 		logger.error(
 			{ clusterId: context.clusterId, resourceType, err: normalizeError(err) },
 			'[EventBus] Error polling resource type'
 		);
+		return context.isActive;
 	}
 
 	return true;
@@ -181,27 +190,34 @@ async function handleModifiedResource(
 ): Promise<boolean> {
 	const { resourceType, resource, key, currentState, notificationState } = details;
 	const previousNotificationState = context.lastNotificationStates.get(key);
+	let shouldNotify = false;
 
 	if (!previousNotificationState || previousNotificationState !== notificationState) {
-		const { shouldNotify, isTransientState } = shouldNotifyModified(
-			previousNotificationState,
-			notificationState
-		);
+		const decision = shouldNotifyModified(previousNotificationState, notificationState);
+		shouldNotify = decision.shouldNotify && !decision.isTransientState;
 
-		if (shouldNotify && !isTransientState) {
+		if (shouldNotify) {
 			resourceUpdatesTotal.labels(context.clusterId, resourceType, 'modified').inc();
 			await captureReconciliationSafely(context, resourceType, resource);
 
 			if (!context.isActive) return false;
-
-			broadcastResourceChange(context, 'MODIFIED', resourceType, resource);
 		}
 
-		if (!isTransientState) {
+		if (!decision.isTransientState) {
 			context.lastNotificationStates.set(key, notificationState);
 		}
 	}
 
+	if (!shouldNotify) {
+		resourceUpdatesTotal.labels(context.clusterId, resourceType, 'modified').inc();
+	}
+	broadcastResourceChange(
+		context,
+		'MODIFIED',
+		resourceType,
+		resource,
+		shouldNotify ? undefined : false
+	);
 	context.lastStates.set(key, currentState);
 	return true;
 }
@@ -260,10 +276,12 @@ function broadcastResourceChange(
 	context: ClusterContext,
 	type: 'ADDED' | 'MODIFIED',
 	resourceType: FluxResourceType,
-	resource: FluxResource
+	resource: FluxResource,
+	notify?: boolean
 ): void {
 	broadcast(context, {
 		type,
+		notify,
 		clusterId: context.clusterId,
 		resourceType,
 		resource: {
@@ -286,7 +304,8 @@ function buildResourceState(resource: FluxResource): string {
 	return JSON.stringify({
 		resourceVersion: resource.metadata?.resourceVersion,
 		generation: resource.metadata?.generation,
-		observedGeneration: resource.status?.observedGeneration
+		observedGeneration: resource.status?.observedGeneration,
+		spec: resource.spec
 	});
 }
 

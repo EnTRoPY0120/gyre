@@ -11,7 +11,11 @@ import {
 	requireAdminFormUser,
 	serializePagination
 } from '../server-helpers';
-import { validateUserCreateInput, validateUserUpdateInput } from './action-validation';
+import {
+	parseUserUpdateInput,
+	validateUserCreateInput,
+	validateUserUpdateInput
+} from './action-validation';
 import type { User } from '$lib/server/db/schema';
 
 function readUserCreateInput(formData: FormData): UserCreateInput {
@@ -52,12 +56,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 function buildUserUpdates(
 	email: string,
 	role: 'admin' | 'editor' | 'viewer' | null,
-	active: string
+	active: boolean | null
 ): Parameters<typeof updateUser>[1] {
 	const updates: Parameters<typeof updateUser>[1] = {};
 	if (email) updates.email = email;
 	if (role) updates.role = role;
-	if (active !== null) updates.active = active === 'true';
+	if (active !== null) updates.active = active;
 	return updates;
 }
 
@@ -122,9 +126,9 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const userId = getRequiredFormString(formData, 'userId', 'User ID is required');
 		if (typeof userId !== 'string') return userId;
-		const email = formData.get('email') as string;
-		const role = formData.get('role') as 'admin' | 'editor' | 'viewer' | null;
-		const active = formData.get('active') as string;
+		const parsedInput = parseUserUpdateInput(formData);
+		if (!parsedInput.success) return fail(400, { error: parsedInput.error });
+		const { email, role, active } = parsedInput.data;
 
 		const validationError = validateUserUpdateInput(userId, user.id, email, role, active);
 		if (validationError) return fail(400, { error: validationError });
