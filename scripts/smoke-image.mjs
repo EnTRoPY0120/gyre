@@ -414,7 +414,7 @@ async function runtimeAndBrowser(image, platform) {
 	} catch {
 		const visibleState = (await page.locator('body').innerText()).slice(0, 400);
 		fail(
-			`First login did not reach password change (login status ${loginStatuses.join(',') || 'missing'}; assets ${productionAssetResponses.join(',') || 'none'}; browser errors ${browserErrors.join('; ') || 'none'}; URL ${page.url()}; page: ${visibleState})`
+			`First login did not reach password change (login status ${loginStatuses.join(',') || 'missing'}; assets ${productionAssetResponses.map(({ status, contentType, pathname }) => `${status} ${contentType || 'missing'} ${pathname}`).join('; ') || 'none'}; browser errors ${browserErrors.join('; ') || 'none'}; URL ${page.url()}; page: ${visibleState})`
 		);
 	}
 	await page.waitForLoadState('networkidle');
