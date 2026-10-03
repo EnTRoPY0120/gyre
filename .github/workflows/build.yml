@@ -2,21 +2,19 @@ name: Build and Publish Docker Image
 
 on:
   push:
-    branches:
-      - main
-      - develop
-    tags:
-      - 'v*'
-    paths-ignore:
-      - 'documentation/**'
-      - '**.md'
+    branches: [main, develop]
+    tags: ['v*']
+    paths-ignore: ['documentation/**', '**.md']
   pull_request:
-    paths-ignore:
-      - 'documentation/**'
-      - '**.md'
+    paths-ignore: ['documentation/**', '**.md']
   workflow_dispatch:
+    inputs:
+      verification_only:
+        description: Build, scan, and smoke-test both architectures without publishing
+        required: false
+        type: boolean
+        default: false
 
-# A newer push supersedes an older image build for the same branch or PR.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -27,21 +25,33 @@ env:
   PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
-  build-and-push:
-    # Build arm64 natively; QEMU is used for the amd64 target.
+  build-image:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     permissions:
       contents: read
-      packages: write
-      attestations: write
-      id-token: write
-      pull-requests: write
-      security-events: write
-
+    outputs:
+      artifact-id: ${{ steps.image-artifact.outputs.artifact-id }}
+      archive-sha256: ${{ steps.archive.outputs.sha256 }}
+      digest: ${{ steps.archive.outputs.digest }}
+      tags: ${{ steps.meta.outputs.tags }}
+      platforms: ${{ steps.platforms.outputs.value }}
+      sarif-artifact-id: ${{ steps.sarif-artifact.outputs.artifact-id }}
+      sarif-uploaded: ${{ steps.sarif-artifact.outputs.artifact-id != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Select platforms
+        id: platforms
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "${{ inputs.verification_only }}" != true ]; then
+            echo 'value=linux/amd64' >> "$GITHUB_OUTPUT"
+          else
+            echo 'value=linux/amd64,linux/arm64' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
@@ -49,31 +59,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
-      - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Extract metadata (tags, labels) for Docker
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # Latest tag (only on main branch)
             type=raw,value=latest,enable={{is_default_branch}}
-            # Branch name (main, develop, etc.)
             type=ref,event=branch
-            # Immutable version tag (e.g., 0.5.0)
             type=semver,pattern={{version}}
-            # PR tags (for pull requests)
             type=ref,event=pr
-          flavor: |
-            latest=false
+          flavor: latest=false
           labels: |
             org.opencontainers.image.title=Gyre
             org.opencontainers.image.description=Modern WebUI for FluxCD
@@ -93,26 +89,49 @@ jobs:
         env:
           DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
 
-      # Build into the local Docker daemon and scan before pushing. Export the
-      # full build graph so the later multi-platform publish step can reuse it.
-      # Trivy 0.50+ dropped the docker-archive: URI scheme; it resolves image
-      # names via the local daemon, so load:true is required. The scan must pass
-      # (exit-code: 1) before the push runs.
-      - name: Build image for scan
+      - name: Build original OCI image archive
+        id: build
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: ./Dockerfile
-          platforms: linux/amd64
-          load: true
-          tags: gyre:scan
-          cache-from: type=gha
+          platforms: ${{ steps.platforms.outputs.value }}
+          outputs: type=oci,dest=${{ runner.temp }}/gyre-image.tar,oci-artifact=false
+          # A single archive reference lets Skopeo consume the OCI index reliably.
+          tags: gyre:verified
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: |
+            type=gha
+            type=gha,scope=arm64
           cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+      - name: Install Skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y skopeo
+
+      - name: Verify archive digest and calculate checksum
+        id: archive
+        env:
+          BUILT_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$BUILT_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          digest="sha256:$(skopeo inspect --raw "oci-archive:${{ runner.temp }}/gyre-image.tar" | sha256sum | cut -d' ' -f1)"
+          test "$digest" = "$BUILT_DIGEST"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "sha256=$(sha256sum "${{ runner.temp }}/gyre-image.tar" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Import amd64 image for scanning
+        run: skopeo copy --override-os linux --override-arch amd64 "oci-archive:${{ runner.temp }}/gyre-image.tar" docker-daemon:gyre:scan-amd64
 
       - name: Run Trivy scan (blocking)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
-          image-ref: gyre:scan
+          image-ref: gyre:scan-amd64
           format: table
           severity: CRITICAL
           ignore-unfixed: false
@@ -120,22 +139,12 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore
 
-      # Build arm64 natively and scan before pushing so arm64-specific
-      # vulnerabilities are caught. This runner is arm64, so no emulation is used.
-      - name: Build image for scan (arm64)
-        if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: linux/arm64
-          load: true
-          tags: gyre:scan-arm64
-          cache-from: type=gha,scope=arm64
-          cache-to: type=gha,scope=arm64,mode=max
+      - name: Import arm64 image for scanning
+        if: contains(steps.platforms.outputs.value, 'arm64')
+        run: skopeo copy --override-os linux --override-arch arm64 "oci-archive:${{ runner.temp }}/gyre-image.tar" docker-daemon:gyre:scan-arm64
 
       - name: Run Trivy scan arm64 (blocking)
-        if: github.event_name != 'pull_request'
+        if: contains(steps.platforms.outputs.value, 'arm64')
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
           image-ref: gyre:scan-arm64
@@ -146,36 +155,13 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore
 
-      # Push step skipped for pull requests — the scan above is sufficient.
-      - name: Build and push Docker image
-        id: build-and-push
-        if: github.event_name != 'pull_request'
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
-        with:
-          context: .
-          file: ./Dockerfile
-          platforms: ${{ env.PLATFORMS }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          annotations: ${{ steps.meta.outputs.annotations }}
-          cache-from: |
-            type=gha
-            type=gha,scope=arm64
-          cache-to: type=gha,mode=max
-          provenance: true
-          sbom: true
-
-      # Post-push SARIF scan for GitHub Security tab reporting (non-blocking).
-      # exit-code: '0' is intentional — the blocking scan above already enforces
-      # security; this step is reporting-only and must not fail the build.
-      - name: Run Trivy vulnerability scanner (SARIF)
-        id: trivy-sarif
-        if: github.event_name != 'pull_request'
+      - name: Run Trivy SARIF scan
+        id: sarif
+        if: github.event_name != 'pull_request' && inputs.verification_only != true
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}
+          image-ref: gyre:scan-arm64
           format: sarif
           output: trivy-results.sarif
           severity: CRITICAL,HIGH,MEDIUM
@@ -185,98 +171,308 @@ jobs:
           exit-code: '0'
           trivyignores: .trivyignore
 
-      - name: Check SARIF output exists
-        id: sarif-check
-        if: github.event_name != 'pull_request'
+      - name: Upload Trivy SARIF artifact
+        id: sarif-artifact
+        if: github.event_name != 'pull_request' && inputs.verification_only != true && steps.sarif.outcome == 'success' && hashFiles('trivy-results.sarif') != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-sarif-${{ github.run_id }}-${{ github.run_attempt }}
+          path: trivy-results.sarif
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Record OCI artifact identity
+        env:
+          IMAGE_DIGEST: ${{ steps.archive.outputs.digest }}
+          ARCHIVE_SHA256: ${{ steps.archive.outputs.sha256 }}
         run: |
-          if [ -f trivy-results.sarif ]; then
-            echo "sarif_exists=true" >> $GITHUB_OUTPUT
+          {
+            echo '## Scanned OCI artifact'
+            echo
+            echo "- Root digest: \`$IMAGE_DIGEST\`"
+            echo "- Archive SHA-256: \`$ARCHIVE_SHA256\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload original OCI artifact
+        id: image-artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gyre-oci-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/gyre-image.tar
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 2
+
+  build-and-push:
+    # Keep this required check green only when both untrusted-code jobs succeeded.
+    if: always()
+    needs: [build-image, smoke, publish]
+    runs-on: ubuntu-24.04
+    permissions: {}
+    steps:
+      - name: Require image build and smoke success
+        env:
+          BUILD_RESULT: ${{ needs.build-image.result }}
+          SMOKE_RESULT: ${{ needs.smoke.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+        run: |
+          test "$BUILD_RESULT" = success
+          test "$SMOKE_RESULT" = success
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] || [ "${{ inputs.verification_only }}" = true ]; then
+            test "$PUBLISH_RESULT" = skipped
           else
-            echo "sarif_exists=false" >> $GITHUB_OUTPUT
+            test "$PUBLISH_RESULT" = success
           fi
 
-      - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
-        if: >-
-          github.event_name != 'pull_request' &&
-          steps.trivy-sarif.outcome == 'success' &&
-          steps.sarif-check.outputs.sarif_exists == 'true'
+  smoke:
+    needs: build-image
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sarif_file: trivy-results.sarif
-          category: container-scan
+          persist-credentials: false
 
-      # Generate artifact attestation (supply chain security)
-      - name: Generate artifact attestation
-        if: github.event_name != 'pull_request'
+      - name: Download exact original OCI artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.build-image.outputs.artifact-id }}
+          path: ${{ runner.temp }}/image
+          digest-mismatch: error
+
+      - name: Install Skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y skopeo
+
+      - name: Verify OCI artifact identity
+        env:
+          EXPECTED_SHA256: ${{ needs.build-image.outputs.archive-sha256 }}
+          EXPECTED_DIGEST: ${{ needs.build-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$EXPECTED_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "$EXPECTED_SHA256  ${{ runner.temp }}/image/gyre-image.tar" | sha256sum --check --status
+          digest="sha256:$(skopeo inspect --raw "oci-archive:${{ runner.temp }}/image/gyre-image.tar" | sha256sum | cut -d' ' -f1)"
+          test "$digest" = "$EXPECTED_DIGEST"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
+
+      - name: Load smoke images
+        run: |
+          set -euo pipefail
+          skopeo copy --override-os linux --override-arch amd64 "oci-archive:${{ runner.temp }}/image/gyre-image.tar" docker-daemon:gyre:scan-amd64
+          if [[ "${{ needs.build-image.outputs.platforms }}" == *arm64* ]]; then
+            skopeo copy --override-os linux --override-arch arm64 "oci-archive:${{ runner.temp }}/image/gyre-image.tar" docker-daemon:gyre:scan-arm64
+          fi
+
+      - name: Set up Node.js, pnpm, and Playwright
+        uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+        with:
+          runtime: node@26.10.0
+          install: false
+          cache: true
+
+      - name: Install smoke dependencies
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Install pinned Kubernetes smoke tools
+        run: |
+          set -euo pipefail
+          tmpdir=$(mktemp -d)
+          trap 'rm -rf "$tmpdir"' EXIT
+          case "$(uname -m)" in
+            x86_64)
+              arch=amd64
+              kind_sha256=aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d
+              kubectl_sha256=629d3f410e09bf49b64ae7079f7f0bda1191efed311f7d37fdbab0ad5b0ec2b7
+              flux_sha256=b853df82adfd7736f580692f9f734473d571606307139f8fd20c2a80dd1ff473
+              ;;
+            aarch64)
+              arch=arm64
+              kind_sha256=20022bee6cfcd5086cb7234d218e3454e6090022f2a8f55d1fa7fcf42c3867a2
+              kubectl_sha256=59f7ee8e477fae658447607dc3c8790ac17a1b016c01c622c12070e969e2d4e7
+              flux_sha256=f3e159af616ec0b9bd0a405c2185cf09d06b74652c1de3c7f377e8166826651a
+              ;;
+            *) echo "Unsupported runner architecture: $(uname -m)" >&2; exit 1 ;;
+          esac
+          curl -fsSLo "$tmpdir/kind" "https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-${arch}"
+          echo "$kind_sha256  $tmpdir/kind" | sha256sum --check --status
+          curl -fsSLo "$tmpdir/kubectl" "https://dl.k8s.io/release/v1.36.1/bin/linux/${arch}/kubectl"
+          echo "$kubectl_sha256  $tmpdir/kubectl" | sha256sum --check --status
+          curl -fsSLo "$tmpdir/flux.tar.gz" "https://github.com/fluxcd/flux2/releases/download/v2.9.5/flux_2.9.5_linux_${arch}.tar.gz"
+          echo "$flux_sha256  $tmpdir/flux.tar.gz" | sha256sum --check --status
+          tar -xzf "$tmpdir/flux.tar.gz" -C "$tmpdir" flux
+          sudo install -m 0755 "$tmpdir/kind" /usr/local/bin/kind
+          sudo install -m 0755 "$tmpdir/kubectl" /usr/local/bin/kubectl
+          sudo install -m 0755 "$tmpdir/flux" /usr/local/bin/flux
+          kind version
+          kubectl version --client
+          flux --version
+
+      - name: Verify digest-preserving OCI transport locally
+        if: github.event_name == 'workflow_dispatch' && inputs.verification_only == true
+        run: |
+          set -euo pipefail
+          docker run --detach --rm --name gyre-verification-registry --publish 127.0.0.1:5000:5000 registry:2
+          cleanup() { docker stop gyre-verification-registry >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:5000/v2/ >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:5000/v2/ >/dev/null
+          for tag in verification verification-alias; do
+            skopeo copy --all --preserve-digests --dest-tls-verify=false "oci-archive:${{ runner.temp }}/image/gyre-image.tar" "docker://127.0.0.1:5000/gyre:${tag}"
+            digest="sha256:$(skopeo inspect --raw --tls-verify=false "docker://127.0.0.1:5000/gyre:${tag}" | sha256sum | cut -d' ' -f1)"
+            test "$digest" = "${{ needs.build-image.outputs.digest }}"
+          done
+
+      - name: Smoke-test scanned amd64 image
+        run: pnpm smoke:image --image gyre:scan-amd64 --platform linux/amd64
+
+      - name: Smoke-test scanned arm64 image
+        if: contains(needs.build-image.outputs.platforms, 'arm64')
+        run: pnpm smoke:image --image gyre:scan-arm64 --platform linux/arm64
+
+      - name: Verification summary
+        if: github.event_name == 'workflow_dispatch' && inputs.verification_only == true
+        run: |
+          echo '## Verification completed successfully' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Both architectures passed blocking vulnerability scans, digest-preserving OCI transport verification, and packaged-image smoke tests. No image was published.' >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    if: github.event_name != 'pull_request' && inputs.verification_only != true
+    needs: [build-image, smoke]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - name: Download exact original OCI artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.build-image.outputs.artifact-id }}
+          path: ${{ runner.temp }}/image
+          digest-mismatch: error
+
+      - name: Install Skopeo
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y skopeo
+
+      - name: Reverify original OCI artifact
+        env:
+          EXPECTED_SHA256: ${{ needs.build-image.outputs.archive-sha256 }}
+          EXPECTED_DIGEST: ${{ needs.build-image.outputs.digest }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$EXPECTED_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "$EXPECTED_SHA256  ${{ runner.temp }}/image/gyre-image.tar" | sha256sum --check --status
+          digest="sha256:$(skopeo inspect --raw "oci-archive:${{ runner.temp }}/image/gyre-image.tar" | sha256sum | cut -d' ' -f1)"
+          test "$digest" = "$EXPECTED_DIGEST"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish exact tested OCI image and verify digest
+        env:
+          IMAGE_TAGS: ${{ needs.build-image.outputs.tags }}
+          EXPECTED_DIGEST: ${{ needs.build-image.outputs.digest }}
+          EXPECTED_SHA256: ${{ needs.build-image.outputs.archive-sha256 }}
+          IMAGE_PREFIX: '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:'
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+          [[ "$EXPECTED_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ -n "$IMAGE_TAGS" ]]
+          while IFS= read -r image_tag; do
+            [ -n "$image_tag" ] || continue
+            [[ "$image_tag" == "$IMAGE_PREFIX"* ]]
+            skopeo copy --all --preserve-digests "oci-archive:${{ runner.temp }}/image/gyre-image.tar" "docker://${image_tag}"
+            digest="sha256:$(skopeo inspect --raw "docker://${image_tag}" | sha256sum | cut -d' ' -f1)"
+            test "$digest" = "$EXPECTED_DIGEST"
+          done <<< "$IMAGE_TAGS"
+
+      - name: Generate registry artifact attestation
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
           subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          subject-digest: ${{ steps.build-and-push.outputs.digest }}
+          subject-digest: ${{ needs.build-image.outputs.digest }}
           push-to-registry: true
+          create-storage-record: false
 
-      # Create a detailed build summary
       - name: Build summary
-        if: github.event_name != 'pull_request'
         env:
-          SARIF_OUTCOME: ${{ steps.trivy-sarif.outcome }}
-          SARIF_EXISTS: ${{ steps.sarif-check.outputs.sarif_exists }}
+          IMAGE_TAGS: ${{ needs.build-image.outputs.tags }}
+          IMAGE_DIGEST: ${{ needs.build-image.outputs.digest }}
+          IMAGE_PLATFORMS: ${{ needs.build-image.outputs.platforms }}
         run: |
-          echo "## Docker Image Published Successfully" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Image Details" >> $GITHUB_STEP_SUMMARY
-          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| **Registry** | \`${{ env.REGISTRY }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Repository** | \`${{ env.IMAGE_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Platforms** | \`${{ env.PLATFORMS }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Digest** | \`${{ steps.build-and-push.outputs.digest }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Published Tags" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.meta.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ "$SARIF_OUTCOME" = "success" ] && [ "$SARIF_EXISTS" = "true" ]; then
-            echo "### Security Scan" >> $GITHUB_STEP_SUMMARY
-            echo "Trivy vulnerability scan completed. Check the Security tab for detailed results." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "### Pull Commands" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Latest version:**" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Specific version:**" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build-and-push.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Helm Installation" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "helm install gyre charts/gyre \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --namespace flux-system \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --create-namespace \\" >> $GITHUB_STEP_SUMMARY
-          echo "  --set image.repository=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo '## Docker Image Published Successfully'
+            echo
+            echo "- Registry: \`$REGISTRY\`"
+            echo "- Repository: \`$IMAGE_NAME\`"
+            echo "- Platforms: \`$IMAGE_PLATFORMS\`"
+            echo "- Digest: \`$IMAGE_DIGEST\`"
+            echo
+            echo '### Published tags'
+            echo '```'
+            printf '%s\n' "$IMAGE_TAGS"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      # Comment on PR with build info (for pull requests)
+  report-security:
+    if: always() && needs.build-image.result == 'success' && needs.build-image.outputs.sarif-uploaded == 'true'
+    needs: [build-image, publish]
+    runs-on: ubuntu-24.04
+    permissions:
+      security-events: write
+    steps:
+      - name: Download exact SARIF artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ needs.build-image.outputs.sarif-artifact-id }}
+          path: sarif
+          digest-mismatch: error
+      - name: Upload Trivy results to GitHub Security
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: sarif/trivy-results.sarif
+          category: container-scan
+
+  report-pr:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false && needs.build-image.result == 'success' && needs.smoke.result == 'success'
+    needs: [build-image, smoke]
+    runs-on: ubuntu-24.04
+    permissions:
+      pull-requests: write
+    steps:
       - name: Comment on PR
-        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const output = `### Docker Build Completed
 
             **Status:** Success
-            **Platform:** ${{ env.PLATFORMS }}
-
-            ### Security Scan
-            Trivy vulnerability scan completed. Check the workflow logs for details.
+            **Platform:** ${{ needs.build-image.outputs.platforms }}
+            **Checks:** Blocking vulnerability scan and packaged-image smoke test passed.
 
             > Note: Images are not pushed for pull requests. Merge to main to publish.`;
-
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
