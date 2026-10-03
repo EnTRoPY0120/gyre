@@ -893,10 +893,48 @@ async function clusterAndFlux(image, platform) {
 	const context = await browser.newContext();
 	const page = await context.newPage();
 	const browserErrors = [];
+	const pendingBrowserRequests = new Set();
+	let lastBrowserRequestActivityAt = Date.now();
 	let expectedForbiddenPath = '';
 	let expectedForbiddenResponseSeen = false;
 	let expectedForbiddenConsoleSeen = false;
 	page.on('pageerror', (error) => browserErrors.push(error.message));
+	page.on('request', (request) => {
+		if (
+			['fetch', 'xhr'].includes(request.resourceType()) &&
+			new URL(request.url()).origin === baseUrl
+		) {
+			pendingBrowserRequests.add(request);
+			lastBrowserRequestActivityAt = Date.now();
+		}
+	});
+	const finishTrackedRequest = (request) => {
+		if (pendingBrowserRequests.delete(request)) lastBrowserRequestActivityAt = Date.now();
+	};
+	page.on('requestfinished', finishTrackedRequest);
+	page.on('requestfailed', finishTrackedRequest);
+	const waitForBrowserRequestsToSettle = async (stage) => {
+		const quietPeriodStartedAt = Date.now();
+		try {
+			await waitFor(
+				() =>
+					pendingBrowserRequests.size === 0 &&
+					Date.now() - Math.max(quietPeriodStartedAt, lastBrowserRequestActivityAt) >= 500,
+				`${stage} still had pending same-origin fetch/XHR requests`,
+				60_000
+			);
+		} catch (error) {
+			const pending = [...pendingBrowserRequests]
+				.slice(0, 10)
+				.map(
+					(request) => `${request.method()} ${redact(request.url())} (${request.resourceType()})`
+				)
+				.join('; ');
+			fail(
+				`${stage} could not wait for same-origin fetch/XHR requests to settle (${error instanceof Error ? error.message : String(error)}; pending: ${pending || 'none'}; URL ${page.url()})`
+			);
+		}
+	};
 	page.on('response', (response) => {
 		if (
 			expectedForbiddenPath &&
@@ -1256,9 +1294,11 @@ async function clusterAndFlux(image, platform) {
 		'Drift export omitted the failed resource name or Kubernetes validation detail'
 	);
 
+	await waitForBrowserRequestsToSettle('Overview tab transition');
 	await page.getByRole('tab', { name: 'Overview', exact: true }).click();
 	await page.locator('#overview-panel').waitFor({ state: 'visible', timeout: 60_000 });
 	await diffEditorWidget.waitFor({ state: 'detached', timeout: 60_000 });
+	await waitForBrowserRequestsToSettle('Overview tab refresh');
 
 	const readonlySa = 'gyre-smoke-readonly';
 	await kubectl(['create', 'serviceaccount', readonlySa, '-n', namespace]);
@@ -1308,6 +1348,7 @@ async function clusterAndFlux(image, platform) {
 			''
 		].join('\n')
 	);
+	await waitForBrowserRequestsToSettle('cluster management navigation');
 	let clusterPageEventsResponse;
 	try {
 		[clusterPageEventsResponse] = await Promise.all([
@@ -1548,6 +1589,14 @@ async function clusterAndFlux(image, platform) {
 			error
 		);
 	}
+	try {
+		await page
+			.getByRole('heading', { name: `smoke-readonly-${suffix}`, exact: true })
+			.waitFor({ state: 'visible', timeout: 60_000 });
+	} catch (error) {
+		await reportClusterCreateFailure('Created cluster did not appear after page refresh', error);
+	}
+	await waitForBrowserRequestsToSettle('created cluster refresh');
 	const selection = await api('/api/v1/user/cluster');
 	const readonlyCluster = selection.payload.selectableClusters?.find(
 		(cluster) => cluster.name === `smoke-readonly-${suffix}`
@@ -1595,6 +1644,7 @@ async function clusterAndFlux(image, platform) {
 		'Read-only denied mutation changed Kubernetes spec or resourceVersion'
 	);
 	await api('/api/v1/user/cluster', { method: 'PUT', body: { clusterId: 'in-cluster' } });
+	await waitForBrowserRequestsToSettle('browser teardown');
 	assert(browserErrors.length === 0, `In-cluster browser errors: ${browserErrors.join('; ')}`);
 	await context.close();
 	await browser.close();
