@@ -16,6 +16,7 @@
 		defaultFilterState,
 		type FilterState
 	} from '$lib/utils/filtering';
+	import { validateResourceSearchRegex } from '$lib/utils/search';
 	import type { FluxResource } from '$lib/types/flux';
 	import { SORT_FIELDS, type SortBy } from '$lib/config/sorting';
 	import { getResourceStats } from './resource-stats';
@@ -101,13 +102,19 @@
 	const filteredResources = $derived(
 		filterResources(data.resources || [], { ...filters, search: debouncedSearch })
 	);
+	const regexError = $derived(
+		filters.useRegex ? validateResourceSearchRegex(debouncedSearch).error : null
+	);
 	const hasActiveFilters = $derived(checkActiveFilters(filters));
 	const stats = $derived(getResourceStats(filteredResources));
 
 	function handleResourceClick(resource: FluxResource) {
+		goto(getResourceUrl(resource));
+	}
+
+	function getResourceUrl(resource: FluxResource): string {
 		const namespace = resource.metadata.namespace || 'default';
-		const name = resource.metadata.name;
-		goto(resolve(`/resources/${data.resourceType}/${namespace}/${name}`));
+		return resolve(`/resources/${data.resourceType}/${namespace}/${resource.metadata.name}`);
 	}
 
 	$effect(() => {
@@ -182,6 +189,7 @@
 		total={data.total}
 		resourceCount={data.resources?.length ?? 0}
 		{hasActiveFilters}
+		validationSearch={debouncedSearch}
 		onClearFilters={clearFilters}
 		onSearch={handleSearch}
 		onSort={applySort}
@@ -209,7 +217,9 @@
 		{viewMode}
 		{showNamespace}
 		{hasActiveFilters}
+		invalidSearch={filters.useRegex && Boolean(regexError)}
 		onClearFilters={clearFilters}
 		onResourceClick={handleResourceClick}
+		{getResourceUrl}
 	/>
 </div>
