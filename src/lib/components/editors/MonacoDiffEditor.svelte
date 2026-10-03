@@ -103,9 +103,10 @@ import { getMonacoWorker } from './monaco-workers';
 	}
 
 	function disposeDiffEditor(): void {
+		diffEditor?.setModel(null);
+		diffEditor?.dispose();
 		originalModel?.dispose();
 		modifiedModel?.dispose();
-		diffEditor?.dispose();
 	}
 
 	type DiffEditorModel = NonNullable<

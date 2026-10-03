@@ -1240,6 +1240,8 @@ async function clusterAndFlux(image, platform) {
 	await invalidButton.getByText('Preview failed').waitFor({ timeout: 60_000 });
 	await invalidButton.click();
 	await page.getByRole('alert').getByText('Server-side dry-run failed').waitFor();
+	const diffEditorWidget = page.locator('#diff-panel .monaco-diff-editor');
+	await diffEditorWidget.waitFor({ state: 'visible', timeout: 60_000 });
 	const downloadPromise = page.waitForEvent('download');
 	await page.getByRole('button', { name: 'Export drift report' }).click();
 	const download = await downloadPromise;
@@ -1253,6 +1255,10 @@ async function clusterAndFlux(image, platform) {
 			exported.includes('-1'),
 		'Drift export omitted the failed resource name or Kubernetes validation detail'
 	);
+
+	await page.getByRole('tab', { name: 'Overview', exact: true }).click();
+	await page.locator('#overview-panel').waitFor({ state: 'visible', timeout: 60_000 });
+	await diffEditorWidget.waitFor({ state: 'detached', timeout: 60_000 });
 
 	const readonlySa = 'gyre-smoke-readonly';
 	await kubectl(['create', 'serviceaccount', readonlySa, '-n', namespace]);
