@@ -59,7 +59,7 @@ describe('advanced resource search regex feedback', () => {
 		input.dispatchEvent(new Event('input', { bubbles: true }));
 		await tick();
 		expect(input.getAttribute('aria-invalid')).toBe('true');
-		expect(input.getAttribute('aria-describedby')).toBe('resource-search-regex-error');
+		expect(input.getAttribute('aria-describedby')).toContain('resource-search-regex-error');
 		expect(target.textContent).toContain('This regular expression is invalid.');
 
 		input.value = '(a{1,})+';
@@ -73,4 +73,47 @@ describe('advanced resource search regex feedback', () => {
 		expect(input.hasAttribute('aria-invalid')).toBe(false);
 		expect(target.querySelector('#resource-search-regex-error')).toBeNull();
 	});
+});
+
+test('removes every namespace alias, retains other filters, notifies the parent and focuses search', async () => {
+	const target = document.createElement('div');
+	document.body.append(target);
+	const filters = createAdvancedSearchFilterState();
+	filters.search = 'ns:old nginx namespace:default status:ready';
+	const onSearch = vi.fn();
+	mounted.push(mount(AdvancedSearch, { target, props: { filters, onSearch } }));
+	await tick();
+	const chip = target.querySelector<HTMLButtonElement>(
+		'button[aria-label="Remove namespace filter: default"]'
+	)!;
+	expect(chip.type).toBe('button');
+	chip.focus();
+	chip.click();
+	await tick();
+	expect(filters.search).toBe('nginx status:ready');
+	expect(onSearch).toHaveBeenLastCalledWith('nginx status:ready');
+	expect(document.activeElement).toBe(target.querySelector('#resource-search'));
+	expect(target.querySelectorAll('[aria-label="Query filters"] button')).toHaveLength(1);
+});
+
+test('uses the supplied debounced query for tag and regex validation and limits typing', async () => {
+	const target = document.createElement('div');
+	document.body.append(target);
+	const filters = createAdvancedSearchFilterState();
+	filters.search = '[';
+	filters.useRegex = true;
+	mounted.push(
+		mount(AdvancedSearch, { target, props: { filters, validationSearch: 'status:invalid' } })
+	);
+	await tick();
+	expect(target.textContent).toContain('Status must be');
+	expect(target.textContent).not.toContain('regular expression is invalid');
+	const input = target.querySelector<HTMLInputElement>('#resource-search')!;
+	expect(input.maxLength).toBe(500);
+	expect(input.getAttribute('aria-label')).toBe('Search resources');
+	input.value = 'a'.repeat(600);
+	input.dispatchEvent(new Event('input', { bubbles: true }));
+	await tick();
+	expect(filters.search).toHaveLength(500);
+	expect(input.value).toHaveLength(500);
 });

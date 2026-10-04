@@ -4,7 +4,7 @@ import { afterAll, describe, expect, test, vi } from 'vitest';
 vi.mock('$app/environment', () => ({ dev: false }));
 vi.mock('$env/dynamic/public', () => ({ env: {} }));
 
-const { advancedSearch, parseQuery, validateResourceSearchRegex } =
+const { advancedSearch, parseQuery, removeSearchTag, validateResourceSearchRegex } =
 	await import('../lib/utils/search.js');
 
 // ---------------------------------------------------------------------------
@@ -179,10 +179,55 @@ describe('parseQuery', () => {
 		expect(result.tags.ns).toBe('my-special-namespace');
 	});
 
-	test('tag value longer than 200 chars is truncated to first 200 chars', () => {
-		const longValue = 'x'.repeat(250);
-		const result = parseQuery(`ns:${longValue}`);
-		expect(result.tags.ns).toBe(longValue.slice(0, 200));
+	test.each([
+		'host:443',
+		'https://example.test/ns:default',
+		'(?:ns:default)',
+		'[ns:default]',
+		String.raw`\ns:default`,
+		'app-ns:default',
+		String.raw`status\:ready`
+	])('preserves text: %s', (query) => {
+		expect(parseQuery(query).query).toBe(query);
+		expect(parseQuery(query).tags).toEqual({});
+	});
+
+	test('aliases and repeated tags use the last value and expose every original position', () => {
+		const query = 'ns:old namespace:default status:failed status:READY';
+		const parsed = parseQuery(query);
+		expect(parsed.tags).toEqual({ ns: 'default', status: 'healthy' });
+		expect(parsed.errors).toEqual([]);
+		expect(parsed.occurrences.map(({ start, end }) => query.slice(start, end))).toEqual([
+			'ns:old',
+			'namespace:default',
+			'status:failed',
+			'status:READY'
+		]);
+	});
+
+	test.each(['ns:', 'ns:UPPER', 'ns:-invalid', `ns:${'a'.repeat(64)}`, 'status:', 'status:banana'])(
+		'reports invalid tag %s',
+		(query) => {
+			expect(parseQuery(query).errors).toHaveLength(1);
+		}
+	);
+
+	test('a valid final value overrides an invalid earlier value', () => {
+		expect(parseQuery('ns:INVALID namespace:default').errors).toEqual([]);
+	});
+
+	test('limits the entire query before parsing tags or compiling the text', () => {
+		const query = `${'a'.repeat(490)} ns:default status:failed`;
+		expect(parseQuery(query)).toEqual(parseQuery(query.slice(0, 500)));
+		expect(parseQuery(' '.repeat(500) + 'status:failed').tags).toEqual({});
+	});
+
+	test('removes all aliases of a tag while preserving other text and filters', () => {
+		const query = String.raw`ns:old ^app\s+web namespace:default status:ready https://example.test`;
+		expect(removeSearchTag(query, 'ns')).toBe(
+			String.raw`^app\s+web status:ready https://example.test`
+		);
+		expect(removeSearchTag('a  b ns:default c', 'ns')).toBe('a  b c');
 	});
 });
 
