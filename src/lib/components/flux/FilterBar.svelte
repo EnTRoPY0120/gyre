@@ -31,7 +31,7 @@
 
 <div class="flex flex-wrap items-center gap-3">
 	<!-- Namespace Filter -->
-	<div class="flex min-w-[140px] flex-1 items-center gap-2">
+	<div class="flex min-w-0 basis-full items-center gap-2 sm:min-w-[240px] sm:flex-1">
 		<label
 			for="namespace-filter"
 			class="text-sm font-medium whitespace-nowrap text-muted-foreground">Namespace:</label
@@ -41,7 +41,7 @@
 			value={filters.namespace}
 			onValueChange={(v) => (filters.namespace = v)}
 		>
-			<Select.Trigger id="namespace-filter" class="w-full">
+			<Select.Trigger id="namespace-filter" class="min-w-0 flex-1">
 				<Select.Value placeholder="All Namespaces">{filters.namespace || 'All Namespaces'}</Select.Value>
 			</Select.Trigger>
 			<Select.Content>
@@ -54,7 +54,7 @@
 	</div>
 
 	<!-- Status Filter -->
-	<div class="flex min-w-[140px] flex-1 items-center gap-2">
+	<div class="flex min-w-0 basis-full items-center gap-2 sm:min-w-[240px] sm:flex-1">
 		<label for="status-filter" class="text-sm font-medium whitespace-nowrap text-muted-foreground"
 			>Status:</label
 		>
@@ -63,7 +63,7 @@
 			value={filters.status}
 			onValueChange={(v) => (filters.status = v as ResourceHealth | 'all')}
 		>
-			<Select.Trigger id="status-filter" class="w-full">
+			<Select.Trigger id="status-filter" class="min-w-0 flex-1">
 				<Select.Value placeholder="All Status">
 					{statusOptions.find((o) => o.value === filters.status)?.label || 'All Status'}
 				</Select.Value>
@@ -77,7 +77,7 @@
 	</div>
 
 	<!-- Labels Filter -->
-	<div class="flex min-w-[200px] flex-1 items-center gap-2">
+	<div class="flex min-w-0 basis-full items-center gap-2 sm:min-w-[240px] sm:flex-1">
 		<label for="labels-filter" class="text-sm font-medium whitespace-nowrap text-muted-foreground"
 			>Labels:</label
 		>

@@ -1,9 +1,9 @@
 import Fuse from 'fuse.js';
 import safeRegex from 'safe-regex2';
 import { logger } from './logger.js';
+import { RESOURCE_HEALTH_VALUES } from '$lib/types/view';
 
 export const MAX_QUERY_LENGTH = 500;
-const MAX_TAG_VALUE_LENGTH = 200;
 
 export interface SearchOptions {
 	fuzzy?: boolean;
@@ -155,25 +155,84 @@ function getSearchString(obj: unknown, keys: string[]): string {
 		.join(' ');
 }
 
-/**
- * Parse a search query into tags and text
- * Example: "nginx ns:default status:ready" -> { query: "nginx", tags: { ns: "default", status: "ready" } }
- */
-export function parseQuery(query: string) {
-	const tags: Record<string, string> = {};
-	let processedQuery = query;
+export type SearchTagKey = 'ns' | 'status';
 
-	const tagRegex = /(\w+):([^\s]+)/g;
-	let match;
+export interface SearchTag {
+	key: SearchTagKey;
+	value: string;
+	start: number;
+	end: number;
+	error: string | null;
+}
 
-	while ((match = tagRegex.exec(query)) !== null) {
-		const [fullMatch, key, value] = match;
-		tags[key] = value.slice(0, MAX_TAG_VALUE_LENGTH);
-		processedQuery = processedQuery.replace(fullMatch, '');
+function validateTag(key: SearchTagKey, value: string): string | null {
+	if (key === 'ns') {
+		return value.length <= 63 && /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(value)
+			? null
+			: 'Namespace must be 1–63 lowercase letters, digits or hyphens, starting and ending with a letter or digit.';
 	}
+	return RESOURCE_HEALTH_VALUES.some((status) => status === value)
+		? null
+		: `Status must be ${RESOURCE_HEALTH_VALUES.join(', ')} or ready.`;
+}
 
+/** Remove only tag spans and their following separator; retain all other search text. */
+function withoutTags(query: string, tags: SearchTag[]): string {
+	let text = '';
+	let cursor = 0;
+	for (const tag of tags) {
+		text += query.slice(cursor, tag.start);
+		cursor = tag.end;
+		// Consume one separator, not arbitrary whitespace that may be part of a regex.
+		if (/\s/.test(query[cursor] ?? '')) cursor++;
+	}
+	return (text + query.slice(cursor)).trim();
+}
+
+/** Parse standalone, unescaped supported tags. Positions refer to the limited input. */
+export function parseQuery(input: string) {
+	const source = input.slice(0, MAX_QUERY_LENGTH);
+	const occurrences: SearchTag[] = [];
+	const effective = new Map<SearchTagKey, SearchTag>();
+	// Whole tokens keep URLs, unknown prefixes and embedded regex fragments intact.
+	for (const match of source.matchAll(/\S+/g)) {
+		// An escaped separator belongs to the expression, not to the tag grammar.
+		let backslashes = 0;
+		for (let i = match.index - 2; i >= 0 && source[i] === '\\'; i--) backslashes++;
+		if (backslashes % 2 === 1) continue;
+		const tagMatch = /^(ns|namespace|status):(.*)$/.exec(match[0]);
+		if (!tagMatch) continue;
+		const key: SearchTagKey = tagMatch[1] === 'status' ? 'status' : 'ns';
+		let value = tagMatch[2];
+		if (key === 'status') {
+			value = value.toLowerCase();
+			if (value === 'ready') value = 'healthy';
+		}
+		const tag = {
+			key,
+			value,
+			start: match.index,
+			end: match.index + match[0].length,
+			error: validateTag(key, value)
+		};
+		occurrences.push(tag);
+		effective.set(key, tag);
+	}
+	const effectiveTags = [...effective.values()];
 	return {
-		query: processedQuery.trim(),
-		tags
+		query: withoutTags(source, occurrences),
+		tags: Object.fromEntries(effectiveTags.map(({ key, value }) => [key, value])),
+		occurrences,
+		effectiveTags,
+		errors: effectiveTags.filter((tag) => tag.error !== null)
 	};
+}
+
+/** Remove all occurrences, including aliases and overridden values, of a query filter. */
+export function removeSearchTag(query: string, key: SearchTagKey): string {
+	const source = query.slice(0, MAX_QUERY_LENGTH);
+	return withoutTags(
+		source,
+		parseQuery(source).occurrences.filter((tag) => tag.key === key)
+	);
 }
