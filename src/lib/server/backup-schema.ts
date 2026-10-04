@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { createLocalAccountIssuer, createOAuthAccountIssuer } from 'better-auth/db';
 import { migrateDatabase } from './db/migrate.js';
 import { BackupError } from './backup-errors.js';
 
@@ -148,8 +149,17 @@ export function validateBackupSchema(db: Database.Database): void {
 		if (expected.foreignKeys.some((key) => !actual.foreignKeys.includes(key)))
 			invalid(`${name} is missing a required foreign key`);
 	}
-	if (db.prepare("SELECT 1 FROM accounts WHERE issuer IS NULL OR issuer = '' LIMIT 1").get())
-		invalid('accounts contain missing issuers');
+	const accounts = db.prepare('SELECT provider_id, issuer FROM accounts').all() as {
+		provider_id: string;
+		issuer: string;
+	}[];
+	for (const account of accounts) {
+		const issuer =
+			account.provider_id === 'credential'
+				? createLocalAccountIssuer(account.provider_id)
+				: createOAuthAccountIssuer(account.provider_id);
+		if (account.issuer !== issuer) invalid('accounts contain unsupported issuers');
+	}
 }
 
 export function validateDatabaseIntegrity(db: Database.Database): void {
