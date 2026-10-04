@@ -148,7 +148,7 @@ const httpsAgent = new https.Agent({
 	timeout: 30_000
 });
 
-const kubeconfigAgents = new Set<http.Agent>();
+const retireClients = new Set<() => void>();
 const clientDisposers = new WeakMap<object, () => void>();
 
 /** Retire client-owned connections after active requests complete or time out. Idempotent. */
@@ -176,11 +176,12 @@ export async function makeApiClientWithTimeout<T extends k8s.ApiType>(
 	const httpsOptions: https.RequestOptions = {};
 	let ownedAgent: http.Agent | undefined;
 	let released = false;
+	let retire: (() => void) | undefined;
 	const releaseAgents = () => {
 		if (released) return;
 		released = true;
+		if (retire) retireClients.delete(retire);
 		if (ownedAgent) {
-			kubeconfigAgents.delete(ownedAgent);
 			ownedAgent.destroy();
 		}
 	};
@@ -188,7 +189,6 @@ export async function makeApiClientWithTimeout<T extends k8s.ApiType>(
 		await clientConfig.applyToHTTPSOptions(httpsOptions);
 		if (httpsOptions.agent && typeof httpsOptions.agent === 'object') {
 			ownedAgent = httpsOptions.agent;
-			kubeconfigAgents.add(ownedAgent);
 			// Preserve proxy subclasses and their connection behavior.
 			if (ownedAgent.constructor === https.Agent || ownedAgent.constructor === http.Agent) {
 				Object.assign(ownedAgent, {
@@ -253,7 +253,9 @@ export async function makeApiClientWithTimeout<T extends k8s.ApiType>(
 			]
 		});
 		const client = new apiClientType(config);
-		clientDisposers.set(client, () => transport.dispose());
+		retire = () => transport.dispose();
+		retireClients.add(retire);
+		clientDisposers.set(client, retire);
 		return client;
 	} catch (error) {
 		// Include agents assigned before an authentication or constructor failure.
@@ -265,10 +267,7 @@ export async function makeApiClientWithTimeout<T extends k8s.ApiType>(
 }
 
 export function destroyHttpAgents(): void {
-	for (const agent of kubeconfigAgents) {
-		agent.destroy();
-	}
-	kubeconfigAgents.clear();
+	for (const retire of retireClients) retire();
 	httpAgent.destroy();
 	httpsAgent.destroy();
 }
