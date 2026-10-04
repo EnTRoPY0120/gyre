@@ -186,7 +186,8 @@ describe('parseQuery', () => {
 		'[ns:default]',
 		String.raw`\ns:default`,
 		'app-ns:default',
-		String.raw`status\:ready`
+		String.raw`status\:ready`,
+		String.raw`nginx\ status:healthy`
 	])('preserves text: %s', (query) => {
 		expect(parseQuery(query).query).toBe(query);
 		expect(parseQuery(query).tags).toEqual({});

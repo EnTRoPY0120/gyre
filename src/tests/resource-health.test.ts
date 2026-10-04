@@ -229,10 +229,10 @@ describe('filterResources', () => {
 		).toBe('repo-b');
 	});
 
-	test('unknown search tags do not exclude resources', () => {
+	test('unknown prefixes remain search text', () => {
 		expect(
 			filterResources(resources, { ...defaultFilterState, search: 'owner:platform' })
-		).toHaveLength(4);
+		).toHaveLength(0);
 	});
 });
 

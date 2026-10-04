@@ -169,7 +169,7 @@
 				<p>Fuzzy: <code>nginx ns:flux-system status:healthy</code>. Regex: <code>^nginx-(web|api) ns:default</code>.</p>
 				<p><code>ns:</code> and <code>namespace:</code> are aliases. Tags must be separate words. Repeated tags use the last value.</p>
 				<p>Status: healthy (or ready), progressing, failed, suspended, unknown. Query tags and dropdown filters both apply.</p>
-				<p>Escape a tag with a backslash to search it as text. URLs and unknown prefixes stay searchable. Maximum {MAX_QUERY_LENGTH} characters.</p>
+				<p>URLs and unknown prefixes stay searchable. In Regex mode, use <code>(?:status:ready)</code> to match tag text. Maximum {MAX_QUERY_LENGTH} characters.</p>
 			</div>
 		</div>
 	{/if}
