@@ -196,6 +196,10 @@ export function parseQuery(input: string) {
 	const effective = new Map<SearchTagKey, SearchTag>();
 	// Whole tokens keep URLs, unknown prefixes and embedded regex fragments intact.
 	for (const match of source.matchAll(/\S+/g)) {
+		// An escaped separator belongs to the expression, not to the tag grammar.
+		let backslashes = 0;
+		for (let i = match.index - 2; i >= 0 && source[i] === '\\'; i--) backslashes++;
+		if (backslashes % 2 === 1) continue;
 		const tagMatch = /^(ns|namespace|status):(.*)$/.exec(match[0]);
 		if (!tagMatch) continue;
 		const key: SearchTagKey = tagMatch[1] === 'status' ? 'status' : 'ns';
