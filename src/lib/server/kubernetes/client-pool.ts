@@ -4,6 +4,7 @@ import * as k8s from '@kubernetes/client-node';
 import { OPERATION_TIMEOUTS } from './timeouts.js';
 import {
 	destroyHttpAgents,
+	disposeKubernetesClient,
 	logKubernetesShutdownComplete,
 	makeApiClientWithTimeout
 } from './client-factory.js';
@@ -35,7 +36,8 @@ const poolMetricsState = { hits: 0, misses: 0, evictions: 0 };
 function evictLRU<T>(pool: Map<string, PoolEntry<T>>) {
 	const evictCount = Math.max(1, Math.ceil(pool.size * 0.2));
 	const sorted = [...pool.entries()].sort((a, b) => a[1].lastAccess - b[1].lastAccess);
-	for (const [k] of sorted.slice(0, evictCount)) {
+	for (const [k, entry] of sorted.slice(0, evictCount)) {
+		disposeKubernetesClient(entry.client as object);
 		pool.delete(k);
 		poolMetricsState.evictions++;
 	}
@@ -50,6 +52,7 @@ function pruneExpiredEntries() {
 	>[]) {
 		for (const [key, entry] of pool) {
 			if (now - entry.createdAt >= POOL_TTL_MS) {
+				disposeKubernetesClient(entry.client as object);
 				pool.delete(key);
 				poolMetricsState.evictions++;
 			}
@@ -86,8 +89,9 @@ export function getPoolMetrics() {
 }
 
 function clearPoolByPrefix<T>(pool: Map<string, PoolEntry<T>>, prefix: string) {
-	for (const key of pool.keys()) {
+	for (const [key, entry] of pool) {
 		if (key.startsWith(prefix)) {
+			disposeKubernetesClient(entry.client as object);
 			pool.delete(key);
 			poolMetricsState.evictions++;
 		}
@@ -96,17 +100,20 @@ function clearPoolByPrefix<T>(pool: Map<string, PoolEntry<T>>, prefix: string) {
 
 /** Evicts pooled clients. Exposed via POST /api/v1/admin/k8s/clear-client-pool. */
 export function clearClientPool(clusterId?: string) {
+	const prefix = clusterId === undefined ? '' : `${normalizeClusterId(clusterId)}:`;
+	for (const pending of pendingPools.values()) {
+		for (const key of pending.keys()) if (key.startsWith(prefix)) pending.delete(key);
+	}
 	if (clusterId === undefined) {
-		customObjectsPool.clear();
-		coreV1Pool.clear();
-		appsV1Pool.clear();
+		clearPoolByPrefix(customObjectsPool, '');
+		clearPoolByPrefix(coreV1Pool, '');
+		clearPoolByPrefix(appsV1Pool, '');
 		poolMetricsState.hits = 0;
 		poolMetricsState.misses = 0;
 		poolMetricsState.evictions = 0;
 		return;
 	}
 
-	const prefix = `${normalizeClusterId(clusterId)}:`;
 	clearPoolByPrefix(customObjectsPool, prefix);
 	clearPoolByPrefix(coreV1Pool, prefix);
 	clearPoolByPrefix(appsV1Pool, prefix);
@@ -147,6 +154,7 @@ function getPooledClient<T extends object>(
 
 	if (now - entry.createdAt >= POOL_TTL_MS) {
 		// TTL expired — evict stale entry
+		disposeKubernetesClient(entry.client);
 		pool.delete(key);
 		poolMetricsState.evictions++;
 		return undefined;
@@ -169,21 +177,40 @@ function ensurePoolCapacity<T extends object>(pool: Map<string, PoolEntry<T>>): 
 	}
 }
 
+const pendingPools = new Map<object, Map<string, Promise<object>>>();
+
 async function getOrCreate<T extends object>(
 	pool: Map<string, PoolEntry<T>>,
 	key: string,
 	factory: () => Promise<T>
 ): Promise<T> {
-	const now = Date.now();
-	const pooledClient = getPooledClient(pool, key, now);
+	const pooledClient = getPooledClient(pool, key, Date.now());
 	if (pooledClient) return pooledClient;
-
-	ensurePoolCapacity(pool);
-
+	let pending = pendingPools.get(pool);
+	if (!pending) {
+		pending = new Map();
+		pendingPools.set(pool, pending);
+	}
+	const existing = pending.get(key);
+	if (existing) return existing as Promise<T>;
 	poolMetricsState.misses++;
-	const client = await factory();
-	pool.set(key, { client, createdAt: now, lastAccess: now });
-	return client;
+	const creation = Promise.resolve()
+		.then(factory)
+		.then((client) => {
+			if (pending.get(key) !== creation) {
+				disposeKubernetesClient(client);
+				throw new Error('Kubernetes client pool was cleared during client creation');
+			}
+			ensurePoolCapacity(pool);
+			const now = Date.now();
+			pool.set(key, { client, createdAt: now, lastAccess: now });
+			return client;
+		})
+		.finally(() => {
+			if (pending.get(key) === creation) pending.delete(key);
+		});
+	pending.set(key, creation);
+	return creation;
 }
 
 /**
