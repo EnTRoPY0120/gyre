@@ -157,6 +157,13 @@ describe('restoreFromBuffer', () => {
 			}
 		],
 		[
+			'unsupported issuer',
+			(db: Database.Database) =>
+				db.exec(
+					"INSERT INTO users (id, username) VALUES ('u','user'); INSERT INTO accounts (id, provider_id, issuer, account_id, user_id) VALUES ('a','company/oidc','wrong-issuer','subject','u')"
+				)
+		],
+		[
 			'migration failure',
 			(db: Database.Database) => {
 				db.exec('DROP INDEX idx_accounts_issuer_account');
