@@ -228,6 +228,19 @@ function createAccountsTable(db: Db, hasLegacyPasswordHashColumn: boolean): void
 		`);
 	}
 
+	if (hasLegacyPasswordHashColumn) {
+		const missing = db.get(sql`
+			SELECT 1 FROM users AS u
+			WHERE u.is_local = 1 AND u.password_hash IS NOT NULL AND u.password_hash != ''
+			AND NOT EXISTS (
+				SELECT 1 FROM accounts AS a
+				WHERE a.provider_id = 'credential' AND a.account_id = u.id
+				AND a.user_id = u.id AND a.password = u.password_hash
+			) LIMIT 1
+		`);
+		if (missing) throw new Error('Legacy password accounts conflict with existing identities');
+	}
+
 	// Better Auth 1.7 keys identities by issuer, including local password accounts.
 	// Gyre handles OAuth itself, so retain its provider-ID identity namespaces.
 	db.transaction((tx) => {

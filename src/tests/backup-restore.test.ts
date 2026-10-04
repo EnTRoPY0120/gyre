@@ -292,6 +292,18 @@ describe('restoreFromBuffer', () => {
 		}
 	);
 
+	test('rejects legacy SSO identity collisions without dropping account data', async () => {
+		seedCurrentDatabase();
+		const candidate = createSqliteBuffer('legacy', (db) => {
+			db.exec(
+				"INSERT INTO users (id, username, password_hash) VALUES ('u','user','hash'); INSERT INTO auth_providers (id, name, type, client_id, client_secret_encrypted) VALUES ('a:b','one','oidc','c','secret'),('a','two','oidc','c','secret'); INSERT INTO user_providers (user_id, provider_id, provider_user_id) VALUES ('u','a:b','c'),('u','a','b:c')"
+			);
+		});
+		await expect(restoreFromBuffer(candidate)).rejects.toMatchObject({ status: 400 });
+		assertLivePreserved();
+		expect(nodeFs.readdirSync(backupPath)).toEqual([]);
+	});
+
 	test('atomic rename failure preserves live data with no copy fallback', async () => {
 		seedCurrentDatabase();
 		vi.mocked(nodeFs.renameSync).mockImplementationOnce(() => {

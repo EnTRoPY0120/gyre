@@ -78,6 +78,16 @@ export function initSecurityTables(db: Db, flags: MigrationFlags): void {
 				AND accounts.provider_id != 'credential'
 		`);
 
+		const missing = db.get(sql`
+			SELECT 1 FROM user_providers AS up
+			WHERE NOT EXISTS (
+				SELECT 1 FROM accounts AS a
+				WHERE a.provider_id = up.provider_id AND a.account_id = up.provider_user_id
+				AND a.user_id = up.user_id
+			) LIMIT 1
+		`);
+		if (missing) throw new Error('Legacy SSO accounts conflict with existing identities');
+
 		db.run(sql`DROP TABLE IF EXISTS user_providers`);
 	}
 
