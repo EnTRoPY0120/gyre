@@ -68,7 +68,7 @@ The Docusaurus site lives in `documentation/`. Its local editing and deployment 
 
 ## Release notes
 
-Releases are triggered by pushing a version tag. Update the package version and release-facing docs, commit the change, then create and push the tag. Chart metadata intentionally uses placeholder versions; CI injects the release version when packaging.
+Releases are triggered by pushing a version tag. The image workflow must finish the build, vulnerability scans, smoke tests, and digest-verified publication before calling the reusable release workflow. The release workflow publishes the versioned Helm chart before creating the GitHub release; release notes include the tested OCI digest and both `linux/amd64` and `linux/arm64`. Pull requests, branch pushes, and verification-only runs cannot create releases. Update the package version and release-facing docs, commit the change, then create and push the tag. Chart metadata intentionally uses placeholder versions; CI injects the release version when packaging.
 
 ```sh
 git tag -a vX.Y.Z -m "Release vX.Y.Z"
