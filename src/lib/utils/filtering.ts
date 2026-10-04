@@ -1,7 +1,7 @@
 import type { FluxResource } from '$lib/types/flux';
 import { RESOURCE_HEALTH_VALUES } from '$lib/types/view';
 import { getResourceHealth, type ResourceHealth } from '$lib/utils/flux';
-import { advancedSearch, parseQuery } from './search';
+import { advancedSearch, MAX_QUERY_LENGTH, parseQuery } from './search';
 
 const MAX_PARAM_LENGTH = 500;
 const VALID_STATUSES: ReadonlySet<string> = new Set(RESOURCE_HEALTH_VALUES);
@@ -52,6 +52,7 @@ export function filterResources(resources: FluxResource[], filters: FilterState)
 	// Search filter (name, namespace, etc)
 	if (filters.search) {
 		const parsed = parseQuery(filters.search);
+		if (parsed.errors.length) return [];
 		results = advancedSearch(results, parsed.query, {
 			regex: filters.useRegex,
 			fuzzy: !filters.useRegex,
@@ -159,7 +160,7 @@ export function hasActiveFilters(filters: FilterState): boolean {
 export function filtersToSearchParams(filters: FilterState): URLSearchParams {
 	const params = new URLSearchParams();
 
-	if (filters.search) params.set('q', filters.search);
+	if (filters.search) params.set('q', filters.search.slice(0, MAX_QUERY_LENGTH));
 	if (filters.namespace) params.set('ns', filters.namespace);
 	if (filters.status !== 'all') params.set('status', filters.status);
 	if (filters.labels) params.set('labels', filters.labels);
@@ -175,7 +176,7 @@ export function searchParamsToFilters(params: URLSearchParams): FilterState {
 	const rawStatus = (params.get('status') ?? '').trim().toLowerCase();
 	const status = VALID_STATUSES.has(rawStatus) ? (rawStatus as ResourceHealth) : 'all';
 	return {
-		search: (params.get('q') ?? '').slice(0, MAX_PARAM_LENGTH),
+		search: (params.get('q') ?? '').slice(0, MAX_QUERY_LENGTH),
 		namespace: (params.get('ns') ?? '').slice(0, MAX_PARAM_LENGTH),
 		status,
 		labels: (params.get('labels') ?? '').slice(0, MAX_PARAM_LENGTH),
