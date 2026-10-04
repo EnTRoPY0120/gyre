@@ -3,8 +3,13 @@ import { afterAll, describe, expect, test, vi } from 'vitest';
 vi.mock('$app/environment', () => ({ dev: false }));
 vi.mock('$env/dynamic/public', () => ({ env: {} }));
 
-const { searchParamsToFilters, filtersToSearchParams, parseLabels, defaultFilterState } =
-	await import('../lib/utils/filtering.js');
+const {
+	searchParamsToFilters,
+	filtersToSearchParams,
+	filterResources,
+	parseLabels,
+	defaultFilterState
+} = await import('../lib/utils/filtering.js');
 
 // ---------------------------------------------------------------------------
 // searchParamsToFilters
@@ -118,5 +123,61 @@ describe('parseLabels', () => {
 		const value = 'v'.repeat(63);
 		const result = parseLabels(`${key}=${value}`);
 		expect(result[key]).toBe(value);
+	});
+});
+
+describe('query and dropdown filters', () => {
+	const resources = ['default', 'other'].map((namespace) => ({
+		apiVersion: 'v1',
+		kind: 'Kustomization',
+		metadata: { name: 'nginx', namespace },
+		status: { conditions: [{ type: 'Ready', status: 'True' }] }
+	}));
+
+	test('ready alias matches healthy resources and combines with both dropdowns', () => {
+		expect(
+			filterResources(resources, {
+				...defaultFilterState,
+				search: 'status:ready namespace:default',
+				namespace: 'default',
+				status: 'healthy'
+			})
+		).toEqual([resources[0]]);
+		expect(
+			filterResources(resources, {
+				...defaultFilterState,
+				search: 'ns:default',
+				namespace: 'other'
+			})
+		).toEqual([]);
+		expect(
+			filterResources(resources, {
+				...defaultFilterState,
+				search: 'status:ready',
+				status: 'failed'
+			})
+		).toEqual([]);
+	});
+
+	test('invalid tags and valid zero-match text both return arrays', () => {
+		expect(filterResources(resources, { ...defaultFilterState, search: 'status:banana' })).toEqual(
+			[]
+		);
+		expect(
+			filterResources(resources, { ...defaultFilterState, search: '^missing$', useRegex: true })
+		).toEqual([]);
+	});
+
+	test('URL round-trip preserves colon text, regex and independent dropdowns', () => {
+		const filters = {
+			...defaultFilterState,
+			search: '^app|https://host ns:default status:ready',
+			namespace: 'other',
+			useRegex: true
+		};
+		expect(searchParamsToFilters(filtersToSearchParams(filters))).toEqual(filters);
+		expect(filtersToSearchParams({ ...filters, search: 'a'.repeat(600) }).get('q')).toHaveLength(
+			500
+		);
 	});
 });

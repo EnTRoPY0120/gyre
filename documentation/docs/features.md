@@ -206,12 +206,25 @@ Create new resources with guided forms:
 - Real-time results
 - Keyboard shortcuts
 
+### Resource list search
+
+Use fuzzy text such as `nginx ns:flux-system status:healthy`, or select **Regex** and try `^nginx-(web|api) ns:default`.
+
+- `ns:` and `namespace:` select a namespace. Values must be valid Kubernetes namespace names.
+- `status:` accepts `healthy`, `progressing`, `failed`, `suspended`, or `unknown`; `ready` is an alias for `healthy`.
+- Tags are separate, unescaped words. URLs, unknown prefixes such as `host:443`, and embedded regex text stay in the search expression.
+- Repeating a filter uses its last value, including across namespace aliases.
+- Remove a filter chip with a click, Enter, or Space to remove every occurrence of that filter. Focus returns to the search input, and the URL updates so the search can be bookmarked.
+- Query tags and dropdown filters apply together. Queries are limited to 500 characters, including when opened from a URL.
+
+Invalid tags, malformed regular expressions, and patterns with performance risks display inline feedback. A valid search with no results displays the ordinary no-matches message.
+
 ### Filters
 
 - Filter by:
   - Resource type
   - Namespace
-  - Status (Ready, Not Ready, Unknown)
+  - Status (Healthy, Progressing, Failed, Suspended, Unknown)
   - Cluster
   - Custom labels
 
