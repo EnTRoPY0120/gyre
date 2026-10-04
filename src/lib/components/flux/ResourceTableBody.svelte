@@ -7,6 +7,7 @@
 		resources,
 		showAll,
 		showNamespace,
+		getResourceUrl,
 		virtualRows,
 		paginatedResources,
 		topSpacerHeight,
@@ -19,6 +20,7 @@
 		resources: FluxResource[];
 		showAll: boolean;
 		showNamespace: boolean;
+		getResourceUrl: (resource: FluxResource) => string;
 		virtualRows: FluxResource[];
 		paginatedResources: FluxResource[];
 		topSpacerHeight: number;
@@ -59,6 +61,7 @@
 		<ResourceTableRow
 			{resource}
 			{showNamespace}
+			resourceUrl={getResourceUrl(resource)}
 			selected={!!resource.metadata.uid && selectedResourceIds.has(resource.metadata.uid)}
 			onRowClick={(event) => onRowClick(resource, event)}
 			onToggleSelection={() => onToggleSelection(resource)}

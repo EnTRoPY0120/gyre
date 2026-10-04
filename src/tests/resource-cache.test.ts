@@ -106,18 +106,21 @@ describe('resource cache', () => {
 		);
 	});
 
-	test('invalidates the affected resource and lists when an event arrives', () => {
-		const item = resource('demo');
-		resourceCache.setResource('GitRepository', 'team-a', 'demo', item);
-		resourceCache.setList('GitRepository', [item], 'team-a');
+	for (const notify of [undefined, false]) {
+		test(`invalidates resource and list when notify is ${notify ?? 'omitted'}`, () => {
+			const item = resource('demo');
+			resourceCache.setResource('GitRepository', 'team-a', 'demo', item);
+			resourceCache.setList('GitRepository', [item], 'team-a');
 
-		eventHandler?.({
-			clusterId: 'cluster-a',
-			resourceType: 'GitRepository',
-			resource: { metadata: { name: 'demo', namespace: 'team-a' } }
+			eventHandler?.({
+				clusterId: 'cluster-a',
+				resourceType: 'GitRepository',
+				resource: { metadata: { name: 'demo', namespace: 'team-a' } },
+				...(notify === undefined ? {} : { notify })
+			});
+
+			expect(resourceCache.getResource('GitRepository', 'team-a', 'demo')).toBeNull();
+			expect(resourceCache.getList('GitRepository', 'team-a')).toBeNull();
 		});
-
-		expect(resourceCache.getResource('GitRepository', 'team-a', 'demo')).toBeNull();
-		expect(resourceCache.getList('GitRepository', 'team-a')).toBeNull();
-	});
+	}
 });

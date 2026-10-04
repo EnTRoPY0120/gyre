@@ -4,9 +4,9 @@
 	import type { FluxResource } from '$lib/types/flux';
 	import BulkActionsToolbar from './BulkActionsToolbar.svelte';
 	import ResourceTableBody from './ResourceTableBody.svelte';
-import ResourceTableHeader from './ResourceTableHeader.svelte';
-import ResourceTablePagination from './ResourceTablePagination.svelte';
-import { isResourceSelectionTarget } from './resource-row-click';
+	import ResourceTableHeader from './ResourceTableHeader.svelte';
+	import ResourceTablePagination from './ResourceTablePagination.svelte';
+	import { isResourceRowInteractiveTarget } from './resource-row-click';
 	import { getResourceTableRowHeight } from './resource-row-height';
 
 	const MIN_PAGE_SIZE = Math.min(...ITEMS_PER_PAGE_OPTIONS.filter((size) => size > 0));
@@ -15,10 +15,17 @@ import { isResourceSelectionTarget } from './resource-row-click';
 		resources: FluxResource[];
 		showNamespace?: boolean;
 		onRowClick?: (resource: FluxResource) => void;
+		getResourceUrl: (resource: FluxResource) => string;
 		onOperationComplete?: () => void;
 	}
 
-	let { resources, showNamespace = true, onRowClick, onOperationComplete }: Props = $props();
+	let {
+		resources,
+		showNamespace = true,
+		onRowClick,
+		getResourceUrl,
+		onOperationComplete
+	}: Props = $props();
 
 	const VIRTUAL_OVERSCAN = 3;
 	let currentPage = $state(1);
@@ -68,7 +75,7 @@ import { isResourceSelectionTarget } from './resource-row-click';
 	);
 
 	function handleRowClick(resource: FluxResource, event: MouseEvent) {
-		if (isResourceSelectionTarget(event.target)) return;
+		if (isResourceRowInteractiveTarget(event.target)) return;
 		onRowClick?.(resource);
 	}
 
@@ -165,6 +172,7 @@ import { isResourceSelectionTarget } from './resource-row-click';
 					{resources}
 					{showAll}
 					{showNamespace}
+					{getResourceUrl}
 					{virtualRows}
 					{paginatedResources}
 					{topSpacerHeight}

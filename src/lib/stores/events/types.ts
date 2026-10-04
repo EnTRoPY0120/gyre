@@ -6,6 +6,7 @@ export interface ResourceEvent {
 	resourceType?: string;
 	serverSessionId?: string;
 	reason?: string;
+	notify?: boolean;
 	resource?: {
 		metadata: {
 			name: string;
