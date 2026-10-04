@@ -1,5 +1,8 @@
 import { logger } from '../logger.js';
 import { getDbSync } from './index.js';
+import type Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import * as schema from './schema.js';
 import { sql } from 'drizzle-orm';
 import { initAuthTables, type MigrationFlags } from './migrations/auth-tables.js';
 import { initClusterTables } from './migrations/cluster-tables.js';
@@ -12,7 +15,12 @@ import { initSecurityTables } from './migrations/security-tables.js';
  * Creates all necessary tables with the complete schema
  */
 export function initDatabase(): void {
-	const db = getDbSync();
+	migrateDatabase(getDbSync().$client);
+}
+
+/** Apply the startup migrations to an explicit connection (including isolated restore candidates). */
+export function migrateDatabase(database: Database.Database): void {
+	const db = drizzle(database, { schema });
 
 	const flags: MigrationFlags = {
 		hasLegacyUserProviders:
@@ -33,8 +41,8 @@ export function initDatabase(): void {
 			(db
 				.select({ notNull: sql<number>`"notnull"` })
 				.from(sql`pragma_table_info('sessions')`)
-				.where(sql`name = 'token' AND "notnull" = 0`)
-				.get() as { notNull: number } | undefined) != null
+				.where(sql`name = 'token' AND "notnull" = 1`)
+				.get() as { notNull: number } | undefined) == null
 	};
 
 	initAuthTables(db, flags);

@@ -1,3 +1,4 @@
+import { createOAuthAccountIssuer } from 'better-auth/db';
 import { sql } from 'drizzle-orm';
 import type { MigrationFlags } from './auth-tables.js';
 import { addColumnsIgnoringDuplicates, runFlaggedMigration, type Db } from './helpers.js';
@@ -43,20 +44,25 @@ export function initSecurityTables(db: Db, flags: MigrationFlags): void {
 			'[DB] Failed to add OAuth token column to legacy user_providers:'
 		);
 
-		db.run(sql`
+		const providers = db.all<{ providerId: string }>(
+			sql`SELECT DISTINCT provider_id AS providerId FROM user_providers`
+		);
+		for (const { providerId } of providers) {
+			db.run(sql`
 			INSERT OR IGNORE INTO accounts (
-				id, provider_id, account_id, user_id,
+				id, provider_id, issuer, account_id, user_id,
 				last_login_at, access_token_encrypted, refresh_token_encrypted,
 				access_token_expires_at, created_at, updated_at
 			)
 			SELECT
 				'oauth:' || provider_id || ':' || provider_user_id,
-				provider_id, provider_user_id, user_id,
+				provider_id, ${createOAuthAccountIssuer(providerId)}, provider_user_id, user_id,
 				last_login_at, access_token_encrypted, refresh_token_encrypted,
 				token_expires_at, created_at,
 				COALESCE(last_login_at, created_at)
-			FROM user_providers
+			FROM user_providers WHERE provider_id = ${providerId}
 		`);
+		}
 
 		db.run(sql`
 			UPDATE accounts
@@ -97,13 +103,12 @@ export function initSecurityTables(db: Db, flags: MigrationFlags): void {
 		)
 	`);
 	// Migration: add expire_at to tables created before this column was introduced
-	try {
-		db.run(
-			sql`ALTER TABLE rate_limits ADD COLUMN expire_at INTEGER NOT NULL DEFAULT (unixepoch() + 120)`
-		);
-	} catch {
-		// Column already exists — safe to ignore
-	}
+	addColumnsIgnoringDuplicates(
+		db,
+		[sql`ALTER TABLE rate_limits ADD COLUMN expire_at INTEGER NOT NULL DEFAULT 0`],
+		'[DB] Failed to add rate limit expiry:'
+	);
+	db.run(sql`UPDATE rate_limits SET expire_at = unixepoch() + 120 WHERE expire_at = 0`);
 	db.run(sql`CREATE INDEX IF NOT EXISTS idx_rate_limits_expire_at ON rate_limits (expire_at)`);
 
 	// Password History table
