@@ -1,18 +1,11 @@
 import type Database from 'better-sqlite3';
+import { migrateDatabase } from './db/migrate.js';
+import {
+	validateBackupSchema,
+	validateSourceSchema,
+	validateDatabaseIntegrity
+} from './backup-schema.js';
 import { BackupError } from './backup-errors.js';
-
-const REQUIRED_BACKUP_TABLES = [
-	'users',
-	'sessions',
-	'verifications',
-	'app_settings',
-	'clusters',
-	'cluster_contexts',
-	'audit_logs',
-	'rbac_policies',
-	'rbac_bindings',
-	'auth_providers'
-];
 
 /** Validate the SQLite header and page-size invariants before touching disk. */
 export function validateRestoreBuffer(buffer: Buffer): void {
@@ -31,54 +24,29 @@ export function validateRestoreBuffer(buffer: Buffer): void {
 	}
 }
 
-/** Validate the schema contract required by the running application. */
-export function validateBackupSchema(database: Database.Database): void {
-	const tables = database.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {
-		name: string;
-	}[];
-	const tableNames = tables.map((table) => table.name);
-
-	const missingTables = REQUIRED_BACKUP_TABLES.filter((table) => !tableNames.includes(table));
-	if (missingTables.length > 0) {
-		throw new BackupError(
-			`Invalid backup: missing required tables: ${missingTables.join(', ')}`,
-			400
-		);
-	}
-
-	if (!tableNames.includes('accounts')) {
-		throw new BackupError(
-			'Invalid backup: missing required auth account data table: accounts',
-			400
-		);
-	}
-
-	const userColumns = database.prepare('PRAGMA table_info(users)').all() as { name: string }[];
-	const userColumnNames = userColumns.map((column) => column.name);
-	const requiredUserColumns = ['id', 'username', 'role'];
-	const missingColumns = requiredUserColumns.filter((column) => !userColumnNames.includes(column));
-	if (missingColumns.length > 0) {
-		throw new BackupError(
-			`Invalid backup: users table missing columns: ${missingColumns.join(', ')}`,
-			400
-		);
+/** Validate and migrate a disposable candidate before any live database operation. */
+export function prepareRestoreCandidate(database: Database.Database): void {
+	try {
+		validateDatabaseIntegrity(database);
+		validateSourceSchema(database);
+		migrateDatabase(database);
+		validateBackupSchema(database);
+		validateDatabaseIntegrity(database);
+		// Fold all candidate data into its main file before the same-filesystem rename.
+		checkpointDatabase(database);
+		database.pragma('journal_mode = DELETE');
+	} catch (error) {
+		if (error instanceof BackupError) throw error;
+		throw new BackupError('Invalid backup: database validation or migration failed', 400);
 	}
 }
 
-/** Verify that the swapped database is internally consistent. */
-export function validateRestoredDatabase(
-	database: Database.Database,
-	safetyBackupFilename: string
-): void {
-	const result = database.prepare('PRAGMA integrity_check').get() as {
-		integrity_check: string;
-	};
-	if (result.integrity_check !== 'ok') {
+export function checkpointDatabase(database: Database.Database): void {
+	const result = database.pragma('wal_checkpoint(TRUNCATE)') as { busy: number }[];
+	if (result.some(({ busy }) => busy !== 0)) {
 		throw new BackupError(
-			`Restored database failed integrity check: ${result.integrity_check}. ` +
-				`The pre-restore database was preserved as safety backup "${safetyBackupFilename}" in the backup directory. ` +
-				`Restore that file to recover the previous database.`,
-			500
+			'Database checkpoint is busy. Restore aborted; retry when database activity has finished.',
+			409
 		);
 	}
 }

@@ -135,13 +135,15 @@ function createSessionsTable(db: Db): void {
 		db,
 		[
 			sql`ALTER TABLE sessions ADD COLUMN token TEXT`,
-			sql`ALTER TABLE sessions ADD COLUMN updated_at INTEGER NOT NULL DEFAULT (unixepoch())`
+			sql`ALTER TABLE sessions ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0`
 		],
 		'[DB] Failed to add Better Auth session column:'
 	);
 
 	db.run(sql`UPDATE sessions SET token = id WHERE token IS NULL OR token = ''`);
-	db.run(sql`UPDATE sessions SET updated_at = created_at WHERE updated_at IS NULL`);
+	db.run(
+		sql`UPDATE sessions SET updated_at = created_at WHERE updated_at IS NULL OR updated_at = 0`
+	);
 }
 
 function enforceSessionTokenNotNull(db: Db): void {
