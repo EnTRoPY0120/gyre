@@ -16,7 +16,7 @@
 		defaultFilterState,
 		type FilterState
 	} from '#lib/utils/filtering.js';
-	import { validateResourceSearchRegex } from '#lib/utils/search.js';
+	import { parseQuery, validateResourceSearchRegex } from '#lib/utils/search.js';
 	import type { FluxResource } from '#lib/types/flux.js';
 	import { SORT_FIELDS, type SortBy } from '#lib/config/sorting.js';
 	import { getResourceStats } from './resource-stats';
@@ -67,7 +67,7 @@
 		return SORT_FIELDS.some((field) => field.key === raw) ? (raw as SortBy) : undefined;
 	}
 
-	let filters = $state<FilterState>(searchParamsToFilters(new URLSearchParams(page.url.search)));
+	let filters = $state<FilterState>(searchParamsToFilters(page.url.searchParams));
 	let lastSearchParams = $state(page.url.search.toString());
 	let sortBy = $state<SortBy | undefined>(parseSortBy(page.url.searchParams.get('sortBy')));
 	let sortOrder = $state<'asc' | 'desc'>(
@@ -84,7 +84,7 @@
 		}
 	});
 
-	let debouncedSearch = $state(page.url.searchParams.get('q') ?? '');
+	let debouncedSearch = $state(filters.search);
 
 	$effect(() => {
 		const search = filters.search;
@@ -105,6 +105,7 @@
 	const regexError = $derived(
 		filters.useRegex ? validateResourceSearchRegex(debouncedSearch).error : null
 	);
+	const invalidSearch = $derived(Boolean(regexError) || parseQuery(debouncedSearch).errors.length > 0);
 	const hasActiveFilters = $derived(checkActiveFilters(filters));
 	const stats = $derived(getResourceStats(filteredResources));
 
@@ -220,7 +221,7 @@
 		{viewMode}
 		{showNamespace}
 		{hasActiveFilters}
-		invalidSearch={filters.useRegex && Boolean(regexError)}
+		{invalidSearch}
 		onClearFilters={clearFilters}
 		onResourceClick={handleResourceClick}
 		{getResourceUrl}
