@@ -9,6 +9,7 @@ import * as k8s from '@kubernetes/client-node';
 import { afterEach, expect, test, vi } from 'vitest';
 import {
 	disposeKubernetesClient,
+	destroyHttpAgents,
 	makeApiClientWithTimeout
 } from '../lib/server/kubernetes/client-factory.js';
 import { runClusterHealthChecks } from '../lib/server/clusters/health-checks.js';
@@ -236,5 +237,19 @@ test('releases fresh authentication agents without retiring the transport agent'
 	expect(temporaries).toHaveLength(2);
 	for (const destroy of temporaries) expect(destroy).toHaveBeenCalledTimes(1);
 	disposeKubernetesClient(api);
+	await vi.waitFor(() => expect(sockets.size).toBe(0));
+});
+
+test('shutdown retires owned agents after active responses finish', async () => {
+	let response: http.ServerResponse | undefined;
+	const config = await serve(true, (_req, res) => {
+		response = res;
+	});
+	const api = await client(config);
+	const pending = api.listNamespace();
+	await vi.waitFor(() => expect(response).toBeDefined());
+	destroyHttpAgents();
+	respond(response!);
+	await expect(pending).resolves.toMatchObject({ items: [] });
 	await vi.waitFor(() => expect(sockets.size).toBe(0));
 });

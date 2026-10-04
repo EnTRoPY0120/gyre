@@ -73,7 +73,7 @@ test('failed factories release pending entries so the next caller can retry', as
 	expect(mocks.create).toHaveBeenCalledTimes(2);
 });
 
-test('TTL access and periodic cleanup dispose expired clients', async () => {
+test('TTL access and capacity pruning dispose expired clients', async () => {
 	vi.useFakeTimers();
 	const first = await getCoreV1Api('a');
 	await vi.advanceTimersByTimeAsync(5 * 60_000);
