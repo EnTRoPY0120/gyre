@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import * as k8s from '@kubernetes/client-node';
 
 const mocks = vi.hoisted(() => ({
-	makeApiClientWithTimeout: vi.fn()
+	makeApiClientWithTimeout: vi.fn(),
+	disposeKubernetesClient: vi.fn()
 }));
 
 vi.mock('../lib/server/kubernetes/client-factory.js', () => mocks);
