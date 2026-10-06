@@ -42,7 +42,7 @@
 		"bits-ui": "^2.19.0",
 		"clsx": "^2.1.1",
 		"date-fns": "^4.4.0",
-		"drizzle-orm": "^0.45.2",
+		"drizzle-orm": "^0.45.3",
 		"fuse.js": "^7.1.0",
 		"jose": "^6.2.10",
 		"js-yaml": "^5.4.1",
