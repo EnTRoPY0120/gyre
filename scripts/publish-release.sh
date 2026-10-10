@@ -9,7 +9,7 @@ platforms=${3:?tested platforms required}
 [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
 [[ "$platforms" == 'linux/amd64,linux/arm64' ]]
 version=${tag#v}
-image_version=${version//+/_}
+image_version=${version%%+*}
 release_dir=$(mktemp -d)
 trap 'rm -rf "$release_dir"' EXIT
 
@@ -46,7 +46,7 @@ See the [Installation Guide](https://entropy0120.github.io/gyre/installation) fo
 EOF_NOTES
 
 release_args=(--verify-tag --title "Release $tag" --notes-file "$release_dir/notes.md" --generate-notes)
-if [[ "$tag" == *-* ]]; then release_args+=(--prerelease); fi
+if [[ "$image_version" == *-* ]]; then release_args+=(--prerelease); fi
 gh release create "$tag" "${release_args[@]}"
 if [[ -n "${GITHUB_STEP_SUMMARY:-}" ]]; then
   printf '### Release %s\n\n- Image digest: `%s`\n- Platforms: %s\n' "$tag" "$digest" "$platforms" >> "$GITHUB_STEP_SUMMARY"
