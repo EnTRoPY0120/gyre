@@ -85,26 +85,32 @@ test('release is reusable and requires successful build, smoke and publication f
 	);
 });
 
-test.each(['v1.2.3', 'v1.2.3-rc.1'])(
-	'publishes the chart before %s and records the tested digest and both architectures',
-	(tag) => {
-		const { env } = publisherEnvironment();
-		execFileSync('bash', ['scripts/publish-release.sh', tag, digest, 'linux/amd64,linux/arm64'], {
-			env
-		});
-		const commands = readFileSync(env.PUBLISH_LOG, 'utf8').trim().split('\n');
-		expect(commands[0]).toContain(
-			`helm package charts/gyre --version ${tag.slice(1)} --app-version ${tag.slice(1)}`
-		);
-		expect(commands[1]).toContain('helm push');
-		expect(commands[2]).toContain(`gh release create ${tag} --verify-tag`);
-		expect(commands[2].includes('--prerelease')).toBe(tag.includes('-'));
-		const notes = readFileSync(env.CAPTURED_NOTES, 'utf8');
-		for (const value of [tag, digest, 'linux/amd64', 'linux/arm64', `gyre:${tag.slice(1)}`])
-			expect(notes).toContain(value);
-		expect(notes).not.toMatch(/gyre:(latest|main)/);
-	}
-);
+test.each([
+	['v1.2.3', '1.2.3', false],
+	['v1.2.3-rc.1', '1.2.3-rc.1', true],
+	['v1.2.3+build.1', '1.2.3', false],
+	['v1.2.3+build-1', '1.2.3', false],
+	['v1.2.3-rc.1+build-1', '1.2.3-rc.1', true]
+])('publishes %s with image tag %s and prerelease=%s', (tag, imageVersion, prerelease) => {
+	const { env } = publisherEnvironment();
+	execFileSync('bash', ['scripts/publish-release.sh', tag, digest, 'linux/amd64,linux/arm64'], {
+		env
+	});
+	const commands = readFileSync(env.PUBLISH_LOG, 'utf8').trim().split('\n');
+	expect(commands[0]).toContain(
+		`helm package charts/gyre --version ${tag.slice(1)} --app-version ${tag.slice(1)}`
+	);
+	expect(commands[1]).toContain('helm push');
+	expect(commands[2]).toContain(`gh release create ${tag} --verify-tag`);
+	expect(commands[2].includes('--prerelease')).toBe(prerelease);
+	const notes = readFileSync(env.CAPTURED_NOTES, 'utf8');
+	for (const value of [tag, digest, 'linux/amd64', 'linux/arm64']) expect(notes).toContain(value);
+	const imageTag = `ghcr.io/entropy0120/gyre:${imageVersion}`;
+	const noteLines = notes.split(/\r?\n/);
+	expect(noteLines).toContain('Version: `' + imageTag + '`');
+	expect(noteLines).toContain('docker pull ' + imageTag);
+	expect(notes).not.toMatch(/gyre:(latest|main)/);
+});
 
 test.each(['helm-package', 'helm-push'])(
 	'failed %s prevents creating a GitHub release',
