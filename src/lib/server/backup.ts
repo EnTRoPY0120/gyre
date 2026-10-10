@@ -8,10 +8,11 @@ import { logger } from './logger.js';
 import {
 	existsSync,
 	mkdirSync,
+	mkdtempSync,
+	rmSync,
 	readdirSync,
 	statSync,
 	unlinkSync,
-	copyFileSync,
 	writeFileSync,
 	readFileSync,
 	renameSync
@@ -23,9 +24,9 @@ import Database from 'better-sqlite3';
 import { aesGcmEncrypt, aesGcmDecrypt, IV_LENGTH, AUTH_TAG_LENGTH } from './aes-gcm.js';
 import { BackupError } from './backup-errors.js';
 import {
-	validateBackupSchema,
+	prepareRestoreCandidate,
 	validateRestoreBuffer,
-	validateRestoredDatabase
+	checkpointDatabase
 } from './backup-restore.js';
 
 import { MAX_LOCAL_BACKUPS } from './config/constants.js';
@@ -326,20 +327,29 @@ export function deleteBackup(filename: string): boolean {
  * WARNING: This replaces the live database. The application should be
  * restarted after a restore for connections to pick up the new data.
  */
-export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata> {
-	ensureBackupDir();
-	// Place the temp file beside the target DB so renameSync stays on the same
-	// filesystem and the swap is atomic. Using backupDir risks a cross-mount
-	// EXDEV fallback that copies rather than renames.
-	const tempPath = join(dirname(databaseUrl), `_restore-temp-${Date.now()}.db`);
+let restoreInProgress = false;
 
+export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata> {
+	if (restoreInProgress)
+		throw new BackupError('A restore is already in progress. Try again after it finishes.', 409);
+	restoreInProgress = true;
+	let tempDirectory: string | undefined;
 	try {
 		validateRestoreBuffer(buffer);
-
-		// Create a safety backup before restoring — abort if this fails
-		let safetyBackup: BackupMetadata;
+		// A private unique directory beside the live DB guarantees same-filesystem replacement.
+		tempDirectory = mkdtempSync(join(dirname(databaseUrl), '.gyre-restore-'));
+		const tempPath = join(tempDirectory, 'candidate.db');
+		writeFileSync(tempPath, buffer, { mode: 0o600, flag: 'wx' });
+		const candidate = new Database(tempPath);
 		try {
-			safetyBackup = await createBackup();
+			prepareRestoreCandidate(candidate);
+		} finally {
+			candidate.close();
+		}
+
+		// Invalid candidates never create a backup or disturb the live connection.
+		try {
+			const safetyBackup = await createBackup();
 			logger.info(`[Backup] Safety backup created: ${safetyBackup.filename}`);
 		} catch {
 			throw new BackupError(
@@ -348,74 +358,31 @@ export async function restoreFromBuffer(buffer: Buffer): Promise<BackupMetadata>
 			);
 		}
 
-		// Write the uploaded DB to a temp file and validate it
-		writeFileSync(tempPath, buffer);
-
-		// Open and validate the uploaded DB has the expected schema
-		const testDb = new Database(tempPath, { readonly: true });
+		// No await between checkpoint, closing cached handles and atomic replacement.
+		const currentDb = new Database(databaseUrl, { fileMustExist: true });
 		try {
-			validateBackupSchema(testDb);
-		} finally {
-			testDb.close();
-		}
-
-		// Checkpoint current WAL and close connection
-		const currentDb = new Database(databaseUrl);
-		try {
-			currentDb.pragma('wal_checkpoint(TRUNCATE)');
-		} catch (e) {
-			logger.warn(e, '[Backup] Failed to checkpoint current DB before restore:');
+			checkpointDatabase(currentDb);
+			closeDb();
 		} finally {
 			currentDb.close();
 		}
-
-		// Explicitly remove stale -wal and -shm files to prevent corruption of the new DB
+		// Checkpointed sidecars must be removed successfully before installing the candidate.
 		for (const suffix of ['-wal', '-shm']) {
 			const artifactPath = databaseUrl + suffix;
-			try {
-				if (existsSync(artifactPath)) {
-					unlinkSync(artifactPath);
-				}
-			} catch (e) {
-				logger.error(e, `[Backup] Failed to remove stale artifact ${artifactPath}:`);
-			}
+			if (existsSync(artifactPath)) unlinkSync(artifactPath);
 		}
-
-		// Replace the database file, closing the cached connection first so
-		// subsequent operations open a fresh handle to the new database.
-		closeDb();
-		try {
-			renameSync(tempPath, databaseUrl); // atomic on same filesystem
-		} catch (e: any) {
-			if (e.code === 'EXDEV') {
-				// Cross-device: fall back to copy+delete (not atomic — log warning)
-				logger.warn('[Backup] restore: cross-device rename fell back to copy — not atomic');
-				copyFileSync(tempPath, databaseUrl);
-				unlinkSync(tempPath);
-			} else {
-				throw e;
-			}
-		}
-
-		// Verify the restored database passes integrity check
-		const verifyDb = new Database(databaseUrl, { readonly: true });
-		try {
-			validateRestoredDatabase(verifyDb, safetyBackup.filename);
-		} finally {
-			verifyDb.close();
-		}
-
-		const stat = statSync(databaseUrl);
+		renameSync(tempPath, databaseUrl);
 		return {
 			filename: 'restored-database',
-			sizeBytes: stat.size,
+			sizeBytes: statSync(databaseUrl).size,
 			createdAt: new Date().toISOString(),
 			encrypted: false
 		};
 	} finally {
-		// Clean up temp file
-		if (existsSync(tempPath)) {
-			unlinkSync(tempPath);
+		try {
+			if (tempDirectory) rmSync(tempDirectory, { recursive: true, force: true });
+		} finally {
+			restoreInProgress = false;
 		}
 	}
 }
