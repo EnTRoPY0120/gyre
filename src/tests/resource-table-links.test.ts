@@ -18,11 +18,11 @@ const mounted: Array<ReturnType<typeof mount>> = [];
 beforeEach(() => {
 	vi.stubGlobal('ResizeObserver', TestResizeObserver);
 	// jsdom has no layout; give the table deterministic row measurements for virtualization.
-	vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(
-		function (this: HTMLElement) {
-			return this.parentElement ? Array.from(this.parentElement.children).indexOf(this) * 57 : 0;
-		}
-	);
+	vi.spyOn(HTMLElement.prototype, 'offsetTop', 'get').mockImplementation(function (
+		this: HTMLElement
+	) {
+		return this.parentElement ? Array.from(this.parentElement.children).indexOf(this) * 57 : 0;
+	});
 });
 
 afterEach(() => {
