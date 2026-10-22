@@ -10,7 +10,7 @@ The Dev Container installs the supported Node.js, pnpm, and Kubernetes tools. In
 pnpm dev
 ```
 
-For a manual setup, use Node.js 22.13 or later and pnpm 11.1.0:
+For a manual setup, use Node.js 26 or later and pnpm 11.1.0. Node.js 22.18+ on the 22.x line and 24.11+ on the 24.x line are also supported:
 
 ```sh
 pnpm install
