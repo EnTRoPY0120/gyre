@@ -80,7 +80,6 @@ function createBetterAuth() {
 				isLocal: {
 					type: 'boolean',
 					required: false,
-					fieldName: 'is_local',
 					defaultValue: true
 				},
 				preferences: {
@@ -100,25 +99,21 @@ function createBetterAuth() {
 				},
 				lastLoginAt: {
 					type: 'date',
-					required: false,
-					fieldName: 'last_login_at'
+					required: false
 				},
 				accessTokenEncrypted: {
 					type: 'string',
 					required: false,
-					fieldName: 'access_token_encrypted',
 					returned: false
 				},
 				refreshTokenEncrypted: {
 					type: 'string',
 					required: false,
-					fieldName: 'refresh_token_encrypted',
 					returned: false
 				},
 				idTokenEncrypted: {
 					type: 'string',
 					required: false,
-					fieldName: 'id_token_encrypted',
 					returned: false
 				}
 			}
