@@ -6,12 +6,14 @@
 	let {
 		resource,
 		showNamespace = true,
+		resourceUrl,
 		selected = false,
 		onRowClick,
 		onToggleSelection
 	}: {
 		resource: FluxResource;
 		showNamespace?: boolean;
+		resourceUrl: string;
 		selected?: boolean;
 		onRowClick: (event: MouseEvent) => void;
 		onToggleSelection: () => void;
@@ -38,11 +40,12 @@
 		/>
 	</td>
 	<td class="px-6 py-4 whitespace-nowrap transition-all duration-200 group-hover:pl-7">
-		<div
-			class="font-mono text-[13px] font-medium text-foreground transition-colors group-hover:text-primary"
+		<a
+			href={resourceUrl}
+			class="font-mono text-[13px] font-medium text-foreground transition-colors group-hover:text-primary focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
 		>
 			{resource.metadata.name}
-		</div>
+		</a>
 	</td>
 	{#if showNamespace}
 		<td class="px-6 py-4 whitespace-nowrap">

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import * as actualClient from '../lib/server/kubernetes/client.js';
 import * as actualConstants from '../lib/server/config/constants.js';
 import * as actualMetrics from '../lib/server/metrics.js';
+import { getAllResourceTypes } from '../lib/server/kubernetes/flux/resources.js';
 import { importFresh } from './helpers/import-fresh';
 
 // Suppress console noise - must be before imports
@@ -11,6 +12,8 @@ vi.spyOn(console, 'error').mockImplementation(() => {});
 
 // Mock listFluxResources to control what resources are returned
 let mockResources: any[] = [];
+let mockListFluxResources: (resourceType: string, clusterId?: string) => Promise<any>;
+let listCalls: Array<{ resourceType: string; clusterId?: string }> = [];
 type EventsModule = typeof import('../lib/server/events.js');
 import type { SSEEvent } from '../lib/server/events.js';
 let subscribe: EventsModule['subscribe'];
@@ -22,7 +25,8 @@ function applyEventMocks(opts: { settlingPeriodMs: number; gaugeThrows?: boolean
 	throwOnStatusGaugeSet = opts.gaugeThrows ?? false;
 	vi.doMock('../lib/server/kubernetes/client.js', () => ({
 		...actualClient,
-		listFluxResources: async () => ({ items: mockResources })
+		listFluxResources: (resourceType: string, clusterId?: string) =>
+			mockListFluxResources(resourceType, clusterId)
 	}));
 	vi.doMock('../lib/server/metrics.js', () => ({
 		...actualMetrics,
@@ -59,6 +63,11 @@ function applyEventMocks(opts: { settlingPeriodMs: number; gaugeThrows?: boolean
 
 beforeEach(async () => {
 	mockResources = [];
+	listCalls = [];
+	mockListFluxResources = async (resourceType, clusterId) => {
+		listCalls.push({ resourceType, clusterId });
+		return { items: mockResources };
+	};
 	mockCaptureReconciliation = vi.fn(async () => {});
 	pollMetricIncrements = [];
 	applyEventMocks({ settlingPeriodMs: -1 });
@@ -270,6 +279,168 @@ describe('Poll change detection', () => {
 		}
 	});
 
+	test('spec-only edits refresh subscribers without storing a notification', async () => {
+		const events: SSEEvent[] = [];
+		const clusterId = uniqueClusterId('spec-only');
+		mockResources = [{ ...makeResource('my-app', 'flux-system', 'v1'), spec: { suspend: false } }];
+		const unsub = subscribe((event) => events.push(event), clusterId);
+		await wait(120);
+		const initialHistoryCalls = mockCaptureReconciliation.mock.calls.length;
+
+		mockResources = [{ ...makeResource('my-app', 'flux-system', 'v1'), spec: { suspend: true } }];
+		await wait(120);
+
+		try {
+			const modified = events.filter(
+				(event) => event.type === 'MODIFIED' && event.resourceType === 'GitRepository'
+			);
+			expect(modified).toHaveLength(1);
+			expect(modified[0]?.notify).toBe(false);
+			expect(mockCaptureReconciliation).toHaveBeenCalledTimes(initialHistoryCalls);
+		} finally {
+			unsub();
+		}
+	});
+
+	test('unchanged resources emit no MODIFIED event or reconciliation history', async () => {
+		const events: SSEEvent[] = [];
+		const clusterId = uniqueClusterId('unchanged');
+		mockResources = [makeResource('my-app', 'flux-system', 'v1')];
+		const unsub = subscribe((event) => events.push(event), clusterId);
+		await wait(120);
+		const historyCallsAfterAdd = mockCaptureReconciliation.mock.calls.length;
+		await wait(120);
+
+		try {
+			expect(
+				events.filter(
+					(event) => event.type === 'MODIFIED' && event.resourceType === 'GitRepository'
+				)
+			).toHaveLength(0);
+			expect(mockCaptureReconciliation).toHaveBeenCalledTimes(historyCallsAfterAdd);
+		} finally {
+			unsub();
+		}
+	});
+
+	test('polls every supported Flux type sequentially', async () => {
+		const clusterId = uniqueClusterId('all-resource-types');
+		const unsub = subscribe(() => {}, clusterId);
+		await wait(120);
+
+		try {
+			const firstCycleTypes = listCalls
+				.slice(0, getAllResourceTypes().length)
+				.map((call) => call.resourceType);
+			expect(firstCycleTypes).toEqual(getAllResourceTypes());
+		} finally {
+			unsub();
+		}
+	});
+
+	test('403/404 failures preserve cached state and retry after the type cooldown', async () => {
+		const events: SSEEvent[] = [];
+		const clusterId = uniqueClusterId('cooldown');
+		let responseMode: 'success' | 'failure' | 'corrected' = 'success';
+		let clock = Date.now();
+		const originalNow = Date.now;
+		vi.spyOn(Date, 'now').mockImplementation(() => clock);
+		mockListFluxResources = async (resourceType) => {
+			listCalls.push({ resourceType });
+			if (resourceType === 'GitRepository' && responseMode === 'failure') {
+				throw Object.assign(new Error('API unavailable'), { response: { statusCode: 404 } });
+			}
+			if (resourceType === 'GitRepository' && responseMode === 'corrected') {
+				return {
+					items: [{ ...makeResource('cached', 'flux-system', 'v2'), spec: { suspend: true } }]
+				};
+			}
+			return { items: [makeResource('cached', 'flux-system', 'v1')] };
+		};
+		const unsub = subscribe((event) => events.push(event), clusterId);
+		await wait(120);
+		responseMode = 'failure';
+		await wait(120);
+
+		try {
+			const failedCallCount = listCalls.filter(
+				(call) => call.resourceType === 'GitRepository'
+			).length;
+			expect(
+				events.some((event) => event.type === 'DELETED' && event.resourceType === 'GitRepository')
+			).toBe(false);
+			await wait(120);
+			expect(listCalls.filter((call) => call.resourceType === 'GitRepository')).toHaveLength(
+				failedCallCount
+			);
+
+			clock = originalNow() + 60_001;
+			responseMode = 'corrected';
+			await wait(120);
+			expect(
+				listCalls.filter((call) => call.resourceType === 'GitRepository').length
+			).toBeGreaterThan(failedCallCount);
+			expect(
+				events.some(
+					(event) =>
+						event.type === 'MODIFIED' &&
+						event.resourceType === 'GitRepository' &&
+						event.notify === false
+				)
+			).toBe(true);
+		} finally {
+			unsub();
+		}
+	});
+
+	test('unavailable-type cooldowns are isolated by cluster', async () => {
+		const clusterWithFailure = uniqueClusterId('cooldown-isolated-a');
+		const healthyCluster = uniqueClusterId('cooldown-isolated-b');
+		mockListFluxResources = async (resourceType, clusterId) => {
+			listCalls.push({ resourceType, clusterId });
+			if (clusterId === clusterWithFailure && resourceType === 'GitRepository') {
+				throw Object.assign(new Error('forbidden'), { code: 403 });
+			}
+			return { items: [] };
+		};
+		const unsubscribeFailedCluster = subscribe(() => {}, clusterWithFailure);
+		const unsubscribeHealthyCluster = subscribe(() => {}, healthyCluster);
+		await wait(180);
+
+		try {
+			const failedClusterCalls = listCalls.filter(
+				(call) => call.clusterId === clusterWithFailure && call.resourceType === 'GitRepository'
+			);
+			const healthyClusterCalls = listCalls.filter(
+				(call) => call.clusterId === healthyCluster && call.resourceType === 'GitRepository'
+			);
+			expect(failedClusterCalls).toHaveLength(1);
+			expect(healthyClusterCalls.length).toBeGreaterThan(1);
+		} finally {
+			unsubscribeFailedCluster();
+			unsubscribeHealthyCluster();
+		}
+	});
+
+	test('a pending unavailable-type response after stop does not continue polling', async () => {
+		let rejectGitRepository!: (error: Error) => void;
+		const pending = new Promise<never>((_resolve, reject) => {
+			rejectGitRepository = reject;
+		});
+		mockListFluxResources = async (resourceType) => {
+			listCalls.push({ resourceType });
+			if (resourceType === 'GitRepository') return pending;
+			return { items: [] };
+		};
+		const unsub = subscribe(() => {}, uniqueClusterId('stop-pending'));
+		await wait(20);
+		unsub();
+		rejectGitRepository(Object.assign(new Error('forbidden'), { code: 403 }));
+		await wait(80);
+
+		expect(listCalls.map((call) => call.resourceType)).toEqual(['GitRepository']);
+	});
+
 	test('resource disappearing from poll broadcasts DELETED event', async () => {
 		const events: SSEEvent[] = [];
 		const clusterId = uniqueClusterId('deleted');
@@ -357,7 +528,7 @@ describe('Poll change detection', () => {
 		}
 	});
 
-	test('transient Unknown ready status does not trigger notification', async () => {
+	test('transient Unknown ready status refreshes subscribers without notification', async () => {
 		const events: SSEEvent[] = [];
 		const clusterId = uniqueClusterId('unknown-transient');
 
@@ -374,9 +545,11 @@ describe('Poll change detection', () => {
 		await wait(150);
 
 		try {
-			// Unknown status with unchanged revision should NOT trigger a MODIFIED notification
-			const modifiedAfter = events.slice(eventsAfterFirstPoll).filter((e) => e.type === 'MODIFIED');
-			expect(modifiedAfter.length).toBe(0);
+			const modifiedAfter = events
+				.slice(eventsAfterFirstPoll)
+				.filter((e) => e.type === 'MODIFIED' && e.resourceType === 'GitRepository');
+			expect(modifiedAfter).toHaveLength(1);
+			expect(modifiedAfter[0]?.notify).toBe(false);
 		} finally {
 			unsub();
 		}
@@ -405,9 +578,44 @@ describe('Poll change detection', () => {
 		try {
 			const stableModified = events
 				.slice(eventsAfterFirstPoll)
-				.filter((e) => e.type === 'MODIFIED' && e.resourceType === 'GitRepository');
-			expect(modifiedWhileUnknown).toHaveLength(0);
+				.filter(
+					(e) => e.type === 'MODIFIED' && e.resourceType === 'GitRepository' && e.notify !== false
+				);
+			expect(modifiedWhileUnknown).toHaveLength(1);
+			expect(modifiedWhileUnknown[0]?.notify).toBe(false);
 			expect(stableModified).toHaveLength(1);
+			expect(stableModified[0]?.notify).toBeUndefined();
+		} finally {
+			unsub();
+		}
+	});
+
+	test('failed resources recover with notification after passing through transient Unknown', async () => {
+		const events: SSEEvent[] = [];
+		const clusterId = uniqueClusterId('failed-recovery');
+		mockResources = [makeResource('recovering-app', 'flux-system', 'v1', 'True', 'rev-1')];
+		const unsub = subscribe((event) => events.push(event), clusterId);
+		await wait(120);
+		const historyAfterAdd = mockCaptureReconciliation.mock.calls.length;
+
+		mockResources = [makeResource('recovering-app', 'flux-system', 'v2', 'False', 'rev-1')];
+		await wait(120);
+		const historyAfterFailure = mockCaptureReconciliation.mock.calls.length;
+		mockResources = [makeResource('recovering-app', 'flux-system', 'v3', 'Unknown', 'rev-1')];
+		await wait(120);
+		const historyAfterTransient = mockCaptureReconciliation.mock.calls.length;
+		mockResources = [makeResource('recovering-app', 'flux-system', 'v4', 'True', 'rev-1')];
+		await wait(120);
+
+		try {
+			const modified = events.filter(
+				(event) => event.type === 'MODIFIED' && event.resourceType === 'GitRepository'
+			);
+			expect(historyAfterFailure).toBeGreaterThan(historyAfterAdd);
+			expect(historyAfterTransient).toBe(historyAfterFailure);
+			expect(mockCaptureReconciliation.mock.calls.length).toBeGreaterThan(historyAfterTransient);
+			expect(modified).toHaveLength(3);
+			expect(modified.map((event) => event.notify)).toEqual([undefined, false, undefined]);
 		} finally {
 			unsub();
 		}

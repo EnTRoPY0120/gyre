@@ -1,15 +1,20 @@
 import { describe, expect, test } from 'vitest';
-import { isResourceSelectionTarget } from '../lib/components/flux/resource-row-click.js';
+import { isResourceRowInteractiveTarget } from '../lib/components/flux/resource-row-click.js';
 
-describe('isResourceSelectionTarget', () => {
-	test('recognizes checkbox inputs directly', () => {
+describe('isResourceRowInteractiveTarget', () => {
+	test('recognizes links and checkbox inputs directly or through their children', () => {
 		const checkbox = document.createElement('input');
 		checkbox.type = 'checkbox';
+		const link = document.createElement('a');
+		const linkText = document.createElement('span');
+		link.append(linkText);
 		const textInput = document.createElement('input');
 		textInput.type = 'text';
 
-		expect(isResourceSelectionTarget(checkbox)).toBe(true);
-		expect(isResourceSelectionTarget(textInput)).toBe(false);
+		expect(isResourceRowInteractiveTarget(checkbox)).toBe(true);
+		expect(isResourceRowInteractiveTarget(link)).toBe(true);
+		expect(isResourceRowInteractiveTarget(linkText)).toBe(true);
+		expect(isResourceRowInteractiveTarget(textInput)).toBe(false);
 	});
 
 	test('allows ordinary element targets and non-element events', () => {
@@ -18,9 +23,9 @@ describe('isResourceSelectionTarget', () => {
 		row.append(nestedText);
 		const text = document.createTextNode('resource');
 
-		expect(isResourceSelectionTarget(row)).toBe(false);
-		expect(isResourceSelectionTarget(nestedText)).toBe(false);
-		expect(isResourceSelectionTarget(text)).toBe(false);
-		expect(isResourceSelectionTarget(null)).toBe(false);
+		expect(isResourceRowInteractiveTarget(row)).toBe(false);
+		expect(isResourceRowInteractiveTarget(nestedText)).toBe(false);
+		expect(isResourceRowInteractiveTarget(text)).toBe(false);
+		expect(isResourceRowInteractiveTarget(null)).toBe(false);
 	});
 });

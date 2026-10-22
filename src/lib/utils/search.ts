@@ -2,7 +2,7 @@ import Fuse from 'fuse.js';
 import safeRegex from 'safe-regex2';
 import { logger } from './logger.js';
 
-const MAX_QUERY_LENGTH = 500;
+export const MAX_QUERY_LENGTH = 500;
 const MAX_TAG_VALUE_LENGTH = 200;
 
 export interface SearchOptions {
@@ -64,6 +64,32 @@ function isSafeRegex(pattern: string): boolean {
 	}
 }
 
+export interface RegexCompilation {
+	regex: RegExp | null;
+	error: string | null;
+}
+
+/** Compile the length-limited pattern used by resource filtering. */
+export function compileRegex(pattern: string, caseSensitive = false): RegexCompilation {
+	const truncatedPattern = pattern.slice(0, MAX_QUERY_LENGTH);
+	if (!truncatedPattern) return { regex: null, error: null };
+	let regex: RegExp;
+	try {
+		regex = new RegExp(truncatedPattern, caseSensitive ? '' : 'i');
+	} catch {
+		return { regex: null, error: 'This regular expression is invalid.' };
+	}
+	if (!isSafeRegex(truncatedPattern)) {
+		return { regex: null, error: 'This pattern may cause performance issues.' };
+	}
+	return { regex, error: null };
+}
+
+/** Validate the parsed text portion of a resource search, including its length limit. */
+export function validateResourceSearchRegex(query: string): RegexCompilation {
+	return compileRegex(parseQuery(query).query);
+}
+
 /**
  * Advanced search utility supporting fuzzy, regex, and literal matching
  */
@@ -81,21 +107,15 @@ export function advancedSearch<T>(items: T[], query: string, options: SearchOpti
 
 	// Handle Regex search
 	if (regex) {
-		if (!isSafeRegex(truncatedQuery)) {
-			logger.debug('Potentially unsafe regex pattern rejected');
+		const { regex: compiledRegex, error } = compileRegex(truncatedQuery, caseSensitive);
+		if (error || !compiledRegex) {
+			logger.debug(error ?? 'Empty regex search skipped');
 			return [];
 		}
-		try {
-			const re = new RegExp(truncatedQuery, caseSensitive ? '' : 'i');
-			return items.filter((item) => {
-				const searchString = getSearchString(item, keys);
-				return re.test(searchString);
-			});
-		} catch {
-			// If regex is invalid, fallback to literal search or return empty
-			logger.debug('Invalid regex in regex-building step');
-			return [];
-		}
+		return items.filter((item) => {
+			const searchString = getSearchString(item, keys);
+			return compiledRegex.test(searchString);
+		});
 	}
 
 	// Handle Fuzzy search

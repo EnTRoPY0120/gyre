@@ -16,6 +16,7 @@
 		hasActiveFilters,
 		onClearFilters,
 		onSearch,
+		validationSearch,
 		onSort
 	}: {
 		filters: FilterState;
@@ -28,6 +29,7 @@
 		hasActiveFilters: boolean;
 		onClearFilters: () => void;
 		onSearch: () => void;
+		validationSearch?: string;
 		onSort: (field: SortBy) => void;
 	} = $props();
 </script>
@@ -38,6 +40,7 @@
 			<AdvancedSearch
 				bind:filters
 				placeholder="Search by name, namespace, or use tags like ns:default..."
+				{validationSearch}
 				onSearch={onSearch}
 			/>
 		</div>

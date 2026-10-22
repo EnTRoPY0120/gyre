@@ -27,7 +27,8 @@ export function subscribe(subscriber: Subscriber, clusterId: string = IN_CLUSTER
 			inflightPollPromise: null,
 			lastStates: new Map(),
 			lastNotificationStates: new Map(),
-			resourceFirstSeen: new Map()
+			resourceFirstSeen: new Map(),
+			pollCooldowns: new Map()
 		};
 		activeWorkers.set(canonicalClusterId, context);
 	}
@@ -111,6 +112,7 @@ function stopWorker(context: ClusterContext, reason: string = 'no active subscri
 	context.lastStates.clear();
 	context.lastNotificationStates.clear();
 	context.resourceFirstSeen.clear();
+	context.pollCooldowns.clear();
 	logger.info(
 		{ clusterId: context.clusterId, reason },
 		'[EventBus] Stopping consolidated polling worker'

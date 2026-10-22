@@ -318,7 +318,7 @@ class RealtimeStore {
 			}
 		});
 
-		if (data.resource) this.addNotification(data);
+		if (data.resource && data.notify !== false) this.addNotification(data);
 	}
 
 	private addNotification(event: ResourceEvent) {

@@ -10,7 +10,9 @@
 		showNamespace,
 		hasActiveFilters,
 		onClearFilters,
-		onResourceClick
+		onResourceClick,
+		getResourceUrl,
+		invalidSearch = false
 	}: {
 		resources: FluxResource[];
 		viewMode: 'table' | 'grid';
@@ -18,42 +20,46 @@
 		hasActiveFilters: boolean;
 		onClearFilters: () => void;
 		onResourceClick: (resource: FluxResource) => void;
+		getResourceUrl: (resource: FluxResource) => string;
+		invalidSearch?: boolean;
 	} = $props();
 </script>
 
 <svelte:boundary>
 	{#if resources.length === 0 && hasActiveFilters}
-		<div
-			class="flex flex-col items-center justify-center rounded-lg border border-border bg-card/60 py-12 text-center"
-		>
-			<svg
-				class="h-12 w-12 text-muted-foreground/30"
-				fill="none"
-				stroke="currentColor"
-				viewBox="0 0 24 24"
+		{#if !invalidSearch}
+			<div
+				class="flex flex-col items-center justify-center rounded-lg border border-border bg-card/60 py-12 text-center"
 			>
-				<path
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					stroke-width="2"
-					d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-				/>
-			</svg>
-			<p class="mt-4 text-sm font-medium text-foreground">No resources match your filters</p>
-			<p class="mt-1 text-sm text-muted-foreground">
-				Try adjusting your search or filter criteria
-			</p>
-			<button
-				type="button"
-				class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-				onclick={onClearFilters}
-			>
-				<FilterX size={16} />
-				Clear Filters
-			</button>
-		</div>
+				<svg
+					class="h-12 w-12 text-muted-foreground/30"
+					fill="none"
+					stroke="currentColor"
+					viewBox="0 0 24 24"
+				>
+					<path
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						stroke-width="2"
+						d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+					/>
+				</svg>
+				<p class="mt-4 text-sm font-medium text-foreground">No resources match your filters</p>
+				<p class="mt-1 text-sm text-muted-foreground">
+					Try adjusting your search or filter criteria
+				</p>
+				<button
+					type="button"
+					class="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+					onclick={onClearFilters}
+				>
+					<FilterX size={16} />
+					Clear Filters
+				</button>
+			</div>
+		{/if}
 	{:else if viewMode === 'table'}
-		<ResourceTable {resources} {showNamespace} onRowClick={onResourceClick} />
+		<ResourceTable {resources} {showNamespace} onRowClick={onResourceClick} {getResourceUrl} />
 	{:else}
 		<ResourceGrid {resources} {showNamespace} onCardClick={onResourceClick} />
 	{/if}

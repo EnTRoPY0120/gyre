@@ -25,6 +25,8 @@ pnpm dev
 
 The app listens on port 3000. The Dev Container mounts the host kubeconfig read-only; use an existing Flux cluster or create a local one with `kind` and `flux`.
 
+Gyre polls all 13 supported Flux resource types sequentially for live updates, with up to 13 Kubernetes list requests per polling cycle. A resource type that returns HTTP 403 or 404 is retried on the first polling cycle after a 60-second cooldown. Newly discovered resources then wait through the configured settling period before Gyre emits an `ADDED` event.
+
 ## Quality checks
 
 ```sh

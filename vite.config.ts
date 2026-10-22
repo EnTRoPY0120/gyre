@@ -16,6 +16,8 @@ const VENDOR_CHUNK_RULES = [
 const DOM_TEST_FILES = [
 	'src/tests/focus-trap.test.ts',
 	'src/tests/resource-row-click.test.ts',
+	'src/tests/resource-table-links.test.ts',
+	'src/tests/advanced-search-dom.test.ts',
 	'src/tests/password-input.test.ts'
 ];
 

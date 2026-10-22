@@ -2,16 +2,26 @@
 	import { Search, SlidersHorizontal, X } from '@lucide/svelte';
 	import { cn } from '$lib/utils';
 	import type { FilterState } from '$lib/utils/filtering';
+	import { validateResourceSearchRegex } from '$lib/utils/search';
 
 	interface Props {
 		filters: FilterState;
 		placeholder?: string;
 		onSearch?: (query: string) => void;
+		validationSearch?: string;
 	}
 
-	let { filters = $bindable(), placeholder = 'Search resources...', onSearch }: Props = $props();
+	let {
+		filters = $bindable(),
+		placeholder = 'Search resources...',
+		onSearch,
+		validationSearch
+	}: Props = $props();
 
 	let isAdvancedOpen = $state(false);
+	const regexError = $derived(
+		filters.useRegex ? validateResourceSearchRegex(validationSearch ?? filters.search).error : null
+	);
 
 	function clearSearch() {
 		filters.search = '';
@@ -35,9 +45,12 @@
 
 		<input
 			type="text"
+			id="resource-search"
 			value={filters.search}
 			oninput={handleInput}
 			{placeholder}
+			aria-invalid={regexError ? 'true' : undefined}
+			aria-describedby={regexError ? 'resource-search-regex-error' : undefined}
 			class="h-11 w-full rounded-xl border border-border bg-card/50 pr-20 pl-10 text-sm ring-offset-background transition-all focus:border-primary/50 focus:bg-card focus:ring-2 focus:ring-primary/20 focus:outline-none"
 		/>
 
@@ -66,6 +79,11 @@
 			</button>
 		</div>
 	</div>
+	{#if regexError}
+		<p id="resource-search-regex-error" class="text-xs text-destructive" role="status">
+			{regexError}
+		</p>
+	{/if}
 
 	{#if isAdvancedOpen}
 		<div
