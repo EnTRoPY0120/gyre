@@ -37,7 +37,8 @@ function createBetterAuth() {
 			schema,
 			usePlural: false,
 			camelCase: false,
-			transaction: true
+			// better-sqlite3 requires synchronous transaction callbacks; Better Auth uses async ones.
+			transaction: false
 		}),
 		emailAndPassword: {
 			enabled: true,
