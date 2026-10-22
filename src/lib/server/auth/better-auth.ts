@@ -52,6 +52,7 @@ function createBetterAuth() {
 		},
 		plugins: [
 			username({
+				displayUsername: false,
 				minUsernameLength: 3,
 				maxUsernameLength: 64,
 				usernameNormalization: normalizeUsername
@@ -92,6 +93,11 @@ function createBetterAuth() {
 		account: {
 			modelName: 'accounts',
 			additionalFields: {
+				issuer: {
+					type: 'string',
+					required: false,
+					returned: false
+				},
 				lastLoginAt: {
 					type: 'date',
 					required: false,

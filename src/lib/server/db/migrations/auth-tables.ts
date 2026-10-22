@@ -1,4 +1,4 @@
-import { createLocalAccountIssuer, createOAuthAccountIssuer } from 'better-auth/db';
+import { createLocalAccountIssuer, createOAuthAccountIssuer } from '../../auth/account-issuer.js';
 import { logger } from '../../logger.js';
 import { sql } from 'drizzle-orm';
 import { addColumnsIgnoringDuplicates, runFlaggedMigration, type Db } from './helpers.js';
@@ -226,8 +226,7 @@ function createAccountsTable(db: Db, hasLegacyPasswordHashColumn: boolean): void
 		`);
 	}
 
-	// Better Auth 1.7 keys identities by issuer, including local password accounts.
-	// Gyre handles OAuth itself, so retain its provider-ID identity namespaces.
+	// Retain Gyre's existing issuer namespaces for both local and OAuth accounts.
 	db.transaction((tx) => {
 		const legacyAccounts = tx.all<{ id: string; provider_id: string }>(
 			sql`SELECT id, provider_id FROM accounts WHERE issuer = ''`
