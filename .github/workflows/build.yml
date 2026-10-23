@@ -36,8 +36,7 @@ jobs:
       digest: ${{ steps.archive.outputs.digest }}
       tags: ${{ steps.meta.outputs.tags }}
       platforms: ${{ steps.platforms.outputs.value }}
-      sarif-artifact-id: ${{ steps.sarif-artifact.outputs.artifact-id }}
-      sarif-uploaded: ${{ steps.sarif-artifact.outputs.artifact-id != '' }}
+      security-artifact-id: ${{ steps.security-artifact.outputs.artifact-id }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -125,61 +124,80 @@ jobs:
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "sha256=$(sha256sum "${{ runner.temp }}/gyre-image.tar" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
+      - name: Create security report directory
+        run: mkdir -p "${{ runner.temp }}/trivy-reports"
+
       - name: Import amd64 image for scanning
+        id: import-amd64
+        continue-on-error: true
         run: skopeo copy --override-os linux --override-arch amd64 "oci-archive:${{ runner.temp }}/gyre-image.tar" docker-daemon:gyre:scan-amd64
 
-      - name: Run Trivy scan (blocking)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
-        with:
-          image-ref: gyre:scan-amd64
-          format: table
-          severity: CRITICAL
-          ignore-unfixed: false
-          vuln-type: os,library
-          exit-code: '1'
-          trivyignores: .trivyignore
-
-      - name: Import arm64 image for scanning
-        if: contains(steps.platforms.outputs.value, 'arm64')
-        run: skopeo copy --override-os linux --override-arch arm64 "oci-archive:${{ runner.temp }}/gyre-image.tar" docker-daemon:gyre:scan-arm64
-
-      - name: Run Trivy scan arm64 (blocking)
-        if: contains(steps.platforms.outputs.value, 'arm64')
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
-        with:
-          image-ref: gyre:scan-arm64
-          format: table
-          severity: CRITICAL
-          ignore-unfixed: false
-          vuln-type: os,library
-          exit-code: '1'
-          trivyignores: .trivyignore
-
-      - name: Run Trivy SARIF scan
-        id: sarif
-        if: github.event_name != 'pull_request' && inputs.verification_only != true
+      - name: Collect amd64 Trivy JSON report
+        id: scan-amd64
+        if: ${{ !cancelled() && steps.archive.outcome == 'success' && steps.import-amd64.outcome == 'success' }}
         continue-on-error: true
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
         with:
-          image-ref: gyre:scan-arm64
-          format: sarif
-          output: trivy-results.sarif
-          severity: CRITICAL,HIGH,MEDIUM
+          version: v0.76.1
+          image-ref: gyre:scan-amd64
+          format: json
+          output: ${{ runner.temp }}/trivy-reports/trivy-amd64.json
+          list-all-pkgs: true
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
           ignore-unfixed: false
           vuln-type: os,library
-          scanners: vuln,secret,config
+          scanners: vuln,secret,misconfig
           exit-code: '0'
           trivyignores: .trivyignore
 
-      - name: Upload Trivy SARIF artifact
-        id: sarif-artifact
-        if: github.event_name != 'pull_request' && inputs.verification_only != true && steps.sarif.outcome == 'success' && hashFiles('trivy-results.sarif') != ''
+      - name: Import arm64 image for scanning
+        id: import-arm64
+        if: ${{ !cancelled() && steps.archive.outcome == 'success' && contains(steps.platforms.outputs.value, 'arm64') }}
+        continue-on-error: true
+        run: skopeo copy --override-os linux --override-arch arm64 "oci-archive:${{ runner.temp }}/gyre-image.tar" docker-daemon:gyre:scan-arm64
+
+      - name: Collect arm64 Trivy JSON report
+        id: scan-arm64
+        if: ${{ !cancelled() && steps.archive.outcome == 'success' && steps.import-arm64.outcome == 'success' && contains(steps.platforms.outputs.value, 'arm64') }}
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        with:
+          version: v0.76.1
+          image-ref: gyre:scan-arm64
+          format: json
+          output: ${{ runner.temp }}/trivy-reports/trivy-arm64.json
+          list-all-pkgs: true
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          ignore-unfixed: false
+          vuln-type: os,library
+          scanners: vuln,secret,misconfig
+          exit-code: '0'
+          trivyignores: .trivyignore
+
+      - name: Derive SARIF and gate summary from JSON reports
+        if: ${{ !cancelled() && steps.archive.outcome == 'success' }}
+        continue-on-error: true
+        env:
+          AMD64_SCAN_OUTCOME: ${{ steps.scan-amd64.outcome }}
+          ARM64_SCAN_OUTCOME: ${{ steps.scan-arm64.outcome }}
+          IMAGE_PLATFORMS: ${{ steps.platforms.outputs.value }}
+        run: node scripts/image-security.mjs prepare "${{ runner.temp }}/trivy-reports" "$IMAGE_PLATFORMS"
+
+      - name: Upload Trivy reports before enforcing the gate
+        id: security-artifact
+        if: ${{ !cancelled() && steps.archive.outcome == 'success' }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: trivy-sarif-${{ github.run_id }}-${{ github.run_attempt }}
-          path: trivy-results.sarif
+          name: trivy-reports-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/trivy-reports/
           if-no-files-found: error
           retention-days: 2
+
+      - name: Require complete scans without HIGH or CRITICAL vulnerabilities
+        if: ${{ !cancelled() && steps.archive.outcome == 'success' }}
+        env:
+          IMAGE_PLATFORMS: ${{ steps.platforms.outputs.value }}
+        run: node scripts/image-security.mjs gate "${{ runner.temp }}/trivy-reports" "$IMAGE_PLATFORMS"
 
       - name: Record OCI artifact identity
         env:
@@ -437,23 +455,45 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   report-security:
-    if: always() && needs.build-image.result == 'success' && needs.build-image.outputs.sarif-uploaded == 'true'
-    needs: [build-image, publish]
+    if: always() && github.event_name != 'pull_request' && needs.build-image.outputs.security-artifact-id != ''
+    needs: build-image
     runs-on: ubuntu-24.04
     permissions:
       security-events: write
     steps:
-      - name: Download exact SARIF artifact
+      - name: Download exact security reports
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          artifact-ids: ${{ needs.build-image.outputs.sarif-artifact-id }}
+          artifact-ids: ${{ needs.build-image.outputs.security-artifact-id }}
           path: sarif
           digest-mismatch: error
-      - name: Upload Trivy results to GitHub Security
+      - name: Upload arm64 Trivy results to GitHub Security
+        id: upload-arm64
+        if: ${{ !cancelled() && hashFiles('sarif/trivy-arm64.sarif') != '' }}
+        continue-on-error: true
         uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
-          sarif_file: sarif/trivy-results.sarif
+          sarif_file: sarif/trivy-arm64.sarif
           category: container-scan
+
+      - name: Upload amd64 Trivy results to GitHub Security
+        id: upload-amd64
+        if: ${{ !cancelled() && hashFiles('sarif/trivy-amd64.sarif') != '' }}
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
+        with:
+          sarif_file: sarif/trivy-amd64.sarif
+          category: container-scan/amd64
+
+      - name: Require successful uploads for every available SARIF report
+        if: ${{ !cancelled() }}
+        env:
+          ARM64_UPLOAD_OUTCOME: ${{ steps.upload-arm64.outcome }}
+          AMD64_UPLOAD_OUTCOME: ${{ steps.upload-amd64.outcome }}
+        run: |
+          set -euo pipefail
+          if [ -f sarif/trivy-arm64.sarif ]; then test "$ARM64_UPLOAD_OUTCOME" = success; fi
+          if [ -f sarif/trivy-amd64.sarif ]; then test "$AMD64_UPLOAD_OUTCOME" = success; fi
 
   report-pr:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false && needs.build-image.result == 'success' && needs.smoke.result == 'success'

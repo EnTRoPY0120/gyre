@@ -527,6 +527,47 @@ async function runtimeAndBrowser(image, platform) {
 	return { adminPassword };
 }
 
+async function checkMonacoEditing(page, baseUrl) {
+	await page.goto(`${baseUrl}/create/custom`, { waitUntil: 'domcontentloaded' });
+	await waitFor(
+		async () => {
+			await page.getByRole('button', { name: 'Edit as YAML', exact: true }).click();
+			return page.getByRole('button', { name: 'Copy YAML', exact: true }).isVisible();
+		},
+		'YAML editing mode did not become interactive',
+		30_000
+	);
+	const editor = page.locator('.monaco-editor');
+	await editor.waitFor({ state: 'visible', timeout: 60_000 });
+	await editor.locator('.view-lines').click({ position: { x: 20, y: 10 } });
+	await page.keyboard.press('ControlOrMeta+f');
+	const findInput = editor.getByRole('textbox', { name: 'Find', exact: true });
+	await findInput.fill('example');
+	await findInput.press('Enter');
+	await findInput.press('Escape');
+	await page.keyboard.insertText('smoke-editor-roundtrip');
+	await page.waitForFunction(
+		() =>
+			document
+				.querySelector('.monaco-editor .view-lines')
+				?.textContent?.includes('smoke-editor-roundtrip'),
+		undefined,
+		{ timeout: 15_000 }
+	);
+	await page.getByRole('button', { name: 'Form', exact: true }).click();
+	await editor.waitFor({ state: 'detached' });
+	await page.getByRole('button', { name: 'Edit as YAML', exact: true }).click();
+	await page.waitForFunction(
+		() =>
+			document
+				.querySelector('.monaco-editor .view-lines')
+				?.textContent?.includes('smoke-editor-roundtrip'),
+		undefined,
+		{ timeout: 60_000 }
+	);
+	console.log('Monaco editing and persistence across YAML/form modes passed.');
+}
+
 async function clusterAndFlux(image, platform) {
 	const suffix = `${process.pid}-${randomSecret(3)}`.toLowerCase();
 	const clusterName = `gyre-smoke-${suffix}`;
@@ -977,6 +1018,8 @@ async function clusterAndFlux(image, platform) {
 		!page.url().includes('/change-password'),
 		'In-cluster first login unexpectedly required password rotation'
 	);
+	await waitForBrowserRequestsToSettle('Monaco editor navigation');
+	await checkMonacoEditing(page, baseUrl);
 	await page.evaluate(() => {
 		window.__gyreSmokeEvents = [];
 		window.__gyreSmokeSource = new EventSource('/api/v1/events');
