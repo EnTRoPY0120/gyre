@@ -16,7 +16,7 @@ Start the app in the container:
 pnpm dev
 ```
 
-For a manual setup, install Node.js 22.13 or later and pnpm 11.1.0:
+For a manual setup, install Node.js 26 or later and pnpm 11.1.0. Node.js 22.18+ on the 22.x line and 24.11+ on the 24.x line are also supported:
 
 ```sh
 pnpm install

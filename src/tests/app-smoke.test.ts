@@ -106,3 +106,50 @@ test('built app downloads plain backups through the adapter-node runtime', async
 	expect(response.headers.get('content-length')).toBe(String(backupBody.byteLength));
 	expect(Buffer.from(await response.arrayBuffer())).toEqual(backupBody);
 }, 20_000);
+
+test('built app rotates the first-login password and accepts the new credentials', async () => {
+	const loginResponse = await runtimeApp!.fetch('/api/v1/auth/login', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ username: 'admin', password: getRuntimeAdminPassword() })
+	});
+	expect(loginResponse.status).toBe(200);
+
+	const newPassword = 'RotatedRuntimePassword!2';
+	const passwordPage = await runtimeApp!.fetch('/change-password?first=true', {
+		headers: { Cookie: extractCookieHeader(loginResponse) }
+	});
+	expect(passwordPage.status).toBe(200);
+	const cookieHeader = `${extractCookieHeader(loginResponse)}; ${extractCookieHeader(passwordPage)}`;
+	const csrfToken = cookieHeader.match(/(?:^|;\s*)gyre_csrf=([^;]+)/)?.[1];
+	expect(csrfToken).toBeTruthy();
+	const changeResponse = await runtimeApp!.fetch('/api/v1/auth/change-password', {
+		method: 'POST',
+		headers: {
+			'content-type': 'application/json',
+			Cookie: cookieHeader,
+			'X-CSRF-Token': decodeURIComponent(csrfToken ?? ''),
+			Origin: runtimeApp!.baseUrl
+		},
+		body: JSON.stringify({ currentPassword: getRuntimeAdminPassword(), newPassword })
+	});
+	expect(changeResponse.status, await changeResponse.clone().text()).toBe(200);
+	expect(await changeResponse.json()).toMatchObject({ success: true });
+
+	const nextLoginResponse = await runtimeApp!.fetch('/api/v1/auth/login', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ username: 'admin', password: newPassword })
+	});
+	expect(nextLoginResponse.status).toBe(200);
+	expect(await nextLoginResponse.json()).toMatchObject({
+		user: { requiresPasswordChange: false }
+	});
+
+	const oldLoginResponse = await runtimeApp!.fetch('/api/v1/auth/login', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ username: 'admin', password: getRuntimeAdminPassword() })
+	});
+	expect(oldLoginResponse.status).toBe(401);
+}, 20_000);

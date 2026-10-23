@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { username } from 'better-auth/plugins/username';
 import * as schema from '../lib/server/db/schema.js';
 import { buildOAuthAccountData } from '../lib/server/auth/oauth-account.js';
 import Database from 'better-sqlite3';
@@ -44,9 +45,15 @@ describe('Better Auth account issuer migration', () => {
 				baseURL: 'http://localhost:3000',
 				secret: 'test-account-issuer-migration-secret-12345',
 				database: drizzleAdapter(drizzle(sqlite, { schema }), { provider: 'sqlite', schema }),
+				plugins: [username({ displayUsername: false })],
 				user: { modelName: 'users' },
 				session: { modelName: 'sessions' },
-				account: { modelName: 'accounts' },
+				account: {
+					modelName: 'accounts',
+					additionalFields: {
+						issuer: { type: 'string', required: false, returned: false }
+					}
+				},
 				verification: { modelName: 'verifications' },
 				emailAndPassword: {
 					enabled: true,
@@ -65,10 +72,18 @@ describe('Better Auth account issuer migration', () => {
 			const account = buildOAuthAccountData('u1', 'other/oidc', 'subject-2', undefined, undefined);
 			await ctx.internalAdapter.linkAccount(account);
 			const linked = await ctx.internalAdapter.findAccountByKey({
-				issuer: 'local:oauth:other%2Foidc',
+				providerId: 'other/oidc',
 				accountId: 'subject-2'
 			});
 			expect(linked?.userId).toBe('u1');
+			await ctx.internalAdapter.linkAccount(
+				buildOAuthAccountData('u1', 'another/oidc', 'subject-2', undefined, undefined)
+			);
+			expect(
+				sqlite
+					.prepare("SELECT issuer FROM accounts WHERE account_id = 'subject-2' ORDER BY issuer")
+					.all()
+			).toEqual([{ issuer: 'local:oauth:another%2Foidc' }, { issuer: 'local:oauth:other%2Foidc' }]);
 		} finally {
 			sqlite.close();
 		}

@@ -37,7 +37,8 @@ function createBetterAuth() {
 			schema,
 			usePlural: false,
 			camelCase: false,
-			transaction: true
+			// better-sqlite3 requires synchronous transaction callbacks; Better Auth uses async ones.
+			transaction: false
 		}),
 		emailAndPassword: {
 			enabled: true,
@@ -52,6 +53,7 @@ function createBetterAuth() {
 		},
 		plugins: [
 			username({
+				displayUsername: false,
 				minUsernameLength: 3,
 				maxUsernameLength: 64,
 				usernameNormalization: normalizeUsername
@@ -79,7 +81,6 @@ function createBetterAuth() {
 				isLocal: {
 					type: 'boolean',
 					required: false,
-					fieldName: 'is_local',
 					defaultValue: true
 				},
 				preferences: {
@@ -92,27 +93,28 @@ function createBetterAuth() {
 		account: {
 			modelName: 'accounts',
 			additionalFields: {
+				issuer: {
+					type: 'string',
+					required: false,
+					returned: false
+				},
 				lastLoginAt: {
 					type: 'date',
-					required: false,
-					fieldName: 'last_login_at'
+					required: false
 				},
 				accessTokenEncrypted: {
 					type: 'string',
 					required: false,
-					fieldName: 'access_token_encrypted',
 					returned: false
 				},
 				refreshTokenEncrypted: {
 					type: 'string',
 					required: false,
-					fieldName: 'refresh_token_encrypted',
 					returned: false
 				},
 				idTokenEncrypted: {
 					type: 'string',
 					required: false,
-					fieldName: 'id_token_encrypted',
 					returned: false
 				}
 			}

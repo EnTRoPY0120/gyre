@@ -1,4 +1,4 @@
-import { createOAuthAccountIssuer } from 'better-auth/db';
+import { createOAuthAccountIssuer } from './account-issuer.js';
 import type { AuthProvider, NewAccount, NewUser, User } from '$lib/server/db/schema';
 import { generateUserId } from '$lib/server/auth';
 import { encryptSecret } from './crypto.js';

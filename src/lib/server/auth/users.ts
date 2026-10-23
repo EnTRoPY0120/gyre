@@ -1,4 +1,4 @@
-import { createLocalAccountIssuer } from 'better-auth/db';
+import { createLocalAccountIssuer } from './account-issuer.js';
 import { eq, or, sql } from 'drizzle-orm';
 import { getDb, type NewUser, type User } from '../db/index.js';
 import { accounts, users } from '../db/schema.js';
