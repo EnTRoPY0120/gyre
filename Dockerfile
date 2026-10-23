@@ -10,7 +10,7 @@ RUN mkdir -p /out /tmp/kustomize && \
   cd /tmp/kustomize && \
   go mod init kustomize-builder && \
   go get sigs.k8s.io/kustomize/kustomize/v5@${KUSTOMIZE_VERSION} && \
-  go mod edit -require=golang.org/x/text@v0.39.0 && \
+  go mod edit -require=golang.org/x/text@v0.41.0 && \
   CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
   go build -mod=mod -o /out/kustomize sigs.k8s.io/kustomize/kustomize/v5
 
