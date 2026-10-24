@@ -44,7 +44,7 @@
 		"date-fns": "^4.4.0",
 		"drizzle-orm": "^0.45.4",
 		"fuse.js": "^7.5.0",
-		"jose": "^6.2.10",
+		"jose": "^6.2.13",
 		"js-yaml": "^5.4.1",
 		"monaco-editor": "^0.57.0",
 		"pino": "^10.3.1",
