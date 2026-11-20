@@ -221,16 +221,17 @@ test('releases fresh authentication agents without retiring the transport agent'
 	const originalApply = k8s.KubeConfig.prototype.applyToHTTPSOptions;
 	let applies = 0;
 	const temporaries: ReturnType<typeof vi.spyOn>[] = [];
-	vi.spyOn(k8s.KubeConfig.prototype, 'applyToHTTPSOptions').mockImplementation(
-		async function (this: k8s.KubeConfig, options) {
-			await originalApply.call(this, options);
-			if (++applies > 1) {
-				const agent = new http.Agent();
-				temporaries.push(vi.spyOn(agent, 'destroy'));
-				options.agent = agent;
-			}
+	vi.spyOn(k8s.KubeConfig.prototype, 'applyToHTTPSOptions').mockImplementation(async function (
+		this: k8s.KubeConfig,
+		options
+	) {
+		await originalApply.call(this, options);
+		if (++applies > 1) {
+			const agent = new http.Agent();
+			temporaries.push(vi.spyOn(agent, 'destroy'));
+			options.agent = agent;
 		}
-	);
+	});
 	const api = await client(config);
 	await api.listNamespace();
 	await api.listNamespace();
