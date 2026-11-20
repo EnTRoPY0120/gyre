@@ -3,6 +3,7 @@ import Database from 'better-sqlite3';
 import bcrypt from 'bcryptjs';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { username } from 'better-auth/plugins/username';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from '../lib/server/db/schema.js';
 import * as nodeFs from 'node:fs';
@@ -244,9 +245,15 @@ describe('restoreFromBuffer', () => {
 					baseURL: 'http://localhost:3000',
 					secret: 'restore-test-auth-secret-with-enough-entropy',
 					database: drizzleAdapter(drizzle(db, { schema }), { provider: 'sqlite', schema }),
+					plugins: [username({ displayUsername: false })],
 					user: { modelName: 'users' },
 					session: { modelName: 'sessions' },
-					account: { modelName: 'accounts' },
+					account: {
+						modelName: 'accounts',
+						additionalFields: {
+							issuer: { type: 'string', required: false, returned: false }
+						}
+					},
 					verification: { modelName: 'verifications' },
 					emailAndPassword: {
 						enabled: true,
@@ -263,10 +270,13 @@ describe('restoreFromBuffer', () => {
 				const ctx = await auth.$context;
 				expect(
 					await ctx.internalAdapter.findAccountByKey({
-						issuer: 'local:oauth:company%2Foidc',
+						providerId: 'company/oidc',
 						accountId: 'subject'
 					})
 				).toMatchObject({ userId: 'u' });
+				expect(
+					db.prepare("SELECT issuer FROM accounts WHERE provider_id = 'company/oidc'").get()
+				).toEqual({ issuer: 'local:oauth:company%2Foidc' });
 				expect(
 					db
 						.prepare(

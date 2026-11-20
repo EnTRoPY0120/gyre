@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { createLocalAccountIssuer, createOAuthAccountIssuer } from 'better-auth/db';
+import { createLocalAccountIssuer, createOAuthAccountIssuer } from './auth/account-issuer.js';
 import { migrateDatabase } from './db/migrate.js';
 import { BackupError } from './backup-errors.js';
 
