@@ -1,4 +1,4 @@
-import { createOAuthAccountIssuer } from 'better-auth/db';
+import { createOAuthAccountIssuer } from '../../auth/account-issuer.js';
 import { sql } from 'drizzle-orm';
 import type { MigrationFlags } from './auth-tables.js';
 import { addColumnsIgnoringDuplicates, runFlaggedMigration, type Db } from './helpers.js';
