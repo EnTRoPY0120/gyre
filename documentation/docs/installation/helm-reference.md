@@ -334,6 +334,12 @@ ls -t $BACKUP_DIR/gyre-*.db | tail -n +11 | xargs -r rm
 
 ### Restore from Backup
 
+In **Admin → Backups**, uploaded SQLite backups are checked in an isolated temporary file and upgraded with the same migrations used at startup. Supported layouts include the current schema, accounts from before issuer fields were introduced, and legacy password/SSO tables. Invalid or unsupported schemas, broken foreign-key references, and corrupt databases are rejected before creating the safety backup or replacing live data.
+
+Only one restore can run at a time. After validation, Gyre creates a safety backup and atomically replaces the live database. A busy checkpoint or failed swap aborts the restore. Restart Gyre after a successful restore. Keep the original encryption keys to read the restored encrypted credentials and encrypted backup files.
+
+The following manual procedure is for a compatible, decrypted SQLite backup:
+
 ```bash
 #!/bin/bash
 # restore-gyre.sh

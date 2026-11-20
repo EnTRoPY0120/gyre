@@ -1,6 +1,6 @@
 import * as k8s from '@kubernetes/client-node';
 import { sanitizeK8sErrorMessage } from '../kubernetes/errors.js';
-import { makeApiClientWithTimeout } from '../kubernetes/client-factory.js';
+import { disposeKubernetesClient, makeApiClientWithTimeout } from '../kubernetes/client-factory.js';
 import { OPERATION_TIMEOUTS } from '../kubernetes/timeouts.js';
 import type { HealthCheckResult } from './health.js';
 import {
@@ -49,8 +49,9 @@ export function checkKubeconfigParse(kubeconfig: string): {
 
 async function checkApiReachability(kc: k8s.KubeConfig): Promise<HealthCheckResult> {
 	const start = Date.now();
+	let coreApi: k8s.CoreV1Api | undefined;
 	try {
-		const coreApi = await makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.get);
+		coreApi = await makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.get);
 		await coreApi.getAPIResources();
 		return {
 			name: 'API Server Reachability',
@@ -73,6 +74,8 @@ async function checkApiReachability(kc: k8s.KubeConfig): Promise<HealthCheckResu
 			details: sanitizeK8sErrorMessage(describeReachabilityError(error)),
 			duration: Date.now() - start
 		};
+	} finally {
+		disposeKubernetesClient(coreApi);
 	}
 }
 
@@ -80,8 +83,9 @@ async function checkKubernetesVersion(
 	kc: k8s.KubeConfig
 ): Promise<{ check: HealthCheckResult; version?: string }> {
 	const versionStart = Date.now();
+	let versionApi: k8s.VersionApi | undefined;
 	try {
-		const versionApi = await makeApiClientWithTimeout(kc, k8s.VersionApi, OPERATION_TIMEOUTS.get);
+		versionApi = await makeApiClientWithTimeout(kc, k8s.VersionApi, OPERATION_TIMEOUTS.get);
 		const version = (await versionApi.getCode()).gitVersion;
 		return {
 			check: {
@@ -101,6 +105,8 @@ async function checkKubernetesVersion(
 				duration: Date.now() - versionStart
 			}
 		};
+	} finally {
+		disposeKubernetesClient(versionApi);
 	}
 }
 
@@ -109,9 +115,9 @@ async function checkAuthAndVersion(
 ): Promise<{ checks: HealthCheckResult[]; version?: string; error?: string }> {
 	const authStart = Date.now();
 	const checks: HealthCheckResult[] = [];
-
+	let coreApi: k8s.CoreV1Api | undefined;
 	try {
-		const coreApi = await makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.list);
+		coreApi = await makeApiClientWithTimeout(kc, k8s.CoreV1Api, OPERATION_TIMEOUTS.list);
 		await coreApi.listNamespace({ limit: 1 });
 
 		const currentUser = kc.getCurrentUser();
@@ -147,6 +153,8 @@ async function checkAuthAndVersion(
 			duration: Date.now() - authStart
 		});
 		return { checks, error: failure.details };
+	} finally {
+		disposeKubernetesClient(coreApi);
 	}
 }
 

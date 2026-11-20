@@ -27,7 +27,9 @@ function createResponseContext(res: http.IncomingMessage, chunks: Buffer[]): k8s
 }
 
 function collectResponse(res: http.IncomingMessage): Promise<k8s.ResponseContext> {
-	return new Promise((resolve) => {
+	return new Promise((resolve, reject) => {
+		res.once('error', reject);
+		res.once('aborted', () => reject(new Error('Response aborted')));
 		const chunks: Buffer[] = [];
 		res.on('data', (chunk) => {
 			chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
@@ -63,35 +65,52 @@ function writeRequestBody(req: http.ClientRequest, body: unknown): void {
 }
 
 class NodeHttpLibrary implements k8s.PromiseHttpLibrary {
+	private activeRequests = 0;
+	private retired = false;
+
 	constructor(
 		private readonly requestHttpAgent: http.Agent,
-		private readonly requestHttpsAgent: http.Agent
+		private readonly requestHttpsAgent: http.Agent,
+		private readonly requestOptions: WeakMap<k8s.RequestContext, https.RequestOptions>,
+		private readonly releaseAgents: () => void
 	) {}
 
+	dispose(): void {
+		this.retired = true;
+		if (this.activeRequests === 0) this.releaseAgents();
+	}
+
 	send(request: k8s.RequestContext): Promise<k8s.ResponseContext> {
+		if (this.retired) return Promise.reject(new Error('Kubernetes client has been disposed'));
 		return new Promise((resolve, reject) => {
 			const url = new URL(request.getUrl());
 			const transport = url.protocol === 'https:' ? https : http;
-			const body = request.getBody();
-			const headers = { ...request.getHeaders() };
 			const agent = url.protocol === 'https:' ? this.requestHttpsAgent : this.requestHttpAgent;
-
 			const req = transport.request(
 				url,
 				{
+					...this.requestOptions.get(request),
 					method: request.getHttpMethod(),
-					headers,
+					headers: { ...request.getHeaders() },
 					agent
 				},
 				(res) => {
-					void collectResponse(res).then(resolve);
+					void collectResponse(res).then(resolve, reject);
 				}
 			);
-
-			if (!attachAbortSignal(req, request.getSignal())) return;
-
+			this.activeRequests++;
+			req.once('close', () => {
+				this.activeRequests--;
+				if (this.retired && this.activeRequests === 0) this.releaseAgents();
+			});
 			req.on('error', reject);
-			writeRequestBody(req, body);
+			if (!attachAbortSignal(req, request.getSignal())) return;
+			try {
+				writeRequestBody(req, request.getBody());
+			} catch (error) {
+				req.destroy();
+				reject(error);
+			}
 		});
 	}
 }
@@ -129,7 +148,13 @@ const httpsAgent = new https.Agent({
 	timeout: 30_000
 });
 
-const kubeconfigAgents = new Set<http.Agent>();
+const retireClients = new Set<() => void>();
+const clientDisposers = new WeakMap<object, () => void>();
+
+/** Retire client-owned connections after active requests complete or time out. Idempotent. */
+export function disposeKubernetesClient(client: object | undefined): void {
+	if (client) clientDisposers.get(client)?.();
+}
 
 /** Creates an API client with kubeconfig TLS settings, timeouts, and HTTP keep-alive. */
 export async function makeApiClientWithTimeout<T extends k8s.ApiType>(
@@ -139,79 +164,110 @@ export async function makeApiClientWithTimeout<T extends k8s.ApiType>(
 ): Promise<T> {
 	const cluster = kubeConfig.getCurrentCluster();
 	if (!cluster) throw new Error('No active cluster!');
-
-	// KubeConfig builds the TLS-aware agent from CA, client certificate, proxy,
-	// and skip-verify settings. Pass it to our Node transport; otherwise custom
-	// HTTP libraries silently bypass these settings and reject private cluster CAs.
+	// KubeConfig caches agents. Give each client its own config/agent cache so
+	// disposing it cannot close connections belonging to another API client.
+	const clientConfig = new k8s.KubeConfig();
+	clientConfig.loadFromOptions({
+		clusters: kubeConfig.getClusters(),
+		users: kubeConfig.getUsers(),
+		contexts: kubeConfig.getContexts(),
+		currentContext: kubeConfig.getCurrentContext()
+	});
 	const httpsOptions: https.RequestOptions = {};
-	await kubeConfig.applyToHTTPSOptions(httpsOptions);
-	const kubeconfigAgent = httpsOptions.agent;
-	const isHttps = cluster.server.startsWith('https:');
-	let agent = kubeconfigAgent && typeof kubeconfigAgent === 'object' ? kubeconfigAgent : undefined;
-	if (isHttps && agent instanceof https.Agent) {
-		// Copy kubeconfig's TLS options into a keep-alive agent. The temporary
-		// agent created by applyToHTTPSOptions has the right CA/cert but no pooling.
-		const tlsAgent = agent;
-		agent = new https.Agent({
-			...tlsAgent.options,
-			keepAlive: true,
-			keepAliveMsecs: 30_000,
-			maxSockets: 100,
-			maxFreeSockets: 20,
-			timeout: 30_000
-		});
-		tlsAgent.destroy();
-	}
-	if (agent) kubeconfigAgents.add(agent as http.Agent);
-
-	const httpRequestAgent = !isHttps && agent ? (agent as http.Agent) : httpAgent;
-	const httpsRequestAgent = isHttps && agent ? (agent as http.Agent) : httpsAgent;
-	const nodeHttpLibrary = k8s.wrapHttpLibrary(
-		new NodeHttpLibrary(httpRequestAgent, httpsRequestAgent)
-	);
-	const baseServerConfig = new k8s.ServerConfiguration(cluster.server, {});
-
-	const config = k8s.createConfiguration({
-		baseServer: baseServerConfig,
-		httpApi: nodeHttpLibrary,
-		authMethods: {
-			default: {
-				getName: () => 'kubeconfig authentication',
-				async applySecurityAuthentication(context: k8s.RequestContext): Promise<void> {
-					const requestOptions: https.RequestOptions = {};
-					await kubeConfig.applyToHTTPSOptions(requestOptions);
-
-					for (const [key, value] of Object.entries(requestOptions.headers ?? {})) {
-						if (value !== undefined) context.setHeaderParam(key, String(value));
-					}
-
-					const hasAuthorizationHeader = Object.keys(requestOptions.headers ?? {}).some(
-						(key) => key.toLowerCase() === 'authorization'
-					);
-					if (requestOptions.auth && !hasAuthorizationHeader) {
-						const encodedCredentials = Buffer.from(requestOptions.auth).toString('base64');
-						context.setHeaderParam('Authorization', `Basic ${encodedCredentials}`);
+	let ownedAgent: http.Agent | undefined;
+	let released = false;
+	let retire: (() => void) | undefined;
+	const releaseAgents = () => {
+		if (released) return;
+		released = true;
+		if (retire) retireClients.delete(retire);
+		if (ownedAgent) {
+			ownedAgent.destroy();
+		}
+	};
+	try {
+		await clientConfig.applyToHTTPSOptions(httpsOptions);
+		if (httpsOptions.agent && typeof httpsOptions.agent === 'object') {
+			ownedAgent = httpsOptions.agent;
+			// Preserve proxy subclasses and their connection behavior.
+			if (ownedAgent.constructor === https.Agent || ownedAgent.constructor === http.Agent) {
+				Object.assign(ownedAgent, {
+					keepAlive: true,
+					keepAliveMsecs: 30_000,
+					maxSockets: 100,
+					maxFreeSockets: 20
+				});
+				Object.assign((ownedAgent as https.Agent).options, { keepAlive: true, timeout: 30_000 });
+			}
+		}
+		const isHttps = cluster.server.startsWith('https:');
+		const requestOptions = new WeakMap<k8s.RequestContext, https.RequestOptions>();
+		const transport = new NodeHttpLibrary(
+			!isHttps && ownedAgent ? ownedAgent : httpAgent,
+			isHttps && ownedAgent ? ownedAgent : httpsAgent,
+			requestOptions,
+			releaseAgents
+		);
+		const config = k8s.createConfiguration({
+			baseServer: new k8s.ServerConfiguration(cluster.server, {}),
+			httpApi: k8s.wrapHttpLibrary(transport),
+			authMethods: {
+				default: {
+					getName: () => 'kubeconfig authentication',
+					async applySecurityAuthentication(context: k8s.RequestContext): Promise<void> {
+						const options: https.RequestOptions = {};
+						try {
+							await clientConfig.applyToHTTPSOptions(options);
+							for (const [key, value] of Object.entries(options.headers ?? {})) {
+								if (value !== undefined) context.setHeaderParam(key, String(value));
+							}
+							const hasAuthorization = Object.keys(options.headers ?? {}).some(
+								(key) => key.toLowerCase() === 'authorization'
+							);
+							if (options.auth && !hasAuthorization) {
+								context.setHeaderParam(
+									'Authorization',
+									`Basic ${Buffer.from(options.auth).toString('base64')}`
+								);
+							}
+							// Request TLS options carry refreshed client certificates as well as CA/SNI.
+							const { agent: _agent, auth: _auth, headers: _headers, ...tlsOptions } = options;
+							requestOptions.set(context, tlsOptions);
+						} finally {
+							// Some authenticators/client-node versions allocate a temporary agent per call.
+							if (
+								options.agent &&
+								typeof options.agent === 'object' &&
+								options.agent !== ownedAgent
+							)
+								options.agent.destroy();
+						}
 					}
 				}
-			}
-		},
-		promiseMiddleware: [
-			{
-				pre: async (ctx: k8s.RequestContext) => {
-					return _createTimeoutMiddleware(timeoutMs).pre(ctx);
-				},
-				post: async (ctx: k8s.ResponseContext) => ctx
-			}
-		]
-	});
-	return new apiClientType(config);
+			},
+			promiseMiddleware: [
+				{
+					pre: async (ctx: k8s.RequestContext) => _createTimeoutMiddleware(timeoutMs).pre(ctx),
+					post: async (ctx: k8s.ResponseContext) => ctx
+				}
+			]
+		});
+		const client = new apiClientType(config);
+		retire = () => transport.dispose();
+		retireClients.add(retire);
+		clientDisposers.set(client, retire);
+		return client;
+	} catch (error) {
+		// Include agents assigned before an authentication or constructor failure.
+		if (!ownedAgent && httpsOptions.agent && typeof httpsOptions.agent === 'object')
+			ownedAgent = httpsOptions.agent;
+		releaseAgents();
+		throw error;
+	}
 }
 
 export function destroyHttpAgents(): void {
-	for (const agent of kubeconfigAgents) {
-		agent.destroy();
-	}
-	kubeconfigAgents.clear();
+	for (const retire of retireClients) retire();
 	httpAgent.destroy();
 	httpsAgent.destroy();
 }
