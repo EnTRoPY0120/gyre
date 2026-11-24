@@ -11,22 +11,45 @@ interface Column {
 }
 interface TableContract {
 	columns: Column[];
-	uniqueKeys: string[];
+	uniqueKeys: UniqueKey[];
 	foreignKeys: string[];
+}
+interface UniqueKey {
+	signature: string;
+	partial: boolean;
 }
 
 function inspectTable(db: Database.Database, table: string): TableContract {
-	const columns = db.prepare('SELECT * FROM pragma_table_info(?)').all(table) as Column[];
+	const columns = db
+		.prepare('SELECT name, type, "notnull", pk FROM pragma_table_info(?)')
+		.all(table) as Column[];
 	const indexes = db
-		.prepare('SELECT name FROM pragma_index_list(?) WHERE "unique" = 1 AND partial = 0')
-		.all(table) as { name: string }[];
-	const uniqueKeys = indexes.map(({ name }) =>
-		JSON.stringify(
-			db
-				.prepare('SELECT name, coll, desc FROM pragma_index_xinfo(?) WHERE key = 1 ORDER BY seqno')
-				.all(name)
-		)
-	);
+		.prepare('SELECT name, partial FROM pragma_index_list(?) WHERE "unique" = 1')
+		.all(table) as { name: string; partial: number }[];
+	const uniqueKeys = indexes.map(({ name, partial }) => {
+		const columns = db
+			.prepare('SELECT name, cid, coll FROM pragma_index_xinfo(?) WHERE key = 1')
+			.all(name) as { name: string | null; cid: number; coll: string | null }[];
+		let signature: string;
+		if (columns.some(({ name }) => name === null)) {
+			signature = JSON.stringify(columns);
+		} else {
+			const normalized = [
+				...new Map(
+					columns.map(({ name, coll }) => [
+						`${name}:${coll?.toLowerCase() ?? ''}`,
+						{ name, coll: coll?.toLowerCase() ?? null }
+					])
+				).values()
+			].sort(
+				(left, right) =>
+					(left.name ?? '').localeCompare(right.name ?? '') ||
+					(left.coll ?? '').localeCompare(right.coll ?? '')
+			);
+			signature = JSON.stringify(normalized);
+		}
+		return { signature, partial: partial === 1 };
+	});
 	const foreignKeys = db
 		.prepare(
 			'SELECT "table", "from", "to", on_update, on_delete, match FROM pragma_foreign_key_list(?) ORDER BY "from"'
@@ -139,13 +162,44 @@ export function validateBackupSchema(db: Database.Database): void {
 			)
 				invalid(`${name} has missing or unsupported column: ${column.name}`);
 		}
+		const unsupportedRequiredColumn = actual.columns.find(
+			(column) =>
+				!expected.columns.some((expectedColumn) => expectedColumn.name === column.name) &&
+				column.notnull > 0 &&
+				column.pk === 0
+		);
+		if (unsupportedRequiredColumn)
+			invalid(
+				`${name} has an unsupported additional required column: ${unsupportedRequiredColumn.name}`
+			);
 		if (
 			actual.columns.filter(({ pk }) => pk).length !==
 			expected.columns.filter(({ pk }) => pk).length
 		)
 			invalid(`${name} has an unsupported primary key`);
-		if (expected.uniqueKeys.some((key) => !actual.uniqueKeys.includes(key)))
+		if (
+			expected.uniqueKeys.some(
+				(key) =>
+					!actual.uniqueKeys.some(
+						(actualKey) =>
+							actualKey.signature === key.signature && actualKey.partial === key.partial
+					)
+			)
+		)
 			invalid(`${name} is missing a required unique key`);
+		const expectedFullUniqueKeys = new Set(
+			expected.uniqueKeys.filter((key) => !key.partial).map(({ signature }) => signature)
+		);
+		if (
+			actual.uniqueKeys.some(
+				(key) =>
+					!expected.uniqueKeys.some(
+						(expectedKey) =>
+							expectedKey.signature === key.signature && expectedKey.partial === key.partial
+					) && !(key.partial && expectedFullUniqueKeys.has(key.signature))
+			)
+		)
+			invalid(`${name} has an unsupported additional unique key`);
 		if (expected.foreignKeys.some((key) => !actual.foreignKeys.includes(key)))
 			invalid(`${name} is missing a required foreign key`);
 	}

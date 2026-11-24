@@ -135,6 +135,22 @@ describe('restoreFromBuffer', () => {
 			(db: Database.Database) => db.exec('ALTER TABLE clusters DROP COLUMN kubeconfig_encrypted')
 		],
 		[
+			'unsupported additional required column',
+			(db: Database.Database) => db.exec('ALTER TABLE sessions ADD COLUMN extra TEXT NOT NULL')
+		],
+		[
+			'incompatible additional unique key',
+			(db: Database.Database) =>
+				db.exec('CREATE UNIQUE INDEX sessions_user_id_unique ON sessions(user_id)')
+		],
+		[
+			'partial unique key in place of a required full key',
+			(db: Database.Database) =>
+				db.exec(
+					"DROP INDEX idx_accounts_issuer_account; CREATE UNIQUE INDEX idx_accounts_issuer_account ON accounts(issuer, account_id) WHERE provider_id = 'credential'"
+				)
+		],
+		[
 			'missing primary key',
 			(db: Database.Database) =>
 				db.exec(
@@ -181,6 +197,32 @@ describe('restoreFromBuffer', () => {
 		});
 		assertLivePreserved();
 		expect(nodeFs.readdirSync(backupPath)).toEqual([]);
+	});
+
+	test.each([
+		[
+			'equivalent redundant unique key',
+			(db: Database.Database) =>
+				db.exec('CREATE UNIQUE INDEX duplicate_sessions_token ON sessions(token)')
+		],
+		[
+			'redundant partial key covered by a required full key',
+			(db: Database.Database) =>
+				db.exec(
+					'CREATE UNIQUE INDEX partial_duplicate_sessions_token ON sessions(token) WHERE user_id IS NOT NULL'
+				)
+		],
+		[
+			'ordinary nonunique index',
+			(db: Database.Database) =>
+				db.exec('CREATE INDEX sessions_user_id_lookup ON sessions(user_id)')
+		]
+	])('accepts compatible %s', async (_name, mutate) => {
+		seedCurrentDatabase();
+		await expect(restoreFromBuffer(createSqliteBuffer('current', mutate))).resolves.toMatchObject({
+			filename: 'restored-database',
+			encrypted: false
+		});
 	});
 
 	test('rejects corrupt SQLite pages with a clear error and cleans up', async () => {
