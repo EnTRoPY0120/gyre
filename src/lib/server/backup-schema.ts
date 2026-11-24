@@ -202,6 +202,8 @@ export function validateBackupSchema(db: Database.Database): void {
 			invalid(`${name} has an unsupported additional unique key`);
 		if (expected.foreignKeys.some((key) => !actual.foreignKeys.includes(key)))
 			invalid(`${name} is missing a required foreign key`);
+		if (actual.foreignKeys.some((key) => !expected.foreignKeys.includes(key)))
+			invalid(`${name} has an unsupported additional foreign key`);
 	}
 	const accounts = db.prepare('SELECT provider_id, issuer FROM accounts').all() as {
 		provider_id: string;

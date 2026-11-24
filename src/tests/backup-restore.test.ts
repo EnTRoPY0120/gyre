@@ -151,6 +151,27 @@ describe('restoreFromBuffer', () => {
 				)
 		],
 		[
+			'additional foreign key',
+			(db: Database.Database) =>
+				db.exec(`
+					CREATE TABLE sessions_next (
+						id TEXT PRIMARY KEY,
+						user_id TEXT NOT NULL,
+						token TEXT NOT NULL UNIQUE,
+						expires_at INTEGER NOT NULL,
+						ip_address TEXT,
+						user_agent TEXT,
+						created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+						updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+						FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+						FOREIGN KEY (user_id) REFERENCES auth_providers(id)
+					);
+					INSERT INTO sessions_next SELECT * FROM sessions;
+					DROP TABLE sessions;
+					ALTER TABLE sessions_next RENAME TO sessions;
+				`)
+		],
+		[
 			'missing primary key',
 			(db: Database.Database) =>
 				db.exec(
