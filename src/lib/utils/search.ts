@@ -1,7 +1,7 @@
 import Fuse from 'fuse.js';
 import safeRegex from 'safe-regex2';
 import { logger } from './logger.js';
-import { RESOURCE_HEALTH_VALUES } from '$lib/types/view';
+import { RESOURCE_HEALTH_VALUES } from '#lib/types/view.js';
 
 export const MAX_QUERY_LENGTH = 500;
 

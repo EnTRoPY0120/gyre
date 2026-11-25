@@ -67,7 +67,7 @@
 		return SORT_FIELDS.some((field) => field.key === raw) ? (raw as SortBy) : undefined;
 	}
 
-	let filters = $state<FilterState>(searchParamsToFilters(page.url.searchParams));
+	let filters = $state<FilterState>(searchParamsToFilters(new URLSearchParams(page.url.search)));
 	let lastSearchParams = $state(page.url.search.toString());
 	let sortBy = $state<SortBy | undefined>(parseSortBy(page.url.searchParams.get('sortBy')));
 	let sortOrder = $state<'asc' | 'desc'>(
@@ -84,7 +84,7 @@
 		}
 	});
 
-	let debouncedSearch = $state(filters.search);
+	let debouncedSearch = $state(untrack(() => filters.search));
 
 	$effect(() => {
 		const search = filters.search;
