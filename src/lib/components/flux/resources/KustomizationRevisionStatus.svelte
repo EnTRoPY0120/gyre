@@ -1,7 +1,7 @@
 <script lang="ts">
-	import DetailGrid from '$lib/components/flux/details/DetailGrid.svelte';
-	import DetailSection from '$lib/components/flux/details/DetailSection.svelte';
-	import { formatTimestamp } from '$lib/utils/flux';
+	import DetailGrid from '#lib/components/flux/details/DetailGrid.svelte';
+	import DetailSection from '#lib/components/flux/details/DetailSection.svelte';
+	import { formatTimestamp } from '#lib/utils/flux.js';
 
 	let {
 		lastAppliedRevision,

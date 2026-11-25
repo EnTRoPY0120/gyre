@@ -5,9 +5,9 @@ import {
 	getClusterSelectionPayload,
 	setClusterSelectionCookie,
 	validateSelectableClusterId
-} from '$lib/server/clusters/selection.js';
-import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
-import { requireAuthenticatedUser } from '$lib/server/http/guards.js';
+} from '#lib/server/clusters/selection.js';
+import { IN_CLUSTER_ID } from '#lib/clusters/identity.js';
+import { requireAuthenticatedUser } from '#lib/server/http/guards.js';
 
 function requireUserWithUnauthorizedContract(locals: App.Locals) {
 	try {

@@ -1,4 +1,4 @@
-import type { ResourceDiff } from '$lib/types/resource';
+import type { ResourceDiff } from '#lib/types/resource.js';
 
 export function formatDiffExport(diffs: ResourceDiff[]): string {
 	return diffs

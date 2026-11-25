@@ -1,6 +1,6 @@
 import { parse } from 'yaml';
-import type { ResourceTemplate } from '$lib/templates';
-import { logger } from '$lib/utils/logger.js';
+import type { ResourceTemplate } from '#lib/templates/index.js';
+import { logger } from '#lib/utils/logger.js';
 
 /** Reject conflicting structured resource fields and HelmRelease values.resources. */
 export function validateHelmReleaseResourceValues(

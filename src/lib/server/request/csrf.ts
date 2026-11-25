@@ -1,6 +1,6 @@
-import { validateCsrfToken } from '$lib/server/csrf.js';
-import { logger } from '$lib/server/logger.js';
-import { isPublicRoute } from '$lib/isPublicRoute.js';
+import { validateCsrfToken } from '#lib/server/csrf.js';
+import { logger } from '#lib/server/logger.js';
+import { isPublicRoute } from '#lib/isPublicRoute.js';
 import { STATE_CHANGING_METHODS, isPayloadTooLargeError } from './request-size.js';
 import type { RequestEvent } from '@sveltejs/kit';
 

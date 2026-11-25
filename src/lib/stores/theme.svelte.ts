@@ -1,5 +1,5 @@
-import { browser } from '$app/environment';
-import { safeGetItem, safeSetItem } from '$lib/utils/storage';
+import { browser } from '$app/env';
+import { safeGetItem, safeSetItem } from '#lib/utils/storage.js';
 import { getStoredThemeValue } from './theme-storage';
 
 export type Theme = 'light' | 'dark' | 'system';

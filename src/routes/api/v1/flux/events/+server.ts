@@ -1,10 +1,10 @@
 import { json, error } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
-import { k8sEventSchema } from '$lib/server/kubernetes/schemas';
+import { z } from '#lib/server/openapi.js';
+import { k8sEventSchema } from '#lib/server/kubernetes/schemas.js';
 import type { RequestHandler } from './$types';
-import { getAllRecentEvents } from '$lib/server/kubernetes/events';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { requireClusterWideRead } from '$lib/server/http/guards.js';
+import { getAllRecentEvents } from '#lib/server/kubernetes/events.js';
+import { handleApiError } from '#lib/server/kubernetes/errors.js';
+import { requireClusterWideRead } from '#lib/server/http/guards.js';
 
 export const _metadata = {
 	GET: {

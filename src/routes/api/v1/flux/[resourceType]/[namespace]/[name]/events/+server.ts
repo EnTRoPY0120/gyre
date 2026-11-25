@@ -1,6 +1,6 @@
-import { z } from '$lib/server/openapi';
-import { getFluxResourceEvents } from '$lib/server/flux/use-cases/resource-actions.js';
-import { createFluxResourceReadMetadata } from '$lib/server/openapi/flux-route-metadata.js';
+import { z } from '#lib/server/openapi.js';
+import { getFluxResourceEvents } from '#lib/server/flux/use-cases/resource-actions.js';
+import { createFluxResourceReadMetadata } from '#lib/server/openapi/flux-route-metadata.js';
 import type { RequestHandler } from './$types';
 
 const eventSchema = z.object({

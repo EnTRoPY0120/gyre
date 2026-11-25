@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
-import { dev } from '$app/environment';
+import { dev } from '$app/env';
 
-import { env } from '$env/dynamic/public';
+import { PUBLIC_LOG_LEVEL } from '$app/env/public';
 import { redactSensitiveFields } from './logger-redaction.js';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
@@ -15,7 +15,7 @@ const LOG_COLORS: Record<LogLevel, string> = {
 	fatal: 'color: #dc2626'
 };
 
-const configuredLevel = (env.PUBLIC_LOG_LEVEL as LogLevel) ?? (dev ? 'debug' : 'info');
+const configuredLevel = (PUBLIC_LOG_LEVEL as LogLevel) ?? (dev ? 'debug' : 'info');
 const currentLevel: LogLevel =
 	LOG_LEVELS[configuredLevel] !== undefined ? configuredLevel : dev ? 'debug' : 'info';
 const currentLevelNum = LOG_LEVELS[currentLevel];

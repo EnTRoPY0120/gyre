@@ -1,4 +1,4 @@
-import type { DiffResponse } from '$lib/types/resource';
+import type { DiffResponse } from '#lib/types/resource.js';
 
 export interface ResourceDiffError {
 	code?: string;

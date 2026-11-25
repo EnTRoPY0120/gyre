@@ -1,9 +1,9 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { error } from '@sveltejs/kit';
-import { getFluxResource, getKubeConfig, type ReqCache } from '$lib/server/kubernetes/client';
-import { validateFluxArtifactUrl } from '$lib/server/kubernetes/flux/artifact-url-security';
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources';
-import type { FluxResource } from '$lib/server/kubernetes/flux/types';
+import { getFluxResource, getKubeConfig, type ReqCache } from '#lib/server/kubernetes/client.js';
+import { validateFluxArtifactUrl } from '#lib/server/kubernetes/flux/artifact-url-security.js';
+import type { FluxResourceType } from '#lib/server/kubernetes/flux/resources.js';
+import type { FluxResource } from '#lib/server/kubernetes/flux/types.js';
 import * as k8s from '@kubernetes/client-node';
 import { setHeaderOptions } from '@kubernetes/client-node';
 import * as yaml from 'js-yaml';

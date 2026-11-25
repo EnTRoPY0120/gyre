@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
-import { getResourceDef, type FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
-import { validateFluxResourceSpec } from '$lib/server/validation';
-import type { K8sResource } from '$lib/types/kubernetes';
+import { getResourceDef, type FluxResourceType } from '#lib/server/kubernetes/flux/resources.js';
+import { validateFluxResourceSpec } from '#lib/server/validation.js';
+import type { K8sResource } from '#lib/types/kubernetes.js';
 import * as yaml from 'js-yaml';
 
 export interface ValidateFluxResourceUpdateParams {

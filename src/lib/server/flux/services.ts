@@ -1,6 +1,6 @@
 import { error } from '@sveltejs/kit';
 import * as k8s from '@kubernetes/client-node';
-import { normalizeClusterId } from '$lib/clusters/identity.js';
+import { normalizeClusterId } from '#lib/clusters/identity.js';
 import {
 	getFluxResource,
 	getFluxResourceStatus,
@@ -9,16 +9,16 @@ import {
 	listFluxResources,
 	type ListOptions,
 	type ReqCache
-} from '$lib/server/kubernetes/client.js';
-import { validateKubeConfig } from '$lib/server/kubernetes/config.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
+} from '#lib/server/kubernetes/client.js';
+import { validateKubeConfig } from '#lib/server/kubernetes/config.js';
+import { handleApiError } from '#lib/server/kubernetes/errors.js';
 import {
 	getAllResourcePlurals,
 	getAllResourceTypes,
 	resolveFluxResourceType
-} from '$lib/server/kubernetes/flux/resources.js';
-import { logger } from '$lib/server/logger.js';
-import { getResourceStatus } from '$lib/utils/relationships.js';
+} from '#lib/server/kubernetes/flux/resources.js';
+import { logger } from '#lib/server/logger.js';
+import { getResourceStatus } from '#lib/utils/relationships.js';
 import {
 	DEFAULT_FLUX_VERSION,
 	getFluxDeploymentVersion,

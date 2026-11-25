@@ -2,14 +2,14 @@
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
 	import type { PageData } from './$types';
-	import LoginPanel from '$lib/components/auth/LoginPanel.svelte';
+	import LoginPanel from '#lib/components/auth/LoginPanel.svelte';
 import {
 	getLoginErrorState,
 		getPostLoginRedirect,
 		submitLogin,
 	validateLoginCredentials
-} from '$lib/auth/login-flow';
-import { getLoginQueryFeedback } from '$lib/auth/login-feedback';
+} from '#lib/auth/login-flow.js';
+import { getLoginQueryFeedback } from '#lib/auth/login-feedback.js';
 
 	let { data } = $props<{ data: PageData }>();
 	let providers = $derived(data.providers || []);
@@ -28,7 +28,7 @@ import { getLoginQueryFeedback } from '$lib/auth/login-feedback';
 	let hasAnyAuth = $derived(showLocalLogin || showProviders);
 
 	$effect(() => {
-		const feedback = getLoginQueryFeedback(page.url.searchParams);
+		const feedback = getLoginQueryFeedback(new URLSearchParams(page.url.search));
 
 		if (feedback.loggedOut) {
 			toast.success('Successfully logged out');

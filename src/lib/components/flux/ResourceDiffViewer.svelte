@@ -1,8 +1,8 @@
 <script lang="ts">
-	import MonacoDiffEditor from '$lib/components/editors/MonacoDiffEditor.svelte';
+	import MonacoDiffEditor from '#lib/components/editors/MonacoDiffEditor.svelte';
 	import { FileDiff, CheckCircle2, PlusCircle } from '@lucide/svelte';
-	import { cn } from '$lib/utils';
-	import type { ResourceDiff } from '$lib/types/resource';
+	import { cn } from '#lib/utils.js';
+	import type { ResourceDiff } from '#lib/types/resource.js';
 
 	let { diffs }: { diffs: ResourceDiff[] } = $props();
 

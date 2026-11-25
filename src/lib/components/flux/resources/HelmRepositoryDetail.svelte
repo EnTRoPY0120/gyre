@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
-	import ArtifactSummary from '$lib/components/flux/details/ArtifactSummary.svelte';
-	import { isSafeExternalUrl } from '$lib/utils/url';
+	import type { FluxResource } from '#lib/types/flux.js';
+	import ArtifactSummary from '#lib/components/flux/details/ArtifactSummary.svelte';
+	import { isSafeExternalUrl } from '#lib/utils/url.js';
 	import HelmRepositoryAuthentication from './HelmRepositoryAuthentication.svelte';
 	import HelmRepositoryConfiguration from './HelmRepositoryConfiguration.svelte';
 	import type {

@@ -1,6 +1,9 @@
-import { MAX_BATCH_SIZE } from '$lib/server/config/limits';
-import { batchResourceSchema, batchResultSchema } from '$lib/server/kubernetes/flux/batch-schemas';
-import { z } from '$lib/server/openapi';
+import { MAX_BATCH_SIZE } from '#lib/server/config/limits.js';
+import {
+	batchResourceSchema,
+	batchResultSchema
+} from '#lib/server/kubernetes/flux/batch-schemas.js';
+import { z } from '#lib/server/openapi.js';
 
 type BatchRouteMetadataConfig = {
 	summary: string;

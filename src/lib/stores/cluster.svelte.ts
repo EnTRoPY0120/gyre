@@ -1,5 +1,5 @@
 import { invalidate } from '$app/navigation';
-import { IN_CLUSTER_ID, normalizeClusterId, type ClusterOption } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID, normalizeClusterId, type ClusterOption } from '#lib/clusters/identity.js';
 import { requestClusterSwitch } from './cluster-requests';
 
 /**

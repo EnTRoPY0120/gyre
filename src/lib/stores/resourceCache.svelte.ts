@@ -1,9 +1,9 @@
-import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID, normalizeClusterId } from '#lib/clusters/identity.js';
 import { eventsStore } from './events.svelte';
 import { clusterStore } from './cluster.svelte';
-import { resolveResourceRouteType } from '$lib/config/resources';
-import type { FluxResource } from '$lib/types/flux';
-import { logger } from '$lib/utils/logger.js';
+import { resolveResourceRouteType } from '#lib/config/resources.js';
+import type { FluxResource } from '#lib/types/flux.js';
+import { logger } from '#lib/utils/logger.js';
 import { fetchResourceDetail, fetchResourceList } from './resource-cache-requests.js';
 
 const MAX_RESOURCE_ENTRIES = 500;

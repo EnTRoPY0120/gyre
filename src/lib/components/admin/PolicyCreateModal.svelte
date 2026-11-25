@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import * as Select from '$lib/components/ui/select';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { refreshAll } from '$app/navigation';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import type { NewPolicy } from './policy-types';
 
 	type ResourceTypeOption = { label: string; value: string };
@@ -40,7 +40,7 @@
 				return async ({ result }) => {
 					if (result.type === 'success') {
 						onClose();
-						invalidateAll();
+						refreshAll();
 					}
 				};
 			}}

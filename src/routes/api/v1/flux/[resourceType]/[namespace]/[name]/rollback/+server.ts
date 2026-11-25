@@ -1,16 +1,16 @@
 import { json } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { rollbackResource } from '$lib/server/kubernetes/flux/history';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
+import { rollbackResource } from '#lib/server/kubernetes/flux/history.js';
+import { handleApiError } from '#lib/server/kubernetes/errors.js';
+import { validateK8sNamespace, validateK8sName } from '#lib/server/validation.js';
 import {
 	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
 	requireFluxResourceWrite
-} from '$lib/server/http/guards.js';
-import { parseRollbackRequestBody } from '$lib/server/flux/use-cases/rollback.js';
-import { sanitizeRollbackError } from '$lib/server/flux/use-cases/rollback-errors.js';
+} from '#lib/server/http/guards.js';
+import { parseRollbackRequestBody } from '#lib/server/flux/use-cases/rollback.js';
+import { sanitizeRollbackError } from '#lib/server/flux/use-cases/rollback-errors.js';
 
 export const _metadata = {
 	POST: {

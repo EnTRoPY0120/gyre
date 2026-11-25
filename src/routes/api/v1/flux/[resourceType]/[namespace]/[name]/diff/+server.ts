@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
-import { z, errorSchema } from '$lib/server/openapi';
+import { z, errorSchema } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
 import {
 	getDiffCacheControl,
 	runFluxResourceDiff
-} from '$lib/server/flux/use-cases/resource-diff.js';
+} from '#lib/server/flux/use-cases/resource-diff.js';
 import { authorizeDiffRoute, handleDiffRouteError, validateDiffRoute } from './route-helpers.js';
 
 export const _metadata = {

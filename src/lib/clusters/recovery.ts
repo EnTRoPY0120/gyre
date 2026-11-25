@@ -1,4 +1,4 @@
-import type { HealthCheckResult } from '$lib/server/clusters';
+import type { HealthCheckResult } from '#lib/server/clusters.js';
 import { getRecoverySummaryForCheck } from './recovery-guidance';
 
 export type ClusterRecoverySummaryAction =

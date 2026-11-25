@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import type { AdminReadinessStatus, AdminReadinessSummary } from '$lib/types/admin-readiness';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import type { AdminReadinessStatus, AdminReadinessSummary } from '#lib/types/admin-readiness.js';
 	import { getReadinessSummaryText } from './admin-readiness-summary';
 
 	interface Props {

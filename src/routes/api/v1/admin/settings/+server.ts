@@ -3,18 +3,18 @@
  * Allows admins to view and update application settings.
  */
 
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { setSettings } from '$lib/server/settings';
-import { serializePublicSettings } from '$lib/server/settings/serialization';
+import { setSettings } from '#lib/server/settings.js';
+import { serializePublicSettings } from '#lib/server/settings/serialization.js';
 import { normalizeSettingsPayload } from './settings-payload.js';
 import {
 	enforceUserRateLimitPreset,
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 
 export const _metadata = {
 	GET: {

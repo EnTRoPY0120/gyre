@@ -1,16 +1,16 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { json, error, isHttpError } from '@sveltejs/kit';
-import { z, errorSchema } from '$lib/server/openapi';
-import { getDb } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import { z, errorSchema } from '#lib/server/openapi.js';
+import { getDb } from '#lib/server/db/index.js';
+import { users } from '#lib/server/db/schema.js';
 import { eq, sql } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
-import type { UserPreferences } from '$lib/types/user';
+import type { UserPreferences } from '#lib/types/user.js';
 import {
 	enforceUserRateLimitPreset,
 	logPrivilegedMutationSuccess
-} from '$lib/server/http/guards.js';
-import { preferencesSchema } from '$lib/server/user-preferences';
+} from '#lib/server/http/guards.js';
+import { preferencesSchema } from '#lib/server/user-preferences.js';
 
 export const _metadata = {
 	POST: {

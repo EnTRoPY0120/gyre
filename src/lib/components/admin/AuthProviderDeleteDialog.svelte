@@ -1,5 +1,5 @@
 <script lang="ts">
-	import AdminConfirmDialog from '$lib/components/admin/AdminConfirmDialog.svelte';
+	import AdminConfirmDialog from '#lib/components/admin/AdminConfirmDialog.svelte';
 	import type { AuthProviderSummary } from './auth-provider';
 
 	let {

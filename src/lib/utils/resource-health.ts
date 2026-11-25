@@ -1,5 +1,5 @@
-import type { K8sCondition } from '$lib/types/flux';
-import type { ResourceHealth } from '$lib/types/view';
+import type { K8sCondition } from '#lib/types/flux.js';
+import type { ResourceHealth } from '#lib/types/view.js';
 
 const HEALTH_TYPES = ['Ready', 'Healthy', 'Succeeded', 'Available'];
 const PROGRESSING_REASONS = new Set([

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import WizardContent from '$lib/components/wizards/WizardContent.svelte';
-	import WizardHeader from '$lib/components/wizards/WizardHeader.svelte';
-	import WizardPreview from '$lib/components/wizards/WizardPreview.svelte';
-	import type { ResourceTemplate, TemplateField } from '$lib/templates';
-	import { logger } from '$lib/utils/logger.js';
+	import WizardContent from '#lib/components/wizards/WizardContent.svelte';
+	import WizardHeader from '#lib/components/wizards/WizardHeader.svelte';
+	import WizardPreview from '#lib/components/wizards/WizardPreview.svelte';
+	import type { ResourceTemplate, TemplateField } from '#lib/templates/index.js';
+	import { logger } from '#lib/utils/logger.js';
 	import { parse, parseDocument } from 'yaml';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import { coerceWizardFieldValue, validateWizardField } from './field-validation';
 	import { validateHelmReleaseResourceValues as validateWizardHelmReleaseResourceValues } from './helm-release-validation';
 	import { createResourceFromWizard, getWizardResourceRedirect } from './resource-submit';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
+	import type { FluxResource } from '#lib/types/flux.js';
 	import HelmReleaseChartConfiguration from './HelmReleaseChartConfiguration.svelte';
 	import HelmReleaseConfiguration from './HelmReleaseConfiguration.svelte';
 	import HelmReleaseStatus from './HelmReleaseStatus.svelte';

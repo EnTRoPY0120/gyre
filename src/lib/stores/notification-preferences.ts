@@ -1,4 +1,4 @@
-import type { UserPreferences } from '$lib/types/user';
+import type { UserPreferences } from '#lib/types/user.js';
 
 export type NotificationPreferences = NonNullable<UserPreferences['notifications']>;
 export type NormalizedNotificationPreferences = Required<NotificationPreferences>;

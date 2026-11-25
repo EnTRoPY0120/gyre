@@ -1,9 +1,9 @@
 <script lang="ts">
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { type ClusterOption } from '$lib/clusters/identity.js';
-	import { eventsStore } from '$lib/stores/events.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { cn } from '$lib/utils';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { type ClusterOption } from '#lib/clusters/identity.js';
+	import { eventsStore } from '#lib/stores/events.svelte.js';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { cn } from '#lib/utils.js';
 
 	let {
 		cluster,

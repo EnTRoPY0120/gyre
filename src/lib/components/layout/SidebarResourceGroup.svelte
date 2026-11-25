@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { sidebarOpen } from '$lib/stores/sidebar';
-	import { cn } from '$lib/utils';
-	import type { ResourceGroup } from '$lib/types/flux';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import { page } from '$app/state';
+	import { sidebarOpen } from '#lib/stores/sidebar.js';
+	import { cn } from '#lib/utils.js';
+	import type { ResourceGroup } from '#lib/types/flux.js';
+	import Icon from '#lib/components/ui/Icon.svelte';
 	import SidebarResourceList from './SidebarResourceList.svelte';
 
 	let {
@@ -20,7 +20,7 @@
 		onCloseMobile: () => void;
 	} = $props();
 
-	const currentPath = $derived($page.url.pathname);
+	const currentPath = $derived(page.url.pathname);
 	const groupId = $derived(`panel-${group.name.toLowerCase().replace(/\s+/g, '-')}`);
 
 </script>

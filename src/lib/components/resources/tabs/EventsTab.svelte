@@ -1,8 +1,8 @@
 <script lang="ts">
-	import EventsList from '$lib/components/flux/EventsList.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
+	import EventsList from '#lib/components/flux/EventsList.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import TabStateMessage from './TabStateMessage.svelte';
-	import type { K8sEvent } from '$lib/types/resource';
+	import type { K8sEvent } from '#lib/types/resource.js';
 
 	interface Props {
 		events: K8sEvent[];

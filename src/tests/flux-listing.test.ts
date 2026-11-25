@@ -8,10 +8,10 @@ beforeEach(() => {
 	listClusterCustomObject.mockReset();
 	listNamespacedCustomObject.mockReset();
 
-	vi.doMock('$lib/server/kubernetes/client-pool.js', () => ({
+	vi.doMock('#lib/server/kubernetes/client-pool.js', () => ({
 		getCustomObjectsApi: async () => ({ listClusterCustomObject, listNamespacedCustomObject })
 	}));
-	vi.doMock('$lib/server/kubernetes/error-handler.js', () => ({
+	vi.doMock('#lib/server/kubernetes/error-handler.js', () => ({
 		handleK8sError: (error: unknown) => error
 	}));
 });
@@ -27,8 +27,8 @@ describe('listFluxResources', () => {
 			items: [],
 			metadata: { resourceVersion: 'rv-empty' }
 		});
-		const { listFluxResources } = await import('$lib/server/kubernetes/flux/listing.js');
-		const { getAllResourceTypes } = await import('$lib/server/kubernetes/flux/resources.js');
+		const { listFluxResources } = await import('#lib/server/kubernetes/flux/listing.js');
+		const { getAllResourceTypes } = await import('#lib/server/kubernetes/flux/resources.js');
 
 		for (const resourceType of getAllResourceTypes()) {
 			const result = await listFluxResources(resourceType);
@@ -54,7 +54,7 @@ describe('listFluxResources', () => {
 			items: [],
 			metadata: { resourceVersion: 'rv-empty' }
 		});
-		const { listFluxResourcesInNamespace } = await import('$lib/server/kubernetes/flux/listing.js');
+		const { listFluxResourcesInNamespace } = await import('#lib/server/kubernetes/flux/listing.js');
 
 		const result = await listFluxResourcesInNamespace('OCIRepository', 'flux-system');
 
@@ -72,7 +72,7 @@ describe('listFluxResources', () => {
 			items: [{ metadata: { name: 'one' } }],
 			metadata: { resourceVersion: 'rv-1', continue: 'next-page' }
 		});
-		const { listFluxResources } = await import('$lib/server/kubernetes/flux/listing.js');
+		const { listFluxResources } = await import('#lib/server/kubernetes/flux/listing.js');
 
 		const result = await listFluxResources('GitRepository', 'cluster-a', undefined, { limit: 1 });
 
@@ -109,7 +109,7 @@ describe('listFluxResources', () => {
 				}
 			]
 		});
-		const { listFluxResources } = await import('$lib/server/kubernetes/flux/listing.js');
+		const { listFluxResources } = await import('#lib/server/kubernetes/flux/listing.js');
 
 		const result = await listFluxResources('GitRepository', undefined, undefined, {
 			sortBy: 'status',
@@ -127,7 +127,7 @@ describe('listFluxResources', () => {
 		listClusterCustomObject.mockResolvedValue({
 			items: [{ metadata: { name: 'a' } }, { metadata: { name: 'c' } }, { metadata: { name: 'b' } }]
 		});
-		const { listFluxResources } = await import('$lib/server/kubernetes/flux/listing.js');
+		const { listFluxResources } = await import('#lib/server/kubernetes/flux/listing.js');
 
 		const result = await listFluxResources('GitRepository', undefined, undefined, {
 			sortBy: 'name',

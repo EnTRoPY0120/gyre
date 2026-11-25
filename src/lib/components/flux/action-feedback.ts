@@ -1,4 +1,4 @@
-import type { FluxResource } from '$lib/types/flux';
+import type { FluxResource } from '#lib/types/flux.js';
 
 export type ResourceAction = 'suspend' | 'resume' | 'reconcile';
 export type ActionFeedbackTone = 'error' | 'warning';

@@ -1,10 +1,10 @@
 import { json } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { getReconciliationHistory } from '$lib/server/kubernetes/flux/reconciliation-tracker';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { requireFluxResourceRead } from '$lib/server/http/guards.js';
-import { parseHistoryQuery } from '$lib/server/flux/use-cases/history.js';
+import { getReconciliationHistory } from '#lib/server/kubernetes/flux/reconciliation-tracker.js';
+import { handleApiError } from '#lib/server/kubernetes/errors.js';
+import { requireFluxResourceRead } from '#lib/server/http/guards.js';
+import { parseHistoryQuery } from '#lib/server/flux/use-cases/history.js';
 
 export const _metadata = {
 	GET: {

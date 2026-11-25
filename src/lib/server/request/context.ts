@@ -1,5 +1,5 @@
-import { IS_PROD } from '$lib/server/config.js';
-import { httpRequestDurationMicroseconds } from '$lib/server/metrics.js';
+import { IS_PROD } from '#lib/server/config.js';
+import { httpRequestDurationMicroseconds } from '#lib/server/metrics.js';
 import type { RequestEvent } from '@sveltejs/kit';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -15,7 +15,7 @@ function setSecurityHeaders(response: Response): void {
 	response.headers.set('X-Frame-Options', 'DENY');
 	response.headers.set('X-Permitted-Cross-Domain-Policies', 'none');
 	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	// Content-Security-Policy is managed by SvelteKit via kit.csp in svelte.config.js,
+	// Content-Security-Policy is managed by SvelteKit via the Vite plugin's csp option,
 	// which injects per-request nonces into inline hydration scripts. Setting it here
 	// would overwrite those nonces and break page hydration.
 	if (IS_PROD) {

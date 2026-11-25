@@ -1,4 +1,4 @@
-import { loginSchema } from '$lib/utils/validation';
+import { loginSchema } from '#lib/utils/validation.js';
 
 export interface LoginProvider {
 	id: string;

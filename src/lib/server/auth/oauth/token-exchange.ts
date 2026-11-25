@@ -1,4 +1,4 @@
-import { decryptSecret } from '$lib/server/auth/crypto';
+import { decryptSecret } from '#lib/server/auth/crypto.js';
 import { OAuthError, type OAuthTokens } from './types';
 
 export type OAuthErrorCode = 'TOKEN_EXCHANGE_FAILED' | 'TOKEN_REFRESH_FAILED';

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { refreshAll } from '$app/navigation';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import type { ClusterSummary } from './cluster-types';
 
 	let {
@@ -72,7 +72,7 @@
 				action="?/test"
 				use:enhance={() => async ({ result, update }) => {
 					await update();
-					if (result.type === 'success') await invalidateAll();
+					if (result.type === 'success') await refreshAll();
 					handleTestResult(result);
 				}}
 				class="inline"
@@ -89,7 +89,7 @@
 				method="POST"
 				action="?/toggle"
 				use:enhance={() => async ({ result }) => {
-					if (result.type === 'success') await invalidateAll();
+					if (result.type === 'success') await refreshAll();
 				}}
 				class="inline"
 			>

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { refreshAll } from '$app/navigation';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import type { Policy, PolicyUser } from './policy-types';
 
 	let {
@@ -76,7 +76,7 @@
 						action="?/unbind"
 						use:enhance={() => {
 							return async ({ result }) => {
-								if (result.type === 'success') await invalidateAll();
+								if (result.type === 'success') await refreshAll();
 							};
 						}}
 						class="inline"

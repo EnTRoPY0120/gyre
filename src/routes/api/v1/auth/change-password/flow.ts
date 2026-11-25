@@ -1,14 +1,14 @@
 import { error, type Cookies } from '@sveltejs/kit';
-import type { User } from '$lib/server/db/schema.js';
+import type { User } from '#lib/server/db/schema.js';
 import {
 	addPasswordHistory,
 	clearRequiresPasswordChange,
 	isPasswordInHistory,
 	verifyPassword
-} from '$lib/server/auth';
-import { applyBetterAuthCookies, getBetterAuth } from '$lib/server/auth/better-auth';
-import { logAudit } from '$lib/server/audit';
-import { assertPasswordStrength } from '$lib/server/auth/password-validation.js';
+} from '#lib/server/auth.js';
+import { applyBetterAuthCookies, getBetterAuth } from '#lib/server/auth/better-auth.js';
+import { logAudit } from '#lib/server/audit.js';
+import { assertPasswordStrength } from '#lib/server/auth/password-validation.js';
 import { requireCredentialPasswordHash } from './credential-password';
 
 async function ensureCurrentPasswordValid(

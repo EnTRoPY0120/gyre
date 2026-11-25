@@ -1,5 +1,5 @@
 import { error } from '@sveltejs/kit';
-import { parseRoleMappingInput } from '$lib/auth/role-mapping';
+import { parseRoleMappingInput } from '#lib/auth/role-mapping.js';
 import { encryptSecret } from './crypto';
 
 const DIRECT_UPDATE_FIELDS = [

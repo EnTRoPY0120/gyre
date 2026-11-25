@@ -1,8 +1,8 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import type { PageServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { getEnabledAuthProviders } from '$lib/server/auth/oauth';
-import { getAuthSettings } from '$lib/server/settings';
+import { getEnabledAuthProviders } from '#lib/server/auth/oauth/index.js';
+import { getAuthSettings } from '#lib/server/settings.js';
 
 /**
  * Load function for login page

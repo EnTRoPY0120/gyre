@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { refreshAll } from '$app/navigation';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 
 	let {
 		activeClusterId,
@@ -21,7 +21,7 @@
 		use:enhance={() => {
 			return async ({ result, update }) => {
 				await update();
-				if (result.type === 'success' || result.type === 'failure') await invalidateAll();
+				if (result.type === 'success' || result.type === 'failure') await refreshAll();
 			};
 		}}
 		class="flex"

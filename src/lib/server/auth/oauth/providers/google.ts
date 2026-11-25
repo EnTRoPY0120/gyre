@@ -12,7 +12,7 @@
 import { Google } from 'arctic';
 import type { IOAuthProvider, OAuthTokens, OAuthUserInfo, OAuthProviderOptions } from '../types';
 import { OAuthError } from '../types';
-import { decryptSecret } from '$lib/server/auth/crypto';
+import { decryptSecret } from '#lib/server/auth/crypto.js';
 import { OIDCProvider } from './oidc';
 
 /**

@@ -1,5 +1,5 @@
 import * as yaml from 'js-yaml';
-import type { K8sResource } from '$lib/types/kubernetes';
+import type { K8sResource } from '#lib/types/kubernetes.js';
 
 export interface UpdateResourceOptions {
 	resourceType: string;

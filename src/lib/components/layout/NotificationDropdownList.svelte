@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { NotificationMessage } from '$lib/stores/events.svelte';
+	import type { NotificationMessage } from '#lib/stores/events.svelte.js';
 	import NotificationItem from './NotificationItem.svelte';
 
 	let {

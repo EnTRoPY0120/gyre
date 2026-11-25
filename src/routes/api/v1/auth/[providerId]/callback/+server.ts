@@ -13,11 +13,11 @@
  * 8. Redirect to home
  */
 
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { redirect, isHttpError, isRedirect } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { getOAuthCallbackErrorMessage } from '$lib/server/auth/oauth/callback-helpers.js';
+import { getOAuthCallbackErrorMessage } from '#lib/server/auth/oauth/callback-helpers.js';
 import { handleOAuthCallback } from './oauth-callback-flow';
 
 export const _metadata = {

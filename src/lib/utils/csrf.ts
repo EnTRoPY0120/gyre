@@ -1,4 +1,4 @@
-import { logger } from '$lib/utils/logger.js';
+import { logger } from '#lib/utils/logger.js';
 
 function readCsrfTokenFromDocument(): string {
 	const match = document.cookie.match(/(?:^|;\s*)gyre_csrf=([^;]+)/);

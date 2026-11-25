@@ -1,5 +1,5 @@
 <script lang="ts">
-	import DetailField from '$lib/components/flux/details/DetailField.svelte';
+	import DetailField from '#lib/components/flux/details/DetailField.svelte';
 	import type { GitRepositoryRef } from './git-repository-detail-types';
 
 	let {

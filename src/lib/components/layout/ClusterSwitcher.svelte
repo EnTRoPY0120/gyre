@@ -1,11 +1,11 @@
 <script lang="ts">
 	/* eslint-disable @typescript-eslint/no-unused-vars */
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
-	import { clusterStore } from '$lib/stores/cluster.svelte';
-	import { eventsStore } from '$lib/stores/events.svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { cn } from '$lib/utils';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { IN_CLUSTER_ID, type ClusterOption } from '#lib/clusters/identity.js';
+	import { clusterStore } from '#lib/stores/cluster.svelte.js';
+	import { eventsStore } from '#lib/stores/events.svelte.js';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { cn } from '#lib/utils.js';
 	import ClusterSwitcherMenu from './ClusterSwitcherMenu.svelte';
 
 	interface Props {

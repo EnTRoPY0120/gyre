@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ClusterHealthCheck } from '$lib/server/clusters';
+	import type { ClusterHealthCheck } from '#lib/server/clusters.js';
 
 	let {
 		checks,

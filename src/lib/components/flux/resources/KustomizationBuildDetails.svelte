@@ -1,5 +1,5 @@
 <script lang="ts">
-	import DetailSection from '$lib/components/flux/details/DetailSection.svelte';
+	import DetailSection from '#lib/components/flux/details/DetailSection.svelte';
 	import type { KustomizationPostBuild } from './kustomization-detail-types';
 
 	let {

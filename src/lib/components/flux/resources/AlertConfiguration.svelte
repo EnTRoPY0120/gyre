@@ -1,6 +1,6 @@
 <script lang="ts">
-	import DetailField from '$lib/components/flux/details/DetailField.svelte';
-	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
+	import DetailField from '#lib/components/flux/details/DetailField.svelte';
+	import SuspendedBadge from '#lib/components/flux/details/SuspendedBadge.svelte';
 
 	let {
 		providerRef,

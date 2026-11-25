@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
+	import type { FluxResource } from '#lib/types/flux.js';
 
 	interface Props {
 		resource: FluxResource;

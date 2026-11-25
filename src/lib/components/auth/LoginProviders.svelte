@@ -1,6 +1,6 @@
 <script lang="ts">
 	import LoginProviderButton from './LoginProviderButton.svelte';
-	import type { LoginProvider } from '$lib/auth/login-flow';
+	import type { LoginProvider } from '#lib/auth/login-flow.js';
 
 	let {
 		providers,

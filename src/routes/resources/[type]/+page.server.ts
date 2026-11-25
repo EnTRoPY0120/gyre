@@ -1,9 +1,9 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
-import type { FluxResource } from '$lib/types/flux';
-import { listFluxResourcesForType } from '$lib/server/flux/services.js';
-import { requireClusterWideRead } from '$lib/server/http/guards.js';
+import { getAllResourceTypes, getResourceInfo } from '#lib/config/resources.js';
+import type { FluxResource } from '#lib/types/flux.js';
+import { listFluxResourcesForType } from '#lib/server/flux/services.js';
+import { requireClusterWideRead } from '#lib/server/http/guards.js';
 import { getResourceListLoadError, parseResourceListQuery } from './resource-list-load.js';
 
 export const load: PageServerLoad = async ({ params, url, locals, depends }) => {

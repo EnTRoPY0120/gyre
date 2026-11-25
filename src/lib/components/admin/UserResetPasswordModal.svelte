@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { enhance, applyAction } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { CheckCircle2 } from '@lucide/svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import type { User } from './user-types';
 
 	let {
@@ -73,7 +73,7 @@
 					return async ({ result }) => {
 						if (result.type === 'success') {
 							passwordResetSuccess = true;
-							invalidateAll();
+							refreshAll();
 						} else {
 							await applyAction(result);
 						}

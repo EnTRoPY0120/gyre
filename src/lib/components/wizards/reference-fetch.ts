@@ -1,6 +1,6 @@
-import { resolveResourceRouteType } from '$lib/config/resources';
-import { fetchWithRetry } from '$lib/utils/fetch';
-import { logger } from '$lib/utils/logger.js';
+import { resolveResourceRouteType } from '#lib/config/resources.js';
+import { fetchWithRetry } from '#lib/utils/fetch.js';
+import { logger } from '#lib/utils/logger.js';
 
 interface K8sResourceItem {
 	kind?: string;

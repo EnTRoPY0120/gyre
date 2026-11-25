@@ -1,15 +1,15 @@
 <script lang="ts">
 	import './layout.css';
-	import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
-	import AppSidebar from '$lib/components/layout/AppSidebar.svelte';
-	import AppHeader from '$lib/components/layout/AppHeader.svelte';
-	import CommandPalette from '$lib/components/CommandPalette.svelte';
-	import { eventsStore } from '$lib/stores/events.svelte';
-	import { clusterStore } from '$lib/stores/cluster.svelte';
-	import { preferences } from '$lib/stores/preferences.svelte';
-	import { hasEventConnectionChanged } from '$lib/stores/layout-sync.js';
-	import { syncLayoutStores } from '$lib/stores/layout-store-sync.js';
-	import { page } from '$app/stores';
+	import { IN_CLUSTER_ID, type ClusterOption } from '#lib/clusters/identity.js';
+	import AppSidebar from '#lib/components/layout/AppSidebar.svelte';
+	import AppHeader from '#lib/components/layout/AppHeader.svelte';
+	import CommandPalette from '#lib/components/CommandPalette.svelte';
+	import { eventsStore } from '#lib/stores/events.svelte.js';
+	import { clusterStore } from '#lib/stores/cluster.svelte.js';
+	import { preferences } from '#lib/stores/preferences.svelte.js';
+	import { hasEventConnectionChanged } from '#lib/stores/layout-sync.js';
+	import { syncLayoutStores } from '#lib/stores/layout-store-sync.js';
+	import { page } from '$app/state';
 	import { Toaster } from 'svelte-sonner';
 	import { onDestroy } from 'svelte';
 
@@ -30,7 +30,7 @@
 				username: string;
 				role: string;
 				email?: string | null;
-				preferences?: import('$lib/types/user').UserPreferences | null;
+				preferences?: import('#lib/types/user.js').UserPreferences | null;
 			} | null;
 		};
 	}
@@ -39,7 +39,7 @@
 
 	// Check if current route is an auth page (login or change password)
 	let isAuthPage = $derived(
-		$page.url.pathname.startsWith('/login') || $page.url.pathname.startsWith('/change-password')
+		page.url.pathname.startsWith('/login') || page.url.pathname.startsWith('/change-password')
 	);
 
 	// Sync cluster store and preferences with layout data

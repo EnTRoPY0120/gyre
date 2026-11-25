@@ -1,17 +1,17 @@
 import { json } from '@sveltejs/kit';
-import { getControllerLogs, type ReqCache } from '$lib/server/kubernetes/client.js';
-import { getResourceEvents } from '$lib/server/kubernetes/events';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { reconcileResource, toggleSuspendResource } from '$lib/server/kubernetes/flux/actions.js';
-import { captureReconciliation } from '$lib/server/kubernetes/flux/reconciliation-tracker.js';
-import { FLUX_RESOURCES } from '$lib/server/kubernetes/flux/resources';
+import { getControllerLogs, type ReqCache } from '#lib/server/kubernetes/client.js';
+import { getResourceEvents } from '#lib/server/kubernetes/events.js';
+import { handleApiError } from '#lib/server/kubernetes/errors.js';
+import { reconcileResource, toggleSuspendResource } from '#lib/server/kubernetes/flux/actions.js';
+import { captureReconciliation } from '#lib/server/kubernetes/flux/reconciliation-tracker.js';
+import { FLUX_RESOURCES } from '#lib/server/kubernetes/flux/resources.js';
 import {
 	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
 	requireFluxResourceRead,
 	requireFluxResourceWrite,
 	type FluxRouteParams
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 
 export type FluxResourceAction = 'reconcile' | 'suspend' | 'resume';
 

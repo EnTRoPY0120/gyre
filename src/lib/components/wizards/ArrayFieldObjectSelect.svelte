@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Select from '$lib/components/ui/select';
-	import type { TemplateField } from '$lib/templates';
+	import * as Select from '#lib/components/ui/select/index.js';
+	import type { TemplateField } from '#lib/templates/index.js';
 
 	let {
 		item,

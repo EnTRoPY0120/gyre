@@ -1,5 +1,5 @@
 import { logger } from '../logger.js';
-import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID, normalizeClusterId } from '#lib/clusters/identity.js';
 import * as k8s from '@kubernetes/client-node';
 import { loadKubeConfig } from './config.js';
 import { getClusterKubeconfig } from '../clusters/repository.js';

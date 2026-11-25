@@ -43,7 +43,7 @@ beforeEach(() => {
 		}
 	};
 
-	vi.doMock('$lib/server/http/guards.js', () => ({
+	vi.doMock('#lib/server/http/guards.js', () => ({
 		requireAuthenticatedUser: () => {
 			guardCalls.push('requireAuthenticatedUser');
 		},
@@ -64,7 +64,7 @@ beforeEach(() => {
 		}
 	}));
 
-	vi.doMock('$lib/server/flux/services.js', () => ({
+	vi.doMock('#lib/server/flux/services.js', () => ({
 		DEFAULT_FLUX_VERSION: 'v2.x.x',
 		getFluxHealthSummary: async () => ({
 			status: 'healthy',

@@ -1,10 +1,10 @@
-import { register } from '$lib/server/metrics';
-import { GYRE_METRICS_TOKEN } from '$lib/server/config/constants';
-import { IS_PROD } from '$lib/server/config';
+import { register } from '#lib/server/metrics.js';
+import { GYRE_METRICS_TOKEN } from '#lib/server/config/constants.js';
+import { IS_PROD } from '#lib/server/config.js';
 import {
 	enforceMetricsRateLimit,
 	requirePrivilegedAdminPermission
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 import type { RequestHandler } from './$types';
 
 function isPermissionError(err: unknown): boolean {

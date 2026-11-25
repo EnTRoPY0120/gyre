@@ -40,7 +40,7 @@ beforeEach(async () => {
 	allowClusterWide = true;
 	allowScoped = true;
 
-	vi.doMock('$lib/server/http/guards.js', () => ({
+	vi.doMock('#lib/server/http/guards.js', () => ({
 		requireAuthenticatedUser: () => {},
 		requireClusterContext: (locals: App.Locals) => locals.cluster ?? 'cluster-a',
 		requireClusterWideRead: async (locals: App.Locals) => {
@@ -62,15 +62,15 @@ beforeEach(async () => {
 		}
 	}));
 
-	vi.doMock('$lib/server/kubernetes/client.js', () => ({
+	vi.doMock('#lib/server/kubernetes/client.js', () => ({
 		...actualClient,
 		listFluxResources: async () => ({ items: [], total: 0, hasMore: false, offset: 0, limit: 50 }),
 		createFluxResource: async () => ({ ok: true })
 	}));
 
-	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
+	vi.doMock('#lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
-	vi.doMock('$lib/server/validation', () => ({
+	vi.doMock('#lib/server/validation.js', () => ({
 		...actualValidation,
 		validateK8sNamespace: () => {},
 		validateFluxResourceSpec: () => null

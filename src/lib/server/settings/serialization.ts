@@ -3,7 +3,7 @@ import {
 	getAuditLogRetentionDays,
 	isSettingOverriddenByEnv,
 	SETTINGS_KEYS
-} from '$lib/server/settings';
+} from '#lib/server/settings.js';
 
 export async function serializePublicSettings() {
 	const [authSettings, auditRetentionDays] = await Promise.all([

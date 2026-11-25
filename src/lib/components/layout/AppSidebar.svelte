@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { resourceGroups } from '$lib/config/resources';
-	import { sidebarOpen } from '$lib/stores/sidebar';
-	import { cn } from '$lib/utils';
+	import { page } from '$app/state';
+	import { resourceGroups } from '#lib/config/resources.js';
+	import { sidebarOpen } from '#lib/stores/sidebar.js';
+	import { cn } from '#lib/utils.js';
 	import SidebarResourceGroup from './SidebarResourceGroup.svelte';
 	import SidebarFooter from './SidebarFooter.svelte';
 	import SidebarHeader from './SidebarHeader.svelte';
@@ -12,10 +12,10 @@
 	import { onMount, onDestroy } from 'svelte';
 
 	const isOpen = $derived($sidebarOpen);
-	const currentPath = $derived($page.url.pathname);
+	const currentPath = $derived(page.url.pathname);
 
-	const gyreVersion = $derived($page.data.gyreVersion || '0.0.1');
-	const userRole = $derived($page.data.user?.role || 'viewer');
+	const gyreVersion = $derived(page.data.gyreVersion || '0.0.1');
+	const userRole = $derived(page.data.user?.role || 'viewer');
 	const canCreate = $derived(userRole === 'admin' || userRole === 'editor');
 	const isAdmin = $derived(userRole === 'admin');
 

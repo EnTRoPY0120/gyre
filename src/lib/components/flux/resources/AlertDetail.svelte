@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
+	import type { FluxResource } from '#lib/types/flux.js';
 	import AlertConfiguration from './AlertConfiguration.svelte';
 	import AlertEventFilters from './AlertEventFilters.svelte';
 	import AlertEventSources from './AlertEventSources.svelte';

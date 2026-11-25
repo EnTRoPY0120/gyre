@@ -1,8 +1,8 @@
 import { mount, tick, unmount } from 'svelte';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('$app/environment', () => ({ browser: false, dev: false }));
-vi.mock('$env/dynamic/public', () => ({ env: {} }));
+vi.mock('$app/env', () => ({ browser: false, dev: false }));
+vi.mock('$app/env/public', () => ({ PUBLIC_LOG_LEVEL: undefined }));
 import AdvancedSearch from '../lib/components/search/AdvancedSearch.svelte';
 import ResourceListContent from '../routes/resources/[type]/ResourceListContent.svelte';
 import { createAdvancedSearchFilterState } from './advanced-search-state.svelte';

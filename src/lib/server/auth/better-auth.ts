@@ -5,18 +5,18 @@ import { makeSignature } from 'better-auth/crypto';
 import { username } from 'better-auth/plugins/username';
 import type { Cookies } from '@sveltejs/kit';
 import { randomBytes } from 'node:crypto';
-import { logger } from '$lib/server/logger.js';
-import { getDb, getDbSync, schema } from '$lib/server/db';
-import { DEFAULT_COOKIE_OPTIONS, IS_PROD } from '$lib/server/config';
-import { accounts, users, type Session, type User } from '$lib/server/db/schema';
+import { logger } from '#lib/server/logger.js';
+import { getDb, getDbSync, schema } from '#lib/server/db/index.js';
+import { DEFAULT_COOKIE_OPTIONS, IS_PROD } from '#lib/server/config.js';
+import { accounts, users, type Session, type User } from '#lib/server/db/schema.js';
 import {
 	MAX_SESSIONS_PER_USER,
 	SESSION_DURATION_DAYS,
 	hashPassword,
 	normalizeUsername,
 	verifyPassword
-} from '$lib/server/auth';
-import type { OAuthTokens } from '$lib/server/auth/oauth';
+} from '#lib/server/auth.js';
+import type { OAuthTokens } from '#lib/server/auth/oauth/index.js';
 import { and, eq } from 'drizzle-orm';
 import { buildOAuthAccountData } from './oauth-account.js';
 

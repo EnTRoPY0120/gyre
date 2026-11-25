@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { TemplateField } from '$lib/templates';
+	import type { TemplateField } from '#lib/templates/index.js';
 	import ReferenceField from './ReferenceField.svelte';
 	import type { ReferenceOption } from './reference-fetch';
 

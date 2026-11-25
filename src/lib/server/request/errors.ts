@@ -1,7 +1,8 @@
-import { errorToHttpResponse } from '$lib/server/kubernetes/errors.js';
-import { logger } from '$lib/server/logger.js';
-import { normalizeError } from '$lib/utils/error-normalization.js';
-import { isHttpError, isRedirect, type RequestEvent, type ResolveOptions } from '@sveltejs/kit';
+import { errorToHttpResponse } from '#lib/server/kubernetes/errors.js';
+import { logger } from '#lib/server/logger.js';
+import { normalizeError } from '#lib/utils/error-normalization.js';
+import { isHttpError, isRedirect, type RequestEvent } from '@sveltejs/kit';
+import type { ResolveOptions } from '@sveltejs/kit/hooks';
 import { createPayloadTooLargeResponse, isPayloadTooLargeError } from './request-size.js';
 
 export async function resolveRouteAndMapErrors(
@@ -41,20 +42,35 @@ export async function resolveRouteAndMapErrors(
 	}
 }
 
-export function normalizeHandleError({
-	error,
-	event
-}: {
+type ErrorHookKind = 'app' | 'framework' | 'validation' | 'unknown';
+
+type ErrorHookInput = {
 	error: unknown;
-	event: { locals?: App.Locals; url: URL };
-}) {
-	const requestId = event.locals?.requestId;
-	if (requestId) {
-		logger.error(error, `Error in ${event.url.pathname}:`, { requestId });
-	} else {
-		logger.error(error, `Error in ${event.url.pathname}:`);
+	kind: ErrorHookKind;
+	event: { locals?: { requestId?: string }; url: URL };
+};
+
+export function normalizeHandleError({ error, kind, event }: ErrorHookInput): App.Error {
+	const { code, status: fallbackStatus } = normalizeError(error);
+
+	if (kind === 'unknown') {
+		const requestId = event.locals?.requestId;
+		if (requestId) {
+			logger.error(error, `Error in ${event.url.pathname}:`, { requestId });
+		} else {
+			logger.error(error, `Error in ${event.url.pathname}:`);
+		}
+
+		return { status: fallbackStatus, message: 'An unexpected error occurred', code };
 	}
 
-	const { code, status } = normalizeError(error);
-	return { message: 'An unexpected error occurred', code, status };
+	const caughtError = error as { message?: unknown; status?: unknown };
+	return {
+		status:
+			typeof caughtError.status === 'number' && Number.isInteger(caughtError.status)
+				? caughtError.status
+				: fallbackStatus,
+		message: typeof caughtError.message === 'string' ? caughtError.message : 'Internal Error',
+		code
+	};
 }

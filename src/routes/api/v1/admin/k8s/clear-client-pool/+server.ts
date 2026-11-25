@@ -1,11 +1,11 @@
 import { json } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { clearClientPool } from '$lib/server/kubernetes/client.js';
+import { clearClientPool } from '#lib/server/kubernetes/client.js';
 import {
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 
 export const _metadata = {
 	POST: {

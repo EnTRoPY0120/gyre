@@ -1,5 +1,5 @@
-import { tryCheckRateLimit } from '$lib/server/rate-limiter.js';
-import { isStaticAssetPath } from '$lib/isPublicRoute.js';
+import { tryCheckRateLimit } from '#lib/server/rate-limiter.js';
+import { isStaticAssetPath } from '#lib/isPublicRoute.js';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export function enforceGlobalRateLimit(

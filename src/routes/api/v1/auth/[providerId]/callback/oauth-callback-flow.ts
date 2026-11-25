@@ -1,14 +1,14 @@
 import { error, redirect } from '@sveltejs/kit';
-import { cleanupSetupTokenFile } from '$lib/server/auth';
+import { cleanupSetupTokenFile } from '#lib/server/auth.js';
 import {
 	createBetterAuthSessionForUser,
 	ensureBetterAuthOAuthAccount
-} from '$lib/server/auth/better-auth';
-import { getOAuthProvider } from '$lib/server/auth/oauth';
-import { createOrUpdateSSOUser } from '$lib/server/auth/sso';
-import { tryCheckRateLimit } from '$lib/server/rate-limiter';
-import { logger } from '$lib/server/logger.js';
-import { getSsoLoginErrorMessage } from '$lib/server/auth/oauth/callback-helpers.js';
+} from '#lib/server/auth/better-auth.js';
+import { getOAuthProvider } from '#lib/server/auth/oauth/index.js';
+import { createOrUpdateSSOUser } from '#lib/server/auth/sso.js';
+import { tryCheckRateLimit } from '#lib/server/rate-limiter.js';
+import { logger } from '#lib/server/logger.js';
+import { getSsoLoginErrorMessage } from '#lib/server/auth/oauth/callback-helpers.js';
 import type { RequestEvent } from './$types';
 
 /** Execute the OAuth callback after the route has entered its error boundary. */

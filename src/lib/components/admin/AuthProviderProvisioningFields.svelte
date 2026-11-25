@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Select from '$lib/components/ui/select';
+	import * as Select from '#lib/components/ui/select/index.js';
 	import type { AuthProviderFormData, AuthProviderRole } from './auth-provider';
 
 	let {

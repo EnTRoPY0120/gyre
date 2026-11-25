@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import { clusterStore } from '$lib/stores/cluster.svelte';
-	import AdminOnboardingChecklist from '$lib/components/dashboard/AdminOnboardingChecklist.svelte';
-	import type { AdminReadinessSummary } from '$lib/types/admin-readiness';
-	import DashboardHeader from '$lib/components/dashboard/DashboardHeader.svelte';
-	import ClusterConnectivityStatus from '$lib/components/dashboard/ClusterConnectivityStatus.svelte';
-	import ResourceGroupTotals from '$lib/components/dashboard/ResourceGroupTotals.svelte';
-	import InventoryArchitecture from '$lib/components/dashboard/InventoryArchitecture.svelte';
-	import SystemShortcuts from '$lib/components/dashboard/SystemShortcuts.svelte';
+	import { page } from '$app/state';
+	import { clusterStore } from '#lib/stores/cluster.svelte.js';
+	import AdminOnboardingChecklist from '#lib/components/dashboard/AdminOnboardingChecklist.svelte';
+	import type { AdminReadinessSummary } from '#lib/types/admin-readiness.js';
+	import DashboardHeader from '#lib/components/dashboard/DashboardHeader.svelte';
+	import ClusterConnectivityStatus from '#lib/components/dashboard/ClusterConnectivityStatus.svelte';
+	import ResourceGroupTotals from '#lib/components/dashboard/ResourceGroupTotals.svelte';
+	import InventoryArchitecture from '#lib/components/dashboard/InventoryArchitecture.svelte';
+	import SystemShortcuts from '#lib/components/dashboard/SystemShortcuts.svelte';
 	import { ArrowRight, TriangleAlert } from '@lucide/svelte';
 
 	interface Props {
@@ -35,7 +35,7 @@
 	// Show loading while cluster contexts are being fetched
 	const isLoading = $derived(!clusterStore.loaded);
 	const clusterError = $derived(clusterStore.error);
-	const isAdmin = $derived($page.data.user?.role === 'admin');
+	const isAdmin = $derived(page.data.user?.role === 'admin');
 </script>
 
 <div class="animate-in fade-in space-y-6 duration-700 md:space-y-8">

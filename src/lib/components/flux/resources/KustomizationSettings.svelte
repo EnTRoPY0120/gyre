@@ -1,6 +1,6 @@
 <script lang="ts">
-	import DetailSection from '$lib/components/flux/details/DetailSection.svelte';
-	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
+	import DetailSection from '#lib/components/flux/details/DetailSection.svelte';
+	import SuspendedBadge from '#lib/components/flux/details/SuspendedBadge.svelte';
 
 	let {
 		prune,

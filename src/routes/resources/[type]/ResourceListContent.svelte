@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { FilterX } from '@lucide/svelte';
-	import ResourceGrid from '$lib/components/flux/ResourceGrid.svelte';
-	import ResourceTable from '$lib/components/flux/ResourceTable.svelte';
-	import type { FluxResource } from '$lib/types/flux';
+	import ResourceGrid from '#lib/components/flux/ResourceGrid.svelte';
+	import ResourceTable from '#lib/components/flux/ResourceTable.svelte';
+	import type { FluxResource } from '#lib/types/flux.js';
 
 	let {
 		resources,

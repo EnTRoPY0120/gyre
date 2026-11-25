@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Check, Loader2, Search } from '@lucide/svelte';
-import { cn } from '$lib/utils';
+import { cn } from '#lib/utils.js';
 import type { ReferenceOption } from './reference-fetch';
 
 	let {

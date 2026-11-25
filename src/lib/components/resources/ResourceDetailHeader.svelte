@@ -1,8 +1,8 @@
 <script lang="ts">
-	import ActionButtons from '$lib/components/flux/ActionButtons.svelte';
-	import StatusBadge from '$lib/components/flux/StatusBadge.svelte';
-	import Breadcrumbs from '$lib/components/common/Breadcrumbs.svelte';
-	import type { FluxResource } from '$lib/types/flux';
+	import ActionButtons from '#lib/components/flux/ActionButtons.svelte';
+	import StatusBadge from '#lib/components/flux/StatusBadge.svelte';
+	import Breadcrumbs from '#lib/components/common/Breadcrumbs.svelte';
+	import type { FluxResource } from '#lib/types/flux.js';
 
 	let {
 		resource,

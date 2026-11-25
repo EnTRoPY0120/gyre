@@ -1,4 +1,9 @@
-import { VALID_SORT_BY, VALID_SORT_ORDER, type SortBy, type SortOrder } from '$lib/config/sorting';
+import {
+	VALID_SORT_BY,
+	VALID_SORT_ORDER,
+	type SortBy,
+	type SortOrder
+} from '#lib/config/sorting.js';
 
 export interface ResourceListQuery {
 	limit: number | undefined;

@@ -1,5 +1,5 @@
-import type { AuthProvider } from '$lib/server/db/schema';
-import { parseRoleMappingInput } from '$lib/auth/role-mapping';
+import type { AuthProvider } from '#lib/server/db/schema.js';
+import { parseRoleMappingInput } from '#lib/auth/role-mapping.js';
 import { getIssuerUrlValidationError } from './url-security';
 import { ProviderType } from './types';
 

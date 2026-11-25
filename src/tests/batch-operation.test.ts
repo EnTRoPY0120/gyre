@@ -18,10 +18,10 @@ beforeEach(async () => {
 	reconciledNames.length = 0;
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rbac', () => createRbacModuleStub());
-	vi.doMock('$lib/server/rbac.js', () => createRbacModuleStub());
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rbac.js', () => createRbacModuleStub());
+	vi.doMock('#lib/server/rbac.js', () => createRbacModuleStub());
 	const auditModuleStub = {
 		logAudit: async () => {
 			throw new Error('audit unavailable');
@@ -29,8 +29,8 @@ beforeEach(async () => {
 		logLogin: async () => {},
 		logLogout: async () => {}
 	};
-	vi.doMock('$lib/server/audit', () => auditModuleStub);
-	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
 	const kubernetesClientModuleStub = {
 		getCustomObjectsApi: async () => ({
 			deleteNamespacedCustomObject: async () => {},
@@ -43,9 +43,9 @@ beforeEach(async () => {
 		}),
 		handleK8sError: (err: unknown) => err
 	};
-	vi.doMock('$lib/server/kubernetes/client', () => kubernetesClientModuleStub);
-	vi.doMock('$lib/server/kubernetes/client.js', () => kubernetesClientModuleStub);
-	vi.doMock('$lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
+	vi.doMock('#lib/server/kubernetes/client.js', () => kubernetesClientModuleStub);
+	vi.doMock('#lib/server/kubernetes/client.js', () => kubernetesClientModuleStub);
+	vi.doMock('#lib/server/kubernetes/flux/reconciliation-tracker.js', () => ({
 		captureReconciliation: async () => {}
 	}));
 	const resourcesModuleStub = {
@@ -63,8 +63,8 @@ beforeEach(async () => {
 				? 'Kustomization'
 				: undefined
 	};
-	vi.doMock('$lib/server/kubernetes/flux/resources', () => resourcesModuleStub);
-	vi.doMock('$lib/server/kubernetes/flux/resources.js', () => resourcesModuleStub);
+	vi.doMock('#lib/server/kubernetes/flux/resources.js', () => resourcesModuleStub);
+	vi.doMock('#lib/server/kubernetes/flux/resources.js', () => resourcesModuleStub);
 
 	runBatchFluxOperation = (
 		await importFresh<BatchOperationModule>('../lib/server/flux/use-cases/batch-operation.js')

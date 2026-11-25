@@ -1,4 +1,4 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
 import {
@@ -7,9 +7,9 @@ import {
 	bindPolicyToUser,
 	unbindPolicyFromUser,
 	type RbacAction
-} from '$lib/server/rbac';
-import { listUsers } from '$lib/server/auth';
-import { logRbacChange } from '$lib/server/audit';
+} from '#lib/server/rbac.js';
+import { listUsers } from '#lib/server/auth.js';
+import { logRbacChange } from '#lib/server/audit.js';
 import { parseAdminPagination } from '../pagination';
 import { validatePolicyCreateInput } from './create-validation';
 import {
@@ -17,7 +17,7 @@ import {
 	requireAdminFormUser,
 	serializePagination
 } from '../server-helpers';
-import type { User } from '$lib/server/db/schema';
+import type { User } from '#lib/server/db/schema.js';
 import {
 	createPolicyAndLog,
 	deletePolicyAndLog,

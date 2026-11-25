@@ -1,7 +1,7 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { listBackups } from '$lib/server/backup';
+import { listBackups } from '#lib/server/backup.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) {

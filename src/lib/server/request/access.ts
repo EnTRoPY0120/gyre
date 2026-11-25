@@ -1,6 +1,6 @@
-import { ADMIN_ROUTE_PREFIXES } from '$lib/server/config.js';
-import { resolveClusterSelectionFromCookie } from '$lib/server/clusters/selection.js';
-import { isPublicRoute } from '$lib/isPublicRoute.js';
+import { ADMIN_ROUTE_PREFIXES } from '#lib/server/config.js';
+import { resolveClusterSelectionFromCookie } from '#lib/server/clusters/selection.js';
+import { isPublicRoute } from '#lib/isPublicRoute.js';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export function enforceAuthenticationGate(

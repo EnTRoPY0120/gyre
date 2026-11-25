@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Save } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button';
+	import { Button } from '#lib/components/ui/button/index.js';
 
 	let {
 		validationErrorCount,

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import { formatDistanceToNow } from 'date-fns';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import BackupInfoCards from './BackupInfoCards.svelte';
 	import BackupPageHeader from './BackupPageHeader.svelte';
 	import BackupRestoreDialog from './BackupRestoreDialog.svelte';
@@ -44,7 +44,7 @@
 		try {
 			const result = await createBackupRequest(getCsrfToken());
 			toast.success(`Backup created: ${result.backup.filename}`);
-			await invalidateAll();
+			await refreshAll();
 		} catch (err) {
 			toast.error(getBackupRequestErrorMessage(err, 'Failed to create backup'));
 		} finally {
@@ -74,7 +74,7 @@
 		try {
 			await deleteBackupRequest(filename, getCsrfToken());
 			toast.success('Backup deleted');
-			await invalidateAll();
+			await refreshAll();
 		} catch (err) {
 			toast.error(getBackupRequestErrorMessage(err, 'Failed to delete backup'));
 		} finally {
@@ -104,7 +104,7 @@
 			showRestoreConfirm = false;
 			restoreFile = null;
 			if (restoreInput) restoreInput.value = '';
-			await invalidateAll();
+			await refreshAll();
 		} catch (err) {
 			toast.error(getBackupRequestErrorMessage(err, 'Failed to restore backup'));
 		} finally {

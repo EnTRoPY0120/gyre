@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Download, HardDrive, Lock, LockOpen, Loader2, Trash2 } from '@lucide/svelte';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
 	import type { BackupMetadata } from './backup-types';
 
 	let {

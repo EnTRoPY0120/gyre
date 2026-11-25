@@ -32,7 +32,7 @@ function createUser(role: User['role'] = 'editor'): User {
 beforeEach(async () => {
 	permissionChecks.length = 0;
 
-	vi.doMock('$lib/server/rbac.js', () =>
+	vi.doMock('#lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkPermission: async (...args: unknown[]) => {
 				permissionChecks.push(args);

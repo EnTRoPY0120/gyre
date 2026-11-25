@@ -1,4 +1,4 @@
-import type { ResourceGroup } from '$lib/types/flux';
+import type { ResourceGroup } from '#lib/types/flux.js';
 import type { CommandItem } from './CommandPaletteTypes';
 
 const RESOURCE_ICONS: Record<string, string> = {

@@ -1,11 +1,11 @@
 import { fail, type RequestEvent } from '@sveltejs/kit';
-import { logger } from '$lib/server/logger.js';
-import { getUserById, hasManagedPassword, updateUserPassword } from '$lib/server/auth';
-import { logUserManagement } from '$lib/server/audit';
-import { tryCheckRateLimit } from '$lib/server/rate-limiter';
+import { logger } from '#lib/server/logger.js';
+import { getUserById, hasManagedPassword, updateUserPassword } from '#lib/server/auth.js';
+import { logUserManagement } from '#lib/server/audit.js';
+import { tryCheckRateLimit } from '#lib/server/rate-limiter.js';
 import { requireAdminFormUser } from '../server-helpers';
 import { validatePasswordResetInput } from './action-validation';
-import type { User } from '$lib/server/db/schema';
+import type { User } from '#lib/server/db/schema.js';
 
 export interface ResetPasswordDependencies {
 	requireAdminFormUser: typeof requireAdminFormUser;

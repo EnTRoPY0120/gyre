@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { CheckCircle2, XCircle } from '@lucide/svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
+	import Button from '#lib/components/ui/button/button.svelte';
 	import type { User } from './user-types';
 
 	let {

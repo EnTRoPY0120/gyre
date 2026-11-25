@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { buildAdminPageUrl, buildAdminSearchUrl } from '$lib/admin/navigation';
-	import { resourceGroups } from '$lib/config/resources';
-	import PolicyCreateModal from '$lib/components/admin/PolicyCreateModal.svelte';
-	import PolicyDeleteDialog from '$lib/components/admin/PolicyDeleteDialog.svelte';
-	import PolicyAssignModal from '$lib/components/admin/PolicyAssignModal.svelte';
-	import type { NewPolicy, Policy, PolicyUser } from '$lib/components/admin/policy-types';
-	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
+	import { buildAdminPageUrl, buildAdminSearchUrl } from '#lib/admin/navigation.js';
+	import { resourceGroups } from '#lib/config/resources.js';
+	import PolicyCreateModal from '#lib/components/admin/PolicyCreateModal.svelte';
+	import PolicyDeleteDialog from '#lib/components/admin/PolicyDeleteDialog.svelte';
+	import PolicyAssignModal from '#lib/components/admin/PolicyAssignModal.svelte';
+	import type { NewPolicy, Policy, PolicyUser } from '#lib/components/admin/policy-types.js';
+	import SearchBar from '#lib/components/ui/search/SearchBar.svelte';
 	import PolicyList from './PolicyList.svelte';
 	import PolicyPageHeader from './PolicyPageHeader.svelte';
 

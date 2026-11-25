@@ -4,7 +4,7 @@ import {
 	OpenAPIRegistry,
 	extendZodWithOpenApi
 } from '@asteasolutions/zod-to-openapi';
-import { GYRE_VERSION } from '$lib/config/version';
+import { GYRE_VERSION } from '#lib/config/version.js';
 
 extendZodWithOpenApi(z);
 

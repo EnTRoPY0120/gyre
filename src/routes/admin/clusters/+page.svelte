@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { buildAdminPageUrl, buildAdminSearchUrl } from '$lib/admin/navigation';
-	import { deriveClusterRecoverySummary } from '$lib/clusters/recovery';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import ClusterDeleteDialog from '$lib/components/admin/ClusterDeleteDialog.svelte';
-	import ClusterCollection from '$lib/components/admin/ClusterCollection.svelte';
-	import ClusterCreateModal from '$lib/components/admin/ClusterCreateModal.svelte';
-	import ClusterHealthCheckModal from '$lib/components/admin/ClusterHealthCheckModal.svelte';
-	import ClusterPageFeedback from '$lib/components/admin/ClusterPageFeedback.svelte';
-	import type { ClusterSummary } from '$lib/components/admin/cluster-types';
-	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
-	import type { ClusterHealthCheck, HealthCheckResult } from '$lib/server/clusters';
+	import { buildAdminPageUrl, buildAdminSearchUrl } from '#lib/admin/navigation.js';
+	import { deriveClusterRecoverySummary } from '#lib/clusters/recovery.js';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import ClusterDeleteDialog from '#lib/components/admin/ClusterDeleteDialog.svelte';
+	import ClusterCollection from '#lib/components/admin/ClusterCollection.svelte';
+	import ClusterCreateModal from '#lib/components/admin/ClusterCreateModal.svelte';
+	import ClusterHealthCheckModal from '#lib/components/admin/ClusterHealthCheckModal.svelte';
+	import ClusterPageFeedback from '#lib/components/admin/ClusterPageFeedback.svelte';
+	import type { ClusterSummary } from '#lib/components/admin/cluster-types.js';
+	import SearchBar from '#lib/components/ui/search/SearchBar.svelte';
+	import type { ClusterHealthCheck, HealthCheckResult } from '#lib/server/clusters.js';
 
 	let { data, form } = $props<{
 		data: {

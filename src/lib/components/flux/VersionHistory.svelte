@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
-	import type { ReconciliationEntry } from '$lib/types/reconciliation';
+	import type { ReconciliationEntry } from '#lib/types/reconciliation.js';
 	import VersionHistoryEntry from './VersionHistoryEntry.svelte';
 
 	let {

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import DetailField from '$lib/components/flux/details/DetailField.svelte';
-	import SecretRefBadge from '$lib/components/flux/details/SecretRefBadge.svelte';
-	import TlsCertBadge from '$lib/components/flux/details/TlsCertBadge.svelte';
+	import DetailField from '#lib/components/flux/details/DetailField.svelte';
+	import SecretRefBadge from '#lib/components/flux/details/SecretRefBadge.svelte';
+	import TlsCertBadge from '#lib/components/flux/details/TlsCertBadge.svelte';
 import type { HelmRepositorySecretRef } from './helm-repository-detail-types';
 
 	let {

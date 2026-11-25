@@ -1,20 +1,20 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import type { PageData } from './$types';
-	import AuthProviderList from '$lib/components/admin/AuthProviderList.svelte';
-	import AuthProviderModals from '$lib/components/admin/AuthProviderModals.svelte';
+	import AuthProviderList from '#lib/components/admin/AuthProviderList.svelte';
+	import AuthProviderModals from '#lib/components/admin/AuthProviderModals.svelte';
 	import {
 		DEFAULT_ROLE_MAPPING_TEMPLATE,
 		stringifyRoleMappingForForm
-	} from '$lib/auth/role-mapping';
+	} from '#lib/auth/role-mapping.js';
 	import {
 		createEmptyAuthProviderFormData,
 		type AuthProviderFormData,
 		type AuthProviderRole,
 		type AuthProviderType,
 		type AuthProviderSummary
-	} from '$lib/components/admin/auth-provider';
-	import { logger } from '$lib/utils/logger.js';
+	} from '#lib/components/admin/auth-provider.js';
+	import { logger } from '#lib/utils/logger.js';
 import {
 	getAuthProviderErrorMessage,
 	requestAuthProviderMutation,
@@ -107,7 +107,7 @@ import {
 			}, 'Failed to create provider');
 
 			success = 'Provider created successfully';
-			await invalidateAll();
+			await refreshAll();
 			setTimeout(closeModals, 1000);
 		} catch (err) {
 			error = getAuthProviderErrorMessage(err, 'Failed to create provider');
@@ -126,7 +126,7 @@ import {
 			await updateAuthProvider(selectedProvider.id, formData);
 
 			success = 'Provider updated successfully';
-			await invalidateAll();
+			await refreshAll();
 			setTimeout(closeModals, 1000);
 		} catch (err) {
 			error = getAuthProviderErrorMessage(err, 'Failed to update provider');
@@ -147,7 +147,7 @@ import {
 			}, 'Failed to delete provider');
 
 			success = 'Provider deleted successfully';
-			await invalidateAll();
+			await refreshAll();
 			setTimeout(closeModals, 1000);
 		} catch (err) {
 			error = getAuthProviderErrorMessage(err, 'Failed to delete provider');
@@ -163,7 +163,7 @@ import {
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ enabled: !provider.enabled })
 			}, 'Failed to toggle provider');
-			await invalidateAll();
+			await refreshAll();
 		} catch (err) {
 			logger.error(err, 'Failed to toggle provider:');
 		}

@@ -1,5 +1,5 @@
-import type { FluxResource } from '$lib/types/flux';
-import { logger } from '$lib/utils/logger.js';
+import type { FluxResource } from '#lib/types/flux.js';
+import { logger } from '#lib/utils/logger.js';
 
 export type BatchAction = 'suspend' | 'resume' | 'reconcile' | 'delete';
 

@@ -1,9 +1,9 @@
 import { error, isHttpError, isRedirect } from '@sveltejs/kit';
 import type { Cookies } from '@sveltejs/kit';
-import { generateCodeVerifier, generateState } from '$lib/server/auth/pkce';
-import { DEFAULT_COOKIE_OPTIONS } from '$lib/server/config';
-import { getOAuthProvider, OAuthError } from '$lib/server/auth/oauth';
-import { logger } from '$lib/server/logger.js';
+import { generateCodeVerifier, generateState } from '#lib/server/auth/pkce.js';
+import { DEFAULT_COOKIE_OPTIONS } from '#lib/server/config.js';
+import { getOAuthProvider, OAuthError } from '#lib/server/auth/oauth/index.js';
+import { logger } from '#lib/server/logger.js';
 
 const STATE_COOKIE_MAX_AGE = 60 * 10;
 

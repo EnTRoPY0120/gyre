@@ -1,4 +1,4 @@
-import type { TemplateField } from '$lib/templates';
+import type { TemplateField } from '#lib/templates/index.js';
 
 export interface ReferenceNamespaceUpdate {
 	fieldName: string;

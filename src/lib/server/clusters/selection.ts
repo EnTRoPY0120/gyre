@@ -1,4 +1,4 @@
-import { IN_CLUSTER_ID, normalizeClusterId, type ClusterOption } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID, normalizeClusterId, type ClusterOption } from '#lib/clusters/identity.js';
 import { getClusterById, getSelectableClusters } from './repository.js';
 import {
 	getDefaultLocalKubeconfigContext,

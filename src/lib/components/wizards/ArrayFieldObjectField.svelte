@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { TemplateField } from '$lib/templates';
+	import type { TemplateField } from '#lib/templates/index.js';
 	import ArrayFieldObjectReference from './ArrayFieldObjectReference.svelte';
 	import ArrayFieldObjectSelect from './ArrayFieldObjectSelect.svelte';
 	import ArrayFieldObjectTextInput from './ArrayFieldObjectTextInput.svelte';

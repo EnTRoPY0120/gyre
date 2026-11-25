@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer, index, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
-import type { UserPreferences } from '$lib/types/user';
+import type { UserPreferences } from '#lib/types/user.js';
 
 export const users = sqliteTable('users', {
 	id: text('id').primaryKey(),

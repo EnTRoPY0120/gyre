@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { ShieldCheck } from '@lucide/svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
-	import PolicyCard from '$lib/components/admin/PolicyCard.svelte';
-	import type { Policy, PolicyUser } from '$lib/components/admin/policy-types';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import Pagination from '#lib/components/ui/pagination/Pagination.svelte';
+	import PolicyCard from '#lib/components/admin/PolicyCard.svelte';
+	import type { Policy, PolicyUser } from '#lib/components/admin/policy-types.js';
 
 	let {
 		policies,

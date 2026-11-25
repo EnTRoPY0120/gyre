@@ -1,5 +1,5 @@
 import { YAMLError } from 'yaml';
-import type { TemplateField } from '$lib/templates';
+import type { TemplateField } from '#lib/templates/index.js';
 
 export interface WizardYamlDocument {
 	deleteIn(path: string[]): unknown;

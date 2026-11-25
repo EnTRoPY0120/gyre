@@ -36,7 +36,7 @@ beforeEach(async () => {
 		preferred_username: 'user@google.com'
 	};
 
-	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
+	vi.doMock('#lib/server/auth/crypto.js', () => createAuthCryptoModuleStub());
 
 	vi.doMock('arctic', () =>
 		createArcticProviderMocks({ google: { shouldThrow: () => arcticShouldThrow } })

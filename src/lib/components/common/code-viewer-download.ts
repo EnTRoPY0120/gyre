@@ -1,5 +1,5 @@
-import { toYaml } from '$lib/utils/format';
-import { formatResourceForExport } from '$lib/utils/export';
+import { toYaml } from '#lib/utils/format.js';
+import { formatResourceForExport } from '#lib/utils/export.js';
 
 export type CodeViewerFormat = 'yaml' | 'json';
 

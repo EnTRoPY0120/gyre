@@ -107,7 +107,7 @@ function buildEvent(
 beforeEach(async () => {
 	Object.assign(callbackState, createCallbackState());
 
-	vi.doMock('$lib/server/auth/oauth', () => ({
+	vi.doMock('#lib/server/auth/oauth/index.js', () => ({
 		getOAuthProvider: async () => ({
 			config: { id: 'custom-provider' },
 			validateCallback: async () => ({ accessToken: 'access-token', tokenType: 'Bearer' }),
@@ -129,14 +129,14 @@ beforeEach(async () => {
 		}
 	}));
 
-	vi.doMock('$lib/server/auth/sso', () => ({
+	vi.doMock('#lib/server/auth/sso.js', () => ({
 		createOrUpdateSSOUser: async () => ({
 			user: createUser(),
 			accountLinked: true
 		})
 	}));
 
-	vi.doMock('$lib/server/auth', () => ({
+	vi.doMock('#lib/server/auth.js', () => ({
 		SESSION_DURATION_DAYS: 30,
 		addPasswordHistory: async () => {},
 		authenticateUser: async () => null,
@@ -179,13 +179,13 @@ beforeEach(async () => {
 		revokeBetterAuthSessionByCookieValue: async () => {}
 	};
 
-	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
-	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/logger.js', () => createLoggerModuleStub());
 
 	GET = (
 		await importFresh<CallbackRouteModule>('../routes/api/v1/auth/[providerId]/callback/+server.js')

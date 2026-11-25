@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button } from '#lib/components/ui/button/index.js';
 import { Pause, Play, RefreshCw, Trash2, X } from '@lucide/svelte';
 import type { BatchAction } from './bulk-actions';
 

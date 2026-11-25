@@ -1,8 +1,8 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { listUsersPaginated, updateUser, deleteUser } from '$lib/server/auth';
-import { logUserManagement } from '$lib/server/audit';
+import { listUsersPaginated, updateUser, deleteUser } from '#lib/server/auth.js';
+import { logUserManagement } from '#lib/server/audit.js';
 import { createUserAndLog, type UserCreateInput } from './create-user';
 import { resetPasswordAction } from './reset-password';
 import { parseAdminPagination } from '../pagination';
@@ -16,7 +16,7 @@ import {
 	validateUserCreateInput,
 	validateUserUpdateInput
 } from './action-validation';
-import type { User } from '$lib/server/db/schema';
+import type { User } from '#lib/server/db/schema.js';
 
 function readUserCreateInput(formData: FormData): UserCreateInput {
 	return {

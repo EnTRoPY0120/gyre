@@ -1,7 +1,7 @@
 <script lang="ts">
-	import ConditionList from '$lib/components/flux/ConditionList.svelte';
-	import ResourceMetadata from '$lib/components/flux/ResourceMetadata.svelte';
-	import type { FluxResource, K8sCondition } from '$lib/types/flux';
+	import ConditionList from '#lib/components/flux/ConditionList.svelte';
+	import ResourceMetadata from '#lib/components/flux/ResourceMetadata.svelte';
+	import type { FluxResource, K8sCondition } from '#lib/types/flux.js';
 	import ResourceSpecificDetail from './ResourceSpecificDetail.svelte';
 
 	interface Props {

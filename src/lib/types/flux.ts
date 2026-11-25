@@ -5,7 +5,7 @@ export type {
 	FluxResource,
 	FluxResourceStatus,
 	FluxResourceList
-} from '$lib/server/kubernetes/flux/types';
+} from '#lib/server/kubernetes/flux/types.js';
 
 /**
  * All FluxCD resource types

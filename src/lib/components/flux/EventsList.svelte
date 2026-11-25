@@ -1,5 +1,5 @@
 <script lang="ts">
-	import VirtualList from '$lib/components/ui/VirtualList.svelte';
+	import VirtualList from '#lib/components/ui/VirtualList.svelte';
 	import EventCard from './EventCard.svelte';
 	import EventsFilterTabs from './EventsFilterTabs.svelte';
 	import type { EventFilter, K8sEvent } from './events-list-types';

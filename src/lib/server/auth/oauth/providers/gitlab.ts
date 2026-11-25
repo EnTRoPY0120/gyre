@@ -12,10 +12,10 @@
 import { GitLab } from 'arctic';
 import type { IOAuthProvider, OAuthTokens, OAuthUserInfo, OAuthProviderOptions } from '../types';
 import { OAuthError } from '../types';
-import { decryptSecret } from '$lib/server/auth/crypto';
-import { exchangeOAuthTokenWithBasicAuth } from '$lib/server/auth/oauth/token-exchange';
-import { generateCodeChallenge } from '$lib/server/auth/pkce';
-import { logger } from '$lib/server/logger.js';
+import { decryptSecret } from '#lib/server/auth/crypto.js';
+import { exchangeOAuthTokenWithBasicAuth } from '#lib/server/auth/oauth/token-exchange.js';
+import { generateCodeChallenge } from '#lib/server/auth/pkce.js';
+import { logger } from '#lib/server/logger.js';
 
 interface GitLabUser {
 	id: number;

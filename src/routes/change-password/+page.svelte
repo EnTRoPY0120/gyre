@@ -4,10 +4,10 @@
 	import { toast } from 'svelte-sonner';
 	import PasswordChangeForm, {
 		type PasswordChangeValues
-	} from '$lib/components/auth/PasswordChangeForm.svelte';
-	import { changePasswordSchema } from '$lib/utils/validation';
-	import { getCsrfToken } from '$lib/utils/csrf';
-	import { submitPasswordChange } from '$lib/auth/password-change-flow';
+	} from '#lib/components/auth/PasswordChangeForm.svelte';
+	import { changePasswordSchema } from '#lib/utils/validation.js';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
+	import { submitPasswordChange } from '#lib/auth/password-change-flow.js';
 	import type { PageData } from './$types';
 
 	let { data } = $props<{ data: PageData }>();

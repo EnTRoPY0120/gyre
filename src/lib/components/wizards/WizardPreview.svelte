@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { AlertCircle, Check, Loader2 } from '@lucide/svelte';
-	import { Button } from '$lib/components/ui/button';
-	import type { ResourceTemplate } from '$lib/templates';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import type { ResourceTemplate } from '#lib/templates/index.js';
 
 	let {
 		template,

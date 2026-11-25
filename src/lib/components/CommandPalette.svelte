@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
-	import * as Dialog from '$lib/components/ui/dialog';
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { resourceGroups } from '$lib/config/resources';
+	import { page } from '$app/state';
+	import * as Dialog from '#lib/components/ui/dialog/index.js';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { resourceGroups } from '#lib/config/resources.js';
 	import Fuse from 'fuse.js';
-	import { commandPaletteOpen } from '$lib/stores/commandPalette';
+	import { commandPaletteOpen } from '#lib/stores/commandPalette.js';
 	import CommandPaletteFooter from './CommandPaletteFooter.svelte';
 	import CommandPaletteResults from './CommandPaletteResults.svelte';
 	import type { CommandItem, SearchResult } from './CommandPaletteTypes';
@@ -23,7 +23,7 @@ import {
 	let listEl = $state<HTMLElement | null>(null);
 	let inputEl = $state<HTMLInputElement | null>(null);
 
-	const userRole = $derived($page.data.user?.role || 'viewer');
+	const userRole = $derived(page.data.user?.role || 'viewer');
 	const isAdmin = $derived(userRole === 'admin');
 	const canCreate = $derived(userRole === 'admin' || userRole === 'editor');
 

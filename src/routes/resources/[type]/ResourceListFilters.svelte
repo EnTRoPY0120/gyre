@@ -1,8 +1,8 @@
 <script lang="ts">
-	import AdvancedSearch from '$lib/components/search/AdvancedSearch.svelte';
-	import FilterBar from '$lib/components/flux/FilterBar.svelte';
-	import { SORT_FIELDS, type SortBy } from '$lib/config/sorting';
-	import type { FilterState } from '$lib/utils/filtering';
+	import AdvancedSearch from '#lib/components/search/AdvancedSearch.svelte';
+	import FilterBar from '#lib/components/flux/FilterBar.svelte';
+	import { SORT_FIELDS, type SortBy } from '#lib/config/sorting.js';
+	import type { FilterState } from '#lib/utils/filtering.js';
 	import { ArrowDown, ArrowUp, ArrowUpDown } from '@lucide/svelte';
 
 	let {

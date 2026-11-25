@@ -1,25 +1,25 @@
 import { json, error } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
-import { k8sFluxResourceSchema } from '$lib/server/kubernetes/schemas';
+import { z } from '#lib/server/openapi.js';
+import { k8sFluxResourceSchema } from '#lib/server/kubernetes/schemas.js';
 import type { RequestHandler } from './$types';
 import {
 	createFluxResource,
 	type ReqCache,
 	type ListOptions
-} from '$lib/server/kubernetes/client.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
+} from '#lib/server/kubernetes/client.js';
+import { handleApiError } from '#lib/server/kubernetes/errors.js';
 import {
 	requireAuthenticatedUser,
 	requireClusterWideRead,
 	requireScopedPermission
-} from '$lib/server/http/guards.js';
-import { VALID_SORT_BY, VALID_SORT_ORDER } from '$lib/config/sorting';
+} from '#lib/server/http/guards.js';
+import { VALID_SORT_BY, VALID_SORT_ORDER } from '#lib/config/sorting.js';
 import {
 	computeWeakEtag,
 	respondNotModified,
 	setPrivateCacheHeaders
-} from '$lib/server/http/transport.js';
-import { listFluxResourcesForType } from '$lib/server/flux/services.js';
+} from '#lib/server/http/transport.js';
+import { listFluxResourcesForType } from '#lib/server/flux/services.js';
 import {
 	createFluxResourceBodySchema,
 	validateCreateFluxResourceRequest

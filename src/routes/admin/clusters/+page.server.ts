@@ -1,8 +1,8 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import type { PageServerLoad, Actions } from './$types';
 import { fail } from '@sveltejs/kit';
-import { getAllClustersPaginated, testClusterConnection } from '$lib/server/clusters';
-import { logClusterChange } from '$lib/server/audit';
+import { getAllClustersPaginated, testClusterConnection } from '#lib/server/clusters.js';
+import { logClusterChange } from '#lib/server/audit.js';
 import { parseAdminPagination } from '../pagination';
 import { validateClusterCreateInput, type ClusterCreateInput } from './create-validation';
 import { createClusterAndLog } from './create-cluster';

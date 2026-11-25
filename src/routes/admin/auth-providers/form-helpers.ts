@@ -1,9 +1,9 @@
-import type { AuthProviderFormData } from '$lib/components/admin/auth-provider';
+import type { AuthProviderFormData } from '#lib/components/admin/auth-provider.js';
 import {
 	DEFAULT_ROLE_MAPPING_TEMPLATE,
 	parseRoleMappingInput,
 	type RoleMapping
-} from '$lib/auth/role-mapping';
+} from '#lib/auth/role-mapping.js';
 
 export function normalizeRoleMappingForSave(value: string): RoleMapping | null {
 	const trimmed = value.trim();

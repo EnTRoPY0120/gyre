@@ -1,5 +1,5 @@
-import { logger } from '$lib/server/logger.js';
-import type { AuditLogSortBy, AuditLogSortOrder } from '$lib/server/audit';
+import { logger } from '#lib/server/logger.js';
+import type { AuditLogSortBy, AuditLogSortOrder } from '#lib/server/audit.js';
 
 export interface AuditLogPageQuery {
 	userId?: string;

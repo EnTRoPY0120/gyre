@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 
 	interface Props {
 		status?: number;
@@ -9,8 +9,8 @@
 
 	let { status: statusProp, message: messageProp, onRetry }: Props = $props();
 
-	const status = $derived(statusProp ?? $page.error?.status ?? $page.status ?? 500);
-	const message = $derived(messageProp ?? $page.error?.message ?? 'An unexpected error occurred');
+	const status = $derived(statusProp ?? page.error?.status ?? page.status ?? 500);
+	const message = $derived(messageProp ?? page.error?.message ?? 'An unexpected error occurred');
 
 	const is404 = $derived(status === 404);
 </script>

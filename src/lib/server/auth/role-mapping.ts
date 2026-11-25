@@ -1,5 +1,5 @@
-import { parseRoleMappingInput, type RoleMapping } from '$lib/auth/role-mapping';
-import { logger } from '$lib/server/logger.js';
+import { parseRoleMappingInput, type RoleMapping } from '#lib/auth/role-mapping.js';
+import { logger } from '#lib/server/logger.js';
 
 type SsoRole = 'admin' | 'editor' | 'viewer';
 const ROLE_PRIORITY: SsoRole[] = ['admin', 'editor', 'viewer'];

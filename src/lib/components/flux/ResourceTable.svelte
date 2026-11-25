@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
-	import { preferences, ITEMS_PER_PAGE_OPTIONS } from '$lib/stores/preferences.svelte';
-	import type { FluxResource } from '$lib/types/flux';
+	import { preferences, ITEMS_PER_PAGE_OPTIONS } from '#lib/stores/preferences.svelte.js';
+	import type { FluxResource } from '#lib/types/flux.js';
 	import BulkActionsToolbar from './BulkActionsToolbar.svelte';
 	import ResourceTableBody from './ResourceTableBody.svelte';
 	import ResourceTableHeader from './ResourceTableHeader.svelte';

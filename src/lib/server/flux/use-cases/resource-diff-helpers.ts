@@ -1,4 +1,4 @@
-import { FLUX_RESOURCES } from '$lib/server/kubernetes/flux/resources';
+import { FLUX_RESOURCES } from '#lib/server/kubernetes/flux/resources.js';
 
 export type DesiredResourceComparison = {
 	kind: string;

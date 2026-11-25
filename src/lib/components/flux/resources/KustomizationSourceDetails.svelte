@@ -1,8 +1,8 @@
 <script lang="ts">
-	import DetailField from '$lib/components/flux/details/DetailField.svelte';
-	import DetailGrid from '$lib/components/flux/details/DetailGrid.svelte';
-	import DetailSection from '$lib/components/flux/details/DetailSection.svelte';
-	import DetailTextField from '$lib/components/flux/details/DetailTextField.svelte';
+	import DetailField from '#lib/components/flux/details/DetailField.svelte';
+	import DetailGrid from '#lib/components/flux/details/DetailGrid.svelte';
+	import DetailSection from '#lib/components/flux/details/DetailSection.svelte';
+	import DetailTextField from '#lib/components/flux/details/DetailTextField.svelte';
 	import type { KustomizationSourceRef } from './kustomization-detail-types';
 
 	let {

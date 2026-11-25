@@ -1,6 +1,6 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
 import {
 	authenticateUser,
@@ -9,18 +9,18 @@ import {
 	normalizeUsername,
 	hashPassword,
 	verifyPassword
-} from '$lib/server/auth';
-import { logLogin } from '$lib/server/audit.js';
-import { getAuthSettings } from '$lib/server/settings';
+} from '#lib/server/auth.js';
+import { logLogin } from '#lib/server/audit.js';
+import { getAuthSettings } from '#lib/server/settings.js';
 import {
 	createBetterAuthSessionForUser,
 	getBetterAuthSessionCookieValue,
 	revokeBetterAuthSessionByCookieValue
-} from '$lib/server/auth/better-auth';
+} from '#lib/server/auth/better-auth.js';
 
 // Generate a real bcrypt hash at startup for timing-attack mitigation (avoids malformed-hash fast-path)
 const DUMMY_HASH: Promise<string> = hashPassword('__dummy_password_for_timing__');
-import { checkRateLimit, accountLockout } from '$lib/server/rate-limiter';
+import { checkRateLimit, accountLockout } from '#lib/server/rate-limiter.js';
 
 type LoginRequestBody = { username?: string; password?: string };
 

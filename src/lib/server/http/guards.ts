@@ -1,19 +1,19 @@
 import { error } from '@sveltejs/kit';
-import * as audit from '$lib/server/audit.js';
-import type { User } from '$lib/server/db/schema.js';
-import { sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
+import * as audit from '#lib/server/audit.js';
+import type { User } from '#lib/server/db/schema.js';
+import { sanitizeK8sErrorMessage } from '#lib/server/kubernetes/errors.js';
 import {
 	getAllResourcePlurals,
 	resolveFluxResourceType,
 	type FluxResourceType
-} from '$lib/server/kubernetes/flux/resources.js';
-import { checkRateLimit, sseConnectionLimiter } from '$lib/server/rate-limiter.js';
+} from '#lib/server/kubernetes/flux/resources.js';
+import { checkRateLimit, sseConnectionLimiter } from '#lib/server/rate-limiter.js';
 import {
 	checkClusterWideReadPermission,
 	checkPermission,
 	type RbacAction
-} from '$lib/server/rbac.js';
-import { validateK8sName, validateK8sNamespace } from '$lib/server/validation.js';
+} from '#lib/server/rbac.js';
+import { validateK8sName, validateK8sNamespace } from '#lib/server/validation.js';
 
 type RateLimitEvent = { setHeaders: (headers: Record<string, string>) => void };
 type RateLimitPreset = 'admin' | 'batch' | 'preferences' | 'metrics';

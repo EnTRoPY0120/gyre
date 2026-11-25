@@ -8,7 +8,7 @@
 		User,
 		XCircle
 	} from '@lucide/svelte';
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.js';
 	import type { AuditLog } from '../../../routes/admin/audit-logs/audit-log-types';
 	import AuditLogDetails from './AuditLogDetails.svelte';
 

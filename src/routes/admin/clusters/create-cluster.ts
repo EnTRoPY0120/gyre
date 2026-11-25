@@ -1,8 +1,8 @@
 import { fail } from '@sveltejs/kit';
-import { logger } from '$lib/server/logger.js';
-import { createCluster } from '$lib/server/clusters';
-import { logClusterChange } from '$lib/server/audit';
-import type { User } from '$lib/server/db/schema';
+import { logger } from '#lib/server/logger.js';
+import { createCluster } from '#lib/server/clusters.js';
+import { logClusterChange } from '#lib/server/audit.js';
+import type { User } from '#lib/server/db/schema.js';
 import type { ClusterCreateInput } from './create-validation';
 
 type CreateClusterDependencies = {

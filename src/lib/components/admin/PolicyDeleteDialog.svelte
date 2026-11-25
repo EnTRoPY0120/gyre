@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
-	import AdminConfirmDialog from '$lib/components/admin/AdminConfirmDialog.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { refreshAll } from '$app/navigation';
+	import AdminConfirmDialog from '#lib/components/admin/AdminConfirmDialog.svelte';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import type { Policy } from './policy-types';
 
 	let { policy, onClose }: { policy: Policy; onClose: () => void } = $props();
@@ -22,7 +22,7 @@
 			return async ({ result }) => {
 				if (result.type === 'success') {
 					onClose();
-					invalidateAll();
+					refreshAll();
 				}
 			};
 		}}

@@ -1,17 +1,17 @@
 import type { PageServerLoad } from './$types';
-import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
-import { resourceGroups } from '$lib/config/resources';
-import { getAdminReadinessSummary } from '$lib/server/admin-readiness.js';
-import { DASHBOARD_CACHE_TTL_MS } from '$lib/server/config/constants';
+import { IN_CLUSTER_ID } from '#lib/clusters/identity.js';
+import { resourceGroups } from '#lib/config/resources.js';
+import { getAdminReadinessSummary } from '#lib/server/admin-readiness.js';
+import { DASHBOARD_CACHE_TTL_MS } from '#lib/server/config/constants.js';
 import {
 	getDashboardCache,
 	getDashboardCacheKey,
 	setDashboardCache
-} from '$lib/server/dashboard-cache';
-import { getFluxOverviewSummary } from '$lib/server/flux/services.js';
-import { requireClusterWideRead } from '$lib/server/http/guards.js';
-import { isPermissionErrorLike } from '$lib/server/http/permission-errors.js';
-import type { AdminReadinessSummary } from '$lib/types/admin-readiness';
+} from '#lib/server/dashboard-cache.js';
+import { getFluxOverviewSummary } from '#lib/server/flux/services.js';
+import { requireClusterWideRead } from '#lib/server/http/guards.js';
+import { isPermissionErrorLike } from '#lib/server/http/permission-errors.js';
+import type { AdminReadinessSummary } from '#lib/types/admin-readiness.js';
 
 type GroupCounts = Record<
 	string,

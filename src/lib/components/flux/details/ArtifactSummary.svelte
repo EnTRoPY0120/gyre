@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatTimestamp } from '$lib/utils/flux';
+	import { formatTimestamp } from '#lib/utils/flux.js';
 	import DetailField from './DetailField.svelte';
 	import DetailGrid from './DetailGrid.svelte';
 	import DetailSection from './DetailSection.svelte';

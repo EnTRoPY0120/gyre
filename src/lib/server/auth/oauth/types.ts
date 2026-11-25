@@ -3,7 +3,7 @@
  * Common interfaces and types used across all OAuth providers.
  */
 
-import type { AuthProvider } from '$lib/server/db/schema';
+import type { AuthProvider } from '#lib/server/db/schema.js';
 
 /**
  * OAuth2 tokens returned from token endpoint

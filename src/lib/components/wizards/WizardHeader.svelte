@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Code, ListChecks } from '@lucide/svelte';
-	import { cn } from '$lib/utils';
-	import type { ResourceTemplate } from '$lib/templates';
+	import { cn } from '#lib/utils.js';
+	import type { ResourceTemplate } from '#lib/templates/index.js';
 
 	let {
 		template,

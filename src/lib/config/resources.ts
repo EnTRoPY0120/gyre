@@ -1,4 +1,4 @@
-import { FluxResourceType, type ResourceGroup, type ResourceInfo } from '$lib/types/flux';
+import { FluxResourceType, type ResourceGroup, type ResourceInfo } from '#lib/types/flux.js';
 
 /**
  * All FluxCD resource configurations organized by category

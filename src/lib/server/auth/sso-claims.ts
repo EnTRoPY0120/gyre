@@ -1,4 +1,4 @@
-import type { AuthProvider } from '$lib/server/db/schema';
+import type { AuthProvider } from '#lib/server/db/schema.js';
 import type { OAuthUserInfo } from './oauth/types';
 
 export function extractUsername(userInfo: OAuthUserInfo, config: AuthProvider): string {

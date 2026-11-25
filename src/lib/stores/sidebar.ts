@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
-import { browser } from '$app/environment';
-import { safeGetItem, safeSetItem } from '$lib/utils/storage';
+import { browser } from '$app/env';
+import { safeGetItem, safeSetItem } from '#lib/utils/storage.js';
 
 function createSidebarStore() {
 	// Load from localStorage if in browser

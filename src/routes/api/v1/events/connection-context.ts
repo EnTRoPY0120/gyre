@@ -1,4 +1,4 @@
-import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID } from '#lib/clusters/identity.js';
 
 export interface EventConnectionContext {
 	clusterId: string;

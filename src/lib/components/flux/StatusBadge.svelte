@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { K8sCondition } from '$lib/types/flux';
-	import { getResourceHealth, getHealthLabel } from '$lib/utils/flux';
+	import type { K8sCondition } from '#lib/types/flux.js';
+	import { getResourceHealth, getHealthLabel } from '#lib/utils/flux.js';
 	import { getStatusBadgeStyles } from './status-badge-styles';
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.js';
 	import { Check, Loader2, AlertTriangle, Pause, HelpCircle } from '@lucide/svelte';
 
 	interface Props {

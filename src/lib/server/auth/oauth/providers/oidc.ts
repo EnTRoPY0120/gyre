@@ -20,8 +20,8 @@ import type {
 	OAuthProviderOptions
 } from '../types';
 import { OAuthError } from '../types';
-import { generateCodeChallenge } from '$lib/server/auth/pkce';
-import { decryptSecret } from '$lib/server/auth/crypto';
+import { generateCodeChallenge } from '#lib/server/auth/pkce.js';
+import { decryptSecret } from '#lib/server/auth/crypto.js';
 import { assertSafeIssuerUrl, assertSafeOidcDiscoveryDocument } from '../url-security';
 
 /**

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
-	import { formatTimestamp } from '$lib/utils/flux';
+	import type { FluxResource } from '#lib/types/flux.js';
+	import { formatTimestamp } from '#lib/utils/flux.js';
 	import StatusBadge from './StatusBadge.svelte';
 
 	let {

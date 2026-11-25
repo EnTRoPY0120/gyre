@@ -1,14 +1,14 @@
 <script lang="ts">
-import { page } from '$app/stores';
-import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
+import { page } from '$app/state';
+import { IN_CLUSTER_ID, type ClusterOption } from '#lib/clusters/identity.js';
 import ThemeToggle from './ThemeToggle.svelte';
 	import NotificationBell from './NotificationBell.svelte';
 	import ClusterSwitcher from './ClusterSwitcher.svelte';
 	import UserMenu from './UserMenu.svelte';
 	import { ChevronRight, Menu, Search } from '@lucide/svelte';
-	import { sidebarOpen } from '$lib/stores/sidebar';
-import { commandPaletteOpen } from '$lib/stores/commandPalette';
-import { cn } from '$lib/utils';
+	import { sidebarOpen } from '#lib/stores/sidebar.js';
+import { commandPaletteOpen } from '#lib/stores/commandPalette.js';
+import { cn } from '#lib/utils.js';
 import { buildBreadcrumbs } from './breadcrumbs';
 
 	interface Props {
@@ -34,7 +34,7 @@ import { buildBreadcrumbs } from './breadcrumbs';
 	}: Props = $props();
 
 	// Build breadcrumbs from current path
-	const breadcrumbs = $derived(buildBreadcrumbs($page.url.pathname));
+	const breadcrumbs = $derived(buildBreadcrumbs(page.url.pathname));
 </script>
 
 <header

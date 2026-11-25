@@ -54,7 +54,7 @@ function buildEvent(): LoginEvent {
 beforeEach(async () => {
 	Object.assign(routeState, createRouteState());
 
-	vi.doMock('$lib/server/auth', () => ({
+	vi.doMock('#lib/server/auth.js', () => ({
 		SESSION_DURATION_DAYS: 30,
 		addPasswordHistory: async () => {},
 		authenticateUser: async () => routeState.authenticatedUser,
@@ -75,7 +75,7 @@ beforeEach(async () => {
 		}
 	}));
 
-	vi.doMock('$lib/server/settings', () => ({
+	vi.doMock('#lib/server/settings.js', () => ({
 		getAuthSettings: async () => ({
 			localLoginEnabled: routeState.localLoginEnabled,
 			allowSignup: true,
@@ -90,8 +90,8 @@ beforeEach(async () => {
 		},
 		logLogout: async () => {}
 	};
-	vi.doMock('$lib/server/audit', () => auditModuleStub);
-	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
 
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
@@ -113,13 +113,13 @@ beforeEach(async () => {
 		revokeBetterAuthSessionByCookieValue: async () => {}
 	};
 
-	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
-	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 
-	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('#lib/server/logger.js', () => createLoggerModuleStub());
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
 	POST = (await importFresh<LoginRouteModule>('../routes/api/v1/auth/login/+server.js')).POST;
 });

@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { preferences } from '$lib/stores/preferences.svelte';
-	import { toYaml, toJson, copyToClipboard } from '$lib/utils/format';
-	import { cn } from '$lib/utils';
+	import { preferences } from '#lib/stores/preferences.svelte.js';
+	import { toYaml, toJson, copyToClipboard } from '#lib/utils/format.js';
+	import { cn } from '#lib/utils.js';
 	import { Check, Copy, FileCode, Download } from '@lucide/svelte';
-	import { downloadFile } from '$lib/utils/export';
-	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
+	import { downloadFile } from '#lib/utils/export.js';
+	import MonacoEditor from '#lib/components/editors/MonacoEditor.svelte';
 	import { getCodeViewerDownload, type CodeViewerFormat } from './code-viewer-download';
 
 	let {

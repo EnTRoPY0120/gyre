@@ -1,7 +1,7 @@
 <script lang="ts">
-	import DetailField from '$lib/components/flux/details/DetailField.svelte';
-	import SecretRefBadge from '$lib/components/flux/details/SecretRefBadge.svelte';
-	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
+	import DetailField from '#lib/components/flux/details/DetailField.svelte';
+	import SecretRefBadge from '#lib/components/flux/details/SecretRefBadge.svelte';
+	import SuspendedBadge from '#lib/components/flux/details/SuspendedBadge.svelte';
 	import type { GitRepositorySecretRef } from './git-repository-detail-types';
 
 	let {

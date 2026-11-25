@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { HelpCircle, ExternalLink } from '@lucide/svelte';
-	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as Tooltip from '#lib/components/ui/tooltip/index.js';
 
 	let {
 		helpText,

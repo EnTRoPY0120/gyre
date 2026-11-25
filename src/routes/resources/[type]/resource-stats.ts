@@ -1,5 +1,5 @@
-import type { FluxResource } from '$lib/types/flux';
-import { getResourceHealth } from '$lib/utils/flux';
+import type { FluxResource } from '#lib/types/flux.js';
+import { getResourceHealth } from '#lib/utils/flux.js';
 
 export interface ResourceStats {
 	total: number;

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { invalidateAll } from '$app/navigation';
+	import { refreshAll } from '$app/navigation';
 	import type * as Monaco from 'monaco-editor';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import { saveResourceEdit } from './edit-resource';
 	import EditResourceModalEditor from './EditResourceModalEditor.svelte';
 	import EditResourceModalError from './EditResourceModalError.svelte';
@@ -69,7 +69,7 @@
 				csrfToken: getCsrfToken(),
 				validationErrors,
 				afterSave: async () => {
-					await invalidateAll();
+					await refreshAll();
 					onSuccess?.();
 					open = false;
 					onClose();

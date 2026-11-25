@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { TabConfig, TabId } from '$lib/config/tabs';
+	import type { TabConfig, TabId } from '#lib/config/tabs.js';
 
 	let {
 		tabs,

@@ -83,9 +83,9 @@ beforeEach(() => {
 	};
 	observeCalls.length = 0;
 
-	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('#lib/server/logger.js', () => createLoggerModuleStub());
 
-	vi.doMock('$lib/server/metrics.js', () => ({
+	vi.doMock('#lib/server/metrics.js', () => ({
 		httpRequestDurationMicroseconds: {
 			labels: (...labels: string[]) => ({
 				observe: (value: number) => observeCalls.push({ labels, value })
@@ -95,13 +95,13 @@ beforeEach(() => {
 		sessionsCleanedUpTotal: { inc: () => {} }
 	}));
 
-	vi.doMock('$lib/server/initialize.js', () => ({
+	vi.doMock('#lib/server/initialize.js', () => ({
 		initializeGyre: async () => {}
 	}));
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
@@ -124,28 +124,28 @@ beforeEach(() => {
 		})
 	};
 
-	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
-	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 
-	vi.doMock('$lib/server/csrf.js', () => ({
+	vi.doMock('#lib/server/csrf.js', () => ({
 		generateCsrfToken: (sessionId: string) => `csrf:${sessionId}`,
 		validateCsrfToken: () => csrfValid
 	}));
 
-	vi.doMock('$lib/server/clusters/repository.js', () => ({
+	vi.doMock('#lib/server/clusters/repository.js', () => ({
 		getClusterById: async (id: string) => {
 			getClusterByIdCalls.push(id);
 			return clusterRecord;
 		},
 		getSelectableClusters: async () => []
 	}));
-	vi.doMock('$lib/server/clusters/local-kubeconfig.js', () => ({
+	vi.doMock('#lib/server/clusters/local-kubeconfig.js', () => ({
 		getDefaultLocalKubeconfigContext: () => null,
 		hasLocalKubeconfigContext: () => false,
 		shouldUseLocalKubeconfigContexts: () => false
 	}));
 
-	vi.doMock('$lib/server/kubernetes/errors.js', () =>
+	vi.doMock('#lib/server/kubernetes/errors.js', () =>
 		createKubernetesErrorsModuleStub({
 			errorToHttpResponse: () => errorResponse
 		})

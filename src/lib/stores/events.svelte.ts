@@ -5,17 +5,17 @@
 
 export * from './events/types.js';
 
-import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID, normalizeClusterId } from '#lib/clusters/identity.js';
 import { preferences } from './preferences.svelte';
 import { clusterStore } from './cluster.svelte';
-import { logger } from '$lib/utils/logger.js';
+import { logger } from '#lib/utils/logger.js';
 import {
 	MAX_RECONNECT_ATTEMPTS,
 	RECONNECT_DELAY_MS,
 	MAX_RECONNECT_DELAY_MS,
 	MAX_NOTIFICATIONS,
 	MESSAGE_PREVIEW_LENGTH
-} from '$lib/config/constants';
+} from '#lib/config/constants.js';
 import type {
 	ConnectionStatus,
 	EventCallback,

@@ -1,18 +1,18 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { onMount, untrack } from 'svelte';
 	import { toast } from 'svelte-sonner';
-	import { eventsStore } from '$lib/stores/events.svelte';
-	import { resourceCache } from '$lib/stores/resourceCache.svelte';
-	import { createAutoRefresh } from '$lib/utils/polling.svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
-	import { BASE_TABS, DIFF_TAB, type TabId } from '$lib/config/tabs';
-	import type { FluxResource, K8sCondition } from '$lib/types/flux';
-	import type { K8sEvent, ReconciliationEntry, ResourceDiff } from '$lib/types/resource';
-	import type { DiffError } from '$lib/components/resources/tabs/DiffTab.svelte';
-	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
+	import { eventsStore } from '#lib/stores/events.svelte.js';
+	import { resourceCache } from '#lib/stores/resourceCache.svelte.js';
+	import { createAutoRefresh } from '#lib/utils/polling.svelte.js';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
+	import { BASE_TABS, DIFF_TAB, type TabId } from '#lib/config/tabs.js';
+	import type { FluxResource, K8sCondition } from '#lib/types/flux.js';
+	import type { K8sEvent, ReconciliationEntry, ResourceDiff } from '#lib/types/resource.js';
+	import type { DiffError } from '#lib/components/resources/tabs/DiffTab.svelte';
+	import ConfirmDialog from '#lib/components/flux/ConfirmDialog.svelte';
 	import { loadResourceDiff, type ResourceDiffLoadResult } from './diff-request';
 	import {
 		loadResourceEvents,
@@ -21,11 +21,11 @@
 		requestResourceRollback
 	} from './resource-requests';
 	import { matchesResourceEvent } from './resource-event-match';
-	import ResourceDetailHeader from '$lib/components/resources/ResourceDetailHeader.svelte';
-	import ResourceDetailTabPanel from '$lib/components/resources/ResourceDetailTabPanel.svelte';
-	import ResourceDetailTabs from '$lib/components/resources/ResourceDetailTabs.svelte';
-import { formatLogLine } from '$lib/components/resources/log-formatting';
-import { getTabTargetIndex } from '$lib/components/resources/tab-keyboard';
+	import ResourceDetailHeader from '#lib/components/resources/ResourceDetailHeader.svelte';
+	import ResourceDetailTabPanel from '#lib/components/resources/ResourceDetailTabPanel.svelte';
+	import ResourceDetailTabs from '#lib/components/resources/ResourceDetailTabs.svelte';
+import { formatLogLine } from '#lib/components/resources/log-formatting.js';
+import { getTabTargetIndex } from '#lib/components/resources/tab-keyboard.js';
 
 	interface Props {
 		data: {
@@ -77,14 +77,14 @@ import { getTabTargetIndex } from '$lib/components/resources/tab-keyboard';
 	}
 
 	let activeTab = $state<TabId>(
-		untrack(() => getValidTab($page.url.searchParams.get('tab')))
+		untrack(() => getValidTab(page.url.searchParams.get('tab')))
 	);
 
 	function setActiveTab(tab: TabId) {
 		activeTab = tab;
-		const url = new URL($page.url);
+		const url = new URL(page.url.href);
 		url.searchParams.set('tab', tab);
-		goto(url, { replaceState: true, keepFocus: true, noScroll: true });
+		goto(url, { replace: true, reset: false });
 	}
 
 	let events = $state<K8sEvent[]>([]);
@@ -127,7 +127,7 @@ import { getTabTargetIndex } from '$lib/components/resources/tab-keyboard';
 	});
 
 	$effect(() => {
-		const validTab = getValidTab($page.url.searchParams.get('tab'));
+		const validTab = getValidTab(page.url.searchParams.get('tab'));
 		if (activeTab !== validTab) activeTab = validTab;
 	});
 
@@ -157,7 +157,11 @@ import { getTabTargetIndex } from '$lib/components/resources/tab-keyboard';
 		eventsLoading = true;
 		eventsError = null;
 		const result = await loadResourceEvents(
-			resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/events`),
+			resolve('/api/v1/flux/[resourceType]/[namespace]/[name]/events', {
+				resourceType: data.resourceType,
+				namespace: data.namespace,
+				name: data.name
+			}),
 			signal
 		);
 		if ('aborted' in result) {
@@ -178,7 +182,11 @@ import { getTabTargetIndex } from '$lib/components/resources/tab-keyboard';
 		logsLoading = true;
 		logsError = null;
 		const result = await loadResourceLogs(
-			resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/logs`),
+			resolve('/api/v1/flux/[resourceType]/[namespace]/[name]/logs', {
+				resourceType: data.resourceType,
+				namespace: data.namespace,
+				name: data.name
+			}),
 			signal
 		);
 		if ('aborted' in result) {
@@ -198,7 +206,11 @@ import { getTabTargetIndex } from '$lib/components/resources/tab-keyboard';
 		const signal = getNewAbortSignal();
 		historyLoading = true;
 		const result = await loadResourceHistory(
-			resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/history`),
+			resolve('/api/v1/flux/[resourceType]/[namespace]/[name]/history', {
+				resourceType: data.resourceType,
+				namespace: data.namespace,
+				name: data.name
+			}),
 			signal
 		);
 		if ('aborted' in result) {
@@ -220,7 +232,11 @@ import { getTabTargetIndex } from '$lib/components/resources/tab-keyboard';
 		diffsError = null;
 		try {
 			const url = new URL(
-				resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/diff`),
+				resolve('/api/v1/flux/[resourceType]/[namespace]/[name]/diff', {
+					resourceType: data.resourceType,
+					namespace: data.namespace,
+					name: data.name
+				}),
 				window.location.origin
 			);
 			applyDiffResult(await loadResourceDiff(url.toString(), force, signal));
@@ -259,7 +275,11 @@ import { getTabTargetIndex } from '$lib/components/resources/tab-keyboard';
 	async function executeRollback(historyId: string, revision: string | null): Promise<void> {
 		const displayRevision = getRollbackDisplayRevision(historyId, revision);
 		await requestResourceRollback(
-			resolve(`/api/v1/flux/${data.resourceType}/${data.namespace}/${data.name}/rollback`),
+			resolve('/api/v1/flux/[resourceType]/[namespace]/[name]/rollback', {
+				resourceType: data.resourceType,
+				namespace: data.namespace,
+				name: data.name
+			}),
 			{ historyId, revision },
 			getCsrfToken()
 		);

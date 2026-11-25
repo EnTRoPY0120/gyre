@@ -36,19 +36,19 @@ async function callMetrics(options: {
 	user?: User | null;
 	cluster?: string;
 }): Promise<Response> {
-	vi.doMock('$lib/server/config', () => ({ ...actualConfig, IS_PROD: options.isProd }));
-	vi.doMock('$lib/server/config.js', () => ({ ...actualConfig, IS_PROD: options.isProd }));
-	vi.doMock('$lib/server/config/constants', () => ({
+	vi.doMock('#lib/server/config.js', () => ({ ...actualConfig, IS_PROD: options.isProd }));
+	vi.doMock('#lib/server/config.js', () => ({ ...actualConfig, IS_PROD: options.isProd }));
+	vi.doMock('#lib/server/config/constants.js', () => ({
 		...actualConstants,
 		GYRE_METRICS_TOKEN: options.metricsToken ?? ''
 	}));
-	vi.doMock('$lib/server/config/constants.js', () => ({
+	vi.doMock('#lib/server/config/constants.js', () => ({
 		...actualConstants,
 		GYRE_METRICS_TOKEN: options.metricsToken ?? ''
 	}));
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
 	const rbacModule = createRbacModuleStub({
 		checkPermission: async (
@@ -78,8 +78,8 @@ async function callMetrics(options: {
 				return user.role === 'admin';
 			}
 		);
-	vi.doMock('$lib/server/rbac.js', () => rbacModule);
-	vi.doMock('$lib/server/metrics', () => ({
+	vi.doMock('#lib/server/rbac.js', () => rbacModule);
+	vi.doMock('#lib/server/metrics.js', () => ({
 		...actualMetrics,
 		register: {
 			metrics: async () => '# mock metrics\n',
@@ -154,8 +154,8 @@ describe('hooks public auth route detection', () => {
 			resetAt: Date.now(),
 			retryAfter: 30
 		}));
-		vi.doMock('$lib/server/rate-limiter.js', () => ({ tryCheckRateLimit }));
-		vi.doMock('$lib/server/rate-limiter', () => ({ tryCheckRateLimit }));
+		vi.doMock('#lib/server/rate-limiter.js', () => ({ tryCheckRateLimit }));
+		vi.doMock('#lib/server/rate-limiter.js', () => ({ tryCheckRateLimit }));
 
 		const { importFresh } = await import('./helpers/import-fresh');
 		const { enforceGlobalRateLimit } = await importFresh<

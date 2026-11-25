@@ -1,8 +1,8 @@
 <script lang="ts">
-	import DetailField from '$lib/components/flux/details/DetailField.svelte';
-	import SecretRefBadge from '$lib/components/flux/details/SecretRefBadge.svelte';
-	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
-	import type { FluxResource } from '$lib/types/flux';
+	import DetailField from '#lib/components/flux/details/DetailField.svelte';
+	import SecretRefBadge from '#lib/components/flux/details/SecretRefBadge.svelte';
+	import SuspendedBadge from '#lib/components/flux/details/SuspendedBadge.svelte';
+	import type { FluxResource } from '#lib/types/flux.js';
 
 	interface Props {
 		resource: FluxResource;
