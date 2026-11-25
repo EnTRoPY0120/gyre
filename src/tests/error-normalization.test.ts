@@ -3,6 +3,10 @@ import { normalizeError } from '../lib/utils/error-normalization.js';
 
 vi.mock('#lib/server/logger.js', () => ({ logger: { error: vi.fn() } }));
 vi.mock('#lib/server/kubernetes/errors.js', () => ({ errorToHttpResponse: vi.fn() }));
+vi.mock('#lib/server/request/request-size.js', () => ({
+	createPayloadTooLargeResponse: vi.fn(),
+	isPayloadTooLargeError: vi.fn(() => false)
+}));
 
 import { normalizeHandleError } from '../lib/server/request/errors.js';
 
