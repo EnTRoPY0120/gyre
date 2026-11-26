@@ -1,5 +1,5 @@
 import type { PageServerLoad } from './$types';
-import { getAuditLogsPaginated } from '$lib/server/audit';
+import { getAuditLogsPaginated } from '#lib/server/audit.js';
 import { parseAuditLogDetails, parseAuditLogPageQuery } from './page-helpers';
 
 export const load: PageServerLoad = async ({ url }) => {

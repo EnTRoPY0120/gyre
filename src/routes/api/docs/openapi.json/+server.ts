@@ -1,8 +1,8 @@
 import { json, error } from '@sveltejs/kit';
-import { generateOpenApiSpec, createRegistry } from '$lib/server/openapi';
-import { registerApiRoutes } from '$lib/server/openapi-route';
+import { generateOpenApiSpec, createRegistry } from '#lib/server/openapi.js';
+import { registerApiRoutes } from '#lib/server/openapi-route.js';
 import type { RequestHandler } from './$types';
-import { requirePermission } from '$lib/server/rbac';
+import { requirePermission } from '#lib/server/rbac.js';
 
 // Import all API routes to register their metadata
 // Use eager: true to ensure they are loaded

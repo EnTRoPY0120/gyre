@@ -11,7 +11,7 @@
  */
 
 import { redirect } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
 import { createOAuthLoginUrl, handleOAuthLoginError } from './oauth-login-flow.js';
 
@@ -44,7 +44,7 @@ export const _metadata = {
 		}
 	}
 };
-import { tryCheckRateLimit } from '$lib/server/rate-limiter';
+import { tryCheckRateLimit } from '#lib/server/rate-limiter.js';
 
 /**
  * GET /api/auth/[providerId]/login
@@ -66,7 +66,7 @@ export const GET: RequestHandler = async (event) => {
 			);
 		}
 
-		throw redirect(302, await createOAuthLoginUrl(providerId, cookies));
+		throw redirect(302, await createOAuthLoginUrl(providerId, cookies), { external: true });
 	} catch (err) {
 		handleOAuthLoginError(err);
 	}

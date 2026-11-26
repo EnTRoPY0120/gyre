@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { GYRE_VERSION } from '$lib/config/version';
-	import { ADMIN_HOME_FEATURES } from '$lib/navigation/admin';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { GYRE_VERSION } from '#lib/config/version.js';
+	import { ADMIN_HOME_FEATURES } from '#lib/navigation/admin.js';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();

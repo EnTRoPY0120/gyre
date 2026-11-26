@@ -1,12 +1,12 @@
 import { onDestroy } from 'svelte';
 import { SvelteDate } from 'svelte/reactivity';
-import { preferences } from '$lib/stores/preferences.svelte';
-import { invalidateAll } from '$app/navigation';
+import { preferences } from '#lib/stores/preferences.svelte.js';
+import { refreshAll } from '$app/navigation';
 import { logger } from './logger.js';
 
 export interface AutoRefreshOptions {
 	/**
-	 * Custom invalidation function. If not provided, invalidateAll() is used.
+	 * Custom invalidation function. If not provided, refreshAll() is used.
 	 */
 	invalidate?: () => Promise<void>;
 }
@@ -45,7 +45,7 @@ export function createAutoRefresh(options: AutoRefreshOptions = {}) {
 			if (options.invalidate) {
 				await options.invalidate();
 			} else {
-				await invalidateAll();
+				await refreshAll();
 			}
 			lastRefreshTime = new SvelteDate();
 		} catch (error) {

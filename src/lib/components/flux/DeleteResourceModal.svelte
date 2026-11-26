@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { Button } from '$lib/components/ui/button';
-	import * as AlertDialog from '$lib/components/ui/alert-dialog';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import * as AlertDialog from '#lib/components/ui/alert-dialog/index.js';
 	import { AlertTriangle, Loader2 } from '@lucide/svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 
 	interface Props {
 		open: boolean;

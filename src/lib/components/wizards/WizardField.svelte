@@ -1,8 +1,8 @@
 <script lang="ts">
-	import FieldHelp from '$lib/components/wizards/FieldHelp.svelte';
+	import FieldHelp from '#lib/components/wizards/FieldHelp.svelte';
 	import WizardFieldControl from './WizardFieldControl.svelte';
-	import type { ReferenceOption } from '$lib/components/wizards/reference-fetch';
-	import type { TemplateField } from '$lib/templates';
+	import type { ReferenceOption } from '#lib/components/wizards/reference-fetch.js';
+	import type { TemplateField } from '#lib/templates/index.js';
 
 	let {
 		field,

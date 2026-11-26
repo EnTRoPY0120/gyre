@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
+	import type { FluxResource } from '#lib/types/flux.js';
 	import GenericResourceValue from './GenericResourceValue.svelte';
 
 	let { spec }: { spec: FluxResource['spec'] } = $props();

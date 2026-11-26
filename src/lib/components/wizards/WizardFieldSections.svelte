@@ -1,8 +1,8 @@
 <script lang="ts">
-	import WizardField from '$lib/components/wizards/WizardField.svelte';
+	import WizardField from '#lib/components/wizards/WizardField.svelte';
 	import WizardSection from './WizardSection.svelte';
-	import type { ReferenceOption } from '$lib/components/wizards/reference-fetch';
-	import type { ResourceTemplate, TemplateField } from '$lib/templates';
+	import type { ReferenceOption } from '#lib/components/wizards/reference-fetch.js';
+	import type { ResourceTemplate, TemplateField } from '#lib/templates/index.js';
 
 	let {
 		template,

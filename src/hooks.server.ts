@@ -1,21 +1,21 @@
-import { logger, withRequestContext } from '$lib/server/logger.js';
-import type { Handle } from '@sveltejs/kit';
+import { logger, withRequestContext } from '#lib/server/logger.js';
+import type { Handle, HandleServerError } from '@sveltejs/kit/hooks';
 import {
 	enforceAdminRouteGate,
 	enforceAuthenticationGate,
 	resolveClusterContext
-} from '$lib/server/request/access.js';
-import { assignRequestContext, finalizeResponse } from '$lib/server/request/context.js';
-import { enforceCsrfProtection } from '$lib/server/request/csrf.js';
-import { normalizeHandleError, resolveRouteAndMapErrors } from '$lib/server/request/errors.js';
+} from '#lib/server/request/access.js';
+import { assignRequestContext, finalizeResponse } from '#lib/server/request/context.js';
+import { enforceCsrfProtection } from '#lib/server/request/csrf.js';
+import { normalizeHandleError, resolveRouteAndMapErrors } from '#lib/server/request/errors.js';
 import {
 	ensureGyreInitialized,
 	getGyreInitializationStatus,
 	isGyreInitialized
-} from '$lib/server/request/initialization.js';
-import { enforceGlobalRateLimit } from '$lib/server/request/rate-limit.js';
-import { enforceRequestSizeLimits } from '$lib/server/request/request-size.js';
-import { hydrateSessionLocals } from '$lib/server/request/session.js';
+} from '#lib/server/request/initialization.js';
+import { enforceGlobalRateLimit } from '#lib/server/request/rate-limit.js';
+import { enforceRequestSizeLimits } from '#lib/server/request/request-size.js';
+import { hydrateSessionLocals } from '#lib/server/request/session.js';
 
 const readinessRoutes = new Set(['/api/ready', '/api/v1/ready']);
 const initializationBypassRoutes = new Set(['/api/health', '/api/v1/health', ...readinessRoutes]);
@@ -25,10 +25,11 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	return withRequestContext(context.requestId, async () => {
 		const bypassInitialization = initializationBypassRoutes.has(event.url.pathname);
-		const requestSizeResponse = await enforceRequestSizeLimits(event);
-		if (requestSizeResponse) {
-			return finalizeResponse(event, requestSizeResponse, context);
+		const requestSizeResult = await enforceRequestSizeLimits(event);
+		if (requestSizeResult instanceof Response) {
+			return finalizeResponse(event, requestSizeResult, context);
 		}
+		const requestEvent = requestSizeResult;
 
 		const rateLimitResponse = enforceGlobalRateLimit(event, isGyreInitialized());
 		if (rateLimitResponse) {
@@ -71,42 +72,35 @@ export const handle: Handle = async ({ event, resolve }) => {
 			}
 		}
 
-		const response = await resolveRouteAndMapErrors(event, async () => {
+		const response = await resolveRouteAndMapErrors(requestEvent, async () => {
 			// Session cookies are managed in the session helper via BETTER_AUTH_SESSION_COOKIE_NAME.
-			await hydrateSessionLocals(event);
+			await hydrateSessionLocals(requestEvent);
 
-			const csrfResponse = await enforceCsrfProtection(event);
+			const csrfResponse = await enforceCsrfProtection(requestEvent);
 			if (csrfResponse) {
 				return csrfResponse;
 			}
 
-			const authGateResponse = enforceAuthenticationGate(event);
+			const authGateResponse = enforceAuthenticationGate(requestEvent);
 			if (authGateResponse) {
 				return authGateResponse;
 			}
 
-			await resolveClusterContext(event);
+			await resolveClusterContext(requestEvent);
 
-			const adminGateResponse = enforceAdminRouteGate(event);
+			const adminGateResponse = enforceAdminRouteGate(requestEvent);
 			if (adminGateResponse) {
 				return adminGateResponse;
 			}
 
-			return resolve(event);
+			return resolve(requestEvent);
 		});
-		return finalizeResponse(event, response, context);
+		return finalizeResponse(requestEvent, response, context);
 	});
 };
 
 /**
  * HandleError - Global error handler
  */
-export function handleError({
-	error,
-	event
-}: {
-	error: unknown;
-	event: { url: URL; locals?: App.Locals };
-}) {
-	return normalizeHandleError({ error, event });
-}
+export const handleError: HandleServerError = ({ error, kind, event }) =>
+	normalizeHandleError({ error, kind, event });

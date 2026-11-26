@@ -1,7 +1,7 @@
-import { browser } from '$app/environment';
-import type { UserPreferences } from '$lib/types/user';
-import type { ViewPreferences } from '$lib/types/view';
-import { safeGetItem, safeSetItem, safeRemoveItem } from '$lib/utils/storage';
+import { browser } from '$app/env';
+import type { UserPreferences } from '#lib/types/user.js';
+import type { ViewPreferences } from '#lib/types/view.js';
+import { safeGetItem, safeSetItem, safeRemoveItem } from '#lib/utils/storage.js';
 import {
 	DEFAULT_NOTIFICATION_PREFERENCES,
 	normalizeNotificationPreferences,

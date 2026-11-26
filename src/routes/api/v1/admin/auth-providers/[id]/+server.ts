@@ -4,21 +4,21 @@
  * Admin-only endpoints.
  */
 
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
-import { authProviderSchema } from '$lib/server/auth/schemas';
+import { z } from '#lib/server/openapi.js';
+import { authProviderSchema } from '#lib/server/auth/schemas.js';
 import type { RequestHandler } from './$types';
-import { getDb } from '$lib/server/db';
-import { parseRoleMappingSafe } from '$lib/server/auth/role-mapping';
-import { accounts, authProviders } from '$lib/server/db/schema';
-import { validateProviderConfig } from '$lib/server/auth/oauth';
-import { buildAuthProviderUpdate } from '$lib/server/auth/provider-updates.js';
+import { getDb } from '#lib/server/db/index.js';
+import { parseRoleMappingSafe } from '#lib/server/auth/role-mapping.js';
+import { accounts, authProviders } from '#lib/server/db/schema.js';
+import { validateProviderConfig } from '#lib/server/auth/oauth/index.js';
+import { buildAuthProviderUpdate } from '#lib/server/auth/provider-updates.js';
 import { eq } from 'drizzle-orm';
 import {
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 import { handleAuthProviderLoadError } from '../auth-provider-route-errors.js';
 
 export const _metadata = {

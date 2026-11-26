@@ -1,10 +1,10 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button } from '#lib/components/ui/button/index.js';
 	import { Plus, Trash2 } from '@lucide/svelte';
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.js';
 	import type { ReferenceOption } from './reference-fetch';
 	import ArrayFieldObjectItem from './ArrayFieldObjectItem.svelte';
-	import type { TemplateField } from '$lib/templates';
+	import type { TemplateField } from '#lib/templates/index.js';
 	import { synchronizeArrayFieldItems, type ArrayFieldItem } from './array-field-items';
 
 	let {

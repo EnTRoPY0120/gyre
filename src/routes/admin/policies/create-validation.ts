@@ -1,4 +1,4 @@
-import { isValidNamespacePattern } from '$lib/server/rbac';
+import { isValidNamespacePattern } from '#lib/server/rbac.js';
 
 export interface PolicyCreateInput {
 	name: string;

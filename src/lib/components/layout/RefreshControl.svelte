@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { preferences } from '$lib/stores/preferences.svelte';
-	import { formatLastRefresh } from '$lib/utils/polling.svelte';
+	import { preferences } from '#lib/stores/preferences.svelte.js';
+	import { formatLastRefresh } from '#lib/utils/polling.svelte.js';
 
 	interface Props {
 		isRefreshing: boolean;

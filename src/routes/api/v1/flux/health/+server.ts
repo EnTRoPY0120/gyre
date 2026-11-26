@@ -1,9 +1,9 @@
 import { json } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { getFluxHealthSummary } from '$lib/server/flux/services.js';
-import { setPrivateCacheHeaders } from '$lib/server/http/transport.js';
+import { handleApiError } from '#lib/server/kubernetes/errors.js';
+import { getFluxHealthSummary } from '#lib/server/flux/services.js';
+import { setPrivateCacheHeaders } from '#lib/server/http/transport.js';
 
 export const _metadata = {
 	GET: {

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { modalFocusTrap } from '$lib/utils/focus-trap';
-	import { parseRoleMappingInput } from '$lib/auth/role-mapping';
+	import { modalFocusTrap } from '#lib/utils/focus-trap.js';
+	import { parseRoleMappingInput } from '#lib/auth/role-mapping.js';
 	import type { AuthProviderFormData } from './auth-provider';
 	import AuthProviderAdvancedSettings from './AuthProviderAdvancedSettings.svelte';
 	import AuthProviderFormActions from './AuthProviderFormActions.svelte';

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Button from '$lib/components/ui/button/button.svelte';
+	import Button from '#lib/components/ui/button/button.svelte';
 	import { goto } from '$app/navigation';
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { resourceGroups } from '$lib/config/resources';
+	import { resourceGroups } from '#lib/config/resources.js';
 </script>
 
 <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

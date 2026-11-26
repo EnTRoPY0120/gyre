@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { preferences } from '$lib/stores/preferences.svelte';
+	import { preferences } from '#lib/stores/preferences.svelte.js';
 
 	const viewMode = $derived(preferences.viewMode);
 </script>

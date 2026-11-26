@@ -1,5 +1,5 @@
 import * as k8s from '@kubernetes/client-node';
-import type { K8sEvent } from '$lib/types/events';
+import type { K8sEvent } from '#lib/types/events.js';
 
 const FLUX_COMPONENTS = [
 	'source-controller',

@@ -1,15 +1,15 @@
 import { json } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { listFluxResourcesInNamespace, type ReqCache } from '$lib/server/kubernetes/client.js';
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
+import { listFluxResourcesInNamespace, type ReqCache } from '#lib/server/kubernetes/client.js';
+import type { FluxResourceType } from '#lib/server/kubernetes/flux/resources.js';
+import { handleApiError } from '#lib/server/kubernetes/errors.js';
 import {
 	requireAuthenticatedUser,
 	requireScopedPermission,
 	resolveFluxRouteResourceType
-} from '$lib/server/http/guards.js';
-import { validateK8sNamespace } from '$lib/server/validation';
+} from '#lib/server/http/guards.js';
+import { validateK8sNamespace } from '#lib/server/validation.js';
 
 export const _metadata = {
 	GET: {

@@ -1,4 +1,4 @@
-import type { K8sEvent, ReconciliationEntry } from '$lib/types/resource';
+import type { K8sEvent, ReconciliationEntry } from '#lib/types/resource.js';
 
 export interface ResourceEventsResponse {
 	events: K8sEvent[];

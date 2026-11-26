@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import Icon from '#lib/components/ui/Icon.svelte';
 	import CommandPaletteHighlight from './CommandPaletteHighlight.svelte';
 	import type { SearchResult } from './CommandPaletteTypes';
 

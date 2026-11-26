@@ -7,11 +7,11 @@
  * DELETE /api/admin/backups?filename= — Delete a specific backup
  */
 
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
-import { z, errorSchema } from '$lib/server/openapi';
+import { z, errorSchema } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { createBackup, listBackups, deleteBackup, BACKUP_FILENAME_RE } from '$lib/server/backup';
+import { createBackup, listBackups, deleteBackup, BACKUP_FILENAME_RE } from '#lib/server/backup.js';
 
 const backupSchema = z.object({
 	filename: z.string().openapi({ example: 'gyre-backup-2024-01-15T10-30-00.db' }),
@@ -137,7 +137,7 @@ import {
 	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 
 /**
  * GET /api/admin/backups

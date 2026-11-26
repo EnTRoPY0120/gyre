@@ -1,6 +1,6 @@
-import { z } from '$lib/server/openapi';
-import type { UserPreferences } from '$lib/types/user';
-import { ADMIN_ONBOARDING_CHECKLIST_IDS } from '$lib/user-preferences';
+import { z } from '#lib/server/openapi.js';
+import type { UserPreferences } from '#lib/types/user.js';
+import { ADMIN_ONBOARDING_CHECKLIST_IDS } from '#lib/user-preferences.js';
 
 const notificationPreferencesSchema = z
 	.object({

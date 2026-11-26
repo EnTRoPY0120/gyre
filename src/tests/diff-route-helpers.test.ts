@@ -62,7 +62,7 @@ describe('validateDiffRoute', () => {
 
 describe('authorizeDiffRoute', () => {
 	test('requires authentication and scoped read access', async () => {
-		const guards = await import('$lib/server/http/guards.js');
+		const guards = await import('#lib/server/http/guards.js');
 		const auth = vi.spyOn(guards, 'requireAuthenticatedUser').mockImplementation(() => undefined);
 		const permission = vi.spyOn(guards, 'requireScopedPermission').mockResolvedValue(undefined);
 

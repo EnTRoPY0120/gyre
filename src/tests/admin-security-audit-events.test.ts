@@ -79,20 +79,20 @@ beforeEach(async () => {
 		logLogout: async () => {},
 		logResourceWrite: async () => {}
 	};
-	vi.doMock('$lib/server/audit', () => auditModuleStub);
-	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
 
 	const rbacModuleStub = createRbacModuleStub({
 		checkPermission: async () => permissionAllowed
 	});
-	vi.doMock('$lib/server/rbac.js', () => rbacModuleStub);
-	vi.doMock('$lib/server/rbac', () => rbacModuleStub);
+	vi.doMock('#lib/server/rbac.js', () => rbacModuleStub);
+	vi.doMock('#lib/server/rbac.js', () => rbacModuleStub);
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
-	vi.doMock('$lib/server/db', () => ({
+	vi.doMock('#lib/server/db/index.js', () => ({
 		getDb: async () => ({
 			query: {
 				authProviders: {
@@ -144,7 +144,7 @@ beforeEach(async () => {
 		})
 	}));
 
-	vi.doMock('$lib/auth/role-mapping', () => ({
+	vi.doMock('#lib/auth/role-mapping.js', () => ({
 		parseRoleMappingInput: (input: unknown) => {
 			if (!input) return null;
 			if (typeof input === 'object') return input;
@@ -152,7 +152,7 @@ beforeEach(async () => {
 		}
 	}));
 
-	vi.doMock('$lib/server/auth/role-mapping', () => ({
+	vi.doMock('#lib/server/auth/role-mapping.js', () => ({
 		parseRoleMappingSafe: (value: unknown) => {
 			if (!value) return null;
 			if (typeof value === 'string') {
@@ -166,13 +166,13 @@ beforeEach(async () => {
 		}
 	}));
 
-	vi.doMock('$lib/server/auth/oauth', () => ({
+	vi.doMock('#lib/server/auth/oauth/index.js', () => ({
 		validateProviderConfig: () => ({ valid: true, errors: [] })
 	}));
 
-	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
+	vi.doMock('#lib/server/auth/crypto.js', () => createAuthCryptoModuleStub());
 
-	vi.doMock('$lib/server/settings', () =>
+	vi.doMock('#lib/server/settings.js', () =>
 		createSettingsModuleStub({
 			setSettings: async (values: Array<{ key: string; value: string }>) => {
 				settingWrites.push(...values.map(({ key, value }) => [key, value] as [string, string]));
@@ -187,7 +187,7 @@ beforeEach(async () => {
 		})
 	);
 
-	vi.doMock('$lib/server/kubernetes/client.js', () => ({
+	vi.doMock('#lib/server/kubernetes/client.js', () => ({
 		...actualKubernetesClient,
 		clearClientPool: () => {
 			clearPoolCalls += 1;

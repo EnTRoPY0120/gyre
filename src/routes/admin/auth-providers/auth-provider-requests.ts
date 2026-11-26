@@ -1,5 +1,5 @@
-import { getCsrfToken } from '$lib/utils/csrf';
-import type { AuthProviderFormData } from '$lib/components/admin/auth-provider';
+import { getCsrfToken } from '#lib/utils/csrf.js';
+import type { AuthProviderFormData } from '#lib/components/admin/auth-provider.js';
 import { buildAuthProviderUpdates, normalizeRoleMappingForSave } from './form-helpers';
 
 function getMessageFromResponseData(data: unknown, fallbackMessage: string): string {

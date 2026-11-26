@@ -71,8 +71,8 @@ beforeEach(() => {
 	sessionLifecycleCalls.length = 0;
 	signOutCalls = 0;
 
-	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
-	vi.doMock('$lib/server/metrics.js', () => ({
+	vi.doMock('#lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('#lib/server/metrics.js', () => ({
 		httpRequestDurationMicroseconds: {
 			labels: () => ({
 				observe: () => {}
@@ -81,28 +81,28 @@ beforeEach(() => {
 		loginAttemptsTotal: { labels: () => ({ inc: () => {} }) },
 		sessionsCleanedUpTotal: { inc: () => {} }
 	}));
-	vi.doMock('$lib/server/request/initialization.js', () => ({
+	vi.doMock('#lib/server/request/initialization.js', () => ({
 		ensureGyreInitialized: async () => {},
 		isGyreInitialized: () => true
 	}));
-	vi.doMock('$lib/server/request/rate-limit.js', () => ({
+	vi.doMock('#lib/server/request/rate-limit.js', () => ({
 		enforceGlobalRateLimit: () => null
 	}));
-	vi.doMock('$lib/server/request/request-size.js', () => ({
+	vi.doMock('#lib/server/request/request-size.js', () => ({
 		STATE_CHANGING_METHODS: ['POST', 'PUT', 'DELETE', 'PATCH'],
 		createPayloadTooLargeResponse: () => new Response('payload too large', { status: 413 }),
-		enforceRequestSizeLimits: async () => null,
+		enforceRequestSizeLimits: async (event: RequestEvent) => event,
 		isPayloadTooLargeError: () => false
 	}));
-	vi.doMock('$lib/server/initialize.js', () => ({
+	vi.doMock('#lib/server/initialize.js', () => ({
 		initializeGyre: async () => {}
 	}));
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
-	vi.doMock('$lib/server/settings', () =>
+	vi.doMock('#lib/server/settings.js', () =>
 		createSettingsModuleStub({
 			getAuthSettings: async () => ({
 				localLoginEnabled: true,
@@ -128,29 +128,29 @@ beforeEach(() => {
 		normalizeUsername: (username: string) => username.trim().toLowerCase(),
 		verifyPassword: async () => true
 	};
-	vi.doMock('$lib/server/auth', () => authModuleStub);
-	vi.doMock('$lib/server/auth.js', () => authModuleStub);
+	vi.doMock('#lib/server/auth.js', () => authModuleStub);
+	vi.doMock('#lib/server/auth.js', () => authModuleStub);
 	const auditModuleStub = {
 		logAudit: async () => {},
 		logLogin: async () => {},
 		logLogout: async () => {}
 	};
-	vi.doMock('$lib/server/audit', () => auditModuleStub);
-	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
-	vi.doMock('$lib/server/rbac.js', () =>
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkClusterWideReadPermission: async () => true
 		})
 	);
-	vi.doMock('$lib/server/flux/services.js', () => ({
+	vi.doMock('#lib/server/flux/services.js', () => ({
 		getFluxInstalledVersion: async () => ({ version: 'v2.3.0' })
 	}));
-	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
-	vi.doMock('$lib/server/clusters/repository.js', () => ({
+	vi.doMock('#lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
+	vi.doMock('#lib/server/clusters/repository.js', () => ({
 		getClusterById: async () => ({ id: 'cluster-a', isActive: true }),
 		getSelectableClusters: async () => []
 	}));
-	vi.doMock('$lib/server/csrf.js', () => ({
+	vi.doMock('#lib/server/csrf.js', () => ({
 		generateCsrfToken: (sessionId: string) => `csrf:${sessionId}`,
 		validateCsrfToken: (sessionId: string, token: string) => token === `csrf:${sessionId}`
 	}));
@@ -195,8 +195,8 @@ beforeEach(() => {
 			sessionLifecycleCalls.push(`revoke:${cookieValue}`);
 		}
 	};
-	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
-	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 });
 
 afterEach(() => {

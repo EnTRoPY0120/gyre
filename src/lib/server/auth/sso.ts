@@ -3,8 +3,8 @@
  * Handles automatic user creation and role mapping from SSO providers.
  */
 
-import { getDb } from '$lib/server/db';
-import { accounts, type AuthProvider, type User } from '$lib/server/db/schema';
+import { getDb } from '#lib/server/db/index.js';
+import { accounts, type AuthProvider, type User } from '#lib/server/db/schema.js';
 import type { OAuthTokens, OAuthUserInfo } from './oauth/types';
 import { eq, and } from 'drizzle-orm';
 import { getAuthSettings } from '../settings.js';

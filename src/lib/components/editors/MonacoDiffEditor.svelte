@@ -1,8 +1,8 @@
 <script lang="ts">
 import { onMount } from 'svelte';
-import { browser } from '$app/environment';
-import { theme } from '$lib/stores/theme.svelte';
-import { logger } from '$lib/utils/logger.js';
+import { browser } from '$app/env';
+import { theme } from '#lib/stores/theme.svelte.js';
+import { logger } from '#lib/utils/logger.js';
 import type * as Monaco from 'monaco-editor';
 import { defineMonacoThemes } from './monacoTheme';
 import { getMonacoWorker } from './monaco-workers';

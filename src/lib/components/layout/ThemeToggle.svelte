@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { theme, type Theme } from '$lib/stores/theme.svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { theme, type Theme } from '#lib/stores/theme.svelte.js';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import { Sun, Moon, Monitor, Check } from '@lucide/svelte';
 	import {
 		applyThemeButtonKeyAction,

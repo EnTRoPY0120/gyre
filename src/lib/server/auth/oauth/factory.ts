@@ -3,15 +3,15 @@
  * Creates the appropriate OAuth provider based on configuration.
  */
 
-import type { AuthProvider } from '$lib/server/db/schema';
+import type { AuthProvider } from '#lib/server/db/schema.js';
 import type { IOAuthProvider } from './types';
 import { OAuthError, ProviderType } from './types';
 import { OIDCProvider } from './providers/oidc';
 import { GitHubProvider } from './providers/github';
 import { GitLabProvider } from './providers/gitlab';
 import { GoogleProvider } from './providers/google';
-import { getDb } from '$lib/server/db';
-import { authProviders } from '$lib/server/db/schema';
+import { getDb } from '#lib/server/db/index.js';
+import { authProviders } from '#lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
 export { validateProviderConfig } from './provider-config-validation.js';
 

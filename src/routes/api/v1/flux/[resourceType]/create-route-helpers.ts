@@ -1,12 +1,12 @@
 import { error } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import {
 	getAllResourcePlurals,
 	getResourceDef,
 	getResourceTypeByPlural,
 	type FluxResourceType
-} from '$lib/server/kubernetes/flux/resources.js';
-import { validateK8sNamespace, validateFluxResourceSpec } from '$lib/server/validation';
+} from '#lib/server/kubernetes/flux/resources.js';
+import { validateK8sNamespace, validateFluxResourceSpec } from '#lib/server/validation.js';
 
 /** Zod schema shared by the runtime request validator and OpenAPI metadata. */
 export const createFluxResourceBodySchema = z.looseObject({

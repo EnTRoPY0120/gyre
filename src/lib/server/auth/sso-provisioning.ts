@@ -1,8 +1,8 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { createHash } from 'node:crypto';
-import { accounts, users, type AuthProvider, type User } from '$lib/server/db/schema';
-import { getDb } from '$lib/server/db';
-import { generateUserId, normalizeUsername } from '$lib/server/auth';
+import { accounts, users, type AuthProvider, type User } from '#lib/server/db/schema.js';
+import { getDb } from '#lib/server/db/index.js';
+import { generateUserId, normalizeUsername } from '#lib/server/auth.js';
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
 import type { OAuthTokens, OAuthUserInfo } from './oauth/types';
 import type { SSOUserResult } from './sso';

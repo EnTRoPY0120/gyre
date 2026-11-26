@@ -13,13 +13,15 @@ const admin = { id: 'admin-1', username: 'admin', role: 'admin' } as User;
 beforeEach(async () => {
 	updateUser.mockReset().mockResolvedValue({ id: 'target-1', username: 'target' });
 	logUserManagement.mockReset().mockResolvedValue(undefined);
-	vi.doMock('$lib/server/rbac', () => ({ isAdmin: (user: User | null) => user?.role === 'admin' }));
-	vi.doMock('$lib/server/auth', () => ({
+	vi.doMock('#lib/server/rbac.js', () => ({
+		isAdmin: (user: User | null) => user?.role === 'admin'
+	}));
+	vi.doMock('#lib/server/auth.js', () => ({
 		listUsersPaginated: vi.fn(),
 		updateUser,
 		deleteUser: vi.fn()
 	}));
-	vi.doMock('$lib/server/audit', () => ({ logUserManagement }));
+	vi.doMock('#lib/server/audit.js', () => ({ logUserManagement }));
 	vi.doMock('../routes/admin/users/create-user', () => ({ createUserAndLog: vi.fn() }));
 	vi.doMock('../routes/admin/users/reset-password', () => ({ resetPasswordAction: vi.fn() }));
 	const module = await importFresh<UsersPageModule>('../routes/admin/users/+page.server.js');
@@ -27,9 +29,9 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-	vi.doUnmock('$lib/server/rbac');
-	vi.doUnmock('$lib/server/auth');
-	vi.doUnmock('$lib/server/audit');
+	vi.doUnmock('#lib/server/rbac.js');
+	vi.doUnmock('#lib/server/auth.js');
+	vi.doUnmock('#lib/server/audit.js');
 	vi.doUnmock('../routes/admin/users/create-user');
 	vi.doUnmock('../routes/admin/users/reset-password');
 	vi.resetModules();

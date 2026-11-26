@@ -1,15 +1,15 @@
 <script lang="ts">
-	import AlertDetail from '$lib/components/flux/resources/AlertDetail.svelte';
-	import BucketDetail from '$lib/components/flux/resources/BucketDetail.svelte';
-	import GitRepositoryDetail from '$lib/components/flux/resources/GitRepositoryDetail.svelte';
-	import HelmChartDetail from '$lib/components/flux/resources/HelmChartDetail.svelte';
-	import HelmReleaseDetail from '$lib/components/flux/resources/HelmReleaseDetail.svelte';
-	import HelmRepositoryDetail from '$lib/components/flux/resources/HelmRepositoryDetail.svelte';
-	import KustomizationDetail from '$lib/components/flux/resources/KustomizationDetail.svelte';
-	import OCIRepositoryDetail from '$lib/components/flux/resources/OCIRepositoryDetail.svelte';
-	import ProviderDetail from '$lib/components/flux/resources/ProviderDetail.svelte';
-	import ReceiverDetail from '$lib/components/flux/resources/ReceiverDetail.svelte';
-	import type { FluxResource } from '$lib/types/flux';
+	import AlertDetail from '#lib/components/flux/resources/AlertDetail.svelte';
+	import BucketDetail from '#lib/components/flux/resources/BucketDetail.svelte';
+	import GitRepositoryDetail from '#lib/components/flux/resources/GitRepositoryDetail.svelte';
+	import HelmChartDetail from '#lib/components/flux/resources/HelmChartDetail.svelte';
+	import HelmReleaseDetail from '#lib/components/flux/resources/HelmReleaseDetail.svelte';
+	import HelmRepositoryDetail from '#lib/components/flux/resources/HelmRepositoryDetail.svelte';
+	import KustomizationDetail from '#lib/components/flux/resources/KustomizationDetail.svelte';
+	import OCIRepositoryDetail from '#lib/components/flux/resources/OCIRepositoryDetail.svelte';
+	import ProviderDetail from '#lib/components/flux/resources/ProviderDetail.svelte';
+	import ReceiverDetail from '#lib/components/flux/resources/ReceiverDetail.svelte';
+	import type { FluxResource } from '#lib/types/flux.js';
 	import GenericResourceConfiguration from './GenericResourceConfiguration.svelte';
 
 	let {

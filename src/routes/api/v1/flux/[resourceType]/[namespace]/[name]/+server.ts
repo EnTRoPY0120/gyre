@@ -1,11 +1,11 @@
 import { json } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { updateFluxResource, type ReqCache } from '$lib/server/kubernetes/client.js';
-import { type FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
-import { handleApiError } from '$lib/server/kubernetes/errors.js';
-import { deleteResource } from '$lib/server/kubernetes/flux/actions.js';
-import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
+import { updateFluxResource, type ReqCache } from '#lib/server/kubernetes/client.js';
+import { type FluxResourceType } from '#lib/server/kubernetes/flux/resources.js';
+import { handleApiError } from '#lib/server/kubernetes/errors.js';
+import { deleteResource } from '#lib/server/kubernetes/flux/actions.js';
+import { validateK8sNamespace, validateK8sName } from '#lib/server/validation.js';
 import {
 	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
@@ -13,18 +13,18 @@ import {
 	requireClusterContext,
 	requireScopedPermission,
 	resolveFluxRouteResourceType
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 import {
 	computeWeakEtag,
 	respondNotModified,
 	setPrivateCacheHeaders
-} from '$lib/server/http/transport.js';
+} from '#lib/server/http/transport.js';
 import { executePrivilegedDelete } from './delete-route-helpers.js';
-import { getFluxResourceDetail } from '$lib/server/flux/services.js';
+import { getFluxResourceDetail } from '#lib/server/flux/services.js';
 import {
 	parseFluxResourceUpdateBody,
 	validateFluxResourceUpdateManifest
-} from '$lib/server/flux/use-cases/resource-update.js';
+} from '#lib/server/flux/use-cases/resource-update.js';
 
 export const _metadata = {
 	GET: {

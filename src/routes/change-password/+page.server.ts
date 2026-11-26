@@ -1,8 +1,8 @@
 import type { PageServerLoad } from './$types';
 import { redirect, error } from '@sveltejs/kit';
-import { GYRE_VERSION } from '$lib/config/version';
-import { hasManagedPassword } from '$lib/server/auth';
-import { ADMIN_SECRET_NAME } from '$lib/server/auth/constants.js';
+import { GYRE_VERSION } from '#lib/config/version.js';
+import { hasManagedPassword } from '#lib/server/auth.js';
+import { ADMIN_SECRET_NAME } from '#lib/server/auth/constants.js';
 
 /**
  * Load function for change password page

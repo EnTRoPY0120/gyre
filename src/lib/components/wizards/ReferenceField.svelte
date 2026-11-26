@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { logger } from '$lib/utils/logger.js';
+	import { logger } from '#lib/utils/logger.js';
 	import {
 		fetchReferenceResources,
 		getReferenceResourcesAfterFetch,

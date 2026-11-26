@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ResourceDiffViewer from '$lib/components/flux/ResourceDiffViewer.svelte';
-	import type { ResourceDiff } from '$lib/types/resource';
+	import ResourceDiffViewer from '#lib/components/flux/ResourceDiffViewer.svelte';
+	import type { ResourceDiff } from '#lib/types/resource.js';
 	import DiffTabError from './DiffTabError.svelte';
 	import DiffTabHeader from './DiffTabHeader.svelte';
 	import DiffTabLoading from './DiffTabLoading.svelte';

@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { preferences } from '$lib/stores/preferences.svelte';
-	import { Button } from '$lib/components/ui/button';
-	import { Checkbox } from '$lib/components/ui/checkbox';
-	import { Label } from '$lib/components/ui/label';
-	import { Input } from '$lib/components/ui/input';
+	import { preferences } from '#lib/stores/preferences.svelte.js';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import { Checkbox } from '#lib/components/ui/checkbox/index.js';
+	import { Label } from '#lib/components/ui/label/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
 	import { toast } from 'svelte-sonner';
-	import { getCsrfToken } from '$lib/utils/csrf';
-	import { logger } from '$lib/utils/logger.js';
-	import { normalizeNotificationPreferences } from '$lib/stores/notification-preferences';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
+	import { logger } from '#lib/utils/logger.js';
+	import { normalizeNotificationPreferences } from '#lib/stores/notification-preferences.js';
 
 	// Resource types from flux types or just hardcode common ones
 	const resourceTypes = [

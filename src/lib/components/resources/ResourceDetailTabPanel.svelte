@@ -1,15 +1,15 @@
 <script lang="ts">
-	import CodeViewer from '$lib/components/common/CodeViewer.svelte';
-	import ErrorDisplay from '$lib/components/ui/ErrorDisplay.svelte';
-	import DiffTab, { type DiffError } from '$lib/components/resources/tabs/DiffTab.svelte';
-	import EventsTab from '$lib/components/resources/tabs/EventsTab.svelte';
-	import HistoryTab from '$lib/components/resources/tabs/HistoryTab.svelte';
-	import LogsTab from '$lib/components/resources/tabs/LogsTab.svelte';
-	import OverviewTab from '$lib/components/resources/tabs/OverviewTab.svelte';
-	import type { TabId } from '$lib/config/tabs';
-	import type { FluxResource, K8sCondition } from '$lib/types/flux';
-	import type { K8sEvent, ReconciliationEntry, ResourceDiff } from '$lib/types/resource';
-	import { sanitizeResource } from '$lib/utils/kubernetes';
+	import CodeViewer from '#lib/components/common/CodeViewer.svelte';
+	import ErrorDisplay from '#lib/components/ui/ErrorDisplay.svelte';
+	import DiffTab, { type DiffError } from '#lib/components/resources/tabs/DiffTab.svelte';
+	import EventsTab from '#lib/components/resources/tabs/EventsTab.svelte';
+	import HistoryTab from '#lib/components/resources/tabs/HistoryTab.svelte';
+	import LogsTab from '#lib/components/resources/tabs/LogsTab.svelte';
+	import OverviewTab from '#lib/components/resources/tabs/OverviewTab.svelte';
+	import type { TabId } from '#lib/config/tabs.js';
+	import type { FluxResource, K8sCondition } from '#lib/types/flux.js';
+	import type { K8sEvent, ReconciliationEntry, ResourceDiff } from '#lib/types/resource.js';
+	import { sanitizeResource } from '#lib/utils/kubernetes.js';
 
 	export interface FormattedLog {
 		ts: string;

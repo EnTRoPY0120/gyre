@@ -1,4 +1,4 @@
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 
 export const fluxResourceParamsSchema = z.object({
 	resourceType: z.string().openapi({ example: 'gitrepositories' }),

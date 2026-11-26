@@ -1,7 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { randomBytes, randomInt } from 'node:crypto';
 import { logger } from '../logger.js';
-import { passwordSchema } from '$lib/utils/validation.js';
+import { passwordSchema } from '#lib/utils/validation.js';
 import { SALT_ROUNDS } from './constants.js';
 
 function warnIfWeakAdminPassword(password: string): void {

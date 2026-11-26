@@ -1,4 +1,4 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 
 let initialized = false;
 let initializingPromise: Promise<void> | undefined;
@@ -24,7 +24,7 @@ export async function ensureGyreInitialized(): Promise<void> {
 	if (!initializingPromise) {
 		initializationState = 'initializing';
 		failureMessage = undefined;
-		initializingPromise = import('$lib/server/initialize.js')
+		initializingPromise = import('#lib/server/initialize.js')
 			.then(({ initializeGyre }) => initializeGyre())
 			.then(() => {
 				initialized = true;

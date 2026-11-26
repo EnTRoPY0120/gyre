@@ -1,4 +1,4 @@
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 
 export const providerTypeSchema = z.enum([
 	'oidc',

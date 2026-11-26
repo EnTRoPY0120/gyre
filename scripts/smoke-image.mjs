@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /* oxlint-disable no-console -- CLI progress and diagnostics belong on stdout/stderr. */
 import { execFileSync, spawn } from 'node:child_process';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { isDeepStrictEqual } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { parseAllDocuments } from 'yaml';
 
@@ -15,8 +16,10 @@ const timeoutMs = 120_000;
 const owned = {
 	container: '',
 	cluster: '',
+	namespace: '',
 	kubeconfig: '',
 	portForward: undefined,
+	portForwardDiagnostics: undefined,
 	children: new Set()
 };
 let tempDir;
@@ -27,12 +30,22 @@ let requestedExitCode;
 const cleanupErrors = [];
 const sensitiveValues = new Set();
 
-function redact(value) {
+/**
+ * @param {unknown} value
+ * @param {Iterable<string>} secrets
+ * @returns {string}
+ */
+export function redact(value, secrets = sensitiveValues) {
 	let message = String(value);
-	for (const secret of sensitiveValues) {
+	for (const secret of new Set(secrets)) {
 		if (secret) message = message.replaceAll(secret, '[REDACTED]');
 	}
-	return message;
+	return message
+		.replace(/\b(authorization\s*:\s*bearer)\s+[^\s,;]+/gi, '$1 [REDACTED]')
+		.replace(
+			/(["']?[\w.-]*(?:password|token|secret)["']?\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s,;]+)/gi,
+			'$1[REDACTED]'
+		);
 }
 
 function fail(message) {
@@ -172,6 +185,28 @@ function isExpectedBrowserConsoleError(text) {
 	return blockedThemeScript || blockedKnownFontStylesheet;
 }
 
+/**
+ * A newer SvelteKit navigation may supersede an in-flight route-data fetch.
+ * Only that exact same-origin request cancellation is expected during smoke navigation.
+ * @param {{url: () => string, resourceType: () => string, failure: () => {errorText: string} | null}} request
+ * @param {string} baseUrl
+ * @returns {boolean}
+ */
+export function isExpectedSvelteKitDataCancellation(request, baseUrl) {
+	if (request.resourceType() !== 'fetch' || request.failure()?.errorText !== 'net::ERR_ABORTED') {
+		return false;
+	}
+
+	try {
+		const requestUrl = new URL(request.url());
+		return (
+			requestUrl.origin === new URL(baseUrl).origin && requestUrl.pathname.endsWith('/__data.json')
+		);
+	} catch {
+		return false;
+	}
+}
+
 async function waitFor(check, message, timeout = timeoutMs) {
 	const end = Date.now() + timeout;
 	while (Date.now() < end) {
@@ -305,7 +340,10 @@ async function runtimeAndBrowser(image, platform) {
 	});
 	page.on('requestfailed', (request) => {
 		const requestUrl = new URL(request.url());
-		if (requestUrl.origin === baseUrl || requestUrl.pathname.startsWith('/_app/')) {
+		if (
+			(requestUrl.origin === baseUrl && !isExpectedSvelteKitDataCancellation(request, baseUrl)) ||
+			(requestUrl.origin !== baseUrl && requestUrl.pathname.startsWith('/_app/'))
+		) {
 			browserErrors.push(`${request.method()} ${request.url()} failed`);
 		}
 	});
@@ -574,6 +612,7 @@ async function clusterAndFlux(image, platform) {
 	const namespace = `gyre-smoke-${suffix}`;
 	const kubeconfigPath = join(tempDir, 'kind.kubeconfig');
 	owned.cluster = clusterName;
+	owned.namespace = namespace;
 	owned.kubeconfig = kubeconfigPath;
 	console.log(`Creating disposable Kind cluster for ${platform}.`);
 	await runAsync(
@@ -890,9 +929,16 @@ async function clusterAndFlux(image, platform) {
 	let portForwardStdout = '';
 	let portForwardStderr = '';
 	let partialPortForwardLine = '';
+	owned.portForwardDiagnostics = {
+		port: portForwardPort,
+		stdout: '',
+		stderr: '',
+		failure: ''
+	};
 	owned.portForward.stdout.on('data', (chunk) => {
 		const output = partialPortForwardLine + chunk.toString();
 		portForwardStdout = (portForwardStdout + output).slice(-4000);
+		owned.portForwardDiagnostics.stdout = portForwardStdout;
 		const lines = output.split(/\r?\n/);
 		partialPortForwardLine = lines.pop() ?? '';
 		if (lines.includes(`Forwarding from 127.0.0.1:${portForwardPort} -> 3000`)) {
@@ -901,13 +947,16 @@ async function clusterAndFlux(image, platform) {
 	});
 	owned.portForward.stderr.on('data', (chunk) => {
 		portForwardStderr = (portForwardStderr + chunk.toString()).slice(-4000);
+		owned.portForwardDiagnostics.stderr = portForwardStderr;
 	});
 	owned.portForward.once('error', (error) => {
 		portForwardFailure = `kubectl port-forward could not start: ${error.message}`;
+		owned.portForwardDiagnostics.failure = portForwardFailure;
 	});
 	owned.portForward.once('close', (code, signal) => {
 		owned.children.delete(owned.portForward);
 		portForwardFailure ||= `kubectl port-forward exited (code ${code ?? 'none'}, signal ${signal ?? 'none'})`;
+		owned.portForwardDiagnostics.failure = portForwardFailure;
 	});
 	try {
 		await waitFor(
@@ -985,7 +1034,10 @@ async function clusterAndFlux(image, platform) {
 			expectedForbiddenResponseSeen = true;
 	});
 	page.on('requestfailed', (request) => {
-		if (new URL(request.url()).origin === baseUrl)
+		if (
+			new URL(request.url()).origin === baseUrl &&
+			!isExpectedSvelteKitDataCancellation(request, baseUrl)
+		)
 			browserErrors.push(
 				`${request.method()} ${redact(request.url())} failed (${request.resourceType()}, ${redact(request.failure()?.errorText ?? 'unknown error')}; page ${redact(page.url())})`
 			);
@@ -1697,6 +1749,91 @@ async function clusterAndFlux(image, platform) {
 	);
 }
 
+async function collectFailureDiagnostics(failure) {
+	const diagnostics = new Set();
+	const addDiagnostic = (label, output) => {
+		const safeOutput = redact(output).trim().slice(-6000);
+		if (safeOutput) diagnostics.add(label + ':\n' + safeOutput);
+	};
+	const commands = [];
+	addDiagnostic('Smoke failure', failure instanceof Error ? failure.message : String(failure));
+	if (owned.container) {
+		commands.push(
+			[
+				'Docker container state',
+				'docker',
+				['inspect', '--format', '{{json .State}}', owned.container]
+			],
+			['Docker container logs', 'docker', ['logs', '--tail=150', owned.container]]
+		);
+	}
+	if (owned.cluster && owned.kubeconfig && existsSync(owned.kubeconfig)) {
+		const kubectl = (args) => ['kubectl', ['--kubeconfig', owned.kubeconfig, ...args]];
+		commands.push(
+			[
+				'Kubernetes application pods',
+				...kubectl(['get', 'pods', '-n', owned.namespace, '-o', 'wide'])
+			],
+			[
+				'Kubernetes application pod details',
+				...kubectl(['describe', 'pods', '-n', owned.namespace, '-l', 'app=gyre-smoke'])
+			],
+			[
+				'Kubernetes application logs',
+				...kubectl([
+					'logs',
+					'-n',
+					owned.namespace,
+					'deployment/gyre-smoke',
+					'--all-containers=true',
+					'--tail=150'
+				])
+			],
+			[
+				'Kubernetes previous application logs',
+				...kubectl([
+					'logs',
+					'-n',
+					owned.namespace,
+					'deployment/gyre-smoke',
+					'--all-containers=true',
+					'--previous',
+					'--tail=150'
+				])
+			],
+			[
+				'Kubernetes namespace events',
+				...kubectl(['get', 'events', '-n', owned.namespace, '--sort-by=.lastTimestamp'])
+			]
+		);
+	}
+	if (owned.portForwardDiagnostics) {
+		const portForward = owned.portForwardDiagnostics;
+		const output = [
+			'port ' + portForward.port,
+			'failure ' + (portForward.failure || 'none'),
+			'stdout ' + (portForward.stdout || 'empty'),
+			'stderr ' + (portForward.stderr || 'empty')
+		].join('\n');
+		addDiagnostic('Kubectl port-forward output', output);
+	}
+	await Promise.all(
+		commands.map(async ([label, command, args]) => {
+			try {
+				const output = await runAsync(command, args, { timeout: 15_000 });
+				addDiagnostic(label, output || 'empty');
+			} catch (error) {
+				addDiagnostic(label, error instanceof Error ? error.message : String(error));
+			}
+		})
+	);
+	if (diagnostics.size) {
+		console.error(
+			['Smoke failure diagnostics captured before cleanup:', ...diagnostics].join('\n\n')
+		);
+	}
+}
+
 function cleanup() {
 	if (cleanupPromise) return cleanupPromise;
 	cleanupPromise = (async () => {
@@ -1757,32 +1894,35 @@ function cleanup() {
 	return cleanupPromise;
 }
 
-for (const signal of ['SIGINT', 'SIGTERM']) {
-	process.once(signal, () => {
-		interrupted = true;
-		const expectedExitCode = signal === 'SIGINT' ? 130 : 143;
-		requestedExitCode = expectedExitCode;
-		process.exitCode = expectedExitCode;
-		void cleanup().finally(() => {
-			if (cleanupErrors.length) console.error(`Cleanup failed: ${cleanupErrors.join('; ')}`);
-			process.exit(expectedExitCode);
+if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+	for (const signal of ['SIGINT', 'SIGTERM']) {
+		process.once(signal, () => {
+			interrupted = true;
+			const expectedExitCode = signal === 'SIGINT' ? 130 : 143;
+			requestedExitCode = expectedExitCode;
+			process.exitCode = expectedExitCode;
+			void cleanup().finally(() => {
+				if (cleanupErrors.length) console.error(`Cleanup failed: ${cleanupErrors.join('; ')}`);
+				process.exit(expectedExitCode);
+			});
 		});
-	});
-}
+	}
 
-try {
-	const { image, platform } = parseArgs(process.argv.slice(2));
-	await checkLocalImage(image, platform);
-	await runtimeAndBrowser(image, platform);
-	await clusterAndFlux(image, platform);
-	console.log(`Image smoke passed for ${image} (${platform}).`);
-} catch (error) {
-	console.error(error instanceof Error ? redact(error.message) : 'Image smoke failed.');
-	process.exitCode = requestedExitCode ?? 1;
-} finally {
-	await cleanup();
-	if (cleanupErrors.length) {
-		console.error(`Cleanup failed: ${cleanupErrors.join('; ')}`);
+	try {
+		const { image, platform } = parseArgs(process.argv.slice(2));
+		await checkLocalImage(image, platform);
+		await runtimeAndBrowser(image, platform);
+		await clusterAndFlux(image, platform);
+		console.log(`Image smoke passed for ${image} (${platform}).`);
+	} catch (error) {
+		await collectFailureDiagnostics(error);
+		console.error(error instanceof Error ? redact(error.message) : 'Image smoke failed.');
 		process.exitCode = requestedExitCode ?? 1;
+	} finally {
+		await cleanup();
+		if (cleanupErrors.length) {
+			console.error(`Cleanup failed: ${cleanupErrors.join('; ')}`);
+			process.exitCode = requestedExitCode ?? 1;
+		}
 	}
 }

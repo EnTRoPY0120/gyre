@@ -1,8 +1,8 @@
 import { afterAll, describe, expect, test, vi } from 'vitest';
 
 // Mock SvelteKit virtual modules before importing anything that depends on them
-vi.mock('$app/environment', () => ({ dev: false }));
-vi.mock('$env/dynamic/public', () => ({ env: {} }));
+vi.mock('$app/env', () => ({ dev: false }));
+vi.mock('$app/env/public', () => ({ PUBLIC_LOG_LEVEL: undefined }));
 
 const { advancedSearch, parseQuery, validateResourceSearchRegex } =
 	await import('../lib/utils/search.js');

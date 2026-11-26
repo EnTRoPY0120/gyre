@@ -1,8 +1,8 @@
 import { mount, tick, unmount } from 'svelte';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-vi.mock('$app/environment', () => ({ browser: false, dev: false }));
-vi.mock('$env/dynamic/public', () => ({ env: {} }));
+vi.mock('$app/env', () => ({ browser: false, dev: false }));
+vi.mock('$app/env/public', () => ({ PUBLIC_LOG_LEVEL: undefined }));
 import ResourceTable from '../lib/components/flux/ResourceTable.svelte';
 import type { FluxResource } from '../lib/types/flux';
 import { preferences } from '../lib/stores/preferences.svelte';

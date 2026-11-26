@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { ChevronLeft, ChevronRight } from '@lucide/svelte';
-	import { ITEMS_PER_PAGE_OPTIONS, preferences } from '$lib/stores/preferences.svelte';
+	import { ITEMS_PER_PAGE_OPTIONS, preferences } from '#lib/stores/preferences.svelte.js';
 
 	let {
 		resourceCount,

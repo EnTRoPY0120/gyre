@@ -3,7 +3,7 @@ import {
 	SETTINGS_KEYS,
 	SETTING_ENV_OVERRIDES,
 	isSettingOverriddenByEnv
-} from '$lib/server/settings';
+} from '#lib/server/settings.js';
 
 const PUBLIC_SETTING_MAP = {
 	localLoginEnabled: SETTINGS_KEYS.AUTH_LOCAL_LOGIN_ENABLED,

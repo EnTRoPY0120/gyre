@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type * as Monaco from 'monaco-editor';
-	import MonacoEditor from '$lib/components/editors/MonacoEditor.svelte';
+	import MonacoEditor from '#lib/components/editors/MonacoEditor.svelte';
 
 	let {
 		value = $bindable(),

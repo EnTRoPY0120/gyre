@@ -1,4 +1,4 @@
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 
 /**
  * Opaque but structurally correct schema for a FluxCD/Kubernetes resource.

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
+	import type { FluxResource } from '#lib/types/flux.js';
 	import KustomizationBuildDetails from './KustomizationBuildDetails.svelte';
 	import KustomizationReferences from './KustomizationReferences.svelte';
 	import KustomizationRevisionStatus from './KustomizationRevisionStatus.svelte';

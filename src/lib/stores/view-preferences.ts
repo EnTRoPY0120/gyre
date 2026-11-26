@@ -1,4 +1,4 @@
-import type { ViewPreferences } from '$lib/types/view';
+import type { ViewPreferences } from '#lib/types/view.js';
 
 export const ITEMS_PER_PAGE_OPTIONS = [10, 25, 50, 0] as const;
 type ValidItemsPerPage = (typeof ITEMS_PER_PAGE_OPTIONS)[number];

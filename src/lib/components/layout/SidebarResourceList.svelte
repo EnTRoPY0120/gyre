@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { cn } from '$lib/utils';
-	import { FluxResourceType, type ResourceGroup } from '$lib/types/flux';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { cn } from '#lib/utils.js';
+	import { FluxResourceType, type ResourceGroup } from '#lib/types/flux.js';
 
 	let {
 		group,

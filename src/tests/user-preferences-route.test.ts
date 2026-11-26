@@ -90,20 +90,20 @@ beforeEach(async () => {
 		schema
 	};
 
-	vi.doMock('$lib/server/db', () => dbModuleMock);
-	vi.doMock('$lib/server/db/index.js', () => dbModuleMock);
+	vi.doMock('#lib/server/db/index.js', () => dbModuleMock);
+	vi.doMock('#lib/server/db/index.js', () => dbModuleMock);
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 	const auditModuleStub = {
 		logAudit: async () => {},
 		logLogin: async () => {},
 		logLogout: async () => {},
 		logResourceWrite: async () => {}
 	};
-	vi.doMock('$lib/server/audit', () => auditModuleStub);
-	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
-	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/logger.js', () => createLoggerModuleStub());
 
 	const inMemory = setupInMemoryDb();
 	state.db = inMemory.db;

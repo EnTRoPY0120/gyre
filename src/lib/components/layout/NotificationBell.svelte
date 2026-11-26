@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { eventsStore } from '$lib/stores/events.svelte';
-	import { clusterStore } from '$lib/stores/cluster.svelte';
+	import { eventsStore } from '#lib/stores/events.svelte.js';
+	import { clusterStore } from '#lib/stores/cluster.svelte.js';
 	import NotificationDropdown from './NotificationDropdown.svelte';
 
 	let isOpen = $state(false);

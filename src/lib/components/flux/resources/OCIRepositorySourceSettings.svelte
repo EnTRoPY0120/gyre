@@ -1,7 +1,7 @@
 <script lang="ts">
-	import DetailField from '$lib/components/flux/details/DetailField.svelte';
-	import DetailTextField from '$lib/components/flux/details/DetailTextField.svelte';
-	import SuspendedBadge from '$lib/components/flux/details/SuspendedBadge.svelte';
+	import DetailField from '#lib/components/flux/details/DetailField.svelte';
+	import DetailTextField from '#lib/components/flux/details/DetailTextField.svelte';
+	import SuspendedBadge from '#lib/components/flux/details/SuspendedBadge.svelte';
 
 	let {
 		interval,

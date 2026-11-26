@@ -1,6 +1,6 @@
 import { createOAuthAccountIssuer } from './account-issuer.js';
-import type { AuthProvider, NewAccount, NewUser, User } from '$lib/server/db/schema';
-import { generateUserId } from '$lib/server/auth';
+import type { AuthProvider, NewAccount, NewUser, User } from '#lib/server/db/schema.js';
+import { generateUserId } from '#lib/server/auth.js';
 import { encryptSecret } from './crypto.js';
 import type { OAuthTokens, OAuthUserInfo } from './oauth/types';
 import type { SSOUserResult } from './sso';

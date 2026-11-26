@@ -1,17 +1,17 @@
 import { error, json } from '@sveltejs/kit';
-import { MAX_BATCH_SIZE } from '$lib/server/config/limits.js';
+import { MAX_BATCH_SIZE } from '#lib/server/config/limits.js';
 import {
 	type BatchOperationResult,
 	type BatchResourceItem
-} from '$lib/server/kubernetes/flux/batch-schemas.js';
+} from '#lib/server/kubernetes/flux/batch-schemas.js';
 import {
 	deleteResource,
 	reconcileResource,
 	toggleSuspendResource
-} from '$lib/server/kubernetes/flux/actions.js';
-import { captureReconciliation } from '$lib/server/kubernetes/flux/reconciliation-tracker.js';
-import type { FluxResourceType } from '$lib/server/kubernetes/flux/resources.js';
-import { sanitizeK8sErrorMessage } from '$lib/server/kubernetes/errors.js';
+} from '#lib/server/kubernetes/flux/actions.js';
+import { captureReconciliation } from '#lib/server/kubernetes/flux/reconciliation-tracker.js';
+import type { FluxResourceType } from '#lib/server/kubernetes/flux/resources.js';
+import { sanitizeK8sErrorMessage } from '#lib/server/kubernetes/errors.js';
 import {
 	enforceUserRateLimitPreset,
 	logPrivilegedMutationFailure,
@@ -21,7 +21,7 @@ import {
 	requireFluxResourceWrite,
 	resolveFluxRouteResourceType,
 	validateFluxRouteIdentity
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 
 export type BatchFluxOperation = 'reconcile' | 'suspend' | 'resume' | 'delete';
 

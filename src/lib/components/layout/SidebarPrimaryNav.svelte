@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Icon from '$lib/components/ui/Icon.svelte';
-	import { cn } from '$lib/utils';
+	import Icon from '#lib/components/ui/Icon.svelte';
+	import { cn } from '#lib/utils.js';
 	import SidebarCreateResource from './SidebarCreateResource.svelte';
 
 	let {

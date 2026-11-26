@@ -1,7 +1,7 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import type { PageServerLoad } from './$types';
 import { error, redirect } from '@sveltejs/kit';
-import { serializePublicSettings } from '$lib/server/settings/serialization';
+import { serializePublicSettings } from '#lib/server/settings/serialization.js';
 
 /**
  * Load settings for admin page

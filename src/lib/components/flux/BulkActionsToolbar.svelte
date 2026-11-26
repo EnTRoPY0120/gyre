@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
+	import type { FluxResource } from '#lib/types/flux.js';
 	import { toast } from 'svelte-sonner';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import BulkActionsDeleteDialog from './BulkActionsDeleteDialog.svelte';
 	import BulkActionsProcessingOverlay from './BulkActionsProcessingOverlay.svelte';
 	import BulkActionsRetryPanel from './BulkActionsRetryPanel.svelte';

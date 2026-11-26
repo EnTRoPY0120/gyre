@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { modalFocusTrap } from '$lib/utils/focus-trap';
+	import { modalFocusTrap } from '#lib/utils/focus-trap.js';
 
 	interface Props {
 		title: string;

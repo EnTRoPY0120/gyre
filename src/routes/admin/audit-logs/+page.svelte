@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { formatDistanceToNow } from 'date-fns';
 	import { ChevronDown, ChevronLeft, ChevronRight, Filter, Search } from '@lucide/svelte';
-	import { cn } from '$lib/utils';
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import AuditLogTable from '$lib/components/admin/AuditLogTable.svelte';
+	import { cn } from '#lib/utils.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import AuditLogTable from '#lib/components/admin/AuditLogTable.svelte';
 	import { filterAuditLogs } from './page-filters';
 	import type { AuditLog } from './audit-log-types';
 
@@ -74,7 +74,7 @@
 	}
 
 	function buildUrl(params: Record<string, string | number | undefined>) {
-		const current = new URL($page.url);
+	const current = new URL(page.url.href);
 		for (const [key, value] of Object.entries(params)) {
 			if (value === undefined || value === '') current.searchParams.delete(key);
 			else current.searchParams.set(key, String(value));

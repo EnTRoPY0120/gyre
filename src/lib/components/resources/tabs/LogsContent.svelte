@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import TabStateMessage from './TabStateMessage.svelte';
-	import VirtualList from '$lib/components/ui/VirtualList.svelte';
+	import VirtualList from '#lib/components/ui/VirtualList.svelte';
 	import type { FormattedLogLine } from './logs-tab-types';
 
 	let {

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import { page } from '$app/state';
+	import Icon from '#lib/components/ui/Icon.svelte';
 
 	interface Props {
 		isLoading: boolean;
@@ -12,7 +12,7 @@
 	}
 
 	let { isLoading, health }: Props = $props();
-	const isAdmin = $derived($page.data.user?.role === 'admin');
+	const isAdmin = $derived(page.data.user?.role === 'admin');
 </script>
 
 <!-- Connection Card -->

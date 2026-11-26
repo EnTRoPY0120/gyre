@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '$lib/utils.js';
+	import { cn } from '#lib/utils.js';
 	import { Select as SelectPrimitive } from 'bits-ui';
 	import ScrollDownButton from './select-scroll-down-button.svelte';
 	import ScrollUpButton from './select-scroll-up-button.svelte';

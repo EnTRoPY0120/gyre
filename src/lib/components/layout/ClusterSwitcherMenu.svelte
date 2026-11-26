@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
-	import { type ClusterOption } from '$lib/clusters/identity.js';
+	import * as DropdownMenu from '#lib/components/ui/dropdown-menu/index.js';
+	import { type ClusterOption } from '#lib/clusters/identity.js';
 	import ClusterSwitcherItem from './ClusterSwitcherItem.svelte';
 
 	let {

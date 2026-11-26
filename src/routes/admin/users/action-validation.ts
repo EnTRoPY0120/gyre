@@ -1,4 +1,4 @@
-import { passwordSchema } from '$lib/utils/validation';
+import { passwordSchema } from '#lib/utils/validation.js';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 

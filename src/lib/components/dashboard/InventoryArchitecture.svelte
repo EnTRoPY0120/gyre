@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { resourceGroups } from '$lib/config/resources';
-	import Icon from '$lib/components/ui/Icon.svelte';
+	import { resourceGroups } from '#lib/config/resources.js';
+	import Icon from '#lib/components/ui/Icon.svelte';
 	import InventoryLoadingState from './InventoryLoadingState.svelte';
-	import { cn } from '$lib/utils';
-	import type { ResourceGroup } from '$lib/types/flux';
+	import { cn } from '#lib/utils.js';
+	import type { ResourceGroup } from '#lib/types/flux.js';
 
 	interface Props {
 		isLoading: boolean;

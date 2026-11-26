@@ -1,6 +1,6 @@
-import type { FluxResource } from '$lib/types/flux';
-import { RESOURCE_HEALTH_VALUES } from '$lib/types/view';
-import { getResourceHealth, type ResourceHealth } from '$lib/utils/flux';
+import type { FluxResource } from '#lib/types/flux.js';
+import { RESOURCE_HEALTH_VALUES } from '#lib/types/view.js';
+import { getResourceHealth, type ResourceHealth } from '#lib/utils/flux.js';
 import { advancedSearch, parseQuery } from './search';
 
 const MAX_PARAM_LENGTH = 500;

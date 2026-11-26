@@ -1,8 +1,8 @@
 import { fail } from '@sveltejs/kit';
-import { logger } from '$lib/server/logger.js';
-import { createPolicy, deletePolicy, type RbacAction } from '$lib/server/rbac';
-import { logRbacChange } from '$lib/server/audit';
-import type { User } from '$lib/server/db/schema';
+import { logger } from '#lib/server/logger.js';
+import { createPolicy, deletePolicy, type RbacAction } from '#lib/server/rbac.js';
+import { logRbacChange } from '#lib/server/audit.js';
+import type { User } from '#lib/server/db/schema.js';
 
 export interface PolicyCreateFormInput {
 	name: string;

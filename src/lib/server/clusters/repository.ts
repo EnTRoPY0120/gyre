@@ -1,4 +1,4 @@
-import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID, type ClusterOption } from '#lib/clusters/identity.js';
 import crypto from 'node:crypto';
 import { desc, eq, or, sql } from 'drizzle-orm';
 import { getDb } from '../db/index.js';

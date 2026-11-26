@@ -16,15 +16,15 @@ let consoleSpies: ReturnType<typeof suppressOAuthProviderConsole>;
 beforeEach(async () => {
 	consoleSpies = suppressOAuthProviderConsole();
 
-	vi.doMock('$lib/server/auth/crypto', () => createAuthCryptoModuleStub());
+	vi.doMock('#lib/server/auth/crypto.js', () => createAuthCryptoModuleStub());
 
-	vi.doMock('$lib/server/auth/pkce', () => ({
+	vi.doMock('#lib/server/auth/pkce.js', () => ({
 		generateCodeChallenge: (v: string) => `challenge_${v}`
 	}));
 
 	vi.doMock('arctic', () => createArcticProviderMocks());
 
-	vi.doMock('$lib/server/logger.js', () => ({
+	vi.doMock('#lib/server/logger.js', () => ({
 		logger: { error: () => {}, warn: () => {}, info: () => {}, debug: () => {} }
 	}));
 

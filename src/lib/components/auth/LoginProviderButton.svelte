@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getProviderColor, getProviderIcon, type LoginProvider } from '$lib/auth/login-flow';
+	import { getProviderColor, getProviderIcon, type LoginProvider } from '#lib/auth/login-flow.js';
 
 	let { provider, onLogin }: { provider: LoginProvider; onLogin: (providerId: string) => void } = $props();
 </script>

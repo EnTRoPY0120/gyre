@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { ClusterRecoverySummary, ClusterRecoverySummaryAction } from '$lib/clusters/recovery';
-	import type { ClusterHealthCheck } from '$lib/server/clusters';
+	import type { ClusterRecoverySummary, ClusterRecoverySummaryAction } from '#lib/clusters/recovery.js';
+	import type { ClusterHealthCheck } from '#lib/server/clusters.js';
 	import ClusterHealthCheckFooter from './ClusterHealthCheckFooter.svelte';
 	import ClusterHealthCheckHeader from './ClusterHealthCheckHeader.svelte';
 	import ClusterHealthCheckRecovery from './ClusterHealthCheckRecovery.svelte';

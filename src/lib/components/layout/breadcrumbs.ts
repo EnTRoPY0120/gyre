@@ -1,4 +1,4 @@
-import { getResourceInfo } from '$lib/config/resources';
+import { getResourceInfo } from '#lib/config/resources.js';
 
 export interface Breadcrumb {
 	label: string;

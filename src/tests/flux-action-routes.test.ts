@@ -122,7 +122,7 @@ beforeEach(async () => {
 	capturedLogWrites.length = 0;
 	capturedAuditCalls.length = 0;
 
-	vi.doMock('$lib/server/rbac.js', () =>
+	vi.doMock('#lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkPermission: async (...args: unknown[]) => {
 				capturedPermissionChecks.push(args);
@@ -131,23 +131,26 @@ beforeEach(async () => {
 		})
 	);
 
-	vi.doMock('$lib/server/kubernetes/flux/actions', () => actionsMock);
-	vi.doMock('$lib/server/kubernetes/flux/actions.js', () => actionsMock);
+	vi.doMock('#lib/server/kubernetes/flux/actions.js', () => actionsMock);
+	vi.doMock('#lib/server/kubernetes/flux/actions.js', () => actionsMock);
 
-	vi.doMock('$lib/server/kubernetes/flux/resources', () => resourcesMock);
-	vi.doMock('$lib/server/kubernetes/flux/resources.js', () => resourcesMock);
+	vi.doMock('#lib/server/kubernetes/flux/resources.js', () => resourcesMock);
+	vi.doMock('#lib/server/kubernetes/flux/resources.js', () => resourcesMock);
 
-	vi.doMock('$lib/server/audit', () => auditModuleStub);
-	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
 
-	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
+	vi.doMock('#lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
 
-	vi.doMock('$lib/server/validation', () => validationMock);
-	vi.doMock('$lib/server/validation.js', () => validationMock);
+	vi.doMock('#lib/server/validation.js', () => validationMock);
+	vi.doMock('#lib/server/validation.js', () => validationMock);
 
-	vi.doMock('$lib/server/kubernetes/flux/reconciliation-tracker', () => reconciliationTrackerMock);
 	vi.doMock(
-		'$lib/server/kubernetes/flux/reconciliation-tracker.js',
+		'#lib/server/kubernetes/flux/reconciliation-tracker.js',
+		() => reconciliationTrackerMock
+	);
+	vi.doMock(
+		'#lib/server/kubernetes/flux/reconciliation-tracker.js',
 		() => reconciliationTrackerMock
 	);
 

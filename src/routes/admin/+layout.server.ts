@@ -1,6 +1,6 @@
 import type { LayoutServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
-import { isAdmin } from '$lib/server/rbac';
+import { isAdmin } from '#lib/server/rbac.js';
 
 /**
  * Layout load function for admin routes

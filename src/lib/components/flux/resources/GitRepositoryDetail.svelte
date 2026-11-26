@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
-	import { isSafeExternalUrl } from '$lib/utils/url';
+	import type { FluxResource } from '#lib/types/flux.js';
+	import { isSafeExternalUrl } from '#lib/utils/url.js';
 	import GitRepositoryAdvancedConfiguration from './GitRepositoryAdvancedConfiguration.svelte';
 	import GitRepositoryArtifactFields from './GitRepositoryArtifactFields.svelte';
 	import GitRepositorySourceFields from './GitRepositorySourceFields.svelte';

@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { buildAdminPageUrl, buildAdminSearchUrl } from '$lib/admin/navigation';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import UserTable from '$lib/components/admin/UserTable.svelte';
-	import UserCreateModal from '$lib/components/admin/UserCreateModal.svelte';
-	import UserEditModal from '$lib/components/admin/UserEditModal.svelte';
-	import UserDeleteDialog from '$lib/components/admin/UserDeleteDialog.svelte';
-	import UserResetPasswordModal from '$lib/components/admin/UserResetPasswordModal.svelte';
-	import type { NewUser, User } from '$lib/components/admin/user-types';
+	import { buildAdminPageUrl, buildAdminSearchUrl } from '#lib/admin/navigation.js';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import UserTable from '#lib/components/admin/UserTable.svelte';
+	import UserCreateModal from '#lib/components/admin/UserCreateModal.svelte';
+	import UserEditModal from '#lib/components/admin/UserEditModal.svelte';
+	import UserDeleteDialog from '#lib/components/admin/UserDeleteDialog.svelte';
+	import UserResetPasswordModal from '#lib/components/admin/UserResetPasswordModal.svelte';
+	import type { NewUser, User } from '#lib/components/admin/user-types.js';
 	import { UserPlus, AlertTriangle, CheckCircle2 } from '@lucide/svelte';
-	import SearchBar from '$lib/components/ui/search/SearchBar.svelte';
-	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
+	import SearchBar from '#lib/components/ui/search/SearchBar.svelte';
+	import Pagination from '#lib/components/ui/pagination/Pagination.svelte';
 	let { data, form } = $props<{
 		data: {
 			users: User[];
@@ -52,7 +52,7 @@
 		goto(buildAdminPageUrl(newOffset));
 	}
 
-	// Must stay in sync with passwordSchema in $lib/utils/validation.ts
+	// Must stay in sync with passwordSchema in #lib/utils/validation.ts
 	const PASSWORD_PATTERN =
 		'(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{8,}';
 	const PASSWORD_TITLE =

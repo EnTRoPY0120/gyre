@@ -2,8 +2,8 @@ import { afterAll, describe, expect, test, vi } from 'vitest';
 import type { FluxResource } from '../lib/types/flux.js';
 import type { BatchOperationResponse } from '../lib/components/flux/bulk-actions.js';
 
-vi.mock('$app/environment', () => ({ dev: false }));
-vi.mock('$env/dynamic/public', () => ({ env: {} }));
+vi.mock('$app/env', () => ({ dev: false }));
+vi.mock('$app/env/public', () => ({ PUBLIC_LOG_LEVEL: undefined }));
 
 const { buildRetryPayload, partitionBatchOperationResult } =
 	await import('../lib/components/flux/bulk-actions.js');

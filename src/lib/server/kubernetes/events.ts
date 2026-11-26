@@ -1,5 +1,5 @@
 import { getCoreV1Api, handleK8sError, OPERATION_TIMEOUTS } from './client';
-import type { K8sEvent } from '$lib/types/events';
+import type { K8sEvent } from '#lib/types/events.js';
 import { compareEventsByRecentTimestamp, isFluxEvent, mapKubernetesEvent } from './event-utils.js';
 
 export type { K8sEvent };

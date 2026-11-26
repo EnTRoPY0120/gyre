@@ -1,9 +1,9 @@
 <script lang="ts">
-	import type { FilterState } from '$lib/utils/filtering';
-	import type { ResourceHealth } from '$lib/utils/flux';
+	import type { FilterState } from '#lib/utils/filtering.js';
+	import type { ResourceHealth } from '#lib/utils/flux.js';
 	import { X } from '@lucide/svelte';
 
-	import * as Select from '$lib/components/ui/select';
+	import * as Select from '#lib/components/ui/select/index.js';
 
 	interface Props {
 		filters: FilterState;

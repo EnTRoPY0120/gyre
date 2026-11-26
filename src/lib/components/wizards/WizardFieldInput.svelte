@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
-	import type { TemplateField } from '$lib/templates';
+	import { cn } from '#lib/utils.js';
+	import type { TemplateField } from '#lib/templates/index.js';
 
 	let {
 		field,

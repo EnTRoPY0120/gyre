@@ -1,6 +1,6 @@
 const ALLOWED_CODES = new Set(['INVALID_INPUT', 'NOT_AUTHORIZED', 'NOT_FOUND', 'UNKNOWN']);
 
-export function normalizeError(error: unknown): { code: string; status?: number } {
+export function normalizeError(error: unknown): { code: string; status: number } {
 	const rawCode =
 		typeof error === 'object' &&
 		error !== null &&
@@ -15,7 +15,7 @@ export function normalizeError(error: unknown): { code: string; status?: number 
 		'status' in error &&
 		typeof (error as { status: unknown }).status === 'number'
 			? (error as { status: number }).status
-			: undefined;
+			: 500;
 
 	return {
 		code: ALLOWED_CODES.has(rawCode) ? rawCode : 'UNKNOWN',

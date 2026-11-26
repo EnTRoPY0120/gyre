@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ReconciliationEntry } from '$lib/types/reconciliation';
+	import type { ReconciliationEntry } from '#lib/types/reconciliation.js';
 
 	let {
 		entry,

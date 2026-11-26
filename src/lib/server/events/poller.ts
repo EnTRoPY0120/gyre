@@ -1,5 +1,5 @@
 import { logger } from '../logger.js';
-import { IN_CLUSTER_ID } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID } from '#lib/clusters/identity.js';
 import { listFluxResources } from '../kubernetes/client.js';
 import { getAllResourceTypes, type FluxResourceType } from '../kubernetes/flux/resources.js';
 import type { FluxResource, K8sCondition } from '../kubernetes/flux/types.js';

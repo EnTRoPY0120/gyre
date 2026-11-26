@@ -1,4 +1,4 @@
-import { logger } from '$lib/utils/logger.js';
+import { logger } from '#lib/utils/logger.js';
 
 /**
  * Safe localStorage wrappers that catch storage errors (quota exceeded,

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { AlertTriangle, HardDrive, Loader2 } from '@lucide/svelte';
-	import { modalFocusTrap } from '$lib/utils/focus-trap';
+	import { modalFocusTrap } from '#lib/utils/focus-trap.js';
 
 	let {
 		open,

@@ -1,9 +1,9 @@
 <script lang="ts">
 	import { ChevronDown } from '@lucide/svelte';
-	import { cn } from '$lib/utils';
-	import WizardField from '$lib/components/wizards/WizardField.svelte';
+	import { cn } from '#lib/utils.js';
+	import WizardField from '#lib/components/wizards/WizardField.svelte';
 	import type { ReferenceOption } from './reference-fetch';
-	import type { TemplateField, TemplateSection } from '$lib/templates';
+	import type { TemplateField, TemplateSection } from '#lib/templates/index.js';
 
 	let {
 		section,

@@ -122,9 +122,9 @@ beforeEach(async () => {
 	restoreCalls.length = 0;
 	auditCalls.length = 0;
 
-	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
-	vi.doMock('$lib/server/rbac', () => createRbacModuleStub());
-	vi.doMock('$lib/server/rate-limiter.js', () => createRateLimiterModuleStub());
+	vi.doMock('#lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('#lib/server/rbac.js', () => createRbacModuleStub());
+	vi.doMock('#lib/server/rate-limiter.js', () => createRateLimiterModuleStub());
 	const auditModuleStub = {
 		logAudit: async (_user: unknown, action: string, details: { resourceName?: string } = {}) => {
 			if (auditError) {
@@ -135,12 +135,12 @@ beforeEach(async () => {
 		logLogin: async () => {},
 		logLogout: async () => {}
 	};
-	vi.doMock('$lib/server/audit', () => auditModuleStub);
-	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
 	const requestLimitsModuleStub = createRequestLimitsModuleStub();
-	vi.doMock('$lib/server/request-limits', () => requestLimitsModuleStub);
-	vi.doMock('$lib/server/request-limits.js', () => requestLimitsModuleStub);
-	vi.doMock('$lib/server/backup', () => ({
+	vi.doMock('#lib/server/request-limits.js', () => requestLimitsModuleStub);
+	vi.doMock('#lib/server/request-limits.js', () => requestLimitsModuleStub);
+	vi.doMock('#lib/server/backup.js', () => ({
 		BACKUP_FILENAME_RE,
 		BackupError: StubBackupError,
 		getBackupPath: (filename: string) => {

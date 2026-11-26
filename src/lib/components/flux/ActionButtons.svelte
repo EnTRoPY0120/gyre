@@ -1,19 +1,19 @@
 <script lang="ts">
 	import { invalidate } from '$app/navigation';
-	import { page } from '$app/stores';
-	import ConfirmDialog from '$lib/components/flux/ConfirmDialog.svelte';
-	import EditResourceModal from '$lib/components/flux/EditResourceModal.svelte';
-	import DeleteResourceModal from '$lib/components/flux/DeleteResourceModal.svelte';
+	import { page } from '$app/state';
+	import ConfirmDialog from '#lib/components/flux/ConfirmDialog.svelte';
+	import EditResourceModal from '#lib/components/flux/EditResourceModal.svelte';
+	import DeleteResourceModal from '#lib/components/flux/DeleteResourceModal.svelte';
 	import {
 		type ActionFeedbackTone,
 		type ResourceAction
 	} from './action-feedback';
-	import type { FluxResource } from '$lib/types/flux';
-	import { resourceCache } from '$lib/stores/resourceCache.svelte';
-	import { sanitizeResource } from '$lib/utils/kubernetes';
-	import { logger } from '$lib/utils/logger.js';
+	import type { FluxResource } from '#lib/types/flux.js';
+	import { resourceCache } from '#lib/stores/resourceCache.svelte.js';
+	import { sanitizeResource } from '#lib/utils/kubernetes.js';
+	import { logger } from '#lib/utils/logger.js';
 	import * as yaml from 'js-yaml';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import { executeOptimisticResourceAction } from './resource-action';
 	import ResourceActionControls from './ResourceActionControls.svelte';
 
@@ -48,7 +48,7 @@
 		}
 	});
 
-	const userRole = $derived($page.data.user?.role || 'viewer');
+	const userRole = $derived(page.data.user?.role || 'viewer');
 	const canWrite = $derived(userRole === 'admin' || userRole === 'editor');
 	const isSuspended = $derived(resource.spec?.suspend === true);
 

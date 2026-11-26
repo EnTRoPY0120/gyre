@@ -1,4 +1,4 @@
-import { normalizeClusterId } from '$lib/clusters/identity.js';
+import { normalizeClusterId } from '#lib/clusters/identity.js';
 import { logger } from '../../logger.js';
 import { getCustomObjectsApi } from '../client.js';
 import { setHeaderOptions } from '@kubernetes/client-node';

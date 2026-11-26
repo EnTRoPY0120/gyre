@@ -1,4 +1,4 @@
-import type { AdminReadinessStatus, AdminReadinessStep } from '$lib/types/admin-readiness';
+import type { AdminReadinessStatus, AdminReadinessStep } from '#lib/types/admin-readiness.js';
 
 function isValidHex256Key(value: string | undefined): boolean {
 	return typeof value === 'string' && /^[0-9a-f]{64}$/i.test(value.trim());

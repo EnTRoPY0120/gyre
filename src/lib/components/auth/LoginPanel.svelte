@@ -1,7 +1,7 @@
 <script lang="ts">
 	import LoginCredentialsForm from './LoginCredentialsForm.svelte';
 	import LoginProviders from './LoginProviders.svelte';
-	import type { LoginProvider } from '$lib/auth/login-flow';
+	import type { LoginProvider } from '#lib/auth/login-flow.js';
 
 	let {
 		providers = [],

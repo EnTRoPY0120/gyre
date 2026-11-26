@@ -1,14 +1,14 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { deleteUserSessions } from '$lib/server/auth';
+import { deleteUserSessions } from '#lib/server/auth.js';
 import {
 	applyBetterAuthCookies,
 	clearBetterAuthSessionCookie,
 	getBetterAuth
-} from '$lib/server/auth/better-auth';
-import { logLogout } from '$lib/server/audit.js';
+} from '#lib/server/auth/better-auth.js';
+import { logLogout } from '#lib/server/audit.js';
 
 export const _metadata = {
 	POST: {

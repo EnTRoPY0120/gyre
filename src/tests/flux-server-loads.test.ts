@@ -160,7 +160,7 @@ beforeEach(() => {
 		}
 	] as const;
 
-	vi.doMock('$lib/server/flux/services.js', () => ({
+	vi.doMock('#lib/server/flux/services.js', () => ({
 		DEFAULT_FLUX_VERSION: 'v2.x.x',
 		getFluxHealthSummary: async () => {
 			if (healthShouldThrow) {
@@ -186,7 +186,7 @@ beforeEach(() => {
 		listFluxResourcesForType: async () => listResult
 	}));
 
-	vi.doMock('$lib/server/http/guards.js', () => ({
+	vi.doMock('#lib/server/http/guards.js', () => ({
 		requireClusterContext: (locals: App.Locals) => requireClusterContextMock(locals),
 		requireClusterWideRead: async (locals: App.Locals) => {
 			const clusterId = requireClusterContextMock(locals);
@@ -206,7 +206,7 @@ beforeEach(() => {
 		}
 	}));
 
-	vi.doMock('$lib/server/clusters.js', () => ({
+	vi.doMock('#lib/server/clusters.js', () => ({
 		getSelectableClusters: async (currentContext?: string | null) => {
 			const expectedContext = getExpectedSelectableClustersContext();
 			if (currentContext !== expectedContext) {
@@ -219,7 +219,7 @@ beforeEach(() => {
 		}
 	}));
 
-	vi.doMock('$lib/server/dashboard-cache', () => ({
+	vi.doMock('#lib/server/dashboard-cache.js', () => ({
 		getDashboardCache: (key: string) => {
 			getDashboardCacheCalls.push(key);
 			return dashboardCacheEntries.get(key) ?? null;
@@ -234,12 +234,12 @@ beforeEach(() => {
 		}
 	}));
 
-	vi.doMock('$lib/server/metrics.js', () => ({
+	vi.doMock('#lib/server/metrics.js', () => ({
 		loginAttemptsTotal: { labels: () => ({ inc: () => {} }) },
 		sessionsCleanedUpTotal: { inc: () => {} }
 	}));
 
-	vi.doMock('$lib/server/admin-readiness.js', () => ({
+	vi.doMock('#lib/server/admin-readiness.js', () => ({
 		getAdminReadinessSummary: async () => {
 			adminReadinessCalls.push(true);
 			return adminReadinessResult;

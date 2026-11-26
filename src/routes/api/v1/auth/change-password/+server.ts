@@ -1,8 +1,8 @@
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { checkRateLimit } from '$lib/server/rate-limiter';
+import { checkRateLimit } from '#lib/server/rate-limiter.js';
 import { executePasswordChange } from './flow';
 import { validatePasswordChangeInput } from './validation';
 

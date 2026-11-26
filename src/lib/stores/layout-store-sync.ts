@@ -1,5 +1,5 @@
-import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
-import type { UserPreferences } from '$lib/types/user.js';
+import { IN_CLUSTER_ID, type ClusterOption } from '#lib/clusters/identity.js';
+import type { UserPreferences } from '#lib/types/user.js';
 import { buildEventStorageScope, type LayoutUserIdentity } from './layout-sync.js';
 
 interface LayoutSyncUser extends LayoutUserIdentity {

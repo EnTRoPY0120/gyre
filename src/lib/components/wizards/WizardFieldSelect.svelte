@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
-	import type { TemplateField } from '$lib/templates';
-	import * as Select from '$lib/components/ui/select';
+	import { cn } from '#lib/utils.js';
+	import type { TemplateField } from '#lib/templates/index.js';
+	import * as Select from '#lib/components/ui/select/index.js';
 
 	let {
 		field,

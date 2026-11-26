@@ -1,14 +1,14 @@
 import type { LayoutServerLoad } from './$types';
 import pkg from '../../package.json';
-import { IN_CLUSTER_ID, type ClusterOption } from '$lib/clusters/identity.js';
-import { serializeUser } from '$lib/server/auth';
-import { getSelectableClusters } from '$lib/server/clusters.js';
+import { IN_CLUSTER_ID, type ClusterOption } from '#lib/clusters/identity.js';
+import { serializeUser } from '#lib/server/auth.js';
+import { getSelectableClusters } from '#lib/server/clusters.js';
 import {
 	DEFAULT_FLUX_VERSION,
 	getFluxHealthSummary,
 	getFluxInstalledVersion
-} from '$lib/server/flux/services.js';
-import { requireClusterWideRead } from '$lib/server/http/guards.js';
+} from '#lib/server/flux/services.js';
+import { requireClusterWideRead } from '#lib/server/http/guards.js';
 
 function isHttpErrorLike(error: unknown): error is { status: number } {
 	return (

@@ -1,5 +1,5 @@
-import { type ClusterOption } from '$lib/clusters/identity.js';
-import { logger } from '$lib/server/logger.js';
+import { type ClusterOption } from '#lib/clusters/identity.js';
+import { logger } from '#lib/server/logger.js';
 import * as k8s from '@kubernetes/client-node';
 
 export function shouldUseLocalKubeconfigContexts(): boolean {

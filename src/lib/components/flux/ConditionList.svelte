@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { K8sCondition } from '$lib/types/flux';
-	import { formatTimestamp } from '$lib/utils/flux';
+	import type { K8sCondition } from '#lib/types/flux.js';
+	import { formatTimestamp } from '#lib/utils/flux.js';
 
 	interface Props {
 		conditions: K8sCondition[];

@@ -1,4 +1,4 @@
-import type { ResourceTemplate, TemplateField } from '$lib/templates';
+import type { ResourceTemplate, TemplateField } from '#lib/templates/index.js';
 import { coerceWizardFieldValue } from './field-validation';
 
 export function getWizardValueAtPath(source: Record<string, unknown>, path: string): unknown {

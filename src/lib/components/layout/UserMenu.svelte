@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { User as UserIcon } from '@lucide/svelte';
-	import { cn } from '$lib/utils';
-	import { logger } from '$lib/utils/logger.js';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { cn } from '#lib/utils.js';
+	import { logger } from '#lib/utils/logger.js';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import UserMenuDropdown from './UserMenuDropdown.svelte';
 	import type { UserMenuUser } from './user-menu-types';
 	import { applyUserMenuKeyAction, getUserMenuKeyAction } from './user-menu-keyboard';

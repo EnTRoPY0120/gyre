@@ -34,7 +34,7 @@ beforeEach(async () => {
 		}
 	}));
 	vi.doMock('../lib/stores/cluster.svelte.js', () => ({ clusterStore: { current: 'cluster-a' } }));
-	vi.doMock('$lib/utils/logger.js', () => ({ logger: { error: vi.fn() } }));
+	vi.doMock('#lib/utils/logger.js', () => ({ logger: { error: vi.fn() } }));
 
 	resourceCache = (await importFresh<ResourceCacheModule>('../lib/stores/resourceCache.svelte.js'))
 		.resourceCache;

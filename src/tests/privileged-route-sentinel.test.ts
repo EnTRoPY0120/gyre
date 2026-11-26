@@ -55,8 +55,8 @@ describe('privileged route enforcement sentinel', () => {
 			.filter((file) => {
 				const source = read(file);
 				return !(
-					source.includes('$lib/server/http/guards') ||
-					source.includes('$lib/server/flux/use-cases/')
+					source.includes('#lib/server/http/guards.js') ||
+					source.includes('#lib/server/flux/use-cases/')
 				);
 			})
 			.map(routeId);
@@ -77,7 +77,7 @@ describe('privileged route enforcement sentinel', () => {
 		const offenders = files
 			.filter((file) => !allowedRawImports.includes(routeId(file)))
 			.filter((file) =>
-				/['"]\$lib\/server\/(?:rbac|rate-limiter|audit)(?:\.js)?['"]/.test(read(file))
+				/['"]#lib\/server\/(?:rbac|rate-limiter|audit)(?:\.js)?['"]/.test(read(file))
 			)
 			.map(routeId);
 

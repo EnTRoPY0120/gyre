@@ -1,9 +1,9 @@
 import { json } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
+import { z } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
-import { getFluxOverviewSummary } from '$lib/server/flux/services.js';
-import { requireClusterWideRead } from '$lib/server/http/guards.js';
-import { setPrivateCacheHeaders } from '$lib/server/http/transport.js';
+import { getFluxOverviewSummary } from '#lib/server/flux/services.js';
+import { requireClusterWideRead } from '#lib/server/http/guards.js';
+import { setPrivateCacheHeaders } from '#lib/server/http/transport.js';
 
 export const _metadata = {
 	GET: {

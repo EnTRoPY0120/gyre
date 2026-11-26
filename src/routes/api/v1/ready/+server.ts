@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
-import { getGyreInitializationStatus } from '$lib/server/request/initialization.js';
+import { z } from '#lib/server/openapi.js';
+import { getGyreInitializationStatus } from '#lib/server/request/initialization.js';
 import type { RequestHandler } from './$types';
 
 export const _metadata = {

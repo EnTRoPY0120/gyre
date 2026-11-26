@@ -1,5 +1,5 @@
 import { logger } from '../logger.js';
-import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
+import { IN_CLUSTER_ID, normalizeClusterId } from '#lib/clusters/identity.js';
 import { HEARTBEAT_INTERVAL_MS } from '../config/constants.js';
 import { activeWorkers, SERVER_SESSION_ID } from './state.js';
 import { activeWorkersGauge, fluxResourceStatusGauge, sseSubscribersGauge } from '../metrics.js';

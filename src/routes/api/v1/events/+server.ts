@@ -1,18 +1,18 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
-import { subscribe, type SSEEvent } from '$lib/server/events.js';
-import { logger } from '$lib/server/logger.js';
-import { sseConnectionsRejectedTotal } from '$lib/server/metrics.js';
+import { subscribe, type SSEEvent } from '#lib/server/events.js';
+import { logger } from '#lib/server/logger.js';
+import { sseConnectionsRejectedTotal } from '#lib/server/metrics.js';
 import {
 	SSE_MAX_CONNECTIONS_PER_SESSION,
 	SSE_MAX_CONNECTIONS_PER_USER,
 	SSE_CONNECTION_TIMEOUT_MS
-} from '$lib/server/config/constants.js';
+} from '#lib/server/config/constants.js';
 import {
 	acquireSseConnectionSlot,
 	requireAuthenticatedUser,
 	requireClusterWideRead
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 import { flushSseEventQueue } from './sse-queue.js';
 import { getEventConnectionContext, type EventConnectionContext } from './connection-context.js';
 import { createSseCleanup } from './stream-cleanup.js';

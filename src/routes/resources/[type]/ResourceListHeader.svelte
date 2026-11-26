@@ -1,6 +1,6 @@
 <script lang="ts">
-	import ViewToggle from '$lib/components/layout/ViewToggle.svelte';
-	import RefreshControl from '$lib/components/layout/RefreshControl.svelte';
+	import ViewToggle from '#lib/components/layout/ViewToggle.svelte';
+	import RefreshControl from '#lib/components/layout/RefreshControl.svelte';
 
 	let {
 		displayName,

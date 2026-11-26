@@ -2,9 +2,9 @@ import {
 	getBetterAuthSessionCookieValue,
 	clearBetterAuthSessionCookie,
 	getBetterAuthSession
-} from '$lib/server/auth/better-auth.js';
-import { CSRF_COOKIE_OPTIONS } from '$lib/server/config.js';
-import { generateCsrfToken } from '$lib/server/csrf.js';
+} from '#lib/server/auth/better-auth.js';
+import { CSRF_COOKIE_OPTIONS } from '#lib/server/config.js';
+import { generateCsrfToken } from '#lib/server/csrf.js';
 import type { RequestEvent } from '@sveltejs/kit';
 
 export async function hydrateSessionLocals(

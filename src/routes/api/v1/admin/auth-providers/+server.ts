@@ -4,14 +4,14 @@
  * Admin-only endpoints.
  */
 
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { json, error, isHttpError, isRedirect } from '@sveltejs/kit';
-import { z } from '$lib/server/openapi';
-import { authProviderSchema, providerTypeSchema } from '$lib/server/auth/schemas';
+import { z } from '#lib/server/openapi.js';
+import { authProviderSchema, providerTypeSchema } from '#lib/server/auth/schemas.js';
 import type { RequestHandler } from './$types';
-import { getDb } from '$lib/server/db';
-import { parseRoleMappingInput } from '$lib/auth/role-mapping';
-import { parseRoleMappingSafe } from '$lib/server/auth/role-mapping';
+import { getDb } from '#lib/server/db/index.js';
+import { parseRoleMappingInput } from '#lib/auth/role-mapping.js';
+import { parseRoleMappingSafe } from '#lib/server/auth/role-mapping.js';
 
 export const _metadata = {
 	GET: {
@@ -84,15 +84,15 @@ export const _metadata = {
 		}
 	}
 };
-import { authProviders, type NewAuthProvider } from '$lib/server/db/schema';
-import { encryptSecret } from '$lib/server/auth/crypto';
-import { validateProviderConfig } from '$lib/server/auth/oauth';
+import { authProviders, type NewAuthProvider } from '#lib/server/db/schema.js';
+import { encryptSecret } from '#lib/server/auth/crypto.js';
+import { validateProviderConfig } from '#lib/server/auth/oauth/index.js';
 import { randomBytes } from 'node:crypto';
 import {
 	enforceUserRateLimitPreset,
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 
 /**
  * Generate a unique provider ID

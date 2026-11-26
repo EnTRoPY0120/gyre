@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto, invalidate } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { onMount, untrack } from 'svelte';
-	import { resolveResourceRouteType } from '$lib/config/resources';
-	import { preferences } from '$lib/stores/preferences.svelte';
-	import { eventsStore } from '$lib/stores/events.svelte';
-	import { createAutoRefresh } from '$lib/utils/polling.svelte';
+	import { resolveResourceRouteType } from '#lib/config/resources.js';
+	import { preferences } from '#lib/stores/preferences.svelte.js';
+	import { eventsStore } from '#lib/stores/events.svelte.js';
+	import { createAutoRefresh } from '#lib/utils/polling.svelte.js';
 	import {
 		filterResources,
 		getUniqueNamespaces,
@@ -15,10 +15,10 @@
 		filtersToSearchParams,
 		defaultFilterState,
 		type FilterState
-	} from '$lib/utils/filtering';
-	import { validateResourceSearchRegex } from '$lib/utils/search';
-	import type { FluxResource } from '$lib/types/flux';
-	import { SORT_FIELDS, type SortBy } from '$lib/config/sorting';
+	} from '#lib/utils/filtering.js';
+	import { validateResourceSearchRegex } from '#lib/utils/search.js';
+	import type { FluxResource } from '#lib/types/flux.js';
+	import { SORT_FIELDS, type SortBy } from '#lib/config/sorting.js';
 	import { getResourceStats } from './resource-stats';
 	import ResourceListContent from './ResourceListContent.svelte';
 	import ResourceListFilters from './ResourceListFilters.svelte';
@@ -67,24 +67,24 @@
 		return SORT_FIELDS.some((field) => field.key === raw) ? (raw as SortBy) : undefined;
 	}
 
-	let filters = $state<FilterState>(searchParamsToFilters($page.url.searchParams));
-	let lastSearchParams = $state($page.url.search.toString());
-	let sortBy = $state<SortBy | undefined>(parseSortBy($page.url.searchParams.get('sortBy')));
+	let filters = $state<FilterState>(searchParamsToFilters(new URLSearchParams(page.url.search)));
+	let lastSearchParams = $state(page.url.search.toString());
+	let sortBy = $state<SortBy | undefined>(parseSortBy(page.url.searchParams.get('sortBy')));
 	let sortOrder = $state<'asc' | 'desc'>(
-		$page.url.searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc'
+		page.url.searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc'
 	);
 
 	$effect(() => {
-		const currentSync = $page.url.search.toString();
+		const currentSync = page.url.search.toString();
 		if (currentSync !== untrack(() => lastSearchParams)) {
-			filters = searchParamsToFilters($page.url.searchParams);
-			sortBy = parseSortBy($page.url.searchParams.get('sortBy'));
-			sortOrder = $page.url.searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc';
+			filters = searchParamsToFilters(new URLSearchParams(page.url.search));
+			sortBy = parseSortBy(page.url.searchParams.get('sortBy'));
+			sortOrder = page.url.searchParams.get('sortOrder') === 'desc' ? 'desc' : 'asc';
 			lastSearchParams = currentSync;
 		}
 	});
 
-	let debouncedSearch = $state($page.url.searchParams.get('q') ?? '');
+	let debouncedSearch = $state(page.url.searchParams.get('q') ?? '');
 
 	$effect(() => {
 		const search = filters.search;
@@ -114,7 +114,11 @@
 
 	function getResourceUrl(resource: FluxResource): string {
 		const namespace = resource.metadata.namespace || 'default';
-		return resolve(`/resources/${data.resourceType}/${namespace}/${resource.metadata.name}`);
+		return resolve('/resources/[type]/[namespace]/[name]', {
+			type: data.resourceType,
+			namespace,
+			name: resource.metadata.name
+		});
 	}
 
 	$effect(() => {
@@ -136,11 +140,10 @@
 			}
 			const newSearch = params.toString();
 
-			if (newSearch !== $page.url.search.toString().replace(/^\?/, '')) {
+			if (newSearch !== page.url.search.toString().replace(/^\?/, '')) {
 				void goto(`?${newSearch}`, {
-					replaceState: true,
-					noScroll: true,
-					keepFocus: true
+					replace: true,
+					reset: false
 				});
 				lastSearchParams = `?${newSearch}`;
 			}

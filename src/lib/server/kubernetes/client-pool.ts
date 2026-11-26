@@ -1,5 +1,5 @@
 import { logger } from '../logger.js';
-import { normalizeClusterId } from '$lib/clusters/identity.js';
+import { normalizeClusterId } from '#lib/clusters/identity.js';
 import * as k8s from '@kubernetes/client-node';
 import { OPERATION_TIMEOUTS } from './timeouts.js';
 import {

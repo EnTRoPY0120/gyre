@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { toast } from 'svelte-sonner';
 	import type { PageData } from './$types';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 	import { saveAdminSettings } from './settings-request';
 	import SettingsForm from './SettingsForm.svelte';
 	import SettingsInfoCards from './SettingsInfoCards.svelte';

@@ -1,4 +1,4 @@
-import type { AdminReadinessSummary } from '$lib/types/admin-readiness';
+import type { AdminReadinessSummary } from '#lib/types/admin-readiness.js';
 
 function formatStepSummary(count: number, singularVerb: string, pluralVerb: string): string {
 	const noun = count === 1 ? 'step' : 'steps';

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { formatDistanceToNow } from 'date-fns';
-	import type { ReconciliationEntry } from '$lib/types/reconciliation';
+	import type { ReconciliationEntry } from '#lib/types/reconciliation.js';
 	import VersionHistoryEntryDetails from './VersionHistoryEntryDetails.svelte';
 	import VersionHistoryEntryPreview from './VersionHistoryEntryPreview.svelte';
 

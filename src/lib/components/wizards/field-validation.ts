@@ -1,5 +1,5 @@
 import safeRegex from 'safe-regex2';
-import type { TemplateField } from '$lib/templates';
+import type { TemplateField } from '#lib/templates/index.js';
 
 export function coerceWizardFieldValue(field: TemplateField, value: unknown): unknown {
 	if (field.type !== 'number') return value;

@@ -1,5 +1,5 @@
-import { resolveResourceRouteType } from '$lib/config/resources';
-import type { ResourceEvent } from '$lib/stores/events/types.js';
+import { resolveResourceRouteType } from '#lib/config/resources.js';
+import type { ResourceEvent } from '#lib/stores/events/types.js';
 
 /** Check whether an SSE event belongs to the resource currently displayed. */
 export function matchesResourceEvent(

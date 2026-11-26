@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
-import { getDb } from '$lib/server/db';
-import { users, type AuthProvider, type User } from '$lib/server/db/schema';
-import { deleteUserSessions, updateUser } from '$lib/server/auth';
+import { getDb } from '#lib/server/db/index.js';
+import { users, type AuthProvider, type User } from '#lib/server/db/schema.js';
+import { deleteUserSessions, updateUser } from '#lib/server/auth.js';
 import { bindUserToDefaultPolicies } from '../rbac-defaults.js';
 import { logger } from '../logger.js';
 import type { OAuthUserInfo } from './oauth/types';

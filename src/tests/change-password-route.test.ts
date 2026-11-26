@@ -95,7 +95,7 @@ function buildEvent(): ChangePasswordEvent {
 beforeEach(async () => {
 	Object.assign(authState, createAuthState());
 
-	vi.doMock('$lib/server/auth', () => ({
+	vi.doMock('#lib/server/auth.js', () => ({
 		SESSION_DURATION_DAYS: 30,
 		addPasswordHistory: async () => {
 			authState.events.push('history');
@@ -146,18 +146,18 @@ beforeEach(async () => {
 		revokeBetterAuthSessionByCookieValue: async () => {}
 	};
 
-	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
-	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 
-	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
-	vi.doMock('$lib/server/audit', () => ({
+	vi.doMock('#lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('#lib/server/audit.js', () => ({
 		logAudit: async (_user: User, event: string) => {
 			authState.events.push(`audit:${event}`);
 		}
 	}));
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
 	POST = (
 		await importFresh<ChangePasswordRouteModule>('../routes/api/v1/auth/change-password/+server.js')

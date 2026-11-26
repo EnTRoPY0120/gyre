@@ -1,6 +1,6 @@
 import { fail, type ActionFailure } from '@sveltejs/kit';
-import { isAdmin } from '$lib/server/rbac';
-import type { User } from '$lib/server/db/schema';
+import { isAdmin } from '#lib/server/rbac.js';
+import type { User } from '#lib/server/db/schema.js';
 
 export function requireAdminFormUser(locals: App.Locals): User | ActionFailure<{ error: string }> {
 	if (!locals.user || !isAdmin(locals.user)) {

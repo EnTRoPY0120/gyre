@@ -5,7 +5,7 @@ import { accounts, users } from '../db/schema.js';
 import { getPaginatedItems, sanitizeSearchInput } from '../db/utils.js';
 import { bindUserToDefaultPoliciesInTx, syncUserPolicyBindingsInTx } from '../rbac-defaults.js';
 import { generateUserId, hashPassword, normalizeUsername } from './passwords.js';
-import type { UserPreferences } from '$lib/types/user';
+import type { UserPreferences } from '#lib/types/user.js';
 
 // User management
 export async function createUser(

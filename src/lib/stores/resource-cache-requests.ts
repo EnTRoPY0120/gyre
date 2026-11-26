@@ -1,5 +1,5 @@
-import type { FluxResource } from '$lib/types/flux';
-import { fetchWithRetry } from '$lib/utils/fetch';
+import type { FluxResource } from '#lib/types/flux.js';
+import { fetchWithRetry } from '#lib/utils/fetch.js';
 
 /** Fetch a resource list, treating client errors as an empty list for the cache. */
 export async function fetchResourceList(

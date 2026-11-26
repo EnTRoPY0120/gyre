@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatTimestamp } from '$lib/utils/flux';
+	import { formatTimestamp } from '#lib/utils/flux.js';
 	import type { GitRepositoryArtifact } from './git-repository-detail-types';
 
 	let { artifact }: { artifact: GitRepositoryArtifact | undefined } = $props();

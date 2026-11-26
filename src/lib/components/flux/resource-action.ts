@@ -5,7 +5,7 @@ import {
 	type ResourceAction,
 	type ResourceActionFeedback
 } from './action-feedback';
-import type { FluxResource } from '$lib/types/flux';
+import type { FluxResource } from '#lib/types/flux.js';
 
 export interface ResourceActionRequest {
 	type: string;

@@ -3,26 +3,26 @@
  * POST /api/admin/backups/restore — Restore database from an uploaded backup file
  */
 
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { json, error } from '@sveltejs/kit';
-import { z, errorSchema } from '$lib/server/openapi';
+import { z, errorSchema } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
 import {
 	restoreFromBuffer,
 	getDecryptedBackupBufferFromBuffer,
 	BackupError
-} from '$lib/server/backup';
+} from '#lib/server/backup.js';
 import {
 	enforceUserRateLimitPreset,
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
-} from '$lib/server/http/guards.js';
-import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
+} from '#lib/server/http/guards.js';
+import { REQUEST_LIMITS, formatSize } from '#lib/server/request-limits.js';
 import {
 	sanitizeFilename,
 	isAllowedBackupExtension,
 	isAllowedBackupMimeType
-} from '$lib/server/validation';
+} from '#lib/server/validation.js';
 
 export const _metadata = {
 	POST: {

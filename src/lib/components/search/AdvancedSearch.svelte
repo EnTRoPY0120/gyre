@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { Search, SlidersHorizontal, X } from '@lucide/svelte';
-	import { cn } from '$lib/utils';
-	import type { FilterState } from '$lib/utils/filtering';
-	import { validateResourceSearchRegex } from '$lib/utils/search';
+	import { cn } from '#lib/utils.js';
+	import type { FilterState } from '#lib/utils/filtering.js';
+	import { validateResourceSearchRegex } from '#lib/utils/search.js';
 
 	interface Props {
 		filters: FilterState;

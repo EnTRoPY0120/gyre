@@ -1,5 +1,5 @@
 import * as yaml from 'js-yaml';
-import { REQUEST_LIMITS, formatSize } from '$lib/server/request-limits';
+import { REQUEST_LIMITS, formatSize } from '#lib/server/request-limits.js';
 
 export interface ClusterCreateInput {
 	name: string;

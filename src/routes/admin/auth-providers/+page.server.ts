@@ -3,10 +3,10 @@
  * Loads all auth providers for admin management
  */
 
-import { logger } from '$lib/server/logger.js';
-import { parseRoleMappingSafe } from '$lib/server/auth/role-mapping';
+import { logger } from '#lib/server/logger.js';
+import { parseRoleMappingSafe } from '#lib/server/auth/role-mapping.js';
 import type { PageServerLoad } from './$types';
-import { getDb } from '$lib/server/db';
+import { getDb } from '#lib/server/db/index.js';
 
 export const load: PageServerLoad = async () => {
 	try {

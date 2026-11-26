@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { ReferenceOption } from '$lib/components/wizards/reference-fetch';
-	import ArrayField from '$lib/components/wizards/ArrayField.svelte';
-	import ReferenceField from '$lib/components/wizards/ReferenceField.svelte';
+	import type { ReferenceOption } from '#lib/components/wizards/reference-fetch.js';
+	import ArrayField from '#lib/components/wizards/ArrayField.svelte';
+	import ReferenceField from '#lib/components/wizards/ReferenceField.svelte';
 	import WizardFieldBoolean from './WizardFieldBoolean.svelte';
 	import WizardFieldInput from './WizardFieldInput.svelte';
 	import WizardFieldSelect from './WizardFieldSelect.svelte';
 	import WizardFieldTextarea from './WizardFieldTextarea.svelte';
-	import type { TemplateField } from '$lib/templates';
+	import type { TemplateField } from '#lib/templates/index.js';
 
 	let {
 		field,

@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidateAll } from '$app/navigation';
-	import Button from '$lib/components/ui/button/button.svelte';
-	import { getCsrfToken } from '$lib/utils/csrf';
+	import { refreshAll } from '$app/navigation';
+	import Button from '#lib/components/ui/button/button.svelte';
+	import { getCsrfToken } from '#lib/utils/csrf.js';
 
 	let {
 		newCluster,
@@ -67,7 +67,7 @@
 				return async ({ result }) => {
 					if (result.type === 'success') {
 						onClose();
-						await invalidateAll();
+						await refreshAll();
 					}
 				};
 			}}

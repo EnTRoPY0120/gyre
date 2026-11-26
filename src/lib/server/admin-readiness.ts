@@ -1,10 +1,10 @@
-import { listBackups } from '$lib/server/backup.js';
-import { ADMIN_READINESS_CACHE_TTL_MS } from '$lib/server/config/constants';
-import { getDb } from '$lib/server/db';
-import { authProviders } from '$lib/server/db/schema';
-import { logger } from '$lib/server/logger.js';
-import { getAuthSettings } from '$lib/server/settings.js';
-import type { AdminReadinessStep, AdminReadinessSummary } from '$lib/types/admin-readiness';
+import { listBackups } from '#lib/server/backup.js';
+import { ADMIN_READINESS_CACHE_TTL_MS } from '#lib/server/config/constants.js';
+import { getDb } from '#lib/server/db/index.js';
+import { authProviders } from '#lib/server/db/schema.js';
+import { logger } from '#lib/server/logger.js';
+import { getAuthSettings } from '#lib/server/settings.js';
+import type { AdminReadinessStep, AdminReadinessSummary } from '#lib/types/admin-readiness.js';
 import { count, eq } from 'drizzle-orm';
 import {
 	buildAuthAccessStep,

@@ -7,7 +7,7 @@ import {
 } from '../lib/components/wizards/reference-fetch.js';
 
 const mocks = vi.hoisted(() => ({ fetchWithRetry: vi.fn() }));
-vi.mock('$lib/utils/fetch', () => mocks);
+vi.mock('#lib/utils/fetch.js', () => mocks);
 
 function response(items: unknown[], ok = true) {
 	return {

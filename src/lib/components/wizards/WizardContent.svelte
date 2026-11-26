@@ -1,9 +1,9 @@
 <script lang="ts">
-	import YamlEditor from '$lib/components/editors/YamlEditor.svelte';
-	import WizardFieldSections from '$lib/components/wizards/WizardFieldSections.svelte';
-	import type { ReferenceOption } from '$lib/components/wizards/reference-fetch';
-	import type { ResourceTemplate, TemplateField } from '$lib/templates';
-	import { cn } from '$lib/utils';
+	import YamlEditor from '#lib/components/editors/YamlEditor.svelte';
+	import WizardFieldSections from '#lib/components/wizards/WizardFieldSections.svelte';
+	import type { ReferenceOption } from '#lib/components/wizards/reference-fetch.js';
+	import type { ResourceTemplate, TemplateField } from '#lib/templates/index.js';
+	import { cn } from '#lib/utils.js';
 
 	let {
 		mode,

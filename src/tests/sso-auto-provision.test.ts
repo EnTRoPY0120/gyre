@@ -83,7 +83,7 @@ function createProviderConfig(emailClaim = 'email') {
 beforeEach(async () => {
 	Object.assign(dbState, createDbState());
 
-	vi.doMock('$lib/server/db', () => ({
+	vi.doMock('#lib/server/db/index.js', () => ({
 		getDb: async () => ({
 			query: {
 				accounts: {
@@ -146,7 +146,7 @@ beforeEach(async () => {
 		})
 	}));
 
-	vi.doMock('$lib/server/auth', () => ({
+	vi.doMock('#lib/server/auth.js', () => ({
 		generateUserId: () => 'generated-user-id',
 		normalizeUsername: (username: string) => username.toLowerCase().trim(),
 		updateUser: async () => null,

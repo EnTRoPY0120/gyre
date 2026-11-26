@@ -1,9 +1,9 @@
 import { error, isHttpError, isRedirect } from '@sveltejs/kit';
-import { logger } from '$lib/server/logger.js';
-import { getResourceTypeByPlural } from '$lib/server/kubernetes/flux/resources';
-import { requireAuthenticatedUser, requireScopedPermission } from '$lib/server/http/guards.js';
-import { classifyDiffError } from '$lib/server/kubernetes/flux/diff-errors';
-import { validateK8sNamespace, validateK8sName } from '$lib/server/validation';
+import { logger } from '#lib/server/logger.js';
+import { getResourceTypeByPlural } from '#lib/server/kubernetes/flux/resources.js';
+import { requireAuthenticatedUser, requireScopedPermission } from '#lib/server/http/guards.js';
+import { classifyDiffError } from '#lib/server/kubernetes/flux/diff-errors.js';
+import { validateK8sNamespace, validateK8sName } from '#lib/server/validation.js';
 
 export interface DiffRouteContext {
 	clusterId: string | undefined;

@@ -1,8 +1,8 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { getAllResourceTypes, getResourceInfo } from '$lib/config/resources';
-import { getFluxResourceDetail } from '$lib/server/flux/services.js';
-import { requireClusterContext, requireScopedPermission } from '$lib/server/http/guards.js';
+import { getAllResourceTypes, getResourceInfo } from '#lib/config/resources.js';
+import { getFluxResourceDetail } from '#lib/server/flux/services.js';
+import { requireClusterContext, requireScopedPermission } from '#lib/server/http/guards.js';
 
 function isHttpErrorLike(error: unknown): error is {
 	body?: { error?: string; message?: string };

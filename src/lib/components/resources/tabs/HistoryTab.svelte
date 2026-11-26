@@ -1,7 +1,7 @@
 <script lang="ts">
-	import VersionHistory from '$lib/components/flux/VersionHistory.svelte';
-	import Skeleton from '$lib/components/ui/Skeleton.svelte';
-	import type { ReconciliationEntry } from '$lib/types/resource';
+	import VersionHistory from '#lib/components/flux/VersionHistory.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import type { ReconciliationEntry } from '#lib/types/resource.js';
 
 	interface Props {
 		timeline: ReconciliationEntry[];

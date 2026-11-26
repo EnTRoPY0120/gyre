@@ -1,10 +1,10 @@
 import { fail } from '@sveltejs/kit';
-import { logger } from '$lib/server/logger.js';
-import { deleteCluster, getClusterById, updateCluster } from '$lib/server/clusters';
-import { logClusterChange } from '$lib/server/audit';
-import { invalidateDashboardCache } from '$lib/server/dashboard-cache';
-import { clearClientPool } from '$lib/server/kubernetes/client.js';
-import type { User } from '$lib/server/db/schema';
+import { logger } from '#lib/server/logger.js';
+import { deleteCluster, getClusterById, updateCluster } from '#lib/server/clusters.js';
+import { logClusterChange } from '#lib/server/audit.js';
+import { invalidateDashboardCache } from '#lib/server/dashboard-cache.js';
+import { clearClientPool } from '#lib/server/kubernetes/client.js';
+import type { User } from '#lib/server/db/schema.js';
 
 type ClusterActionDependencies = {
 	updateCluster: typeof updateCluster;

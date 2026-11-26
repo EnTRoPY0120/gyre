@@ -1,4 +1,5 @@
 import tailwindcss from '@tailwindcss/vite';
+import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig, loadEnv } from 'vite';
 
@@ -16,13 +17,16 @@ const VENDOR_CHUNK_RULES = [
 const DOM_TEST_FILES = [
 	'src/tests/focus-trap.test.ts',
 	'src/tests/resource-row-click.test.ts',
+	'src/tests/resource-cache-effect.dom.test.ts',
 	'src/tests/resource-table-links.test.ts',
 	'src/tests/advanced-search-dom.test.ts',
 	'src/tests/password-input.test.ts'
 ];
 
-function getVendorChunk(id: string): string | undefined {
-	if (!id.includes('node_modules')) return;
+function getVendorChunk(id: string): string | null {
+	if (!id.includes('node_modules')) return null;
+	// Kit needs its client entry and runtime to retain their dynamic import boundary.
+	if (id.includes('/@sveltejs/kit/')) return null;
 
 	return VENDOR_CHUNK_RULES.find(([dependency]) => id.includes(dependency))?.[1] ?? 'vendor';
 }
@@ -35,7 +39,31 @@ export default defineConfig(({ mode }) => {
 	Object.assign(process.env, env);
 
 	return {
-		plugins: [tailwindcss(), sveltekit()],
+		plugins: [
+			tailwindcss(),
+			sveltekit({
+				adapter: adapter(),
+				serviceWorker: { register: false },
+				csp: {
+					// Use nonce mode so SvelteKit injects per-request nonces into its inline
+					// hydration scripts instead of relying on 'unsafe-inline'.
+					mode: 'nonce',
+					directives: {
+						'default-src': ['self'],
+						'script-src': ['self'], // SvelteKit appends 'nonce-<value>' automatically
+						'style-src': ['self', 'unsafe-inline'],
+						'img-src': ['self', 'data:', 'blob:'],
+						'font-src': ['self', 'data:'],
+						'connect-src': ['self'],
+						'worker-src': ['self'], // Monaco workers bundled locally, served from same origin
+						'form-action': ['self'],
+						'frame-ancestors': ['none'],
+						'object-src': ['none'],
+						'base-uri': ['self']
+					}
+				}
+			})
+		],
 		test: {
 			fileParallelism: false,
 			isolate: true,
@@ -75,10 +103,16 @@ export default defineConfig(({ mode }) => {
 			sourcemap: false, // never emit .map files in production — avoids exposing source paths and pre-minified logic
 			reportCompressedSize: true,
 			// Monaco is intentionally lazy-loaded and emitted as its own large editor chunk.
-			chunkSizeWarningLimit: 4300,
-			rolldownOptions: {
-				output: {
-					manualChunks: getVendorChunk
+			chunkSizeWarningLimit: 4300
+		},
+		environments: {
+			client: {
+				build: {
+					rolldownOptions: {
+						output: {
+							codeSplitting: { groups: [{ name: getVendorChunk }] }
+						}
+					}
 				}
 			}
 		}

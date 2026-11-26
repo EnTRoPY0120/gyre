@@ -1,11 +1,64 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, expect, test } from 'vitest';
 import {
 	getRuntimeAdminPassword,
 	getRuntimeApp,
 	getRuntimeMetricsToken
 } from './helpers/runtime-app';
+
+const smokeHarnessUrl = pathToFileURL(join(process.cwd(), 'scripts', 'smoke-image.mjs')).href;
+
+test.each([
+	[
+		'SvelteKit route-data fetch canceled by a newer navigation',
+		'http://127.0.0.1:4317/admin/clusters/__data.json?x-sveltekit-invalidated=1',
+		'fetch',
+		'net::ERR_ABORTED',
+		true
+	],
+	[
+		'API request canceled during navigation',
+		'http://127.0.0.1:4317/api/v1/events',
+		'fetch',
+		'net::ERR_ABORTED',
+		false
+	],
+	[
+		'asset request canceled during navigation',
+		'http://127.0.0.1:4317/_app/immutable/entry/start.js',
+		'script',
+		'net::ERR_ABORTED',
+		false
+	],
+	[
+		'SvelteKit route-data fetch refused by the application endpoint',
+		'http://127.0.0.1:4317/admin/clusters/__data.json',
+		'fetch',
+		'net::ERR_CONNECTION_REFUSED',
+		false
+	],
+	[
+		'cross-origin SvelteKit-looking route-data fetch',
+		'https://example.invalid/admin/clusters/__data.json',
+		'fetch',
+		'net::ERR_ABORTED',
+		false
+	]
+])(
+	'smoke request failure handling for %s',
+	async (_description, url, resourceType, errorText, expected) => {
+		const { isExpectedSvelteKitDataCancellation } = await import(smokeHarnessUrl);
+		const request = {
+			url: () => url,
+			resourceType: () => resourceType,
+			failure: () => ({ errorText })
+		};
+
+		expect(isExpectedSvelteKitDataCancellation(request, 'http://127.0.0.1:4317')).toBe(expected);
+	}
+);
 
 let runtimeApp: Awaited<ReturnType<typeof getRuntimeApp>> | null = null;
 

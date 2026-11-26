@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { ClusterRecoverySummary, ClusterRecoverySummaryAction } from '$lib/clusters/recovery';
-	import Button from '$lib/components/ui/button/button.svelte';
+	import type { ClusterRecoverySummary, ClusterRecoverySummaryAction } from '#lib/clusters/recovery.js';
+	import Button from '#lib/components/ui/button/button.svelte';
 
 	let {
 		summary,

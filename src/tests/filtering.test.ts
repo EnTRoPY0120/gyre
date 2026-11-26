@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, test, vi } from 'vitest';
 
-vi.mock('$app/environment', () => ({ dev: false }));
-vi.mock('$env/dynamic/public', () => ({ env: {} }));
+vi.mock('$app/env', () => ({ dev: false }));
+vi.mock('$app/env/public', () => ({ PUBLIC_LOG_LEVEL: undefined }));
 
 const { searchParamsToFilters, filtersToSearchParams, parseLabels, defaultFilterState } =
 	await import('../lib/utils/filtering.js');

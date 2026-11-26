@@ -1,4 +1,4 @@
-import type { ResourceHealth } from '$lib/types/view';
+import type { ResourceHealth } from '#lib/types/view.js';
 
 export interface StatusBadgeStyles {
 	badge: string;

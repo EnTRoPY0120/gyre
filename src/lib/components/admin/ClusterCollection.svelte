@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Pagination from '$lib/components/ui/pagination/Pagination.svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
+	import Pagination from '#lib/components/ui/pagination/Pagination.svelte';
+	import Button from '#lib/components/ui/button/button.svelte';
 	import ClusterCard from './ClusterCard.svelte';
 	import type { ClusterSummary } from './cluster-types';
 

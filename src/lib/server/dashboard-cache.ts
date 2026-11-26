@@ -1,4 +1,4 @@
-import { DASHBOARD_CACHE_TTL_MS } from '$lib/server/config/constants';
+import { DASHBOARD_CACHE_TTL_MS } from '#lib/server/config/constants.js';
 
 const MAX_DASHBOARD_CACHE_SIZE = 50;
 

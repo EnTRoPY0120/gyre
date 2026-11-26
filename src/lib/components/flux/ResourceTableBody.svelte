@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { PackageX } from '@lucide/svelte';
-	import type { FluxResource } from '$lib/types/flux';
+	import type { FluxResource } from '#lib/types/flux.js';
 	import ResourceTableRow from './ResourceTableRow.svelte';
 
 	let {

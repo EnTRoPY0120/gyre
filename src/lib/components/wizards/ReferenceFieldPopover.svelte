@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
+	import { cn } from '#lib/utils.js';
 	import { ChevronsUpDown } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import type { ReferenceOption } from './reference-fetch';

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { FluxResource } from '$lib/types/flux';
-	import ArtifactSummary from '$lib/components/flux/details/ArtifactSummary.svelte';
-	import IgnorePatternsPanel from '$lib/components/flux/details/IgnorePatternsPanel.svelte';
+	import type { FluxResource } from '#lib/types/flux.js';
+	import ArtifactSummary from '#lib/components/flux/details/ArtifactSummary.svelte';
+	import IgnorePatternsPanel from '#lib/components/flux/details/IgnorePatternsPanel.svelte';
 	import BucketProviderSettings from './BucketProviderSettings.svelte';
 	import BucketSyncSettings from './BucketSyncSettings.svelte';
 

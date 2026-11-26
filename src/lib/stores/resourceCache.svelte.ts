@@ -1,9 +1,10 @@
-import { IN_CLUSTER_ID, normalizeClusterId } from '$lib/clusters/identity.js';
+import { untrack } from 'svelte';
+import { IN_CLUSTER_ID, normalizeClusterId } from '#lib/clusters/identity.js';
 import { eventsStore } from './events.svelte';
 import { clusterStore } from './cluster.svelte';
-import { resolveResourceRouteType } from '$lib/config/resources';
-import type { FluxResource } from '$lib/types/flux';
-import { logger } from '$lib/utils/logger.js';
+import { resolveResourceRouteType } from '#lib/config/resources.js';
+import type { FluxResource } from '#lib/types/flux.js';
+import { logger } from '#lib/utils/logger.js';
 import { fetchResourceDetail, fetchResourceList } from './resource-cache-requests.js';
 
 const MAX_RESOURCE_ENTRIES = 500;
@@ -113,13 +114,15 @@ class ResourceCacheStore {
 	}
 
 	setResource(type: string, namespace: string, name: string, resource: FluxResource) {
-		const key = this.getResourceKey(type, namespace, name);
-		const now = Date.now();
-		this.resourceCache[key] = { data: resource, timestamp: now, lastAccess: now };
+		untrack(() => {
+			const key = this.getResourceKey(type, namespace, name);
+			const now = Date.now();
+			this.resourceCache[key] = { data: resource, timestamp: now, lastAccess: now };
 
-		if (Object.keys(this.resourceCache).length > MAX_RESOURCE_ENTRIES) {
-			this.pruneEntries(this.resourceCache, MAX_RESOURCE_ENTRIES);
-		}
+			if (Object.keys(this.resourceCache).length > MAX_RESOURCE_ENTRIES) {
+				this.pruneEntries(this.resourceCache, MAX_RESOURCE_ENTRIES);
+			}
+		});
 	}
 
 	getList(type: string, namespace?: string): FluxResource[] | null {
@@ -133,20 +136,22 @@ class ResourceCacheStore {
 	}
 
 	setList(type: string, items: FluxResource[], namespace?: string) {
-		const key = this.getListKey(type, namespace);
-		const now = Date.now();
-		this.listCache[key] = { data: items, timestamp: now, lastAccess: now };
+		untrack(() => {
+			const key = this.getListKey(type, namespace);
+			const now = Date.now();
+			this.listCache[key] = { data: items, timestamp: now, lastAccess: now };
 
-		if (Object.keys(this.listCache).length > MAX_LIST_ENTRIES) {
-			this.pruneEntries(this.listCache, MAX_LIST_ENTRIES);
-		}
-
-		items.forEach((item) => {
-			// Use undefined for cluster-scoped resources (no namespace) instead of 'default'
-			const ns = item.metadata.namespace ?? undefined;
-			if (ns !== undefined) {
-				this.setResource(type, ns, item.metadata.name, item);
+			if (Object.keys(this.listCache).length > MAX_LIST_ENTRIES) {
+				this.pruneEntries(this.listCache, MAX_LIST_ENTRIES);
 			}
+
+			items.forEach((item) => {
+				// Use undefined for cluster-scoped resources (no namespace) instead of 'default'
+				const ns = item.metadata.namespace ?? undefined;
+				if (ns !== undefined) {
+					this.setResource(type, ns, item.metadata.name, item);
+				}
+			});
 		});
 	}
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { cn } from '$lib/utils';
-	import type { ReconciliationEntry } from '$lib/types/reconciliation';
+	import { cn } from '#lib/utils.js';
+	import type { ReconciliationEntry } from '#lib/types/reconciliation.js';
 	import VersionHistoryEntryActions from './VersionHistoryEntryActions.svelte';
 	import VersionHistoryEntryHeader from './VersionHistoryEntryHeader.svelte';
 	import VersionHistoryEntryMessage from './VersionHistoryEntryMessage.svelte';

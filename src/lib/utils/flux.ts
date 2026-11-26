@@ -1,5 +1,5 @@
-import type { K8sCondition } from '$lib/types/flux';
-import type { ResourceHealth } from '$lib/types/view';
+import type { K8sCondition } from '#lib/types/flux.js';
+import type { ResourceHealth } from '#lib/types/view.js';
 import {
 	evaluateHealthConditions,
 	hasTrueCondition,
@@ -7,7 +7,7 @@ import {
 } from './resource-health.js';
 
 // Re-export for external use
-export type { ResourceHealth } from '$lib/types/view';
+export type { ResourceHealth } from '#lib/types/view.js';
 
 /**
  * Determine resource health status from conditions and generation metadata

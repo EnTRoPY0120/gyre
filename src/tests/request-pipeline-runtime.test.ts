@@ -113,8 +113,8 @@ beforeEach(() => {
 	clusterWideReadAllowed = true;
 	resolvedRoutes.length = 0;
 
-	vi.doMock('$lib/server/logger.js', () => createLoggerModuleStub());
-	vi.doMock('$lib/server/metrics.js', () => ({
+	vi.doMock('#lib/server/logger.js', () => createLoggerModuleStub());
+	vi.doMock('#lib/server/metrics.js', () => ({
 		httpRequestDurationMicroseconds: {
 			labels: () => ({
 				observe: () => {}
@@ -123,13 +123,13 @@ beforeEach(() => {
 		loginAttemptsTotal: { labels: () => ({ inc: () => {} }) },
 		sessionsCleanedUpTotal: { inc: () => {} }
 	}));
-	vi.doMock('$lib/server/initialize.js', () => ({
+	vi.doMock('#lib/server/initialize.js', () => ({
 		initializeGyre: async () => {}
 	}));
 
 	const rateLimiterModuleStub = createRateLimiterModuleStub();
-	vi.doMock('$lib/server/rate-limiter.js', () => rateLimiterModuleStub);
-	vi.doMock('$lib/server/rate-limiter', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
+	vi.doMock('#lib/server/rate-limiter.js', () => rateLimiterModuleStub);
 
 	const betterAuthModuleStub = {
 		BETTER_AUTH_SESSION_COOKIE_NAME: 'gyre_session',
@@ -150,21 +150,21 @@ beforeEach(() => {
 			}
 		})
 	};
-	vi.doMock('$lib/server/auth/better-auth.js', () => betterAuthModuleStub);
-	vi.doMock('$lib/server/auth/better-auth', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
+	vi.doMock('#lib/server/auth/better-auth.js', () => betterAuthModuleStub);
 
-	vi.doMock('$lib/server/csrf.js', () => ({
+	vi.doMock('#lib/server/csrf.js', () => ({
 		generateCsrfToken: (sessionId: string) => `csrf:${sessionId}`,
 		validateCsrfToken: (_sessionId: string, token: string) => csrfValid && token.startsWith('csrf:')
 	}));
 
-	vi.doMock('$lib/server/clusters/repository.js', () => ({
+	vi.doMock('#lib/server/clusters/repository.js', () => ({
 		getClusterById: async () => clusterRecord,
 		getSelectableClusters: async () => []
 	}));
 
-	vi.doMock('$lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
-	vi.doMock('$lib/server/rbac.js', () =>
+	vi.doMock('#lib/server/kubernetes/errors.js', () => createKubernetesErrorsModuleStub());
+	vi.doMock('#lib/server/rbac.js', () =>
 		createRbacModuleStub({
 			checkClusterWideReadPermission: async () => clusterWideReadAllowed,
 			checkPermission: async (user, action) => {
@@ -175,7 +175,7 @@ beforeEach(() => {
 			}
 		})
 	);
-	vi.doMock('$lib/server/flux/services.js', () => ({
+	vi.doMock('#lib/server/flux/services.js', () => ({
 		getFluxInstalledVersion: async () => ({ version: 'v2.3.0' })
 	}));
 	const auditModuleStub = {
@@ -184,8 +184,8 @@ beforeEach(() => {
 		logLogout: async () => {},
 		logResourceWrite: async () => {}
 	};
-	vi.doMock('$lib/server/audit', () => auditModuleStub);
-	vi.doMock('$lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
+	vi.doMock('#lib/server/audit.js', () => auditModuleStub);
 });
 
 afterEach(async () => {
@@ -203,7 +203,7 @@ describe('request pipeline runtime coverage', () => {
 			completeStartup = resolve;
 		});
 		const initializeGyre = vi.fn(() => startup);
-		vi.doMock('$lib/server/initialize.js', () => ({ initializeGyre }));
+		vi.doMock('#lib/server/initialize.js', () => ({ initializeGyre }));
 		const { handle } = await importHooks();
 		const probe = (path: string) =>
 			handle({ event: createEvent(path).event, resolve: resolveTestRoute });
@@ -224,7 +224,7 @@ describe('request pipeline runtime coverage', () => {
 
 	test('failed startup stays unavailable without retrying or blocking liveness', async () => {
 		const initializeGyre = vi.fn().mockRejectedValue(new Error('Startup unavailable'));
-		vi.doMock('$lib/server/initialize.js', () => ({ initializeGyre }));
+		vi.doMock('#lib/server/initialize.js', () => ({ initializeGyre }));
 		const { handle } = await importHooks();
 		const probe = (path: string) =>
 			handle({ event: createEvent(path).event, resolve: resolveTestRoute });

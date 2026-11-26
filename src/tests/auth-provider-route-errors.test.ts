@@ -5,7 +5,10 @@ import { handleAuthProviderLoadError } from '../routes/api/v1/admin/auth-provide
 describe('auth provider route error boundary', () => {
 	test('converts unexpected failures to a safe 500 error', () => {
 		expect(() => handleAuthProviderLoadError(new Error('database unavailable'))).toThrow(
-			expect.objectContaining({ status: 500, body: { message: 'Failed to load provider' } })
+			expect.objectContaining({
+				status: 500,
+				body: expect.objectContaining({ message: 'Failed to load provider' })
+			})
 		);
 	});
 

@@ -1,4 +1,4 @@
-import type { ClusterOption } from '$lib/clusters/identity';
+import type { ClusterOption } from '#lib/clusters/identity.js';
 
 export interface ClusterSwitchResponse {
 	currentClusterId?: string;

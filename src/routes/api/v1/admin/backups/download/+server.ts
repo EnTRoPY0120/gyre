@@ -11,21 +11,21 @@
  * to return.
  */
 
-import { logger } from '$lib/server/logger.js';
+import { logger } from '#lib/server/logger.js';
 import { error } from '@sveltejs/kit';
-import { z, errorSchema } from '$lib/server/openapi';
+import { z, errorSchema } from '#lib/server/openapi.js';
 import type { RequestHandler } from './$types';
 import {
 	getDecryptedBackupBuffer,
 	getBackupPath,
 	BackupError,
 	BACKUP_FILENAME_RE
-} from '$lib/server/backup';
+} from '#lib/server/backup.js';
 import {
 	logPrivilegedMutationFailure,
 	logPrivilegedMutationSuccess,
 	requirePrivilegedAdminPermission
-} from '$lib/server/http/guards.js';
+} from '#lib/server/http/guards.js';
 import { createReadStream, statSync } from 'node:fs';
 import { basename } from 'node:path';
 

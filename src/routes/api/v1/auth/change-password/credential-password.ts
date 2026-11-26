@@ -1,12 +1,12 @@
 import { error } from '@sveltejs/kit';
-import type { User } from '$lib/server/db/schema.js';
-import { logger } from '$lib/server/logger.js';
-import { ADMIN_SECRET_NAME } from '$lib/server/auth/constants.js';
+import type { User } from '#lib/server/db/schema.js';
+import { logger } from '#lib/server/logger.js';
+import { ADMIN_SECRET_NAME } from '#lib/server/auth/constants.js';
 import {
 	getCredentialAccount,
 	getCredentialPasswordHash,
 	isInClusterAdmin
-} from '$lib/server/auth';
+} from '#lib/server/auth.js';
 
 /**
  * Resolve the local credential hash used by the password-change flow.
