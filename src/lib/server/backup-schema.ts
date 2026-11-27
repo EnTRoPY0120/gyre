@@ -8,6 +8,8 @@ interface Column {
 	type: string;
 	notnull: number;
 	pk: number;
+	dflt_value: string | null;
+	hidden: number;
 }
 interface TableContract {
 	columns: Column[];
@@ -19,9 +21,82 @@ interface UniqueKey {
 	partial: boolean;
 }
 
+function skipSqlTrivia(sql: string, start: number): number {
+	let index = start;
+	while (index < sql.length) {
+		if (/\s/.test(sql[index])) {
+			index++;
+		} else if (sql.startsWith('--', index)) {
+			const newline = sql.indexOf('\n', index + 2);
+			index = newline === -1 ? sql.length : newline + 1;
+		} else if (sql.startsWith('/*', index)) {
+			const end = sql.indexOf('*/', index + 2);
+			index = end === -1 ? sql.length : end + 2;
+		} else {
+			break;
+		}
+	}
+	return index;
+}
+
+function skipSqlQuoted(sql: string, start: number, quote: string): number {
+	let index = start + 1;
+	while (index < sql.length) {
+		if (sql[index] === quote) {
+			if (sql[index + 1] === quote) index += 2;
+			else return index + 1;
+		} else {
+			index++;
+		}
+	}
+	return sql.length;
+}
+
+function isIdentifierCharacter(character: string): boolean {
+	return /[A-Za-z0-9_$]/.test(character) || character.charCodeAt(0) >= 0x80;
+}
+
+/** Find actual CHECK keywords, ignoring SQL strings, comments, and quoted identifiers. */
+function hasCheckConstraint(sql: string): boolean {
+	let index = 0;
+	while (index < sql.length) {
+		const character = sql[index];
+		if (/\s/.test(character)) {
+			index++;
+		} else if (sql.startsWith('--', index) || sql.startsWith('/*', index)) {
+			index = skipSqlTrivia(sql, index);
+		} else if (character === "'") {
+			index = skipSqlQuoted(sql, index, "'");
+		} else if (character === '"' || character === '`') {
+			index = skipSqlQuoted(sql, index, character);
+		} else if (character === '[') {
+			const end = sql.indexOf(']', index + 1);
+			index = end === -1 ? sql.length : end + 1;
+		} else if (/[A-Za-z_$]/.test(character) || character.charCodeAt(0) >= 0x80) {
+			const start = index++;
+			while (index < sql.length && isIdentifierCharacter(sql[index])) index++;
+			if (
+				sql.slice(start, index).toUpperCase() === 'CHECK' &&
+				sql[skipSqlTrivia(sql, index)] === '('
+			)
+				return true;
+		} else {
+			index++;
+		}
+	}
+	return false;
+}
+
+function hasTableCheckConstraint(db: Database.Database, table: string): boolean {
+	const definition = db
+		.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?")
+		.get(table) as { sql: string | null } | undefined;
+	return definition?.sql ? hasCheckConstraint(definition.sql) : false;
+}
+
 function inspectTable(db: Database.Database, table: string): TableContract {
 	const columns = db
-		.prepare('SELECT name, type, "notnull", pk FROM pragma_table_info(?)')
+		.prepare('SELECT name, type, "notnull", pk, dflt_value, hidden FROM pragma_table_xinfo(?)')
 		.all(table) as Column[];
 	const indexes = db
 		.prepare('SELECT name, partial FROM pragma_index_list(?) WHERE "unique" = 1')
@@ -104,6 +179,11 @@ function invalid(message: string): never {
 	throw new BackupError(`Invalid backup: ${message}`, 400);
 }
 
+function rejectHiddenColumns(table: string, columns: Column[]): void {
+	const column = columns.find(({ hidden }) => hidden !== 0);
+	if (column) invalid(`${table} has an unsupported generated or hidden column: ${column.name}`);
+}
+
 /** Recognize supported sources before migrations can create missing schema around unrelated data. */
 export function validateSourceSchema(db: Database.Database): void {
 	const users = inspectTable(db, 'users');
@@ -120,7 +200,10 @@ export function validateSourceSchema(db: Database.Database): void {
 			if (legacy && LEGACY_ADDED_TABLES.has(name)) continue;
 			invalid(`missing required table: ${name}`);
 		}
+		// Canonical migrations define no CHECK constraints; uploaded CHECKs are unsupported.
+		if (hasTableCheckConstraint(db, name)) invalid(`${name} has unsupported CHECK constraints`);
 		const actual = inspectTable(db, name);
+		rejectHiddenColumns(name, actual.columns);
 		for (const column of expected.columns) {
 			const found = actual.columns.find(({ name }) => name === column.name);
 			const canAdd = LEGACY_ADDED_COLUMNS[name]?.includes(column.name);
@@ -135,6 +218,7 @@ export function validateSourceSchema(db: Database.Database): void {
 	}
 	if (tables.has('user_providers')) {
 		const columns = inspectTable(db, 'user_providers').columns;
+		rejectHiddenColumns('user_providers', columns);
 		for (const name of [
 			'provider_id',
 			'provider_user_id',
@@ -151,27 +235,34 @@ export function validateSourceSchema(db: Database.Database): void {
 /** Require all application columns, nullability, primary/unique keys and foreign-key declarations. */
 export function validateBackupSchema(db: Database.Database): void {
 	for (const [name, expected] of getCurrentContract()) {
+		// Canonical migrations define no CHECK constraints; uploaded CHECKs are unsupported.
+		if (hasTableCheckConstraint(db, name)) invalid(`${name} has unsupported CHECK constraints`);
 		const actual = inspectTable(db, name);
+		rejectHiddenColumns(name, actual.columns);
 		for (const column of expected.columns) {
 			const found = actual.columns.find(({ name }) => name === column.name);
 			if (
 				!found ||
 				found.type.toUpperCase() !== column.type.toUpperCase() ||
 				found.pk !== column.pk ||
-				found.notnull < column.notnull
+				(column.pk > 0 ? found.notnull < column.notnull : found.notnull !== column.notnull)
 			)
 				invalid(`${name} has missing or unsupported column: ${column.name}`);
 		}
-		const unsupportedRequiredColumn = actual.columns.find(
+		const unsupportedAdditionalColumn = actual.columns.find(
 			(column) =>
 				!expected.columns.some((expectedColumn) => expectedColumn.name === column.name) &&
-				column.notnull > 0 &&
-				column.pk === 0
+				(column.dflt_value !== null || (column.notnull > 0 && column.pk === 0))
 		);
-		if (unsupportedRequiredColumn)
+		if (unsupportedAdditionalColumn) {
+			if (unsupportedAdditionalColumn.notnull > 0 && unsupportedAdditionalColumn.pk === 0)
+				invalid(
+					`${name} has an unsupported additional required column: ${unsupportedAdditionalColumn.name}`
+				);
 			invalid(
-				`${name} has an unsupported additional required column: ${unsupportedRequiredColumn.name}`
+				`${name} has an unsupported additional column with a default: ${unsupportedAdditionalColumn.name}`
 			);
+		}
 		if (
 			actual.columns.filter(({ pk }) => pk).length !==
 			expected.columns.filter(({ pk }) => pk).length

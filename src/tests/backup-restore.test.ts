@@ -59,6 +59,119 @@ function createSqliteBuffer(
 	}
 }
 
+function rebuildSessions(
+	db: Database.Database,
+	options: { checkConstraint?: boolean; checkLikeText?: boolean; idNotNull?: boolean } = {}
+): void {
+	db.exec('ALTER TABLE sessions RENAME TO sessions_previous');
+	db.exec(`
+		CREATE TABLE sessions (
+			id TEXT ${options.idNotNull ? 'NOT NULL ' : ''}PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			token TEXT NOT NULL UNIQUE,
+			expires_at INTEGER NOT NULL,
+			ip_address TEXT,
+			user_agent TEXT${
+				options.checkLikeText
+					? " DEFAULT 'CHECK (expires_at < 0)' /* CHECK (expires_at < 0) */"
+					: ''
+			},
+			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch())${options.checkLikeText ? ', "CHECK" TEXT' : ''},
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE${
+				options.checkConstraint ? ', CHECK (expires_at < 0)' : ''
+			}
+		)
+	`);
+	db.exec(`
+		INSERT INTO sessions (
+			id, user_id, token, expires_at, ip_address, user_agent, created_at, updated_at
+		)
+		SELECT id, user_id, token, expires_at, ip_address, user_agent, created_at, updated_at
+		FROM sessions_previous
+	`);
+	db.exec('DROP TABLE sessions_previous');
+}
+
+function makeAuditLogUserIdNotNull(db: Database.Database): void {
+	db.exec(`
+		ALTER TABLE audit_logs RENAME TO audit_logs_previous;
+		CREATE TABLE audit_logs (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			action TEXT NOT NULL,
+			resource_type TEXT,
+			resource_name TEXT,
+			namespace TEXT,
+			cluster_id TEXT,
+			details TEXT,
+			success INTEGER NOT NULL DEFAULT 1,
+			ip_address TEXT,
+			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+		);
+		INSERT INTO audit_logs SELECT * FROM audit_logs_previous;
+		DROP TABLE audit_logs_previous;
+	`);
+}
+
+function addAuditLogOverflowingDefault(db: Database.Database): void {
+	db.exec('ALTER TABLE audit_logs ADD COLUMN extra INTEGER DEFAULT (abs(-9223372036854775808))');
+}
+
+function addAuditLogGeneratedColumn(db: Database.Database): void {
+	db.exec(`
+		ALTER TABLE audit_logs RENAME TO audit_logs_previous;
+		CREATE TABLE audit_logs (
+			id TEXT PRIMARY KEY,
+			user_id TEXT,
+			action TEXT NOT NULL,
+			resource_type TEXT,
+			resource_name TEXT,
+			namespace TEXT,
+			cluster_id TEXT,
+			details TEXT,
+			success INTEGER NOT NULL DEFAULT 1,
+			ip_address TEXT,
+			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			extra TEXT GENERATED ALWAYS AS (json_extract(id, '$')) VIRTUAL,
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+		);
+		INSERT INTO audit_logs (
+			id, user_id, action, resource_type, resource_name, namespace, cluster_id,
+			details, success, ip_address, created_at
+		)
+		SELECT
+			id, user_id, action, resource_type, resource_name, namespace, cluster_id,
+			details, success, ip_address, created_at
+		FROM audit_logs_previous;
+		DROP TABLE audit_logs_previous;
+	`);
+}
+
+function makeExpectedSessionColumnGenerated(db: Database.Database): void {
+	db.exec(`
+		ALTER TABLE sessions RENAME TO sessions_previous;
+		CREATE TABLE sessions (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			token TEXT NOT NULL UNIQUE,
+			expires_at INTEGER NOT NULL,
+			ip_address TEXT,
+			user_agent TEXT GENERATED ALWAYS AS (json_extract(id, '$')) VIRTUAL,
+			created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+		);
+		INSERT INTO sessions (
+			id, user_id, token, expires_at, ip_address, created_at, updated_at
+		)
+		SELECT id, user_id, token, expires_at, ip_address, created_at, updated_at
+		FROM sessions_previous;
+		DROP TABLE sessions_previous;
+	`);
+}
+
 function assertLivePreserved() {
 	const db = new Database(databasePath, { readonly: true });
 	try {
@@ -139,6 +252,23 @@ describe('restoreFromBuffer', () => {
 			(db: Database.Database) => db.exec('ALTER TABLE sessions ADD COLUMN extra TEXT NOT NULL')
 		],
 		[
+			'unsupported CHECK constraint',
+			(db: Database.Database) => rebuildSessions(db, { checkConstraint: true })
+		],
+		[
+			'stricter nullability on a nullable application column',
+			(db: Database.Database) => makeAuditLogUserIdNotNull(db)
+		],
+		[
+			'additional column with a failing default expression',
+			(db: Database.Database) => addAuditLogOverflowingDefault(db)
+		],
+		['additional generated column', (db: Database.Database) => addAuditLogGeneratedColumn(db)],
+		[
+			'generated replacement for an expected column',
+			(db: Database.Database) => makeExpectedSessionColumnGenerated(db)
+		],
+		[
 			'incompatible additional unique key',
 			(db: Database.Database) =>
 				db.exec('CREATE UNIQUE INDEX sessions_user_id_unique ON sessions(user_id)')
@@ -175,7 +305,7 @@ describe('restoreFromBuffer', () => {
 			'missing primary key',
 			(db: Database.Database) =>
 				db.exec(
-					'DROP TABLE rbac_bindings; CREATE TABLE rbac_bindings (user_id TEXT NOT NULL, policy_id TEXT NOT NULL, created_at INTEGER NOT NULL)'
+					'DROP TABLE rbac_bindings; CREATE TABLE rbac_bindings (user_id TEXT NOT NULL, policy_id TEXT NOT NULL, created_at INTEGER NOT NULL DEFAULT (unixepoch()), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE, FOREIGN KEY (policy_id) REFERENCES rbac_policies(id) ON DELETE CASCADE)'
 				)
 		],
 		[
@@ -237,6 +367,26 @@ describe('restoreFromBuffer', () => {
 			'ordinary nonunique index',
 			(db: Database.Database) =>
 				db.exec('CREATE INDEX sessions_user_id_lookup ON sessions(user_id)')
+		],
+		[
+			'CHECK-like text in a quoted identifier, string, and comment',
+			(db: Database.Database) => {
+				rebuildSessions(db, { checkLikeText: true });
+				const { sql } = db
+					.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sessions'")
+					.get() as { sql: string };
+				expect(sql).toContain('"CHECK"');
+				expect(sql).toContain("'CHECK (expires_at < 0)'");
+				expect(sql).toContain('/* CHECK (expires_at < 0) */');
+			}
+		],
+		[
+			'plain nullable additional column',
+			(db: Database.Database) => db.exec('ALTER TABLE sessions ADD COLUMN harmless TEXT')
+		],
+		[
+			'stricter nullability on a primary-key column',
+			(db: Database.Database) => rebuildSessions(db, { idNotNull: true })
 		]
 	])('accepts compatible %s', async (_name, mutate) => {
 		seedCurrentDatabase();
