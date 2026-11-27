@@ -1,9 +1,17 @@
 name: Create Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      image_digest:
+        required: true
+        type: string
+      platforms:
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -11,18 +19,14 @@ permissions:
 
 jobs:
   release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && inputs.tag == github.ref_name
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout tested version
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Get tag info
-        id: tag
-        run: |
-          TAG_NAME=${GITHUB_REF#refs/tags/}
-          VERSION=${TAG_NAME#v}
-          echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
 
       - name: Setup Helm
         uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5
@@ -30,73 +34,14 @@ jobs:
           version: 'v4.3.0'
 
       - name: Log in to GHCR
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GH_TOKEN" | helm registry login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
 
-      - name: Package and push Helm chart to OCI
-        run: |
-          helm package charts/gyre --version ${{ steps.tag.outputs.version }} --app-version ${{ steps.tag.outputs.version }}
-          helm push gyre-${{ steps.tag.outputs.version }}.tgz oci://ghcr.io/entropy0120/charts
-
-      - name: Generate Release Notes
-        id: notes
-        run: |
-          cat << 'EOF' > release_notes.md
-          ## 🚀 Release ${{ steps.tag.outputs.tag_name }}
-
-          ### 📦 Docker Images
-
-          Pull the Docker image:
-          ```bash
-          docker pull ghcr.io/entropy0120/gyre:${{ steps.tag.outputs.version }}
-          docker pull ghcr.io/entropy0120/gyre:latest
-          docker pull ghcr.io/entropy0120/gyre:main
-          ```
-
-          ### ⎈ Kubernetes Installation
-
-          **Using Helm:**
-          ```bash
-          helm install gyre oci://ghcr.io/entropy0120/charts/gyre \
-            --version ${{ steps.tag.outputs.version }} \
-            --namespace flux-system \
-            --create-namespace
-          ```
-
-          For initial setup and credentials, see the [Installation Guide](https://entropy0120.github.io/gyre/installation).
-
-          ### 📋 What's Included
-
-          - **Docker image** (linux/amd64)
-          - **Production-ready Helm chart**
-          - **Comprehensive RBAC configuration**
-          - **Auto-generated admin credentials**
-
-          ### 📚 Documentation
-
-          - [Installation Guide](https://entropy0120.github.io/gyre/getting-started)
-          - [Helm Chart Documentation](https://entropy0120.github.io/gyre/installation)
-
-          ### 🔗 Links
-
-          - **Docker Image**: [ghcr.io/entropy0120/gyre](https://github.com/EnTRoPY0120/gyre/pkgs/container/gyre)
-          - **Source Code**: [GitHub Repository](https://github.com/EnTRoPY0120/gyre)
-          - **Issues**: [Report a bug](https://github.com/EnTRoPY0120/gyre/issues)
-          EOF
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v2
-        with:
-          name: Release ${{ steps.tag.outputs.tag_name }}
-          body_path: release_notes.md
-          draft: false
-          prerelease: ${{ contains(steps.tag.outputs.tag_name, '-') }}
-          generate_release_notes: true
-
-      - name: Release Summary
-        run: |
-          echo "### ✅ Release Created Successfully" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.tag.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Docker Image:** \`ghcr.io/entropy0120/gyre:${{ steps.tag.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/${{ steps.tag.outputs.tag_name }}" >> $GITHUB_STEP_SUMMARY
+      - name: Publish chart then create release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+          IMAGE_PLATFORMS: ${{ inputs.platforms }}
+        run: bash scripts/publish-release.sh "$RELEASE_TAG" "$IMAGE_DIGEST" "$IMAGE_PLATFORMS"
